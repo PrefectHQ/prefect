@@ -6,6 +6,7 @@ Module containing the base workflow class and decorator - for most use cases, us
 
 import inspect
 import os
+import warnings
 from functools import partial, update_wrapper
 from tempfile import NamedTemporaryFile
 from typing import (
@@ -17,8 +18,8 @@ from typing import (
     Dict,
     Generic,
     Iterable,
+    List,
     NoReturn,
-    Set,
     Type,
     TypeVar,
     Union,
@@ -32,6 +33,7 @@ from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
 
 from prefect import State
+from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.exceptions import (
     MissingFlowError,
     ParameterTypeError,
@@ -43,9 +45,8 @@ from prefect.orion.utilities.functions import parameter_schema
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncio import is_async_fn
 from prefect.utilities.callables import get_call_parameters, parameters_to_args_kwargs
-from prefect.utilities.collections import extract_instances, listrepr
+from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.importtools import objects_from_script
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -54,6 +55,7 @@ P = ParamSpec("P")  # The parameters of the flow
 logger = get_logger("flows")
 
 
+@PrefectObjectRegistry.register_instances
 class Flow(Generic[P, R]):
     """
     A Prefect workflow definition.
@@ -85,6 +87,9 @@ class Flow(Generic[P, R]):
             type; for example, if a parameter is defined as `x: int` and "5" is passed,
             it will be resolved to `5`. If set to `False`, no validation will be
             performed on flow parameters.
+        retries: An optional number of times to retry on flow run failure.
+        retry_delay_seconds: An optional number of seconds to wait before retrying the
+            flow after failure. This is only applicable if `retries` is nonzero.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -94,6 +99,8 @@ class Flow(Generic[P, R]):
         fn: Callable[P, R],
         name: str = None,
         version: str = None,
+        retries: int = 0,
+        retry_delay_seconds: Union[int, float] = 0,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
         description: str = None,
         timeout_seconds: Union[int, float] = None,
@@ -128,6 +135,12 @@ class Flow(Generic[P, R]):
 
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
 
+        # FlowRunPolicy settings
+        # TODO: We can instantiate a `FlowRunPolicy` and add Pydantic bound checks to
+        #       validate that the user passes positive numbers here
+        self.retries = retries
+        self.retry_delay_seconds = retry_delay_seconds
+
         self.parameters = parameter_schema(self.fn)
         self.should_validate_parameters = validate_parameters
 
@@ -144,11 +157,30 @@ class Flow(Generic[P, R]):
                     "Disable validation or change the argument names."
                 ) from exc
 
+        # Check for collision in the registry
+        registry = PrefectObjectRegistry.get()
+
+        if registry and any(
+            other
+            for other in registry.get_instances(Flow)
+            if other.name == self.name and id(other.fn) != id(self.fn)
+        ):
+            file = inspect.getsourcefile(self.fn)
+            line_number = inspect.getsourcelines(self.fn)[1]
+            warnings.warn(
+                f"A flow named {self.name!r} and defined at '{file}:{line_number}' "
+                "conflicts with another flow. Consider specifying a unique `name` "
+                "parameter in the flow definition:\n\n "
+                "`@flow(name='my_unique_name', ...)`"
+            )
+
     def with_options(
         self,
         *,
         name: str = None,
         version: str = None,
+        retries: int = 0,
+        retry_delay_seconds: Union[int, float] = 0,
         description: str = None,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = None,
         timeout_seconds: Union[int, float] = None,
@@ -345,6 +377,8 @@ def flow(
     *,
     name: str = None,
     version: str = None,
+    retries: int = 0,
+    retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
@@ -358,6 +392,8 @@ def flow(
     *,
     name: str = None,
     version: str = None,
+    retries: int = 0,
+    retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
@@ -389,6 +425,9 @@ def flow(
             type; for example, if a parameter is defined as `x: int` and "5" is passed,
             it will be resolved to `5`. If set to `False`, no validation will be
             performed on flow parameters.
+        retries: An optional number of times to retry on flow run failure.
+        retry_delay_seconds: An optional number of seconds to wait before retrying the
+            flow after failure. This is only applicable if `retries` is nonzero.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -439,6 +478,8 @@ def flow(
                 description=description,
                 timeout_seconds=timeout_seconds,
                 validate_parameters=validate_parameters,
+                retries=retries,
+                retry_delay_seconds=retry_delay_seconds,
             ),
         )
     else:
@@ -452,6 +493,8 @@ def flow(
                 description=description,
                 timeout_seconds=timeout_seconds,
                 validate_parameters=validate_parameters,
+                retries=retries,
+                retry_delay_seconds=retry_delay_seconds,
             ),
         )
 
@@ -497,24 +540,19 @@ def select_flow(
         return list(flows.values())[0]
 
 
-def load_flows_from_script(path: str) -> Set[Flow]:
+def load_flows_from_script(path: str) -> List[Flow]:
     """
     Load all flow objects from the given python script. All of the code in the file
     will be executed.
 
     Returns:
-        A set of flows
+        A list of flows
 
     Raises:
         FlowScriptError: If an exception is encountered while running the script
     """
-    from prefect.context import PrefectObjectRegistry
 
-    with PrefectObjectRegistry() as registry:
-        with registry.block_code_execution():
-            objects = objects_from_script(path)
-
-    return set(extract_instances(objects.values(), types=Flow))
+    return registry_from_script(path).get_instances(Flow)
 
 
 def load_flow_from_script(path: str, flow_name: str = None) -> Flow:

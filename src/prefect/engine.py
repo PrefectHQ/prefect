@@ -19,11 +19,12 @@ import logging
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, Optional, Set, TypeVar, Union
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import anyio
 import pendulum
 from anyio import start_blocking_portal
+from typing_extensions import Literal
 
 import prefect
 import prefect.context
@@ -51,7 +52,9 @@ from prefect.logging.loggers import (
 from prefect.orion.schemas import core
 from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.responses import SetStateStatus
+from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import Failed, Pending, Running, State, StateDetails
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
@@ -64,7 +67,7 @@ from prefect.utilities.asyncio import (
     gather,
     in_async_main_thread,
     run_async_from_worker_thread,
-    run_sync_in_worker_thread,
+    run_sync_in_interruptible_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import Quote, visit_collection
@@ -86,7 +89,7 @@ def enter_flow_run_engine_from_flow_call(
     setup_logging()
 
     registry = PrefectObjectRegistry.get()
-    if registry.code_execution_blocked:
+    if registry and registry.block_code_execution:
         engine_logger.warning(
             f"Script loading is in progress, flow {flow.name!r} will not be executed. "
             "Consider updating the script to only call the flow if executed directly:\n\n"
@@ -356,60 +359,85 @@ async def create_and_begin_subflow_run(
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
 
     # Generate a task in the parent flow run to represent the result of the subflow run
+    dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
     parent_task_run = await client.create_task_run(
-        task=Task(name=flow.name, fn=lambda _: ...),
+        task=dummy_task,
         flow_run_id=parent_flow_run_context.flow_run.id,
-        dynamic_key=uuid4().hex,  # TODO: We can use a more friendly key here if needed
+        dynamic_key=_dynamic_key_for_task_run(parent_flow_run_context, dummy_task),
         task_inputs=task_inputs,
+        state=Pending(),
     )
 
     # Resolve any task futures in the input
     parameters = await resolve_futures_to_data(parameters)
 
-    flow_run = await client.create_flow_run(
-        flow,
-        parameters=flow.serialize_parameters(parameters),
-        parent_task_run_id=parent_task_run.id,
-        state=Pending(),
-        tags=TagsContext.get().current_tags,
-    )
+    if parent_task_run.state.is_final():
 
-    parent_logger.info(f"Created subflow run {flow_run.name!r} for flow {flow.name!r}")
-    logger = flow_run_logger(flow_run, flow)
-
-    if flow.should_validate_parameters:
-        try:
-            parameters = flow.validate_parameters(parameters)
-        except Exception as exc:
-            state = Failed(
-                message="Flow run received invalid parameters.",
-                data=DataDocument.encode("cloudpickle", exc),
-            )
-            await client.propose_state(
-                state=state,
-                flow_run_id=flow_run.id,
-            )
-            logger.error("Received invalid parameters", exc_info=True)
-            return state
-
-    async with AsyncExitStack() as stack:
-        await stack.enter_async_context(
-            report_flow_run_crashes(flow_run=flow_run, client=client)
-        )
-        task_runner = await stack.enter_async_context(flow.task_runner.start())
-
-        terminal_state = await orchestrate_flow_run(
-            flow,
-            flow_run=flow_run,
-            parameters=parameters,
-            client=client,
-            partial_flow_run_context=PartialModel(
-                FlowRunContext,
-                sync_portal=parent_flow_run_context.sync_portal,
-                result_storage=parent_flow_run_context.result_storage,
-                task_runner=task_runner,
+        # Retrieve the most recent flow run from the database
+        flow_runs = await client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                parent_task_run_id={"any_": [parent_task_run.id]}
             ),
+            sort=FlowRunSort.EXPECTED_START_TIME_ASC,
         )
+        flow_run = flow_runs[-1]
+
+        # Hydrate the retrieved state
+        flow_run.state.data._cache_data(
+            await client.resolve_datadoc(flow_run.state.data)
+        )
+
+        # Set up variables required downstream
+        terminal_state = flow_run.state
+        logger = flow_run_logger(flow_run, flow)
+
+    else:
+        flow_run = await client.create_flow_run(
+            flow,
+            parameters=flow.serialize_parameters(parameters),
+            parent_task_run_id=parent_task_run.id,
+            state=parent_task_run.state,
+            tags=TagsContext.get().current_tags,
+        )
+
+        parent_logger.info(
+            f"Created subflow run {flow_run.name!r} for flow {flow.name!r}"
+        )
+        logger = flow_run_logger(flow_run, flow)
+
+        if flow.should_validate_parameters:
+            try:
+                parameters = flow.validate_parameters(parameters)
+            except Exception as exc:
+                state = Failed(
+                    message="Flow run received invalid parameters.",
+                    data=DataDocument.encode("cloudpickle", exc),
+                )
+                await client.propose_state(
+                    state=state,
+                    flow_run_id=flow_run.id,
+                )
+                logger.error("Received invalid parameters", exc_info=True)
+                return state
+
+        async with AsyncExitStack() as stack:
+            await stack.enter_async_context(
+                report_flow_run_crashes(flow_run=flow_run, client=client)
+            )
+            task_runner = await stack.enter_async_context(flow.task_runner.start())
+
+            terminal_state = await orchestrate_flow_run(
+                flow,
+                flow_run=flow_run,
+                parameters=parameters,
+                client=client,
+                partial_flow_run_context=PartialModel(
+                    FlowRunContext,
+                    sync_portal=parent_flow_run_context.sync_portal,
+                    result_storage=parent_flow_run_context.result_storage,
+                    task_runner=task_runner,
+                ),
+            )
 
     # Display the full state (including the result) if debugging
     display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
@@ -449,12 +477,6 @@ async def orchestrate_flow_run(
     """
     logger = flow_run_logger(flow_run, flow)
 
-    # TODO: Implement state orchestation logic using return values from the API
-    await client.propose_state(
-        Running(),
-        flow_run_id=flow_run.id,
-    )
-
     timeout_context = (
         anyio.fail_after(flow.timeout_seconds)
         if flow.timeout_seconds
@@ -462,80 +484,116 @@ async def orchestrate_flow_run(
     )
     flow_run_context = None
 
-    try:
-        with timeout_context as timeout_scope:
-            with partial_flow_run_context.finalize(
-                flow=flow,
-                flow_run=flow_run,
-                client=client,
-                timeout_scope=timeout_scope,
-            ) as flow_run_context:
-                args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
-                logger.debug(
-                    f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
-                )
+    state = await client.propose_state(Running(), flow_run_id=flow_run.id)
 
-                if PREFECT_DEBUG_MODE:
-                    logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
-                else:
+    while state.is_running():
+        waited_for_task_runs = False
+
+        # Update the flow run to the latest data
+        flow_run = await client.read_flow_run(flow_run.id)
+
+        try:
+            with timeout_context as timeout_scope:
+                with partial_flow_run_context.finalize(
+                    flow=flow,
+                    flow_run=flow_run,
+                    client=client,
+                    timeout_scope=timeout_scope,
+                ) as flow_run_context:
+                    args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                     logger.debug(
-                        f"Beginning execution...", extra={"state_message": True}
+                        f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
                     )
 
-                flow_call = partial(flow.fn, *args, **kwargs)
+                    if PREFECT_DEBUG_MODE:
+                        logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
+                    else:
+                        logger.debug(
+                            f"Beginning execution...", extra={"state_message": True}
+                        )
 
-                if flow.isasync:
-                    result = await flow_call()
-                else:
-                    result = await run_sync_in_worker_thread(flow_call)
+                    flow_call = partial(flow.fn, *args, **kwargs)
 
+                    if flow.isasync:
+                        result = await flow_call()
+                    else:
+                        result = await run_sync_in_interruptible_worker_thread(
+                            flow_call
+                        )
+
+                waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
+                    flow_run_context.task_run_futures, client=client
+                )
+
+        except TimeoutError as exc:
+            # TODO: Cancel task runs if feasible
+            terminal_state = Failed(
+                name="TimedOut",
+                message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
+            )
+        except Exception as exc:
+            logger.error(
+                f"Encountered exception during execution:",
+                exc_info=True,
+            )
+            terminal_state = Failed(
+                message="Flow run encountered an exception.",
+                data=DataDocument.encode("cloudpickle", exc),
+            )
+        else:
+            if result is None:
+                # All tasks and subflows are reference tasks if there is no return value
+                # If there are no tasks, use `None` instead of an empty iterable
+                result = (
+                    flow_run_context.task_run_futures + flow_run_context.subflow_states
+                ) or None
+
+            terminal_state = await return_value_to_state(
+                result, serializer="cloudpickle"
+            )
+
+        if not waited_for_task_runs:
+            # An exception occured that prevented us from waiting for task runs to
+            # complete. Ensure that we wait for them before proposing a final state
+            # for the flow run.
             await wait_for_task_runs_and_report_crashes(
                 flow_run_context.task_run_futures, client=client
             )
 
-    except TimeoutError as exc:
-        state = Failed(
-            name="TimedOut",
-            message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
+        # Before setting the flow run state, store state.data using
+        # block storage and send the resulting data document to the Orion API instead.
+        # This prevents the pickled return value of flow runs
+        # from being sent to the Orion API and stored in the Orion database.
+        # state.data is left as is, otherwise we would have to load
+        # the data from block storage again after storing.
+        state = await client.propose_state(
+            state=terminal_state,
+            flow_run_id=flow_run.id,
+            backend_state_data=(
+                await client.persist_data(
+                    terminal_state.data.json().encode(),
+                    block=flow_run_context.result_storage,
+                )
+                if terminal_state.data is not None and flow_run_context
+                # if None is passed, state.data will be sent
+                # to the Orion API and stored in the database
+                else None
+            ),
         )
-    except Exception as exc:
-        logger.error(
-            f"Encountered exception during execution:",
-            exc_info=True,
-        )
-        state = Failed(
-            message="Flow run encountered an exception.",
-            data=DataDocument.encode("cloudpickle", exc),
-        )
-    else:
-        if result is None:
-            # All tasks and subflows are reference tasks if there is no return value
-            # If there are no tasks, use `None` instead of an empty iterable
-            result = (
-                flow_run_context.task_run_futures + flow_run_context.subflow_states
-            ) or None
 
-        state = await return_value_to_state(result, serializer="cloudpickle")
-
-    # Before setting the flow run state, store state.data using
-    # block storage and send the resulting data document to the Orion API instead.
-    # This prevents the pickled return value of flow runs
-    # from being sent to the Orion API and stored in the Orion database.
-    # state.data is left as is, otherwise we would have to load
-    # the data from block storage again after storing.
-    state = await client.propose_state(
-        state=state,
-        flow_run_id=flow_run.id,
-        backend_state_data=(
-            await client.persist_data(
-                state.data.json().encode(), block=flow_run_context.result_storage
+        if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
+            logger.debug(
+                f"Received new state {state} when proposing final state {terminal_state}",
+                extra={"send_to_orion": False},
             )
-            if state.data is not None and flow_run_context
-            # if None is passed, state.data will be sent
-            # to the Orion API and stored in the database
-            else None
-        ),
-    )
+
+        if not state.is_final():
+            logger.info(
+                f"Received non-final state {state.name!r} when proposing final state {terminal_state.name!r} and will attempt to run again...",
+                extra={"send_to_orion": False},
+            )
+            # Attempt to enter a running state again
+            state = await client.propose_state(Running(), flow_run_id=flow_run.id)
 
     return state
 
@@ -603,7 +661,7 @@ async def collect_task_run_inputs(
 
     async def add_futures_and_states_to_inputs(obj):
         if isinstance(obj, PrefectFuture):
-            inputs.add(core.TaskRunResult(id=obj.run_id))
+            inputs.add(core.TaskRunResult(id=obj.task_run.id))
 
         if isinstance(obj, State):
             if obj.state_details.task_run_id:
@@ -648,7 +706,8 @@ async def create_and_submit_task_run(
     logger.info(f"Created task run {task_run.name!r} for task {task.name!r}")
 
     future = await flow_run_context.task_runner.submit(
-        task_run,
+        task_run=task_run,
+        run_key=f"{task_run.name}-{task_run.id.hex}-{flow_run_context.flow_run.run_count}",
         run_fn=begin_task_run,
         run_kwargs=dict(
             task=task,
@@ -740,8 +799,10 @@ async def begin_task_run(
         except Abort:
             # Task run already completed, just fetch its state
             task_run = await client.read_task_run(task_run.id)
-            # TODO: The state's data will need to be resolved from a document into a
-            #       concrete value as would be expected from a normal return value
+            # Hydrate the state data
+            task_run.state.data._cache_data(
+                await client.resolve_datadoc(task_run.state.data)
+            )
             return task_run.state
 
 
@@ -824,7 +885,9 @@ async def orchestrate_task_run(
                 if task.isasync:
                     result = await task.fn(*args, **kwargs)
                 else:
-                    result = await run_sync_in_worker_thread(task.fn, *args, **kwargs)
+                    result = await run_sync_in_interruptible_worker_thread(
+                        task.fn, *args, **kwargs
+                    )
 
         except Exception as exc:
             logger.error(
@@ -898,7 +961,7 @@ async def orchestrate_task_run(
 
 async def wait_for_task_runs_and_report_crashes(
     task_run_futures: Iterable[PrefectFuture], client: OrionClient
-) -> None:
+) -> Literal[True]:
     crash_exceptions = []
 
     # Gather states concurrently first
@@ -921,11 +984,11 @@ async def wait_for_task_runs_and_report_crashes(
         )
         if result.status == SetStateStatus.ACCEPT:
             engine_logger.debug(
-                f"Reported crashed task run {future.task_run.name!r} successfully."
+                f"Reported crashed task run {future.run_key!r} successfully."
             )
         else:
             engine_logger.warning(
-                f"Failed to report crashed task run {future.task_run.name!r}. "
+                f"Failed to report crashed task run {future.run_key!r}. "
                 f"Orchestrator did not accept state: {result!r}"
             )
 
@@ -935,6 +998,8 @@ async def wait_for_task_runs_and_report_crashes(
     for exception in crash_exceptions:
         if isinstance(exception, (KeyboardInterrupt, SystemExit)):
             raise exception
+
+    return True
 
 
 @asynccontextmanager
