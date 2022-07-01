@@ -28,7 +28,6 @@ async def all_states_policy(session, notifier_block):
         await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My EVERYTHING Policy",
                 state_names=[],
                 tags=[],
                 block_document_id=notifier_block.id,
@@ -45,7 +44,6 @@ async def completed_policy(session, notifier_block):
         await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My Success Policy",
                 state_names=["Completed"],
                 tags=[],
                 block_document_id=notifier_block.id,
@@ -62,7 +60,6 @@ async def completed_etl_policy(session, notifier_block):
         await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My Success ETL Policy",
                 state_names=["Completed"],
                 tags=["ETL"],
                 block_document_id=notifier_block.id,
@@ -79,7 +76,6 @@ async def failed_policy(session, notifier_block):
         await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My Failed Policy",
                 state_names=["Failed"],
                 tags=[],
                 block_document_id=notifier_block.id,
@@ -95,14 +91,12 @@ class TestCreateFlowRunNotificationPolicy:
         policy = await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My Success Policy",
                 state_names=["Completed"],
                 tags=[],
                 block_document_id=notifier_block.id,
             ),
         )
         await session.commit()
-        assert policy.name == "My Success Policy"
         assert policy.state_names == ["Completed"]
 
 
@@ -112,7 +106,6 @@ class TestReadFlowRunNotificationPolicy:
             session=session, flow_run_notification_policy_id=completed_policy.id
         )
         assert policy.id == completed_policy.id
-        assert policy.name == completed_policy.name
 
     async def test_read_policy_with_invalid_id(self, session):
         policy = await models.flow_run_notification_policies.read_flow_run_notification_policy(
