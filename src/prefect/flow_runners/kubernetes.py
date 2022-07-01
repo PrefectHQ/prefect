@@ -244,7 +244,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
                 if event["object"].status.phase == "Running":
                     watch.stop()
                     return event["object"]
-        self.logger.error(f"Pod never started. Job: {job_name}")
+        raise RuntimeError(f"Pod never started. Job: {job_name}")
 
     def _watch_job(self, job_name: str) -> bool:
         job = self._get_job(job_name)
