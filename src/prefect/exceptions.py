@@ -95,7 +95,7 @@ class DeploymentValidationError(PrefectException, ValueError):
         if identifier:
             identifier = f" {identifier!r}"
 
-        return f"Deployment specification{identifier} failed validation: {self.message}"
+        return f"Deployment{identifier} failed validation: {self.message}"
 
 
 class ScriptError(PrefectException):
@@ -112,12 +112,10 @@ class ScriptError(PrefectException):
         super().__init__(message)
         self.user_exc = user_exc
 
-        import runpy
-
         # Strip script run information from the traceback
         self.user_exc.__traceback__ = _trim_traceback(
             self.user_exc.__traceback__,
-            remove_modules=[prefect.utilities.importtools, runpy],
+            remove_modules=[prefect.utilities.importtools],
         )
 
 
