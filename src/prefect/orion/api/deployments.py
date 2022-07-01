@@ -290,12 +290,18 @@ async def create_flow_run_from_deployment(
 
 
 @router.get("/{id}/work_queue_check")
-async def check_work_queues_for_deployment(
+async def work_queue_check_for_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.WorkQueue]:
     """
-    Get work-queues that are able to pick up the specified deployment.
+    Get list of work-queues that are able to pick up the specified deployment.
+
+    This endpoint is intended to be used by the UI to provide users warnings
+    about deployments that are unable to be executed because there are no work
+    queues that will pick up their runs, based on existing filter criteria. It
+    may be deprecated in the future because there is not a strict relationship
+    between work queues and deployments.
     """
     try:
         work_queues = await models.deployments.check_work_queues_for_deployment(
