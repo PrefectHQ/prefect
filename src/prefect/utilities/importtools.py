@@ -137,3 +137,29 @@ def load_script_as_module(path: str) -> ModuleType:
         raise ScriptError(user_exc=exc, path=path) from exc
 
     return module
+
+
+def lazy_import(name: str) -> ModuleType:
+    """
+    Create a lazily-imported module to use in place of the module of the given name.
+    Use this to retain module-level imports for libraries that we don't want to
+    actually import until they are needed.
+
+    Note: this still raises `ModuleNotFoundError` if the given module is not installed,
+    it is merely deferring the import of the module until its attributes are accessed.
+
+    Adapted from the [Python documentation][1], which gives this exact example.
+
+    [1]: https://docs.python.org/3/library/importlib.html#implementing-lazy-imports
+    """
+    spec = importlib.util.find_spec(name)
+    if not spec:
+        raise ModuleNotFoundError(
+            f"No module named {name!r} available for lazy importing"
+        )
+    loader = importlib.util.LazyLoader(spec.loader)
+    spec.loader = loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    loader.exec_module(module)
+    return module
