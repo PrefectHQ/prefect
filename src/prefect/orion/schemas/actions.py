@@ -119,6 +119,7 @@ class FlowRunCreate(
             "idempotency_key",
             "parent_task_run_id",
             "flow_runner",
+            "empirical_policy",
         ],
     )
 ):
@@ -141,6 +142,7 @@ class DeploymentFlowRunCreate(
             "tags",
             "idempotency_key",
             "flow_runner",
+            "empirical_policy",
         ],
     )
 ):
@@ -340,7 +342,6 @@ class FlowRunNotificationPolicyCreate(
     schemas.core.FlowRunNotificationPolicy.subclass(
         "FlowRunNotificationPolicyCreate",
         include_fields=[
-            "name",
             "is_active",
             "state_names",
             "tags",
@@ -361,7 +362,6 @@ class FlowRunNotificationPolicyUpdate(PrefectBaseModel):
     class Config:
         extra = "forbid"
 
-    name: Optional[str] = None
     is_active: Optional[bool] = None
     state_names: Optional[List[str]] = None
     tags: Optional[List[str]] = None

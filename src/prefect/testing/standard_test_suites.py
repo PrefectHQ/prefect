@@ -341,6 +341,7 @@ class TaskRunnerStandardTestSuite(ABC):
         async with task_runner.start():
             fut = await task_runner.submit(
                 task_run=task_run,
+                run_key=f"{task_run.name}-{task_run.id.hex}",
                 run_fn=fake_orchestrate_task_run,
                 run_kwargs=dict(example_kwarg=1),
             )
@@ -369,7 +370,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         async with task_runner.start():
             future = await task_runner.submit(
-                task_run=task_run, run_fn=fake_orchestrate_task_run, run_kwargs={}
+                task_run=task_run,
+                run_key=f"{task_run.name}-{task_run.id.hex}",
+                run_fn=fake_orchestrate_task_run,
+                run_kwargs={},
             )
 
             state = await task_runner.wait(future, 5)

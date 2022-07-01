@@ -14,8 +14,8 @@
   },
   "dependencies": {
     "@prefecthq/miter-design": "0.1.34",
-    "@prefecthq/orion-design": "1.0.21",
-    "@prefecthq/prefect-design": "1.0.9",
+    "@prefecthq/orion-design": "^1.0.26",
+    "@prefecthq/prefect-design": "^1.0.11",
     "@prefecthq/vue-compositions": "0.1.35",
     "@types/lodash.debounce": "4.0.7",
     "axios": "0.27.2",

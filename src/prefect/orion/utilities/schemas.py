@@ -5,13 +5,17 @@ import copy
 import datetime
 import json
 import os
+from functools import partial
 from typing import Any, Dict, List, Set, TypeVar
 from uuid import UUID, uuid4
 
 import pendulum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretBytes, SecretStr
+from pydantic.json import custom_pydantic_encoder
 
 T = TypeVar("T")
+
+OBFUSCATED_SECRET = "**********"
 
 
 def pydantic_subclass(
@@ -163,6 +167,29 @@ class PrefectBaseModel(BaseModel):
             return copy_dict == other.dict()
         else:
             return copy_dict == other
+
+    def json(self, *args, include_secrets: bool = False, **kwargs) -> str:
+        """
+        Returns a representation of the model as JSON.
+
+        If `include_secrets=True`, then `SecretStr` and `SecretBytes` objects are
+        fully revealed. Otherwise they are obfuscated.
+
+        """
+        if include_secrets:
+            if "encoder" in kwargs:
+                raise ValueError(
+                    "Alternative encoder provided; can not set encoder for SecretStr and SecretBytes."
+                )
+            kwargs["encoder"] = partial(
+                custom_pydantic_encoder,
+                {
+                    SecretStr: lambda v: v.get_secret_value() if v else None,
+                    SecretBytes: lambda v: v.get_secret_value() if v else None,
+                },
+            )
+
+        return super().json(*args, **kwargs)
 
     def dict(
         self, *args, shallow: bool = False, json_compatible: bool = False, **kwargs

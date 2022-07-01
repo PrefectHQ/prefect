@@ -187,6 +187,37 @@ class TestTaskCall:
         assert task_state.result() == (1, 2, dict(x=3, y=4, z=5))
 
 
+class TestTaskVersion:
+    def test_task_version_defaults_to_null(self):
+        @task
+        def my_task():
+            pass
+
+        assert my_task.version is None
+
+    def test_task_version_can_be_provided(self):
+        @task(version="test-dev-experimental")
+        def my_task():
+            pass
+
+        assert my_task.version == "test-dev-experimental"
+
+    async def test_task_version_is_set_in_backend(self, orion_client):
+        @task(version="test-dev-experimental")
+        def my_task():
+            pass
+
+        @flow
+        def test():
+            return my_task()
+
+        flow_state = test()
+        task_run = await orion_client.read_task_run(
+            flow_state.result().state_details.task_run_id
+        )
+        assert task_run.task_version == "test-dev-experimental"
+
+
 class TestTaskFutures:
     def test_tasks_return_futures(self):
         @task
@@ -358,7 +389,7 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function()
-            return future.run_id, future.wait()
+            return future.task_run.id, future.wait()
 
         flow_state = test_flow()
         task_run_id, task_run_state = flow_state.result()
@@ -401,7 +432,7 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function()
-            return future.run_id, future.wait()
+            return future.task_run.id, future.wait()
 
         flow_state = test_flow()
         task_run_id, task_run_state = flow_state.result()
@@ -1299,6 +1330,9 @@ class TestTaskWithOptions:
         )
         # `with_options` does not accept a new function
         task_params.remove("__fn")
+        # it doesn't make sense to take the same task definition and change versions
+        # tags should be used for distinguishing different calls where necessary
+        task_params.remove("version")
         # `self` isn't in task decorator
         with_options_params.remove("self")
         assert task_params == with_options_params
@@ -1311,7 +1345,7 @@ class TestTaskRegistration:
             pass
 
         registry = PrefectObjectRegistry.get()
-        assert my_task in registry.tasks
+        assert my_task in registry.get_instances(Task)
 
     def test_warning_name_conflict_different_function(self):
         with pytest.warns(
