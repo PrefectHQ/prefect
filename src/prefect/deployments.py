@@ -30,7 +30,7 @@ Examples:
     >>>     schedule=IntervalSchedule(interval=timedelta(hours=1))
     >>> )
 
-    Deployments can also be written in YAML and refer to the flow's location instead 
+    Deployments can also be written in YAML and refer to the flow's location instead
     of the `Flow` object. If there are multiple flows in the file, a name will needed
     to load the correct flow.
     ```yaml
@@ -51,7 +51,8 @@ Examples:
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Union
 
-from pydantic import BaseModel, Field, root_validator, validator
+import yaml
+from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
 import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
@@ -70,11 +71,16 @@ from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.orion import OrionPackager
 from prefect.utilities.asyncio import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.collections import listrepr
+from prefect.utilities.filesystem import tmpchdir
 
 
 class FlowScript(BaseModel):
     path: Path
     name: Optional[str] = None
+
+    @validator("path")
+    def resolve_path_to_absolute_location(cls, value):
+        return value.resolve()
 
 
 FlowSource = Union[Flow, FlowScript, PackageManifest]
@@ -258,19 +264,35 @@ async def _source_to_flow(flow_source: FlowSource) -> Flow:
         )
 
 
-def _register_deployment(deployment: Deployment) -> None:
+def load_deployments_from_yaml(
+    path: str,
+) -> PrefectObjectRegistry:
     """
-    Add the `Deployment` object to the `PrefectObjectRegistry`.
+    Load deployments from a yaml file.
     """
-    from prefect.context import PrefectObjectRegistry
+    with open(path, "r") as f:
+        contents = f.read()
 
-    assert isinstance(deployment, Deployment)
+    # Parse into a yaml tree to retrieve separate documents
+    nodes = yaml.compose_all(contents)
 
-    registry = PrefectObjectRegistry.get()
-    if not registry:
-        return
+    with PrefectObjectRegistry(capture_failures=True) as registry:
+        for node in nodes:
+            line = node.start_mark.line + 1
 
-    registry.deployments.append(deployment)
+            # Load deployments relative to the yaml file's directory
+            with tmpchdir(path):
+                deployment_dict = yaml.safe_load(yaml.serialize(node))
+                if "flow_location" in deployment_dict:
+                    deployment = parse_obj_as(DeploymentSpec, deployment_dict)
+                else:
+                    deployment = parse_obj_as(Deployment, deployment_dict)
+
+            if isinstance(deployment, DeploymentSpec):
+                # Update the source to be from the YAML file instead of this utility
+                deployment._source = {"file": str(path), "line": line}
+
+    return registry
 
 
 # Backwards compatibility

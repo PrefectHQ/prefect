@@ -396,7 +396,22 @@ class OrionClient:
         Returns:
             the ID of the flow in the backend
         """
-        flow_data = schemas.actions.FlowCreate(name=flow.name)
+        return await self.create_flow_from_name(flow.name)
+
+    async def create_flow_from_name(self, flow_name: str) -> UUID:
+        """
+        Create a flow in Orion.
+
+        Args:
+            flow_name: the name of the new flow
+
+        Raises:
+            httpx.RequestError: if a flow was not created for any reason
+
+        Returns:
+            the ID of the flow in the backend
+        """
+        flow_data = schemas.actions.FlowCreate(name=flow_name)
         response = await self._client.post(
             "/flows/", json=flow_data.dict(json_compatible=True)
         )
@@ -577,6 +592,10 @@ class OrionClient:
             tags=list(tags or []),
             parent_task_run_id=parent_task_run_id,
             state=state,
+            empirical_policy=schemas.core.FlowRunPolicy(
+                max_retries=flow.retries,
+                retry_delay_seconds=flow.retry_delay_seconds,
+            ),
             flow_runner=flow_runner.to_settings() if flow_runner else None,
         )
 
@@ -1041,6 +1060,30 @@ class OrionClient:
                 raise
         return BlockDocument.parse_obj(response.json())
 
+    async def update_block_document(
+        self,
+        block_document_id: UUID,
+        block_document: schemas.actions.BlockDocumentUpdate,
+    ):
+        """
+        Update a block document in Orion.
+        """
+        try:
+            await self._client.patch(
+                f"/block_documents/{block_document_id}",
+                json=block_document.dict(
+                    json_compatible=True,
+                    exclude_unset=True,
+                    include={"name", "data"},
+                    include_secrets=True,
+                ),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def read_block_type_by_name(self, name: str) -> BlockType:
         """
         Read a block type by its name.
@@ -1500,23 +1543,23 @@ class OrionClient:
 
     async def retrieve_data(
         self,
-        data_document: DataDocument,
+        block_storage_document: dict,
     ) -> bytes:
         """
         Exchange a storage data document for the data previously persisted.
 
         Args:
-            data_document: The data document used to store data.
+            block_storage_document: A JSON blob describing storage of the data.
+                See `prefect.serializers.BlockStorageSerializer.loads()`.
 
         Returns:
             The persisted data in bytes.
         """
-        block_document = data_document.decode()
-        embedded_datadoc = block_document["data"]
+        embedded_datadoc = block_storage_document["data"]
         # Handling for block_id is to account for deployments created pre-2.0b6
-        block_document_id = block_document.get(
+        block_document_id = block_storage_document.get(
             "block_document_id"
-        ) or block_document.get("block_id")
+        ) or block_storage_document.get("block_id")
         if block_document_id is not None:
             storage_block = Block._from_block_document(
                 await self.read_block_document(block_document_id)
@@ -1551,7 +1594,9 @@ class OrionClient:
         Returns:
             the persisted object
         """
-        datadoc = DataDocument.parse_raw(await self.retrieve_data(storage_datadoc))
+        datadoc = DataDocument.parse_raw(
+            await self.retrieve_data(storage_datadoc.decode())
+        )
         return datadoc.decode()
 
     async def set_flow_run_state(
@@ -1635,7 +1680,7 @@ class OrionClient:
                 ]
             ],
         ] = None,
-    ) -> UUID:
+    ) -> TaskRun:
         """
         Create a task run
 
@@ -1651,7 +1696,7 @@ class OrionClient:
             task_inputs: the set of inputs passed to the task
 
         Returns:
-            The UUID of the newly created task run
+            The created task run.
         """
         tags = set(task.tags).union(extra_tags or [])
 
@@ -1828,7 +1873,7 @@ class OrionClient:
             if server_state.data:
                 if server_state.data.encoding == "blockstorage":
                     datadoc = DataDocument.parse_raw(
-                        await self.retrieve_data(server_state.data)
+                        await self.retrieve_data(server_state.data.decode())
                     )
                     server_state.data = datadoc
 
@@ -1956,7 +2001,7 @@ class OrionClient:
 
             if isinstance(data, DataDocument):
                 if data.encoding == "blockstorage":
-                    data = await self.retrieve_data(data)
+                    data = await self.retrieve_data(data.decode())
                 else:
                     data = data.decode()
                 return await resolve_inner(data)
