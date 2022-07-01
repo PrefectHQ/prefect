@@ -47,5 +47,7 @@ class OrionPackager(Packager):
             value={"flow": self.serializer.dumps(flow)}
         )._save(is_anonymous=True)
         return OrionPackageManifest(
-            serializer=self.serializer, block_document_id=block_document_id
+            flow_name=flow.name,
+            serializer=self.serializer,
+            block_document_id=block_document_id,
         )

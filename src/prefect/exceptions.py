@@ -95,7 +95,7 @@ class DeploymentValidationError(PrefectException, ValueError):
         if identifier:
             identifier = f" {identifier!r}"
 
-        return f"Deployment specification{identifier} failed validation: {self.message}"
+        return f"Deployment{identifier} failed validation: {self.message}"
 
 
 class ScriptError(PrefectException):
