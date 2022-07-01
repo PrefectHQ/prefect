@@ -30,7 +30,6 @@ async def completed_policy(session, notifier_block):
         await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My Success Policy",
                 state_names=["Completed"],
                 tags=[],
                 block_document_id=notifier_block.id,
@@ -47,7 +46,6 @@ async def failed_policy(session, notifier_block):
         await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My Failed Policy",
                 state_names=["Failed"],
                 tags=[],
                 block_document_id=notifier_block.id,
@@ -64,7 +62,6 @@ class TestCreateFlowRunNotificationPolicy:
             "/flow_run_notification_policies/",
             json=dict(
                 schemas.actions.FlowRunNotificationPolicyCreate(
-                    name="My Success Policy",
                     state_names=["Completed"],
                     tags=[],
                     block_document_id=notifier_block.id,
@@ -73,7 +70,6 @@ class TestCreateFlowRunNotificationPolicy:
         )
         assert response.status_code == 201
         policy = FlowRunNotificationPolicy.parse_obj(response.json())
-        assert policy.name == "My Success Policy"
         assert policy.state_names == ["Completed"]
 
     async def test_create_policy_with_message(self, client, notifier_block):
@@ -81,7 +77,6 @@ class TestCreateFlowRunNotificationPolicy:
             "/flow_run_notification_policies/",
             json=dict(
                 schemas.actions.FlowRunNotificationPolicyCreate(
-                    name="My Success Policy",
                     state_names=["Completed"],
                     tags=[],
                     block_document_id=notifier_block.id,
@@ -103,7 +98,6 @@ class TestReadFlowRunNotificationPolicy:
         policy = FlowRunNotificationPolicy.parse_obj(response.json())
 
         assert policy.id == completed_policy.id
-        assert policy.name == completed_policy.name
 
     async def test_read_policy_with_invalid_id(self, client):
         response = await client.get(f"/flow_run_notification_policies/{uuid4()}")

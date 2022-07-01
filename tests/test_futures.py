@@ -19,6 +19,7 @@ mock_client.read_flow_run_states.return_value = [Completed()]
 async def test_resolve_futures_transforms_future(task_run):
     future = PrefectFuture(
         task_run=task_run,
+        run_key=str(task_run.id),
         task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
@@ -29,6 +30,7 @@ async def test_resolve_futures_transforms_future(task_run):
 async def test_resolve_futures_transforms_future_in_listlike_type(typ, task_run):
     future = PrefectFuture(
         task_run=task_run,
+        run_key=str(task_run.id),
         task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
@@ -42,6 +44,7 @@ async def test_resolve_futures_transforms_future_in_generator_type(task_run):
         yield "a"
         yield PrefectFuture(
             task_run=task_run,
+            run_key=str(task_run.id),
             task_runner=None,
             _final_state=Completed(data=DataDocument.encode("json", "foo")),
         )
@@ -54,6 +57,7 @@ async def test_resolve_futures_transforms_future_in_nested_generator_types(task_
     def gen_a():
         yield PrefectFuture(
             task_run=task_run,
+            run_key=str(task_run.id),
             task_runner=None,
             _final_state=Completed(data=DataDocument.encode("json", "foo")),
         )
@@ -70,11 +74,13 @@ async def test_resolve_futures_transforms_future_in_nested_generator_types(task_
 async def test_resolve_futures_transforms_future_in_dictlike_type(typ, task_run):
     key_future = PrefectFuture(
         task_run=task_run,
+        run_key=str(task_run.id),
         task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
     value_future = PrefectFuture(
         task_run=task_run,
+        run_key=str(task_run.id),
         task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
@@ -92,6 +98,7 @@ async def test_resolve_futures_transforms_future_in_dataclass(task_run):
 
     future = PrefectFuture(
         task_run=task_run,
+        run_key=str(task_run.id),
         task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
@@ -109,6 +116,7 @@ async def test_resolves_futures_in_nested_collections(task_run):
 
     future = PrefectFuture(
         task_run=task_run,
+        run_key=str(task_run.id),
         task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
