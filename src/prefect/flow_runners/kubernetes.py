@@ -88,7 +88,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
     # controls the behavior of the FlowRunner
     job_watch_timeout_seconds: int = 5
-    pod_watch_timeout_seconds: int = 5
+    pod_watch_timeout_seconds: int = 60
     stream_output: bool = True
 
     _client: "CoreV1Api" = PrivateAttr(None)
