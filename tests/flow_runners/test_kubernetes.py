@@ -57,8 +57,11 @@ class TestKubernetesFlowRunner:
         pytest.importorskip("kubernetes")
 
         mock = MagicMock()
+        # We cannot mock this or the `except` clause will complain
+        mock.config.ConfigException = ConfigException
 
         monkeypatch.setattr("kubernetes.config", mock)
+        monkeypatch.setattr("kubernetes.config.ConfigException", ConfigException)
         return mock
 
     @pytest.fixture
