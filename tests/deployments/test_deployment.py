@@ -17,6 +17,8 @@ from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.packaging import FilePackager, OrionPackager
 from prefect.packaging.base import PackageManifest
 
+EXAMPLES = Path(__file__).parent / "examples"
+
 
 @flow
 def foo(x: int = 1):
@@ -121,9 +123,9 @@ async def test_deployment_flow_runner(orion_client: OrionClient, flow_runner):
     [
         {"path": __file__, "name": "foo"},
         FlowScript(path=__file__, name="foo"),
-        FlowScript(path=Path(__file__).parent / "examples" / "single_flow_in_file.py"),
+        FlowScript(path=EXAMPLES / "single_flow_in_file.py"),
         FlowScript(
-            path=Path(__file__).parent / "examples" / "multiple_flows_in_file.py",
+            path=EXAMPLES / "multiple_flows_in_file.py",
             name="foo",
         ),
     ],

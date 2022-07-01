@@ -40,6 +40,10 @@ class Block(BaseModel, ABC):
             Customizes Pydantic's schema generation feature to add blocks related information.
             """
             schema["block_type_name"] = model.get_block_type_name()
+            # Ensures args and code examples aren't included in the schema
+            description = model.get_description()
+            if description:
+                schema["description"] = model.get_description()
 
             # create a list of secret field names
             # secret fields include both top-level keys and dot-delimited nested secret keys
@@ -504,8 +508,11 @@ class Block(BaseModel, ABC):
             cls._block_schema_id = block_schema.id
 
     async def _save(
-        self, name: Optional[str] = None, is_anonymous: bool = False
-    ) -> UUID:
+        self,
+        name: Optional[str] = None,
+        is_anonymous: bool = False,
+        overwrite: bool = False,
+    ):
         """
         Saves the values of a block as a block document with an option to save as an
         anonymous block document.
@@ -515,6 +522,8 @@ class Block(BaseModel, ABC):
                 block document.
             is_anonymous: Boolean value specifying if the block document should or should
                 not be stored without a user specified name.
+            overwrite: Boolean value specifying if values should be overwritten if a block document with
+                the specified name already exists.
 
         Raises:
             ValueError: If a name is not given and `is_anonymous` is `False` or a name is given and
@@ -539,9 +548,33 @@ class Block(BaseModel, ABC):
 
         self._is_anonymous = is_anonymous
         async with prefect.client.get_client() as client:
-            block_document = await client.create_block_document(
-                block_document=self._to_block_document(name=name)
-            )
+            try:
+                block_document = await client.create_block_document(
+                    block_document=self._to_block_document(name=name)
+                )
+            except prefect.exceptions.ObjectAlreadyExists as err:
+                if overwrite:
+                    block_document_id = self._block_document_id
+                    if block_document_id is None:
+                        existing_block_document = (
+                            await client.read_block_document_by_name(
+                                name=name, block_type_name=self.get_block_type_name()
+                            )
+                        )
+                        block_document_id = existing_block_document.id
+                    await client.update_block_document(
+                        block_document_id=block_document_id,
+                        block_document=self._to_block_document(name=name),
+                    )
+                    block_document = await client.read_block_document(
+                        block_document_id=block_document_id
+                    )
+                else:
+                    raise ValueError(
+                        "You are attempting to save values with a name that is already in "
+                        "use for this block type. If you would like to overwrite the values that are saved, "
+                        "then save with `overwrite=True`."
+                    ) from err
 
         # Update metadata on block instance for later use.
         self._block_document_name = block_document.name
@@ -549,14 +582,17 @@ class Block(BaseModel, ABC):
         return self._block_document_id
 
     @sync_compatible
-    async def save(self, name: str) -> UUID:
+    async def save(self, name: str, overwrite: bool = False):
         """
         Saves the values of a block as a block document.
 
         Args:
             name: User specified name to give saved block document which can later be used to load the
                 block document.
+            overwrite: Boolean value specifying if values should be overwritten if a block document with
+                the specified name already exists.
+
         """
-        document_id = await self._save(name=name)
+        document_id = await self._save(name=name, overwrite=overwrite)
 
         return document_id
