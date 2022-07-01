@@ -51,7 +51,7 @@ class PrefectFuture(Generic[R, A]):
         >>> @flow
         >>> def my_flow():
         >>>     future = my_task()  # PrefectFuture[str, Sync] includes result type
-        >>>     future.run_id  # UUID for the task run
+        >>>     future.task_run.id  # UUID for the task run
 
         Wait for the task to complete
 
@@ -98,12 +98,13 @@ class PrefectFuture(Generic[R, A]):
     def __init__(
         self,
         task_run: TaskRun,
+        run_key: str,
         task_runner: "BaseTaskRunner",
         asynchronous: A = True,
         _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
         self.task_run = task_run
-        self.run_id = task_run.id
+        self.run_key = run_key
         self.asynchronous = asynchronous
         self._final_state = _final_state
         self._exception: Optional[Exception] = None
@@ -246,7 +247,7 @@ class PrefectFuture(Generic[R, A]):
     async def _get_state(self, client: OrionClient = None) -> State[R]:
         assert client is not None  # always injected
 
-        task_run = await client.read_task_run(self.run_id)
+        task_run = await client.read_task_run(self.task_run.id)
 
         if not task_run:
             raise RuntimeError("Future has no associated task run in the server.")
@@ -256,10 +257,10 @@ class PrefectFuture(Generic[R, A]):
         return task_run.state
 
     def __hash__(self) -> int:
-        return hash(self.run_id)
+        return hash(self.run_key)
 
     def __repr__(self) -> str:
-        return f"PrefectFuture({self.task_run.name!r})"
+        return f"PrefectFuture({self.run_key!r})"
 
     def __bool__(self) -> bool:
         warnings.warn(
