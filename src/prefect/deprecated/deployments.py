@@ -29,7 +29,6 @@ from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.packaging.base import Packager
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.filesystem import is_local_path
 
@@ -37,7 +36,7 @@ if TYPE_CHECKING:
     from prefect.deployments import DeploymentSpec
 
 
-class ScriptPackager(Packager):
+class ScriptPackager:
     """
     Pushes the source code for your flow to a remote path.
 
