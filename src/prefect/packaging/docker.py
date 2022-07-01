@@ -25,7 +25,6 @@ class DockerPackageManifest(PackageManifest):
 
     image: str
     image_flow_location: str
-    flow_name: str
 
     async def unpackage(self) -> Flow:
         return load_flow_from_script(self.image_flow_location, self.flow_name)

@@ -87,6 +87,9 @@ class Flow(Generic[P, R]):
             type; for example, if a parameter is defined as `x: int` and "5" is passed,
             it will be resolved to `5`. If set to `False`, no validation will be
             performed on flow parameters.
+        retries: An optional number of times to retry on flow run failure.
+        retry_delay_seconds: An optional number of seconds to wait before retrying the
+            flow after failure. This is only applicable if `retries` is nonzero.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -96,6 +99,8 @@ class Flow(Generic[P, R]):
         fn: Callable[P, R],
         name: str = None,
         version: str = None,
+        retries: int = 0,
+        retry_delay_seconds: Union[int, float] = 0,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
         description: str = None,
         timeout_seconds: Union[int, float] = None,
@@ -129,6 +134,12 @@ class Flow(Generic[P, R]):
         self.version = version
 
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
+
+        # FlowRunPolicy settings
+        # TODO: We can instantiate a `FlowRunPolicy` and add Pydantic bound checks to
+        #       validate that the user passes positive numbers here
+        self.retries = retries
+        self.retry_delay_seconds = retry_delay_seconds
 
         self.parameters = parameter_schema(self.fn)
         self.should_validate_parameters = validate_parameters
@@ -168,6 +179,8 @@ class Flow(Generic[P, R]):
         *,
         name: str = None,
         version: str = None,
+        retries: int = 0,
+        retry_delay_seconds: Union[int, float] = 0,
         description: str = None,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = None,
         timeout_seconds: Union[int, float] = None,
@@ -364,6 +377,8 @@ def flow(
     *,
     name: str = None,
     version: str = None,
+    retries: int = 0,
+    retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
@@ -377,6 +392,8 @@ def flow(
     *,
     name: str = None,
     version: str = None,
+    retries: int = 0,
+    retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
@@ -408,6 +425,9 @@ def flow(
             type; for example, if a parameter is defined as `x: int` and "5" is passed,
             it will be resolved to `5`. If set to `False`, no validation will be
             performed on flow parameters.
+        retries: An optional number of times to retry on flow run failure.
+        retry_delay_seconds: An optional number of seconds to wait before retrying the
+            flow after failure. This is only applicable if `retries` is nonzero.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -458,6 +478,8 @@ def flow(
                 description=description,
                 timeout_seconds=timeout_seconds,
                 validate_parameters=validate_parameters,
+                retries=retries,
+                retry_delay_seconds=retry_delay_seconds,
             ),
         )
     else:
@@ -471,6 +493,8 @@ def flow(
                 description=description,
                 timeout_seconds=timeout_seconds,
                 validate_parameters=validate_parameters,
+                retries=retries,
+                retry_delay_seconds=retry_delay_seconds,
             ),
         )
 
