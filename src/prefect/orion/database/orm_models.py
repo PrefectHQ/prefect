@@ -356,7 +356,12 @@ class ORMFlowRun(ORMRun):
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     idempotency_key = sa.Column(sa.String)
     context = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    empirical_policy = sa.Column(JSON, server_default="{}", default={}, nullable=False)
+    empirical_policy = sa.Column(
+        Pydantic(schemas.core.FlowRunPolicy),
+        server_default="{}",
+        default=schemas.core.FlowRunPolicy,
+        nullable=False,
+    )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     flow_runner_type = sa.Column(sa.String, index=True)

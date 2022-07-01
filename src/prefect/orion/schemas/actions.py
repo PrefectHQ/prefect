@@ -119,6 +119,7 @@ class FlowRunCreate(
             "idempotency_key",
             "parent_task_run_id",
             "flow_runner",
+            "empirical_policy",
         ],
     )
 ):
@@ -141,6 +142,7 @@ class DeploymentFlowRunCreate(
             "tags",
             "idempotency_key",
             "flow_runner",
+            "empirical_policy",
         ],
     )
 ):
