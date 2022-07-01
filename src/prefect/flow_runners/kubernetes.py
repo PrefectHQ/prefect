@@ -2,7 +2,6 @@ import copy
 import enum
 import warnings
 from contextlib import contextmanager
-from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Union
 
 import yaml
@@ -12,6 +11,7 @@ from pydantic import Field, PrivateAttr, validator
 from slugify import slugify
 from typing_extensions import Literal
 
+from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.flow_runners.base import (
     UniversalFlowRunner,
     base_flow_run_environment,
@@ -23,14 +23,20 @@ from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.importtools import lazy_import
 
-# Note that we are attempting to reduce the import time of the library overall, and
-# so we are deferring the import of the `kubernetes` module until it is used.  This
-# means that all further kubernetes imports (except for the TYPE_CHECKING ones) should
-# be done locally in the runtime functions they are needed in.
-kubernetes: ModuleType("kubernetes") = lazy_import("kubernetes")
-
 if TYPE_CHECKING:
+    import kubernetes
+    import kubernetes.client
+    import kubernetes.config
     from kubernetes.client import BatchV1Api, Configuration, CoreV1Api, V1Job, V1Pod
+else:
+    # Note that we are attempting to reduce the import time of the library overall, and
+    # so we are deferring the import of the `kubernetes` module until it is used.  This
+    # means that all further kubernetes imports (except for the TYPE_CHECKING ones) should
+    # be done locally in the runtime functions they are needed in.
+    kubernetes = lazy_import("kubernetes")
+    kubernetes.config = lazy_import("kubernetes.config")
+    kubernetes.client = lazy_import("kubernetes.client")
+    kubernetes.watch = lazy_import("kubernetes.watch")
 
 
 class KubernetesImagePullPolicy(enum.Enum):
@@ -90,6 +96,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     job_watch_timeout_seconds: int = 5
     pod_watch_timeout_seconds: int = 60
     stream_output: bool = True
+    cluster_config: KubernetesClusterConfig = None
 
     _client: "CoreV1Api" = PrivateAttr(None)
     _batch_client: "BatchV1Api" = PrivateAttr(None)
@@ -163,15 +170,17 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         # Throw an error immediately if the flow run won't be able to contact the API
         self._assert_orion_settings_are_compatible()
 
-        from kubernetes.config import ConfigException
-
-        # Try to load Kubernetes configuration within a cluster first. If that doesn't
-        # work, try to load the configuration from the local environment, allowing
-        # any further ConfigExceptions to bubble up.
-        try:
-            kubernetes.config.incluster_config.load_incluster_config()
-        except ConfigException:
-            kubernetes.config.load_kube_config()
+        # if a k8s cluster block is provided to the flow runner, use that
+        if self.cluster_config:
+            self.cluster_config.configure_client()
+        else:
+            # If no block specified, try to load Kubernetes configuration within a cluster. If that doesn't
+            # work, try to load the configuration from the local environment, allowing
+            # any further ConfigExceptions to bubble up.
+            try:
+                kubernetes.config.incluster_config.load_incluster_config()
+            except kubernetes.config.ConfigException:
+                kubernetes.config.load_kube_config()
 
         manifest = self.build_job(flow_run)
         job_name = await run_sync_in_worker_thread(self._create_job, flow_run, manifest)
