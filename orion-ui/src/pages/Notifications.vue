@@ -1,5 +1,5 @@
 <template>
-  <p-layout-default class="flows">
+  <p-layout-default class="notifications">
     <template #header>
       <PageHeadingNotifications />
     </template>

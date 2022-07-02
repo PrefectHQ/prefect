@@ -1,11 +1,14 @@
 <template>
-  <p-card>
+  <p-layout-default>
+    <template #header>
+      <PageHeadingNotificationEdit />
+    </template>
     <NotificationForm v-if="notification" v-model:notification="notification" @submit="submit" @cancel="cancel" />
-  </p-card>
+  </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { NotificationForm, Notification, INotificationUpdateRequest, titleCase } from '@prefecthq/orion-design'
+  import { NotificationForm, Notification, INotificationUpdateRequest, titleCase, PageHeadingNotificationEdit } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'
