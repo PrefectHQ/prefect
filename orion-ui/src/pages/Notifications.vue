@@ -21,11 +21,7 @@
   import { computed } from 'vue'
   import { notificationsApi } from '@/services/notificationsApi'
 
-  const subscriptionOptions = {
-    interval: 30000,
-  }
-
-  const notificationsSubscription = useSubscription(notificationsApi.getNotifications, [{}], subscriptionOptions)
+  const notificationsSubscription = useSubscription(notificationsApi.getNotifications)
   const notifications = computed<Notification[]>(() => notificationsSubscription.response ?? [])
   const empty = computed(() => notificationsSubscription.executed && notifications.value.length === 0)
   const loaded = computed(() => notificationsSubscription.executed)
