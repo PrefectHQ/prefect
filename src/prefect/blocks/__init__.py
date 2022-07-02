@@ -2,4 +2,4 @@
 from prefect.blocks import storage
 from prefect.blocks import notifications
 
-__all__ = ['notifications', 'storage']
+__all__ = ["notifications", "storage"]
