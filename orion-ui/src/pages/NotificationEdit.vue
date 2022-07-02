@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { NotificationForm, Notification, INotificationUpdateRequest } from '@prefecthq/orion-design'
+  import { NotificationForm, Notification, INotificationUpdateRequest, titleCase } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'
@@ -16,8 +16,9 @@
   const notification = ref({ ...await notificationsApi.getNotification(notificationId.value) })
 
   function mapNotificationUpdateToNotificationUpdateRequest(notificationUpdate: Partial<Notification>): INotificationUpdateRequest {
+    const stateNames = notification.value.stateNames.map(name=> titleCase(name))
     return {
-      state_names: notificationUpdate.stateNames,
+      state_names: stateNames,
       tags: notificationUpdate.tags,
       is_active: notificationUpdate.isActive,
     }
