@@ -15,5 +15,3 @@ import prefect.cli.orion
 import prefect.cli.profile
 import prefect.cli.storage
 import prefect.cli.work_queue
-
-__all__ = ["app"]
