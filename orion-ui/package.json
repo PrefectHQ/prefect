@@ -51,7 +51,7 @@
     "puppeteer": "^14.4.1",
     "sass": "^1.52.3",
     "ts-jest": "^27.1.4",
-    "ts-node": "10.8.1",
+    "ts-node": "10.8.2",
     "typescript": "^4.7.4",
     "vite": "^2.9.12",
     "vue-class-component": "^8.0.0-0",
