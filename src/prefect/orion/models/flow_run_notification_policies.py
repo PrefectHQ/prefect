@@ -75,6 +75,7 @@ async def read_flow_run_notification_policy(
 async def read_flow_run_notification_policies(
     db: OrionDBInterface,
     session: sa.orm.Session,
+    flow_run_notification_policy_filter: schemas.filters.FlowRunNotificationPolicyFilter = None,
     offset: int = None,
     limit: int = None,
 ):
@@ -93,6 +94,9 @@ async def read_flow_run_notification_policies(
     query = select(db.FlowRunNotificationPolicy).order_by(
         db.FlowRunNotificationPolicy.name
     )
+
+    if flow_run_notification_policy_filter:
+        query = query.where(flow_run_notification_policy_filter.as_sql_filter(db))
 
     if offset is not None:
         query = query.offset(offset)

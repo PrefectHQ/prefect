@@ -1,11 +1,8 @@
 # global
 *                                    @madkinsz
 
-# release
-/.github/workflows/release.yaml      @cicdw
-
 # orion server
-/src/prefect/orion                   @zangell44 @madkinsz @abrookins
+/src/prefect/orion                   @zangell44 @madkinsz
 
 # ui
 /orion-ui                            @pleek91

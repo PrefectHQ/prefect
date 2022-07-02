@@ -28,9 +28,11 @@ from .client import get_client
 # Import the serializers so they are registered
 import prefect.serializers
 
-# Initialize the process level profile at import time
+# Initialize the process-wide profile and registry at import time
 import prefect.context
 
 prefect.context.enter_root_settings_context()
+prefect.context.initialize_object_registry()
+
 
 __all__ = ['State', 'flow', 'get_client', 'get_run_logger', 'tags', 'task']

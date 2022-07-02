@@ -9,9 +9,21 @@ from pprint import pprint
 from tempfile import TemporaryDirectory
 from typing import Dict, List, Union
 
+import pytest
+
 import prefect.context
 import prefect.settings
 from prefect.orion.database.dependencies import temporary_database_interface
+
+
+def flaky_on_windows(fn, **kwargs):
+    """
+    Mark a test as flaky for repeated test runs if on Windows.
+    """
+    if sys.platform == "win32":
+        return pytest.mark.flaky(**kwargs)(fn)
+    else:
+        return fn
 
 
 def exceptions_equal(a, b):
@@ -29,9 +41,9 @@ def exceptions_equal(a, b):
 
 if sys.version_info < (3, 8):
     # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
-    from mock import AsyncMock
+    from mock import AsyncMock  # noqa
 else:
-    from unittest.mock import AsyncMock
+    from unittest.mock import AsyncMock  # noqa
 
 
 def kubernetes_environments_equal(

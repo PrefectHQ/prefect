@@ -25,6 +25,13 @@ from prefect.orion.orchestration.rules import (
 from prefect.orion.schemas import actions, states
 from prefect.orion.schemas.responses import SetStateStatus
 
+# Convert constants from sets to lists for deterministic ordering of tests
+ALL_ORCHESTRATION_STATES = list(
+    sorted(ALL_ORCHESTRATION_STATES, key=lambda item: str(item))
+    # Set the key to sort the `None` state
+)
+TERMINAL_STATES = list(sorted(TERMINAL_STATES))
+
 
 def transition_names(transition):
     initial = f"{transition[0].name if transition[0] else None}"
@@ -159,7 +166,8 @@ class TestCachingBackendLogic:
 
     @pytest.mark.parametrize(
         "proposed_state_type",
-        set(states.StateType) - set([states.StateType.COMPLETED]),
+        # Include all state types but COMPLETED; cast to sorted list for determinism
+        list(sorted(set(states.StateType) - set([states.StateType.COMPLETED]))),
         ids=lambda statetype: statetype.name,
     )
     async def test_only_cache_completed_states(
@@ -360,7 +368,16 @@ class TestRenameRetryingStates:
 class TestTransitionsFromTerminalStatesRule:
     all_transitions = set(product(ALL_ORCHESTRATION_STATES, ALL_ORCHESTRATION_STATES))
     terminal_transitions = set(product(TERMINAL_STATES, ALL_ORCHESTRATION_STATES))
-    active_transitions = all_transitions - terminal_transitions
+
+    # Cast to sorted lists for deterministic ordering.
+    # Sort as strings to handle `None`.
+    active_transitions = list(
+        sorted(all_transitions - terminal_transitions, key=lambda item: str(item))
+    )
+    all_transitions = list(sorted(all_transitions, key=lambda item: str(item)))
+    terminal_transitions = list(
+        sorted(terminal_transitions, key=lambda item: str(item))
+    )
 
     @pytest.mark.parametrize(
         "intended_transition", terminal_transitions, ids=transition_names

@@ -8,5 +8,3 @@ class ObjectNotFoundError(PrefectException):
     If thrown during a request, this exception will be caught and
     a 404 response will be returned.
     """
-
-    pass

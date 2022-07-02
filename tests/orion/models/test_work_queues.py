@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from prefect.orion import models, schemas
+from prefect.orion.exceptions import ObjectNotFoundError
 
 
 @pytest.fixture
@@ -639,6 +640,14 @@ class TestGetRunsInWorkQueue:
             scheduled_before=pendulum.now("UTC"),
         )
         assert {run.id for run in runs} == {flow_run_2_id}
+
+    async def test_get_runs_in_work_queue_raises_object_not_found_error(self, session):
+        with pytest.raises(ObjectNotFoundError):
+            await models.work_queues.get_runs_in_work_queue(
+                session=session,
+                work_queue_id=uuid4(),
+                scheduled_before=pendulum.now("UTC"),
+            )
 
 
 class TestDeleteWorkQueue:

@@ -18,9 +18,7 @@ from prefect.flow_runners import FlowRunner
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.filters import FlowRunFilter
-from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import Failed, Pending, StateType
+from prefect.orion.schemas.states import Failed, Pending
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 
 
@@ -68,7 +66,8 @@ class OrionAgent:
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
         """
-        The principle method on agents. Queries for scheduled flow runs and submits them for execution in parallel.
+        The principle method on agents. Queries for scheduled flow runs and submits
+        them for execution in parallel.
         """
         if not self.started:
             raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
@@ -95,6 +94,14 @@ class OrionAgent:
                 ) from None
             else:
                 raise
+
+        # Check for a paused work queue for display purposes
+        if not submittable_runs:
+            work_queue = await self.client.read_work_queue(work_queue_id)
+            if work_queue.is_paused:
+                self.logger.info(
+                    f"Work queue {work_queue.name!r} ({work_queue.id}) is paused."
+                )
 
         for flow_run in submittable_runs:
             self.logger.info(f"Submitting flow run '{flow_run.id}'")

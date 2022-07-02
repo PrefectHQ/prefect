@@ -40,7 +40,6 @@ from prefect.settings import (
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
     PREFECT_LOGGING_SETTINGS_PATH,
-    Settings,
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
@@ -873,12 +872,12 @@ def test_task_run_logger(task_run):
 
 
 def test_task_run_logger_with_task(task_run):
-    @task(name="foo")
+    @task(name="task_run_logger_with_task")
     def test_task():
         pass
 
     logger = task_run_logger(task_run, test_task)
-    assert logger.extra["task_name"] == "foo"
+    assert logger.extra["task_name"] == "task_run_logger_with_task"
 
 
 def test_task_run_logger_with_flow_run(task_run, flow_run):

@@ -6,10 +6,11 @@ from unittest.mock import MagicMock
 import anyio
 import anyio.abc
 import pytest
-from docker.errors import ImageNotFound
+from docker.errors import ImageNotFound, NotFound
 from docker.models.images import Image
 
 import prefect
+from prefect.docker import docker_client
 from prefect.flow_runners import (
     MIN_COMPAT_PREFECT_VERSION,
     DockerFlowRunner,
@@ -775,43 +776,30 @@ class TestDockerFlowRunner:
 
     @pytest.mark.service("docker")
     def test_check_for_required_development_image(self):
-        import docker.client
-        import docker.errors
+        with docker_client() as client:
+            tag = get_prefect_image_name()
+            build_cmd = f"`docker build {prefect.__root_path__} -t {tag!r}`"
 
-        with warnings.catch_warnings():
-            # Silence warnings due to use of deprecated methods within dockerpy
-            # See https://github.com/docker/docker-py/pull/2931
-            warnings.filterwarnings(
-                "ignore",
-                message="distutils Version classes are deprecated.*",
-                category=DeprecationWarning,
-            )
+            try:
+                client.images.get(tag)
+            except NotFound:
+                raise RuntimeError(
+                    "Docker service tests require the development image tag to be "
+                    "available. Build the image with " + build_cmd
+                )
 
-            client = docker.client.from_env()
+            output = client.containers.run(tag, "prefect --version")
+            container_version = output.decode().strip()
+            test_run_version = prefect.__version__
 
-        tag = get_prefect_image_name()
-        build_cmd = f"`docker build {prefect.__root_path__} -t {tag!r}`"
+            if container_version != test_run_version:
+                # We are in a local run, just warn if the versions do not match
+                warnings.warn(
+                    f"The development Docker image with tag {tag!r} has version "
+                    f"{container_version!r} but tests were run with version "
+                    f"{test_run_version!r}. You may safely ignore this warning if you "
+                    "have intentionally not built a new test image. Rebuild the image "
+                    "with " + build_cmd
+                )
 
-        try:
-            client.images.get(tag)
-        except docker.errors.NotFound as exc:
-            raise RuntimeError(
-                "Docker service tests require the development image tag to be "
-                "available. Build the image with " + build_cmd
-            )
-
-        output = client.containers.run(tag, "prefect --version")
-        container_version = output.decode().strip()
-        test_run_version = prefect.__version__
-
-        if container_version != test_run_version:
-            # We are in a local run, just warn if the versions do not match
-            warnings.warn(
-                f"The development Docker image with tag {tag!r} has version "
-                f"{container_version!r} but tests were run with version "
-                f"{test_run_version!r}. You may safely ignore this warning if you "
-                "have intentionally not built a new test image. Rebuild the image "
-                "with " + build_cmd
-            )
-
-        client.close()
+            client.close()

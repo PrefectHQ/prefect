@@ -8,7 +8,6 @@ from prefect.orion.services.scheduler import Scheduler
 from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
-    PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
 )
 
 

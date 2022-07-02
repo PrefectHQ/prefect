@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, Tuple, TypeVar, Union
+from typing import Any, Dict, Tuple, TypeVar, Union
 
 from typing_extensions import Protocol
 

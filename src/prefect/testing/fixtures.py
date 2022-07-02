@@ -1,4 +1,5 @@
 import os
+import socket
 import sys
 
 import anyio
@@ -8,19 +9,33 @@ import pytest
 from prefect.settings import PREFECT_API_URL, get_current_settings, temporary_settings
 
 
+def is_port_in_use(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("localhost", port)) == 0
+
+
 @pytest.fixture(scope="session")
 async def hosted_orion_api():
     """
     Runs an instance of the Orion API at a dedicated URL instead of the ephemeral
-    application. Requires port 2222 to be available.
+    application. Requires a port from 2222-2227 to be available.
 
     Uses the same database as the rest of the tests.
-
-    If built, the UI will be accessible during tests at http://localhost:2222/.
 
     Yields:
         The connection string
     """
+
+    ports = [2222 + i for i in range(5)]
+
+    while True:
+        try:
+            port = ports.pop()
+        except IndexError as exc:
+            raise RuntimeError("No ports available to run test API.") from exc
+
+        if not is_port_in_use(port):
+            break
 
     # Will connect to the same database as normal test clients
     process = await anyio.open_process(
@@ -31,7 +46,7 @@ async def hosted_orion_api():
             "--host",
             "127.0.0.1",
             "--port",
-            "2222",
+            str(port),
             "--log-level",
             "info",
         ],
@@ -40,7 +55,7 @@ async def hosted_orion_api():
         env={**get_current_settings().to_environment_variables(), **os.environ},
     )
 
-    api_url = "http://localhost:2222/api"
+    api_url = f"http://localhost:{port}/api"
 
     try:
         # Wait for the server to be ready

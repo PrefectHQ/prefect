@@ -14,9 +14,12 @@ from anyio.streams.text import TextReceiveStream
 from pydantic import root_validator, validator
 from typing_extensions import Literal
 
+from prefect.flow_runners.base import (
+    UniversalFlowRunner,
+    base_flow_run_environment,
+    register_flow_runner,
+)
 from prefect.orion.schemas.core import FlowRun
-
-from .base import UniversalFlowRunner, base_flow_run_environment, register_flow_runner
 
 
 @register_flow_runner
@@ -115,11 +118,34 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 
         return not process.returncode
 
+    async def preview(self, flow_run: FlowRun) -> str:
+        """
+        Produce a textual preview of the given FlowRun.
+
+        For the SubprocessFlowRunner, this produces a shell command with the
+        environment variables and command necessary to run the job.
+
+        Args:
+            flow_run: The flow run
+
+        Returns:
+            A shell command string
+        """
+        command, environment = self._generate_command_and_environment(
+            flow_run.id, include_os_environ=False
+        )
+        return " \\\n".join(
+            [f"{key}={value}" for key, value in environment.items()]
+            + [" ".join(command)]
+        )
+
     def _generate_command_and_environment(
-        self, flow_run_id: UUID
+        self, flow_run_id: UUID, include_os_environ=True
     ) -> Tuple[Sequence[str], Dict[str, str]]:
         # Include the base environment and current process environment
-        env = {**base_flow_run_environment(), **os.environ}
+        env = base_flow_run_environment()
+        if include_os_environ:
+            env.update(os.environ)
 
         # Set up defaults
         command = []

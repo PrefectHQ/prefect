@@ -1,7 +1,7 @@
 """
 Routes for interacting with block schema objects.
 """
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -59,6 +59,7 @@ async def delete_block_schema(
 
 @router.post("/filter")
 async def read_block_schemas(
+    block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -68,6 +69,7 @@ async def read_block_schemas(
     """
     result = await models.block_schemas.read_block_schemas(
         session=session,
+        block_schema_filter=block_schema_filter,
         limit=limit,
         offset=offset,
     )

@@ -5,10 +5,7 @@ Revises: 724e6dcc6b5d
 Create Date: 2022-05-30 11:25:49.621795
 
 """
-import sqlalchemy as sa
 from alembic import op
-
-import prefect
 
 # revision identifiers, used by Alembic.
 revision = "cdcb4018dd0e"

@@ -5,10 +5,6 @@ import sqlalchemy as sa
 
 from prefect.blocks.notifications import DebugPrintNotification
 from prefect.orion import models, schemas
-from prefect.orion.models import flow_run_notification_policies
-from prefect.orion.models.block_documents import create_block_document
-from prefect.orion.models.block_schemas import create_block_schema
-from prefect.orion.models.block_types import create_block_type
 
 
 @pytest.fixture
@@ -123,6 +119,56 @@ class TestReadFlowRunNotificationPolicy:
             session=session, flow_run_notification_policy_id=uuid4()
         )
         assert policy is None
+
+
+class TestReadFlowRunNotificationPolicies:
+    @pytest.fixture(autouse=True)
+    async def policies(self, session, completed_policy, failed_policy):
+        # set failed policy to inactive
+        await models.flow_run_notification_policies.update_flow_run_notification_policy(
+            session=session,
+            flow_run_notification_policy_id=failed_policy.id,
+            flow_run_notification_policy=schemas.actions.FlowRunNotificationPolicyUpdate(
+                is_active=False
+            ),
+        )
+        await session.commit()
+        return completed_policy, failed_policy
+
+    async def test_read_policies(self, session, policies):
+        result = await models.flow_run_notification_policies.read_flow_run_notification_policies(
+            session=session
+        )
+
+        await session.commit()
+        assert len(result) == 2
+        assert {r.id for r in result} == {p.id for p in policies}
+
+    async def test_read_active_policies(self, session, completed_policy):
+        result = await models.flow_run_notification_policies.read_flow_run_notification_policies(
+            session=session,
+            flow_run_notification_policy_filter=schemas.filters.FlowRunNotificationPolicyFilter(
+                is_active=dict(eq_=True)
+            ),
+        )
+
+        await session.commit()
+
+        assert len(result) == 1
+        assert result[0].id == completed_policy.id
+
+    async def test_read_inactive_policies(self, session, failed_policy):
+        result = await models.flow_run_notification_policies.read_flow_run_notification_policies(
+            session=session,
+            flow_run_notification_policy_filter=schemas.filters.FlowRunNotificationPolicyFilter(
+                is_active=dict(eq_=False)
+            ),
+        )
+
+        await session.commit()
+
+        assert len(result) == 1
+        assert result[0].id == failed_policy.id
 
 
 class TestUpdateFlowRunNotificationPolicy:

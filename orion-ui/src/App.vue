@@ -29,11 +29,9 @@
     flowRunsApiKey,
     flowsApiKey,
     logsApiKey,
-    searchApiKey,
     taskRunsApiKey,
     workQueuesApiKey,
     canKey,
-    ContextSidebar,
     flowRunsRouteKey,
     flowsRouteKey,
     deploymentsRouteKey,
@@ -48,12 +46,12 @@
   } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
   import { computed, provide, ref, watchEffect } from 'vue'
+  import ContextSidebar from '@/components/ContextSidebar.vue'
   import { routes } from '@/router/routes'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { flowsApi } from '@/services/flowsApi'
   import { logsApi } from '@/services/logsApi'
-  import { searchApi } from '@/services/searchApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
   import { can } from '@/utilities/permissions'
@@ -62,7 +60,6 @@
   provide(flowRunsApiKey, flowRunsApi)
   provide(flowsApiKey, flowsApi)
   provide(logsApiKey, logsApi)
-  provide(searchApiKey, searchApi)
   provide(taskRunsApiKey, taskRunsApi)
   provide(workQueuesApiKey, workQueuesApi)
   provide(canKey, can)

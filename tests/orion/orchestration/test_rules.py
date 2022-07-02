@@ -23,6 +23,12 @@ from prefect.orion.schemas.responses import (
     StateWaitDetails,
 )
 
+# Convert constant from set to list for deterministic ordering of tests
+ALL_ORCHESTRATION_STATES = list(
+    sorted(ALL_ORCHESTRATION_STATES, key=lambda item: str(item))
+    # Set the key to sort the `None` state
+)
+
 
 async def commit_task_run_state(
     session, task_run, state_type: states.StateType, state_details=None

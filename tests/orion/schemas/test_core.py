@@ -50,3 +50,16 @@ async def test_invalid_names(name):
         assert schemas.core.BlockDocument(
             name=name, block_schema_id=uuid4(), block_type_id=uuid4()
         )
+
+
+class TestBlockDocument:
+    async def test_block_document_requires_name(self):
+        with pytest.raises(
+            ValueError, match="(Names must be provided for block documents.)"
+        ):
+            schemas.core.BlockDocument(block_schema_id=uuid4(), block_type_id=uuid4())
+
+    async def test_anonymous_block_document_does_not_require_name(self):
+        assert schemas.core.BlockDocument(
+            block_schema_id=uuid4(), block_type_id=uuid4(), is_anonymous=True
+        )

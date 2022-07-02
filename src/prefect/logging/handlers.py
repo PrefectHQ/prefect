@@ -1,4 +1,3 @@
-import asyncio
 import atexit
 import logging
 import logging.handlers
@@ -201,7 +200,10 @@ class OrionLogWorker:
                 raise RuntimeError("Worker was never started.")
             self._flush_event.set()
             if block:
-                self._send_logs_finished_event.wait()
+                # TODO: Sometimes the log worker will deadlock and never finish
+                #       so we will only block for 30 seconds here. When logging is
+                #       refactored, this deadlock should be resolved.
+                self._send_logs_finished_event.wait(30)
 
     def start(self) -> None:
         """Start the background thread"""

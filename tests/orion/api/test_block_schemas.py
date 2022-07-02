@@ -1,16 +1,12 @@
-import hashlib
-import json
 from typing import List
 from uuid import uuid4
 
 import pydantic
 import pytest
-import sqlalchemy as sa
 
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockSchemaCreate
-from prefect.utilities.hashing import hash_objects
 
 EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 
@@ -111,6 +107,56 @@ class TestReadBlockSchema:
             block_schemas[2].id,
             block_schemas[1].id,
         }
+
+    async def test_read_all_block_schemas_filter_block_type_id_x(
+        self, session, client, block_schemas, block_type_x
+    ):
+        result = await client.post(
+            f"/block_schemas/filter",
+            json=dict(
+                block_schema_filter=dict(
+                    block_type_id=dict(any_=[str(block_type_x.id)])
+                )
+            ),
+        )
+        api_schemas = pydantic.parse_obj_as(
+            List[schemas.core.BlockSchema], result.json()
+        )
+        assert [s.id for s in api_schemas] == [block_schemas[i].id for i in (2, 0)]
+
+    async def test_read_all_block_schemas_filter_block_type_id_y(
+        self, session, client, block_schemas, block_type_y
+    ):
+        result = await client.post(
+            f"/block_schemas/filter",
+            json=dict(
+                block_schema_filter=dict(
+                    block_type_id=dict(any_=[str(block_type_y.id)])
+                )
+            ),
+        )
+        api_schemas = pydantic.parse_obj_as(
+            List[schemas.core.BlockSchema], result.json()
+        )
+        assert [s.id for s in api_schemas] == [block_schemas[1].id]
+
+    async def test_read_all_block_schemas_filter_block_type_id_x_and_y(
+        self, session, client, block_schemas, block_type_x, block_type_y
+    ):
+        result = await client.post(
+            f"/block_schemas/filter",
+            json=dict(
+                block_schema_filter=dict(
+                    block_type_id=dict(
+                        any_=[str(block_type_x.id), str(block_type_y.id)]
+                    )
+                )
+            ),
+        )
+        api_schemas = pydantic.parse_obj_as(
+            List[schemas.core.BlockSchema], result.json()
+        )
+        assert [s.id for s in api_schemas] == [block_schemas[i].id for i in (2, 1, 0)]
 
     async def test_read_block_schema_by_id(self, session, client, block_schemas):
         schema_id = block_schemas[0].id

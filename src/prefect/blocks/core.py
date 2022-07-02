@@ -1,16 +1,24 @@
 import hashlib
 import inspect
 from abc import ABC
-from typing import Any, Dict, List, Optional, Type, Union
+from textwrap import dedent
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
 from uuid import UUID, uuid4
 
+from griffe.dataclasses import Docstring
+from griffe.docstrings.dataclasses import DocstringSectionKind
+from griffe.docstrings.parsers import Parser, parse
 from pydantic import BaseModel, HttpUrl
 from typing_extensions import get_args, get_origin
 
 import prefect
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
+from prefect.utilities.asyncio import asyncnullcontext
 from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.hashing import hash_objects
+
+if TYPE_CHECKING:
+    from prefect.client import OrionClient
 
 BLOCK_REGISTRY: Dict[str, Type["Block"]] = dict()
 
@@ -47,14 +55,14 @@ class Block(BaseModel, ABC):
 
             refs = schema["block_schema_references"] = {}
             for field in model.__fields__.values():
-                if inspect.isclass(field.type_) and issubclass(field.type_, Block):
+                if Block.is_block_class(field.type_):
                     refs[field.name] = field.type_._to_block_schema_reference_dict()
                 if get_origin(field.type_) is Union:
                     refs[field.name] = []
-                    for type in get_args(field.type_):
-                        if inspect.isclass(type) and issubclass(type, Block):
+                    for type_ in get_args(field.type_):
+                        if Block.is_block_class(type_):
                             refs[field.name].append(
-                                type._to_block_schema_reference_dict()
+                                type_._to_block_schema_reference_dict()
                             )
 
     """
@@ -91,6 +99,8 @@ class Block(BaseModel, ABC):
     # with Orion.
     _logo_url: Optional[HttpUrl] = None
     _documentation_url: Optional[HttpUrl] = None
+    _description: Optional[str] = None
+    _code_example: Optional[str] = None
 
     # -- private instance variables
     # these are set when blocks are loaded from the API
@@ -99,6 +109,7 @@ class Block(BaseModel, ABC):
     _block_schema_capabilities: Optional[List[str]] = None
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
+    _is_anonymous: Optional[bool] = None
 
     @classmethod
     def get_block_type_name(cls):
@@ -143,6 +154,7 @@ class Block(BaseModel, ABC):
         name: Optional[str] = None,
         block_schema_id: Optional[UUID] = None,
         block_type_id: Optional[UUID] = None,
+        is_anonymous: Optional[bool] = None,
     ) -> BlockDocument:
         """
         Creates the corresponding block document based on the data stored in a block.
@@ -150,16 +162,24 @@ class Block(BaseModel, ABC):
         either be passed into the method or configured on the block.
 
         Args:
-            name: The name of the created block document.
+            name: The name of the created block document. Not required if anonymous.
             block_schema_id: UUID of the corresponding block schema.
             block_type_id: UUID of the corresponding block type.
+            is_anonymous: if True, an anonymous block is created. Anonymous
+                blocks are not displayed in the UI and used primarily for system
+                operations and features that need to automatically generate blocks.
 
         Returns:
             BlockDocument: Corresponding block document
                 populated with the block's configured data.
         """
-        if not name and not self._block_document_name:
+        if is_anonymous is None:
+            is_anonymous = self._is_anonymous or False
+
+        # name must be present if not anonymous
+        if not is_anonymous and not name and not self._block_document_name:
             raise ValueError("No name provided, either as an argument or on the block.")
+
         if not block_schema_id and not self._block_schema_id:
             raise ValueError(
                 "No block schema ID provided, either as an argument or on the block."
@@ -180,6 +200,7 @@ class Block(BaseModel, ABC):
                 block_type_id=block_type_id or self._block_type_id,
             ),
             block_type=self._to_block_type(),
+            is_anonymous=is_anonymous,
         )
 
     @classmethod
@@ -208,6 +229,64 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
+    def get_description(cls) -> Optional[str]:
+        """
+        Returns the description for the current block. Attempts to parse
+        description from class docstring if an override is not defined.
+        """
+        description = cls._description
+        # If no description override has been provided, find the first text section
+        # and use that as the description
+        if description is None and cls.__doc__ is not None:
+            docstring = Docstring(cls.__doc__)
+            parsed = parse(docstring, Parser.google)
+            parsed_description = next(
+                (
+                    section.as_dict().get("value")
+                    for section in parsed
+                    if section.kind == DocstringSectionKind.text
+                ),
+                None,
+            )
+            if isinstance(parsed_description, str):
+                description = parsed_description.strip()
+        return description
+
+    @classmethod
+    def get_code_example(cls) -> Optional[str]:
+        """
+        Returns the code example for the given block. Attempts to parse
+        code example from the class docstring if an override is not provided.
+        """
+        code_example = (
+            dedent(cls._code_example) if cls._code_example is not None else None
+        )
+        # If no code example override has been provided, attempt to find a examples
+        # section or an admonition with the annotation "example" and use that as the
+        # code example
+        if code_example is None and cls.__doc__ is not None:
+            docstring = Docstring(cls.__doc__)
+            parsed = parse(docstring, Parser.google)
+            for section in parsed:
+                # Section kind will be "examples" if Examples section heading is used.
+                if section.kind == DocstringSectionKind.examples:
+                    # Examples sections are made up of smaller sections that need to be
+                    # joined with newlines. Smaller sections are represented as tuples
+                    # with shape (DocstringSectionKind, str)
+                    code_example = "\n".join(
+                        (part[1] for part in section.as_dict().get("value", []))
+                    )
+                    break
+                # Section kind will be "admonition" if Example section heading is used.
+                if section.kind == DocstringSectionKind.admonition:
+                    value = section.as_dict().get("value", {})
+                    if value.get("annotation") == "example":
+                        code_example = value.get("description")
+                        break
+
+        return code_example
+
+    @classmethod
     def _to_block_type(cls) -> BlockType:
         """
         Creates the corresponding block type of the block.
@@ -220,6 +299,8 @@ class Block(BaseModel, ABC):
             name=cls.get_block_type_name(),
             logo_url=cls._logo_url,
             documentation_url=cls._documentation_url,
+            description=cls.get_description(),
+            code_example=cls.get_code_example(),
         )
 
     @classmethod
@@ -255,13 +336,14 @@ class Block(BaseModel, ABC):
         block._block_schema_id = block_document.block_schema_id
         block._block_type_id = block_document.block_type_id
         block._block_document_name = block_document.name
+        block._is_anonymous = block_document.is_anonymous
         return block
 
     @classmethod
     async def load(cls, name: str):
         """
         Retrieves data from the block document with the given name for the block type
-        that corresponds with the current class and returns an instantated version of
+        that corresponds with the current class and returns an instantiated version of
         the current class with the data stored in the block document.
 
         Args:
@@ -284,3 +366,62 @@ class Block(BaseModel, ABC):
                     f"Unable to find block document named {name} for block type {cls.get_block_type_name()}"
                 ) from e
         return cls._from_block_document(block_document)
+
+    @staticmethod
+    def is_block_class(block) -> bool:
+        return inspect.isclass(block) and issubclass(block, Block)
+
+    @classmethod
+    async def register_type_and_schema(cls, client: Optional["OrionClient"] = None):
+        """
+        Makes block available for configuration with current Orion server.
+        Recursively registers all nested blocks. Registration is idempotent.
+
+        Args:
+            client: Optional Orion client to use for registering type and schema with
+                Orion. A new client will be created and used if one is not provided.
+        """
+        if cls.__name__ == "Block":
+            raise ValueError(
+                "`register_type_and_schema` should be called on a Block "
+                "class and not on the Block class directly."
+            )
+
+        # Open a new client if one hasn't been provided. Otherwise,
+        # use the provided client
+        if client is None:
+            client_context = prefect.client.get_client()
+        else:
+            client_context = asyncnullcontext()
+
+        async with client_context as client_from_context:
+            client = client or client_from_context
+            for field in cls.__fields__.values():
+                if Block.is_block_class(field.type_):
+                    await field.type_.register_type_and_schema(client=client)
+                if get_origin(field.type_) is Union:
+                    for type_ in get_args(field.type_):
+                        if Block.is_block_class(type_):
+                            await type_.register_type_and_schema(client=client)
+
+            try:
+                block_type = await client.read_block_type_by_name(
+                    name=cls.get_block_type_name()
+                )
+            except prefect.exceptions.ObjectNotFound:
+                block_type = await client.create_block_type(
+                    block_type=cls._to_block_type()
+                )
+
+            cls._block_type_id = block_type.id
+
+            try:
+                block_schema = await client.read_block_schema_by_checksum(
+                    checksum=cls._calculate_schema_checksum()
+                )
+            except prefect.exceptions.ObjectNotFound:
+                block_schema = await client.create_block_schema(
+                    block_schema=cls._to_block_schema(block_type_id=block_type.id)
+                )
+
+            cls._block_schema_id = block_schema.id

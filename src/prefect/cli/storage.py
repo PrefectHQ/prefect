@@ -3,15 +3,12 @@ Command line interface for managing storage settings
 """
 import textwrap
 from itertools import filterfalse
-from typing import List
 from uuid import UUID
 
-import pydantic
 import typer
 from rich.emoji import Emoji
 from rich.table import Table
 
-import prefect
 from prefect.blocks.core import get_block_class
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success

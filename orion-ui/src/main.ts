@@ -4,6 +4,7 @@ import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import './registerServiceWorker'
 import router from './router'
+import { applyActiveColorModeClass } from './utilities/colorMode'
 import { VITE_PREFECT_USE_MIRAGEJS } from './utilities/meta'
 
 // styles
@@ -15,12 +16,7 @@ import '@/styles/style.css'
 // eslint-disable-next-line import/order
 import App from './App.vue'
 
-const storageKey = 'orion-color-mode'
-const storedMode = localStorage.getItem(storageKey)?.toLowerCase()
-const defaultClass = 'default-color-mode'
-const colorMode = storedMode ? `${storedMode}-color-mode` : defaultClass
-
-document.body.classList.add(colorMode)
+applyActiveColorModeClass()
 
 async function start(): Promise<void> {
   if (VITE_PREFECT_USE_MIRAGEJS()) {
