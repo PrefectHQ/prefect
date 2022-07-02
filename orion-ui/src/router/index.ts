@@ -98,7 +98,7 @@ const routeRecords: AppRouteRecord[] = [
         component: (): RouteComponent => import('@/pages/NotificationCreate.vue'),
       },
       {
-        name: 'edit-notification',
+        name: 'notifications.edit',
         path: 'edit/:notificationId',
         component: (): RouteComponent => import('@/pages/NotificationEdit.vue'),
       },
