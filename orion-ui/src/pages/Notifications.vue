@@ -16,7 +16,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { Notification, NotificationsTable, NotificationsPageEmptyState, PageHeadingNotifications, NotificationFilter } from '@prefecthq/orion-design'
+  import { Notification, NotificationsTable, NotificationsPageEmptyState, PageHeadingNotifications } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { notificationsApi } from '@/services/notificationsApi'
@@ -25,9 +25,7 @@
     interval: 30000,
   }
 
-  const filter: NotificationFilter = {}
-
-  const notificationsSubscription = useSubscription(notificationsApi.getNotifications, [filter], subscriptionOptions)
+  const notificationsSubscription = useSubscription(notificationsApi.getNotifications, [{}], subscriptionOptions)
   const notifications = computed<Notification[]>(() => notificationsSubscription.response ?? [])
   const empty = computed(() => notificationsSubscription.executed && notifications.value.length === 0)
   const loaded = computed(() => notificationsSubscription.executed)
