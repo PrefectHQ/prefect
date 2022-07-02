@@ -2,10 +2,9 @@
 Command line interface for working with profiles.
 """
 import textwrap
+from typing import Optional
 
 import typer
-
-from typing import Optional
 
 import prefect.context
 import prefect.settings
