@@ -5,6 +5,8 @@ import textwrap
 
 import typer
 
+from typing import Optional
+
 import prefect.context
 import prefect.settings
 from prefect.cli._types import PrefectTyper
@@ -140,7 +142,11 @@ def rename(name: str, new_name: str):
 
 
 @profile_app.command()
-def inspect(name: str = None):
+def inspect(
+    name: Optional[str] = typer.Argument(
+        None, help="Name of profile to inspect; defaults to active profile."
+    )
+):
     """
     Display settings from a given profile; defaults to active.
     """
@@ -150,7 +156,7 @@ def inspect(name: str = None):
         if not current_profile:
             exit_with_error("No active profile set - please provide a name to inspect.")
         name = current_profile.name
-        print(f"No name provided, defaulting to '{name!r}'")
+        print(f"No name provided, defaulting to {name!r}")
     if name not in profiles:
         exit_with_error(f"Profile {name!r} not found.")
 
