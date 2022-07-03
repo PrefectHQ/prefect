@@ -317,7 +317,12 @@ class CronClock(Clock):
         cron = croniter(self.cron, after_localized, day_or=self.day_or)  # type: ignore
         dates = set()  # type: Set[datetime]
 
+        iterations = 0
         while True:
+            iterations += 1
+            # escape hatch
+            if iterations > 1000:
+                break
             next_date = pendulum.instance(cron.get_next(datetime))
             # because of croniter's rounding behavior, we want to avoid
             # issuing the after date; we also want to avoid duplicates caused by
@@ -329,11 +334,14 @@ class CronClock(Clock):
 
                 # if we are stuck in a DST loop, create a new cron instance
                 # that starts after this date. This brute force avoids
-                # croniter issues like the Santiago DST boundary
+                # croniter bugs like the Santiago DST boundary
                 if stuck_count == 3:
-                    cron = croniter(self.cron, next_date, day_or=self.day_or)  # type: ignore
+                    after = next_date
+                    cron = croniter(self.cron, after, day_or=self.day_or)  # type: ignore
                     next_date = pendulum.instance(cron.get_next(datetime))
-                    break
+                    # if we're still seeing the issue, escape!
+                    if next_date in dates:
+                        iterations = 1000
 
             if self.end_date and next_date > self.end_date:
                 break
