@@ -18,7 +18,6 @@
   const notificationId = useRouteParam('notificationId')
   const notification = ref({ ...await notificationsApi.getNotification(notificationId.value) })
 
-
   async function submit(notification: Partial<Notification>): Promise<void> {
     try {
       await notificationsApi.updateNotification(notificationId.value, notification)
