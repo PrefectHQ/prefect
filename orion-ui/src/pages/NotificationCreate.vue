@@ -3,7 +3,7 @@
     <template #header>
       <PageHeadingNotificationCreate />
     </template>
-    <NotificationForm v-model:notification="notification" @submit="submit" @cancel="cancel" />
+    <NotificationForm v-model:notification="notificationCreate" @submit="submit" @cancel="cancel" />
   </p-layout-default>
 </template>
 
@@ -15,11 +15,10 @@
   import { notificationsApi } from '@/services/notificationsApi'
 
 
-  const notification = ref({})
+  const notificationCreate = ref({})
   async function submit(notification: Partial<Notification>): Promise<void> {
     try {
-      const notificationRequest: INotificationRequest = mapCamelToSnakeCase(notification)
-      await notificationsApi.createNotification(notificationRequest)
+      await notificationsApi.createNotification(notification)
       router.push(routes.notifications())
     } catch (error) {
       showToast('Error creating notification', 'error')
