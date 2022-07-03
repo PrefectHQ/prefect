@@ -14,7 +14,6 @@
   import router, { routes } from '@/router'
   import { notificationsApi } from '@/services/notificationsApi'
 
-
   const notificationCreate = ref({})
   async function submit(notification: Partial<Notification>): Promise<void> {
     try {
