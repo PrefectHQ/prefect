@@ -8,7 +8,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { NotificationForm, Notification, INotificationUpdateRequest, titleCase, PageHeadingNotificationEdit } from '@prefecthq/orion-design'
+  import { NotificationForm, Notification, PageHeadingNotificationEdit } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'
@@ -18,19 +18,10 @@
   const notificationId = useRouteParam('notificationId')
   const notification = ref({ ...await notificationsApi.getNotification(notificationId.value) })
 
-  function mapNotificationUpdateToNotificationUpdateRequest(notificationUpdate: Partial<Notification>): INotificationUpdateRequest {
-    const stateNames = notification.value.stateNames.map(name=> titleCase(name))
-    return {
-      state_names: stateNames,
-      tags: notificationUpdate.tags,
-      is_active: notificationUpdate.isActive,
-    }
-  }
 
-  async function submit(notificationSource: Partial<Notification>): Promise<void> {
+  async function submit(notification: Partial<Notification>): Promise<void> {
     try {
-      const notificationUpdate: INotificationUpdateRequest = mapNotificationUpdateToNotificationUpdateRequest(notificationSource)
-      await notificationsApi.updateNotification(notificationId.value, notificationUpdate)
+      await notificationsApi.updateNotification(notificationId.value, notification)
       router.push(routes.notifications())
     } catch (error) {
       showToast('Error updating notification', 'error')
