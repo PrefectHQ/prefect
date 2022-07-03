@@ -331,7 +331,7 @@ class CronClock(Clock):
                 # that starts after this date. This brute force avoids
                 # croniter issues like the Santiago DST boundary
                 if stuck_count == 3:
-                    cron = croniter(self.cron, next_date, day_or=self.day_or)
+                    cron = croniter(self.cron, next_date, day_or=self.day_or)  # type: ignore
                     next_date = pendulum.instance(cron.get_next(datetime))
                     break
 
