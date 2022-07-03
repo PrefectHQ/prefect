@@ -9,8 +9,6 @@ from prefect.tasks.databricks import (
 )
 
 
-
-
 def test_raises_if_invalid_host_submitrun(job_config):
 
     # from prefect.tasks.secrets import PrefectSecret
@@ -130,5 +128,3 @@ class TestDatabricksGetJobID:
     def test_find_matching_job_name(self, get_jobid_task_template):
         task_result = get_jobid_task_template.run(job_name="job_name")
         assert task_result == 76
-
-

@@ -1,5 +1,5 @@
-from tests.tasks.databricks.mocks import (DatabricksRunNowTestOverride, 
-    DatabricksGetJobIDTestOverride)
+from tests.tasks.databricks.mocks import (DatabricksRunNowTestOverride,
+                                          DatabricksGetJobIDTestOverride)
 
 import json
 from typing import Any
@@ -8,6 +8,7 @@ import responses
 import prefect
 import pytest
 from requests import PreparedRequest
+
 
 @pytest.fixture
 def job_config():
@@ -73,6 +74,7 @@ def databricks_run_api_response_success():
     }
 
     return response
+
 
 @pytest.fixture
 def databricks_list_api_response_success():
@@ -164,6 +166,7 @@ def requests_mock():
     with responses.RequestsMock() as requests_mock:
         yield requests_mock
 
+
 @pytest.fixture
 def match_run_sumbission_on_idempotency_token(requests_mock, flow_run_id):
     requests_mock.add(
@@ -250,7 +253,3 @@ def body_entry_matcher(key: str, value: Any):
             return False, "No body in request"
 
     return matcher
-
-
-
-

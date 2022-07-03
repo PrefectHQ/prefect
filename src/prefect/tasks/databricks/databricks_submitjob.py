@@ -984,7 +984,11 @@ class DatabricksSubmitMultitaskRun(Task):
                 List[Union[AccessControlRequestForUser, AccessControlRequestForGroup]],
                 input["access_control_list"],
             )
-
+        if input.get("git_source"):
+            kwargs["git_source"] = parse_obj_as(
+                GitSource,
+                input["git_source"]
+            )
         return kwargs
 
     @defaults_from_attrs(
