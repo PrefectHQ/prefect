@@ -322,8 +322,18 @@ class CronClock(Clock):
             # because of croniter's rounding behavior, we want to avoid
             # issuing the after date; we also want to avoid duplicates caused by
             # DST boundary issues
-            if next_date.in_tz("UTC") == after.in_tz("UTC") or next_date in dates:
+            stuck_count = 0
+            while next_date.in_tz("UTC") == after.in_tz("UTC") or next_date in dates:
                 next_date = pendulum.instance(cron.get_next(datetime))
+                stuck_count += 1
+
+                # if we are stuck in a DST loop, create a new cron instance
+                # that starts after this date. This brute force avoids
+                # croniter issues like the Santiago DST boundary
+                if stuck_count == 3:
+                    cron = croniter(self.cron, next_date, day_or=self.day_or)
+                    next_date = pendulum.instance(cron.get_next(datetime))
+                    break
 
             if self.end_date and next_date > self.end_date:
                 break
