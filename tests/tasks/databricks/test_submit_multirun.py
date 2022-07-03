@@ -1,5 +1,6 @@
 import json
 from typing import Any
+from pydantic import ValidationError
 
 import pytest
 from prefect.exceptions import PrefectException
@@ -116,135 +117,173 @@ class TestDatabricksSubmitMultitaskRun:
             ).run()
 
     def test_convert_dict_to_input_dataclasses(self):
-        expected_result = {
-            "tasks": [
-                JobTaskSettings(
-                    task_key="Sessionize",
-                    description="Extracts session data from events",
-                    existing_cluster_id="0923-164208-meows279",
-                    spark_jar_task=SparkJarTask(
+        expected_result = multi_task_job
+        assert (
+            DatabricksSubmitMultitaskRun.convert_dict_to_kwargs(
+                multi_task_job_json
+            ) 
+            == expected_result
+        )
+
+
+def prefect_git_source(**kwargs):
+    GitSource(
+        git_url="https://github.com/PrefectHQ/prefect/",
+        git_provider="GitHub",
+        **kwargs
+    )
+
+
+def assert_git_source_conflicting_args(**kwargs):
+    with pytest.raises(ValidationError):
+        prefect_git_source(**kwargs)
+
+
+def test_gitsource_branch_or_tag_are_exclusive():
+    assert_git_source_conflicting_args(
+        git_branch="main",
+        git_tag="v1.0"
+    )
+
+
+def test_gitsource_branch_or_commit_are_exclusive():
+    assert_git_source_conflicting_args(
+        git_branch="main",
+        git_commit="78ffc7055"
+    )
+
+
+def test_gitsource_commit_or_tag_are_exclusive():
+    assert_git_source_conflicting_args(
+        git_tag="v1.0",
+        git_commit="78ffc7055"
+    )
+
+
+multi_task_job = {
+    "tasks": [
+        JobTaskSettings(
+            task_key="Sessionize",
+            description="Extracts session data from events",
+            existing_cluster_id="0923-164208-meows279",
+            spark_jar_task=SparkJarTask(
                         main_class_name="com.databricks.Sessionize",
                         parameters=["--data", "dbfs:/path/to/data.json"],
-                    ),
-                    libraries=[Library(jar="dbfs:/mnt/databricks/Sessionize.jar")],
-                    timeout_seconds=86400,
-                ),
-                JobTaskSettings(
-                    task_key="Orders_Ingest",
-                    description="Ingests order data",
-                    existing_cluster_id="0923-164208-meows279",
-                    spark_jar_task=SparkJarTask(
+            ),
+            libraries=[Library(jar="dbfs:/mnt/databricks/Sessionize.jar")],
+            timeout_seconds=86400,
+        ),
+        JobTaskSettings(
+            task_key="Orders_Ingest",
+            description="Ingests order data",
+            existing_cluster_id="0923-164208-meows279",
+            spark_jar_task=SparkJarTask(
                         main_class_name="com.databricks.OrdersIngest",
                         parameters=["--data", "dbfs:/path/to/order-data.json"],
-                    ),
-                    libraries=[Library(jar="dbfs:/mnt/databricks/OrderIngest.jar")],
-                    timeout_seconds=86400,
-                ),
-                JobTaskSettings(
-                    task_key="Match",
-                    description="Matches orders with user sessions",
-                    depends_on=[
+            ),
+            libraries=[Library(jar="dbfs:/mnt/databricks/OrderIngest.jar")],
+            timeout_seconds=86400,
+        ),
+        JobTaskSettings(
+            task_key="Match",
+            description="Matches orders with user sessions",
+            depends_on=[
                         TaskDependency(task_key="Orders_Ingest"),
                         TaskDependency(task_key="Sessionize"),
-                    ],
-                    new_cluster=NewCluster(
-                        spark_version="7.3.x-scala2.12",
-                        node_type_id="i3.xlarge",
-                        spark_conf={"spark.speculation": True},
-                        aws_attributes=AwsAttributes(
-                            availability=AwsAvailability.SPOT, zone_id="us-west-2a"
-                        ),
-                        autoscale=AutoScale(min_workers=2, max_workers=16),
-                    ),
-                    notebook_task=NotebookTask(
-                        notebook_path="/Users/user.name@databricks.com/Match",
-                        base_parameters={"name": "John Doe", "age": "35"},
-                    ),
-                    timeout_seconds=86400,
-                ),
             ],
-            "run_name": "A multitask job run",
-            "timeout_seconds": 86400,
-            "idempotency_token": "8f018174-4792-40d5-bcbc-3e6a527352c8",
-            "access_control_list": [
+            new_cluster=NewCluster(
+                spark_version="7.3.x-scala2.12",
+                node_type_id="i3.xlarge",
+                spark_conf={"spark.speculation": True},
+                aws_attributes=AwsAttributes(
+                    availability=AwsAvailability.SPOT, zone_id="us-west-2a"
+                ),
+                autoscale=AutoScale(min_workers=2, max_workers=16),
+            ),
+            notebook_task=NotebookTask(
+                notebook_path="/Users/user.name@databricks.com/Match",
+                base_parameters={"name": "John Doe", "age": "35"},
+            ),
+            timeout_seconds=86400,
+        ),
+    ],
+    "run_name": "A multitask job run",
+    "timeout_seconds": 86400,
+    "idempotency_token": "8f018174-4792-40d5-bcbc-3e6a527352c8",
+    "access_control_list": [
                 AccessControlRequest(
                     __root__=AccessControlRequestForUser(
                         user_name="jsmith@example.com",
                         permission_level=PermissionLevel(__root__=CanManage.CAN_MANAGE),
                     )
                 )
-            ],
-        }
+    ],
+}
 
-        assert (
-            DatabricksSubmitMultitaskRun.convert_dict_to_kwargs(
-                {
-                    "tasks": [
-                        {
-                            "task_key": "Sessionize",
-                            "description": "Extracts session data from events",
-                            "depends_on": [],
-                            "existing_cluster_id": "0923-164208-meows279",
-                            "spark_jar_task": {
-                                "main_class_name": "com.databricks.Sessionize",
-                                "parameters": ["--data", "dbfs:/path/to/data.json"],
-                            },
-                            "libraries": [
-                                {"jar": "dbfs:/mnt/databricks/Sessionize.jar"}
-                            ],
-                            "timeout_seconds": 86400,
-                        },
-                        {
-                            "task_key": "Orders_Ingest",
-                            "description": "Ingests order data",
-                            "depends_on": [],
-                            "existing_cluster_id": "0923-164208-meows279",
-                            "spark_jar_task": {
-                                "main_class_name": "com.databricks.OrdersIngest",
-                                "parameters": [
-                                    "--data",
-                                    "dbfs:/path/to/order-data.json",
-                                ],
-                            },
-                            "libraries": [
-                                {"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}
-                            ],
-                            "timeout_seconds": 86400,
-                        },
-                        {
-                            "task_key": "Match",
-                            "description": "Matches orders with user sessions",
-                            "depends_on": [
-                                {"task_key": "Orders_Ingest"},
-                                {"task_key": "Sessionize"},
-                            ],
-                            "new_cluster": {
-                                "spark_version": "7.3.x-scala2.12",
-                                "node_type_id": "i3.xlarge",
+multi_task_job_json = {
+    "tasks": [
+        {
+            "task_key": "Sessionize",
+            "description": "Extracts session data from events",
+            "depends_on": [],
+            "existing_cluster_id": "0923-164208-meows279",
+            "spark_jar_task": {
+                "main_class_name": "com.databricks.Sessionize",
+                "parameters": ["--data", "dbfs:/path/to/data.json"],
+            },
+            "libraries": [
+                {"jar": "dbfs:/mnt/databricks/Sessionize.jar"}
+            ],
+            "timeout_seconds": 86400,
+        },
+        {
+            "task_key": "Orders_Ingest",
+            "description": "Ingests order data",
+            "depends_on": [],
+            "existing_cluster_id": "0923-164208-meows279",
+            "spark_jar_task": {
+                "main_class_name": "com.databricks.OrdersIngest",
+                "parameters": [
+                    "--data",
+                    "dbfs:/path/to/order-data.json",
+                ],
+            },
+            "libraries": [
+                {"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}
+            ],
+            "timeout_seconds": 86400,
+        },
+        {
+            "task_key": "Match",
+            "description": "Matches orders with user sessions",
+            "depends_on": [
+                {"task_key": "Orders_Ingest"},
+                {"task_key": "Sessionize"},
+            ],
+            "new_cluster": {
+                "spark_version": "7.3.x-scala2.12",
+                "node_type_id": "i3.xlarge",
                                 "spark_conf": {"spark.speculation": True},
                                 "aws_attributes": {
                                     "availability": "SPOT",
                                     "zone_id": "us-west-2a",
                                 },
-                                "autoscale": {"min_workers": 2, "max_workers": 16},
-                            },
-                            "notebook_task": {
-                                "notebook_path": "/Users/user.name@databricks.com/Match",
-                                "base_parameters": {"name": "John Doe", "age": "35"},
-                            },
-                            "timeout_seconds": 86400,
-                        },
-                    ],
-                    "run_name": "A multitask job run",
-                    "timeout_seconds": 86400,
-                    "idempotency_token": "8f018174-4792-40d5-bcbc-3e6a527352c8",
-                    "access_control_list": [
-                        {
-                            "user_name": "jsmith@example.com",
-                            "permission_level": "CAN_MANAGE",
-                        }
-                    ],
-                }
-            )
-            == expected_result
-        )
+                "autoscale": {"min_workers": 2, "max_workers": 16},
+            },
+            "notebook_task": {
+                "notebook_path": "/Users/user.name@databricks.com/Match",
+                "base_parameters": {"name": "John Doe", "age": "35"},
+            },
+            "timeout_seconds": 86400,
+        },
+    ],
+    "run_name": "A multitask job run",
+    "timeout_seconds": 86400,
+    "idempotency_token": "8f018174-4792-40d5-bcbc-3e6a527352c8",
+    "access_control_list": [
+        {
+            "user_name": "jsmith@example.com",
+            "permission_level": "CAN_MANAGE",
+        }
+    ],
+}

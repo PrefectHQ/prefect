@@ -226,12 +226,18 @@ class GitSource(BaseModel):
 
     @validator('git_tag', always=True)
     def branch_or_tag(cls, v, values):
-        if values['git_branch'] is not None and v:
+        if 'git_branch' in values is not None and v:
             raise ValueError('Cannot specify git tag if git branch has been specified')
+        return v
+
+    @validator('git_branch', always=True)
+    def commit_or_branch(cls, v, values):
+        if 'git_commit' in values is not None and v:
+            raise ValueError('Cannot specify git branch if git commit has been specified')
         return v
 
     @validator('git_commit', always=True)
     def tag_or_commit(cls, v, values):
-        if values['git_tag'] is not None and v:
+        if 'git_tag' in values is not None and v:
             raise ValueError('Cannot specify git commit if git tag has been specified')
         return v
