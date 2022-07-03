@@ -8,7 +8,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { NotificationForm, Notification, INotificationRequest, mapCamelToSnakeCase, PageHeadingNotificationCreate } from '@prefecthq/orion-design'
+  import { NotificationForm, Notification, PageHeadingNotificationCreate } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { ref } from 'vue'
   import router, { routes } from '@/router'
