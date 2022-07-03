@@ -1,7 +1,7 @@
 import functools
 import json
 import pytest
-import requests_mock
+import responses
 from prefect.tasks.toloka.helpers import download_json
 
 
@@ -14,8 +14,8 @@ _json_dump = functools.partial(json.dumps, ensure_ascii=False)
 
 @pytest.fixture
 def mocked_url():
-    with requests_mock.Mocker(real_http=False) as mock:
-        mock.get(URL, content=_json_dump(CONTENT).encode())
+    with responses.RequestsMock() as mock:
+        mock.get(URL, body=_json_dump(CONTENT))
         yield URL
 
 
