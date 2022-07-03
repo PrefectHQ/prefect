@@ -3,7 +3,7 @@
     <template #header>
       <PageHeadingNotificationCreate />
     </template>
-    <NotificationForm v-model:notification="createNotification" @submit="submit" @cancel="cancel" />
+    <NotificationForm v-model:notification="notification" @submit="submit" @cancel="cancel" />
   </p-layout-default>
 </template>
 
@@ -15,7 +15,7 @@
   import { notificationsApi } from '@/services/notificationsApi'
 
 
-  const createNotification = ref({ stateNames: [], tags: [], isActive: true })
+  const notification = ref({})
   async function submit(notification: Partial<Notification>): Promise<void> {
     try {
       const notificationRequest: INotificationRequest = mapCamelToSnakeCase(notification)
