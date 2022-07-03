@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Extra, Field
+from pydantic import BaseModel, Field, validator
 
 
 class TaskDependency(BaseModel):
@@ -216,3 +216,22 @@ class AccessControlRequestForGroup(BaseModel):
 
 class AccessControlRequest(BaseModel):
     __root__: Union[AccessControlRequestForUser, AccessControlRequestForGroup]
+
+class GitSource(BaseModel):
+    git_url: str
+    git_provider: str
+    git_branch: Optional[str] = None
+    git_tag: Optional[str] = None
+    git_commit: Optional[str] = None
+
+    @validator('git_tag', always=True)
+    def branch_or_tag(cls, v, values):
+        if values['git_branch'] is not None and v:
+            raise ValueError('Cannot specify git tag if git branch has been specified')
+        return v
+
+    @validator('git_commit', always=True)
+    def tag_or_commit(cls, v, values):
+        if values['git_tag'] is not None and v:
+            raise ValueError('Cannot specify git commit if git tag has been specified')
+        return v
