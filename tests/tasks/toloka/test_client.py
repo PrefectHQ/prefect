@@ -55,7 +55,7 @@ def test_add_headers(secrets_mock):
         return toloka_client.get_pool("123")
 
     with responses.RequestsMock() as mocker:
-        mocker.get(re.compile('.*'), body=b"...")
+        mocker.get(re.compile(".*"), body=b"...")
 
         with pytest.raises(Exception, match="Expecting value"):
             make_request()
