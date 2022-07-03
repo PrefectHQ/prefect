@@ -652,7 +652,7 @@ class TestCronClockDaylightSavingsTime:
         if serialize:
             c = ClockSchema().load(ClockSchema().dump(c))
         next_4 = islice(c.events(after=dt), 4)
-        # constant 9am start
+        # no infinite loop on the 4th
         assert [t.start_time.in_tz("America/Santiago").day for t in next_4] == [
             28,
             4,
