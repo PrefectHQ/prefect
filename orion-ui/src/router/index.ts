@@ -84,6 +84,64 @@ const routeRecords: AppRouteRecord[] = [
     ],
   },
   {
+    path: '/blocks',
+    component: RouterView,
+    children: [
+      {
+        name: 'blocks',
+        path: '',
+        component: (): RouteComponent => import('@/pages/Blocks.vue'),
+      },
+      {
+        name: 'blocks.catalog',
+        path: 'catalog',
+        component: (): RouteComponent => import('@/pages/BlocksCatalog.vue'),
+      },
+      {
+        name: 'blocks.create',
+        path: 'catalog/:blockTypeName/create',
+        component: (): RouteComponent => import('@/pages/BlocksCatalogCreate.vue'),
+      },
+    ],
+  },
+  {
+    path: '/block/:blockDocumentId',
+    component: RouterView,
+    children: [
+      {
+        name: 'block',
+        path: '',
+        component: (): RouteComponent => import('@/pages/BlockView.vue'),
+      },
+      {
+        name: 'block.edit',
+        path: 'edit',
+        component: (): RouteComponent => import('@/pages/BlockEdit.vue'),
+      },
+    ],
+  },
+  {
+    path: '/notifications',
+    component: RouterView,
+    children: [
+      {
+        name: 'notifications',
+        path: '',
+        component: (): RouteComponent => import('@/pages/Notifications.vue'),
+      },
+      {
+        name: 'notifications.create',
+        path: 'new',
+        component: (): RouteComponent => import('@/pages/NotificationCreate.vue'),
+      },
+      {
+        name: 'notifications.edit',
+        path: 'edit/:notificationId',
+        component: (): RouteComponent => import('@/pages/NotificationEdit.vue'),
+      },
+    ],
+  },
+  {
     name: 'settings',
     path: '/settings',
     component: (): RouteComponent => import('@/pages/Settings.vue'),
