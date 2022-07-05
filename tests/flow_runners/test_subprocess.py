@@ -12,7 +12,8 @@ import coolname
 import pytest
 
 import prefect
-from prefect.flow_runners import SubprocessFlowRunner, base_flow_run_environment
+from prefect.flow_runners import SubprocessFlowRunner
+from prefect.flow_runners.base import base_flow_run_environment
 from prefect.settings import SETTING_VARIABLES
 from prefect.testing.utilities import AsyncMock
 
