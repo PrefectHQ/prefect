@@ -2,6 +2,8 @@ import json
 from typing import Any
 
 import pytest
+pytest.importorskip("pydantic")  # noqa
+
 from pydantic import ValidationError
 from yaml import parse
 
