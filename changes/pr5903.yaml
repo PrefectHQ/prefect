@@ -1,0 +1,5 @@
+fix:
+  - "Add single_user_name to Databricks NewCluster - [#5903](https://github.com/PrefectHQ/prefect/pull/5903)"
+
+contributor:
+  - "[Cat Zhang](https://github.com/juscat)"
