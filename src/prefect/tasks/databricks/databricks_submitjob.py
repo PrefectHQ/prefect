@@ -978,7 +978,7 @@ class DatabricksSubmitMultitaskRun(Task):
 
         if input.get("access_control_list"):
             kwargs["access_control_list"] = parse_obj_as(
-                List[AccessControlRequest],
+                List[Union[AccessControlRequestForUser, AccessControlRequestForGroup]],
                 input["access_control_list"],
             )
 
@@ -1073,7 +1073,7 @@ class DatabricksSubmitMultitaskRun(Task):
                 timeout_seconds=timeout_seconds,
                 idempotency_token=idempotency_token,
                 access_control_list=[
-                    entry.json() for entry in access_control_list or []
+                    entry.dict() for entry in access_control_list or []
                 ],
             )
         )
