@@ -24,13 +24,12 @@ from prefect.exceptions import (
 from prefect.flow_runners import (
     DockerFlowRunner,
     FlowRunner,
-    FlowRunnerSettings,
     KubernetesFlowRunner,
     SubprocessFlowRunner,
     UniversalFlowRunner,
 )
 from prefect.flows import Flow, flow, load_flow_from_script
-from prefect.orion.schemas.core import Deployment
+from prefect.orion.schemas.core import Deployment, FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
 
