@@ -308,13 +308,13 @@ def flow_might_fail():
 
 When a flow run fails, the Prefect engine will propose the failed state. If the `retries` parameter is set on the flow, the orchestrator can return an `AwaitingRetry` state. As with retries for tasks, the engine will attempt to run the flow again. The client is not responsible for avoiding recomputation or state management.
 
-When the flow runs again, each task will be called as before. When creating the new task, the task run keys will match the previous run and the existing run will be returned. For task runs that previously failed, the state will be reset so the task can run again. For task runs that previously succeeded, the `Completed` state will be used without running the task again.
+When the flow runs again, each task will be called to check its state. Task runs that previously failed will have their state reset to `AwaitingRetry` and will run again. Task runs that previously succeeded will return their previous `Completed` state without running again.
 
 ### Subflow retries 
 
 If a [subflow](#subflows) is called within a flow with retries, its behavior will vary depending on if it failed or completed.
 
-If the child run failed, a new flow run will be created for the child flow call. This new flow run will be attached to the existing tracking task run. This means that there can be multiple child flow runs attached to the same tracking task run in the parent. This strategy avoids recursively resetting all of the task runs in child flow runs. In most situations, the newest flow run can be retrieved when linking to a child from the parent.
+If the child run failed, a new flow run will be created for the child flow call.
 
 If the child run succeeded, its state will be retrieved and returned.
 
