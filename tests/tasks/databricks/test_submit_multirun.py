@@ -1,11 +1,5 @@
 import pydantic
 import pytest
-from test_submit_run import (
-    failed_run,
-    flow_run_id,
-    flow_run_name,
-    successful_run_submission,
-)
 
 from prefect.exceptions import PrefectException
 from prefect.tasks.databricks import DatabricksSubmitMultitaskRun
@@ -24,7 +18,16 @@ from prefect.tasks.databricks.models import (
     SparkJarTask,
     TaskDependency,
 )
-
+from tests.tasks.databricks.test_submit_run import (
+    failed_run,
+    flow_run_id,
+    flow_run_name,
+    match_run_sumbission_on_idempotency_token,
+    match_run_sumbission_on_run_name,
+    successful_run_completion,
+    successful_run_submission,
+    requests_mock,
+)  # noqa
 
 class TestDatabricksSubmitMultitaskRun:
     databricks_conn_secret = {
