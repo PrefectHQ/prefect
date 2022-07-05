@@ -36,7 +36,7 @@
     "@types/jest-dev-server": "^5.0.0",
     "@types/jest-environment-puppeteer": "^5.0.2",
     "@types/puppeteer": "^5.4.6",
-    "@types/tailwindcss": "3.0.11",
+    "@types/tailwindcss": "3.1.0",
     "@vitejs/plugin-vue": "^2.3.3",
     "@vue/test-utils": "^2.0.2",
     "autoprefixer": "10.4.7",
