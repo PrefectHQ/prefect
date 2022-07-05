@@ -72,12 +72,14 @@ Flows allow a great deal of configuration via arguments. Flows accept the follow
 
 | Argument | Description |
 | --- | --- |
-| name | An optional name for the flow. If not provided, the name will be inferred from the function. | 
-| version | An optional version string for the flow. If not provided, we will attempt to create a version string as a hash of the file containing the wrapped function. If the file cannot be located, the version will be null. | 
-| task_runner | The [task runner](/concepts/task-runners/) to use for task execution within the flow. If not provided, the `ConcurrentTaskRunner` will be used. | 
-| description | An optional string description for the flow. If not provided, the description will be pulled from the docstring for the decorated function. | 
-| timeout_seconds | An optional number of seconds indicating a maximum runtime for the flow. If the flow exceeds this runtime, it will be marked as failed. Flow execution may continue until the next task is called. | 
-| validate_parameters | Boolean indicating whether parameters passed to flows are validated by Pydantic. Default is `True`.  | 
+| `description` | An optional string description for the flow. If not provided, the description will be pulled from the docstring for the decorated function. | 
+| `name` | An optional name for the flow. If not provided, the name will be inferred from the function. | 
+| `retries` | An optional number of times to retry on flow run failure. |
+| <span class="no-wrap">`retry_delay_seconds`</span> | An optional number of seconds to wait before retrying the flow after failure. This is only applicable if `retries` is nonzero. |
+| `task_runner` | The [task runner](/concepts/task-runners/) to use for task execution within the flow. If not provided, the `ConcurrentTaskRunner` will be used. | 
+| `timeout_seconds` | An optional number of seconds indicating a maximum runtime for the flow. If the flow exceeds this runtime, it will be marked as failed. Flow execution may continue until the next task is called. | 
+| `validate_parameters` | Boolean indicating whether parameters passed to flows are validated by Pydantic. Default is `True`.  | 
+| `version` | An optional version string for the flow. If not provided, we will attempt to create a version string as a hash of the file containing the wrapped function. If the file cannot be located, the version will be null. | 
 
 For example, you can provide a `name` value for the flow. Here we've also used the optional `description` argument and specified a non-default task runner.
 
@@ -291,6 +293,36 @@ what_day_is_it("2021-01-01T02:00:19.180906")
 ```
 
 Parameters are validated before a flow is run. If a flow call receives invalid parameters, a flow run is created in a `Failed` state. If a flow run for a deployment receives invalid parameters, it will move from a `Pending` state to a `Failed` without entering a `Running` state.
+
+## Flow retries
+
+When your flow run encounters an exception or fails due to a failed task run, it can be retried. This is configurable the same way as task retries with the `retries` and `retry_delay_seconds` parameters.
+
+```python
+from prefect import flow
+
+@flow(retries=1, retry_delay_seconds=60)
+def flow_might_fail():
+    # Call tasks
+```
+
+When a flow run fails, the Prefect engine will propose the failed state. If the `retries` parameter is set on the flow, the orchestrator can return an `AwaitingRetry` state. As with retries for tasks, the engine will attempt to run the flow again. The client is not responsible for avoiding recomputation or state management.
+
+When the flow runs again, each task will be called as before. When creating the new task, the task run keys will match the previous run and the existing run will be returned. For task runs that previously failed, the state will be reset so the task can run again. For task runs that previously succeeded, the `Completed` state will be used without running the task again.
+
+### Subflow retries 
+
+If a [subflow](#subflows) is called within a flow with retries, its behavior will vary depending on if it failed or completed.
+
+If the child run failed, a new flow run will be created for the child flow call. This new flow run will be attached to the existing tracking task run. This means that there can be multiple child flow runs attached to the same tracking task run in the parent. This strategy avoids recursively resetting all of the task runs in child flow runs. In most situations, the newest flow run can be retrieved when linking to a child from the parent.
+
+If the child run succeeded, its state will be retrieved and returned.
+
+If a child flow run also has retries configured, things should behave as described for child flow runs and tasks.
+
+### Task retries
+
+If a task within a subflow to be retried has retries configured, it will retry up to its limit for each flow run retry. This is accomplished by resetting the run count of all failed tasks when returning a flow run retry state. For example, if you have a task which retries 3 times, and a flow that retries 2 times, the task could run up to 8 times. However, within each flow retry, the task will not run more than 4 times.
 
 ## Final state determination
 
