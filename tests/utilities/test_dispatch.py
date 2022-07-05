@@ -11,9 +11,13 @@ from prefect.utilities.dispatch import (
 
 @pytest.fixture(autouse=True)
 def reset_dispatch_registry():
-    yield
+    before = _TYPE_REGISTRIES.copy()
 
     _TYPE_REGISTRIES.clear()
+
+    yield
+
+    _TYPE_REGISTRIES.update(before)
 
 
 def test_register_base_type():

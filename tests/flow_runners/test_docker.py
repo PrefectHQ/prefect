@@ -613,7 +613,7 @@ class TestDockerFlowRunner:
 
         fake_status.started.assert_called_once()
         flow_run = await orion_client.read_flow_run(flow_run.id)
-        runtime_settings = await orion_client.resolve_datadoc(flow_run.state.result())
+        runtime_settings = await orion_client.resolve_datadoc(flow_run.state.data)
 
         runtime_api_url = PREFECT_API_URL.value_from(runtime_settings)
         assert runtime_api_url == (
@@ -697,7 +697,7 @@ class TestDockerFlowRunner:
 
         fake_status.started.assert_called_once()
         flow_run = await orion_client.read_flow_run(flow_run.id)
-        file_contents = await orion_client.resolve_datadoc(flow_run.state.result())
+        file_contents = await orion_client.resolve_datadoc(flow_run.state.data)
         assert file_contents == "foo"
 
         assert (tmp_path / "writefile").read_text() == "bar"
@@ -742,7 +742,7 @@ class TestDockerFlowRunner:
 
         fake_status.started.assert_called_once()
         flow_run = await orion_client.read_flow_run(flow_run.id)
-        flow_run_environ = await orion_client.resolve_datadoc(flow_run.state.result())
+        flow_run_environ = await orion_client.resolve_datadoc(flow_run.state.data)
         assert "TEST_FOO" in flow_run_environ and "TEST_BAR" in flow_run_environ
         assert flow_run_environ["TEST_FOO"] == "foo"
         assert flow_run_environ["TEST_BAR"] == "bar"

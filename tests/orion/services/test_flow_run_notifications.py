@@ -27,7 +27,6 @@ async def completed_policy(session, notifier_block):
         await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My Success Policy",
                 state_names=["Completed"],
                 tags=[],
                 block_document_id=notifier_block.id,
@@ -44,7 +43,6 @@ async def completed_etl_policy(session, notifier_block):
         await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My Success Policy",
                 state_names=["Completed"],
                 tags=["ETL"],
                 block_document_id=notifier_block.id,
@@ -61,7 +59,6 @@ async def failed_policy(session, notifier_block):
         await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My Success Policy",
                 state_names=["Failed"],
                 tags=[],
                 block_document_id=notifier_block.id,
