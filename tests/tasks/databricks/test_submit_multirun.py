@@ -2,9 +2,7 @@ import json
 from typing import Any
 
 import pytest
-pytest.importorskip("pydantic")  # noqa
 
-from pydantic import ValidationError
 from yaml import parse
 
 from prefect.exceptions import PrefectException
@@ -169,6 +167,7 @@ def prefect_git_source(**kwargs):
 
 
 def assert_git_source_conflicting_args(**kwargs):
+    from pydantic import ValidationError
     with pytest.raises(ValidationError):
         prefect_git_source(**kwargs)
 
