@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 import responses
+from mocks import DatabricksGetJobIDTestOverride, DatabricksRunNowTestOverride
 from requests import PreparedRequest
 
 import prefect
@@ -24,7 +25,7 @@ def job_config():
             "node_type_id": "Standard_D3_v2",
         },
         "spark_python_task": {
-            "python_file": f"dbfs:/FileStore/tables/runner.py",
+            "python_file": "dbfs:/FileStore/tables/runner.py",
             "parameters": [1],
         },
     }
