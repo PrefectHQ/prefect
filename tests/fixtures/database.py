@@ -406,7 +406,7 @@ def initialize_orchestration(flow):
     return initializer
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 async def notifier_block(orion_client):
     @register_block
     class DebugPrintNotification(NotificationBlock):
