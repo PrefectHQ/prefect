@@ -15,9 +15,6 @@ __ui_static_path__ = __module_path__ / "orion" / "ui"
 
 del _version, pathlib
 
-# User-facing API
-# For details on the import syntax, see https://github.com/microsoft/pyright/blob/main/docs/typed-libraries.md#library-interface
-
 from .orion.schemas.states import State
 from .logging import get_run_logger
 from .flows import flow
@@ -33,3 +30,6 @@ import prefect.context
 
 prefect.context.enter_root_settings_context()
 prefect.context.initialize_object_registry()
+
+# User-facing API
+__all__ = ["State", "flow", "get_client", "get_run_logger", "tags", "task"]
