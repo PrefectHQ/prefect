@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import fsspec
-from pydantic import Field, PrivateAttr, validator
+from pydantic import BaseModel, Field, PrivateAttr, validator
 
 from prefect.blocks.core import Block
 from prefect.blocks.storage import LocalStorageBlock, StorageBlock, TempStorageBlock
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from prefect.deployments import DeploymentSpec
 
 
-class ScriptPackager:
+class ScriptPackager(BaseModel):
     """
     Pushes the source code for your flow to a remote path.
 
@@ -56,9 +56,6 @@ class ScriptPackager:
     __dispatch_key__ = "deprecated:script"
 
     storage: Optional[Union[StorageBlock, UUID]] = None
-
-    def __init__(self, storage: StorageBlock = None):
-        self.storage = storage
 
     @sync_compatible
     @inject_client
