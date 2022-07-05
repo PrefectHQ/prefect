@@ -5,13 +5,11 @@ from os.path import abspath
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-import fsspec
-import yaml
 from pydantic import Field, PrivateAttr, validator
 
 from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient, inject_client
-from prefect.context import PrefectObjectRegistry, registry_from_script
+from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import DeploymentValidationError, MissingFlowError
 from prefect.flow_runners import FlowRunner, FlowRunnerSettings, UniversalFlowRunner
 from prefect.flows import Flow, load_flow_from_script
@@ -20,7 +18,7 @@ from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.packaging.script import ScriptPackager
 from prefect.utilities.asyncio import sync_compatible
-from prefect.utilities.filesystem import is_local_path, tmpchdir
+from prefect.utilities.filesystem import is_local_path
 
 
 class DeploymentSpec(PrefectBaseModel, abc.ABC):
@@ -223,35 +221,16 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
                 yield validator
 
 
-def deployment_specs_from_yaml(path: str) -> List[DeploymentSpec]:
-    """
-    Load deployment specifications from a yaml file.
-    """
-    with fsspec.open(path, "r") as f:
-        contents = f.read()
-
-    # Parse into a yaml tree to retrieve separate documents
-    nodes = yaml.compose_all(contents)
-
-    specs = []
-
-    for node in nodes:
-        line = node.start_mark.line + 1
-
-        # Load deployments relative to the yaml file's directory
-        with tmpchdir(path):
-            raw_spec = yaml.safe_load(yaml.serialize(node))
-            spec = DeploymentSpec.parse_obj(raw_spec)
-
-        # Update the source to be from the YAML file instead of this utility
-        spec._source = {"file": str(path), "line": line}
-        specs.append(spec)
-
-    return specs
-
-
 def deployment_specs_from_script(path: str) -> List[DeploymentSpec]:
+    from prefect.context import registry_from_script
+
     return registry_from_script(path).get_instances(DeploymentSpec)
+
+
+def deployment_specs_from_yaml(path: str) -> List[DeploymentSpec]:
+    from prefect.deployments import load_deployments_from_yaml
+
+    return load_deployments_from_yaml(path).get_instances(DeploymentSpec)
 
 
 def _register_spec(spec: DeploymentSpec) -> None:

@@ -7,11 +7,9 @@ from prefect.flows import Flow
 from prefect.packaging.base import PackageManifest, Packager, Serializer
 from prefect.packaging.serializers import SourceSerializer
 from prefect.settings import PREFECT_HOME
-from prefect.utilities.dispatch import register_type
 from prefect.utilities.hashing import stable_hash
 
 
-@register_type
 class FilePackageManifest(PackageManifest):
     type: Literal["file"] = "file"
     serializer: Serializer
@@ -23,7 +21,6 @@ class FilePackageManifest(PackageManifest):
         return self.serializer.loads(content)
 
 
-@register_type
 class FilePackager(Packager):
     """
     This packager stores the flow as a single file.
@@ -47,4 +44,6 @@ class FilePackager(Packager):
         with open(path, mode="wb") as file:
             file.write(content)
 
-        return FilePackageManifest(serializer=self.serializer, path=path)
+        return FilePackageManifest(
+            flow_name=flow.name, serializer=self.serializer, path=path
+        )

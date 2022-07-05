@@ -82,9 +82,15 @@ def build_ui():
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
 
             app.console.print("Installing npm packages...")
-            subprocess.check_output(
-                ["npm", "ci", "install"], shell=sys.platform == "win32"
-            )
+            try:
+                subprocess.check_output(
+                    ["npm", "ci", "install"], shell=sys.platform == "win32"
+                )
+            except Exception as exc:
+                app.console.print(
+                    "npm call failed - try running `nvm use` first.", style="red"
+                )
+                raise
 
             app.console.print("Building for distribution...")
             env = os.environ.copy()
