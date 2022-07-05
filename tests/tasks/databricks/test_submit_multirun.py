@@ -3,12 +3,14 @@ from typing import Any
 from pydantic import ValidationError
 
 import pytest
+from yaml import parse
 from prefect.exceptions import PrefectException
 from prefect.tasks.databricks import (
     DatabricksSubmitMultitaskRun,
 )
 from prefect.tasks.databricks.models import (
     AccessControlRequest,
+    AccessControlRequestForGroup,
     AccessControlRequestForUser,
     AutoScale,
     AwsAttributes,
@@ -143,6 +145,24 @@ class TestDatabricksSubmitMultitaskRun:
             git_source_json, git_source_jobdef
         )
 
+    def test_convert_dict_to_input_allow_extra(self):
+        extra_params_jobdef = multi_task_job_def()
+        last_task = extra_params_jobdef['tasks'][-1]
+        last_task.new_cluster = last_task.new_cluster.copy(
+            update={"amazing_new_feature":True}
+        )
+        last_task = last_task.copy(
+            update={
+                "unsupported_argument": "ignore_me",
+                "another_unsupported_argument": "ignore_me"
+            }
+        )
+        extra_params_source_json = multi_task_job_json()
+        extra_params_source_json["tasks"][-1]["amazing_new_feature"] = True
+        self.assert_job_is_converted_to_kwargs_correctly(
+            extra_params_source_json, extra_params_jobdef
+        )
+
 
 def prefect_git_source(**kwargs):
     return GitSource(
@@ -230,12 +250,13 @@ def multi_task_job_def():
         "timeout_seconds": 86400,
         "idempotency_token": "8f018174-4792-40d5-bcbc-3e6a527352c8",
         "access_control_list": [
-            AccessControlRequest(
-                    __root__=AccessControlRequestForUser(
-                        user_name="jsmith@example.com",
-                        permission_level=PermissionLevel(__root__=CanManage.CAN_MANAGE),
-                    )
-            )
+            AccessControlRequestForUser(
+                    user_name="jsmith@example.com",
+                    permission_level=CanManage.CAN_MANAGE,
+            ),
+            AccessControlRequestForGroup(
+                group_name="Admins", permission_level=CanManage.CAN_MANAGE
+            ),
         ],
     }
 
@@ -305,6 +326,10 @@ def multi_task_job_json():
             {
                 "user_name": "jsmith@example.com",
                 "permission_level": "CAN_MANAGE",
-            }
+            },
+            {
+                "group_name": "Admins",
+                "permission_level": "CAN_MANAGE",
+            },
         ],
     }
