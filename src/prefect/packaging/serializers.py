@@ -11,7 +11,6 @@ import pydantic
 from typing_extensions import Literal
 
 from prefect.packaging.base import Serializer
-from prefect.utilities.dispatch import register_type
 from prefect.utilities.importtools import (
     from_qualified_name,
     load_script_as_module,
@@ -19,7 +18,6 @@ from prefect.utilities.importtools import (
 )
 
 
-@register_type
 class PickleSerializer(Serializer):
     """
     Serializes objects using the pickle protocol.
@@ -95,7 +93,6 @@ class PickleSerializer(Serializer):
         return pickler.loads(base64.decodebytes(blob))
 
 
-@register_type
 class SourceSerializer(Serializer):
     """
     Serializes objects by retrieving the source code of the module they are defined in.
@@ -154,7 +151,6 @@ class SourceSerializer(Serializer):
         return getattr(module, document["symbol_name"])
 
 
-@register_type
 class ImportSerializer(Serializer):
     """
     Serializes objects by storing their importable path.

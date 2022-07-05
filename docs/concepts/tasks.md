@@ -335,7 +335,7 @@ def task_d():
 def my_flow():
     a = task_a()
     b = task_b()
-    # Wait for task_a and task_2 to complete
+    # Wait for task_a and task_b to complete
     c = task_c(wait_for=[a, b])
     # If waiting for one task it must still be in a list
     # task_d will wait for task_c to complete
