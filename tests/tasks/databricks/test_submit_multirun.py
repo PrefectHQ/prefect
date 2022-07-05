@@ -167,8 +167,8 @@ def prefect_git_source(**kwargs):
 
 
 def assert_git_source_conflicting_args(**kwargs):
-    from pydantic import ValidationError
-    with pytest.raises(ValidationError):
+    pydantic = pytest.importorskip("pydantic")
+    with pytest.raises(pydantic.ValidationError):
         prefect_git_source(**kwargs)
 
 
