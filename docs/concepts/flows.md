@@ -241,15 +241,15 @@ Subflow says: Hello Marvin!
 !!! tip "Subflows or tasks?"
     In Prefect 2.0 you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question we hear is "When should I use a subflow instead of a task?"
 
-    We recommend writing tasks that do a discrete, specific piece of work in your workflow: calling an API, performing a database operation, analyzing or transforming a data point. Prefect tasks have built-in retries and are well suited to parallel or distributed execution using tools like Dask or Ray. For troubleshooting, the more granular you create your tasks, the easier it is to find and fix issues should a task fail.
+    We recommend writing tasks that do a discrete, specific piece of work in your workflow: calling an API, performing a database operation, analyzing or transforming a data point. Prefect tasks have built-in retries and are well suited to parallel or distributed execution using distributed computation frameworks such as Dask or Ray. For troubleshooting, the more granular you create your tasks, the easier it is to find and fix issues should a task fail.
 
-    Subflows enable you to combine granular tasks into components that more complex work within your workflow. Here are some scenarios where you might choose to use a subflow rather than calling tasks individually:
+    Subflows enable you to group related tasks within your workflow. Here are some scenarios where you might choose to use a subflow rather than calling tasks individually:
 
     - Observability: Subflows, like any other flow run, have first-class observability within the Prefect UI and Prefect Cloud. You'll see subflow status in the **Flow Runs** dashboard rather than having to dig down into the tasks within a specific flow run. See [Final state determination](#final-state-determination) for some examples of leveraging task state within flows.
     - Conditional flows: If you have a group of tasks that run only under certain conditions, you can group them within a subflow and conditionally run the subflow rather than each task individually.
-    - Looping over tasks: Similar to conditional tasks, you can easily loop over a group of tasks by looping a subflow that contains the tasks.
+    - Prefect Collections: Call asynchronous tasks from [Prefect Collections](/collections/overview/) within subflows.
     - Parameters: Flows have first-class support for parameterization, making it easy to run the same group of tasks in different use cases by simply passing different parameters to the subflow in which they run.
-    - Task runners: Subflows enable you to specify the task runner used for tasks within the flow. For example, if you want to optimize parallel execution of certain tasks with Dask, you can group them in a subflow that uses the Dask task runner. 
+    - Task runners: Subflows enable you to specify the task runner used for tasks within the flow. For example, if you want to optimize parallel execution of certain tasks with Dask, you can group them in a subflow that uses the Dask task runner. You can use a different task runner for each subflow.
 
 ## Parameters
 
@@ -297,6 +297,8 @@ Parameters are validated before a flow is run. If a flow call receives invalid p
 ## Flow retries
 
 When your flow run encounters an exception or fails due to a failed task run, it can be retried. This is configurable by passing `retries` and, optionally, `retry_delay_seconds` parameters to your task. The retry parameter syntax is the same for both flows and [tasks](/concepts/tasks/#retries).
+
+Flows are not retried unless you specifically configure them to do so.
 
 ```python
 from prefect import flow
