@@ -25,8 +25,8 @@ from prefect.flow_runners import (
     KubernetesFlowRunner,
     KubernetesImagePullPolicy,
     KubernetesRestartPolicy,
-    base_flow_run_environment,
 )
+from prefect.flow_runners.base import base_flow_run_environment
 from prefect.flow_runners.kubernetes import KubernetesManifest
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
