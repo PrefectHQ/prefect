@@ -4,19 +4,30 @@
       <PageHeadingBlocksCatalog />
     </template>
 
-    <template v-if="loaded">
-      <BlockTypeList :block-types="blockTypes" />
-    </template>
+    <BlockTypeList v-model:capability="capability" :block-types="blockTypes" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocksCatalog, BlockTypeList } from '@prefecthq/orion-design'
+  import { PageHeadingBlocksCatalog, BlockTypeList, BlockSchemaCapability, BlockTypeFilter } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { computed, ref } from 'vue'
   import { blockTypesApi } from '@/services/blockTypesApi'
 
-  const blockTypesSubscription = useSubscription(blockTypesApi.getBlockTypes)
+  const capability = ref<BlockSchemaCapability | null>(null)
+  const filter = computed<BlockTypeFilter>(() => {
+    if (!capability.value) {
+      return {}
+    }
+
+    return {
+      blockSchemas: {
+        blockCapabilities: {
+          all_: [capability.value],
+        },
+      },
+    }
+  })
+  const blockTypesSubscription = useSubscription(blockTypesApi.getBlockTypes, [filter])
   const blockTypes = computed(() => blockTypesSubscription.response ?? [])
-  const loaded = computed(() => blockTypesSubscription.executed)
 </script>
