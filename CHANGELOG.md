@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.3.0 <Badge text="beta" type="success" />
+
+Released on July 5, 2022.
+
+### Features
+
+- Adds tasks for Toloka API. - [#5865](https://github.com/PrefectHQ/prefect/pull/5865)
+- Add Azure datafactory tasks. - [#5921](https://github.com/PrefectHQ/prefect/pull/5921)
+
+### Enhancements
+
+- Fixes issue where complex Python dependencies would break Docker storage builds - [#5860](https://github.com/PrefectHQ/prefect/issues/5860)
+- Support ExtraArgs for S3 Result upload - [#5887](https://github.com/PrefectHQ/prefect/pull/5887)
+- Allow extra arguments to Databricks NewCluster - [#5949](https://github.com/PrefectHQ/prefect/pull/5949)
+- Add git_source argument to DatabricksSubmitMultitaskRun - [#5958](https://github.com/PrefectHQ/prefect/pull/5958)
+
+### Fixes
+
+- Fix bug with infinite loop when parsing DST cron schedules - [#5957](https://github.com/PrefectHQ/prefect/pull/5957)
+- Instantiate Task kwargs during DbtCloudRunTask __init__ - [#5831](https://github.com/PrefectHQ/prefect/pull/5831)
+- add boto_kwargs to S3List - [#5907](https://github.com/PrefectHQ/prefect/pull/5907)
+- Revert 'use json() instead of dict() (#5728)' - [#5836](https://github.com/PrefectHQ/prefect/pull/5836)
+- Add single_user_name to Databricks NewCluster - [#5903](https://github.com/PrefectHQ/prefect/pull/5903)
+
+### Contributors
+
+- [Bryan "Beege" Berry](https://github.com/TheBeege)
+- [Cat Zhang](https://github.com/juscat)
+- [EmilRex](https://github.com/EmilRex)
+- [Max Firman](https://github.com/maxfirman)
+- [Nate Nowack](https://github.com/zzstoatzz)
+- [Nico Neumann](https://github.com/neumann-nico)
+- [Robert Phamle](https://github.com/rphamle)
+- [Vladislav Moiseev](https://github.com/vlad-mois)
+- [edmondo1984](https://github.com/edmondo1984)
+
 ## 1.2.2 <Badge text="beta" type="success" />
 
 Released on May 24, 2022.
