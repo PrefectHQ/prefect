@@ -40,7 +40,7 @@ Deployments enable you to:
 - Assign tags for filtering flow runs on work queues and in the UI
 - Create ad-hoc flow runs from the API or UI
 
-Deployments can persist your flow code to a [storage](/concepts/storage/) location and tell the server &mdash; either Prefect Cloud or a local Prefect API server run with `prefect orion start` &mdash; about the location to which a flow has been persisted so the server can schedule and execute flow runs for you. This configuration can include details about the execution environment, parameters, and tags that should be used to create a flow run from the deployment. 
+Deployments can package your flow code and store the manifest in the API &mdash; either Prefect Cloud or a local Prefect API server run with `prefect orion start`. The manifest includes information about the location to which a flow has been persisted so the server can schedule and execute flow runs for you. This manifest can include details about the execution environment, parameters, and tags that should be used to create a flow run from the deployment. 
 
 Deployments are uniquely identified by the combination of flow_name/deployment_name. 
 
