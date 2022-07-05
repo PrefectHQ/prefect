@@ -1,5 +1,3 @@
-from typing import Any
-
 import pydantic
 import pytest
 
@@ -18,7 +16,7 @@ from prefect.tasks.databricks.models import (
     NewCluster,
     NotebookTask,
     SparkJarTask,
-    TaskDependency
+    TaskDependency,
 )
 
 

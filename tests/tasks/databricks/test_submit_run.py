@@ -253,7 +253,7 @@ def body_entry_matcher(key: str, value: Any):
             if body_json.get(key) == value:
                 return True, f"Key ${key} in request body equals ${value}"
             elif body_json.get(key) is None:
-                return False, f"Key ${key} not in request body"
+                return False, "Key ${key} not in request body"
             else:
                 return False, f"Key ${key} in request body does not equal ${value}"
         else:
