@@ -6,7 +6,6 @@ from typing_extensions import Self
 
 from prefect.blocks.core import Block
 from prefect.utilities.collections import listrepr
-from prefect.utilities.dispatch import register_type
 from prefect.utilities.importtools import lazy_import
 
 if TYPE_CHECKING:
@@ -17,7 +16,6 @@ else:
     kube_config = lazy_import("kubernetes.config.kube_config")
 
 
-@register_type
 class KubernetesClusterConfig(Block):
     """
     Stores configuration for interaction with Kubernetes clusters.
