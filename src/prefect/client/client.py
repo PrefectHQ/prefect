@@ -525,11 +525,17 @@ class Client:
         #
         # sleep/backoff times can be customized in prefect.config.cloud.rate_limiting
         rate_limited = response.status_code == 429
-        if rate_limited and rate_limit_counter <= prefect.config.cloud.rate_limiting.max_retries:
+        if (
+            rate_limited
+            and rate_limit_counter <= prefect.config.cloud.rate_limiting.max_retries
+        ):
             jitter = (
                 random.random()
                 * prefect.config.cloud.rate_limiting.backoff_multiplier
-                * (prefect.config.cloud.rate_limiting.backoff_exponent ** rate_limit_counter)
+                * (
+                    prefect.config.cloud.rate_limiting.backoff_exponent
+                    ** rate_limit_counter
+                )
             )
             naptime = prefect.config.cloud.rate_limiting.backoff_s + jitter
             self.logger.warning(
