@@ -1,6 +1,10 @@
+from uuid import UUID
+
 from pydantic import Field
 from typing_extensions import Literal
 
+from prefect.blocks.core import Block
+from prefect.client import OrionClient, inject_client
 from prefect.filesystems import LocalFileSystem, ReadableFileSystem, WritableFileSystem
 from prefect.flows import Flow
 from prefect.packaging.base import PackageManifest, Packager, Serializer
@@ -13,10 +17,13 @@ class FilePackageManifest(PackageManifest):
     type: Literal["file"] = "file"
     serializer: Serializer
     key: str
-    filesystem: ReadableFileSystem
+    filesystem_id: UUID
 
-    async def unpackage(self) -> Flow:
-        content = await self.filesystem.read_path(self.key)
+    @inject_client
+    async def unpackage(self, client: OrionClient) -> Flow:
+        block_document = await client.read_block_document(self.filesystem_id)
+        filesystem: ReadableFileSystem = Block._from_block_document(block_document)
+        content = await filesystem.read_path(self.key)
         return self.serializer.loads(content)
 
 
@@ -36,15 +43,21 @@ class FilePackager(Packager):
         )
     )
 
-    async def package(self, flow: Flow) -> FilePackageManifest:
+    @inject_client
+    async def package(self, flow: Flow, client: "OrionClient") -> FilePackageManifest:
         content = self.serializer.dumps(flow)
         key = stable_hash(content)
 
         await self.filesystem.write_path(key, content)
 
+        filesystem_id = (
+            self.filesystem._block_document_id
+            or await self.filesystem._save(is_anonymous=True)
+        )
+
         return FilePackageManifest(
             flow_name=flow.name,
             serializer=self.serializer,
-            filesystem=self.filesystem,
+            filesystem_id=filesystem_id,
             key=key,
         )
