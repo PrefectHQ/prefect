@@ -44,6 +44,4 @@ class FilePackager(Packager):
         with open(path, mode="wb") as file:
             file.write(content)
 
-        return FilePackageManifest(
-            flow_name=flow.name, serializer=self.serializer, path=path
-        )
+        return self.base_manifest(flow).finalize(serializer=self.serializer, path=path)
