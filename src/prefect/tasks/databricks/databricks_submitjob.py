@@ -13,6 +13,7 @@ from prefect.tasks.databricks.models import (
     AccessControlRequest,
     AccessControlRequestForGroup,
     AccessControlRequestForUser,
+    GitSource,
     JobTaskSettings,
 )
 from prefect.utilities.tasks import defaults_from_attrs
@@ -772,6 +773,8 @@ class DatabricksSubmitMultitaskRun(Task):
             unreachable. Its value must be greater than or equal to 1.
         - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
             might be a floating point number).
+        - git_source (GitSource): A git source for the source code of the jobs (see
+            https://databricks.com/blog/2022/06/21/build-reliable-production-data-and-ml-pipelines-with-git-support-for-databricks-workflows.html)
         - **kwargs (dict, optional): Additional keyword arguments to pass to the
             Task constructor
 
@@ -875,6 +878,7 @@ class DatabricksSubmitMultitaskRun(Task):
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: float = 1,
+        git_source: GitSource = None,
         **kwargs,
     ):
         self.databricks_conn_secret = databricks_conn_secret
@@ -886,6 +890,7 @@ class DatabricksSubmitMultitaskRun(Task):
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        self.git_source = git_source
         super().__init__(**kwargs)
 
     @staticmethod
@@ -981,7 +986,8 @@ class DatabricksSubmitMultitaskRun(Task):
                 List[Union[AccessControlRequestForUser, AccessControlRequestForGroup]],
                 input["access_control_list"],
             )
-
+        if input.get("git_source"):
+            kwargs["git_source"] = parse_obj_as(GitSource, input["git_source"])
         return kwargs
 
     @defaults_from_attrs(
@@ -1006,6 +1012,7 @@ class DatabricksSubmitMultitaskRun(Task):
         polling_period_seconds: int = None,
         databricks_retry_limit: int = None,
         databricks_retry_delay: float = None,
+        git_source: GitSource = None,
     ):
         """
         Task run method. Any values passed here will overwrite the values used when initializing the
@@ -1035,6 +1042,8 @@ class DatabricksSubmitMultitaskRun(Task):
                 unreachable. Its value must be greater than or equal to 1.
             - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
                 might be a floating point number).
+            - git_source (GitSource): A git source for the source code of the jobs (see
+                https://databricks.com/blog/2022/06/21/build-reliable-production-data-and-ml-pipelines-with-git-support-for-databricks-workflows.html)
 
         Returns:
             - run_id (str): Run id of the submitted run
@@ -1064,7 +1073,10 @@ class DatabricksSubmitMultitaskRun(Task):
             retry_limit=databricks_retry_limit,
             retry_delay=databricks_retry_delay,
         )
-
+        if git_source:
+            git_source_json = git_source.dict()
+        else:
+            git_source_json = None
         # Set json on task instance because _handle_databricks_task_execution expects it
         self.json = _deep_string_coerce(
             dict(
@@ -1075,6 +1087,7 @@ class DatabricksSubmitMultitaskRun(Task):
                 access_control_list=[
                     entry.dict() for entry in access_control_list or []
                 ],
+                git_source=git_source_json,
             )
         )
 
