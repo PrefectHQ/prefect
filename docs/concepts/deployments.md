@@ -24,7 +24,7 @@ For detailed information about deployment objects, see the [prefect.deployments]
 !!! warning "Deployments are changing"
     The objects and methods for creating deployments will be changing starting with the Prefect 2.0b8 release, in order to enable exciting new functionality for deployments. 
 
-    The Prefect 2.0b8 release introduces the use of `Deployment` for defining deployment objects, along with [prefect.packaging](/api-ref/prefect/packaging/) packagers to package flows and create a manifest that describes how to access and use the flow package.
+    The Prefect 2.0b8 release introduces the use of `Deployment` for defining deployment objects, along with [prefect.packaging](/api-ref/prefect/packaging/) packagers to package flows and create a manifest that describes how Prefect can access and use the flow package.
 
     Deployments based on `DeploymentSpec` are deprecated as of the Prefect 2.0b8 release. `DeploymentSpec` will continue to be supported alongside `Deployment` in the short term, and existing deployments that have been created on the server will continue to operate as expected. However, you should migrate ongoing work to `Deployment` as soon as possible. 
 
@@ -366,7 +366,7 @@ Packaging a flow in Prefect comprises three major concepts:
 
 - The packager creates a package from a flow and returns a `PackageManifest`.
 - A `PackageManifest` is a JSON description of the package and the flow within it, allowing retrieval of the flow.
-- A package is the  that contains the flow. No representation in code. For example, a Docker image.
+- A package is the object that contains the flow. For example, a Docker image.
 
 The `PackageManifest` is stored on the API deployment's `flow_data` field.
 
@@ -575,7 +575,7 @@ Deployment(
 )
 ```
 
-This example uses the `DockerPackager`, which uses the base Prefect Docker image to create a container with your flow code. `python_environment=CondaEnvironment.from_environment()` includes your current `conda` environment in the manifest so it can be replicated in the execution environment.
+This example uses the `DockerPackager`, which uses the base Prefect Docker image to create an image with your flow code and Python requirements. `python_environment=CondaEnvironment.from_environment()` includes your current `conda` environment in the manifest so it can be replicated in the execution environment.
 
 ```Python
 # filename: hello_deployment.py
