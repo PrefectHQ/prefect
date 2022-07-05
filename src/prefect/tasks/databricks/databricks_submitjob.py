@@ -773,7 +773,8 @@ class DatabricksSubmitMultitaskRun(Task):
             unreachable. Its value must be greater than or equal to 1.
         - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
             might be a floating point number).
-        - git_source (GitSource): A git source for the source code of the jobs (see https://databricks.com/blog/2022/06/21/build-reliable-production-data-and-ml-pipelines-with-git-support-for-databricks-workflows.html)
+        - git_source (GitSource): A git source for the source code of the jobs (see
+            https://databricks.com/blog/2022/06/21/build-reliable-production-data-and-ml-pipelines-with-git-support-for-databricks-workflows.html)
         - **kwargs (dict, optional): Additional keyword arguments to pass to the
             Task constructor
 
@@ -1041,7 +1042,8 @@ class DatabricksSubmitMultitaskRun(Task):
                 unreachable. Its value must be greater than or equal to 1.
             - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
                 might be a floating point number).
-            - git_source (GitSource): A git source for the source code of the jobs (see https://databricks.com/blog/2022/06/21/build-reliable-production-data-and-ml-pipelines-with-git-support-for-databricks-workflows.html)
+            - git_source (GitSource): A git source for the source code of the jobs (see
+                https://databricks.com/blog/2022/06/21/build-reliable-production-data-and-ml-pipelines-with-git-support-for-databricks-workflows.html)
 
         Returns:
             - run_id (str): Run id of the submitted run
