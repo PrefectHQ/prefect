@@ -217,7 +217,7 @@ class AccessControlRequestForGroup(BaseModel):
 class AccessControlRequest(BaseModel):
     __root__: Union[AccessControlRequestForUser, AccessControlRequestForGroup]
 
-class GitSource(BaseModel):
+class GitSource(BaseModel, extra=Extra.allow):
     git_url: str
     git_provider: str
     git_branch: Optional[str] = None
