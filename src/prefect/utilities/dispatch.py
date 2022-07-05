@@ -11,7 +11,7 @@ class Base:
     def __dispatch_key__(cls):
         return cls.__name__.lower()
 
-@register_type
+
 class Foo(Base):
     ...
 
