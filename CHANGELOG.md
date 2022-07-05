@@ -6,7 +6,7 @@ Released on July 5, 2022.
 ### Enhancements
 
 - Add support for `ExtraArgs` on S3 result upload - [#5887](https://github.com/PrefectHQ/prefect/pull/5887)
-- Add configuration options for the client's rate limit backoff [#5823](https://github.com/PrefectHQ/prefect/pull/5823)
+- Add configuration options for the client's rate limit backoff - [#5823](https://github.com/PrefectHQ/prefect/pull/5823)
 
 ### Fixes
 
