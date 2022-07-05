@@ -14,7 +14,7 @@ from prefect.tasks.databricks.models import (
     AccessControlRequestForGroup,
     AccessControlRequestForUser,
     GitSource,
-    JobTaskSettings,
+    JobTaskSettings
 )
 from prefect.utilities.tasks import defaults_from_attrs
 
@@ -986,10 +986,7 @@ class DatabricksSubmitMultitaskRun(Task):
                 input["access_control_list"],
             )
         if input.get("git_source"):
-            kwargs["git_source"] = parse_obj_as(
-                GitSource,
-                input["git_source"]
-            )
+            kwargs["git_source"] = parse_obj_as(GitSource, input["git_source"])
         return kwargs
 
     @defaults_from_attrs(
@@ -1014,7 +1011,7 @@ class DatabricksSubmitMultitaskRun(Task):
         polling_period_seconds: int = None,
         databricks_retry_limit: int = None,
         databricks_retry_delay: float = None,
-        git_source: GitSource = None
+        git_source: GitSource = None,
     ):
         """
         Task run method. Any values passed here will overwrite the values used when initializing the
@@ -1075,8 +1072,8 @@ class DatabricksSubmitMultitaskRun(Task):
             retry_delay=databricks_retry_delay,
         )
         if git_source:
-            git_source_json =  git_source.dict()
-        else :
+            git_source_json = git_source.dict()
+        else:
             git_source_json = None
         # Set json on task instance because _handle_databricks_task_execution expects it
         self.json = _deep_string_coerce(
@@ -1088,7 +1085,7 @@ class DatabricksSubmitMultitaskRun(Task):
                 access_control_list=[
                     entry.dict() for entry in access_control_list or []
                 ],
-                git_source=git_source_json
+                git_source=git_source_json,
             )
         )
 

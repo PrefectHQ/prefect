@@ -1,13 +1,12 @@
 import json
 from typing import Any
-from pydantic import ValidationError
 
 import pytest
+from pydantic import ValidationError
 from yaml import parse
+
 from prefect.exceptions import PrefectException
-from prefect.tasks.databricks import (
-    DatabricksSubmitMultitaskRun,
-)
+from prefect.tasks.databricks import DatabricksSubmitMultitaskRun
 from prefect.tasks.databricks.models import (
     AccessControlRequest,
     AccessControlRequestForGroup,
@@ -119,27 +118,22 @@ class TestDatabricksSubmitMultitaskRun:
             ).run()
 
     def assert_job_is_converted_to_kwargs_correctly(self, job_json, typed_jobdef):
-        converted = DatabricksSubmitMultitaskRun.convert_dict_to_kwargs(
-            job_json
-        )
+        converted = DatabricksSubmitMultitaskRun.convert_dict_to_kwargs(job_json)
         assert converted == typed_jobdef
 
     def test_convert_dict_to_input_dataclasses(self):
         self.assert_job_is_converted_to_kwargs_correctly(
-            multi_task_job_json(),
-            multi_task_job_def()
+            multi_task_job_json(), multi_task_job_def()
         )
 
     def test_convert_dict_to_input_dataclasses_with_gitsource(self):
         git_source_jobdef = multi_task_job_def()
-        git_source_jobdef["git_source"] = prefect_git_source(
-            git_branch="main"
-        )
+        git_source_jobdef["git_source"] = prefect_git_source(git_branch="main")
         git_source_json = multi_task_job_json()
         git_source_json["git_source"] = {
             "git_url": "https://github.com/PrefectHQ/prefect/",
             "git_provider": "GitHub",
-            "git_branch": "main"
+            "git_branch": "main",
         }
         self.assert_job_is_converted_to_kwargs_correctly(
             git_source_json, git_source_jobdef
@@ -147,18 +141,20 @@ class TestDatabricksSubmitMultitaskRun:
 
     def test_convert_dict_to_input_allow_extra(self):
         extra_params_jobdef = multi_task_job_def()
-        last_task = extra_params_jobdef['tasks'][-1]
+        last_task = extra_params_jobdef["tasks"][-1]
         last_task.new_cluster = last_task.new_cluster.copy(
-            update={"amazing_new_feature":True}
+            update={"amazing_new_feature": True}
         )
         last_task = last_task.copy(
             update={
                 "unsupported_argument": "ignore_me",
-                "another_unsupported_argument": "ignore_me"
+                "another_unsupported_argument": "ignore_me",
             }
         )
         extra_params_source_json = multi_task_job_json()
-        extra_params_source_json["tasks"][-1]["new_cluster"]["amazing_new_feature"] = True
+        extra_params_source_json["tasks"][-1]["new_cluster"][
+            "amazing_new_feature"
+        ] = True
         self.assert_job_is_converted_to_kwargs_correctly(
             extra_params_source_json, extra_params_jobdef
         )
@@ -166,9 +162,7 @@ class TestDatabricksSubmitMultitaskRun:
 
 def prefect_git_source(**kwargs):
     return GitSource(
-        git_url="https://github.com/PrefectHQ/prefect/",
-        git_provider="GitHub",
-        **kwargs
+        git_url="https://github.com/PrefectHQ/prefect/", git_provider="GitHub", **kwargs
     )
 
 
@@ -178,24 +172,15 @@ def assert_git_source_conflicting_args(**kwargs):
 
 
 def test_gitsource_branch_or_tag_are_exclusive():
-    assert_git_source_conflicting_args(
-        git_branch="main",
-        git_tag="v1.0"
-    )
+    assert_git_source_conflicting_args(git_branch="main", git_tag="v1.0")
 
 
 def test_gitsource_branch_or_commit_are_exclusive():
-    assert_git_source_conflicting_args(
-        git_branch="main",
-        git_commit="78ffc7055"
-    )
+    assert_git_source_conflicting_args(git_branch="main", git_commit="78ffc7055")
 
 
 def test_gitsource_commit_or_tag_are_exclusive():
-    assert_git_source_conflicting_args(
-        git_tag="v1.0",
-        git_commit="78ffc7055"
-    )
+    assert_git_source_conflicting_args(git_tag="v1.0", git_commit="78ffc7055")
 
 
 def multi_task_job_def():
@@ -251,8 +236,8 @@ def multi_task_job_def():
         "idempotency_token": "8f018174-4792-40d5-bcbc-3e6a527352c8",
         "access_control_list": [
             AccessControlRequestForUser(
-                    user_name="jsmith@example.com",
-                    permission_level=CanManage.CAN_MANAGE,
+                user_name="jsmith@example.com",
+                permission_level=CanManage.CAN_MANAGE,
             ),
             AccessControlRequestForGroup(
                 group_name="Admins", permission_level=CanManage.CAN_MANAGE
@@ -273,9 +258,7 @@ def multi_task_job_json():
                     "main_class_name": "com.databricks.Sessionize",
                     "parameters": ["--data", "dbfs:/path/to/data.json"],
                 },
-                "libraries": [
-                    {"jar": "dbfs:/mnt/databricks/Sessionize.jar"}
-                ],
+                "libraries": [{"jar": "dbfs:/mnt/databricks/Sessionize.jar"}],
                 "timeout_seconds": 86400,
             },
             {
@@ -290,9 +273,7 @@ def multi_task_job_json():
                         "dbfs:/path/to/order-data.json",
                     ],
                 },
-                "libraries": [
-                    {"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}
-                ],
+                "libraries": [{"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}],
                 "timeout_seconds": 86400,
             },
             {

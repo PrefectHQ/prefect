@@ -1,7 +1,4 @@
-from prefect.tasks.databricks import (
-    DatabricksRunNow,
-    DatabricksGetJobID,
-)
+from prefect.tasks.databricks import DatabricksGetJobID, DatabricksRunNow
 from prefect.tasks.databricks.databricks_hook import DatabricksHook
 
 

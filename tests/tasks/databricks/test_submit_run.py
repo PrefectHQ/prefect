@@ -1,11 +1,9 @@
-
 import pytest
 
-
 from prefect.tasks.databricks import (
+    DatabricksGetJobID,
     DatabricksRunNow,
     DatabricksSubmitRun,
-    DatabricksGetJobID,
 )
 
 
