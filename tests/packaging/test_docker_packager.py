@@ -152,11 +152,12 @@ def howdy_context(prefect_base_image: str, tmp_path: Path) -> Path:
 async def test_unpackaging_outside_container(howdy_context: Path):
     # This test is contrived to pretend we're in a Docker container right now and giving
     # a known test file path as the image_flow_location
-    manifest = DockerPackageManifest(
-        image="any-one",
+    packager = DockerPackager(
+        dockerfile=howdy_context / "Dockerfile",
         image_flow_location=str(howdy_context / "howdy.py"),
-        flow_name="howdy",
     )
+    manifest = await packager.package(howdy)
+
     unpackaged_howdy = await manifest.unpackage()
     assert unpackaged_howdy("dude").result() == "howdy, dude!"
 
