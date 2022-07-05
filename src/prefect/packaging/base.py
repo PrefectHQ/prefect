@@ -4,7 +4,7 @@ from typing import Generic, TypeVar
 from pydantic import BaseModel
 
 from prefect.flows import Flow
-from prefect.orion.utilities.functions import ParameterSchema, parameter_schema
+from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.pydantic import PartialModel, add_type_dispatch
 
