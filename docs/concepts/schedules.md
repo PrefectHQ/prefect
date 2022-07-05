@@ -49,6 +49,8 @@ To remove all scheduled runs for a flow deployment, update the deployment with n
 
 A `CronSchedule` creates new flow runs according to a provided [`cron`](https://en.wikipedia.org/wiki/Cron) string. Users may also provide a timezone to enforce DST behaviors.
 
+`CronSchedule` uses [`croniter`](https://github.com/kiorky/croniter) to specify datetime iteration with a `cron`-like format.
+
 ```python
 from prefect.deployments import DeploymentSpec
 from prefect.orion.schemas.schedules import CronSchedule
