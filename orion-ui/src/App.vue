@@ -25,9 +25,6 @@
 
 <script lang="ts" setup>
   import {
-    blockDocumentsApiKey,
-    blockSchemasApiKey,
-    blockTypesApiKey,
     blockCatalogCreateRouteKey,
     blockCatalogRouteKey,
     blockDocumentsApiKey,
@@ -40,6 +37,7 @@
     deploymentRouteKey,
     deploymentsApiKey,
     deploymentsRouteKey,
+    editNotificationRouteKey,
     editQueueRouteKey,
     flowRouteKey,
     flowRunRouteKey,
@@ -48,27 +46,15 @@
     flowsApiKey,
     flowsRouteKey,
     logsApiKey,
+    notificationCreateRouteKey,
+    notificationsApiKey,
+    notificationsRouteKey,
     settingsRouteKey,
     taskRunsApiKey,
     workQueueCreateRouteKey,
     workQueueRouteKey,
     workQueuesApiKey,
-    canKey,
-    flowRunsRouteKey,
-    flowsRouteKey,
-    deploymentsRouteKey,
     workQueuesRouteKey,
-    settingsRouteKey,
-    flowRunRouteKey,
-    flowRouteKey,
-    deploymentRouteKey,
-    workQueueRouteKey,
-    workQueueCreateRouteKey,
-    editQueueRouteKey,
-    editNotificationRouteKey,
-    notificationsApiKey,
-    notificationCreateRouteKey,
-    notificationsRouteKey
   } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
   import { computed, provide, ref, watchEffect } from 'vue'
