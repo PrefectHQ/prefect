@@ -18,10 +18,10 @@ from prefect.exceptions import (
     MissingFlowError,
     ObjectAlreadyExists,
 )
-from prefect.flow_runners import (
+from prefect.flow_runners import SubprocessFlowRunner
+from prefect.flow_runners.base import (
     FlowRunner,
     FlowRunnerSettings,
-    SubprocessFlowRunner,
     UniversalFlowRunner,
 )
 from prefect.flows import Flow, load_flow_from_script
