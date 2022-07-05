@@ -119,7 +119,7 @@ nav:
             - 'prefect.deployments': api-ref/prefect/deployments.md
             - 'prefect.engine': api-ref/prefect/engine.md
             - 'prefect.exceptions': api-ref/prefect/exceptions.md
-            - 'prefect.file_systems': api-ref/prefect/file-systems.md
+            - 'prefect.filesystems': api-ref/prefect/filesystems.md
             - 'prefect.flow_runners': api-ref/prefect/flow-runners.md
             - 'prefect.flows': api-ref/prefect/flows.md
             - 'prefect.futures': api-ref/prefect/futures.md
