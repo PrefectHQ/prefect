@@ -1,28 +1,26 @@
 # Changelog
 
-## 1.3.0 <Badge text="beta" type="success" />
+## 1.2.3 <Badge text="beta" type="success" />
 
 Released on July 5, 2022.
-
-### Features
-
-- Adds tasks for Toloka API. - [#5865](https://github.com/PrefectHQ/prefect/pull/5865)
-- Add Azure datafactory tasks. - [#5921](https://github.com/PrefectHQ/prefect/pull/5921)
-
 ### Enhancements
 
-- Fixes issue where complex Python dependencies would break Docker storage builds - [#5860](https://github.com/PrefectHQ/prefect/issues/5860)
-- Support ExtraArgs for S3 Result upload - [#5887](https://github.com/PrefectHQ/prefect/pull/5887)
-- Allow extra arguments to Databricks NewCluster - [#5949](https://github.com/PrefectHQ/prefect/pull/5949)
-- Add git_source argument to DatabricksSubmitMultitaskRun - [#5958](https://github.com/PrefectHQ/prefect/pull/5958)
-
+- Add support for `ExtraArgs` on S3 result upload - [#5887](https://github.com/PrefectHQ/prefect/pull/5887)
 ### Fixes
 
 - Fix bug with infinite loop when parsing DST cron schedules - [#5957](https://github.com/PrefectHQ/prefect/pull/5957)
-- Instantiate Task kwargs during DbtCloudRunTask __init__ - [#5831](https://github.com/PrefectHQ/prefect/pull/5831)
-- add boto_kwargs to S3List - [#5907](https://github.com/PrefectHQ/prefect/pull/5907)
-- Revert 'use json() instead of dict() (#5728)' - [#5836](https://github.com/PrefectHQ/prefect/pull/5836)
-- Add single_user_name to Databricks NewCluster - [#5903](https://github.com/PrefectHQ/prefect/pull/5903)
+- Fix issue where complex Python dependencies could break Docker storage builds - [#5860](https://github.com/PrefectHQ/prefect/issues/5860)
+### Task library
+
+- Instantiate task kwargs during `DbtCloudRunTask.__init__` - [#5831](https://github.com/PrefectHQ/prefect/pull/5831)
+- Add `boto_kwargs` support to `S3List` - [#5907](https://github.com/PrefectHQ/prefect/pull/5907)
+- Fix `DatabricksSubmitMultitaskRun` inputs such as `access_control_list` - [#5836](https://github.com/PrefectHQ/prefect/pull/5836)
+- Add `single_user_name` to Databricks `NewCluster` - [#5903](https://github.com/PrefectHQ/prefect/pull/5903)
+- Allow extra arguments to Databricks `NewCluster` - [#5949](https://github.com/PrefectHQ/prefect/pull/5949)
+- Add `git_source` argument to `DatabricksSubmitMultitaskRun` - [#5958](https://github.com/PrefectHQ/prefect/pull/5958)
+- Add tasks for the Toloka API - [#5865](https://github.com/PrefectHQ/prefect/pull/5865)
+- Add tasksAzure datafactory tasks - [#5921](https://github.com/PrefectHQ/prefect/pull/5921)
+
 
 ### Contributors
 
