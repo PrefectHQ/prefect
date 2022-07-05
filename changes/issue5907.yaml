@@ -1,0 +1,5 @@
+fix:
+  - "add boto_kwargs to S3List - [#5907](https://github.com/PrefectHQ/prefect/pull/5907)"
+
+contributor:
+  - "[Nico Neumann](https://github.com/neumann-nico)"
