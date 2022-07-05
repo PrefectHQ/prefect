@@ -6,10 +6,16 @@ Released on July 5, 2022.
 ### Enhancements
 
 - Add support for `ExtraArgs` on S3 result upload - [#5887](https://github.com/PrefectHQ/prefect/pull/5887)
+- Add configuration options for the client's rate limit backoff [#5823](https://github.com/PrefectHQ/prefect/pull/5823)
+
 ### Fixes
 
+- Allow untracked flows to be run during a tracked flow run - [#5782](https://github.com/PrefectHQ/prefect/pull/5782)
 - Fix bug with infinite loop when parsing DST cron schedules - [#5957](https://github.com/PrefectHQ/prefect/pull/5957)
 - Fix issue where complex Python dependencies could break Docker storage builds - [#5860](https://github.com/PrefectHQ/prefect/issues/5860)
+- Fix issue where `Git` storage could not be serialized without a `repo` - [#5877](https://github.com/PrefectHQ/prefect/pull/5877)
+- Fix issues with grpcio builds on the Prefect base image with Python 3.10 - [#5832](https://github.com/PrefectHQ/prefect/pull/5832)
+
 ### Task library
 
 - Instantiate task kwargs during `DbtCloudRunTask.__init__` - [#5831](https://github.com/PrefectHQ/prefect/pull/5831)
@@ -19,8 +25,9 @@ Released on July 5, 2022.
 - Allow extra arguments to Databricks `NewCluster` - [#5949](https://github.com/PrefectHQ/prefect/pull/5949)
 - Add `git_source` argument to `DatabricksSubmitMultitaskRun` - [#5958](https://github.com/PrefectHQ/prefect/pull/5958)
 - Add tasks for the Toloka API - [#5865](https://github.com/PrefectHQ/prefect/pull/5865)
-- Add tasksAzure datafactory tasks - [#5921](https://github.com/PrefectHQ/prefect/pull/5921)
-
+- Add tasks for Azure datafactory - [#5921](https://github.com/PrefectHQ/prefect/pull/5921)
+- Update the `DbtShellTask` return type to match `ShellTask` - [#5872](https://github.com/PrefectHQ/prefect/pull/5872)
+- Fix handling for Airbyte schedule keys - [#5878](https://github.com/PrefectHQ/prefect/pull/5878)
 
 ### Contributors
 
