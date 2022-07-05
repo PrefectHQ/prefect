@@ -129,8 +129,6 @@ class State(IDBaseModel, Generic[R]):
         data = None
 
         if self.data:
-            if self.data.encoding == "blockstorage":
-                return self.data
             data = self.data.decode()
 
         if self.is_failed() and raise_on_failure:
@@ -227,11 +225,6 @@ class State(IDBaseModel, Generic[R]):
             type=self.type,
             result=repr(self.result(raise_on_failure=False)),
         )
-
-        if self.state_details.task_run_id is not None:
-            display["task_run_id"] = self.state_details.task_run_id
-        elif self.state_details.flow_run_id is not None:
-            display["flow_run_id"] = self.state_details.flow_run_id
 
         return f"{self.name}({', '.join(f'{k}={v}' for k, v in display.items())})"
 

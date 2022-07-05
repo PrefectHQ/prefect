@@ -1,4 +1,5 @@
 import json
+import warnings
 from textwrap import dedent
 from typing import Dict, Type, Union
 from uuid import UUID, uuid4
@@ -6,18 +7,12 @@ from uuid import UUID, uuid4
 import pytest
 from pydantic import Field, SecretBytes, SecretStr
 
-from prefect.blocks.core import BLOCK_REGISTRY, Block, get_block_class, register_block
+from prefect.blocks.core import Block
 from prefect.client import OrionClient
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 from prefect.orion.utilities.schemas import OBFUSCATED_SECRET
-
-
-@pytest.fixture(autouse=True)
-def reset_registered_blocks(monkeypatch):
-    _copy = BLOCK_REGISTRY.copy()
-    monkeypatch.setattr("prefect.blocks.core.BLOCK_REGISTRY", _copy)
-    yield
+from prefect.utilities.dispatch import lookup_type, register_type
 
 
 class TestAPICompatibility:
@@ -25,30 +20,29 @@ class TestAPICompatibility:
         x: str
         y: int = 1
 
-    @register_block
+    @register_type
     class MyRegisteredBlock(Block):
         x: str
         y: int = 1
 
-    @register_block
+    @register_type
     class MyOtherRegisteredBlock(Block):
         x: str
         y: int = 1
         z: int = 2
 
-    def test_registration_checksums(self):
+    def test_registration(self):
         assert (
-            get_block_class(self.MyRegisteredBlock._calculate_schema_checksum())
+            lookup_type(Block, self.MyRegisteredBlock.__dispatch_key__())
             is self.MyRegisteredBlock
         )
 
         assert (
-            get_block_class(self.MyOtherRegisteredBlock._calculate_schema_checksum())
+            lookup_type(Block, self.MyOtherRegisteredBlock.__dispatch_key__())
             is self.MyOtherRegisteredBlock
         )
 
-        with pytest.raises(ValueError, match="(No block schema exists)"):
-            get_block_class(self.MyBlock._calculate_schema_checksum())
+        assert lookup_type(Block, self.MyBlock.__dispatch_key__()) is self.MyBlock
 
     def test_create_api_block_schema(self, block_type_x):
         block_schema = self.MyRegisteredBlock._to_block_schema(
@@ -72,7 +66,6 @@ class TestAPICompatibility:
         }
 
     def test_create_api_block_with_secret_fields_reflected_in_schema(self):
-        @register_block
         class SecretBlock(Block):
             x: SecretStr
             y: SecretBytes
@@ -164,7 +157,6 @@ class TestAPICompatibility:
         }
 
     def test_create_api_block_with_secret_values_are_obfuscated_by_default(self):
-        @register_block
         class SecretBlock(Block):
             x: SecretStr
             y: SecretBytes
@@ -220,7 +212,7 @@ class TestAPICompatibility:
         }
 
     def test_registering_blocks_with_capabilities(self):
-        @register_block
+        @register_type
         class IncapableBlock(Block):
             # could use a little confidence
             _block_type_id = uuid4()
@@ -231,7 +223,7 @@ class TestAPICompatibility:
             def bluff(self):
                 pass
 
-        @register_block
+        @register_type
         class CapableBlock(CanBluff, Block):
             # kind of rude to the other Blocks
             _block_type_id = uuid4()
@@ -244,7 +236,7 @@ class TestAPICompatibility:
         assert incapable_schema.capabilities == []
 
     def test_create_api_block_schema_only_includes_pydantic_fields(self, block_type_x):
-        @register_block
+        @register_type
         class MakesALottaAttributes(Block):
             real_field: str
             authentic_field: str
@@ -280,23 +272,36 @@ class TestAPICompatibility:
             "secret_fields": [],
         }
 
-    def test_block_classes_with_same_fields_but_different_comments_same_checksum(self):
-        class A(Block):
-            "This is A block"
+    @pytest.fixture
+    def OriginalBlock(self):
+        class Original(Block):
+            "This is the original block"
             x: str = Field(..., description="This is x field")
             y: str
             z: str
 
-        class B(Block):
-            "This is B block"
+        return Original
+
+    @pytest.fixture
+    def CloneBlock(self):
+        # Ignore warning of duplicate registration
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+        class Original(Block):
+            "This is the clone block"
             x: str
             y: str
             z: str
 
-        # Rename so that two classes have same name
-        B.__name__ = "A"
+        return Original
 
-        assert A._calculate_schema_checksum() == B._calculate_schema_checksum()
+    def test_block_classes_with_same_fields_but_different_comments_same_checksum(
+        self, OriginalBlock, CloneBlock
+    ):
+        assert (
+            OriginalBlock._calculate_schema_checksum()
+            == CloneBlock._calculate_schema_checksum()
+        )
 
     def test_create_api_block_with_arguments(self, block_type_x):
         with pytest.raises(ValueError, match="(No name provided)"):
@@ -458,7 +463,7 @@ class TestAPICompatibility:
         assert block._block_type_id == block_type_id
 
     def test_create_block_document_from_block(self, block_type_x):
-        @register_block
+        @register_type
         class MakesALottaAttributes(Block):
             real_field: str
             authentic_field: str
@@ -715,13 +720,13 @@ class TestAPICompatibility:
             await test_block.load("blocky")
 
 
-class TestRegisterBlock:
+class TestRegisterBlockTypeAndSchema:
     class NewBlock(Block):
         a: str
         b: str
         c: int
 
-    async def test_register_block(self, orion_client: OrionClient):
+    async def test_register_type_and_schema(self, orion_client: OrionClient):
         await self.NewBlock.register_type_and_schema()
 
         block_type = await orion_client.read_block_type_by_name(name="NewBlock")
@@ -877,7 +882,6 @@ class TestSaveBlock:
         class NewBlock(Block):
             a: str
             b: str
-            c: int
 
         return NewBlock
 
@@ -897,7 +901,7 @@ class TestSaveBlock:
         return OuterBlock
 
     async def test_save_block(self, NewBlock):
-        new_block = NewBlock(a="foo", b="bar", c=1)
+        new_block = NewBlock(a="foo", b="bar")
         new_block_name = "my-block"
         await new_block.save(new_block_name)
 
@@ -917,7 +921,7 @@ class TestSaveBlock:
         assert loaded_new_block == new_block
 
     async def test_save_anonymous_block(self, NewBlock):
-        new_anon_block = NewBlock(a="foo", b="bar", c=1)
+        new_anon_block = NewBlock(a="foo", b="bar")
         await new_anon_block._save(is_anonymous=True)
 
         assert new_anon_block._block_document_name is not None
@@ -942,7 +946,7 @@ class TestSaveBlock:
         assert loaded_new_anon_block == new_anon_block
 
     async def test_save_throws_on_mismatched_kwargs(self, NewBlock):
-        new_block = NewBlock(a="foo", b="bar", c=1)
+        new_block = NewBlock(a="foo", b="bar")
         with pytest.raises(
             ValueError,
             match="You're attempting to save a block document without a name.",
@@ -1160,6 +1164,74 @@ class TestSaveBlock:
         assert api_block.b == "b"
         assert api_block.child.a.get_secret_value() == "a"
         assert api_block.child.b == "b"
+
+    async def test_save_block_with_overwrite(self, InnerBlock):
+        inner_block = InnerBlock(size=1)
+        await inner_block.save("my-inner-block")
+
+        inner_block.size = 2
+        await inner_block.save("my-inner-block", overwrite=True)
+
+        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block.size = 2
+        assert loaded_inner_block == inner_block
+
+    async def test_save_block_without_overwrite_raises(self, InnerBlock):
+        inner_block = InnerBlock(size=1)
+        await inner_block.save("my-inner-block")
+
+        inner_block.size = 2
+
+        with pytest.raises(
+            ValueError,
+            match="You are attempting to save values with a name that is already in "
+            "use for this block type",
+        ):
+            await inner_block.save("my-inner-block")
+
+        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block.size = 1
+
+    async def test_update_from_loaded_block(self, InnerBlock):
+        inner_block = InnerBlock(size=1)
+        await inner_block.save("my-inner-block")
+
+        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block.size = 2
+        await loaded_inner_block.save("my-inner-block", overwrite=True)
+
+        loaded_inner_block_after_update = await InnerBlock.load("my-inner-block")
+        assert loaded_inner_block == loaded_inner_block_after_update
+
+    async def test_update_from_in_memory_block(self, InnerBlock):
+        inner_block = InnerBlock(size=1)
+        await inner_block.save("my-inner-block")
+
+        updated_inner_block = InnerBlock(size=2)
+        await updated_inner_block.save("my-inner-block", overwrite=True)
+
+        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block.size = 2
+
+        assert loaded_inner_block == updated_inner_block
+
+    async def test_update_block_with_secrets(self, InnerBlock):
+        class HasSomethingToHide(Block):
+            something_to_hide: SecretStr
+
+        shifty_block = HasSomethingToHide(something_to_hide="a surprise birthday party")
+        await shifty_block.save("my-shifty-block")
+
+        updated_shifty_block = HasSomethingToHide(
+            something_to_hide="a birthday present"
+        )
+        await updated_shifty_block.save("my-shifty-block", overwrite=True)
+
+        loaded_shifty_block = await HasSomethingToHide.load("my-shifty-block")
+        assert (
+            loaded_shifty_block.something_to_hide.get_secret_value()
+            == "a birthday present"
+        )
 
 
 class TestToBlockType:

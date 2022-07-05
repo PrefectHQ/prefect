@@ -9,39 +9,27 @@ from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
-from typing_extensions import get_args, get_origin
+from typing_extensions import Self, get_args, get_origin
 
 import prefect
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
 from prefect.utilities.asyncio import asyncnullcontext, sync_compatible
 from prefect.utilities.collections import remove_nested_keys
+from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
 
 if TYPE_CHECKING:
     from prefect.client import OrionClient
 
-BLOCK_REGISTRY: Dict[str, Type["Block"]] = dict()
 
-
-def register_block(block: Type["Block"]):
+def block_schema_to_key(schema: BlockSchema) -> str:
     """
-    Register a block class for later use. Blocks can be retrieved via
-    block schema checksum.
+    Defines the unique key used to lookup the Block class for a given schema.
     """
-    schema_checksum = block._calculate_schema_checksum()
-    BLOCK_REGISTRY[schema_checksum] = block
-    return block
+    return f"{schema.block_type.name}:{schema.checksum}"
 
 
-def get_block_class(checksum: str) -> Type["Block"]:
-    block = BLOCK_REGISTRY.get(checksum)
-    if not block:
-        raise ValueError(
-            f"No block schema exists for block schema checksum {checksum}."
-        )
-    return block
-
-
+@register_base_type
 class Block(BaseModel, ABC):
     class Config:
         extra = "allow"
@@ -52,6 +40,10 @@ class Block(BaseModel, ABC):
             Customizes Pydantic's schema generation feature to add blocks related information.
             """
             schema["block_type_name"] = model.get_block_type_name()
+            # Ensures args and code examples aren't included in the schema
+            description = model.get_description()
+            if description:
+                schema["description"] = model.get_description()
 
             # create a list of secret field names
             # secret fields include both top-level keys and dot-delimited nested secret keys
@@ -126,6 +118,12 @@ class Block(BaseModel, ABC):
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
     _is_anonymous: Optional[bool] = None
+
+    @classmethod
+    def __dispatch_key__(cls):
+        if cls.__name__ == "Block":
+            return None  # The base class is abstract
+        return block_schema_to_key(cls._to_block_schema())
 
     @classmethod
     def get_block_type_name(cls):
@@ -366,15 +364,15 @@ class Block(BaseModel, ABC):
             raise ValueError(
                 "Unable to determine block schema for provided block document"
             )
-        block_schema_cls = (
+
+        block_cls = (
             cls
             if cls.__name__ != "Block"
-            else get_block_class(
-                checksum=block_document.block_schema.checksum,
-            )
+            # Look up the block class by dispatch
+            else cls.get_block_class_from_schema(block_document.block_schema)
         )
 
-        block = block_schema_cls.parse_obj(block_document.data)
+        block = block_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
         block.__class__._block_schema_id = block_document.block_schema_id
         block.__class__._block_type_id = block_document.block_type_id
@@ -385,6 +383,13 @@ class Block(BaseModel, ABC):
         )
 
         return block
+
+    @classmethod
+    def get_block_class_from_schema(cls: Type[Self], schema: BlockSchema) -> Type[Self]:
+        """
+        Retieve the block class implementation given a schema.
+        """
+        return lookup_type(cls, block_schema_to_key(schema))
 
     def _define_metadata_on_nested_blocks(
         self, block_document_references: Dict[str, Dict[str, Any]]
@@ -503,8 +508,11 @@ class Block(BaseModel, ABC):
             cls._block_schema_id = block_schema.id
 
     async def _save(
-        self, name: Optional[str] = None, is_anonymous: bool = False
-    ) -> UUID:
+        self,
+        name: Optional[str] = None,
+        is_anonymous: bool = False,
+        overwrite: bool = False,
+    ):
         """
         Saves the values of a block as a block document with an option to save as an
         anonymous block document.
@@ -514,6 +522,8 @@ class Block(BaseModel, ABC):
                 block document.
             is_anonymous: Boolean value specifying if the block document should or should
                 not be stored without a user specified name.
+            overwrite: Boolean value specifying if values should be overwritten if a block document with
+                the specified name already exists.
 
         Raises:
             ValueError: If a name is not given and `is_anonymous` is `False` or a name is given and
@@ -538,9 +548,33 @@ class Block(BaseModel, ABC):
 
         self._is_anonymous = is_anonymous
         async with prefect.client.get_client() as client:
-            block_document = await client.create_block_document(
-                block_document=self._to_block_document(name=name)
-            )
+            try:
+                block_document = await client.create_block_document(
+                    block_document=self._to_block_document(name=name)
+                )
+            except prefect.exceptions.ObjectAlreadyExists as err:
+                if overwrite:
+                    block_document_id = self._block_document_id
+                    if block_document_id is None:
+                        existing_block_document = (
+                            await client.read_block_document_by_name(
+                                name=name, block_type_name=self.get_block_type_name()
+                            )
+                        )
+                        block_document_id = existing_block_document.id
+                    await client.update_block_document(
+                        block_document_id=block_document_id,
+                        block_document=self._to_block_document(name=name),
+                    )
+                    block_document = await client.read_block_document(
+                        block_document_id=block_document_id
+                    )
+                else:
+                    raise ValueError(
+                        "You are attempting to save values with a name that is already in "
+                        "use for this block type. If you would like to overwrite the values that are saved, "
+                        "then save with `overwrite=True`."
+                    ) from err
 
         # Update metadata on block instance for later use.
         self._block_document_name = block_document.name
@@ -548,14 +582,17 @@ class Block(BaseModel, ABC):
         return self._block_document_id
 
     @sync_compatible
-    async def save(self, name: str) -> UUID:
+    async def save(self, name: str, overwrite: bool = False):
         """
         Saves the values of a block as a block document.
 
         Args:
             name: User specified name to give saved block document which can later be used to load the
                 block document.
+            overwrite: Boolean value specifying if values should be overwritten if a block document with
+                the specified name already exists.
+
         """
-        document_id = await self._save(name=name)
+        document_id = await self._save(name=name, overwrite=overwrite)
 
         return document_id
