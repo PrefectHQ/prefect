@@ -1,8 +1,7 @@
-import json
 from typing import Any
 
+import pydantic
 import pytest
-from yaml import parse
 
 from prefect.exceptions import PrefectException
 from prefect.tasks.databricks import DatabricksSubmitMultitaskRun
@@ -21,8 +20,6 @@ from prefect.tasks.databricks.models import (
     SparkJarTask,
     TaskDependency
 )
-
-pydantic = pytest.importorskip("pydantic")
 
 
 class TestDatabricksSubmitMultitaskRun:
