@@ -7,6 +7,25 @@ from prefect.tasks.databricks import (
 )
 
 
+@pytest.fixture
+def job_config():
+
+    config = {
+        "run_name": "Prefect Test",
+        "new_cluster": {
+            "spark_version": "6.6.x-scala2.11",
+            "num_workers": 0,
+            "node_type_id": "Standard_D3_v2",
+        },
+        "spark_python_task": {
+            "python_file": f"dbfs:/FileStore/tables/runner.py",
+            "parameters": [1],
+        },
+    }
+
+    return config
+
+
 def test_raises_if_invalid_host_submitrun(job_config):
 
     # from prefect.tasks.secrets import PrefectSecret
