@@ -19,7 +19,12 @@ from prefect.tasks.databricks.models import (
     TaskDependency,
 )
 
-from test_submit_run import failed_run, successful_run_submission, flow_run_id, flow_run_name
+from test_submit_run import (
+    failed_run,
+    successful_run_submission,
+    flow_run_id,
+    flow_run_name,
+)
 
 
 class TestDatabricksSubmitMultitaskRun:
