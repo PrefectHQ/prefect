@@ -13,6 +13,7 @@ from prefect.docker import Container, DockerClient
 from prefect.flow_runners.docker import DockerFlowRunner
 from prefect.packaging.docker import DockerPackageManifest, DockerPackager
 from prefect.software.python import PythonEnvironment
+from prefect.utilities.callables import parameter_schema
 
 from . import howdy
 
@@ -160,6 +161,15 @@ async def test_unpackaging_outside_container(howdy_context: Path):
 
     unpackaged_howdy = await manifest.unpackage()
     assert unpackaged_howdy("dude").result() == "howdy, dude!"
+
+
+async def test_packager_sets_manifest_flow_parameter_schema(howdy_context: Path):
+    packager = DockerPackager(
+        dockerfile=howdy_context / "Dockerfile",
+        image_flow_location=str(howdy_context / "howdy.py"),
+    )
+    manifest = await packager.package(howdy)
+    assert manifest.flow_parameter_schema == parameter_schema(howdy.fn)
 
 
 async def test_unpackaging_inside_container(
