@@ -158,7 +158,7 @@ class TestDatabricksSubmitMultitaskRun:
             }
         )
         extra_params_source_json = multi_task_job_json()
-        extra_params_source_json["tasks"][-1]["amazing_new_feature"] = True
+        extra_params_source_json["tasks"][-1]["new_cluster"]["amazing_new_feature"] = True
         self.assert_job_is_converted_to_kwargs_correctly(
             extra_params_source_json, extra_params_jobdef
         )
