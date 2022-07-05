@@ -2,6 +2,7 @@
 description: Prefect file systems allow persisting or retrieving objects from remote or local data stores.
 tags:
     - filesystems
+    - storage
     - deployments
     - LocalFileSystem
     - RemoteFileSystem

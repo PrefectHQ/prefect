@@ -94,6 +94,7 @@ nav:
         - Schedules: concepts/schedules.md
         - Database: concepts/database.md
         - Storage: concepts/storage.md
+        - File Systems: concepts/file-systems.md
         - Settings: concepts/settings.md
         - Logging: concepts/logs.md
     - Prefect UI & Prefect Cloud:
