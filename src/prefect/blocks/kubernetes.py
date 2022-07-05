@@ -24,7 +24,7 @@ class KubernetesClusterConfig(Block):
     See `from_file` for creation.
 
     Args:
-        config (Dict): The entire loaded YAML contents of a kubectl config file
+        config (dict): The entire loaded YAML contents of a kubectl config file
         context_name (str): The name of the context to use
     """
 
