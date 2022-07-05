@@ -6,6 +6,7 @@ from os.path import abspath
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from uuid import UUID
 
+import fsspec
 from pydantic import Field, PrivateAttr, validator
 
 from prefect.blocks.core import Block
@@ -55,6 +56,9 @@ class ScriptPackager:
     __dispatch_key__ = "deprecated:script"
 
     storage: Optional[Union[StorageBlock, UUID]] = None
+
+    def __init__(self, storage: StorageBlock = None):
+        self.storage = storage
 
     @sync_compatible
     @inject_client
