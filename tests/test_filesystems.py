@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from prefect.storage import LocalFileSystem, RemoteFileSystem
+from prefect.filesystems import LocalFileSystem, RemoteFileSystem
 
 
 class TestLocalFileSystem:

@@ -30,6 +30,12 @@ class WritableFileSystem(Block, abc.ABC):
 class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
     basepath: Optional[str] = None
 
+    @validator("basepath", pre=True)
+    def cast_pathlib(cls, value):
+        if isinstance(value, Path):
+            return str(value)
+        return value
+
     def _resolve_path(self, path: str) -> Path:
         # Only resolve the base path at runtime, default to the current directory
         basepath = (
