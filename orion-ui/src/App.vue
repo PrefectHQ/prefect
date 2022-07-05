@@ -25,31 +25,36 @@
 
 <script lang="ts" setup>
   import {
+    blockCatalogCreateRouteKey,
+    blockCatalogRouteKey,
     blockDocumentsApiKey,
+    blockEditRouteKey,
+    blockRouteKey,
     blockSchemasApiKey,
+    blocksRouteKey,
     blockTypesApiKey,
-    deploymentsApiKey,
-    flowRunsApiKey,
-    flowsApiKey,
-    logsApiKey,
-    taskRunsApiKey,
-    workQueuesApiKey,
     canKey,
-    flowRunsRouteKey,
-    flowsRouteKey,
-    deploymentsRouteKey,
-    workQueuesRouteKey,
-    settingsRouteKey,
-    flowRunRouteKey,
-    flowRouteKey,
     deploymentRouteKey,
-    workQueueRouteKey,
-    workQueueCreateRouteKey,
-    editQueueRouteKey,
+    deploymentsApiKey,
+    deploymentsRouteKey,
     editNotificationRouteKey,
-    notificationsApiKey,
+    editQueueRouteKey,
+    flowRouteKey,
+    flowRunRouteKey,
+    flowRunsApiKey,
+    flowRunsRouteKey,
+    flowsApiKey,
+    flowsRouteKey,
+    logsApiKey,
     notificationCreateRouteKey,
-    notificationsRouteKey
+    notificationsApiKey,
+    notificationsRouteKey,
+    settingsRouteKey,
+    taskRunsApiKey,
+    workQueueCreateRouteKey,
+    workQueueRouteKey,
+    workQueuesApiKey,
+    workQueuesRouteKey,
   } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
   import { computed, provide, ref, watchEffect } from 'vue'
@@ -76,15 +81,23 @@
   provide(logsApiKey, logsApi)
   provide(taskRunsApiKey, taskRunsApi)
   provide(workQueuesApiKey, workQueuesApi)
+
   provide(canKey, can)
+
+  provide(blockCatalogCreateRouteKey, routes.blocksCatalogCreate)
+  provide(blockCatalogRouteKey, routes.blocksCatalog)
+  provide(blockEditRouteKey, routes.blockEdit)
+  provide(blockRouteKey, routes.block)
+  provide(blocksRouteKey, routes.blocks)
+  provide(deploymentRouteKey, routes.deployment)
+  provide(deploymentsRouteKey, routes.deployments)
+  provide(editQueueRouteKey, routes.workQueueEdit)
+  provide(flowRouteKey, routes.flow)
+  provide(flowRunRouteKey, routes.flowRun)
   provide(flowRunsRouteKey, routes.flowRuns)
   provide(flowsRouteKey, routes.flows)
-  provide(deploymentsRouteKey, routes.deployments)
-  provide(workQueuesRouteKey, routes.workQueues)
   provide(settingsRouteKey, routes.settings)
-  provide(flowRunRouteKey, routes.flowRun)
-  provide(flowRouteKey, routes.flow)
-  provide(deploymentRouteKey, routes.deployment)
+  provide(workQueueCreateRouteKey, routes.workQueueCreate)
   provide(workQueueRouteKey, routes.workQueue)
   provide(workQueueCreateRouteKey, routes.workQueueCreate)
   provide(editQueueRouteKey, routes.workQueueEdit)
@@ -92,6 +105,7 @@
   provide(notificationCreateRouteKey, routes.notificationCreate)
   provide(editNotificationRouteKey, routes.notificationEdit)
   provide(notificationsRouteKey, routes.notifications)
+  provide(workQueuesRouteKey, routes.workQueues)
 
   const mobileMenuOpen = ref(false)
   const showMenu = computed(() => media.lg || mobileMenuOpen.value)

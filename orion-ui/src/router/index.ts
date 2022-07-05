@@ -84,6 +84,43 @@ const routeRecords: AppRouteRecord[] = [
     ],
   },
   {
+    path: '/blocks',
+    component: RouterView,
+    children: [
+      {
+        name: 'blocks',
+        path: '',
+        component: (): RouteComponent => import('@/pages/Blocks.vue'),
+      },
+      {
+        name: 'blocks.catalog',
+        path: 'catalog',
+        component: (): RouteComponent => import('@/pages/BlocksCatalog.vue'),
+      },
+      {
+        name: 'blocks.create',
+        path: 'catalog/:blockTypeName/create',
+        component: (): RouteComponent => import('@/pages/BlocksCatalogCreate.vue'),
+      },
+    ],
+  },
+  {
+    path: '/block/:blockDocumentId',
+    component: RouterView,
+    children: [
+      {
+        name: 'block',
+        path: '',
+        component: (): RouteComponent => import('@/pages/BlockView.vue'),
+      },
+      {
+        name: 'block.edit',
+        path: 'edit',
+        component: (): RouteComponent => import('@/pages/BlockEdit.vue'),
+      },
+    ],
+  },
+  {
     path: '/notifications',
     component: RouterView,
     children: [
