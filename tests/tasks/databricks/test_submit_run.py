@@ -11,7 +11,10 @@ from prefect.tasks.databricks import (
     DatabricksRunNow,
     DatabricksSubmitRun,
 )
-from tests.tasks.databricks.mocks import DatabricksGetJobIDTestOverride, DatabricksRunNowTestOverride
+from tests.tasks.databricks.mocks import (
+    DatabricksGetJobIDTestOverride,
+    DatabricksRunNowTestOverride,
+)
 
 
 @pytest.fixture
