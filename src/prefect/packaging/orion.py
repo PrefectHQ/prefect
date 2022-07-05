@@ -8,10 +8,8 @@ from prefect.client import OrionClient, inject_client
 from prefect.flows import Flow
 from prefect.packaging.base import PackageManifest, Packager, Serializer
 from prefect.packaging.serializers import SourceSerializer
-from prefect.utilities.dispatch import register_type
 
 
-@register_type
 class OrionPackageManifest(PackageManifest):
     type: Literal["orion"] = "orion"
     serializer: Serializer
@@ -26,7 +24,6 @@ class OrionPackageManifest(PackageManifest):
         return self.serializer.loads(serialized_flow.encode())
 
 
-@register_type
 class OrionPackager(Packager):
     """
     This packager stores the flow as an anonymous JSON block in the Orion database.

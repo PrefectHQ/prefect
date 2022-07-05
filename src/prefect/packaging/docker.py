@@ -12,10 +12,8 @@ from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.serializers import SourceSerializer
 from prefect.software import CondaEnvironment, PythonEnvironment
 from prefect.utilities.asyncio import run_sync_in_worker_thread
-from prefect.utilities.dispatch import register_type
 
 
-@register_type
 class DockerPackageManifest(PackageManifest):
     """
     Represents a flow packaged in a Docker image
@@ -30,7 +28,6 @@ class DockerPackageManifest(PackageManifest):
         return load_flow_from_script(self.image_flow_location, self.flow_name)
 
 
-@register_type
 class DockerPackager(Packager):
     """
     This packager builds a Docker image containing the flow and the runtime environment
