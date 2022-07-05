@@ -25,27 +25,43 @@
 
 <script lang="ts" setup>
   import {
-    deploymentsApiKey,
-    flowRunsApiKey,
-    flowsApiKey,
-    logsApiKey,
-    taskRunsApiKey,
-    workQueuesApiKey,
+    blockCatalogCreateRouteKey,
+    blockCatalogRouteKey,
+    blockDocumentsApiKey,
+    blockEditRouteKey,
+    blockRouteKey,
+    blockSchemasApiKey,
+    blocksRouteKey,
+    blockTypesApiKey,
     canKey,
-    flowRunsRouteKey,
-    flowsRouteKey,
-    deploymentsRouteKey,
-    workQueuesRouteKey,
-    settingsRouteKey,
-    flowRunRouteKey,
-    flowRouteKey,
     deploymentRouteKey,
-    workQueueRouteKey,
+    deploymentsApiKey,
+    deploymentsRouteKey,
+    editNotificationRouteKey,
+    editQueueRouteKey,
+    flowRouteKey,
+    flowRunRouteKey,
+    flowRunsApiKey,
+    flowRunsRouteKey,
+    flowsApiKey,
+    flowsRouteKey,
+    logsApiKey,
+    notificationCreateRouteKey,
+    notificationsApiKey,
+    notificationsRouteKey,
+    settingsRouteKey,
+    taskRunsApiKey,
     workQueueCreateRouteKey,
-    editQueueRouteKey
+    workQueueRouteKey,
+    workQueuesApiKey,
+    workQueuesRouteKey,
   } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
   import { computed, provide, ref, watchEffect } from 'vue'
+  import { blockDocumentsApi } from './services/blockDocumentsApi'
+  import { blockSchemasApi } from './services/blockSchemasApi'
+  import { blockTypesApi } from './services/blockTypesApi'
+  import { notificationsApi } from './services/notificationsApi'
   import ContextSidebar from '@/components/ContextSidebar.vue'
   import { routes } from '@/router/routes'
   import { deploymentsApi } from '@/services/deploymentsApi'
@@ -56,24 +72,40 @@
   import { workQueuesApi } from '@/services/workQueuesApi'
   import { can } from '@/utilities/permissions'
 
+  provide(blockDocumentsApiKey, blockDocumentsApi)
+  provide(blockSchemasApiKey, blockSchemasApi)
+  provide(blockTypesApiKey, blockTypesApi)
   provide(deploymentsApiKey, deploymentsApi)
   provide(flowRunsApiKey, flowRunsApi)
   provide(flowsApiKey, flowsApi)
   provide(logsApiKey, logsApi)
   provide(taskRunsApiKey, taskRunsApi)
   provide(workQueuesApiKey, workQueuesApi)
+
   provide(canKey, can)
+
+  provide(blockCatalogCreateRouteKey, routes.blocksCatalogCreate)
+  provide(blockCatalogRouteKey, routes.blocksCatalog)
+  provide(blockEditRouteKey, routes.blockEdit)
+  provide(blockRouteKey, routes.block)
+  provide(blocksRouteKey, routes.blocks)
+  provide(deploymentRouteKey, routes.deployment)
+  provide(deploymentsRouteKey, routes.deployments)
+  provide(editQueueRouteKey, routes.workQueueEdit)
+  provide(flowRouteKey, routes.flow)
+  provide(flowRunRouteKey, routes.flowRun)
   provide(flowRunsRouteKey, routes.flowRuns)
   provide(flowsRouteKey, routes.flows)
-  provide(deploymentsRouteKey, routes.deployments)
-  provide(workQueuesRouteKey, routes.workQueues)
   provide(settingsRouteKey, routes.settings)
-  provide(flowRunRouteKey, routes.flowRun)
-  provide(flowRouteKey, routes.flow)
-  provide(deploymentRouteKey, routes.deployment)
+  provide(workQueueCreateRouteKey, routes.workQueueCreate)
   provide(workQueueRouteKey, routes.workQueue)
   provide(workQueueCreateRouteKey, routes.workQueueCreate)
   provide(editQueueRouteKey, routes.workQueueEdit)
+  provide(notificationsApiKey, notificationsApi)
+  provide(notificationCreateRouteKey, routes.notificationCreate)
+  provide(editNotificationRouteKey, routes.notificationEdit)
+  provide(notificationsRouteKey, routes.notifications)
+  provide(workQueuesRouteKey, routes.workQueues)
 
   const mobileMenuOpen = ref(false)
   const showMenu = computed(() => media.lg || mobileMenuOpen.value)

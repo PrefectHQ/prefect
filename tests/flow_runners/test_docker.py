@@ -13,8 +13,8 @@ from prefect.flow_runners import (
     MIN_COMPAT_PREFECT_VERSION,
     DockerFlowRunner,
     ImagePullPolicy,
-    get_prefect_image_name,
 )
+from prefect.flow_runners.base import get_prefect_image_name
 from prefect.orion.schemas.data import DataDocument
 from prefect.settings import PREFECT_API_URL, temporary_settings
 from prefect.testing.utilities import assert_does_not_warn
