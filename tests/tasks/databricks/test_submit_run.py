@@ -1,19 +1,19 @@
-import pytest
 import json
 from typing import Any
+
+import pytest
 import responses
 from requests import PreparedRequest
 
 import prefect
-
 from prefect.tasks.databricks import (
     DatabricksGetJobID,
     DatabricksRunNow,
-    DatabricksSubmitRun,
+    DatabricksSubmitRun
 )
 from tests.tasks.databricks.mocks import (
     DatabricksGetJobIDTestOverride,
-    DatabricksRunNowTestOverride,
+    DatabricksRunNowTestOverride
 )
 
 

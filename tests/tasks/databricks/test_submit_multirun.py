@@ -2,13 +2,11 @@ import json
 from typing import Any
 
 import pytest
-
 from yaml import parse
 
 from prefect.exceptions import PrefectException
 from prefect.tasks.databricks import DatabricksSubmitMultitaskRun
 from prefect.tasks.databricks.models import (
-    AccessControlRequest,
     AccessControlRequestForGroup,
     AccessControlRequestForUser,
     AutoScale,
@@ -20,10 +18,11 @@ from prefect.tasks.databricks.models import (
     Library,
     NewCluster,
     NotebookTask,
-    PermissionLevel,
     SparkJarTask,
-    TaskDependency,
+    TaskDependency
 )
+
+pydantic = pytest.importorskip("pydantic")
 
 
 class TestDatabricksSubmitMultitaskRun:
@@ -167,8 +166,7 @@ def prefect_git_source(**kwargs):
 
 
 def assert_git_source_conflicting_args(**kwargs):
-    from pydantic import ValidationError
-    with pytest.raises(ValidationError):
+    with pytest.raises(pydantic.ValidationError):
         prefect_git_source(**kwargs)
 
 
