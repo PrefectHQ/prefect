@@ -2,9 +2,9 @@
 description: Prefect Python API for file systems.
 tags:
     - Python API
-    - file systems
+    - filesystems
     - LocalFileSystem
     - RemoteFileSystem
 ---
 
-::: prefect.file_systems
+::: prefect.filesystems
