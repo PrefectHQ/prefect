@@ -31,6 +31,10 @@ from .deployments import Deployment
 # Import modules that register types
 import prefect.serializers
 import prefect.packaging
+import prefect.blocks.kubernetes
+import prefect.blocks.notifications
+import prefect.blocks.storage
+import prefect.blocks.system
 
 # Initialize the process-wide profile and registry at import time
 import prefect.context

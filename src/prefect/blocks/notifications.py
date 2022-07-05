@@ -5,7 +5,6 @@ from pydantic import Field, HttpUrl
 from slack_sdk.webhook.async_client import AsyncWebhookClient
 
 from prefect.blocks.core import Block
-from prefect.utilities.dispatch import register_type
 
 
 class CanNotify(Block):
@@ -22,7 +21,6 @@ class CanNotify(Block):
         """
 
 
-@register_type
 class DebugPrintNotification(CanNotify):
     """
     Notification block that prints a message, useful for debugging.
@@ -38,7 +36,6 @@ class DebugPrintNotification(CanNotify):
 
 # TODO: Move to prefect-slack once collection block auto-registration is
 # available
-@register_type
 class SlackWebhook(CanNotify):
     """
     Enables sending notifications via a provided Slack webhook.

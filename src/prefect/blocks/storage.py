@@ -22,7 +22,6 @@ from typing_extensions import Literal
 from prefect.blocks.core import Block
 from prefect.settings import PREFECT_HOME
 from prefect.utilities.asyncio import run_sync_in_worker_thread
-from prefect.utilities.dispatch import register_type
 from prefect.utilities.filesystem import is_local_path
 from prefect.utilities.hashing import stable_hash
 
@@ -60,7 +59,6 @@ class StorageBlock(Block, Generic[T]):
         """
 
 
-@register_type
 class FileStorageBlock(StorageBlock):
     """
     Store data as a file on local or remote file systems.
@@ -162,7 +160,6 @@ class FileStorageBlock(StorageBlock):
             return io.read()
 
 
-@register_type
 class S3StorageBlock(StorageBlock):
     """Store data in an AWS S3 bucket."""
 
@@ -208,7 +205,6 @@ class S3StorageBlock(StorageBlock):
         return output
 
 
-@register_type
 class TempStorageBlock(StorageBlock):
     """Store data in a temporary directory in a run's local file system."""
 
@@ -237,7 +233,6 @@ class TempStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_type
 class LocalStorageBlock(StorageBlock):
     """Store data in a run's local file system."""
 
@@ -272,7 +267,6 @@ class LocalStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_type
 class GoogleCloudStorageBlock(StorageBlock):
     """Store data in a GCS bucket."""
 
@@ -309,7 +303,6 @@ class GoogleCloudStorageBlock(StorageBlock):
         return key
 
 
-@register_type
 class AzureBlobStorageBlock(StorageBlock):
     """Store data in an Azure blob storage container."""
 
@@ -341,7 +334,6 @@ class AzureBlobStorageBlock(StorageBlock):
         return key
 
 
-@register_type
 class KVServerStorageBlock(StorageBlock):
     """
     Store data by sending requests to a KV server.
