@@ -20,7 +20,7 @@ Flows also take advantage of automatic Prefect logging to capture details about 
 
 All workflows are defined within the context of a flow. Flows can include calls to [tasks](/concepts/tasks/) as well as to other flows, which we call ["subflows"](#subflows) in this context. Flows may be defined within modules and imported for use as subflows in your flow definitions. 
 
-!!! warning Tasks must be called from flows
+!!! warning "Tasks must be called from flows"
     All tasks must be called from within a flow. Tasks may not be called from other tasks.
 
 For most use cases, we recommend using the [`@flow`][prefect.flows.flow] decorator to designate a flow:
@@ -55,7 +55,7 @@ def hello_world(name="world"):
     print_hello(name)
 ```
 
-!!! tip Flows and tasks
+!!! tip "Flows and tasks"
     There's nothing stopping you from putting all of your code in a single flow function &mdash; Prefect will happily run it! 
     
     However, organizing your workflow code into smaller flow and task units lets you take advantage of Prefect features like retries, more granular visibility into runtime state, the ability to determine final state regardless of individual task state, and more.
@@ -255,7 +255,7 @@ Subflow says: Hello Marvin!
 
 Flows can be called with both positional and keyword arguments. These arguments are resolved at runtime into a dictionary of **parameters** mapping name to value. These parameters are stored by the Prefect Orion orchestration engine on the flow run object. 
 
-!!! warning Prefect API requires keyword arguments
+!!! warning "Prefect API requires keyword arguments"
     When creating flow runs from the Prefect Orion API, parameter names must be specified when overriding defaults &mdash; they cannot be positional.
 
 Type hints provide an easy way to enforce typing on your flow parameters via [pydantic](https://pydantic-docs.helpmanual.io/).  This means _any_ pydantic model used as a type hint within a flow will be coerced automatically into the relevant object type:
@@ -296,7 +296,7 @@ Parameters are validated before a flow is run. If a flow call receives invalid p
 
 ## Flow retries
 
-When your flow run encounters an exception or fails due to a failed task run, it can be retried. This is configurable the same way as task retries with the `retries` and `retry_delay_seconds` parameters.
+When your flow run encounters an exception or fails due to a failed task run, it can be retried. This is configurable by passing `retries` and, optionally, `retry_delay_seconds` parameters to your task. The retry parameter syntax is the same for both flows and [tasks](/concepts/tasks/#retries).
 
 ```python
 from prefect import flow
@@ -306,19 +306,17 @@ def flow_might_fail():
     # Call tasks
 ```
 
-When a flow run fails, the Prefect engine will propose the failed state. If the `retries` parameter is set on the flow, the orchestrator can return an `AwaitingRetry` state. As with retries for tasks, the engine will attempt to run the flow again. The client is not responsible for avoiding recomputation or state management.
+When a flow run fails, the Prefect orchestration engine will attempt to run the flow again. The client is not responsible for avoiding recomputation or state management.
 
-When the flow runs again, each task will be called to check its state. Task runs that previously failed will have their state reset to `AwaitingRetry` and will run again. Task runs that previously succeeded will return their previous `Completed` state without running again.
+When the flow runs again, each task will be called to check its state. Task runs that previously failed will run again. Task runs that previously succeeded will return their previous `Completed` state without running again.
 
 ### Subflow retries 
 
 If a [subflow](#subflows) is called within a flow with retries, its behavior will vary depending on if it failed or completed.
 
-If the child run failed, a new flow run will be created for the child flow call.
-
-If the child run succeeded, its state will be retrieved and returned.
-
-If a child flow run also has retries configured, things should behave as described for child flow runs and tasks.
+- If the child run failed, a new flow run will be created for the child flow call.
+- If the child run succeeded, its state will be retrieved and returned.
+- If a child flow run also has retries configured, execution should behave as described for subflow runs and tasks.
 
 ### Task retries
 
@@ -565,7 +563,7 @@ Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-
 ```
 </div>
 
-!!! note Returning multiple states
+!!! note "Returning multiple states"
     When returning multiple states, they must be contained in a `set`, `list`, or `tuple`. If other collection types are used, the result of the contained states will not be checked.
 
 
