@@ -6,6 +6,8 @@ import responses
 from requests import PreparedRequest
 
 import prefect
+pytest.importorskip("pydantic") # Required for databricks tasks
+
 from tests.tasks.databricks.mocks import (
     DatabricksGetJobIDTestOverride,
     DatabricksRunNowTestOverride,
