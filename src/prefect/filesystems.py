@@ -154,7 +154,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
                 raise RuntimeError(
                     f"File system created with scheme {scheme!r} from base path "
                     f"{self.basepath!r} could not be created. "
-                    "You are likely missing a Python module required use the given "
+                    "You are likely missing a Python module required to use the given "
                     "storage protocol."
                 ) from exc
 
