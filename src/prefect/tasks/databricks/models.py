@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Extra, Field
 
 
 class TaskDependency(BaseModel):
@@ -66,7 +66,7 @@ class InitScriptInfo(BaseModel):
     S3: Optional[S3StorageInfo] = None
 
 
-class NewCluster(BaseModel):
+class NewCluster(BaseModel, extra=Extra.allow):
     spark_version: str
     node_type_id: str
     spark_conf: Dict = Field(default_factory=dict)
