@@ -9,11 +9,11 @@ import prefect
 from prefect.tasks.databricks import (
     DatabricksGetJobID,
     DatabricksRunNow,
-    DatabricksSubmitRun
+    DatabricksSubmitRun,
 )
 from tests.tasks.databricks.mocks import (
     DatabricksGetJobIDTestOverride,
-    DatabricksRunNowTestOverride
+    DatabricksRunNowTestOverride,
 )
 
 
