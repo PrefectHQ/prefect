@@ -64,7 +64,7 @@ The default name for the deployment is "orion" and it uses a pre-built Prefect i
 In this case, we'll pipe the output directly to `kubectl` and apply the manifest to a Kubernetes cluster:
 
 ```bash
-prefect orion kubernetes-manifest | kubectl apply -f -
+prefect kubernetes manifest orion | kubectl apply -f -
 ```
 
 After applying the output of this command to your cluster, a Kubernetes deployment named "orion" should start running.
