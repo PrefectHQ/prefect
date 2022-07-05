@@ -1,0 +1,5 @@
+enhancement:
+  - "Fixes issue where complex Python dependencies would break Docker storage builds - [#5860](https://github.com/PrefectHQ/prefect/issues/5860)"
+
+contributor:
+  - "[Bryan \"Beege\" Berry](https://github.com/TheBeege)"

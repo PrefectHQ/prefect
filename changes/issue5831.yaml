@@ -1,0 +1,5 @@
+fix:
+  - "Instantiate Task kwargs during DbtCloudRunTask __init__ - [#5831](https://github.com/PrefectHQ/prefect/pull/5831)"
+
+contributor:
+  - "[Nate Nowack](https://github.com/zzstoatzz)"

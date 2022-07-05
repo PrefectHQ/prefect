@@ -314,7 +314,10 @@ classes = ["BlobStorageDownload",
            "BlobStorageUpload",
            "CosmosDBCreateItem",
            "CosmosDBReadItems",
-           "CosmosDBQueryItems"]
+           "CosmosDBQueryItems",
+           "DatafactoryCreate",
+           "PipelineCreate",
+           "PipelineRun"]
 
 [pages.tasks.azureml]
 title = "Azure ML Service Tasks"
