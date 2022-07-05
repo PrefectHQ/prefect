@@ -16,7 +16,7 @@ from prefect.tasks.databricks.models import (
     NewCluster,
     NotebookTask,
     SparkJarTask,
-    TaskDependency,
+    TaskDependency
 )
 
 
