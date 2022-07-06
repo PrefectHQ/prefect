@@ -298,7 +298,4 @@ def load_deployments_from_yaml(
 # Backwards compatibility
 
 
-class DeploymentSpec(deprecated.DeploymentSpec):
-    def __init__(self, **data: Any) -> None:
-        # TODO: Add deprecation warning when we are ready to transition
-        super().__init__(**data)
+DeploymentSpec = deprecated.DeploymentSpec
