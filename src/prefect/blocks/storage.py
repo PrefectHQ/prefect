@@ -17,6 +17,7 @@ import pydantic
 from azure.storage.blob import BlobServiceClient
 from fsspec.implementations.local import LocalFileSystem
 from google.oauth2 import service_account
+from pydantic import SecretStr
 from typing_extensions import Literal
 
 from prefect.blocks.core import Block
@@ -167,7 +168,7 @@ class S3StorageBlock(StorageBlock):
 
     bucket: str
     aws_access_key_id: Optional[str] = None
-    aws_secret_access_key: Optional[str] = None
+    aws_secret_access_key: Optional[SecretStr] = None
     aws_session_token: Optional[str] = None
     profile_name: Optional[str] = None
     region_name: Optional[str] = None
@@ -309,11 +310,11 @@ class AzureBlobStorageBlock(StorageBlock):
     _block_type_name = "Azure Blob Storage"
 
     container: str
-    connection_string: str
+    connection_string: SecretStr
 
     def block_initialization(self) -> None:
         self.blob_service_client = BlobServiceClient.from_connection_string(
-            conn_str=self.connection_string
+            conn_str=self.connection_string.get_secret_value()
         )
 
     async def read(self, key: str) -> bytes:
