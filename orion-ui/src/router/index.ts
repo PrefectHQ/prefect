@@ -1,5 +1,5 @@
 import { RouteGuardExecutioner } from '@prefecthq/orion-design'
-import { RouteRecordRaw, createRouter, createWebHistory, RouteComponent, RouterView } from 'vue-router'
+import { RouteRecordRaw, createRouter, createWebHistory, RouteComponent } from 'vue-router'
 import FlowRunsPage from '@/pages/FlowRuns.vue'
 import { routes, NamedRoute, AppRouteLocation, AppRouteRecord } from '@/router/routes'
 import { BASE_URL } from '@/utilities/meta'
@@ -17,7 +17,6 @@ const routeRecords: AppRouteRecord[] = [
   },
   {
     path: '/flow-run/:id',
-    component: RouterView,
     children: [
       {
         name: 'flow-run',
@@ -53,7 +52,6 @@ const routeRecords: AppRouteRecord[] = [
   },
   {
     path: '/work-queues',
-    component: RouterView,
     children: [
       {
         name: 'work-queues',
@@ -69,7 +67,6 @@ const routeRecords: AppRouteRecord[] = [
   },
   {
     path: '/work-queue/:id',
-    component: RouterView,
     children: [
       {
         path: 'edit',
@@ -85,7 +82,6 @@ const routeRecords: AppRouteRecord[] = [
   },
   {
     path: '/blocks',
-    component: RouterView,
     children: [
       {
         name: 'blocks',
@@ -106,7 +102,6 @@ const routeRecords: AppRouteRecord[] = [
   },
   {
     path: '/block/:blockDocumentId',
-    component: RouterView,
     children: [
       {
         name: 'block',
@@ -122,7 +117,6 @@ const routeRecords: AppRouteRecord[] = [
   },
   {
     path: '/notifications',
-    component: RouterView,
     children: [
       {
         name: 'notifications',
