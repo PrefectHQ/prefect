@@ -14,7 +14,11 @@ from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import ORMBlockDocument
 from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
-from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
+from prefect.orion.schemas.core import (
+    BlockDocument,
+    BlockDocumentReference,
+    OBFUSCATED_SECRET,
+)
 from prefect.orion.schemas.filters import BlockDocumentFilterIsAnonymous
 from prefect.utilities.hashing import hash_objects
 
@@ -510,6 +514,11 @@ async def update_block_document(
         current_block_document.name = update_values["name"]
 
     if "data" in update_values and update_values["data"] is not None:
+        # merge the existing data and the new data for partial updates
+        merged_data = await current_block_document.decrypt_data(session=session)
+        merged_data.update(update_values["data"])
+        update_values["data"] = merged_data
+
         current_block_document_references = (
             (
                 await session.execute(
