@@ -11,7 +11,11 @@ from prefect import flow
 from prefect.client import OrionClient
 from prefect.context import PrefectObjectRegistry
 from prefect.deployments import Deployment, FlowScript
-from prefect.flow_runners import SubprocessFlowRunner, UniversalFlowRunner
+from prefect.flow_runners import (
+    DockerFlowRunner,
+    SubprocessFlowRunner,
+    UniversalFlowRunner,
+)
 from prefect.flows import Flow
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.packaging import DockerPackager, FilePackager, OrionPackager
@@ -196,14 +200,20 @@ async def test_deployment_by_packager_type(orion_client: OrionClient, packager):
 
 
 async def test_deployment_validates_flow_runner_for_docker_packager():
-    with pytest.raises(ValueError, match="flow runner 'universal' is not compatible"):
+    with pytest.raises(
+        ValueError,
+        match="flow requires an image but the 'universal' flow runner does not have an image field",
+    ):
         Deployment(
             flow=foo, packager=DockerPackager(python_environment=PythonEnvironment())
         )
 
 
 async def test_deployment_validates_flow_runner_for_docker_manifest():
-    with pytest.raises(ValueError, match="flow runner 'universal' is not compatible"):
+    with pytest.raises(
+        ValueError,
+        match="flow requires an image but the 'universal' flow runner does not have an image field",
+    ):
         Deployment(
             flow=(
                 # Generate a manifest
@@ -211,4 +221,41 @@ async def test_deployment_validates_flow_runner_for_docker_manifest():
                 .base_manifest(foo)
                 .finalize(image="test", image_flow_location="test")
             )
+        )
+
+
+async def test_deployment_sets_flow_runner_image_to_match_manifest_image(orion_client):
+    flow_runner = DockerFlowRunner()
+    original_flow_runner = flow_runner.copy()
+    deployment = Deployment(
+        flow=(
+            # Generate a manifest
+            DockerPackager(python_environment=PythonEnvironment())
+            .base_manifest(foo)
+            .finalize(image="test-tag", image_flow_location="test")
+        ),
+        flow_runner=flow_runner,
+    )
+
+    deployment_id = await deployment.create(client=orion_client)
+    assert flow_runner == original_flow_runner, "Flow runner is not mutated"
+
+    # Image is updated on in registered runner
+    api_deployment = await orion_client.read_deployment(deployment_id)
+    assert api_deployment.flow_runner.config["image"] == "test-tag"
+
+
+async def test_deployment_errors_if_flow_runner_image_set_with_image_manifest():
+    with pytest.raises(
+        pydantic.ValidationError,
+        match="Packaged flow requires an image but the flow runner already has image 'diff-tag'",
+    ):
+        Deployment(
+            flow=(
+                # Generate a manifest
+                DockerPackager(python_environment=PythonEnvironment())
+                .base_manifest(foo)
+                .finalize(image="test-tag", image_flow_location="test")
+            ),
+            flow_runner=DockerFlowRunner(image="diff-tag"),
         )
