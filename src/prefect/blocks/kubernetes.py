@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Dict, Type
 import yaml
 from typing_extensions import Self
 
-from prefect.blocks.core import Block, register_block
+from prefect.blocks.core import Block
 from prefect.utilities.collections import listrepr
 from prefect.utilities.importtools import lazy_import
 
@@ -16,7 +16,6 @@ else:
     kube_config = lazy_import("kubernetes.config.kube_config")
 
 
-@register_block
 class KubernetesClusterConfig(Block):
     """
     Stores configuration for interaction with Kubernetes clusters.
@@ -24,8 +23,8 @@ class KubernetesClusterConfig(Block):
     See `from_file` for creation.
 
     Args:
-        config: The entire loaded YAML contents of a kubectl config file
-        context_name: The name of the context to use
+        config (dict): The entire loaded YAML contents of a kubectl config file
+        context_name (str): The name of the context to use
     """
 
     config: Dict
