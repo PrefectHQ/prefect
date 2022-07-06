@@ -24,8 +24,7 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.agent import start as start_agent
 from prefect.cli.root import app
-from prefect.flow_runners import get_prefect_image_name
-from prefect.flow_runners.base import python_version_minor
+from prefect.flow_runners.base import get_prefect_image_name, python_version_minor
 from prefect.orion.api.server import create_app
 from prefect.settings import (
     PREFECT_API_URL,
