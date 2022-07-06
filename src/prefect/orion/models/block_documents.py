@@ -514,6 +514,15 @@ async def update_block_document(
         current_block_document.name = update_values["name"]
 
     if "data" in update_values and update_values["data"] is not None:
+
+        # if a block data contains Prefect's own OBFUSCATED SECRET value,
+        # it means someone is probably trying to update all of the documents
+        # fields without realizing they are positing back obfuscated data,
+        # so we disregard them
+        for key, value in list(update_values["data"].items()):
+            if value == OBFUSCATED_SECRET:
+                del update_values["data"][key]
+
         # merge the existing data and the new data for partial updates
         merged_data = await current_block_document.decrypt_data(session=session)
         merged_data.update(update_values["data"])

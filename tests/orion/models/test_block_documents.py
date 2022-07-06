@@ -1769,3 +1769,33 @@ class TestSecretBlockDocuments:
         assert blocks[0].data["x"] == "x"
         assert blocks[0].data["y"] == "y"
         assert blocks[0].data["z"] == "z"
+
+    async def test_updating_secret_block_document_with_obfuscated_result_is_ignored(
+        self, session, secret_block_document
+    ):
+
+        block = await models.block_documents.read_block_document_by_id(
+            session=session,
+            block_document_id=secret_block_document.id,
+            include_secrets=False,
+        )
+
+        assert block.data["x"] == OBFUSCATED_SECRET
+
+        # set X to the secret value
+        await models.block_documents.update_block_document(
+            session=session,
+            block_document_id=secret_block_document.id,
+            block_document=schemas.actions.BlockDocumentUpdate(
+                data=dict(x=OBFUSCATED_SECRET)
+            ),
+        )
+
+        block2 = await models.block_documents.read_block_document_by_id(
+            session=session,
+            block_document_id=secret_block_document.id,
+            include_secrets=True,
+        )
+
+        # x was NOT overwritten
+        assert block2.data.x != OBFUSCATED_SECRET
