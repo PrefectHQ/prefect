@@ -21,11 +21,7 @@ from urllib3.exceptions import MaxRetryError
 
 import prefect
 from prefect.client import get_client
-from prefect.flow_runners import (
-    KubernetesFlowRunner,
-    KubernetesImagePullPolicy,
-    KubernetesRestartPolicy,
-)
+from prefect.flow_runners import KubernetesFlowRunner, KubernetesImagePullPolicy
 from prefect.flow_runners.base import base_flow_run_environment
 from prefect.flow_runners.kubernetes import KubernetesManifest
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
@@ -106,7 +102,7 @@ class TestKubernetesFlowRunner:
 
         return [{"object": job_pod}, {"object": job}]
 
-    def test_runner_type(restart_policy):
+    def test_runner_type(self):
         assert KubernetesFlowRunner().typename == "kubernetes"
 
     def test_building_a_job_is_idempotent(self, flow_run: FlowRun):
@@ -395,29 +391,6 @@ class TestKubernetesFlowRunner:
             1
         ]["spec"]["template"]["spec"].get("imagePullPolicy")
         assert call_restart_policy is None
-
-    async def test_warns_and_replaces_user_supplied_restart_policy(
-        self,
-        mock_k8s_client,
-        mock_watch,
-        mock_k8s_batch_client,
-        flow_run,
-        use_hosted_orion,
-        hosted_orion_api,
-    ):
-        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
-
-        with pytest.warns(DeprecationWarning, match="restart_policy is deprecated"):
-            flow_runner = KubernetesFlowRunner(
-                restart_policy=KubernetesRestartPolicy.ON_FAILURE
-            )
-
-        await flow_runner.submit_flow_run(flow_run, MagicMock())
-        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
-        call_restart_policy = mock_k8s_batch_client.create_namespaced_job.call_args[0][
-            1
-        ]["spec"]["template"]["spec"].get("restartPolicy")
-        assert call_restart_policy == "Never"
 
     async def test_raises_on_submission_with_ephemeral_api(self, flow_run):
         with pytest.raises(
