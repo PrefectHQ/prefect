@@ -14,8 +14,9 @@ from prefect.deployments import Deployment, FlowScript
 from prefect.flow_runners import SubprocessFlowRunner, UniversalFlowRunner
 from prefect.flows import Flow
 from prefect.orion.schemas.schedules import IntervalSchedule
-from prefect.packaging import FilePackager, OrionPackager
+from prefect.packaging import DockerPackager, FilePackager, OrionPackager
 from prefect.packaging.base import PackageManifest
+from prefect.software.python import PythonEnvironment
 
 EXAMPLES = Path(__file__).parent / "examples"
 
@@ -192,3 +193,22 @@ async def test_deployment_by_packager_type(orion_client: OrionClient, packager):
     flow = await manifest.unpackage()
     assert isinstance(flow, Flow)
     assert flow.name == "foo"
+
+
+async def test_deployment_validates_flow_runner_for_docker_packager():
+    with pytest.raises(ValueError, match="flow runner 'universal' is not compatible"):
+        Deployment(
+            flow=foo, packager=DockerPackager(python_environment=PythonEnvironment())
+        )
+
+
+async def test_deployment_validates_flow_runner_for_docker_manifest():
+    with pytest.raises(ValueError, match="flow runner 'universal' is not compatible"):
+        Deployment(
+            flow=(
+                # Generate a manifest
+                DockerPackager(python_environment=PythonEnvironment())
+                .base_manifest(foo)
+                .finalize(image="test", image_flow_location="test")
+            )
+        )
