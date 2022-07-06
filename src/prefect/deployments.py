@@ -59,6 +59,7 @@ from prefect.client import OrionClient, inject_client
 from prefect.context import PrefectObjectRegistry
 from prefect.deprecated import deployments as deprecated
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
+from prefect.flow_runners import DockerFlowRunner, KubernetesFlowRunner
 from prefect.flow_runners.base import (
     FlowRunner,
     FlowRunnerSettings,
@@ -68,6 +69,7 @@ from prefect.flows import Flow, load_flow_from_script, load_flow_from_text
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.packaging.base import PackageManifest, Packager
+from prefect.packaging.docker import DockerPackageManifest, DockerPackager
 from prefect.packaging.orion import OrionPackager
 from prefect.utilities.asyncio import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.collections import listrepr
@@ -123,6 +125,24 @@ class Deployment(BaseModel):
                 "instead of a flow. Provide a local flow instead or leave the packager "
                 "field empty."
             )
+        return values
+
+    @root_validator
+    def flow_runner_packager_compatibility(cls, values):
+        flow_runner = values.get("flow_runner")
+        packager = values.get("packager")
+        manifest = values.get("flow")
+
+        if (
+            isinstance(packager, DockerPackager)
+            or isinstance(manifest, DockerPackageManifest)
+        ) and not isinstance(flow_runner, (KubernetesFlowRunner, DockerFlowRunner)):
+            raise ValueError(
+                "A Docker package is being used but the flow runner "
+                f"{flow_runner.typename!r} is not compatible. "
+                "You must use a Docker or Kubernetes flow runner."
+            )
+
         return values
 
     @sync_compatible
