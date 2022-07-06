@@ -1,5 +1,60 @@
 # Prefect Release Notes
 
+## 2.0b8
+
+This is our biggest release yet! With this release, you'll really start to see the potential of Prefect 2.0. Some of these features are the result of careful planning and execution over the past few months, while others are responses to your feedback, unplanned but carefully considered. None would be possible without your continued support. Take it for a spin and let us know what you think!
+
+### Flow Run Retries
+Flow run retries have been one of our most requested features, especially given how easy it is to run a flow as a "subflow" or "child flow" with Prefect 2.0. Flow run retries are configured just as task retries are - with the `retries` and `retry_delay_seconds` parameters.
+
+If both a task and its flow have retries configured, tasks within the flow will retry up to their specified task retry limit for each flow run. For example, if you have a **flow** configured with a limit of 2 retries (up to 3 total runs, including the initial attempt), and a **task** in the flow configured with 3 retries (up to 4 attempts per flow run, including the initial attempt). The task could run up to a total of 12 attempts, since task retry limits are reset after each flow run or flow run attempt.
+
+### Notifications
+At any time, you can visit the Prefect UI to get a comprehensive view of the state of all of your flows, but when something goes wrong with one of your flows, you need that information immediately. Prefect 2.0’s new notifications can alert you and your team when any flow enters any state you specify, with or without specific tags.
+
+To create a notification, go to the new Notifications page via the sidebar navigation and select “Create Notification.” Notifications are structured just as you would describe them to someone. For example, if I want to get a slack message every time my daily-etl flow fails, my notification will simply read:
+
+> If a run of any flow with **any** tag enters a **failed** state, send a notification to **my-slack-webhook**
+
+When the conditions of the notification are triggered, you’ll receive a simple message:
+
+> The **fuzzy-leopard** run of the **daily-etl** flow entered a **failed** state at **yy-MM-dd HH:mm:ss TMZ**.
+
+Currently, notifications can only be sent to a [Slack webhook](https://api.slack.com/messaging/webhooks) (or email addresses if you are using [Prefect Cloud 2.0](https://beta.prefect.io/auth/login)). Over time, notifications will support additional messaging services. Let us know which messaging services you’d like to send your notifications to!
+
+### Flow packaging and deployment
+We've revisited our flow packaging and deployment UX, making it both more powerful and easier to use. `DeploymentSpec`s are now just `Deployment`s. Most of the fields are unchanged, but there are a few differences:
+- The `flow_storage` field has been replaced with a `packager` field.
+- The `flow_location`, `flow_name`, and `flow` parameters are now just `flow`.
+
+You can deploy a flow directly, or you can package it with the new `packaging` module. Packaging enables you to bundle a flow with its dependencies, including python packages. Packaging produces a Package, the artifact that contains your flow and its dependencies, as well as a Manifest, a JSON description of the package and what inside of it.
+
+There are several ways to create a package, with more to come. For instance, you can package your flow as a Docker image containing the flow and the runtime environment necessary to run it and register it with Docker. Alternatively, you could package your flow as a reference to the import path of a package stored directly in the Prefect Orion database. Learn more in the [Deployment concept documentation](https://orion-docs.prefect.io/concepts/deployments/).
+
+You can continue to use your existing `DeploymentSpec`s, but they will be deprecated with the 2.0.0 release in the coming weeks.
+
+### Blocks
+We've been working on Blocks behind the scenes for a while. Whether you know it or not, if you've used the past few releases, you've used them. Blocks enable you to securely store configuration with the Prefect Orion server and access it from your code later with just a simple reference. Think of Blocks as secure, UI-editable, type-checked environment variables. We're starting with just a few Blocks - mostly storage, but soon but we’ll expand this pattern to include every tool and service in the growing modern data stack and beyond. You've be able to set up access to your entire stack once in just a few minutes, then manage access forever without editing your code. In particular, we've made the following enhancements: 
+- Block schema capabilities can now be updated via the REST API.
+- Block document values can now be updated via the Python client with the `overwrite` flag.
+- Blocks now support secret fields. By default, fields identified as secret will be obfuscated when returned to the Prefect UI. The actual values can still be retrieved as necessary.
+-  `BlockSchema` objects have a new `secret_fields: List[str]` item in their schema's extra fields. This is a list of all fields that should be considered "secret". It also includes any secret fields from nested blocks referenced by the schema.
+- You can now browse your Blocks on the new "Blocks" page, create, and edit them right in the UI.
+
+### Other Improvements
+- Task keys, previously a concatenation of several pieces of metadata, are now only the qualified function name. While it is likely to be globally unique, the key can be used to easily identify every instance in which a function of the same name is utilized.
+- Tasks now have a `version` that you can set via the task decorator, like the flow version identifier on flow runs.
+- An Orion setting, `PREFECT_ORION_DATABASE_PASSWORD`, has been added to allow templating in the database connection URL - [#5759](https://github.com/PrefectHQ/prefect/pull/5759)
+- A link to API reference documentation has been added to the Orion startup message.
+- Where possible, Prefect 2.0 now exits processes earlier for synchronous flow or task runs that are cancelled. This reduces the range of conditions under which a task run would be marked failed, but continue to run.
+- All Prefect client models now allow extras, while the API continues to forbid them, such that older Prefect 2.0 clients can receive and load objects from the API that have additional fields, facilitating backwards compatibility.
+
+### Bug fixes
+- Attempting to create a schedule with a cron string that includes a "random" or "hashed" expression will now return an error.
+
+### Contributors
+- [Cole Murray](https://github.com/ColeMurray)
+
 ## 2.0b7
 
 This release includes a number of important improvements and bug fixes in response to continued feedback from the community. Note that this release makes a **breaking change** to the Blocks API, making the `2.0b7` Orion server incompatible with previous Orion client versions.```
