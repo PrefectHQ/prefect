@@ -21,12 +21,15 @@ Prefect Cloud is an orchestration-as-a-service platform. Prefect Cloud provides 
 - Task run details 
 - Radar flow and task dependency visualizer 
 - Logs
+- Configure and mangage blocks
+- Configure and manage notifications
 
 Features only available on Prefect Cloud include:
 
 - User accounts: personal accounts for working in Prefect Cloud. 
 - Workspaces: isolated environments for your flows and deployments.
 - Collaborators: invite others to work in your workspace.
+- Email notifications: configure email alerts based on flow run states and tags.
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
 
@@ -52,8 +55,9 @@ Each workspace keeps track of its own:
 - Flow runs and task runs executed in an environment that is [syncing with the workspace](/ui/cloud/#workspaces)
 - Flows associated with flow runs or deployments tracked by the Prefect Cloud API
 - [Deployments](/concepts/deployments/)
-- [Storage](/concepts/storage/)
 - [Work queues](/concepts/work-queues/)
+- [Blocks](/ui/blocks/) and [Storage](/concepts/storage/)
+- [Notifications](/ui/notifications/)
 
 When you first log into Prefect Cloud and create your workspace, it will most likely be empty. Don't Panic &mdash; you just haven't run any flows tracked by this workspace yet. The next steps will show you how to [get started with Prefect Cloud](/ui/cloud-getting-started/). 
 
