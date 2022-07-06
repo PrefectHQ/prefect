@@ -88,14 +88,17 @@ nav:
         - Tasks: concepts/tasks.md
         - States: concepts/states.md
         - Task Runners: concepts/task-runners.md
-        - Deployments: concepts/deployments.md
         - Flow Runners: concepts/flow-runners.md
+        - Deployments: concepts/deployments.md
+        - Storage: concepts/storage.md
+        - Blocks: concepts/blocks.md
         - Work Queues & Agents: concepts/work-queues.md
         - Schedules: concepts/schedules.md
+        - Logging: concepts/logs.md
         - Database: concepts/database.md
         - Storage: concepts/storage.md
+        - File Systems: concepts/filesystems.md
         - Settings: concepts/settings.md
-        - Logging: concepts/logs.md
     - Prefect UI & Prefect Cloud:
         - Overview: ui/overview.md
         - ui/dashboard.md
@@ -118,6 +121,7 @@ nav:
             - 'prefect.deployments': api-ref/prefect/deployments.md
             - 'prefect.engine': api-ref/prefect/engine.md
             - 'prefect.exceptions': api-ref/prefect/exceptions.md
+            - 'prefect.filesystems': api-ref/prefect/filesystems.md
             - 'prefect.flow_runners': api-ref/prefect/flow-runners.md
             - 'prefect.flows': api-ref/prefect/flows.md
             - 'prefect.futures': api-ref/prefect/futures.md
