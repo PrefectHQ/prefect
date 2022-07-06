@@ -42,7 +42,7 @@ Work queues organize work that [agents](#agent-overview) can pick up to execute.
 
 Work queues contain scheduled runs from any deployments that match the queue criteria. Criteria can include:
 
-- Deployment IDs
+- Deployments
 - Tags
 - Flow runners
 
@@ -52,18 +52,32 @@ These criteria can be modified at any time, and agent processes requesting work 
 
 You can configure work queues by using:
 
-- Prefect Orion API or UI (planned)
+- Prefect UI [**Work Queues**](/ui/work-queues/) page
 - Prefect CLI commands
+- Prefect Orion API
 
-To configure a work queue to handle specific work, you can specify:
+![Creating a new work queue in the Orion UI](/img/ui/work-queue-create.png)
 
-- One or more tags, which can be tags on flows, flow runs, or deployments.
-- One or more deployment IDs
+To configure a work queue to handle specific work, you can specify filters such as:
+
+- One or more deployment tags
+- One or more deployments
 - One or more flow runner types
 
-Only scheduled work meeting the specified criteria will route through the worker queue to available agents.
+Only scheduled work that meets the specified criteria will route through the worker queue to available agents.
 
-To configure a work queue, use the `prefect work-queue create` CLI command:
+!!! tip "Filters limit what work queues accept"
+    Work queue filters are a powerful tool for routing flow runs to the agents most appropriate to execute them. To get the most out of work queues, it's important to understand that filters _limit_ the work queue to service only flow runs for deployments that meet _all_ of the filters you've set.
+    
+    If you set no filters at all on a work queue, the queue will service any flow run for any deployment. 
+    
+    If you set a filter for the tag `test`, it will service any flow for any deployment that has a `test` tag. 
+    
+    If you set a filter for a specific deployment, it will only service flows for that particular deployment.
+
+    When setting filters on a work queue, we recommend setting the miniumum filters that achieve the flow run distribution you need. The flexibility of work queue filters means it's possible to create filters that accept no work at all. If you filter on deployment `X` and tag `y`, but deployment `X` does not have a tag `y`, then the queue won't route any flow runs.
+
+To configure a work queue via the Prefect CLI, use the `prefect work-queue create` command:
 
 ```bash
 prefect work-queue create [OPTIONS] NAME
@@ -106,7 +120,9 @@ Deployment(
 
 ### Viewing work queues
 
-At any time, users can see a UI dashboard filtered to show a work queue.
+At any time, users can see and edit configured work queues in the Prefect UI.
+
+![The UI displays a list of configured work queues](/img/ui/work-queue-list.png)
 
 To view work queues with the Prefect CLI, you can:
 
@@ -197,7 +213,7 @@ It is possible for multiple agent processes to be started for a single work queu
 
 When work queues are configured, you can start an agent that corresponds to a specific work queue. 
 
-You must start an agent within the environment in which it will execute flow runs. 
+You must start an agent within an environment that can access or create the infrastructure needed to execute flow runs. Your agent will deploy flow runs to the infrastructure specified by a flow runner configuration.
 
 1. Install Prefect in the environment.
 2. Using the [work queue ID](#work-queue-configuration) for the work queue the agent should poll for work, run the following CLI command to start an agent:
@@ -223,3 +239,5 @@ Agent started!
 
 By default, the agent polls its work queue API specified by the `PREFECT_API_URL` environment variable. To configure the agent to poll from a different server location, use the `--api` flag, specifying the URL of the server.
 
+!!! tip "Agents can use work queue names"
+    When starting an agent, you may reference the target work queue by name rather than ID. However, work queue names can be edited. Work queue IDs are idempotent.

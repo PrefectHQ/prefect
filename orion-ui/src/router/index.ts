@@ -1,5 +1,5 @@
 import { RouteGuardExecutioner } from '@prefecthq/orion-design'
-import { RouteRecordRaw, createRouter, createWebHistory, RouteComponent, RouterView } from 'vue-router'
+import { RouteRecordRaw, createRouter, createWebHistory, RouteComponent } from 'vue-router'
 import FlowRunsPage from '@/pages/FlowRuns.vue'
 import { routes, NamedRoute, AppRouteLocation, AppRouteRecord } from '@/router/routes'
 import { BASE_URL } from '@/utilities/meta'
@@ -17,7 +17,6 @@ const routeRecords: AppRouteRecord[] = [
   },
   {
     path: '/flow-run/:id',
-    component: RouterView,
     children: [
       {
         name: 'flow-run',
@@ -53,7 +52,6 @@ const routeRecords: AppRouteRecord[] = [
   },
   {
     path: '/work-queues',
-    component: RouterView,
     children: [
       {
         name: 'work-queues',
@@ -69,7 +67,6 @@ const routeRecords: AppRouteRecord[] = [
   },
   {
     path: '/work-queue/:id',
-    component: RouterView,
     children: [
       {
         path: 'edit',
@@ -80,6 +77,61 @@ const routeRecords: AppRouteRecord[] = [
         path: '',
         name: 'work-queue',
         component: (): RouteComponent => import('@/pages/WorkQueue.vue'),
+      },
+    ],
+  },
+  {
+    path: '/blocks',
+    children: [
+      {
+        name: 'blocks',
+        path: '',
+        component: (): RouteComponent => import('@/pages/Blocks.vue'),
+      },
+      {
+        name: 'blocks.catalog',
+        path: 'catalog',
+        component: (): RouteComponent => import('@/pages/BlocksCatalog.vue'),
+      },
+      {
+        name: 'blocks.create',
+        path: 'catalog/:blockTypeName/create',
+        component: (): RouteComponent => import('@/pages/BlocksCatalogCreate.vue'),
+      },
+    ],
+  },
+  {
+    path: '/block/:blockDocumentId',
+    children: [
+      {
+        name: 'block',
+        path: '',
+        component: (): RouteComponent => import('@/pages/BlockView.vue'),
+      },
+      {
+        name: 'block.edit',
+        path: 'edit',
+        component: (): RouteComponent => import('@/pages/BlockEdit.vue'),
+      },
+    ],
+  },
+  {
+    path: '/notifications',
+    children: [
+      {
+        name: 'notifications',
+        path: '',
+        component: (): RouteComponent => import('@/pages/Notifications.vue'),
+      },
+      {
+        name: 'notifications.create',
+        path: 'new',
+        component: (): RouteComponent => import('@/pages/NotificationCreate.vue'),
+      },
+      {
+        name: 'notifications.edit',
+        path: 'edit/:notificationId',
+        component: (): RouteComponent => import('@/pages/NotificationEdit.vue'),
       },
     ],
   },

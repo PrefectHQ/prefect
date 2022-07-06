@@ -17,7 +17,10 @@ def get_call_parameters(
 
     Will throw an exception if the arguments/kwargs are not valid for the function
     """
-    bound_signature = inspect.signature(fn).bind(*call_args, **call_kwargs)
+    try:
+        bound_signature = inspect.signature(fn).bind(*call_args, **call_kwargs)
+    except TypeError as exc:
+        raise TypeError(f"Error binding parameters for {fn.__name__}: {str(exc)}")
     bound_signature.apply_defaults()
     # We cast from `OrderedDict` to `dict` because Dask will not convert futures in an
     # ordered dictionary to values during execution; this is the default behavior in
