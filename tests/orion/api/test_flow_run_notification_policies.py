@@ -4,24 +4,8 @@ from uuid import uuid4
 import pydantic
 import pytest
 
-from prefect.blocks.notifications import DebugPrintNotification
 from prefect.orion import models, schemas
 from prefect.orion.schemas.core import FlowRunNotificationPolicy
-
-
-@pytest.fixture
-async def notifier_block(orion_client):
-
-    block = DebugPrintNotification()
-    schema = await orion_client.read_block_schema_by_checksum(
-        block._calculate_schema_checksum()
-    )
-
-    return await orion_client.create_block_document(
-        block._to_block_document(
-            name="Debug Print Notification", block_schema_id=schema.id
-        )
-    )
 
 
 @pytest.fixture
@@ -32,7 +16,7 @@ async def completed_policy(session, notifier_block):
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
                 state_names=["Completed"],
                 tags=[],
-                block_document_id=notifier_block.id,
+                block_document_id=notifier_block._block_document_id,
             ),
         )
     )
@@ -48,7 +32,7 @@ async def failed_policy(session, notifier_block):
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
                 state_names=["Failed"],
                 tags=[],
-                block_document_id=notifier_block.id,
+                block_document_id=notifier_block._block_document_id,
             ),
         )
     )
@@ -64,7 +48,7 @@ class TestCreateFlowRunNotificationPolicy:
                 schemas.actions.FlowRunNotificationPolicyCreate(
                     state_names=["Completed"],
                     tags=[],
-                    block_document_id=notifier_block.id,
+                    block_document_id=notifier_block._block_document_id,
                 ).dict(json_compatible=True),
             ),
         )
@@ -79,7 +63,7 @@ class TestCreateFlowRunNotificationPolicy:
                 schemas.actions.FlowRunNotificationPolicyCreate(
                     state_names=["Completed"],
                     tags=[],
-                    block_document_id=notifier_block.id,
+                    block_document_id=notifier_block._block_document_id,
                     message_template="Hello there {flow_run_name}",
                 ).dict(json_compatible=True),
             ),
