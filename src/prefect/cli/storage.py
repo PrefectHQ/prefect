@@ -183,9 +183,8 @@ async def ls():
 
     table = Table(title="Configured Storage")
     table.add_column("ID", style="cyan", justify="right", no_wrap=True)
-    table.add_column("Storage Type", style="cyan")
-    table.add_column("Storage Schema Checksum", style="cyan")
     table.add_column("Name", style="green")
+    table.add_column("Storage Type", style="cyan")
     table.add_column("Server Default", width=15)
 
     async with get_client() as client:
@@ -202,9 +201,8 @@ async def ls():
         )
         table.add_row(
             str(block_document.id),
-            block_document.block_schema.block_type.name,
-            block_document.block_schema.checksum,
             block_document.name,
+            block_document.block_schema.block_type.name,
             Emoji("white_check_mark") if is_default_storage_block_document else None,
         )
 
