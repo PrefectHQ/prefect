@@ -21,19 +21,6 @@ class CanNotify(Block):
         """
 
 
-class DebugPrintNotification(CanNotify):
-    """
-    Notification block that prints a message, useful for debugging.
-    """
-
-    _block_type_name = "Debug Print Notification"
-    # singleton block name
-    _block_document_name = "Debug Print Notification"
-
-    async def notify(self, body: str, subject: Optional[str] = None):
-        print(body)
-
-
 # TODO: Move to prefect-slack once collection block auto-registration is
 # available
 class SlackWebhook(CanNotify):
