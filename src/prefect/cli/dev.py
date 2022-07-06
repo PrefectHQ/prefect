@@ -44,15 +44,27 @@ dev_app = PrefectTyper(
 app.add_typer(dev_app)
 
 
+def exit_with_error_if_not_editable_install():
+    if (
+        prefect.__module_path__.parent == "site-packages"
+        or not (prefect.__root_path__ / "setup.py").exists()
+    ):
+        exit_with_error(
+            "Development commands cannot be used without an editable installation of Prefect. "
+            "Development commands require content outside of the 'prefect' module which "
+            "is not available when installed into your site-packages. "
+            f"Detected module path: {prefect.__module_path__}."
+        )
+
+
 @dev_app.command()
 def build_docs(
     schema_path: str = None,
 ):
     """
     Builds REST API reference documentation for static display.
-
-    Note that this command only functions properly with an editable install.
     """
+    exit_with_error_if_not_editable_install()
     schema = create_app(ephemeral=True).openapi()
 
     if not schema_path:
@@ -77,6 +89,7 @@ Requires npm.
 
 @dev_app.command(help=BUILD_UI_HELP)
 def build_ui():
+    exit_with_error_if_not_editable_install()
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
 
@@ -113,6 +126,7 @@ async def ui():
     """
     Starts a hot-reloading development UI.
     """
+    exit_with_error_if_not_editable_install()
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
             app.console.print("Installing npm packages...")
@@ -234,6 +248,7 @@ def build_image(
     """
     Build a docker image for development.
     """
+    exit_with_error_if_not_editable_install()
     # TODO: Once https://github.com/tiangolo/typer/issues/354 is addresesd, the
     #       default can be set in the function signature
     arch = arch or platform.machine()
@@ -277,6 +292,7 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
     """
     Run a docker container with local code mounted and installed.
     """
+    exit_with_error_if_not_editable_install()
     import docker
     from docker.models.containers import Container
 
@@ -365,6 +381,7 @@ def kubernetes_manifest():
     Example:
         $ prefect dev kubernetes-manifest | kubectl apply -f -
     """
+    exit_with_error_if_not_editable_install()
 
     template = Template(
         (
