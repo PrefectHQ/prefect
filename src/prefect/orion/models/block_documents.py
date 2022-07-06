@@ -15,9 +15,9 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import ORMBlockDocument
 from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
 from prefect.orion.schemas.core import (
+    OBFUSCATED_SECRET,
     BlockDocument,
     BlockDocumentReference,
-    OBFUSCATED_SECRET,
 )
 from prefect.orion.schemas.filters import BlockDocumentFilterIsAnonymous
 from prefect.utilities.hashing import hash_objects
