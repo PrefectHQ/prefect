@@ -130,13 +130,15 @@ class Deployment(BaseModel):
     def flow_runner_packager_compatibility(cls, values):
         flow_runner = values.get("flow_runner")
         flow = values.get("flow")
+        packager = values.get("packager")
 
         if isinstance(flow, PackageManifest):
             manifest_cls = type(flow)
+        elif packager:
+            manifest_cls = lookup_type(PackageManifest, get_dispatch_key(packager))
         else:
-            manifest_cls = lookup_type(
-                PackageManifest, get_dispatch_key(values.get("packager"))
-            )
+            # We don't have a manifest so there's nothing to validate
+            return values
 
         if "image" in manifest_cls.__fields__:
             if "image" not in flow_runner.__fields__:
