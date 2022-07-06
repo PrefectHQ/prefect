@@ -1798,4 +1798,4 @@ class TestSecretBlockDocuments:
         )
 
         # x was NOT overwritten
-        assert block2.data.x != OBFUSCATED_SECRET
+        assert block2.data["x"] != OBFUSCATED_SECRET
