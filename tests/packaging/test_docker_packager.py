@@ -13,6 +13,7 @@ from prefect.docker import Container, DockerClient
 from prefect.flow_runners.docker import DockerFlowRunner
 from prefect.packaging.docker import DockerPackageManifest, DockerPackager
 from prefect.software.python import PythonEnvironment
+from prefect.utilities.callables import parameter_schema
 
 from . import howdy
 
@@ -152,13 +153,23 @@ def howdy_context(prefect_base_image: str, tmp_path: Path) -> Path:
 async def test_unpackaging_outside_container(howdy_context: Path):
     # This test is contrived to pretend we're in a Docker container right now and giving
     # a known test file path as the image_flow_location
-    manifest = DockerPackageManifest(
-        image="any-one",
+    packager = DockerPackager(
+        dockerfile=howdy_context / "Dockerfile",
         image_flow_location=str(howdy_context / "howdy.py"),
-        flow_name="howdy",
     )
+    manifest = await packager.package(howdy)
+
     unpackaged_howdy = await manifest.unpackage()
     assert unpackaged_howdy("dude").result() == "howdy, dude!"
+
+
+async def test_packager_sets_manifest_flow_parameter_schema(howdy_context: Path):
+    packager = DockerPackager(
+        dockerfile=howdy_context / "Dockerfile",
+        image_flow_location=str(howdy_context / "howdy.py"),
+    )
+    manifest = await packager.package(howdy)
+    assert manifest.flow_parameter_schema == parameter_schema(howdy.fn)
 
 
 async def test_unpackaging_inside_container(
