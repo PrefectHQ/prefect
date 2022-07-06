@@ -168,12 +168,6 @@ class Deployment(BaseModel):
         flow_id = await client.create_flow_from_name(flow_name)
 
         if "image" in manifest.__fields__:
-            if "image" not in self.flow_runner.__fields__:
-                raise ValueError(
-                    f"Packaged flow is in an image but the {self.flow_runner.typename!r} "
-                    "flow runner does not have an image field."
-                )
-
             self.flow_runner = self.flow_runner.copy(update={"image": manifest.image})
 
         flow_data = DataDocument.encode("package-manifest", manifest)
