@@ -200,14 +200,20 @@ async def test_deployment_by_packager_type(orion_client: OrionClient, packager):
 
 
 async def test_deployment_validates_flow_runner_for_docker_packager():
-    with pytest.raises(ValueError, match="flow runner 'universal' is not compatible"):
+    with pytest.raises(
+        ValueError,
+        match="flow requires an image but the 'universal' flow runner does not have an image field",
+    ):
         Deployment(
             flow=foo, packager=DockerPackager(python_environment=PythonEnvironment())
         )
 
 
 async def test_deployment_validates_flow_runner_for_docker_manifest():
-    with pytest.raises(ValueError, match="flow runner 'universal' is not compatible"):
+    with pytest.raises(
+        ValueError,
+        match="flow requires an image but the 'universal' flow runner does not have an image field",
+    ):
         Deployment(
             flow=(
                 # Generate a manifest
