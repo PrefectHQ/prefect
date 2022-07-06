@@ -9,11 +9,13 @@ from uuid import UUID, uuid4
 
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.utilities.database import json_contains
 from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
@@ -465,3 +467,69 @@ async def _insert_scheduled_flow_runs(
         await session.execute(stmt)
 
     return inserted_flow_run_ids
+
+
+@inject_db
+async def check_work_queues_for_deployment(
+    db: OrionDBInterface, session: sa.orm.Session, deployment_id: UUID
+) -> List[schemas.core.WorkQueue]:
+    """
+    Get work queues that can pick up the specified deployment.
+
+    Work queues will pick up a deployment when all of the following are met:
+    - the deployment has ALL tags that the work queue has (i.e. the work
+    queue's tags must be a subset of the deployment's tags.)
+    - the work queue's specified deployment IDs match the deployment's ID,
+    or the work queue does NOT have specified deployment IDs
+    - the work queue's specified flow runners match the deployment's flow
+    runner or the work queue does NOT have a specified flow runner
+
+    Notes on the query:
+    - our database currently allows either "null" and empty lists as
+    null values in filters, so we need to catch both cases with "or".
+    - json_contains(A, B) should be interepreted as "True if A
+    contains B".
+
+    Returns:
+        List[db.WorkQueue]: WorkQueues
+    """
+    deployment = await session.get(db.Deployment, deployment_id)
+    if not deployment:
+        raise ObjectNotFoundError(f"Deployment with id {deployment_id} not found")
+
+    query = (
+        select(db.WorkQueue)
+        # work queue tags are a subset of deployment tags
+        .filter(
+            or_(
+                json_contains(deployment.tags, db.WorkQueue.filter["tags"]),
+                json_contains([], db.WorkQueue.filter["tags"]),
+                json_contains(None, db.WorkQueue.filter["tags"]),
+            )
+        )
+        # deployment_ids is null or contains the deployment's ID
+        .filter(
+            or_(
+                json_contains(
+                    db.WorkQueue.filter["deployment_ids"],
+                    str(deployment.id),
+                ),
+                json_contains(None, db.WorkQueue.filter["deployment_ids"]),
+                json_contains([], db.WorkQueue.filter["deployment_ids"]),
+            )
+        )
+        # flow_runner_types is null or contains the deployment's flow runner type
+        .filter(
+            or_(
+                json_contains(
+                    db.WorkQueue.filter["flow_runner_types"],
+                    deployment.flow_runner_type,
+                ),
+                json_contains(None, db.WorkQueue.filter["flow_runner_types"]),
+                json_contains([], db.WorkQueue.filter["flow_runner_types"]),
+            )
+        )
+    )
+
+    result = await session.execute(query)
+    return result.scalars().unique().all()
