@@ -51,7 +51,6 @@ We've been working on Blocks behind the scenes for a while. Whether you know it 
 - All Prefect client models now allow extras, while the API continues to forbid them, such that older Prefect 2.0 clients can receive and load objects from the API that have additional fields, facilitating backwards compatibility.
 - The _all_ attribute has been added to __init__.py for all public modules, declaring the public API for export.
 
-### Collections
 - The `DaskTaskRunner` and `RayTaskRunner`, both previously deprecated, are now completely removed from the core library, and migrated into their respective collections, [prefect-ray](https://prefecthq.github.io/prefect-ray/) and [prefect-dask](https://prefecthq.github.io/prefect-dask).
 
 ### Bug fixes
