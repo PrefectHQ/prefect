@@ -1,6 +1,5 @@
 import copy
 import enum
-import warnings
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Union
 
@@ -66,7 +65,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         service_account_name: An optional string specifying which Kubernetes service account to use.
         labels: An optional dictionary of labels to add to the job.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
-        restart_policy: The Kubernetes restart policy to use for jobs.
         job: The base manifest for the Kubernetes Job.
         customizations: A list of JSON 6902 patches to apply to the base Job manifest.
         job_watch_timeout_seconds: Number of seconds to watch for job creation before timing out (default 5).
@@ -82,9 +80,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     service_account_name: str = None
     labels: Dict[str, str] = Field(default_factory=dict)
     image_pull_policy: Optional[KubernetesImagePullPolicy] = None
-
-    # deprecated: remove in 2.0b8
-    restart_policy: KubernetesRestartPolicy = None
 
     # settings allowing full customization of the Job
     job: KubernetesManifest = Field(
@@ -147,18 +142,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         if isinstance(value, list):
             return JsonPatch(value)
         return value
-
-    @validator("restart_policy")
-    def deprecate_restart_policy(
-        cls, value: Optional[KubernetesRestartPolicy]
-    ) -> Optional[KubernetesRestartPolicy]:
-        if value is not None:
-            warnings.warn(
-                "KubernetesFlowRunner.restart_policy is deprecated.  Prefect will "
-                "always override it to Never. This option will be removed in 2.0b8.",
-                DeprecationWarning,
-            )
-        return None
 
     async def submit_flow_run(
         self,
