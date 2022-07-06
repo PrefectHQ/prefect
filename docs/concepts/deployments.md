@@ -374,7 +374,7 @@ Prefect provides three packagers:
 
 | Packager | Description |
 | -------- | ----------- |
-| [`FilePackager`](/api-ref/prefect/packaging/#prefect.packaging.file.FilePackager) | The file packager packages the flow into a file. Currently, this only supports local paths but it should be updated to support remote paths using blocks. A serializer may be provided to customize the stored blob. |
+| [`FilePackager`](/api-ref/prefect/packaging/#prefect.packaging.file.FilePackager) | The file packager packages the flow into a file. A file system can be specified to persist the file to a remote location. A serializer may be provided to customize the stored blob. |
 | <span class="no-wrap">[`DockerPackager`](/api-ref/prefect/packaging/#prefect.packaging.docker.DockerPackager)</span> | The Docker packager packages the flow into a Docker image containing the flow and the runtime environment necessary to run the flow. The resulting image is optionally pushed to a container registry. | 
 | [`OrionPackager`](/api-ref/prefect/packaging/#prefect.packaging.orion.OrionPackager) | The Orion packager packages the flow into an anonymous JSON block in the Orion database. A serializer may be provided to customize the stored blob. |
 
