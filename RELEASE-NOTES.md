@@ -50,6 +50,7 @@ We've been working on Blocks behind the scenes for a while. Whether you know it 
 - Where possible, Prefect 2.0 now exits processes earlier for synchronous flow or task runs that are cancelled. This reduces the range of conditions under which a task run would be marked failed, but continue to run.
 - All Prefect client models now allow extras, while the API continues to forbid them, such that older Prefect 2.0 clients can receive and load objects from the API that have additional fields, facilitating backwards compatibility.
 - The _all_ attribute has been added to __init__.py for all public modules, declaring the public API for export.
+- A new endpoint, `/deployments/{id}/work_queue_check`, enables you to to check which work queues the scheduled runs of a deployment will be eligible for.
 
 
 ### Bug fixes
