@@ -405,7 +405,7 @@ def hello_world():
     nice_to_meet_you = nice_to_meet_you(special_greeting)
 ```
 
-Note that `.result()` also limits Prefect's ability to track task dependencies. E.g. in the "mixed" example above, Prefect will not be aware that `say_hello` is upstream of `nice_to_meet_you`.
+Note that `.result()` also limits Prefect's ability to track task dependencies. In the "mixed" example above, Prefect will not be aware that `say_hello` is upstream of `nice_to_meet_you`.
 
 
 !!! note "Calling `.result()` is blocking"
