@@ -31,7 +31,7 @@ You can deploy a flow directly, or you can package it with the new `packaging` m
 
 There are several ways to create a package, with more to come. For instance, you can package your flow as a Docker image containing the flow and the runtime environment necessary to run it and register it with Docker. Alternatively, you could package your flow as a reference to the import path of a package stored directly in the Prefect Orion database. Learn more in the [Deployment concept documentation](https://orion-docs.prefect.io/concepts/deployments/).
 
-You can continue to use your existing `DeploymentSpec`s, but they will be deprecated with the 2.0.0 release in the coming weeks.
+You can continue to use your existing `DeploymentSpec`s, but they are deprecated and will be removed in the coming weeks.
 
 ### Blocks
 We've been working on Blocks behind the scenes for a while. Whether you know it or not, if you've used the past few releases, you've used them. Blocks enable you to securely store configuration with the Prefect Orion server and access it from your code later with just a simple reference. Think of Blocks as secure, UI-editable, type-checked environment variables. We're starting with just a few Blocks - mostly storage, but over time we’ll expand this pattern to include every tool and service in the growing modern data stack. You've be able to set up access to your entire stack once in just a few minutes, then manage access forever without editing your code. In particular, we've made the following enhancements: 
