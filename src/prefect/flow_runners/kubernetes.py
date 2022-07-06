@@ -296,7 +296,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     def _create_job(self, flow_run: FlowRun, job_manifest: KubernetesManifest) -> str:
         """Given a FlowRun and Kubernetes Job Manifest, create the Job on the configured
         Kubernetes cluster and return its name."""
-        self.logger.info("Flow run %s has job manifest = %r", flow_run.id, job_manifest)
         with self.get_batch_client() as batch_client:
             job = batch_client.create_namespaced_job(self.namespace, job_manifest)
         return job.metadata.name
