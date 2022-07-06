@@ -75,7 +75,7 @@ Use the left side of the Prefect UI to navigate between pages.
 | **Deployments**    | Displays flow [deployments](/concepts/deployments/) created on the API. |
 | <span class="no-wrap">**Work Queues**</span> | Displays configured [work queues](/ui/work-queues/) and enables creating new work queues. |
 | **Blocks**         | Displays a list of [blocks](/ui/blocks/) configured on the API and enables configuring new blocks. |
-| **Notifications**  | Displays a list of configured flow state [notifications](/ui/notifications/) and enables configuring new notifications. |
+| **Notifications**  | Displays a list of configured flow run state [notifications](/ui/notifications/) and enables configuring new notifications. |
 
 
 In Prefect Cloud, the Prefect icon returns you to the workspaces list. Currently, you can create only one workspace per personal account, but you may have access to other workspaces as a collaborator. See the [Prefect Cloud Workspaces](/ui/cloud/#workspaces) documentation for details. 
