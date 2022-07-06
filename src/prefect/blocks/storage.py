@@ -2,7 +2,7 @@ import io
 import os
 import sys
 import warnings
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from functools import partial
 from pathlib import Path
 from tempfile import gettempdir
@@ -33,7 +33,7 @@ with warnings.catch_warnings():
 T = TypeVar("T")
 
 
-class StorageBlock(Block, Generic[T]):
+class StorageBlock(Block, Generic[T], ABC):
     """
     A `Block` base class for persisting data.
 
