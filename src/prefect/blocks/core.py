@@ -234,7 +234,7 @@ class Block(BaseModel, ABC):
 
         return BlockDocument(
             id=self._block_document_id or uuid4(),
-            name=name or self._block_document_name,
+            name=(name or self._block_document_name) if not is_anonymous else None,
             block_schema_id=block_schema_id or self._block_schema_id,
             block_type_id=block_type_id or self._block_type_id,
             data=block_document_data,
