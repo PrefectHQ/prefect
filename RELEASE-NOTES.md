@@ -44,7 +44,7 @@ We've been working on Blocks behind the scenes for a while. Whether you know it 
 ### Other Improvements
 - Task keys, previously a concatenation of several pieces of metadata, are now only the qualified function name. While it is likely to be globally unique, the key can be used to easily identify every instance in which a function of the same name is utilized.
 - Tasks now have a `version` that you can set via the task decorator, like the flow version identifier on flow runs.
-- An Orion setting, `PREFECT_ORION_DATABASE_PASSWORD`, has been added to allow templating in the database connection URL - [#5759](https://github.com/PrefectHQ/prefect/pull/5759)
+- An Orion setting, `PREFECT_ORION_DATABASE_PASSWORD`, has been added to allow templating in the database connection URL
 - A link to API reference documentation has been added to the Orion startup message.
 - Where possible, Prefect 2.0 now exits processes earlier for synchronous flow or task runs that are cancelled. This reduces the range of conditions under which a task run would be marked failed, but continue to run.
 - All Prefect client models now allow extras, while the API continues to forbid them, such that older Prefect 2.0 clients can receive and load objects from the API that have additional fields, facilitating backwards compatibility.
