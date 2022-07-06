@@ -53,7 +53,7 @@ def test_my_favorite_flow():
 
 ## Unit testing tasks
 
-To test an individual task, you can test the underlying function using `.fn()`:
+To test an individual task, you can access the original function using `.fn`:
 
 ```python
 from my_tasks import my_favorite_task
