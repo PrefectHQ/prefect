@@ -10,10 +10,18 @@ export const routes = {
   flowRun: (id: string) => ({ name: 'flow-run', params: { id } }) as const,
   flowRuns: () => ({ name: 'flow-runs' }) as const,
   flows: () => ({ name: 'flows' }) as const,
+  notifications: () => ({ name: 'notifications' }) as const,
+  notificationCreate: () => ({ name: 'notifications.create' }) as const,
+  notificationEdit: (notificationId: string) => ({ name: 'notifications.edit', params: { notificationId } }) as const,
   workQueue: (id: string) => ({ name: 'work-queue', params: { id } }) as const,
   workQueueEdit: (id: string) => ({ name: 'edit-work-queue', params: { id } }) as const,
   workQueueCreate: () => ({ name: 'create-work-queue' }) as const,
   workQueues: () => ({ name: 'work-queues' }) as const,
+  blocks: () => ({ name: 'blocks' }) as const,
+  blocksCatalog: () => ({ name: 'blocks.catalog' }) as const,
+  blocksCatalogCreate: (blockTypeName: string) => ({ name: 'blocks.create', params: { blockTypeName } }) as const,
+  block: (blockDocumentId: string) => ({ name: 'block', params: { blockDocumentId } }) as const,
+  blockEdit: (blockDocumentId: string) => ({ name: 'block.edit', params: { blockDocumentId } }) as const,
   settings: () => ({ name: 'settings' }) as const,
 }
 

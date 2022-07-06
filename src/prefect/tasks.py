@@ -28,11 +28,12 @@ from typing import (
 
 from typing_extensions import ParamSpec
 
+from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import ReservedArgumentError
 from prefect.futures import PrefectFuture
 from prefect.utilities.asyncio import Async, Sync
 from prefect.utilities.callables import get_call_parameters
-from prefect.utilities.hashing import hash_objects, stable_hash
+from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
 
 if TYPE_CHECKING:
@@ -70,6 +71,7 @@ def task_input_hash(
     )
 
 
+@PrefectObjectRegistry.register_instances
 class Task(Generic[P, R]):
     """
     A Prefect task definition.
@@ -90,6 +92,7 @@ class Task(Generic[P, R]):
         tags: An optional set of tags to be associated with runs of this task. These
             tags are combined with any tags defined by a `prefect.tags` context at
             task runtime.
+        version: An optional string specifying the version of this task definition
         cache_key_fn: An optional callable that, given the task run context and call
             parameters, generates a string key; if the key matches a previous completed
             state, that state result will be restored instead of running the task again.
@@ -109,6 +112,7 @@ class Task(Generic[P, R]):
         name: str = None,
         description: str = None,
         tags: Iterable[str] = None,
+        version: str = None,
         cache_key_fn: Callable[
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
@@ -125,6 +129,7 @@ class Task(Generic[P, R]):
         self.isasync = inspect.iscoroutinefunction(self.fn)
 
         self.name = name or self.fn.__name__
+        self.version = version
 
         if "wait_for" in inspect.signature(self.fn).parameters:
             raise ReservedArgumentError(
@@ -132,16 +137,7 @@ class Task(Generic[P, R]):
             )
 
         self.tags = set(tags if tags else [])
-
-        # the task key is a hash of (name, fn, tags)
-        # which is a stable representation of this unit of work.
-        # note runtime tags are not part of the task key; they will be
-        # recorded as metadata only.
-        self.task_key = stable_hash(
-            self.name,
-            to_qualified_name(self.fn),
-            str(sorted(self.tags or [])),
-        )
+        self.task_key = to_qualified_name(self.fn)
 
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
@@ -152,7 +148,26 @@ class Task(Generic[P, R]):
         self.retries = retries
         self.retry_delay_seconds = retry_delay_seconds
 
-        _register_task(self)
+        # Warn if this task's `name` conflicts with another task while having a
+        # different function. This is to detect the case where two or more tasks
+        # share a name or are lambdas, which should result in a warning, and to
+        # differentiate it from the case where the task was 'copied' via
+        # `with_options`, which should not result in a warning.
+        registry = PrefectObjectRegistry.get()
+
+        if registry and any(
+            other
+            for other in registry.get_instances(Task)
+            if other.name == self.name and id(other.fn) != id(self.fn)
+        ):
+            file = inspect.getsourcefile(self.fn)
+            line_number = inspect.getsourcelines(self.fn)[1]
+            warnings.warn(
+                f"A task named {self.name!r} and defined at '{file}:{line_number}' "
+                "conflicts with another task. Consider specifying a unique `name` "
+                "parameter in the task definition:\n\n "
+                "`@task(name='my_unique_name', ...)`"
+            )
 
     def with_options(
         self,
@@ -368,6 +383,7 @@ def task(
     name: str = None,
     description: str = None,
     tags: Iterable[str] = None,
+    version: str = None,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     retries: int = 0,
@@ -382,6 +398,7 @@ def task(
     name: str = None,
     description: str = None,
     tags: Iterable[str] = None,
+    version: str = None,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     retries: int = 0,
@@ -399,6 +416,7 @@ def task(
         tags: An optional set of tags to be associated with runs of this task. These
             tags are combined with any tags defined by a `prefect.tags` context at
             task runtime.
+        version: An optional string specifying the version of this task definition
         cache_key_fn: An optional callable that, given the task run context and call
             parameters, generates a string key; if the key matches a previous completed
             state, that state result will be restored instead of running the task again.
@@ -465,6 +483,7 @@ def task(
                 name=name,
                 description=description,
                 tags=tags,
+                version=version,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
                 retries=retries,
@@ -479,42 +498,10 @@ def task(
                 name=name,
                 description=description,
                 tags=tags,
+                version=version,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
             ),
         )
-
-
-def _register_task(task: Task) -> None:
-    """
-    Collect the `Task` object on the PrefectObjectRegistry.tasks dictionary. If
-    multiple tasks with the same name, but different functions are registered a
-    warning will be emitted.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    registry = PrefectObjectRegistry.get()
-
-    # Warn if this task's `name` conflicts with another task while having a
-    # different function. This is to detect the case where two or more tasks
-    # share a name or are lambdas, which should result in a warning, and to
-    # differentiate it from the case where the task was 'copied' via
-    # `with_options`, which should not result in a warning.
-
-    if any(
-        other
-        for other in registry.tasks
-        if other.name == task.name and id(other.fn) != id(task.fn)
-    ):
-        file = inspect.getsourcefile(task.fn)
-        line_number = inspect.getsourcelines(task.fn)[1]
-        warnings.warn(
-            f"A task named {task.name!r} and defined at '{file}:{line_number}' "
-            "conflicts with another task. Consider specifying a unique `name` "
-            "parameter in the task definition:\n\n "
-            "`@task(name='my_unique_name', ...)`"
-        )
-
-    registry.tasks.append(task)

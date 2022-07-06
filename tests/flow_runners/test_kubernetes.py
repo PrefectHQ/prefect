@@ -25,8 +25,8 @@ from prefect.flow_runners import (
     KubernetesFlowRunner,
     KubernetesImagePullPolicy,
     KubernetesRestartPolicy,
-    base_flow_run_environment,
 )
+from prefect.flow_runners.base import base_flow_run_environment
 from prefect.flow_runners.kubernetes import KubernetesManifest
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
@@ -57,8 +57,11 @@ class TestKubernetesFlowRunner:
         pytest.importorskip("kubernetes")
 
         mock = MagicMock()
+        # We cannot mock this or the `except` clause will complain
+        mock.config.ConfigException = ConfigException
 
         monkeypatch.setattr("kubernetes.config", mock)
+        monkeypatch.setattr("kubernetes.config.ConfigException", ConfigException)
         return mock
 
     @pytest.fixture
