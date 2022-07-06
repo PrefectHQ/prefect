@@ -70,6 +70,7 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 | cache_expiration | An optional amount of time indicating how long cached states for this task should be restorable; if not provided, cached states will never expire. |
 | retries | An optional number of times to retry on task run failure. |
 | retry_delay_seconds | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero. |
+| version | An optional string specifying the version of this task definition. |
 
 For example, you can provide a `name` value for the task. Here we've used the optional `description` argument as well.
 

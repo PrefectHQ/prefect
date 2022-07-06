@@ -13,7 +13,7 @@ tags:
 A file system is an object which allows you to read and write data from paths. Prefect provides two built-in file system types that cover a wide range of use cases. 
 
 -  [`LocalFileSystem`](#local-file-system)
--  [`LocalFileSystem`](#remote-file-system)
+-  [`RemoteFileSystem`](#remote-file-system)
 
 Additional file system types are available in [Prefect Collections](/collections/overview/).
 
