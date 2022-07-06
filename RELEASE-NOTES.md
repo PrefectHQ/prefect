@@ -27,7 +27,7 @@ We've revisited our flow packaging and deployment UX, making it both more powerf
 - The `flow_storage` field has been replaced with a `packager` field.
 - The `flow_location`, `flow_name`, and `flow` parameters are now just `flow`.
 
-You can deploy a flow directly, or you can package it with the new `packaging` module. Packaging enables you to bundle a flow with its dependencies, including python packages. Packaging produces a Package, the artifact that contains your flow and its dependencies, as well as a Manifest, a JSON description of the package and what inside of it.
+You can deploy a flow directly, or you can package it with the new `packaging` module. Packaging enables you to bundle a flow with its dependencies, including Python packages. Packaging produces a Package, the artifact that contains your flow and its dependencies, as well as a Manifest, a JSON description of the package and what inside of it.
 
 There are several ways to create a package, with more to come. For instance, you can package your flow as a Docker image containing the flow and the runtime environment necessary to run it and register it with Docker. Alternatively, you could package your flow as a reference to the import path of a package stored directly in the Prefect Orion database. Learn more in the [Deployment concept documentation](https://orion-docs.prefect.io/concepts/deployments/).
 
