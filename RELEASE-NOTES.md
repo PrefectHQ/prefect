@@ -58,6 +58,8 @@ We've been working on Blocks behind the scenes for a while. Whether you know it 
 ### Contributors
 - [Cole Murray](https://github.com/ColeMurray)
 - [Oliver Mannion](https://github.com/tekumara)
+- [Steve Flitcroft](https://github.com/redsquare)
+- [Laerte Pereira](https://github.com/Laerte)
 
 ## 2.0b7
 
