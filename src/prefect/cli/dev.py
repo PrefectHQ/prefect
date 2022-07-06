@@ -24,8 +24,7 @@ from prefect.cli._utilities import (
 )
 from prefect.cli.agent import start as start_agent
 from prefect.cli.root import app
-from prefect.flow_runners import get_prefect_image_name
-from prefect.flow_runners.base import python_version_minor
+from prefect.flow_runners.base import get_prefect_image_name, python_version_minor
 from prefect.orion.api.server import create_app
 from prefect.settings import (
     PREFECT_API_URL,
@@ -82,9 +81,15 @@ def build_ui():
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
 
             app.console.print("Installing npm packages...")
-            subprocess.check_output(
-                ["npm", "ci", "install"], shell=sys.platform == "win32"
-            )
+            try:
+                subprocess.check_output(
+                    ["npm", "ci", "install"], shell=sys.platform == "win32"
+                )
+            except Exception as exc:
+                app.console.print(
+                    "npm call failed - try running `nvm use` first.", style="red"
+                )
+                raise
 
             app.console.print("Building for distribution...")
             env = os.environ.copy()
