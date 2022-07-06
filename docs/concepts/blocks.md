@@ -15,7 +15,7 @@ With blocks, you are able to securely store credentials for authenticating with 
 
 Blocks can also be created by anyone and shared with the community. You'll find blocks that are available for consumption in many of the published [Prefect Collections](/collections/catalog).
 
-## Blocks Overview
+## Blocks overview
 
 Blocks are classes that subclass the `Block` base class. They can be instantiated and used like normal classes.
 
@@ -47,9 +47,9 @@ def what_is_the_answer():
 what_is_the_answer() # 42
 ```
 
-Blocks values can also be created and updated via the Orion UI...
+Blocks values can also be created and updated via the [Prefect UI](/ui/overview/).
 
-## Creating Blocks
+## Creating blocks
 
 To create a custom block, define a class that subclasses `Block`. The `Block` base class builds off of Pydantic's `BaseModel`, so custom blocks can be [declared in same manner as a Pydantic model](https://pydantic-docs.helpmanual.io/usage/models/#basic-model-usage).
 
@@ -93,7 +93,7 @@ def calculate_cube_surface_area(cube_name):
 calculate_cube_surface_area("rubiks-cube") # 30.375
 ```
 
-### Secret Fields
+### Secret fields
 
 All block values are encrypted before being stored, but if you have values that you would not like visible in the UI or in logs, then you can use the `SecretStr` field type provided by Pydantic to automatically obfuscate those values. This can be useful for fields that are used to store credentials like passwords and API tokens.
 
@@ -125,7 +125,7 @@ print(aws_credentials_block)
 # aws_access_key_id='AKIAJKLJKLJKLJKLJKLJK' aws_secret_access_key=SecretStr('**********') aws_session_token=None profile_name=None region_name=None
 ```
 
-### Nested Blocks
+### Nested blocks
 
 Block are composable. This means that you can create a block that uses functionality from another block by declaring it as an attribute on the block that you're creating. It also means that configuration can be changed for each block independently, which allows configuration that may change on different time frames to be easily managed and configuration can be shared across multiple use cases.
 
