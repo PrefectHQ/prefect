@@ -81,10 +81,8 @@ class DockerPackager(Packager):
                 push_image, image_reference, self.registry_url, image_name
             )
 
-        return DockerPackageManifest(
-            image=image_reference,
-            image_flow_location=self.image_flow_location,
-            flow_name=flow.name,
+        return self.base_manifest(flow).finalize(
+            image=image_reference, image_flow_location=self.image_flow_location
         )
 
     async def _build_image(self, flow: Flow) -> str:
