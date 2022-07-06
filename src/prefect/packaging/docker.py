@@ -47,20 +47,11 @@ class DockerPackager(Packager):
 
     @root_validator
     def set_default_base_image(cls, values):
-        if values.get("base_image") is None and not values.get("dockerfile"):
+        if not values.get("base_image") and not values.get("dockerfile"):
             values["base_image"] = get_prefect_image_name(
                 flavor="conda"
                 if isinstance(values.get("python_environment"), CondaEnvironment)
                 else None
-            )
-        return values
-
-    @root_validator
-    def base_image_and_dockerfile_required(cls, values: Mapping[str, Any]):
-        if not values.get("base_image") and not values.get("dockerfile"):
-            raise ValueError(
-                "One of `base_image` or `dockerfile` is required to package flows in "
-                "Docker images."
             )
         return values
 
