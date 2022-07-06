@@ -234,7 +234,7 @@ class Block(BaseModel, ABC):
 
         return BlockDocument(
             id=self._block_document_id or uuid4(),
-            name=name or self._block_document_name,
+            name=(name or self._block_document_name) if not is_anonymous else None,
             block_schema_id=block_schema_id or self._block_schema_id,
             block_type_id=block_type_id or self._block_type_id,
             data=block_document_data,
@@ -543,11 +543,12 @@ class Block(BaseModel, ABC):
                 "is_anonymous to False."
             )
 
-        # Ensure block type and schema are registered before saving block document.
-        await self.register_type_and_schema()
-
         self._is_anonymous = is_anonymous
         async with prefect.client.get_client() as client:
+
+            # Ensure block type and schema are registered before saving block document.
+            await self.register_type_and_schema(client=client)
+
             try:
                 block_document = await client.create_block_document(
                     block_document=self._to_block_document(name=name)
