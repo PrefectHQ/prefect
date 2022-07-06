@@ -11,7 +11,11 @@ from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient, inject_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import DeploymentValidationError, MissingFlowError
-from prefect.flow_runners import FlowRunner, FlowRunnerSettings, UniversalFlowRunner
+from prefect.flow_runners.base import (
+    FlowRunner,
+    FlowRunnerSettings,
+    UniversalFlowRunner,
+)
 from prefect.flows import Flow, load_flow_from_script
 from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
