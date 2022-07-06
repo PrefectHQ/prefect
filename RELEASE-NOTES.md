@@ -52,6 +52,7 @@ We've been working on Blocks behind the scenes for a while. Whether you know it 
 
 ### Collections
 - The `DaskTaskRunner` and `RayTaskRunner`, both previously deprecated, are now completely removed from the core library, and migrated into their respective collections, [prefect-ray](https://prefecthq.github.io/prefect-ray/) and [prefect-dask](https://prefecthq.github.io/prefect-dask).
+
 ### Bug fixes
 - Attempting to create a schedule with a cron string that includes a "random" or "hashed" expression will now return an error.
 
