@@ -11,7 +11,7 @@ class Base:
     def __dispatch_key__(cls):
         return cls.__name__.lower()
 
-@register_type
+
 class Foo(Base):
     ...
 
@@ -19,6 +19,8 @@ key = get_dispatch_key(Foo)  # 'foo'
 lookup_type(Base, key) # Foo
 ```
 """
+import abc
+import inspect
 import warnings
 from typing import Any, Dict, Optional, Type, TypeVar
 
@@ -90,6 +92,10 @@ def _register_subclass_of_base_type(cls, **kwargs):
     if cls.__init_subclass_original__:
         cls.__init_subclass_original__(**kwargs)
 
+    # Do not register abstract base classes
+    if abc.ABC in getattr(cls, "__bases__", []):
+        return
+
     register_type(cls)
 
 
@@ -148,9 +154,16 @@ def register_type(cls: T) -> T:
     key = get_dispatch_key(cls)
     existing_value = registry.get(key)
     if existing_value is not None and id(existing_value) != id(cls):
+        # Get line numbers for debugging
+        file = inspect.getsourcefile(cls)
+        line_number = inspect.getsourcelines(cls)[1]
+        existing_file = inspect.getsourcefile(existing_value)
+        existing_line_number = inspect.getsourcelines(existing_value)[1]
         warnings.warn(
-            f"Type {cls.__name__!r} has key {key!r} that matches existing registered "
-            f"type {existing_value.__name__!r}. The existing type will be overridden."
+            f"Type {cls.__name__!r} at {file}:{line_number} has key {key!r} that "
+            f"matches existing registered type {existing_value.__name__!r} from "
+            f"{existing_file}:{existing_line_number}. The existing type will be "
+            "overridden."
         )
 
     # Add to the registry
@@ -170,6 +183,9 @@ def lookup_type(cls: T, dispatch_key: str) -> T:
     subcls = registry.get(dispatch_key)
 
     if subcls is None:
-        raise KeyError(f"No class found in registry for dispatch key {dispatch_key!r}.")
+        raise KeyError(
+            f"No class found for dispatch key {dispatch_key!r} in registry for type "
+            f"{cls.__name__!r}."
+        )
 
     return subcls

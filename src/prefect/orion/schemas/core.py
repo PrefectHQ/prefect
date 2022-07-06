@@ -23,7 +23,6 @@ INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
 FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_notification_policy_id",
-    "flow_run_notification_policy_name",
     "flow_id",
     "flow_name",
     "flow_run_id",
@@ -90,6 +89,15 @@ class FlowRunnerSettings(PrefectBaseModel):
         return self.type, self.config
 
 
+class FlowRunPolicy(PrefectBaseModel):
+    """Defines of how a flow run should retry."""
+
+    # TODO: Determine how to separate between infrastructure and within-process level
+    #       retries
+    max_retries: int = 0
+    retry_delay_seconds: float = 0
+
+
 class FlowRun(ORMBaseModel):
     """An ORM representation of flow run data."""
 
@@ -121,7 +129,9 @@ class FlowRun(ORMBaseModel):
         description="Additional context for the flow run.",
         example={"my_var": "my_val"},
     )
-    empirical_policy: dict = Field(default_factory=dict)
+    empirical_policy: FlowRunPolicy = Field(
+        default_factory=FlowRunPolicy,
+    )
     empirical_config: dict = Field(default_factory=dict)
     tags: List[str] = Field(
         default_factory=list,
@@ -398,7 +408,7 @@ class BlockSchema(ORMBaseModel):
     fields: dict = Field(
         default_factory=dict, description="The block schema's field schema"
     )
-    block_type_id: UUID = Field(..., description="A block type ID")
+    block_type_id: Optional[UUID] = Field(..., description="A block type ID")
     block_type: Optional[BlockType] = Field(
         None, description="The associated block type"
     )
@@ -694,7 +704,6 @@ class WorkQueue(ORMBaseModel):
 class FlowRunNotificationPolicy(ORMBaseModel):
     """An ORM representation of a flow run notification."""
 
-    name: str = Field(..., description="A name for the notification policy")
     is_active: bool = Field(True, description="Whether the policy is currently active")
     state_names: List[str] = Field(
         ..., description="The flow run states that trigger notifications"

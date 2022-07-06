@@ -4,6 +4,7 @@ import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.blocks.notifications import NotificationBlock
 from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.orchestration.rules import (
@@ -403,3 +404,22 @@ def initialize_orchestration(flow):
         return ctx
 
     return initializer
+
+
+@pytest.fixture
+async def notifier_block(orion_client):
+    class DebugPrintNotification(NotificationBlock):
+        """
+        Notification block that prints a message, useful for debugging.
+        """
+
+        _block_type_name = "Debug Print Notification"
+        # singleton block name
+        _block_document_name = "Debug Print Notification"
+
+        async def notify(self, subject: str, body: str):
+            print(body)
+
+    block = DebugPrintNotification()
+    await block.save("Debug Print Notification")
+    return block

@@ -9,7 +9,7 @@ import typer
 from rich.emoji import Emoji
 from rich.table import Table
 
-from prefect.blocks.core import get_block_class
+from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
@@ -108,7 +108,7 @@ async def create():
 
     name = typer.prompt("Choose a name for this storage configuration")
 
-    block_cls = get_block_class(schema.checksum)
+    block_cls = Block.get_block_class_from_schema(schema)
 
     app.console.print("Validating configuration...")
     try:
@@ -183,9 +183,8 @@ async def ls():
 
     table = Table(title="Configured Storage")
     table.add_column("ID", style="cyan", justify="right", no_wrap=True)
-    table.add_column("Storage Type", style="cyan")
-    table.add_column("Storage Schema Checksum", style="cyan")
     table.add_column("Name", style="green")
+    table.add_column("Storage Type", style="cyan")
     table.add_column("Server Default", width=15)
 
     async with get_client() as client:
@@ -202,9 +201,8 @@ async def ls():
         )
         table.add_row(
             str(block_document.id),
-            block_document.block_schema.block_type.name,
-            block_document.block_schema.checksum,
             block_document.name,
+            block_document.block_schema.block_type.name,
             Emoji("white_check_mark") if is_default_storage_block_document else None,
         )
 

@@ -1,8 +1,11 @@
+import abc
+
 import pytest
 
 from prefect.utilities.dispatch import (
     _TYPE_REGISTRIES,
     get_dispatch_key,
+    get_registry_for_type,
     lookup_type,
     register_base_type,
     register_type,
@@ -11,9 +14,13 @@ from prefect.utilities.dispatch import (
 
 @pytest.fixture(autouse=True)
 def reset_dispatch_registry():
-    yield
+    before = _TYPE_REGISTRIES.copy()
 
     _TYPE_REGISTRIES.clear()
+
+    yield
+
+    _TYPE_REGISTRIES.update(before)
 
 
 def test_register_base_type():
@@ -80,6 +87,17 @@ def test_register_type():
     assert lookup_type(Parent, "child") is Child
 
 
+def test_register_type_ignores_abstract_classes():
+    @register_base_type
+    class Parent:
+        pass
+
+    class Child(Parent, abc.ABC):
+        pass
+
+    assert Child not in get_registry_for_type(Parent).values()
+
+
 def test_register_type_can_be_repeated_for_same_class():
     @register_base_type
     class Parent:
@@ -117,7 +135,10 @@ def test_register_type_with_dispatch_key_collission():
 
     with pytest.warns(
         UserWarning,
-        match="Type 'OtherChild' has key 'a' that matches existing registered type 'Child'. The existing type will be overridden.",
+        match=(
+            "Type 'OtherChild' at .* has key 'a' that matches existing registered type "
+            "'Child' from .*. The existing type will be overridden."
+        ),
     ):
 
         class OtherChild(Parent):
@@ -181,7 +202,8 @@ def test_lookup_type_with_unknown_dispatch_key():
         __dispatch_key__ = "child"
 
     with pytest.raises(
-        KeyError, match="No class found in registry for dispatch key 'foo'"
+        KeyError,
+        match="No class found for dispatch key 'foo' in registry for type 'Parent'",
     ):
         lookup_type(Parent, "foo")
 
