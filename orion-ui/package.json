@@ -45,7 +45,7 @@
     "eslint": "^8.19.0",
     "jest": "^27.5.1",
     "jest-dev-server": "^6.0.3",
-    "jest-puppeteer": "^6.1.0",
+    "jest-puppeteer": "^6.1.1",
     "miragejs": "^0.1.44",
     "puppeteer": "^14.4.1",
     "ts-jest": "^27.1.4",
