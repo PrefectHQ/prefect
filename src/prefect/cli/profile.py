@@ -111,6 +111,12 @@ def delete(name: str):
     if name not in profiles:
         exit_with_error(f"Profile {name!r} not found.")
 
+    current_profile = prefect.context.get_settings_context().profile
+    if current_profile.name == name:
+        exit_with_error(
+            f"Profile {name!r} is the active profile. You must switch profiles before it can be deleted."
+        )
+
     profiles.remove_profile(name)
 
     verb = "Removed"
