@@ -176,9 +176,15 @@ class S3StorageBlock(StorageBlock):
     def block_initialization(self):
         import boto3
 
+        aws_secret_access_key_value = (
+            None
+            if self.aws_secret_access_key is None
+            else self.aws_secret_access_key.get_secret_value()
+        )
+
         self.aws_session = boto3.Session(
             aws_access_key_id=self.aws_access_key_id,
-            aws_secret_access_key=self.aws_secret_access_key,
+            aws_secret_access_key=aws_secret_access_key_value,
             aws_session_token=self.aws_session_token,
             profile_name=self.profile_name,
             region_name=self.region_name,
