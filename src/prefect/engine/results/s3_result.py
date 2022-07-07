@@ -55,6 +55,9 @@ class S3Result(Result):
         return state
 
     def __setstate__(self, state: dict) -> None:
+        # Ensure pickles are backwards compatible
+        state.setdefault("boto3_kwargs", {})
+        state.setdefault("upload_options", {})
         self.__dict__.update(state)
 
     def write(self, value_: Any, **kwargs: Any) -> Result:
