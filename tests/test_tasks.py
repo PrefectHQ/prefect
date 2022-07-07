@@ -899,9 +899,9 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            return foo(1)
+            return foo.run(1)
 
-        flow_state = test_flow()
+        flow_state = test_flow.run()
         x = flow_state.result()
 
         task_run = await orion_client.read_task_run(x.state_details.task_run_id)
@@ -915,9 +915,9 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            return foo(1)
+            return foo.run(1)
 
-        flow_state = test_flow()
+        flow_state = test_flow.run()
         x = flow_state.result()
 
         task_run = await orion_client.read_task_run(x.state_details.task_run_id)
@@ -935,12 +935,12 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            a = foo(1)
-            b = foo(2)
-            c = bar(a, 1)
+            a = foo.run(1)
+            b = foo.run(2)
+            c = bar.run(a, 1)
             return a, b, c
 
-        flow_state = test_flow()
+        flow_state = test_flow.run()
         a, b, c = flow_state.result()
 
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
@@ -961,12 +961,12 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            a = foo(1)
-            b = foo(2)
-            c = bar(x=a, y=1)
+            a = foo.run(1)
+            b = foo.run(2)
+            c = bar.run(x=a, y=1)
             return a, b, c
 
-        flow_state = test_flow()
+        flow_state = test_flow.run()
         a, b, c = flow_state.result()
 
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
@@ -987,12 +987,12 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            a = foo(1)
-            b = foo(2)
-            c = bar(a, b)
+            a = foo.run(1)
+            b = foo.run(2)
+            c = bar.run(a, b)
             return a, b, c
 
-        flow_state = test_flow()
+        flow_state = test_flow.run()
         a, b, c = flow_state.result()
 
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
@@ -1013,11 +1013,11 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            a = foo(1)
-            c = bar(a, a)
+            a = foo.run(1)
+            c = bar.run(a, a)
             return a, c
 
-        flow_state = test_flow()
+        flow_state = test_flow.run()
         a, c = flow_state.result()
 
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
@@ -1038,13 +1038,13 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            a = foo(1)
-            b = foo(2)
-            c = foo(3)
-            d = bar([a, a, b], {3: b, 4: {5: {c, 4}}})
+            a = foo.run(1)
+            b = foo.run(2)
+            c = foo.run(3)
+            d = bar.run([a, a, b], {3: b, 4: {5: {c, 4}}})
             return a, b, c, d
 
-        flow_state = test_flow()
+        flow_state = test_flow.run()
 
         a, b, c, d = flow_state.result()
 
@@ -1072,10 +1072,10 @@ class TestTaskInputs:
 
         @flow
         def parent():
-            child_state = child(1)
-            return child_state, foo(child_state)
+            child_state = child.run(1)
+            return child_state, foo.run(child_state)
 
-        parent_state = parent()
+        parent_state = parent.run()
         child_state, task_state = parent_state.result()
 
         task_run = await orion_client.read_task_run(
@@ -1085,6 +1085,88 @@ class TestTaskInputs:
         assert task_run.task_inputs == dict(
             x=[TaskRunResult(id=child_state.state_details.task_run_id)],
         )
+
+
+@task
+def upstream(result):
+    return result
+
+
+@task
+def downstream(value):
+    return value
+
+
+@flow
+def flow_with_downstream_task(result):
+    upstream_state = upstream.run(result)
+    downstream_state = downstream.run(upstream_state.result())
+    return upstream_state, downstream_state
+
+
+class TestTaskRelations:
+    async def test_task(self, orion_client):
+        @task
+        def name():
+            return "Fred"
+
+        @task
+        def say_hi(name):
+            return f"Hi {name}"
+
+        @flow
+        def test_flow():
+            my_name = name.run()
+            hi = say_hi.run(my_name.result())
+            return my_name, hi
+
+        flow_state = test_flow.run()
+        name_state, hi_state = flow_state.result()
+
+        task_run = await orion_client.read_task_run(hi_state.state_details.task_run_id)
+
+        assert task_run.task_inputs == dict(
+            name=[TaskRunResult(id=name_state.state_details.task_run_id)],
+        )
+
+    @pytest.mark.parametrize("result", [["Fred"], {"one": 1}, {1, 2, 2}, (1, 2)])
+    async def test_relates_with_collections_as_result(self, result, orion_client):
+        flow_state = flow_with_downstream_task.run(result)
+        upstream_state, downstream_state = flow_state.result()
+
+        task_run = await orion_client.read_task_run(
+            downstream_state.state_details.task_run_id
+        )
+
+        assert task_run.task_inputs == dict(
+            value=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
+        )
+
+    @pytest.mark.parametrize("result", ["Fred", 2, 5.1])
+    async def test_relates_with_basic_types_as_result(self, result, orion_client):
+        flow_state = flow_with_downstream_task.run(result)
+        upstream_state, downstream_state = flow_state.result()
+
+        task_run = await orion_client.read_task_run(
+            downstream_state.state_details.task_run_id
+        )
+
+        assert task_run.task_inputs == dict(
+            value=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
+        )
+
+    @pytest.mark.parametrize("result", [True, False, None, ..., NotImplemented])
+    async def test_does_not_relate_with_singletons_as_result(
+        self, result, orion_client
+    ):
+        flow_state = flow_with_downstream_task.run(result)
+        _, downstream_state = flow_state.result()
+
+        task_run = await orion_client.read_task_run(
+            downstream_state.state_details.task_run_id
+        )
+
+        assert task_run.task_inputs == dict(value=[])
 
 
 class TestTaskWaitFor:

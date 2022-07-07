@@ -74,6 +74,9 @@ from prefect.utilities.collections import Quote, visit_collection
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
+
+UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
+
 engine_logger = get_logger("engine")
 
 
@@ -356,7 +359,10 @@ async def create_and_begin_subflow_run(
     parent_logger = get_run_logger(parent_flow_run_context)
 
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
-    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
+    task_inputs = {
+        k: await collect_task_run_inputs(v, parent_flow_run_context)
+        for k, v in parameters.items()
+    }
 
     # Generate a task in the parent flow run to represent the result of the subflow run
     dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
@@ -646,7 +652,7 @@ def enter_task_run_engine(
 
 
 async def collect_task_run_inputs(
-    expr: Any,
+    expr: Any, flow_run_context: FlowRunContext
 ) -> Set[Union[core.TaskRunResult, core.Parameter, core.Constant]]:
     """
     This function recurses through an expression to generate a set of any discernable
@@ -665,10 +671,18 @@ async def collect_task_run_inputs(
     async def add_futures_and_states_to_inputs(obj):
         if isinstance(obj, PrefectFuture):
             inputs.add(core.TaskRunResult(id=obj.task_run.id))
-
-        if isinstance(obj, State):
+        elif isinstance(obj, State):
             if obj.state_details.task_run_id:
                 inputs.add(core.TaskRunResult(id=obj.state_details.task_run_id))
+        else:
+            state = None
+            if hasattr(obj, "__prefect_state__"):
+                state = obj.__prefect_state__
+            else:
+                state = flow_run_context.task_state_cache.get(id(obj))
+
+            if state and state.state_details.task_run_id:
+                inputs.add(core.TaskRunResult(id=state.state_details.task_run_id))
 
     await visit_collection(
         expr, visit_fn=add_futures_and_states_to_inputs, return_data=False
@@ -701,7 +715,7 @@ async def create_task_run_then_submit_or_begin(
             wait_for=wait_for,
         )
     else:
-        return await begin_task_run(
+        state = await begin_task_run(
             task=task,
             task_run=task_run,
             parameters=parameters,
@@ -709,6 +723,16 @@ async def create_task_run_then_submit_or_begin(
             result_storage=flow_run_context.result_storage,
             settings=prefect.context.SettingsContext.get().copy(),
         )
+
+        result = state.result()
+
+        if type(result) not in UNTRACKABLE_TYPES:
+            try:
+                object.__setattr__(result, "__prefect_state__", state)
+            except AttributeError:
+                flow_run_context.task_state_cache[id(result)] = state
+
+        return state
 
 
 async def create_task_run(
@@ -718,9 +742,14 @@ async def create_task_run(
     dynamic_key: str,
     wait_for: Optional[Iterable[PrefectFuture]],
 ) -> TaskRun:
-    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
+    task_inputs = {
+        k: await collect_task_run_inputs(v, flow_run_context)
+        for k, v in parameters.items()
+    }
     if wait_for:
-        task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
+        task_inputs["wait_for"] = await collect_task_run_inputs(
+            wait_for, flow_run_context
+        )
 
     logger = get_run_logger(flow_run_context)
 
