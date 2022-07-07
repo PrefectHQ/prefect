@@ -31,6 +31,7 @@ from typing_extensions import ParamSpec
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import ReservedArgumentError
 from prefect.futures import PrefectFuture
+from prefect.states import State
 from prefect.utilities.asyncio import Async, Sync
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import hash_objects
@@ -244,8 +245,44 @@ class Task(Generic[P, R]):
             retry_delay_seconds=retry_delay_seconds or self.retry_delay_seconds,
         )
 
-    @overload
     def __call__(
+        self,
+        *args: P.args,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        **kwargs: P.kwargs,
+    ) -> R:
+        from prefect.engine import enter_task_run_engine
+
+        # Convert the call args/kwargs to a parameter dict
+        parameters = get_call_parameters(self.fn, args, kwargs)
+
+        return enter_task_run_engine(
+            self,
+            parameters=parameters,
+            wait_for=wait_for,
+            submit=False,
+        ).result()
+
+    def run(
+        self,
+        *args: P.args,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        **kwargs: P.kwargs,
+    ) -> "State[R]":
+        from prefect.engine import enter_task_run_engine
+
+        # Convert the call args/kwargs to a parameter dict
+        parameters = get_call_parameters(self.fn, args, kwargs)
+
+        return enter_task_run_engine(
+            self,
+            parameters=parameters,
+            wait_for=wait_for,
+            submit=True,
+        )
+
+    @overload
+    def submit(
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
@@ -255,7 +292,7 @@ class Task(Generic[P, R]):
         ...
 
     @overload
-    def __call__(
+    def submit(
         self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
@@ -263,14 +300,14 @@ class Task(Generic[P, R]):
         ...
 
     @overload
-    def __call__(
+    def submit(
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> PrefectFuture[T, Sync]:
         ...
 
-    def __call__(
+    def submit(
         self,
         *args: Any,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
@@ -369,6 +406,7 @@ class Task(Generic[P, R]):
             self,
             parameters=parameters,
             wait_for=wait_for,
+            submit=True,
         )
 
 

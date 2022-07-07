@@ -602,6 +602,7 @@ def enter_task_run_engine(
     task: Task,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
+    submit: bool,
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
     """
     Sync entrypoint for task calls
@@ -622,12 +623,12 @@ def enter_task_run_engine(
         raise TimeoutError("Flow run timed out")
 
     begin_run = partial(
-        create_and_submit_task_run,
+        create_task_run_then_submit_or_begin,
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
-        dynamic_key=_dynamic_key_for_task_run(flow_run_context, task),
         wait_for=wait_for,
+        submit=submit,
     )
 
     # Async task run in async flow run
@@ -676,20 +677,47 @@ async def collect_task_run_inputs(
     return inputs
 
 
-async def create_and_submit_task_run(
+async def create_task_run_then_submit_or_begin(
+    task: Task,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
+    submit: bool,
+) -> Union[PrefectFuture, State]:
+    task_run = await create_task_run(
+        task=task,
+        flow_run_context=flow_run_context,
+        parameters=parameters,
+        dynamic_key=_dynamic_key_for_task_run(flow_run_context, task),
+        wait_for=wait_for,
+    )
+
+    if submit:
+        return await submit_task_run(
+            task=task,
+            flow_run_context=flow_run_context,
+            parameters=parameters,
+            task_run=task_run,
+            wait_for=wait_for,
+        )
+    else:
+        return await begin_task_run(
+            task=task,
+            task_run=task_run,
+            parameters=parameters,
+            wait_for=wait_for,
+            result_storage=flow_run_context.result_storage,
+            settings=prefect.context.SettingsContext.get().copy(),
+        )
+
+
+async def create_task_run(
     task: Task,
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     dynamic_key: str,
     wait_for: Optional[Iterable[PrefectFuture]],
-) -> PrefectFuture:
-    """
-    Async entrypoint for task calls.
-
-    Tasks must be called within a flow. When tasks are called, they create a task run
-    and submit orchestration of the run to the flow run's task runner. The task runner
-    returns a future that is returned immediately.
-    """
+) -> TaskRun:
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
     if wait_for:
         task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
@@ -706,6 +734,25 @@ async def create_and_submit_task_run(
     )
 
     logger.info(f"Created task run {task_run.name!r} for task {task.name!r}")
+
+    return task_run
+
+
+async def submit_task_run(
+    task: Task,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    task_run: TaskRun,
+    wait_for: Optional[Iterable[PrefectFuture]],
+) -> PrefectFuture:
+    """
+    Async entrypoint for task calls.
+
+    Tasks must be called within a flow. When tasks are called, they create a task run
+    and submit orchestration of the run to the flow run's task runner. The task runner
+    returns a future that is returned immediately.
+    """
+    logger = get_run_logger(flow_run_context)
 
     future = await flow_run_context.task_runner.submit(
         task_run=task_run,
