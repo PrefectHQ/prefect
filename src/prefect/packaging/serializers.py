@@ -22,6 +22,8 @@ class PickleSerializer(Serializer):
     """
     Serializes objects using the pickle protocol.
 
+    If using cloudpickle,
+
     Wraps pickles in base64 for safe transmission.
     """
 
