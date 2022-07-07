@@ -28,7 +28,6 @@ from unittest.mock import Mock
 
 import pydantic
 
-import prefect
 from prefect.utilities.asyncio import gather
 
 
@@ -253,12 +252,18 @@ async def visit_collection(
             visit_collection, expr, visit_fn=visit_fn, return_data=return_data
         )
 
+    # Visit every expression, updating it if requested
+    result = await visit_fn(expr)
+    if return_data:
+        expr = result
+
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)
     typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
 
-    # do not visit mock objects
+    # Then visit every item in the expression if it is a collection
     if isinstance(expr, Mock):
+        # Do not attempt to recurse into mock objects
         return expr if return_data else None
 
     elif typ in (list, tuple, set):
@@ -279,12 +284,7 @@ async def visit_collection(
         result = {field.name: value for field, value in zip(fields(expr), values)}
         return typ(**result) if return_data else None
 
-    elif (
-        # Recurse into Pydantic models but do _not_ do so for states/datadocs
-        isinstance(expr, pydantic.BaseModel)
-        and not isinstance(expr, prefect.orion.schemas.states.State)
-        and not isinstance(expr, prefect.orion.schemas.data.DataDocument)
-    ):
+    elif isinstance(expr, pydantic.BaseModel):
         # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
         # to retrieve the public keys to visit.
         # NOTE: This implementation *does not* traverse private attributes
@@ -308,7 +308,6 @@ async def visit_collection(
         return None
 
     else:
-        result = await visit_fn(expr)
         return result if return_data else None
 
 
