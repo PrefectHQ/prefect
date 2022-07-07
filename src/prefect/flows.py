@@ -32,6 +32,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
 
+from prefect import State
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.exceptions import (
     MissingFlowError,
@@ -360,6 +361,22 @@ class Flow(Generic[P, R]):
             >>>     my_flow("foo")
         """
         return self.run(*args, **kwargs).result()
+
+    @overload
+    def run(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
+        # `NoReturn` matches if a type can't be inferred for the function which stops a
+        # sync function from matching the `Coroutine` overload
+        ...
+
+    @overload
+    def run(
+        self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
+    ) -> Awaitable[T]:
+        ...
+
+    @overload
+    def run(self: "Flow[P, T]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
+        ...
 
     def run(
         self,
