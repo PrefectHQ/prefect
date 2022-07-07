@@ -10,7 +10,7 @@ import pytest
 
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.storage import TempStorageBlock
-from prefect.client import OrionClient, get_client
+from prefect.client import OrionClient
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import InvalidNameError, ParameterTypeError
 from prefect.flows import Flow
@@ -21,7 +21,11 @@ from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import State, StateType
 from prefect.states import StateType, raise_failed_state
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
-from prefect.testing.utilities import exceptions_equal, flaky_on_windows
+from prefect.testing.utilities import (
+    exceptions_equal,
+    flaky_on_windows,
+    get_most_recent_flow_run,
+)
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
 
@@ -196,14 +200,9 @@ class TestFlowCall:
         def foo(x, y=3, z=3):
             return x + y + z
 
-        state = foo(1, 2)
-        assert isinstance(state, State)
-        assert state.result() == 6
-        assert state.state_details.flow_run_id is not None
+        assert foo(1, 2) == 6
 
-        async with get_client() as client:
-            flow_run = await client.read_flow_run(state.state_details.flow_run_id)
-        assert flow_run.id == state.state_details.flow_run_id
+        flow_run = await get_most_recent_flow_run()
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
 
@@ -212,14 +211,9 @@ class TestFlowCall:
         async def foo(x, y=3, z=3):
             return x + y + z
 
-        state = await foo(1, 2)
-        assert isinstance(state, State)
-        assert state.result() == 6
-        assert state.state_details.flow_run_id is not None
+        assert await foo(1, 2) == 6
 
-        async with get_client() as client:
-            flow_run = await client.read_flow_run(state.state_details.flow_run_id)
-        assert flow_run.id == state.state_details.flow_run_id
+        flow_run = await get_most_recent_flow_run()
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
 
@@ -231,29 +225,29 @@ class TestFlowCall:
         def foo(x: int, y: List[int], zt: CustomType):
             return x + sum(y) + zt.z
 
-        state = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
-        assert state.result() == 10
+        result = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
+        assert result == 10
 
     def test_call_with_variadic_args(self):
         @flow
         def test_flow(*foo, bar):
             return foo, bar
 
-        assert test_flow(1, 2, 3, bar=4).result() == ((1, 2, 3), 4)
+        assert test_flow(1, 2, 3, bar=4) == ((1, 2, 3), 4)
 
     def test_call_with_variadic_keyword_args(self):
         @flow
         def test_flow(foo, bar, **foobar):
             return foo, bar, foobar
 
-        assert test_flow(1, 2, x=3, y=4, z=5).result() == (1, 2, dict(x=3, y=4, z=5))
+        assert test_flow(1, 2, x=3, y=4, z=5) == (1, 2, dict(x=3, y=4, z=5))
 
     def test_fails_but_does_not_raise_on_incompatible_parameter_types(self):
         @flow(version="test")
         def foo(x: int):
             pass
 
-        state = foo(x="foo")
+        state = foo.run(x="foo")
 
         with pytest.raises(
             ParameterTypeError,
@@ -266,7 +260,7 @@ class TestFlowCall:
         def foo(x: int):
             return x
 
-        assert foo(x="foo").result() == "foo"
+        assert foo(x="foo") == "foo"
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):
@@ -275,7 +269,7 @@ class TestFlowCall:
             if error:
                 raise error
 
-        state = foo()
+        state = foo.run()
 
         # Assert the final state is correct
         assert state.is_failed() if error else state.is_completed()
@@ -290,7 +284,7 @@ class TestFlowCall:
                 data=DataDocument.encode("json", "hello!"),
             )
 
-        state = foo()
+        state = foo.run()
 
         # Assert the final state is correct
         assert state.is_failed()
@@ -304,9 +298,9 @@ class TestFlowCall:
 
         @flow(version="test")
         def foo():
-            return fail()
+            return fail.run()
 
-        flow_state = foo()
+        flow_state = foo.run()
 
         assert flow_state.is_failed()
 
@@ -324,11 +318,11 @@ class TestFlowCall:
 
         @flow(version="test")
         def foo():
-            fail()
-            fail()
+            fail.run()
+            fail.run()
             return None
 
-        flow_state = foo()
+        flow_state = foo.run()
 
         assert flow_state.is_failed()
 
