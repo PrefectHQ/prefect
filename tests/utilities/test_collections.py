@@ -65,9 +65,17 @@ async def visit_even_numbers(x):
     return x
 
 
+VISITED = list()
+
+
+async def add_to_visited_list(x):
+    VISITED.append(x)
+
+
 @pytest.fixture(autouse=True)
-def clear_even_set():
+def clear_sets():
     EVEN.clear()
+    VISITED.clear()
 
 
 @dataclass
@@ -203,6 +211,33 @@ class TestVisitCollection:
         )
         assert result is None
         assert EVEN == expected
+
+    @pytest.mark.parametrize(
+        "inp,expected",
+        [
+            ({"x": 1}, [{"x": 1}, "x", 1]),
+            (SimpleDataclass(x=1, y=2), [SimpleDataclass(x=1, y=2), 1, 2]),
+        ],
+    )
+    async def test_visit_collection_visits_nodes(self, inp, expected):
+        result = await visit_collection(
+            inp, visit_fn=add_to_visited_list, return_data=False
+        )
+        assert result is None
+        assert VISITED == expected
+
+    async def test_visit_collection_allows_mutation_of_nodes(self):
+        async def collect_and_drop_x_from_dicts(node):
+            await add_to_visited_list(node)
+            if isinstance(node, dict):
+                return {key: value for key, value in node.items() if key != "x"}
+            return node
+
+        result = await visit_collection(
+            {"x": 1, "y": 2}, visit_fn=collect_and_drop_x_from_dicts, return_data=True
+        )
+        assert result == {"y": 2}
+        assert VISITED == [{"x": 1, "y": 2}, "y", 2]
 
     async def test_visit_collection_with_private_pydantic_attributes(self):
         """
