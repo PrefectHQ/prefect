@@ -245,20 +245,72 @@ class Task(Generic[P, R]):
             retry_delay_seconds=retry_delay_seconds or self.retry_delay_seconds,
         )
 
+    @overload
+    def __call__(
+        self: "Task[P, NoReturn]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> None:
+        # `NoReturn` matches if a type can't be inferred for the function which stops a
+        # sync function from matching the `Coroutine` overload
+        ...
+
+    @overload
+    def __call__(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Awaitable[T]:
+        ...
+
+    @overload
+    def __call__(
+        self: "Task[P, T]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> T:
+        ...
+
     def __call__(
         self,
         *args: P.args,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: P.kwargs,
-    ) -> R:
+    ):
         return self.run(*args, wait_for=wait_for, **kwargs).result()
+
+    @overload
+    def run(
+        self: "Task[P, NoReturn]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> PrefectFuture[None, Sync]:
+        # `NoReturn` matches if a type can't be inferred for the function which stops a
+        # sync function from matching the `Coroutine` overload
+        ...
+
+    @overload
+    def run(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Awaitable[State[T]]:
+        ...
+
+    @overload
+    def run(
+        self: "Task[P, T]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> State[T]:
+        ...
 
     def run(
         self,
         *args: P.args,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: P.kwargs,
-    ) -> "State[R]":
+    ) -> Union[State, Awaitable[State]]:
         from prefect.engine import enter_task_run_engine
 
         # Convert the call args/kwargs to a parameter dict
