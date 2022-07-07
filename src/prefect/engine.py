@@ -80,6 +80,37 @@ UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
 engine_logger = get_logger("engine")
 
 
+def get_state_for_result(obj: Any) -> Optional[State]:
+    """
+    Get the state related to a result object.
+
+    `link_state_to_result` must have been called first.
+    """
+    if hasattr(obj, "__prefect_state__"):
+        return obj.__prefect_state__
+    else:
+        flow_run_context = FlowRunContext.get()
+        if flow_run_context:
+            return flow_run_context.task_state_cache.get(id(obj))
+
+
+def link_state_to_result(state: State) -> None:
+    """
+    Stores information about the state on the result or in the global context for
+    relationship tracking.
+    """
+    result = state.result()
+    if type(result) in UNTRACKABLE_TYPES:
+        return
+
+    try:
+        object.__setattr__(result, "__prefect_state__", state)
+    except AttributeError:
+        flow_run_context = FlowRunContext.get()
+        if flow_run_context:
+            flow_run_context.task_state_cache[id(result)] = state
+
+
 def enter_flow_run_engine_from_flow_call(
     flow: Flow, parameters: Dict[str, Any]
 ) -> Union[State, Awaitable[State]]:
@@ -359,10 +390,7 @@ async def create_and_begin_subflow_run(
     parent_logger = get_run_logger(parent_flow_run_context)
 
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
-    task_inputs = {
-        k: await collect_task_run_inputs(v, parent_flow_run_context)
-        for k, v in parameters.items()
-    }
+    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
 
     # Generate a task in the parent flow run to represent the result of the subflow run
     dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
@@ -652,7 +680,7 @@ def enter_task_run_engine(
 
 
 async def collect_task_run_inputs(
-    expr: Any, flow_run_context: FlowRunContext
+    expr: Any,
 ) -> Set[Union[core.TaskRunResult, core.Parameter, core.Constant]]:
     """
     This function recurses through an expression to generate a set of any discernable
@@ -675,12 +703,7 @@ async def collect_task_run_inputs(
             if obj.state_details.task_run_id:
                 inputs.add(core.TaskRunResult(id=obj.state_details.task_run_id))
         else:
-            state = None
-            if hasattr(obj, "__prefect_state__"):
-                state = obj.__prefect_state__
-            else:
-                state = flow_run_context.task_state_cache.get(id(obj))
-
+            state = get_state_for_result(obj)
             if state and state.state_details.task_run_id:
                 inputs.add(core.TaskRunResult(id=state.state_details.task_run_id))
 
@@ -723,15 +746,7 @@ async def create_task_run_then_submit_or_begin(
             result_storage=flow_run_context.result_storage,
             settings=prefect.context.SettingsContext.get().copy(),
         )
-
-        result = state.result()
-
-        if type(result) not in UNTRACKABLE_TYPES:
-            try:
-                object.__setattr__(result, "__prefect_state__", state)
-            except AttributeError:
-                flow_run_context.task_state_cache[id(result)] = state
-
+        link_state_to_result(state)
         return state
 
 
@@ -742,14 +757,9 @@ async def create_task_run(
     dynamic_key: str,
     wait_for: Optional[Iterable[PrefectFuture]],
 ) -> TaskRun:
-    task_inputs = {
-        k: await collect_task_run_inputs(v, flow_run_context)
-        for k, v in parameters.items()
-    }
+    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
     if wait_for:
-        task_inputs["wait_for"] = await collect_task_run_inputs(
-            wait_for, flow_run_context
-        )
+        task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
 
     logger = get_run_logger(flow_run_context)
 
