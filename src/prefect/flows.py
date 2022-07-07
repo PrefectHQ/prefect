@@ -359,12 +359,19 @@ class Flow(Generic[P, R]):
             >>> with tags("db", "blue"):
             >>>     my_flow("foo")
         """
+        return self.run(*args, **kwargs).result()
+
+    def run(
+        self,
+        *args: "P.args",
+        **kwargs: "P.kwargs",
+    ):
         from prefect.engine import enter_flow_run_engine_from_flow_call
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        return enter_flow_run_engine_from_flow_call(self, parameters).result()
+        return enter_flow_run_engine_from_flow_call(self, parameters)
 
 
 @overload
