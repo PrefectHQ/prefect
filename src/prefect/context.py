@@ -209,6 +209,8 @@ class FlowRunContext(RunContext):
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
     subflow_states: List[State] = Field(default_factory=list)
 
+    task_state_cache: Dict[str, State] = Field(default_factory=dict)
+
     # The synchronous portal is only created for async flows for creating engine calls
     # from synchronous task and subflow calls
     sync_portal: Optional[BlockingPortal] = None

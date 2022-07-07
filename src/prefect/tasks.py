@@ -268,7 +268,7 @@ class Task(Generic[P, R]):
             self,
             parameters=parameters,
             wait_for=wait_for,
-            submit=True,
+            submit=False,
         )
 
     @overload
