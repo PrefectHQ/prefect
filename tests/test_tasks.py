@@ -57,10 +57,7 @@ class TestTaskCall:
         def bar():
             return foo(1)
 
-        flow_state = bar()
-        task_state = flow_state.result()
-        assert isinstance(task_state, State)
-        assert task_state.result() == 1
+        assert bar() == 1
 
     async def test_async_task_called_inside_async_flow(self):
         @task
@@ -71,10 +68,7 @@ class TestTaskCall:
         async def bar():
             return await foo(1)
 
-        flow_state = await bar()
-        task_state = flow_state.result()
-        assert isinstance(task_state, State)
-        assert task_state.result() == 1
+        assert await bar() == 1
 
     async def test_sync_task_called_inside_async_flow(self):
         @task
@@ -85,10 +79,7 @@ class TestTaskCall:
         async def bar():
             return foo(1)
 
-        flow_state = await bar()
-        task_state = flow_state.result()
-        assert isinstance(task_state, State)
-        assert task_state.result() == 1
+        assert await bar() == 1
 
     def test_async_task_called_inside_sync_flow(self):
         @task
@@ -99,10 +90,7 @@ class TestTaskCall:
         def bar():
             return foo(1)
 
-        state = bar()
-        task_state = state.result()
-        assert task_state.is_completed()
-        assert task_state.result() == 1
+        assert bar() == 1
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):
@@ -115,8 +103,7 @@ class TestTaskCall:
         def foo():
             return bar()
 
-        flow_state = foo()
-        task_state = flow_state.result(raise_on_failure=False)
+        flow_state = foo.run()
 
         # Assert the final state is correct
         assert task_state.is_failed() if error else task_state.is_completed()
