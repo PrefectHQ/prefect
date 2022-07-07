@@ -2,6 +2,7 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
+from functools import partial
 from typing import List, Optional
 from uuid import UUID
 
@@ -12,9 +13,12 @@ import pendulum
 from anyio.abc import TaskGroup
 from fastapi import status
 
+from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client
 from prefect.exceptions import Abort
 from prefect.flow_runners import FlowRunner
+from prefect.infrastructure.base import Infrastructure
+from prefect.infrastructure.submission import submit_flow_run
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
@@ -117,15 +121,24 @@ class OrionAgent:
             )
         return submittable_runs
 
-    def get_flow_runner(self, flow_run: FlowRun):
+    def get_flow_runner(self, flow_run: FlowRun) -> Optional[FlowRunner]:
         # TODO: Here, the agent may merge settings with those contained in the
         #       flow_run.flow_runner settings object
+        if not flow_run.flow_runner.type and not flow_run.flow_runner.config:
+            return None
 
         flow_runner_settings = flow_run.flow_runner.copy() or FlowRunnerSettings()
         if not flow_runner_settings.type or flow_runner_settings.type == "universal":
             flow_runner_settings.type = "subprocess"
 
         return FlowRunner.from_settings(flow_runner_settings)
+
+    async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
+        document = await self.client.read_block_document(
+            flow_run.infrastructure_document_id
+        )
+        block = Block._from_block_document(document)
+        return block
 
     async def submit_run(self, flow_run: FlowRun) -> None:
         """
@@ -136,11 +149,18 @@ class OrionAgent:
         if ready_to_submit:
             # Successfully entered a pending state; submit to flow runner
             flow_runner = self.get_flow_runner(flow_run)
+            if flow_runner:
+                submit = partial(flow_runner.submit_flow_run, flow_run)
+            else:
+                infrastructure = await self.get_infrastructure(flow_run)
+                submit = partial(
+                    submit_flow_run, flow_run, infrastructure=infrastructure
+                )
 
             try:
                 # Wait for submission to be completed. Note that the submission function
                 # may continue to run in the background after this exits.
-                await self.task_group.start(flow_runner.submit_flow_run, flow_run)
+                await self.task_group.start(submit)
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
             except Exception as exc:
                 self.logger.error(

@@ -48,8 +48,9 @@ Examples:
     ```
 """
 
+from io import StringIO
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, TextIO, Union
 
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
@@ -59,12 +60,9 @@ from prefect.client import OrionClient, inject_client
 from prefect.context import PrefectObjectRegistry
 from prefect.deprecated import deployments as deprecated
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
-from prefect.flow_runners.base import (
-    FlowRunner,
-    FlowRunnerSettings,
-    UniversalFlowRunner,
-)
+from prefect.flow_runners.base import FlowRunner, FlowRunnerSettings
 from prefect.flows import Flow, load_flow_from_script, load_flow_from_text
+from prefect.infrastructure.base import AnyInfrastructure, Infrastructure
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.packaging.base import PackageManifest, Packager
@@ -72,7 +70,7 @@ from prefect.packaging.orion import OrionPackager
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type
-from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.filesystem import tmpchdir, to_display_path
 
 
 class FlowScript(BaseModel):
@@ -102,10 +100,8 @@ class Deployment(BaseModel):
     parameters: Dict[str, Any] = Field(default_factory=dict)
     schedule: schemas.schedules.SCHEDULE_TYPES = None
 
-    # TODO: Change to 'infrastructure'
-    flow_runner: Union[FlowRunner, FlowRunnerSettings] = Field(
-        default_factory=UniversalFlowRunner
-    )
+    flow_runner: Optional[Union[FlowRunner, FlowRunnerSettings]] = None
+    infrastructure: Infrastructure = Field(default_factory=AnyInfrastructure)
 
     def __init__(__pydantic_self__, **data: Any) -> None:
         super().__init__(**data)
@@ -128,7 +124,7 @@ class Deployment(BaseModel):
 
     @root_validator
     def flow_runner_packager_compatibility(cls, values):
-        flow_runner = values.get("flow_runner")
+        runner = values.get("flow_runner") or values.get("infrastructure")
         flow = values.get("flow")
         packager = values.get("packager")
 
@@ -141,16 +137,16 @@ class Deployment(BaseModel):
             return values
 
         if "image" in manifest_cls.__fields__:
-            if "image" not in flow_runner.__fields__:
+            if "image" not in runner.__fields__:
                 raise ValueError(
-                    f"Packaged flow requires an image but the {flow_runner.typename!r} "
-                    "flow runner does not have an image field."
+                    f"Packaged flow requires an image but {runner.__class__.__name__!r} "
+                    "does not have an image field."
                 )
-            elif "image" in flow_runner.__fields_set__:
+            elif "image" in runner.__fields_set__:
                 raise ValueError(
-                    f"Packaged flow requires an image but the flow runner already has "
-                    f"image {flow_runner.image!r} configured. Exclude the image "
-                    "from your flow runner to allow Prefect to set it to the package "
+                    f"Packaged flow requires an image but the infrastructure already has "
+                    f"image {runner.image!r} configured. Exclude the image "
+                    "from your infrastucture to allow Prefect to set it to the package "
                     "image tag."
                 )
 
@@ -158,22 +154,54 @@ class Deployment(BaseModel):
 
     @sync_compatible
     @inject_client
-    async def create(self, client: OrionClient):
+    async def create(
+        self,
+        client: OrionClient,
+        stream_progress_to: Optional[TextIO] = None,
+    ):
+        stream_progress_to = stream_progress_to or StringIO()
         if isinstance(self.flow, PackageManifest):
             manifest = self.flow
             flow_name = manifest.flow_name
         else:
+            if isinstance(self.flow, FlowScript):
+                stream_progress_to.write(
+                    f"Retrieving flow from script at {to_display_path(self.flow.path)}..."
+                )
             flow = await _source_to_flow(self.flow)
             flow_name = flow.name
+            stream_progress_to.write(f"Packaging flow...")
             manifest = await self.packager.package(flow)
 
         flow_id = await client.create_flow_from_name(flow_name)
 
-        if "image" in manifest.__fields__:
-            self.flow_runner = self.flow_runner.copy(update={"image": manifest.image})
+        if self.infrastructure:
+            if "image" in manifest.__fields__:
+                stream_progress_to.write(
+                    f"Updating infrastructure image to {manifest.image!r}..."
+                )
+                infrastructure = self.infrastructure.copy(
+                    update={"image": manifest.image}
+                )
+            else:
+                infrastructure = self.infrastructure
+
+            if not infrastructure.command:
+                stream_progress_to.write("Updating infrastructure command...")
+                infrastructure = infrastructure.copy(
+                    update={"command": ["python", "-m", "prefect.engine"]}
+                )
+
+            # Always save as an anonymous block even if we are given a block that is
+            # already registered. This will make behavior consistent when we need to
+            # update values on the infrastucture.
+            infrastructure_document_id = await infrastructure._save(is_anonymous=True)
+        else:
+            infrastructure_document_id = None
 
         flow_data = DataDocument.encode("package-manifest", manifest)
 
+        stream_progress_to.write("Registering with server...")
         return await client.create_deployment(
             flow_id=flow_id,
             name=self.name or flow_name,
@@ -182,6 +210,7 @@ class Deployment(BaseModel):
             parameters=self.parameters,
             tags=self.tags,
             flow_runner=self.flow_runner,
+            infrastructure_document_id=infrastructure_document_id,
         )
 
     class Config:

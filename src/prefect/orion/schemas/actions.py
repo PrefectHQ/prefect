@@ -43,6 +43,7 @@ class DeploymentCreate(
             "parameters",
             "flow_data",
             "flow_runner",
+            "infrastructure_document_id",
         ],
     )
 ):
@@ -120,6 +121,7 @@ class FlowRunCreate(
             "parent_task_run_id",
             "flow_runner",
             "empirical_policy",
+            "infrastructure_document_id",
         ],
     )
 ):
@@ -143,6 +145,7 @@ class DeploymentFlowRunCreate(
             "idempotency_key",
             "flow_runner",
             "empirical_policy",
+            "infrastructure_document_id",
         ],
     )
 ):

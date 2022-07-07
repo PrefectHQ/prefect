@@ -66,6 +66,7 @@ async def create_deployment(
                         "parameters",
                         "flow_data",
                         "updated",
+                        "infrastructure_document_id",
                     },
                 ),
                 **flow_runner_values,
