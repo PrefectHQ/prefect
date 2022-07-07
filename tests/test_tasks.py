@@ -8,6 +8,7 @@ import pytest
 
 from prefect import flow, get_run_logger, tags
 from prefect.context import PrefectObjectRegistry
+from prefect.engine import get_state_for_result
 from prefect.exceptions import ReservedArgumentError
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRunResult
@@ -497,7 +498,7 @@ class TestTaskFutures:
             assert result == data, "Retrieving the result returns data"
             return result
 
-        assert test_flow().result() == data
+        assert test_flow() == data
 
 
 class TestTaskRetries:
@@ -524,11 +525,10 @@ class TestTaskRetries:
 
         @flow
         def test_flow():
-            future = flaky_function()
+            future = flaky_function.submit()
             return future.task_run.id, future.wait()
 
-        flow_state = test_flow()
-        task_run_id, task_run_state = flow_state.result()
+        task_run_id, task_run_state = test_flow()
 
         if always_fail:
             assert task_run_state.is_failed()
@@ -567,11 +567,10 @@ class TestTaskRetries:
 
         @flow
         def test_flow():
-            future = flaky_function()
+            future = flaky_function.submit()
             return future.task_run.id, future.wait()
 
-        flow_state = test_flow()
-        task_run_id, task_run_state = flow_state.result()
+        task_run_id, task_run_state = test_flow()
 
         assert task_run_state.is_completed()
         assert task_run_state.result() is True
@@ -596,10 +595,9 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).wait(), foo(1).wait()
+            return foo.run(1), foo.run(1)
 
-        flow_state = bar()
-        first_state, second_state = flow_state.result()
+        first_state, second_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert second_state.result() == first_state.result()
@@ -611,10 +609,9 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).wait(), foo(2).wait()
+            return foo.run(1), foo.run(2)
 
-        flow_state = bar()
-        first_state, second_state = flow_state.result()
+        first_state, second_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert second_state.result() == first_state.result()
@@ -626,12 +623,10 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            foo(1).wait()  # populate the cache
-            calls = [foo(i) for i in range(5)]
-            return [call.wait() for call in calls]
+            foo.run(1)  # populate the cache
+            return [foo.run(i) for i in range(5)]
 
-        flow_state = bar()
-        states = flow_state.result()
+        states = bar()
         assert all(state.name == "Cached" for state in states), states
 
     def test_cache_hits_between_flows_are_cached(self):
@@ -641,10 +636,10 @@ class TestTaskCaching:
 
         @flow
         def bar(x):
-            return foo(x).wait()
+            return foo.run(x)
 
-        first_state = bar(1).result()
-        second_state = bar(2).result()
+        first_state = bar(1)
+        second_state = bar(2)
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert second_state.result() == first_state.result() == 1
@@ -662,10 +657,9 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).wait(), foo(1).wait()
+            return foo.run(1), foo.run(1)
 
-        flow_state = bar()
-        first_state, second_state = flow_state.result()
+        first_state, second_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
 
@@ -679,16 +673,16 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo("something").wait(), foo("different").wait()
+            return foo.run("something"), foo.run("different")
 
-        first_state, second_state = bar().result()
+        first_state, second_state = bar()
         assert first_state.name == "Completed"
         assert first_state.result() == "something"
 
         assert second_state.name == "Cached"
         assert second_state.result() == "something"
 
-        third_state, fourth_state = bar().result()
+        third_state, fourth_state = bar()
         assert third_state.name == "Completed"
         assert fourth_state.name == "Cached"
         assert third_state.result() == "something"
@@ -710,10 +704,11 @@ class TestTaskCaching:
 
         @flow
         def my_flow():
-            future = foo("something")
-            return bar(future).wait(), bar(future).wait()
+            future = foo.submit("something")
+            # Mix run/submit to cover both cases
+            return bar.run(future), bar.submit(future).wait()
 
-        first_state, second_state = my_flow().result()
+        first_state, second_state = my_flow()
         assert first_state.name == "Completed"
         assert first_state.result() == "something"
 
@@ -731,13 +726,12 @@ class TestTaskCaching:
         @flow
         def bar():
             return (
-                foo(1, 2, 3).wait(),
-                foo(1, b=2).wait(),
-                foo(c=3, a=1, b=2).wait(),
+                foo.run(1, 2, 3),
+                foo.run(1, b=2),
+                foo.run(c=3, a=1, b=2),
             )
 
-        flow_state = bar()
-        first_state, second_state, third_state = flow_state.result()
+        first_state, second_state, third_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert third_state.name == "Cached"
@@ -758,10 +752,9 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).wait(), foo(2).wait()
+            return foo.run(1), foo.run(2)
 
-        flow_state = bar()
-        first_state, second_state = flow_state.result()
+        first_state, second_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert second_state.result() == 1
@@ -776,10 +769,9 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).wait(), foo(2).wait()
+            return foo.run(1), foo.run(2)
 
-        flow_state = bar()
-        first_state, second_state = flow_state.result()
+        first_state, second_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert second_state.result() != first_state.result()
@@ -793,10 +785,9 @@ class TestCacheFunctionBuiltins:
 
         @flow
         def bar():
-            return foo(1).wait(), foo(2).wait(), foo(1).wait()
+            return foo.run(1), foo.run(2), foo.run(1)
 
-        flow_state = bar()
-        first_state, second_state, third_state = flow_state.result()
+        first_state, second_state, third_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
@@ -812,11 +803,11 @@ class TestCacheFunctionBuiltins:
 
         @flow
         def bar(x):
-            return foo(x).wait()
+            return foo.run(x)
 
-        first_state = bar(1).result()
-        second_state = bar(2).result()
-        third_state = bar(1).result()
+        first_state = bar(1)
+        second_state = bar(2)
+        third_state = bar(1)
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
@@ -846,10 +837,9 @@ class TestCacheFunctionBuiltins:
 
         @flow
         def bar():
-            return foo(1).wait(), foo(2).wait(), foo(1).wait()
+            return foo.run(1), foo.run(2), foo.run(1)
 
-        flow_state = bar()
-        first_state, second_state, third_state = flow_state.result()
+        first_state, second_state, third_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
@@ -872,13 +862,12 @@ class TestCacheFunctionBuiltins:
         @flow
         def bar():
             return (
-                foo(TestClass(1)).wait(),
-                foo(TestClass(2)).wait(),
-                foo(TestClass(1)).wait(),
+                foo.run(TestClass(1)),
+                foo.run(TestClass(2)),
+                foo.run(TestClass(1)),
             )
 
-        flow_state = bar()
-        first_state, second_state, third_state = flow_state.result()
+        first_state, second_state, third_state = bar()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
@@ -903,23 +892,22 @@ class TestCacheFunctionBuiltins:
 
         @flow
         def my_flow():
-            first = foo(1).wait()
+            first = foo.run(1)
             foo.fn = foo_same_code
-            second = foo(1).wait()
+            second = foo.run(1)
             foo.fn = foo_new_code
-            third = foo(1).wait()
-            fourth = bar(1).wait()
-            fifth = bar(1).wait()
+            third = foo.run(1)
+            fourth = bar.run(1)
+            fifth = bar.run(1)
             return first, second, third, fourth, fifth
 
-        flow_state = my_flow()
         (
             first_state,
             second_state,
             third_state,
             fourth_state,
             fifth_state,
-        ) = flow_state.result()
+        ) = my_flow()
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert third_state.name == "Completed"
@@ -932,11 +920,11 @@ class TestCacheFunctionBuiltins:
 
 
 class TestTaskRunTags:
-    async def test_task_run_tags_added_at_call(self, orion_client):
+    async def test_task_run_tags_added_at_submission(self, orion_client):
         @flow
         def my_flow():
             with tags("a", "b"):
-                future = my_task()
+                future = my_task.submit()
 
             return future
 
@@ -944,7 +932,43 @@ class TestTaskRunTags:
         def my_task():
             pass
 
-        task_state = my_flow().result()
+        task_state = my_flow()
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+        assert set(task_run.tags) == {"a", "b"}
+
+    async def test_task_run_tags_added_at_run(self, orion_client):
+        @flow
+        def my_flow():
+            with tags("a", "b"):
+                state = my_task.run()
+
+            return state
+
+        @task
+        def my_task():
+            pass
+
+        task_state = my_flow()
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+        assert set(task_run.tags) == {"a", "b"}
+
+    async def test_task_run_tags_added_at_call(self, orion_client):
+        @flow
+        def my_flow():
+            with tags("a", "b"):
+                result = my_task()
+
+            return get_state_for_result(result)
+
+        @task
+        def my_task():
+            return "foo"
+
+        task_state = my_flow()
         task_run = await orion_client.read_task_run(
             task_state.state_details.task_run_id
         )
@@ -954,15 +978,15 @@ class TestTaskRunTags:
         @flow
         def my_flow():
             with tags("c", "d"):
-                future = my_task()
+                state = my_task.run()
 
-            return future
+            return state
 
         @task(tags={"a", "b"})
         def my_task():
             pass
 
-        task_state = my_flow().result()
+        task_state = my_flow()
         task_run = await orion_client.read_task_run(
             task_state.state_details.task_run_id
         )
@@ -972,16 +996,16 @@ class TestTaskRunTags:
         @flow
         def my_flow():
             with tags("c", "d"):
-                future = my_task()
+                state = my_task.run()
 
-            return future
+            return state
 
         @task
         def my_task():
             pass
 
         with tags("a", "b"):
-            task_state = my_flow().result()
+            task_state = my_flow()
 
         task_run = await orion_client.read_task_run(
             task_state.state_details.task_run_id
@@ -993,15 +1017,15 @@ class TestTaskRunTags:
         def my_flow():
             with tags("a", "b"):
                 my_task()
-            future = my_task()
+            state = my_task.run()
 
-            return future
+            return state
 
         @task
         def my_task():
             pass
 
-        task_state = my_flow().result()
+        task_state = my_flow()
         task_run = await orion_client.read_task_run(
             task_state.state_details.task_run_id
         )
@@ -1012,15 +1036,15 @@ class TestTaskRunTags:
         def my_flow():
             with tags("a", "b"):
                 with tags("c", "d"):
-                    future = my_task()
+                    state = my_task.run()
 
-            return future
+            return state
 
         @task
         def my_task():
             pass
 
-        task_state = my_flow().result()
+        task_state = my_flow()
         task_run = await orion_client.read_task_run(
             task_state.state_details.task_run_id
         )
@@ -1028,14 +1052,34 @@ class TestTaskRunTags:
 
 
 class TestTaskInputs:
-    async def test_task_with_no_upstreams(self, orion_client):
+    """Tests relationship tracking between tasks"""
+
+    @pytest.fixture
+    def flow_with_upstream_downstream(self):
+        @task
+        def upstream(result):
+            return result
+
+        @task
+        def downstream(value):
+            return value
+
+        @flow
+        def upstream_downstream_flow(result):
+            upstream_state = upstream.run(result)
+            downstream_state = downstream.run(upstream_state.result())
+            return upstream_state, downstream_state
+
+        return upstream_downstream_flow
+
+    async def test_task_inputs_populated_with_no_upstreams(self, orion_client):
         @task
         def foo(x):
             return x
 
         @flow
         def test_flow():
-            return foo.run(1)
+            return foo.submit(1)
 
         flow_state = test_flow.run()
         x = flow_state.result()
@@ -1044,14 +1088,16 @@ class TestTaskInputs:
 
         assert task_run.task_inputs == dict(x=[])
 
-    async def test_task_with_multiple_args_no_upstreams(self, orion_client):
+    async def test_task_inputs_populated_with_no_upstreams_and_multiple_parameters(
+        self, orion_client
+    ):
         @task
         def foo(x, *a, **k):
             return x
 
         @flow
         def test_flow():
-            return foo.run(1)
+            return foo.submit(1)
 
         flow_state = test_flow.run()
         x = flow_state.result()
@@ -1060,7 +1106,9 @@ class TestTaskInputs:
 
         assert task_run.task_inputs == dict(x=[], a=[], k=[])
 
-    async def test_task_with_one_upstream(self, orion_client):
+    async def test_task_inputs_populated_with_one_upstream_positional_future(
+        self, orion_client
+    ):
         @task
         def foo(x):
             return x
@@ -1071,8 +1119,8 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            a = foo.run(1)
-            b = foo.run(2)
+            a = foo.submit(1)
+            b = foo.submit(2)
             c = bar.run(a, 1)
             return a, b, c
 
@@ -1086,7 +1134,9 @@ class TestTaskInputs:
             y=[],
         )
 
-    async def test_task_with_one_upstream_kwarg(self, orion_client):
+    async def test_task_inputs_populated_with_one_upstream_keyword_future(
+        self, orion_client
+    ):
         @task
         def foo(x):
             return x
@@ -1097,8 +1147,8 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            a = foo.run(1)
-            b = foo.run(2)
+            a = foo.submit(1)
+            b = foo.submit(2)
             c = bar.run(x=a, y=1)
             return a, b, c
 
@@ -1112,7 +1162,7 @@ class TestTaskInputs:
             y=[],
         )
 
-    async def test_task_with_two_upstream(self, orion_client):
+    async def test_task_inputs_populated_with_two_upstream_futures(self, orion_client):
         @task
         def foo(x):
             return x
@@ -1123,8 +1173,8 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            a = foo.run(1)
-            b = foo.run(2)
+            a = foo.submit(1)
+            b = foo.submit(2)
             c = bar.run(a, b)
             return a, b, c
 
@@ -1138,7 +1188,9 @@ class TestTaskInputs:
             y=[TaskRunResult(id=b.state_details.task_run_id)],
         )
 
-    async def test_task_with_two_upstream_from_same_task(self, orion_client):
+    async def test_task_inputs_populated_with_two_upstream_futures_from_same_task(
+        self, orion_client
+    ):
         @task
         def foo(x):
             return x
@@ -1149,7 +1201,7 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            a = foo.run(1)
+            a = foo.submit(1)
             c = bar.run(a, a)
             return a, c
 
@@ -1163,7 +1215,9 @@ class TestTaskInputs:
             y=[TaskRunResult(id=a.state_details.task_run_id)],
         )
 
-    async def test_task_with_complex_upstream_structure(self, orion_client):
+    async def test_task_inputs_populated_with_nested_upstream_futures(
+        self, orion_client
+    ):
         @task
         def foo(x):
             return x
@@ -1174,9 +1228,9 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            a = foo.run(1)
-            b = foo.run(2)
-            c = foo.run(3)
+            a = foo.submit(1)
+            b = foo.submit(2)
+            c = foo.submit(3)
             d = bar.run([a, a, b], {3: b, 4: {5: {c, 4}}})
             return a, b, c, d
 
@@ -1197,7 +1251,7 @@ class TestTaskInputs:
             },
         )
 
-    async def test_task_with_subflow_upstream(self, orion_client):
+    async def test_task_inputs_populated_with_subflow_upstream(self, orion_client):
         @task
         def foo(x):
             return x
@@ -1209,7 +1263,7 @@ class TestTaskInputs:
         @flow
         def parent():
             child_state = child.run(1)
-            return child_state, foo.run(child_state)
+            return child_state, foo.submit(child_state)
 
         parent_state = parent.run()
         child_state, task_state = parent_state.result()
@@ -1222,26 +1276,7 @@ class TestTaskInputs:
             x=[TaskRunResult(id=child_state.state_details.task_run_id)],
         )
 
-
-@task
-def upstream(result):
-    return result
-
-
-@task
-def downstream(value):
-    return value
-
-
-@flow
-def flow_with_downstream_task(result):
-    upstream_state = upstream.run(result)
-    downstream_state = downstream.run(upstream_state.result())
-    return upstream_state, downstream_state
-
-
-class TestTaskRelations:
-    async def test_task(self, orion_client):
+    async def test_task_inputs_populated_with_result_upstream(self, orion_client):
         @task
         def name():
             return "Fred"
@@ -1266,8 +1301,10 @@ class TestTaskRelations:
         )
 
     @pytest.mark.parametrize("result", [["Fred"], {"one": 1}, {1, 2, 2}, (1, 2)])
-    async def test_relates_with_collections_as_result(self, result, orion_client):
-        flow_state = flow_with_downstream_task.run(result)
+    async def test_task_inputs_populated_with_collection_result_upstream(
+        self, result, orion_client, flow_with_upstream_downstream
+    ):
+        flow_state = flow_with_upstream_downstream.run(result)
         upstream_state, downstream_state = flow_state.result()
 
         task_run = await orion_client.read_task_run(
@@ -1279,8 +1316,10 @@ class TestTaskRelations:
         )
 
     @pytest.mark.parametrize("result", ["Fred", 2, 5.1])
-    async def test_relates_with_basic_types_as_result(self, result, orion_client):
-        flow_state = flow_with_downstream_task.run(result)
+    async def test_task_inputs_populated_with_basic_result_types_upstream(
+        self, result, orion_client, flow_with_upstream_downstream
+    ):
+        flow_state = flow_with_upstream_downstream.run(result)
         upstream_state, downstream_state = flow_state.result()
 
         task_run = await orion_client.read_task_run(
@@ -1292,10 +1331,10 @@ class TestTaskRelations:
         )
 
     @pytest.mark.parametrize("result", [True, False, None, ..., NotImplemented])
-    async def test_does_not_relate_with_singletons_as_result(
-        self, result, orion_client
+    async def test_task_inputs_not_populated_with_singleton_results_upstream(
+        self, result, orion_client, flow_with_upstream_downstream
     ):
-        flow_state = flow_with_downstream_task.run(result)
+        flow_state = flow_with_upstream_downstream.run(result)
         _, downstream_state = flow_state.result()
 
         task_run = await orion_client.read_task_run(
@@ -1317,11 +1356,11 @@ class TestTaskWaitFor:
 
         @flow
         def test_flow():
-            f = fails()
-            b = bar(2, wait_for=[f])
+            f = fails.submit()
+            b = bar.run(2, wait_for=[f])
             return b
 
-        flow_state = test_flow()
+        flow_state = test_flow.run()
         task_state = flow_state.result(raise_on_failure=False)
         assert task_state.is_pending()
         assert task_state.name == "NotReady"
@@ -1350,13 +1389,12 @@ class TestTaskWaitFor:
 
         @flow
         def test_flow():
-            a, b = foo(1), foo(2)
-            c = foo(3)
-            d = foo(c, wait_for=[a, b])
+            a, b = foo.submit(1), foo.submit(2)
+            c = foo.submit(3)
+            d = foo.submit(c, wait_for=[a, b])
             return (a, b, c, d)
 
-        flow_state = test_flow()
-        a, b, c, d = flow_state.result()
+        a, b, c, d = test_flow()
         d_task_run = await orion_client.read_task_run(d.state_details.task_run_id)
 
         assert d_task_run.task_inputs["x"] == [
@@ -1443,11 +1481,10 @@ class TestTaskRunLogs:
 
         @flow
         def my_flow():
-            return my_task()
+            return my_task.run()
 
-        state = my_flow()
-        task_state = state.result()
-        flow_run_id = state.state_details.flow_run_id
+        task_state = my_flow()
+        flow_run_id = task_state.state_details.flow_run_id
         task_run_id = task_state.state_details.task_run_id
 
         logs = await orion_client.read_logs()
