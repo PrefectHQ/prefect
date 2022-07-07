@@ -128,6 +128,12 @@ def upgrade():
                     .where(BLOCK_DOCUMENT.c.id == block_document[0])
                     .values(block_schema_id=new_block_schema_result[0])
                 )
+            # Remove the old unused block schema
+            connection.execute(
+                sa.delete(BLOCK_SCHEMA).where(
+                    BLOCK_SCHEMA.c.id == old_block_schema_result[0]
+                )
+            )
     # ### end Alembic commands ###
 
 
