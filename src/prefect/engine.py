@@ -103,7 +103,7 @@ def enter_flow_run_engine_from_flow_call(
 
     if TaskRunContext.get():
         raise RuntimeError(
-            "Flows cannot be called from within tasks. Did you mean to call this "
+            "Flows cannot be run from within tasks. Did you mean to call this "
             "flow in a flow?"
         )
 
@@ -633,12 +633,12 @@ def enter_task_run_engine(
     flow_run_context = FlowRunContext.get()
     if not flow_run_context:
         raise RuntimeError(
-            "Tasks cannot be called outside of a flow. To call the underlying task function outside of a flow use `task.fn()`."
+            "Tasks cannot be run outside of a flow. To call the underlying task function outside of a flow use `task.fn()`."
         )
 
     if TaskRunContext.get():
         raise RuntimeError(
-            "Tasks cannot be called from within tasks. Did you mean to call this "
+            "Tasks cannot be run from within tasks. Did you mean to call this "
             "task in a flow?"
         )
 
@@ -1219,7 +1219,7 @@ def link_state_to_result(state: State) -> None:
     Stores information about the state on the result or in the global context for
     relationship tracking.
     """
-    result = state.result()
+    result = state.result(raise_on_failure=False)
     if type(result) in UNTRACKABLE_TYPES:
         return
 
