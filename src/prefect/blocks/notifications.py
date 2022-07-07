@@ -46,7 +46,7 @@ class SlackWebhook(NotificationBlock):
     url: SecretStr = Field(..., title="Webhook URL")
 
     def block_initialization(self) -> None:
-        self._async_webhook_client = AsyncWebhookClient(url=self.url)
+        self._async_webhook_client = AsyncWebhookClient(url=self.url.get_secret_value())
 
     async def notify(self, body: str, subject: Optional[str] = None):
         await self._async_webhook_client.send(text=body)
