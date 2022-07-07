@@ -277,7 +277,17 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: P.kwargs,
     ):
-        return self.run(*args, wait_for=wait_for, **kwargs).result()
+        from prefect.engine import enter_task_run_engine
+
+        # Convert the call args/kwargs to a parameter dict
+        parameters = get_call_parameters(self.fn, args, kwargs)
+
+        return enter_task_run_engine(
+            self,
+            parameters=parameters,
+            wait_for=wait_for,
+            return_type="result",
+        )
 
     @overload
     def run(
@@ -320,7 +330,7 @@ class Task(Generic[P, R]):
             self,
             parameters=parameters,
             wait_for=wait_for,
-            submit=False,
+            return_type="state",
         )
 
     @overload
@@ -448,7 +458,7 @@ class Task(Generic[P, R]):
             self,
             parameters=parameters,
             wait_for=wait_for,
-            submit=True,
+            return_type="future",
         )
 
 

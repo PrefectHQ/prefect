@@ -74,14 +74,15 @@ from prefect.utilities.collections import Quote, visit_collection
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
+EngineReturnType = Literal["future", "state", "result"]
+
 
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
-
 engine_logger = get_logger("engine")
 
 
 def enter_flow_run_engine_from_flow_call(
-    flow: Flow, parameters: Dict[str, Any]
+    flow: Flow, parameters: Dict[str, Any], return_type: EngineReturnType
 ) -> Union[State, Awaitable[State]]:
     """
     Sync entrypoint for flow calls.
@@ -113,6 +114,7 @@ def enter_flow_run_engine_from_flow_call(
         create_and_begin_subflow_run if is_subflow_run else create_then_begin_flow_run,
         flow=flow,
         parameters=parameters,
+        return_type=return_type,
     )
 
     # Async flow run
@@ -153,13 +155,19 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
 
 @inject_client
 async def create_then_begin_flow_run(
-    flow: Flow, parameters: Dict[str, Any], client: OrionClient
-) -> State:
+    flow: Flow,
+    parameters: Dict[str, Any],
+    return_type: EngineReturnType,
+    client: OrionClient,
+) -> Any:
     """
     Async entrypoint for flow calls
 
     Creates the flow run in the backend, then enters the main flow run engine.
     """
+    # TODO: Returns a `State` depending on `return_type` and we can add an overload to
+    #       the function signature to clarify this eventually.
+
     connect_error = await client.api_healthcheck()
     if connect_error:
         raise RuntimeError(
@@ -190,11 +198,17 @@ async def create_then_begin_flow_run(
         engine_logger.info(
             f"Flow run {flow_run.name!r} received invalid parameters and is marked as failed."
         )
-        return state
+    else:
+        state = await begin_flow_run(
+            flow=flow, flow_run=flow_run, parameters=parameters, client=client
+        )
 
-    return await begin_flow_run(
-        flow=flow, flow_run=flow_run, parameters=parameters, client=client
-    )
+    if return_type == "state":
+        return state
+    elif return_type == "result":
+        return state.result()
+    else:
+        raise ValueError(f"Invalid return type for flow engine {return_type!r}.")
 
 
 @inject_client
@@ -342,8 +356,9 @@ async def begin_flow_run(
 async def create_and_begin_subflow_run(
     flow: Flow,
     parameters: Dict[str, Any],
+    return_type: EngineReturnType,
     client: OrionClient,
-) -> State:
+) -> Any:
     """
     Async entrypoint for flows calls within a flow run
 
@@ -453,7 +468,12 @@ async def create_and_begin_subflow_run(
     # Track the subflow state so the parent flow can use it to determine its final state
     parent_flow_run_context.subflow_states.append(terminal_state)
 
-    return terminal_state
+    if return_type == "state":
+        return terminal_state
+    elif return_type == "result":
+        return terminal_state.result()
+    else:
+        raise ValueError(f"Invalid return type for flow engine {return_type!r}.")
 
 
 async def orchestrate_flow_run(
@@ -605,7 +625,7 @@ def enter_task_run_engine(
     task: Task,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
-    submit: bool,
+    return_type: EngineReturnType,
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
     """
     Sync entrypoint for task calls
@@ -631,7 +651,7 @@ def enter_task_run_engine(
         flow_run_context=flow_run_context,
         parameters=parameters,
         wait_for=wait_for,
-        submit=submit,
+        return_type=return_type,
     )
 
     # Async task run in async flow run
@@ -688,7 +708,7 @@ async def create_task_run_then_submit_or_begin(
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
-    submit: bool,
+    return_type: EngineReturnType,
 ) -> Union[PrefectFuture, State]:
     task_run = await create_task_run(
         task=task,
@@ -698,7 +718,7 @@ async def create_task_run_then_submit_or_begin(
         wait_for=wait_for,
     )
 
-    if submit:
+    if return_type == "future":
         return await submit_task_run(
             task=task,
             flow_run_context=flow_run_context,
@@ -706,17 +726,24 @@ async def create_task_run_then_submit_or_begin(
             task_run=task_run,
             wait_for=wait_for,
         )
-    else:
-        state = await begin_task_run(
-            task=task,
-            task_run=task_run,
-            parameters=parameters,
-            wait_for=wait_for,
-            result_storage=flow_run_context.result_storage,
-            settings=prefect.context.SettingsContext.get().copy(),
-        )
-        link_state_to_result(state)
+
+    # Otherwise, run the task without submission
+    state = await begin_task_run(
+        task=task,
+        task_run=task_run,
+        parameters=parameters,
+        wait_for=wait_for,
+        result_storage=flow_run_context.result_storage,
+        settings=prefect.context.SettingsContext.get().copy(),
+    )
+    link_state_to_result(state)
+
+    if return_type == "state":
         return state
+    elif return_type == "result":
+        return state.result()
+    else:
+        raise ValueError(f"Invalid return type for task engine {return_type!r}.")
 
 
 async def create_task_run(
