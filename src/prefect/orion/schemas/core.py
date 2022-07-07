@@ -181,6 +181,10 @@ class FlowRun(ORMBaseModel):
         None,
         description="The flow runner to use to create infrastructure to execute this flow run",
     )
+    infrastructure_document_id: Optional[UUID] = Field(
+        None,
+        description="The block document defining infrastructure to use this flow run.",
+    )
 
     # relationships
     # flow: Flow = None
@@ -353,9 +357,14 @@ class Deployment(ORMBaseModel):
         example=["tag-1", "tag-2"],
     )
 
-    flow_runner: FlowRunnerSettings = Field(
+    flow_runner: Optional[FlowRunnerSettings] = Field(
         None,
         description="The flow runner to assign to flow runs associated with this deployment.",
+    )
+
+    infrastructure_document_id: Optional[UUID] = Field(
+        None,
+        description="The block document defining infrastructure to use for flow runs.",
     )
 
     @validator("name", check_fields=False)
