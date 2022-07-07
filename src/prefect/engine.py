@@ -80,37 +80,6 @@ UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
 engine_logger = get_logger("engine")
 
 
-def get_state_for_result(obj: Any) -> Optional[State]:
-    """
-    Get the state related to a result object.
-
-    `link_state_to_result` must have been called first.
-    """
-    if hasattr(obj, "__prefect_state__"):
-        return obj.__prefect_state__
-    else:
-        flow_run_context = FlowRunContext.get()
-        if flow_run_context:
-            return flow_run_context.task_state_cache.get(id(obj))
-
-
-def link_state_to_result(state: State) -> None:
-    """
-    Stores information about the state on the result or in the global context for
-    relationship tracking.
-    """
-    result = state.result()
-    if type(result) in UNTRACKABLE_TYPES:
-        return
-
-    try:
-        object.__setattr__(result, "__prefect_state__", state)
-    except AttributeError:
-        flow_run_context = FlowRunContext.get()
-        if flow_run_context:
-            flow_run_context.task_state_cache[id(result)] = state
-
-
 def enter_flow_run_engine_from_flow_call(
     flow: Flow, parameters: Dict[str, Any]
 ) -> Union[State, Awaitable[State]]:
@@ -1202,3 +1171,34 @@ if __name__ == "__main__":
         )
         # Let the exit code be determined by the base exception type
         raise
+
+
+def get_state_for_result(obj: Any) -> Optional[State]:
+    """
+    Get the state related to a result object.
+
+    `link_state_to_result` must have been called first.
+    """
+    if hasattr(obj, "__prefect_state__"):
+        return obj.__prefect_state__
+    else:
+        flow_run_context = FlowRunContext.get()
+        if flow_run_context:
+            return flow_run_context.task_state_cache.get(id(obj))
+
+
+def link_state_to_result(state: State) -> None:
+    """
+    Stores information about the state on the result or in the global context for
+    relationship tracking.
+    """
+    result = state.result()
+    if type(result) in UNTRACKABLE_TYPES:
+        return
+
+    try:
+        object.__setattr__(result, "__prefect_state__", state)
+    except AttributeError:
+        flow_run_context = FlowRunContext.get()
+        if flow_run_context:
+            flow_run_context.task_state_cache[id(result)] = state
