@@ -32,7 +32,6 @@ from fastapi.encoders import jsonable_encoder
 from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
 
-from prefect import State
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.exceptions import (
     MissingFlowError,
@@ -301,9 +300,7 @@ class Flow(Generic[P, R]):
         return serialized_parameters
 
     @overload
-    def __call__(
-        self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs
-    ) -> State[T]:
+    def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> T:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
         # sync function from matching the `Coroutine` overload
         ...
@@ -311,11 +308,11 @@ class Flow(Generic[P, R]):
     @overload
     def __call__(
         self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
-    ) -> Awaitable[State[T]]:
+    ) -> Awaitable[T]:
         ...
 
     @overload
-    def __call__(self: "Flow[P, T]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
+    def __call__(self: "Flow[P, T]", *args: P.args, **kwargs: P.kwargs) -> T:
         ...
 
     def __call__(
@@ -367,7 +364,7 @@ class Flow(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        return enter_flow_run_engine_from_flow_call(self, parameters)
+        return enter_flow_run_engine_from_flow_call(self, parameters).result()
 
 
 @overload
