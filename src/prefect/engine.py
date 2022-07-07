@@ -569,8 +569,8 @@ async def orchestrate_flow_run(
                 # If there are no tasks, use `None` instead of an empty iterable
                 result = (
                     flow_run_context.task_run_futures
+                    + [state for _, state in flow_run_context.task_state_cache]
                     + flow_run_context.subflow_states
-                    + list(flow_run_context.task_state_cache.values())
                 ) or None
 
             terminal_state = await return_value_to_state(
@@ -1213,7 +1213,8 @@ def get_state_for_result(obj: Any) -> Optional[State]:
     else:
         flow_run_context = FlowRunContext.get()
         if flow_run_context:
-            return flow_run_context.task_state_cache.get(id(obj))
+            state_cache_as_dict = dict(flow_run_context.task_state_cache)
+            return state_cache_as_dict.get(id(obj))
 
 
 def link_state_to_result(state: State) -> None:
@@ -1225,9 +1226,18 @@ def link_state_to_result(state: State) -> None:
     if type(result) in UNTRACKABLE_TYPES:
         return
 
+    # Attempt to cache the state onto the result itself, which will give a
+    # stable relationship between the result and the state. However some
+    # objects, like dictionaries, do not allow arbitrary attributes to be set.
     try:
         object.__setattr__(result, "__prefect_state__", state)
     except AttributeError:
-        flow_run_context = FlowRunContext.get()
-        if flow_run_context:
-            flow_run_context.task_state_cache[id(result)] = state
+        pass
+
+    # Cache the state onto the flow_run_context, associated by the id of the
+    # result. This allows a best-effort attempt to get the state from an object
+    # that wouldn't allow the __prefect_state__ attribute to be set. It also
+    # acts as a complete cache of states for reporting in a flow run state.
+    flow_run_context = FlowRunContext.get()
+    if flow_run_context:
+        flow_run_context.task_state_cache.append((id(result), state))

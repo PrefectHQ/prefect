@@ -207,9 +207,10 @@ class FlowRunContext(RunContext):
     # Tracking created objects
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
+    task_run_states: List[State] = Field(default_factory=list)
     subflow_states: List[State] = Field(default_factory=list)
 
-    task_state_cache: Dict[str, State] = Field(default_factory=dict)
+    task_state_cache: List[Tuple[str, State]] = Field(default_factory=list)
 
     # The synchronous portal is only created for async flows for creating engine calls
     # from synchronous task and subflow calls
