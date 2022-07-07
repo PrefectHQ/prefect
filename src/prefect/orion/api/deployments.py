@@ -270,6 +270,7 @@ async def create_flow_run_from_deployment(
                 "runner_type",
                 "runner_config",
                 "flow_runner",
+                "infrastructure_document_id",
             }
         ),
         flow_id=deployment.flow_id,
@@ -277,6 +278,9 @@ async def create_flow_run_from_deployment(
         parameters=parameters,
         tags=set(deployment.tags).union(flow_run.tags),
         flow_runner=flow_run.flow_runner or deployment.flow_runner,
+        infrastructure_document_id=(
+            flow_run.infrastructure_document_id or deployment.infrastructure_document_id
+        ),
     )
 
     if not flow_run.state:

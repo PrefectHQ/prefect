@@ -79,6 +79,7 @@ from prefect.utilities.hashing import stable_hash
 if TYPE_CHECKING:
     from prefect.flow_runners import FlowRunner
     from prefect.flows import Flow
+    from prefect.infrastructure.base import Infrastructure
     from prefect.tasks import Task
 
 
@@ -507,6 +508,7 @@ class OrionClient:
         context: dict = None,
         state: schemas.states.State = None,
         flow_runner: "FlowRunner" = None,
+        infrastructure: "Infrastructure" = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a deployment.
@@ -535,6 +537,7 @@ class OrionClient:
             context=context,
             state=state,
             flow_runner=flow_runner.to_settings() if flow_runner else None,
+            # TODO: Add infrastructure override support here
         )
 
         response = await self._client.post(
@@ -1242,6 +1245,7 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         tags: List[str] = None,
         flow_runner: "FlowRunner" = None,
+        infrastructure_document_id: UUID = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1268,6 +1272,7 @@ class OrionClient:
             parameters=dict(parameters or {}),
             tags=list(tags or []),
             flow_runner=flow_runner.to_settings() if flow_runner else None,
+            infrastructure_document_id=infrastructure_document_id,
         )
 
         response = await self._client.post(
