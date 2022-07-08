@@ -186,6 +186,7 @@ class Deployment(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+        extra = "forbid"
 
 
 def select_deployment(
