@@ -13,7 +13,7 @@ from prefect.flows import Flow, load_flow_from_script
 from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.serializers import SourceSerializer
 from prefect.software import CondaEnvironment, PythonEnvironment
-from prefect.utilities.asyncio import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 class DockerPackageManifest(PackageManifest):

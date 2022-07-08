@@ -30,7 +30,7 @@ from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.utilities.asyncio import sync_compatible
+from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.filesystem import is_local_path
 
 if TYPE_CHECKING:

@@ -73,7 +73,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
 )
-from prefect.utilities.asyncio import asyncnullcontext
+from prefect.utilities.asyncutils import asyncnullcontext
 from prefect.utilities.hashing import stable_hash
 
 if TYPE_CHECKING:
