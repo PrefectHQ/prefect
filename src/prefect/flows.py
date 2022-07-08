@@ -42,7 +42,7 @@ from prefect.exceptions import (
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
-from prefect.utilities.asyncio import is_async_fn
+from prefect.utilities.asyncutils import is_async_fn
 from prefect.utilities.callables import (
     get_call_parameters,
     parameter_schema,
