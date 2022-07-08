@@ -301,7 +301,6 @@ class TestOrchestrateTaskRun:
         state = await orchestrate_task_run(
             task=my_task,
             task_run=task_run,
-            # Nest the future in a collection to ensure that it is found
             parameters={"x": quote(upstream_task_state)},
             wait_for=None,
             result_storage=local_storage_block,
@@ -311,7 +310,7 @@ class TestOrchestrateTaskRun:
         # The task ran with the state as its input
         mock.assert_called_once_with(upstream_task_state)
 
-        # Check that the state completed happily
+        # Check that the task completed happily
         assert state.is_completed()
 
     async def test_interrupt_task(self):
