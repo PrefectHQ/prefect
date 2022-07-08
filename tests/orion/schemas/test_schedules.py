@@ -118,6 +118,11 @@ class TestCreateCronSchedule:
         clock = CronSchedule(cron="5 4 * * *")
         assert clock.cron == "5 4 * * *"
 
+    @pytest.mark.parametrize("cron_string", ["@yearly", "@weekly", "@daily", "@hourly", "* * * * MON", "8 30 0 * sat-sun", "* * * * mon,wed,fri"])
+    def test_create_cron_schedule_with_keywords(self, cron_string):
+        clock = CronSchedule(cron=cron_string)
+        assert clock.cron == cron_string
+
     def test_create_cron_schedule_with_timezone(self):
         clock = CronSchedule(cron="5 4 * * *", timezone="EST")
         assert clock.timezone == "EST"
