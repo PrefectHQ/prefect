@@ -67,6 +67,9 @@ def test_python_environment_autodetected_when_building():
 def test_python_environment_not_autodetected_with_dockerfile():
     packager = DockerPackager(dockerfile="Docky")
 
+    # Test the string representations of the path object because
+    # on Windows, we'll get a WindowsPath object, which isn't
+    # comparable to a PurePosixPath.
     assert str(packager.dockerfile) == str(PurePosixPath("Docky"))
     assert not packager.python_environment
 
