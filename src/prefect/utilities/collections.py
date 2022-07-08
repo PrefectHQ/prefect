@@ -247,48 +247,16 @@ async def visit_collection(
             by `visit_fn` will be returned. This is slower than `return_data=False`
             (the default).
     """
-    visiting: Set[int] = set()
-    last_visited = None
-
-    while visiting != last_visited:
-        last_visited = visiting.copy()
-        expr = await _visit_collection(
-            expr,
-            visit_fn=visit_fn,
-            return_data=return_data,
-            visiting=visiting,
-        )
-
-    return expr
-
-
-async def _visit_collection(
-    expr,
-    visit_fn: Callable[[Any], Awaitable[Any]],
-    return_data: bool,
-    visiting: Set[int],
-):
-    """
-    Implementation internals for `visit_collection`
-    """
 
     def visit_nested(expr):
         # Utility for a recursive call, preserving options.
         # Returns a `partial` for use with `gather`.
         return partial(
-            _visit_collection,
+            visit_collection,
             expr,
             visit_fn=visit_fn,
             return_data=return_data,
-            visiting=visiting,
         )
-
-    # Refuse to visit an item that is already being visited to guard against infinite
-    # recursion at the expense of incorrect results in some cases self-referential cases
-    if id(expr) in visiting:
-        return expr
-    else:
-        visiting.add(id(expr))
 
     # Visit every expression
     result = await visit_fn(expr)
@@ -297,6 +265,7 @@ async def _visit_collection(
         expr = result
 
     # Then, visit every child of the expression recursively
+
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)
     typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
@@ -351,7 +320,6 @@ async def _visit_collection(
     else:
         result = result if return_data else None
 
-    visiting.add(id(result))
     return result
 
 
