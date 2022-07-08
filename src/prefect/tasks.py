@@ -31,7 +31,7 @@ from typing_extensions import ParamSpec
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import ReservedArgumentError
 from prefect.futures import PrefectFuture
-from prefect.utilities.asyncio import Async, Sync
+from prefect.utilities.asyncutils import Async, Sync
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
