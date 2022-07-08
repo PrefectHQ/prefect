@@ -1,6 +1,5 @@
 import copy
 import enum
-import warnings
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Union
 
@@ -66,7 +65,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         service_account_name: An optional string specifying which Kubernetes service account to use.
         labels: An optional dictionary of labels to add to the job.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
-        restart_policy: The Kubernetes restart policy to use for jobs.
         job: The base manifest for the Kubernetes Job.
         customizations: A list of JSON 6902 patches to apply to the base Job manifest.
         job_watch_timeout_seconds: Number of seconds to watch for job creation before timing out (default 5).
@@ -82,9 +80,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     service_account_name: str = None
     labels: Dict[str, str] = Field(default_factory=dict)
     image_pull_policy: Optional[KubernetesImagePullPolicy] = None
-
-    # deprecated: remove in 2.0b8
-    restart_policy: KubernetesRestartPolicy = None
 
     # settings allowing full customization of the Job
     job: KubernetesManifest = Field(
@@ -148,25 +143,11 @@ class KubernetesFlowRunner(UniversalFlowRunner):
             return JsonPatch(value)
         return value
 
-    @validator("restart_policy")
-    def deprecate_restart_policy(
-        cls, value: Optional[KubernetesRestartPolicy]
-    ) -> Optional[KubernetesRestartPolicy]:
-        if value is not None:
-            warnings.warn(
-                "KubernetesFlowRunner.restart_policy is deprecated.  Prefect will "
-                "always override it to Never. This option will be removed in 2.0b8.",
-                DeprecationWarning,
-            )
-        return None
-
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
         task_status: TaskStatus,
     ) -> Optional[bool]:
-        self.logger.info("RUNNING")
-
         # Throw an error immediately if the flow run won't be able to contact the API
         self._assert_orion_settings_are_compatible()
 
@@ -178,7 +159,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
             # work, try to load the configuration from the local environment, allowing
             # any further ConfigExceptions to bubble up.
             try:
-                kubernetes.config.incluster_config.load_incluster_config()
+                kubernetes.config.load_incluster_config()
             except kubernetes.config.ConfigException:
                 kubernetes.config.load_kube_config()
 
@@ -296,7 +277,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     def _create_job(self, flow_run: FlowRun, job_manifest: KubernetesManifest) -> str:
         """Given a FlowRun and Kubernetes Job Manifest, create the Job on the configured
         Kubernetes cluster and return its name."""
-        self.logger.info("Flow run %s has job manifest = %r", flow_run.id, job_manifest)
         with self.get_batch_client() as batch_client:
             job = batch_client.create_namespaced_job(self.namespace, job_manifest)
         return job.metadata.name

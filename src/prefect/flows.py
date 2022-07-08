@@ -41,10 +41,13 @@ from prefect.exceptions import (
 )
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import raise_on_invalid_name
-from prefect.orion.utilities.functions import parameter_schema
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncio import is_async_fn
-from prefect.utilities.callables import get_call_parameters, parameters_to_args_kwargs
+from prefect.utilities.callables import (
+    get_call_parameters,
+    parameter_schema,
+    parameters_to_args_kwargs,
+)
 from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
 

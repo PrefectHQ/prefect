@@ -2,7 +2,7 @@ import io
 import os
 import sys
 import warnings
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from functools import partial
 from pathlib import Path
 from tempfile import gettempdir
@@ -17,9 +17,10 @@ import pydantic
 from azure.storage.blob import BlobServiceClient
 from fsspec.implementations.local import LocalFileSystem
 from google.oauth2 import service_account
+from pydantic import SecretStr
 from typing_extensions import Literal
 
-from prefect.blocks.core import Block, register_block
+from prefect.blocks.core import Block
 from prefect.settings import PREFECT_HOME
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.filesystem import is_local_path
@@ -33,7 +34,7 @@ with warnings.catch_warnings():
 T = TypeVar("T")
 
 
-class StorageBlock(Block, Generic[T]):
+class StorageBlock(Block, Generic[T], ABC):
     """
     A `Block` base class for persisting data.
 
@@ -59,7 +60,6 @@ class StorageBlock(Block, Generic[T]):
         """
 
 
-@register_block
 class FileStorageBlock(StorageBlock):
     """
     Store data as a file on local or remote file systems.
@@ -161,7 +161,6 @@ class FileStorageBlock(StorageBlock):
             return io.read()
 
 
-@register_block
 class S3StorageBlock(StorageBlock):
     """Store data in an AWS S3 bucket."""
 
@@ -169,7 +168,7 @@ class S3StorageBlock(StorageBlock):
 
     bucket: str
     aws_access_key_id: Optional[str] = None
-    aws_secret_access_key: Optional[str] = None
+    aws_secret_access_key: Optional[SecretStr] = None
     aws_session_token: Optional[str] = None
     profile_name: Optional[str] = None
     region_name: Optional[str] = None
@@ -177,9 +176,15 @@ class S3StorageBlock(StorageBlock):
     def block_initialization(self):
         import boto3
 
+        aws_secret_access_key_value = (
+            None
+            if self.aws_secret_access_key is None
+            else self.aws_secret_access_key.get_secret_value()
+        )
+
         self.aws_session = boto3.Session(
             aws_access_key_id=self.aws_access_key_id,
-            aws_secret_access_key=self.aws_secret_access_key,
+            aws_secret_access_key=aws_secret_access_key_value,
             aws_session_token=self.aws_session_token,
             profile_name=self.profile_name,
             region_name=self.region_name,
@@ -207,7 +212,6 @@ class S3StorageBlock(StorageBlock):
         return output
 
 
-@register_block
 class TempStorageBlock(StorageBlock):
     """Store data in a temporary directory in a run's local file system."""
 
@@ -236,7 +240,6 @@ class TempStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block
 class LocalStorageBlock(StorageBlock):
     """Store data in a run's local file system."""
 
@@ -271,7 +274,6 @@ class LocalStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block
 class GoogleCloudStorageBlock(StorageBlock):
     """Store data in a GCS bucket."""
 
@@ -308,18 +310,17 @@ class GoogleCloudStorageBlock(StorageBlock):
         return key
 
 
-@register_block
 class AzureBlobStorageBlock(StorageBlock):
     """Store data in an Azure blob storage container."""
 
     _block_type_name = "Azure Blob Storage"
 
     container: str
-    connection_string: str
+    connection_string: SecretStr
 
     def block_initialization(self) -> None:
         self.blob_service_client = BlobServiceClient.from_connection_string(
-            conn_str=self.connection_string
+            conn_str=self.connection_string.get_secret_value()
         )
 
     async def read(self, key: str) -> bytes:
@@ -340,7 +341,6 @@ class AzureBlobStorageBlock(StorageBlock):
         return key
 
 
-@register_block
 class KVServerStorageBlock(StorageBlock):
     """
     Store data by sending requests to a KV server.

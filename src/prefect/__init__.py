@@ -15,22 +15,22 @@ __ui_static_path__ = __module_path__ / "orion" / "ui"
 
 del _version, pathlib
 
-# User-facing API
-# For details on the import syntax, see https://github.com/microsoft/pyright/blob/main/docs/typed-libraries.md#library-interface
-# TODO: Update these to use normal imports, the relative import syntax will be replaced
-#       with __all__
-
-from .orion.schemas.states import State
-from .logging import get_run_logger
-from .flows import flow, Flow
-from .tasks import task, Task
-from .context import tags
-from .client import get_client
-from .deployments import Deployment
+# Import user-facing API
+from prefect.orion.schemas.states import State
+from prefect.logging import get_run_logger
+from prefect.flows import flow, Flow
+from prefect.tasks import task, Task
+from prefect.context import tags
+from prefect.client import get_client
+from prefect.deployments import Deployment
 
 # Import modules that register types
 import prefect.serializers
 import prefect.packaging
+import prefect.blocks.kubernetes
+import prefect.blocks.notifications
+import prefect.blocks.storage
+import prefect.blocks.system
 
 # Initialize the process-wide profile and registry at import time
 import prefect.context
@@ -46,3 +46,16 @@ prefect.context.TaskRunContext.update_forward_refs(Task=Task)
 import prefect.plugins
 
 prefect.plugins.load_prefect_collections()
+
+# Declare API
+__all__ = [
+    "Deployment",
+    "flow",
+    "Flow",
+    "get_client",
+    "get_run_logger",
+    "State",
+    "tags",
+    "task",
+    "Task",
+]

@@ -10,14 +10,14 @@ import pytest
 from prefect.client import OrionClient
 from prefect.deployments import Deployment
 from prefect.docker import Container, DockerClient
+from prefect.flow_runners.base import get_prefect_image_name
 from prefect.flow_runners.docker import DockerFlowRunner
 from prefect.packaging.docker import DockerPackageManifest, DockerPackager
+from prefect.software.conda import CondaEnvironment
 from prefect.software.python import PythonEnvironment
+from prefect.utilities.callables import parameter_schema
 
 from . import howdy
-
-pytestmark = pytest.mark.service("docker")
-
 
 IMAGE_ID_PATTERN = re.compile("^sha256:[a-fA-F0-9]{64}$")
 
@@ -42,9 +42,14 @@ def contexts() -> Path:
     return Path(__file__).parent.parent / "docker" / "contexts"
 
 
-def test_building_or_dockerfile_required():
-    with pytest.raises(ValueError, match="One of `base_image` or `dockerfile`"):
-        DockerPackager(base_image=None, dockerfile=None)
+def test_base_image_defaults_to_prefect_base():
+    packager = DockerPackager()
+    assert packager.base_image == get_prefect_image_name()
+
+
+def test_base_image_defaults_to_conda_flavor_of_prefect_base():
+    packager = DockerPackager(python_environment=CondaEnvironment())
+    assert packager.base_image == get_prefect_image_name(flavor="conda")
 
 
 def test_dockerfile_exclusive_with_building():
@@ -65,6 +70,7 @@ def test_python_environment_not_autodetected_with_dockerfile():
     assert not packager.python_environment
 
 
+@pytest.mark.service("docker")
 async def test_packaging_a_flow_to_local_docker_daemon(prefect_base_image: str):
     packager = DockerPackager(
         base_image=prefect_base_image,
@@ -82,6 +88,7 @@ async def test_packaging_a_flow_to_local_docker_daemon(prefect_base_image: str):
     assert manifest.flow_name == "howdy"
 
 
+@pytest.mark.service("docker")
 async def test_packaging_a_flow_to_registry(prefect_base_image: str, registry: str):
     packager = DockerPackager(
         base_image=prefect_base_image,
@@ -100,6 +107,7 @@ async def test_packaging_a_flow_to_registry(prefect_base_image: str, registry: s
     assert manifest.flow_name == "howdy"
 
 
+@pytest.mark.service("docker")
 async def test_creating_deployments(prefect_base_image: str, orion_client: OrionClient):
     deployment = Deployment(
         name="howdy-deployed",
@@ -149,18 +157,31 @@ def howdy_context(prefect_base_image: str, tmp_path: Path) -> Path:
     return tmp_path
 
 
+@pytest.mark.service("docker")
 async def test_unpackaging_outside_container(howdy_context: Path):
     # This test is contrived to pretend we're in a Docker container right now and giving
     # a known test file path as the image_flow_location
-    manifest = DockerPackageManifest(
-        image="any-one",
+    packager = DockerPackager(
+        dockerfile=howdy_context / "Dockerfile",
         image_flow_location=str(howdy_context / "howdy.py"),
-        flow_name="howdy",
     )
+    manifest = await packager.package(howdy)
+
     unpackaged_howdy = await manifest.unpackage()
     assert unpackaged_howdy("dude").result() == "howdy, dude!"
 
 
+@pytest.mark.service("docker")
+async def test_packager_sets_manifest_flow_parameter_schema(howdy_context: Path):
+    packager = DockerPackager(
+        dockerfile=howdy_context / "Dockerfile",
+        image_flow_location=str(howdy_context / "howdy.py"),
+    )
+    manifest = await packager.package(howdy)
+    assert manifest.flow_parameter_schema == parameter_schema(howdy.fn)
+
+
+@pytest.mark.service("docker")
 async def test_unpackaging_inside_container(
     prefect_base_image: str, docker: DockerClient
 ):
@@ -175,6 +196,7 @@ async def test_unpackaging_inside_container(
     assert_unpackaged_flow_works(docker, manifest)
 
 
+@pytest.mark.service("docker")
 async def test_custom_dockerfile_unpackaging(howdy_context: Path, docker: DockerClient):
     packager = DockerPackager(
         dockerfile=howdy_context / "Dockerfile",

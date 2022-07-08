@@ -9,39 +9,27 @@ from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
-from typing_extensions import get_args, get_origin
+from typing_extensions import Self, get_args, get_origin
 
 import prefect
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
 from prefect.utilities.asyncio import asyncnullcontext, sync_compatible
 from prefect.utilities.collections import remove_nested_keys
+from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
 
 if TYPE_CHECKING:
     from prefect.client import OrionClient
 
-BLOCK_REGISTRY: Dict[str, Type["Block"]] = dict()
 
-
-def register_block(block: Type["Block"]):
+def block_schema_to_key(schema: BlockSchema) -> str:
     """
-    Register a block class for later use. Blocks can be retrieved via
-    block schema checksum.
+    Defines the unique key used to lookup the Block class for a given schema.
     """
-    schema_checksum = block._calculate_schema_checksum()
-    BLOCK_REGISTRY[schema_checksum] = block
-    return block
+    return f"{schema.block_type.name}:{schema.checksum}"
 
 
-def get_block_class(checksum: str) -> Type["Block"]:
-    block = BLOCK_REGISTRY.get(checksum)
-    if not block:
-        raise ValueError(
-            f"No block schema exists for block schema checksum {checksum}."
-        )
-    return block
-
-
+@register_base_type
 class Block(BaseModel, ABC):
     class Config:
         extra = "allow"
@@ -130,6 +118,12 @@ class Block(BaseModel, ABC):
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
     _is_anonymous: Optional[bool] = None
+
+    @classmethod
+    def __dispatch_key__(cls):
+        if cls.__name__ == "Block":
+            return None  # The base class is abstract
+        return block_schema_to_key(cls._to_block_schema())
 
     @classmethod
     def get_block_type_name(cls):
@@ -240,7 +234,7 @@ class Block(BaseModel, ABC):
 
         return BlockDocument(
             id=self._block_document_id or uuid4(),
-            name=name or self._block_document_name,
+            name=(name or self._block_document_name) if not is_anonymous else None,
             block_schema_id=block_schema_id or self._block_schema_id,
             block_type_id=block_type_id or self._block_type_id,
             data=block_document_data,
@@ -370,15 +364,15 @@ class Block(BaseModel, ABC):
             raise ValueError(
                 "Unable to determine block schema for provided block document"
             )
-        block_schema_cls = (
+
+        block_cls = (
             cls
             if cls.__name__ != "Block"
-            else get_block_class(
-                checksum=block_document.block_schema.checksum,
-            )
+            # Look up the block class by dispatch
+            else cls.get_block_class_from_schema(block_document.block_schema)
         )
 
-        block = block_schema_cls.parse_obj(block_document.data)
+        block = block_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
         block.__class__._block_schema_id = block_document.block_schema_id
         block.__class__._block_type_id = block_document.block_type_id
@@ -389,6 +383,13 @@ class Block(BaseModel, ABC):
         )
 
         return block
+
+    @classmethod
+    def get_block_class_from_schema(cls: Type[Self], schema: BlockSchema) -> Type[Self]:
+        """
+        Retieve the block class implementation given a schema.
+        """
+        return lookup_type(cls, block_schema_to_key(schema))
 
     def _define_metadata_on_nested_blocks(
         self, block_document_references: Dict[str, Dict[str, Any]]
@@ -542,11 +543,12 @@ class Block(BaseModel, ABC):
                 "is_anonymous to False."
             )
 
-        # Ensure block type and schema are registered before saving block document.
-        await self.register_type_and_schema()
-
         self._is_anonymous = is_anonymous
         async with prefect.client.get_client() as client:
+
+            # Ensure block type and schema are registered before saving block document.
+            await self.register_type_and_schema(client=client)
+
             try:
                 block_document = await client.create_block_document(
                     block_document=self._to_block_document(name=name)
