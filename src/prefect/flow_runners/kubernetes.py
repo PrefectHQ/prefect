@@ -148,8 +148,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         flow_run: FlowRun,
         task_status: TaskStatus,
     ) -> Optional[bool]:
-        self.logger.info("RUNNING")
-
         # Throw an error immediately if the flow run won't be able to contact the API
         self._assert_orion_settings_are_compatible()
 
@@ -161,7 +159,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
             # work, try to load the configuration from the local environment, allowing
             # any further ConfigExceptions to bubble up.
             try:
-                kubernetes.config.incluster_config.load_incluster_config()
+                kubernetes.config.load_incluster_config()
             except kubernetes.config.ConfigException:
                 kubernetes.config.load_kube_config()
 
