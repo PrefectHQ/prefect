@@ -164,7 +164,7 @@ As you did previously, print the `result()` to see the JSON returned by the API 
 ```
 </div>
 
-### Error handling
+## Error handling
 
 What happens if the Python function encounters an error while your flow is running? To see what happens whenever a flow does not complete successfully, let's intentionally run the `call_api()` flow above with a bad value for the URL:
 
@@ -349,6 +349,64 @@ $ prefect orion start
 Open the URL for the Orion UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser. You should see all of the runs that we have run throughout this tutorial, including one for `common_flow`:
 
 ![Viewing the orchestrated flow runs in the Orion UI.](/img/tutorials/first-steps-ui.png)
+
+## Parameter type conversion
+
+As with any standard Python function, you can pass parameters to your flow function, which are then used elsewhere in your flow. Prefect flows and tasks include the ability to perform type conversion for the parameters passed to your flow function.  This is most easily demonstrated via a simple example:
+
+```python
+from prefect import task, flow
+
+@task
+def printer(obj):
+    print(f"Received a {type(obj)} with value {obj}")
+
+# note that we define the flow with type hints
+@flow
+def validation_flow(x: int, y: str):
+    printer(x)
+    printer(y)
+```
+
+Let's now run this flow, but provide values that don't perfectly conform to the type hints provided:
+
+<div class="terminal">
+```bash
+>>> validation_flow(x="42", y=100)
+Received a <class 'int'> with value 42
+Received a <class 'str'> with value 100
+```
+</div>
+
+You can see that Prefect coerced the provided inputs into the types specified on your flow function!  
+
+While the above example is basic, this can be extended in powerful ways. In particular, Prefect attempts to coerce _any_ [pydantic](https://pydantic-docs.helpmanual.io/) model type hint into the correct form automatically:
+
+```python
+from prefect import flow
+from pydantic import BaseModel
+
+class Model(BaseModel):
+    a: int
+    b: float
+    c: str
+
+@flow
+def model_validator(model: Model):
+    printer(model)
+```
+
+<div class="terminal">
+```bash
+>>> model_validator({"a": 42, "b": 0, "c": 55})
+Received a <class '__main__.Model'> with value a=42 b=0.0 c='55'
+```
+</div>
+
+!!! note "Parameter validation can be toggled"
+    If you would like to turn this feature off for any reason, you can provide `validate_parameters=False` to your `@flow` decorator and Prefect will passively accept whatever input values you provide.
+
+    Flow configuration is covered in more detail in the [Flow and task configuration](/tutorials/flow-task/) tutorial. For more information about pydantic type coercion, see the [pydantic documentation](https://pydantic-docs.helpmanual.io/usage/models/).
 
 ## Asynchronous functions
 
