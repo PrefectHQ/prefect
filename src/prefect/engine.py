@@ -466,7 +466,7 @@ async def create_and_begin_subflow_run(
     )
 
     # Track the subflow state so the parent flow can use it to determine its final state
-    parent_flow_run_context.subflow_states.append(terminal_state)
+    parent_flow_run_context.flow_run_states.append(terminal_state)
 
     if return_type == "state":
         return terminal_state
@@ -569,8 +569,8 @@ async def orchestrate_flow_run(
                 # If there are no tasks, use `None` instead of an empty iterable
                 result = (
                     flow_run_context.task_run_futures
-                    + [state for _, state in flow_run_context.task_state_cache]
-                    + flow_run_context.subflow_states
+                    + flow_run_context.task_run_states
+                    + flow_run_context.flow_run_states
                 ) or None
 
             terminal_state = await return_value_to_state(
@@ -738,7 +738,9 @@ async def create_task_run_then_submit_or_begin(
         result_storage=flow_run_context.result_storage,
         settings=prefect.context.SettingsContext.get().copy(),
     )
-    link_state_to_result(state)
+
+    # Track the task run result and state
+    flow_run_context.task_run_states.append(state)
 
     if return_type == "state":
         return state
@@ -1213,16 +1215,14 @@ def get_state_for_result(obj: Any) -> Optional[State]:
     else:
         flow_run_context = FlowRunContext.get()
         if flow_run_context:
-            state_cache_as_dict = dict(flow_run_context.task_state_cache)
-            return state_cache_as_dict.get(id(obj))
+            return flow_run_context.task_run_results.get(id(obj))
 
 
-def link_state_to_result(state: State) -> None:
+def link_state_to_result(state: State, result: Any) -> None:
     """
     Stores information about the state on the result or in the global context for
     relationship tracking.
     """
-    result = state.result(raise_on_failure=False)
     if type(result) in UNTRACKABLE_TYPES:
         return
 
@@ -1240,4 +1240,4 @@ def link_state_to_result(state: State) -> None:
     # acts as a complete cache of states for reporting in a flow run state.
     flow_run_context = FlowRunContext.get()
     if flow_run_context:
-        flow_run_context.task_state_cache.append((id(result), state))
+        flow_run_context.task_run_results[id(result)] = state

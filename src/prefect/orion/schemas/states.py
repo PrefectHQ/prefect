@@ -131,6 +131,13 @@ class State(IDBaseModel, Generic[R]):
         if self.data:
             data = self.data.decode()
 
+        # Link the result to this state for dependency tracking
+        # Performing this here lets us capture relationships for futures resolved into
+        # data
+        from prefect.engine import link_state_to_result
+
+        link_state_to_result(self, data)
+
         if self.is_failed() and raise_on_failure:
             if isinstance(data, Exception):
                 raise data
