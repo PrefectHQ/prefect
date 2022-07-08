@@ -5,11 +5,16 @@ from typing import List, Optional
 
 import anyio
 import anyio.abc
-from anyio.streams.text import TextReceiveStream, TextSendStream
 
 
 @asynccontextmanager
 async def open_process(command: List[str], **kwargs):
+    """
+    Like `anyio.open_process` but with:
+    - Support for Windows command joining
+    - Termination of the process on exception during yield
+    - Forced cleanup of process resources during cancellation
+    """
     # Passing a string to open_process is equivalent to shell=True which is
     # generally necessary for Unix-like commands on Windows but otherwise should
     # be avoided
@@ -41,6 +46,15 @@ async def run_process(
     task_status: Optional[anyio.abc.TaskStatus] = None,
     **kwargs
 ):
+    """
+    Like `anyio.run_process` but with:
+
+    - Use of our `open_process` utility to ensure resources are cleaned up
+    - Simple `stream_output` support to connect the subprocess to the parent stdout/err
+    - Support for submission with `TaskGroup.start` marking as 'started' after the
+        process has been created.
+
+    """
 
     async with open_process(
         command,
@@ -55,25 +69,3 @@ async def run_process(
         await process.wait()
 
     return process
-
-
-async def consume_process_output(process, stream_output: bool = False):
-    async with anyio.create_task_group() as tg:
-        tg.start_soon(
-            stream_text,
-            TextReceiveStream(process.stdout),
-            TextSendStream(sys.stdout) if stream_output else None,
-        )
-        tg.start_soon(
-            stream_text,
-            TextReceiveStream(process.stderr),
-            TextSendStream(sys.stderr) if stream_output else None,
-        )
-
-
-async def stream_text(
-    from_stream: TextReceiveStream, to_stream: Optional[TextSendStream]
-):
-    async for item in from_stream:
-        if to_stream is not None:
-            await to_stream.send(item)
