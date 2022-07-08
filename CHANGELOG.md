@@ -15,6 +15,7 @@ Released on July 8, 2022.
 ### Contributors
 
 - [Bral Bral](https://github.com/bralbral)
+- [Edmondo Porcu](https://github.com/edmondo1984)
 
 ## 1.2.3 <Badge text="beta" type="success" />
 
