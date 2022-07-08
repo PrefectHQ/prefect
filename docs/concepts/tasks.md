@@ -70,6 +70,7 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 | cache_expiration | An optional amount of time indicating how long cached states for this task should be restorable; if not provided, cached states will never expire. |
 | retries | An optional number of times to retry on task run failure. |
 | retry_delay_seconds | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero. |
+| version | An optional string specifying the version of this task definition. |
 
 For example, you can provide a `name` value for the task. Here we've used the optional `description` argument as well.
 
@@ -335,11 +336,95 @@ def task_d():
 def my_flow():
     a = task_a()
     b = task_b()
-    # Wait for task_a and task_2 to complete
+    # Wait for task_a and task_b to complete
     c = task_c(wait_for=[a, b])
     # If waiting for one task it must still be in a list
     # task_d will wait for task_c to complete
     d = task_d(wait_for=[c])
+```
+
+### When to use `.result()` in flows
+
+Think of `.result()` as an advanced feature. 
+
+The simplest pattern for writing a flow is either only using tasks or only using pure Python functions. When you need to mix the two, use `.result()`.
+
+Using only tasks:
+```python
+@task
+def say_hello(name):
+    return f"Hello {name}!"
+
+@task
+def nice_to_meet_you(hello_greeting):
+    return f"{hello_greeting} Nice to meet you :)"
+
+@flow
+def hello_world():
+    hello = say_hello("Marvin")
+    nice_to_meet_you = nice_to_meet_you(hello)
+```
+
+Using only Python functions:
+```python
+def say_hello(name):
+    return f"Hello {name}!"
+
+def nice_to_meet_you(hello_greeting):
+    return f"{hello_greeting} Nice to meet you :)"
+
+@flow
+def hello_world():
+    hello = say_hello("Marvin") # because this is just a Python function, calls will not be tracked
+    nice_to_meet_you = nice_to_meet_you(hello)
+```
+
+Mixing the two:
+```python
+def say_hello_extra_nicely_to_marvin(hello): # not a `task`!
+    if hello == "Hello Marvin!":
+        return "HI MARVIN!"
+    return hello
+
+@task
+def say_hello(name):
+    return f"Hello {name}!"
+
+@task
+def nice_to_meet_you(hello_greeting):
+    return f"{hello_greeting} Nice to meet you :)"
+
+@flow
+def hello_world():
+    # run a task and get the result
+    hello = say_hello("Marvin").result()
+
+    # use .result() and pure Python conditional logic
+    special_greeting = say_hello_extra_nicely_to_marvin(hello)
+
+    # pass our modified greeting back into tasks
+    nice_to_meet_you = nice_to_meet_you(special_greeting)
+```
+
+Note that `.result()` also limits Prefect's ability to track task dependencies. In the "mixed" example above, Prefect will not be aware that `say_hello` is upstream of `nice_to_meet_you`.
+
+
+!!! note "Calling `.result()` is blocking"
+    When calling `.result()`, be mindful your flow function will have to wait until the task run is completed before continuing.
+
+```python
+@task
+def say_hello(name):
+    return f"Hello {name}!"
+
+@task
+def do_important_stuff():
+    print("Doing lots of important stuff!")
+
+@flow
+def hello_world():
+    future = say_hello("Marvin").result() # blocks until `say_hello` has finished
+    do_important_stuff()
 ```
 
 ## Async tasks

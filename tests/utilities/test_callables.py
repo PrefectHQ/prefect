@@ -6,7 +6,7 @@ import pendulum
 import pydantic.version
 from packaging.version import Version
 
-from prefect.orion.utilities import functions
+from prefect.utilities import callables
 
 
 class TestFunctionToSchema:
@@ -14,7 +14,7 @@ class TestFunctionToSchema:
         def f():
             pass
 
-        schema = functions.parameter_schema(f)
+        schema = callables.parameter_schema(f)
         assert schema.dict() == {
             "properties": {},
             "title": "Parameters",
@@ -25,7 +25,7 @@ class TestFunctionToSchema:
         def f(x):
             pass
 
-        schema = functions.parameter_schema(f)
+        schema = callables.parameter_schema(f)
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
@@ -37,7 +37,7 @@ class TestFunctionToSchema:
         def f(x=42):
             pass
 
-        schema = functions.parameter_schema(f)
+        schema = callables.parameter_schema(f)
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
@@ -48,7 +48,7 @@ class TestFunctionToSchema:
         def f(x: int = 42):
             pass
 
-        schema = functions.parameter_schema(f)
+        schema = callables.parameter_schema(f)
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
@@ -59,7 +59,7 @@ class TestFunctionToSchema:
         def f(x: int, y: float = 5.0):
             pass
 
-        schema = functions.parameter_schema(f)
+        schema = callables.parameter_schema(f)
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
@@ -78,7 +78,7 @@ class TestFunctionToSchema:
         ):
             pass
 
-        schema = functions.parameter_schema(f)
+        schema = callables.parameter_schema(f)
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
@@ -109,7 +109,7 @@ class TestFunctionToSchema:
         def f(x: Color = "RED"):
             pass
 
-        schema = functions.parameter_schema(f)
+        schema = callables.parameter_schema(f)
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
@@ -149,7 +149,7 @@ class TestFunctionToSchema:
             else {}
         )
 
-        schema = functions.parameter_schema(f)
+        schema = callables.parameter_schema(f)
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
@@ -191,7 +191,7 @@ class TestMethodToSchema:
                 pass
 
         for method in [Foo().f, Foo.g, Foo.h]:
-            schema = functions.parameter_schema(method)
+            schema = callables.parameter_schema(method)
             assert schema.dict() == {
                 "properties": {},
                 "title": "Parameters",
@@ -217,7 +217,7 @@ class TestMethodToSchema:
                 pass
 
         for method in [Foo().f, Foo.g, Foo.h]:
-            schema = functions.parameter_schema(method)
+            schema = callables.parameter_schema(method)
             assert schema.dict() == {
                 "title": "Parameters",
                 "type": "object",
@@ -251,7 +251,7 @@ class TestMethodToSchema:
                 pass
 
         for method in [Foo().f, Foo.g, Foo.h]:
-            schema = functions.parameter_schema(method)
+            schema = callables.parameter_schema(method)
             assert schema.dict() == {
                 "title": "Parameters",
                 "type": "object",

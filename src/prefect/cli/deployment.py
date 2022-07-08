@@ -341,6 +341,13 @@ async def _create_deployment(deployment: Deployment, client: OrionClient):
 
     flow_data = DataDocument.encode("package-manifest", manifest)
 
+    if "image" in manifest.__fields__:
+        flow_runner = deployment.flow_runner.copy(update={"image": manifest.image})
+    else:
+        flow_runner = deployment.flow_runner
+
+    flow_data = DataDocument.encode("package-manifest", manifest)
+
     app.console.print(f"Registering deployment {stylized_name} with the server...")
     flow_id = await client.create_flow_from_name(manifest.flow_name)
     deployment_id = await client.create_deployment(
@@ -350,7 +357,7 @@ async def _create_deployment(deployment: Deployment, client: OrionClient):
         schedule=deployment.schedule,
         parameters=deployment.parameters,
         tags=deployment.tags,
-        flow_runner=deployment.flow_runner,
+        flow_runner=flow_runner,
     )
     # TODO: Display a link to the UI if available
     app.console.print(f"Created deployment {stylized_name} ({deployment_id}).")

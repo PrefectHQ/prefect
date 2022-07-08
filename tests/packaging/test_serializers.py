@@ -1,5 +1,6 @@
 import importlib
 import sys
+from pathlib import Path
 from types import ModuleType
 from typing import Generator
 
@@ -98,3 +99,40 @@ def test_source_serializer_needs_a_file_module():
 def test_source_serializer_cannot_decode_just_any_old_thing(garbage: bytes):
     with pytest.raises(ValueError, match="Invalid serialized data"):
         SourceSerializer().loads(garbage)
+
+
+def test_pickle_serializer_does_not_allow_pickle_modules_without_cloudpickle():
+    with pytest.raises(ValueError, match="cloudpickle"):
+        PickleSerializer(pickle_modules=["test"], picklelib="pickle")
+
+
+def test_pickle_serializer_supports_module_serialization(monkeypatch):
+    monkeypatch.syspath_prepend(str(Path(__file__).parent / "examples"))
+
+    from my_module.flow import test_flow
+
+    serializer = PickleSerializer(pickle_modules=["my_module"])
+    content = serializer.dumps(test_flow)
+
+    monkeypatch.undo()
+    sys.modules.pop("my_module")
+
+    flow = serializer.loads(content)
+    assert flow().result() == "test!"
+
+
+def test_pickle_serializer_fails_on_relative_import_without_module_serialization(
+    monkeypatch,
+):
+    monkeypatch.syspath_prepend(str(Path(__file__).parent / "examples"))
+
+    from my_module.flow import test_flow
+
+    serializer = PickleSerializer()
+    content = serializer.dumps(test_flow)
+
+    monkeypatch.undo()
+    sys.modules.pop("my_module")
+
+    with pytest.raises(ModuleNotFoundError, match="No module named 'my_module'"):
+        serializer.loads(content)

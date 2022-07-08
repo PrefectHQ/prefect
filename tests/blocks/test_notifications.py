@@ -20,7 +20,9 @@ class TestSlackWebhook:
         block = SlackWebhook(url="http://example.com/slack")
         await block.notify("test")
 
-        async_webhook_client_constructor_mock.assert_called_once_with(url=block.url)
+        async_webhook_client_constructor_mock.assert_called_once_with(
+            url=block.url.get_secret_value()
+        )
         async_webhook_client_mock.send.assert_called_once_with(text="test")
 
     def test_is_picklable(self):

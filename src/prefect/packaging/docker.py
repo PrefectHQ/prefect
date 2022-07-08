@@ -1,4 +1,5 @@
 import json
+import sys
 from pathlib import Path
 from typing import Any, Mapping, Optional, Union
 
@@ -7,15 +8,14 @@ from slugify import slugify
 from typing_extensions import Literal
 
 from prefect.docker import ImageBuilder, build_image, push_image, to_run_command
+from prefect.flow_runners.docker import get_prefect_image_name
 from prefect.flows import Flow, load_flow_from_script
 from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.serializers import SourceSerializer
 from prefect.software import CondaEnvironment, PythonEnvironment
 from prefect.utilities.asyncio import run_sync_in_worker_thread
-from prefect.utilities.dispatch import register_type
 
 
-@register_type
 class DockerPackageManifest(PackageManifest):
     """
     Represents a flow packaged in a Docker image
@@ -30,7 +30,6 @@ class DockerPackageManifest(PackageManifest):
         return load_flow_from_script(self.image_flow_location, self.flow_name)
 
 
-@register_type
 class DockerPackager(Packager):
     """
     This packager builds a Docker image containing the flow and the runtime environment
@@ -42,19 +41,17 @@ class DockerPackager(Packager):
 
     base_image: Optional[str] = None
     python_environment: Optional[Union[PythonEnvironment, CondaEnvironment]] = None
-
     dockerfile: Optional[Path] = None
-
     image_flow_location: str = "/flow.py"
-
     registry_url: Optional[AnyHttpUrl] = None
 
     @root_validator
-    def base_image_and_dockerfile_required(cls, values: Mapping[str, Any]):
+    def set_default_base_image(cls, values):
         if not values.get("base_image") and not values.get("dockerfile"):
-            raise ValueError(
-                "One of `base_image` or `dockerfile` is required to package flows in "
-                "Docker images."
+            values["base_image"] = get_prefect_image_name(
+                flavor="conda"
+                if isinstance(values.get("python_environment"), CondaEnvironment)
+                else None
             )
         return values
 
@@ -84,10 +81,8 @@ class DockerPackager(Packager):
                 push_image, image_reference, self.registry_url, image_name
             )
 
-        return DockerPackageManifest(
-            image=image_reference,
-            image_flow_location=self.image_flow_location,
-            flow_name=flow.name,
+        return self.base_manifest(flow).finalize(
+            image=image_reference, image_flow_location=self.image_flow_location
         )
 
     async def _build_image(self, flow: Flow) -> str:
@@ -111,4 +106,6 @@ class DockerPackager(Packager):
 
             builder.write_text(source_info["source"], self.image_flow_location)
 
-            return await run_sync_in_worker_thread(builder.build)
+            return await run_sync_in_worker_thread(
+                builder.build, stream_progress_to=sys.stdout
+            )

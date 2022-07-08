@@ -71,6 +71,7 @@ from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.orion import OrionPackager
 from prefect.utilities.asyncio import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.collections import listrepr
+from prefect.utilities.dispatch import get_dispatch_key, lookup_type
 from prefect.utilities.filesystem import tmpchdir
 
 
@@ -125,23 +126,57 @@ class Deployment(BaseModel):
             )
         return values
 
+    @root_validator
+    def flow_runner_packager_compatibility(cls, values):
+        flow_runner = values.get("flow_runner")
+        flow = values.get("flow")
+        packager = values.get("packager")
+
+        if isinstance(flow, PackageManifest):
+            manifest_cls = type(flow)
+        elif packager:
+            manifest_cls = lookup_type(PackageManifest, get_dispatch_key(packager))
+        else:
+            # We don't have a manifest so there's nothing to validate
+            return values
+
+        if "image" in manifest_cls.__fields__:
+            if "image" not in flow_runner.__fields__:
+                raise ValueError(
+                    f"Packaged flow requires an image but the {flow_runner.typename!r} "
+                    "flow runner does not have an image field."
+                )
+            elif "image" in flow_runner.__fields_set__:
+                raise ValueError(
+                    f"Packaged flow requires an image but the flow runner already has "
+                    f"image {flow_runner.image!r} configured. Exclude the image "
+                    "from your flow runner to allow Prefect to set it to the package "
+                    "image tag."
+                )
+
+        return values
+
     @sync_compatible
     @inject_client
     async def create(self, client: OrionClient):
-
-        flow = await _source_to_flow(self.flow)
-        flow_id = await client.create_flow(flow)
-
         if isinstance(self.flow, PackageManifest):
             manifest = self.flow
+            flow_name = manifest.flow_name
         else:
+            flow = await _source_to_flow(self.flow)
+            flow_name = flow.name
             manifest = await self.packager.package(flow)
+
+        flow_id = await client.create_flow_from_name(flow_name)
+
+        if "image" in manifest.__fields__:
+            self.flow_runner = self.flow_runner.copy(update={"image": manifest.image})
 
         flow_data = DataDocument.encode("package-manifest", manifest)
 
         return await client.create_deployment(
             flow_id=flow_id,
-            name=self.name or flow.name,
+            name=self.name or flow_name,
             flow_data=flow_data,
             schedule=self.schedule,
             parameters=self.parameters,
@@ -298,7 +333,4 @@ def load_deployments_from_yaml(
 # Backwards compatibility
 
 
-class DeploymentSpec(deprecated.DeploymentSpec):
-    def __init__(self, **data: Any) -> None:
-        # TODO: Add deprecation warning when we are ready to transition
-        super().__init__(**data)
+DeploymentSpec = deprecated.DeploymentSpec

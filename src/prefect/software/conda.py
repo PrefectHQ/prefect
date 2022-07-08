@@ -115,7 +115,7 @@ class CondaEnvironment(PythonEnvironment):
     conda_requirements: List[CondaRequirement] = Field(default_factory=list)
 
     @classmethod
-    def from_environment(cls: Type[Self], include_nested: bool = True) -> Self:
+    def from_environment(cls: Type[Self], exclude_nested: bool = False) -> Self:
         conda_requirements = (
             current_environment_conda_requirements()
             if "conda" in sys.executable
@@ -124,7 +124,7 @@ class CondaEnvironment(PythonEnvironment):
         pip_requirements = remove_duplicate_requirements(
             conda_requirements,
             current_environment_requirements(
-                include_nested=include_nested, on_uninstallable_requirement="warn"
+                exclude_nested=exclude_nested, on_uninstallable_requirement="warn"
             ),
         )
         python_requirement = pop_requirement_by_name(conda_requirements, "python")
