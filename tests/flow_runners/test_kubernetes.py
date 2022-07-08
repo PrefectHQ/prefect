@@ -147,22 +147,6 @@ class TestKubernetesFlowRunner:
 
         fake_status.started.assert_called_once()
 
-    async def test_timeout_raises_runtime_error(
-        self,
-        flow_run,
-        mock_k8s_batch_client,
-        mock_k8s_client,
-        mock_watch,
-        use_hosted_orion,
-    ):
-        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
-
-        with pytest.raises(RuntimeError, "Pod never started"):
-            flow_run.name = "My Flow"
-            fake_status = MagicMock(spec=anyio.abc.TaskStatus)
-            flow_runner = KubernetesFlowRunner()
-            await flow_runner.submit_flow_run(flow_run, fake_status)
-
     @pytest.mark.parametrize(
         "run_name,job_name",
         [
@@ -424,7 +408,7 @@ class TestKubernetesFlowRunner:
         ):
             await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
 
-    async def test_no_raise_on_submission_with_hosted_api(
+    async def test_raise_pod_never_started(
         self,
         mock_cluster_config,
         mock_k8s_batch_client,
@@ -432,7 +416,8 @@ class TestKubernetesFlowRunner:
         flow_run,
         use_hosted_orion,
     ):
-        await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
+        with pytest.raises(RuntimeError, match="Pod never started"):
+            await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
 
     async def test_defaults_to_incluster_config(
         self,
