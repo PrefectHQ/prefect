@@ -1,10 +1,14 @@
 import subprocess
 import sys
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from io import TextIOBase
+from typing import List, Optional, TextIO, Tuple, Union
 
 import anyio
 import anyio.abc
+from anyio.streams.text import TextReceiveStream, TextSendStream
+
+TextSink = Union[TextIO, TextSendStream]
 
 
 @asynccontextmanager
@@ -42,7 +46,7 @@ async def open_process(command: List[str], **kwargs):
 
 async def run_process(
     command: List[str],
-    stream_output: bool = False,
+    stream_output: Union[bool, Tuple[Optional[TextSink], Optional[TextSink]]] = False,
     task_status: Optional[anyio.abc.TaskStatus] = None,
     **kwargs
 ):
@@ -55,17 +59,51 @@ async def run_process(
         process has been created.
 
     """
+    if stream_output is True:
+        stream_output = (sys.stdout, sys.stderr)
 
     async with open_process(
         command,
-        stdout=sys.stdout if stream_output else subprocess.DEVNULL,
-        stderr=sys.stderr if stream_output else subprocess.DEVNULL,
+        stdout=subprocess.PIPE if stream_output else subprocess.DEVNULL,
+        stderr=subprocess.PIPE if stream_output else subprocess.DEVNULL,
         **kwargs
     ) as process:
 
         if task_status is not None:
             task_status.started()
 
+        if stream_output:
+            await consume_process_output(
+                process, stdout_sink=stream_output[0], stderr_sink=stream_output[1]
+            )
+
         await process.wait()
 
     return process
+
+
+async def consume_process_output(
+    process,
+    stdout_sink: Optional[TextSink] = None,
+    stderr_sink: Optional[TextSink] = None,
+):
+    async with anyio.create_task_group() as tg:
+        tg.start_soon(
+            stream_text,
+            TextReceiveStream(process.stdout),
+            stdout_sink,
+        )
+        tg.start_soon(
+            stream_text,
+            TextReceiveStream(process.stderr),
+            stderr_sink,
+        )
+
+
+async def stream_text(source: TextReceiveStream, sink: Optional[TextSink]):
+    async for item in source:
+        if isinstance(sink, TextSendStream):
+            await sink.send(item)
+        elif isinstance(sink, TextIOBase):
+            sink.write(item)
+            sink.flush()
