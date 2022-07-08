@@ -648,7 +648,7 @@ def enter_task_run_engine(
         raise TimeoutError("Flow run timed out")
 
     begin_run = partial(
-        create_task_run_then_submit_or_begin,
+        create_task_run_then_submit,
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
@@ -705,7 +705,7 @@ async def collect_task_run_inputs(
     return inputs
 
 
-async def create_task_run_then_submit_or_begin(
+async def create_task_run_then_submit(
     task: Task,
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
@@ -720,32 +720,20 @@ async def create_task_run_then_submit_or_begin(
         wait_for=wait_for,
     )
 
-    if return_type == "future":
-        return await submit_task_run(
-            task=task,
-            flow_run_context=flow_run_context,
-            parameters=parameters,
-            task_run=task_run,
-            wait_for=wait_for,
-        )
-
-    # Otherwise, run the task without submission
-    state = await begin_task_run(
+    future = await submit_task_run(
         task=task,
-        task_run=task_run,
+        flow_run_context=flow_run_context,
         parameters=parameters,
+        task_run=task_run,
         wait_for=wait_for,
-        result_storage=flow_run_context.result_storage,
-        settings=prefect.context.SettingsContext.get().copy(),
     )
 
-    # Track the task run result and state
-    flow_run_context.task_run_states.append(state)
-
-    if return_type == "state":
-        return state
+    if return_type == "future":
+        return future
+    elif return_type == "state":
+        return await future._wait()
     elif return_type == "result":
-        return state.result()
+        return await future._result()
     else:
         raise ValueError(f"Invalid return type for task engine {return_type!r}.")
 
