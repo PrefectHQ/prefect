@@ -1000,6 +1000,7 @@ class DatabricksSubmitMultitaskRun(Task):
         "polling_period_seconds",
         "databricks_retry_limit",
         "databricks_retry_delay",
+        "git_source",
     )
     def run(
         self,
