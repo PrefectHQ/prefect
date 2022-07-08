@@ -15,6 +15,7 @@ import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
@@ -286,3 +287,28 @@ async def create_flow_run_from_deployment(
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
     return model
+
+
+@router.get("/{id}/work_queue_check")
+async def work_queue_check_for_deployment(
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> List[schemas.core.WorkQueue]:
+    """
+    Get list of work-queues that are able to pick up the specified deployment.
+
+    This endpoint is intended to be used by the UI to provide users warnings
+    about deployments that are unable to be executed because there are no work
+    queues that will pick up their runs, based on existing filter criteria. It
+    may be deprecated in the future because there is not a strict relationship
+    between work queues and deployments.
+    """
+    try:
+        work_queues = await models.deployments.check_work_queues_for_deployment(
+            session=session, deployment_id=deployment_id
+        )
+    except ObjectNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+        )
+    return work_queues

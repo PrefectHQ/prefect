@@ -4,7 +4,9 @@ from typing import Generic, TypeVar
 from pydantic import BaseModel
 
 from prefect.flows import Flow
-from prefect.utilities.pydantic import add_type_dispatch
+from prefect.utilities.callables import ParameterSchema, parameter_schema
+from prefect.utilities.dispatch import lookup_type
+from prefect.utilities.pydantic import PartialModel, add_type_dispatch
 
 D = TypeVar("D")
 
@@ -32,6 +34,7 @@ class PackageManifest(BaseModel, abc.ABC):
 
     type: str
     flow_name: str
+    flow_parameter_schema: ParameterSchema
 
     @abc.abstractmethod
     async def unpackage(self) -> Flow:
@@ -51,6 +54,15 @@ class Packager(BaseModel, abc.ABC):
     """
 
     type: str
+
+    def base_manifest(self, flow: Flow) -> PartialModel[PackageManifest]:
+        manifest_cls = lookup_type(PackageManifest, self.type)
+        return PartialModel(
+            manifest_cls,
+            type=self.type,
+            flow_name=flow.name,
+            flow_parameter_schema=parameter_schema(flow.fn),
+        )
 
     @abc.abstractmethod
     async def package(self, flow: Flow) -> "PackageManifest":

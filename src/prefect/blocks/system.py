@@ -4,10 +4,9 @@ from typing import Any
 import pendulum
 from pydantic import Field
 
-from prefect.blocks.core import Block, register_block
+from prefect.blocks.core import Block
 
 
-@register_block
 class JSON(Block):
     """
     A block that represents JSON
@@ -16,7 +15,6 @@ class JSON(Block):
     value: Any = Field(..., description="A JSON-compatible value")
 
 
-@register_block
 class String(Block):
     """
     A block that represents a string
@@ -25,7 +23,6 @@ class String(Block):
     value: str = Field(..., description="A string value.")
 
 
-@register_block
 class DateTime(Block):
     """
     A block that represents a datetime
@@ -37,7 +34,6 @@ class DateTime(Block):
     )
 
 
-@register_block
 class EnvironmentVariable(Block):
     """
     A block that pulls its value from an environment variable.

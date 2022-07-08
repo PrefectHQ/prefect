@@ -430,18 +430,20 @@ class json_contains(FunctionElement):
 @compiles(json_contains)
 def _json_contains_postgresql(element, compiler, **kwargs):
     return compiler.process(
-        sa.type_coerce(element.left, postgresql.JSONB).contains(element.right),
+        sa.type_coerce(element.left, postgresql.JSONB).contains(
+            sa.type_coerce(element.right, postgresql.JSONB)
+        ),
         **kwargs,
     )
 
 
 def _json_contains_sqlite_fn(left, right, compiler, **kwargs):
     # if the value is literal, convert to a JSON string
-    if isinstance(left, (list, dict, tuple)):
+    if isinstance(left, (list, dict, tuple, str)):
         left = json.dumps(left)
 
     # if the value is literal, convert to a JSON string
-    if isinstance(right, (list, dict, tuple)):
+    if isinstance(right, (list, dict, tuple, str)):
         right = json.dumps(right)
 
     json_each_left = sa.func.json_each(left).alias("left")
