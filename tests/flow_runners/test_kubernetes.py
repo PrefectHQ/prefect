@@ -106,6 +106,15 @@ class TestKubernetesFlowRunner:
 
         return [{"object": job_pod}, {"object": job}]
 
+    @staticmethod
+    def _mock_pods_stream_that_returns_queued_pod(*args, **kwargs):
+        job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+        job_pod.status.phase = "Queued"
+
+        job = MagicMock(spec=kubernetes.client.V1Job)
+
+        return [{"object": job_pod}, {"object": job}]
+
     def test_runner_type(restart_policy):
         assert KubernetesFlowRunner().typename == "kubernetes"
 
@@ -141,6 +150,22 @@ class TestKubernetesFlowRunner:
         )
 
         fake_status.started.assert_called_once()
+
+    async def test_timeout_raises_runtime_error(
+        self,
+        flow_run,
+        mock_k8s_batch_client,
+        mock_k8s_client,
+        mock_watch,
+        use_hosted_orion,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        with pytest.raises(RuntimeError, "Pod never started"):
+            flow_run.name = "My Flow"
+            fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+            flow_runner = KubernetesFlowRunner()
+            await flow_runner.submit_flow_run(flow_run, fake_status)
 
     @pytest.mark.parametrize(
         "run_name,job_name",
