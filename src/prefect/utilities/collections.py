@@ -29,7 +29,7 @@ from unittest.mock import Mock
 import pydantic
 
 import prefect
-from prefect.utilities.asyncio import gather
+from prefect.utilities.asyncutils import gather
 
 
 class AutoEnum(str, Enum):
