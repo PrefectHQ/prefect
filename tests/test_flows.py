@@ -1049,7 +1049,7 @@ class TestFlowRunLogs:
             try:
                 x + y
             except:
-                logger.error("There was an issue", exc_info=True, stacklevel=2)
+                logger.error("There was an issue", exc_info=True)
 
         my_flow()
 
