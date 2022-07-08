@@ -183,8 +183,10 @@ class CronSchedule(PrefectBaseModel):
         # which we do not support https://github.com/kiorky/croniter
         if not croniter.is_valid(v):
             raise ValueError(f'Invalid cron string: "{v}"')
-        elif any(c for c in v.split() if c.casefold() in ["R", "H", "r", "h"] ):
-            raise ValueError(f'Random and Hashed expressions are unsupported, recieved: "{v}"')
+        elif any(c for c in v.split() if c.casefold() in ["R", "H", "r", "h"]):
+            raise ValueError(
+                f'Random and Hashed expressions are unsupported, recieved: "{v}"'
+            )
         return v
 
     async def get_dates(
