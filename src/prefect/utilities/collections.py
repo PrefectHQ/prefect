@@ -247,36 +247,19 @@ async def visit_collection(
             by `visit_fn` will be returned. This is slower than `return_data=False`
             (the default).
     """
-    revisit: Set[int] = set()
     visiting: Set[int] = set()
-    results: Dict[int, Any] = {}
+    last_visited = None
 
-    async def update_results_for_revisit(expr):
-        if id(expr) in revisit:
-            return results[id(expr)]
-        return expr
-
-    result = await _visit_collection(
-        expr,
-        visit_fn=visit_fn,
-        return_data=return_data,
-        visiting=visiting,
-        revisit=revisit,
-        results=results,
-    )
-
-    if return_data:
-        # Perform the revisit to update any items that had recursive dependencies
-        return await _visit_collection(
-            result,
-            visit_fn=update_results_for_revisit,
+    while visiting != last_visited:
+        last_visited = visiting.copy()
+        expr = await _visit_collection(
+            expr,
+            visit_fn=visit_fn,
             return_data=return_data,
-            visiting=set(),
-            revisit=set(),
-            results={},
+            visiting=visiting,
         )
-    else:
-        return None
+
+    return expr
 
 
 async def _visit_collection(
@@ -284,8 +267,6 @@ async def _visit_collection(
     visit_fn: Callable[[Any], Awaitable[Any]],
     return_data: bool,
     visiting: Set[int],
-    revisit: Set[int],
-    results: Dict[int, Any],
 ):
     """
     Implementation internals for `visit_collection`
@@ -299,22 +280,20 @@ async def _visit_collection(
             expr,
             visit_fn=visit_fn,
             return_data=return_data,
-            results=results,
             visiting=visiting,
-            revisit=revisit,
         )
 
+    # Refuse to visit an item that is already being visited to guard against infinite
+    # recursion at the expense of incorrect results in some cases self-referential cases
     if id(expr) in visiting:
-        # If we are already visiting an expression, mark it for revisit
-        revisit.add(id(expr))
         return expr
     else:
         visiting.add(id(expr))
 
-    # Visit every expression, updating it if requested
+    # Visit every expression
     result = await visit_fn(expr)
     if return_data:
-        results[id(expr)] = result
+        # Only mutate the expression while returning data, otherwise it could be null
         expr = result
 
     # Then, visit every child of the expression recursively
@@ -372,8 +351,7 @@ async def _visit_collection(
     else:
         result = result if return_data else None
 
-    # Store the result for this expression so it can be set on revisit items
-    results[id(expr)] = result
+    visiting.add(id(result))
     return result
 
 
