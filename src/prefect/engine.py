@@ -63,7 +63,7 @@ from prefect.states import (
     safe_encode_exception,
 )
 from prefect.tasks import Task
-from prefect.utilities.asyncio import (
+from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
     run_async_from_worker_thread,
