@@ -22,6 +22,11 @@ class PickleSerializer(Serializer):
     """
     Serializes objects using the pickle protocol.
 
+    If using cloudpickle, you may specify a list of 'pickle_modules'. These modules will
+    be serialized by value instead of by reference, which means they do not have to be
+    installed in the runtime location. This is especially useful for serializing objects
+    that rely on local packages.
+
     Wraps pickles in base64 for safe transmission.
     """
 
