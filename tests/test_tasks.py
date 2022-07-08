@@ -1300,6 +1300,88 @@ class TestTaskInputs:
             name=[TaskRunResult(id=name_state.state_details.task_run_id)],
         )
 
+    async def test_task_inputs_populated_with_result_upstream_from_future(
+        self, orion_client
+    ):
+        @task
+        def upstream(x):
+            return x
+
+        @task
+        def downstream(x):
+            return x
+
+        @flow
+        def test_flow():
+            upstream_future = upstream.submit(1)
+            upstream_result = upstream_future.result()
+            downstream_state = downstream.run(upstream_result)
+            upstream_state = upstream_future.wait()
+            return upstream_state, downstream_state
+
+        upstream_state, downstream_state = test_flow()
+
+        task_run = await orion_client.read_task_run(
+            downstream_state.state_details.task_run_id
+        )
+
+        assert task_run.task_inputs == dict(
+            x=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
+        )
+
+    async def test_task_inputs_populated_with_result_upstream_from_state(
+        self, orion_client
+    ):
+        @task
+        def upstream(x):
+            return x
+
+        @task
+        def downstream(x):
+            return x
+
+        @flow
+        def test_flow():
+            upstream_state = upstream.run(1)
+            upstream_result = upstream_state.result()
+            downstream_state = downstream.run(upstream_result)
+            return upstream_state, downstream_state
+
+        upstream_state, downstream_state = test_flow()
+
+        task_run = await orion_client.read_task_run(
+            downstream_state.state_details.task_run_id
+        )
+
+        assert task_run.task_inputs == dict(
+            x=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
+        )
+
+    async def test_task_inputs_populated_with_state_upstream(self, orion_client):
+        @task
+        def upstream(x):
+            return x
+
+        @task
+        def downstream(x):
+            return x
+
+        @flow
+        def test_flow():
+            upstream_state = upstream.run(1)
+            downstream_state = downstream.run(upstream_state)
+            return upstream_state, downstream_state
+
+        upstream_state, downstream_state = test_flow()
+
+        task_run = await orion_client.read_task_run(
+            downstream_state.state_details.task_run_id
+        )
+
+        assert task_run.task_inputs == dict(
+            x=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
+        )
+
     @pytest.mark.parametrize("result", [["Fred"], {"one": 1}, {1, 2, 2}, (1, 2)])
     async def test_task_inputs_populated_with_collection_result_upstream(
         self, result, orion_client, flow_with_upstream_downstream
