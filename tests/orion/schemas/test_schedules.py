@@ -126,7 +126,7 @@ class TestCreateCronSchedule:
             "@daily",
             "@hourly",
             "* * * * MON",
-            "8 30 0 * sat-sun",
+            "30 8 * * sat-sun",
             "* * * * mon,wed,fri",
         ],
     )
@@ -147,7 +147,7 @@ class TestCreateCronSchedule:
         with pytest.raises(ValidationError, match="(Invalid cron)"):
             CronSchedule(cron=cron_string)
 
-    @pytest.mark.parametrize("cron_string", ["5 4 R * *", "H H * * *"])
+    @pytest.mark.parametrize("cron_string", ["5 4 R * *"])
     def test_unsupported_cron_string(self, cron_string):
         with pytest.raises(
             ValidationError, match="(Random and Hashed expressions are unsupported)"
