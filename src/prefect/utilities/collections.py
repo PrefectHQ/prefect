@@ -314,8 +314,10 @@ async def _visit_collection(
     # Visit every expression, updating it if requested
     result = await visit_fn(expr)
     if return_data:
+        results[id(expr)] = result
         expr = result
 
+    # Then, visit every child of the expression recursively
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)
     typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
