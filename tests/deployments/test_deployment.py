@@ -77,6 +77,11 @@ async def test_deployment_name(orion_client: OrionClient):
     assert deployment.name == "test"
 
 
+def test_deployment_does_not_allow_extra_fields():
+    with pytest.raises(pydantic.ValidationError):
+        Deployment(flow=foo, name="test", foobar="test")
+
+
 async def test_deployment_tags(orion_client: OrionClient):
     dpl = Deployment(flow=foo, tags=["a", "b"])
 

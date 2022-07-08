@@ -29,9 +29,19 @@ We've revisited our flow packaging and deployment UX, making it both more powerf
 - The `flow_storage` field has been replaced with a `packager` field.
 - The `flow_location`, `flow_name`, and `flow` parameters are now just `flow`.
 
-You can deploy a flow directly, or you can package it with the new `packaging` module. Packaging enables you to bundle a flow with its dependencies, including Python packages. Packaging produces a Package, the artifact that contains your flow and its dependencies, as well as a Manifest, a JSON description of the package and what is inside of it.
+We now support customization of the deployment of your flow. Previously, we just uploaded the source code of the flow to a file. Now, we've designed a packaging systems which allows you to control how and where your flow is deployed. We're including three packagers in this release:
 
-There are several ways to create a package, with more to come. For instance, you can package your flow as a Docker image containing the flow and the runtime environment necessary to run it and register it with Docker. Alternatively, you could package your flow as a reference to the import path of a package stored directly in the Prefect Orion database. Learn more in the [Deployment concept documentation](https://orion-docs.prefect.io/concepts/deployments/).
+- `OrionPackager`: Serializes the flow and stores it in the Orion database, allowing you to get started without setting up remote storage.
+- `FilePackager`: Serializes the flow and stores it in a file. The core library supports local and remote filesystems. Additional remote file systems will be available in collections.
+- `DockerPackager`: Copies the flow into a new Docker image. You can take full control of the Docker image build or use Prefect to detect your current Python dependencies and install them in the image.
+
+For packagers that support it, three serializers are available as well:
+
+- `ImportSerializer`: Serializes to the import path of the flow. The flow will need to be importable at runtime.
+- `SourceSerializer`: Serializes to the source code of the flow's module.
+- `PickleSerializer`: Serializes the flow using cloudpickle with support for serialization full modules.
+
+Learn more in the [Deployment concept documentation](https://orion-docs.prefect.io/concepts/deployments/).
 
 You can continue to use your existing `DeploymentSpec`s, but they are deprecated and will be removed in the coming weeks.
 
