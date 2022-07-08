@@ -1300,7 +1300,7 @@ class TestToBlockType:
             face_length_inches: float
 
             def calculate_area(self):
-                return self.face_length_inches**3
+                return self.face_length_inches ** 3
 
         block_type = Cube._to_block_type()
 
@@ -1339,7 +1339,7 @@ class TestToBlockType:
             face_length_inches: float
 
             def calculate_area(self):
-                return self.face_length_inches**3
+                return self.face_length_inches ** 3
 
         block_type = Cube._to_block_type()
 
@@ -1385,7 +1385,7 @@ class TestToBlockType:
             face_length_inches: float
 
             def calculate_area(self):
-                return self.face_length_inches**3
+                return self.face_length_inches ** 3
 
         block_type = Cube._to_block_type()
 
