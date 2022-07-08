@@ -1,4 +1,5 @@
 import json
+import uuid
 from dataclasses import dataclass
 from typing import Any
 
@@ -268,6 +269,19 @@ class TestVisitCollection:
         # The original model should not be mutated
         assert input._y == 3
         assert input._z == 4
+
+    async def test_visit_collection_includes_unset_pydantic_fields(self):
+        class RandomPydantic(pydantic.BaseModel):
+            val: uuid.UUID = pydantic.Field(default_factory=uuid.uuid4)
+
+        input_model = RandomPydantic()
+        output_model = await visit_collection(
+            input_model, visit_fn=visit_even_numbers, return_data=True
+        )
+
+        assert (
+            output_model.val == input_model.val
+        ), "The fields value should be used, not the default factory"
 
     @pytest.mark.parametrize("immutable", [True, False])
     async def test_visit_collection_mutation_with_private_pydantic_attributes(

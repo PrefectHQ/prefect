@@ -346,16 +346,17 @@ async def _visit_collection(
         result = typ(**items) if return_data else None
 
     elif isinstance(expr, pydantic.BaseModel):
-        # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
-        # to retrieve the public keys to visit.
         # NOTE: This implementation *does not* traverse private attributes
+        # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
+        # as well to get all of the relevant attributes
+        model_fields = expr.__fields_set__.union(expr.__fields__)
         items = await gather(
-            *[visit_nested(getattr(expr, key)) for key in expr.__fields_set__]
+            *[visit_nested(getattr(expr, key)) for key in model_fields]
         )
 
         if return_data:
             model_instance = typ(
-                **{key: value for key, value in zip(expr.__fields_set__, items)}
+                **{key: value for key, value in zip(model_fields, items)}
             )
 
             # Private attributes are not included in `__fields_set__` but we do not want
