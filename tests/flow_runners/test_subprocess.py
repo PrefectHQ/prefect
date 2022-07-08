@@ -371,11 +371,10 @@ class TestSubprocessFlowRunner:
             flow_run, MagicMock(spec=anyio.abc.TaskStatus)
         )
 
-        output = capsys.readouterr()
-        assert output.err == "", "stderr is never populated"
+        _, stderr = capsys.readouterr()
 
         if not stream_output:
-            assert output.out == ""
+            assert stderr == ""
         else:
-            assert "Finished in state" in output.out, "Log from the engine is present"
-            assert "\n\n" not in output.out, "Line endings are not double terminated"
+            assert "Finished in state" in stderr, "Log from the engine is present"
+            assert "\n\n" not in stderr, "Line endings are not double terminated"
