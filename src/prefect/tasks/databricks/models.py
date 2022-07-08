@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Extra, Field, validator
+from pydantic import BaseModel, Extra, Field, Json, validator
 
 
 class TaskDependency(BaseModel):
@@ -75,7 +75,7 @@ class NewCluster(BaseModel, extra=Extra.allow):
     aws_attributes: Optional[AwsAttributes] = None
     driver_node_type_id: Optional[str] = None
     ssh_public_keys: Optional[List[str]] = None
-    custom_tags: Optional[str] = None
+    custom_tags: Optional[Json] = None
     cluster_log_conf: Optional[ClusterLogConf] = None
     init_scripts: Optional[List[InitScriptInfo]] = None
     spark_env_vars: Optional[Dict] = None
