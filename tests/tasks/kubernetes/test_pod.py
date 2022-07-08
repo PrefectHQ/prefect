@@ -430,6 +430,7 @@ class TestReadNamespacedPodLogs:
         assert task.namespace == "default"
         assert task.on_log_entry == None
         assert task.kubernetes_api_key_secret == "KUBERNETES_API_KEY"
+        assert task.container == None
 
     def test_filled_initialization(self, kube_secret):
         task = ReadNamespacedPodLogs(
@@ -437,11 +438,13 @@ class TestReadNamespacedPodLogs:
             namespace="test",
             on_log_entry=self._on_log_entry,
             kubernetes_api_key_secret="test",
+            container="test",
         )
         assert task.pod_name == "test"
         assert task.namespace == "test"
         assert task.on_log_entry == self._on_log_entry
         assert task.kubernetes_api_key_secret == "test"
+        assert task.container == "test"
 
     def test_empty_name_raises_error(self, kube_secret):
         task = ReadNamespacedPodLogs()
@@ -449,20 +452,24 @@ class TestReadNamespacedPodLogs:
             task.run()
 
     def test_log_is_read_once(self, kube_secret, api_client):
-        task = ReadNamespacedPodLogs(pod_name="test")
+        task = ReadNamespacedPodLogs(pod_name="test", container="test")
 
         task.run()
         assert api_client.read_namespaced_pod_log.call_count == 1
         assert api_client.read_namespaced_pod_log.call_args[1]["name"] == "test"
+        assert api_client.read_namespaced_pod_log.call_args[1]["container"] == "test"
 
     def test_log_is_streamed(self, kube_secret, api_client, stream):
         on_log_entry = MagicMock()
-        task = ReadNamespacedPodLogs(pod_name="test", on_log_entry=on_log_entry)
+        task = ReadNamespacedPodLogs(
+            pod_name="test", on_log_entry=on_log_entry, container="test"
+        )
 
         task.run()
         assert stream.call_count == 1
         assert stream.call_args[0][0] == api_client.read_namespaced_pod_log
         assert stream.call_args[1]["name"] == "test"
+        assert stream.call_args[1]["container"] == "test"
 
         assert on_log_entry.call_count == 1
         assert on_log_entry.call_args[0][0] == "msg"
