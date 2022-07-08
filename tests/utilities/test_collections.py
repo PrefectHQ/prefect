@@ -65,17 +65,9 @@ async def visit_even_numbers(x):
     return x
 
 
-VISITED = list()
-
-
-async def add_to_visited_list(x):
-    VISITED.append(x)
-
-
 @pytest.fixture(autouse=True)
-def clear_sets():
+def clear_even_set():
     EVEN.clear()
-    VISITED.clear()
 
 
 @dataclass
@@ -212,33 +204,6 @@ class TestVisitCollection:
         assert result is None
         assert EVEN == expected
 
-    @pytest.mark.parametrize(
-        "inp,expected",
-        [
-            ({"x": 1}, [{"x": 1}, "x", 1]),
-            (SimpleDataclass(x=1, y=2), [SimpleDataclass(x=1, y=2), 1, 2]),
-        ],
-    )
-    async def test_visit_collection_visits_nodes(self, inp, expected):
-        result = await visit_collection(
-            inp, visit_fn=add_to_visited_list, return_data=False
-        )
-        assert result is None
-        assert VISITED == expected
-
-    async def test_visit_collection_allows_mutation_of_nodes(self):
-        async def collect_and_drop_x_from_dicts(node):
-            await add_to_visited_list(node)
-            if isinstance(node, dict):
-                return {key: value for key, value in node.items() if key != "x"}
-            return node
-
-        result = await visit_collection(
-            {"x": 1, "y": 2}, visit_fn=collect_and_drop_x_from_dicts, return_data=True
-        )
-        assert result == {"y": 2}
-        assert VISITED == [{"x": 1, "y": 2}, "y", 2]
-
     async def test_visit_collection_with_private_pydantic_attributes(self):
         """
         We should not visit private fields on Pydantic models.
@@ -280,6 +245,27 @@ class TestVisitCollection:
         # Private attributes are retained without modification
         assert result._y == 3
         assert result._z == 4
+
+    async def test_visit_collection_avoids_infinite_recursion(self):
+        async def show_visited(expr):
+            print(expr)
+            return expr
+
+        @dataclass
+        class Foo:
+            x: Any
+
+        @dataclass
+        class Bar:
+            y: Any
+
+        # Create references to eachother
+        foo = Foo(x=None)
+        bar = Bar(y=foo)
+        foo.x = bar
+
+        result = await visit_collection(foo, visit_fn=show_visited, return_data=False)
+        assert result is None
 
 
 class TestRemoveKeys:

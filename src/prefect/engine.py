@@ -1231,7 +1231,7 @@ def link_state_to_result(state: State, result: Any) -> None:
     # objects, like dictionaries, do not allow arbitrary attributes to be set.
     try:
         object.__setattr__(result, "__prefect_state__", state)
-    except AttributeError:
+    except (AttributeError, TypeError):
         pass
 
     # Cache the state onto the flow_run_context, associated by the id of the

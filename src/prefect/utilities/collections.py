@@ -18,6 +18,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Optional,
     Tuple,
     Type,
     TypeVar,
@@ -216,7 +217,10 @@ def quote(expr: T) -> Quote[T]:
 
 
 async def visit_collection(
-    expr, visit_fn: Callable[[Any], Awaitable[Any]], return_data: bool = False
+    expr,
+    visit_fn: Callable[[Any], Awaitable[Any]],
+    return_data: bool = False,
+    _visited: Optional[Dict[int, Any]] = None,
 ):
     """
     This function visits every element of an arbitrary Python collection. If an element
@@ -244,18 +248,31 @@ async def visit_collection(
             by `visit_fn` will be returned. This is slower than `return_data=False`
             (the default).
     """
+    # Tracks the ids of visited objects to avoid visiting them more than once
+    visited: Dict[int, Any] = _visited or {}
 
     def visit_nested(expr):
         # Utility for a recursive call, preserving options.
         # Returns a `partial` for use with `gather`.
         return partial(
-            visit_collection, expr, visit_fn=visit_fn, return_data=return_data
+            visit_collection,
+            expr,
+            visit_fn=visit_fn,
+            return_data=return_data,
+            _visited=visited,
         )
+
+    # Check if the expression has been visited to avoid recursion
+    if id(expr) in visited:
+        return visited[id(expr)]
 
     # Visit every expression, updating it if requested
     result = await visit_fn(expr)
     if return_data:
         expr = result
+
+    # Track that this object was visited
+    visited[id(expr)] = result
 
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)

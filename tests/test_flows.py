@@ -923,29 +923,78 @@ class TestFlowParameterTypes:
 
 
 class TestSubflowTaskInputs:
-    async def test_subflow_with_one_upstream_kwarg(self, orion_client):
+    async def test_subflow_with_one_upstream_task_future(self, orion_client):
         @task
-        def foo(x):
+        def child_task(x):
             return x
 
         @flow
-        def bar(x, y):
-            return x + y
+        def child_flow(x):
+            return x
 
         @flow
-        def test_flow():
-            a = foo.run(1)
-            b = bar.run(x=a, y=1)
-            return a, b
+        def parent_flow():
+            task_future = child_task.submit(1)
+            flow_state = child_flow.run(x=task_future)
+            task_state = task_future.wait()
+            return task_state, flow_state
 
-        flow_state = test_flow.run()
-        a, b = flow_state.result()
+        task_state, flow_state = parent_flow()
+        flow_tracking_task_run = await orion_client.read_task_run(
+            flow_state.state_details.task_run_id
+        )
 
-        task_run = await orion_client.read_task_run(b.state_details.task_run_id)
+        assert flow_tracking_task_run.task_inputs == dict(
+            x=[TaskRunResult(id=task_state.state_details.task_run_id)],
+        )
 
-        assert task_run.task_inputs == dict(
-            x=[TaskRunResult(id=a.state_details.task_run_id)],
-            y=[],
+    async def test_subflow_with_one_upstream_task_state(self, orion_client):
+        @task
+        def child_task(x):
+            return x
+
+        @flow
+        def child_flow(x):
+            return x
+
+        @flow
+        def parent_flow():
+            task_state = child_task.run(1)
+            flow_state = child_flow.run(x=task_state)
+            return task_state, flow_state
+
+        task_state, flow_state = parent_flow()
+        flow_tracking_task_run = await orion_client.read_task_run(
+            flow_state.state_details.task_run_id
+        )
+
+        assert flow_tracking_task_run.task_inputs == dict(
+            x=[TaskRunResult(id=task_state.state_details.task_run_id)],
+        )
+
+    async def test_subflow_with_one_upstream_task_result(self, orion_client):
+        @task
+        def child_task(x):
+            return x
+
+        @flow
+        def child_flow(x):
+            return x
+
+        @flow
+        def parent_flow():
+            task_state = child_task.run(1)
+            task_result = task_state.result()
+            flow_state = child_flow.run(x=task_result)
+            return task_state, flow_state
+
+        task_state, flow_state = parent_flow()
+        flow_tracking_task_run = await orion_client.read_task_run(
+            flow_state.state_details.task_run_id
+        )
+
+        assert flow_tracking_task_run.task_inputs == dict(
+            x=[TaskRunResult(id=task_state.state_details.task_run_id)],
         )
 
     async def test_subflow_with_no_upstream_tasks(self, orion_client):
@@ -954,15 +1003,15 @@ class TestSubflowTaskInputs:
             return x + y
 
         @flow
-        def test_flow():
-            return bar(x=2, y=1)
+        def foo():
+            return bar.run(x=2, y=1)
 
-        flow_state = test_flow.run()
-        state = flow_state.result()
+        child_flow_state = foo()
+        flow_tracking_task_run = await orion_client.read_task_run(
+            child_flow_state.state_details.task_run_id
+        )
 
-        task_run = await orion_client.read_task_run(state.state_details.task_run_id)
-
-        assert task_run.task_inputs == dict(
+        assert flow_tracking_task_run.task_inputs == dict(
             x=[],
             y=[],
         )
