@@ -11,11 +11,12 @@ Released on July 8, 2022.
 
 - Fix sftp-task imports - [#5971](https://github.com/PrefectHQ/prefect/issues/5971)
 - Fix definition of Databricks `GitSource` at task initialization - [#5974](https://github.com/PrefectHQ/prefect/issues/5974)
-
+- Add container parameter to `ReadNamespacedPodLogs` - [#5979](https://github.com/PrefectHQ/prefect/pull/5979)
 ### Contributors
 
 - [Bral Bral](https://github.com/bralbral)
 - [Edmondo Porcu](https://github.com/edmondo1984)
+- [Alvaro Duran Tovar](https://github.com/hermesdt)
 
 ## 1.2.3 <Badge text="beta" type="success" />
 
