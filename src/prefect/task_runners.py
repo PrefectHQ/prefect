@@ -75,7 +75,7 @@ from prefect.logging import get_logger
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
 from prefect.states import exception_to_crashed_state
-from prefect.utilities.asyncio import A
+from prefect.utilities.asyncutils import A
 from prefect.utilities.collections import AutoEnum
 
 T = TypeVar("T", bound="BaseTaskRunner")
