@@ -4,7 +4,7 @@ Utilities for extensions of and operations on Python collections.
 import itertools
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterator as IteratorABC
-from collections.abc import Sequence, Set
+from collections.abc import Sequence
 from dataclasses import fields, is_dataclass
 from enum import Enum, auto
 from functools import partial
@@ -18,7 +18,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
-    Optional,
+    Set,
     Tuple,
     Type,
     TypeVar,
@@ -220,7 +220,6 @@ async def visit_collection(
     expr,
     visit_fn: Callable[[Any], Awaitable[Any]],
     return_data: bool = False,
-    _visited: Optional[Dict[int, Any]] = None,
 ):
     """
     This function visits every element of an arbitrary Python collection. If an element
@@ -248,31 +247,74 @@ async def visit_collection(
             by `visit_fn` will be returned. This is slower than `return_data=False`
             (the default).
     """
-    # Tracks the ids of visited objects to avoid visiting them more than once
-    visited: Dict[int, Any] = _visited or {}
+    revisit: Set[int] = set()
+    visiting: Set[int] = set()
+    results: Dict[int, Any] = {}
+
+    async def update_results_for_revisit(expr):
+        if id(expr) in revisit:
+            return results[id(expr)]
+        return expr
+
+    result = await _visit_collection(
+        expr,
+        visit_fn=visit_fn,
+        return_data=return_data,
+        visiting=visiting,
+        revisit=revisit,
+        results=results,
+    )
+
+    if return_data:
+        # Perform the revisit to update any items that had recursive dependencies
+        return await _visit_collection(
+            result,
+            visit_fn=update_results_for_revisit,
+            return_data=return_data,
+            visiting=set(),
+            revisit=set(),
+            results={},
+        )
+    else:
+        return None
+
+
+async def _visit_collection(
+    expr,
+    visit_fn: Callable[[Any], Awaitable[Any]],
+    return_data: bool,
+    visiting: Set[int],
+    revisit: Set[int],
+    results: Dict[int, Any],
+):
+    """
+    Implementation internals for `visit_collection`
+    """
 
     def visit_nested(expr):
         # Utility for a recursive call, preserving options.
         # Returns a `partial` for use with `gather`.
         return partial(
-            visit_collection,
+            _visit_collection,
             expr,
             visit_fn=visit_fn,
             return_data=return_data,
-            _visited=visited,
+            results=results,
+            visiting=visiting,
+            revisit=revisit,
         )
 
-    # Check if the expression has been visited to avoid recursion
-    if id(expr) in visited:
-        return visited[id(expr)]
+    if id(expr) in visiting:
+        # If we are already visiting an expression, mark it for revisit
+        revisit.add(id(expr))
+        return expr
+    else:
+        visiting.add(id(expr))
 
     # Visit every expression, updating it if requested
     result = await visit_fn(expr)
     if return_data:
         expr = result
-
-    # Track that this object was visited
-    visited[id(expr)] = result
 
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)
@@ -281,37 +323,37 @@ async def visit_collection(
     # Then visit every item in the expression if it is a collection
     if isinstance(expr, Mock):
         # Do not attempt to recurse into mock objects
-        return expr if return_data else None
+        result = expr
 
     elif typ in (list, tuple, set):
-        result = await gather(*[visit_nested(o) for o in expr])
-        return typ(result) if return_data else None
+        items = await gather(*[visit_nested(o) for o in expr])
+        result = typ(items) if return_data else None
 
     elif typ in (dict, OrderedDict):
         assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
         keys, values = zip(*expr.items()) if expr else ([], [])
         keys = await gather(*[visit_nested(k) for k in keys])
         values = await gather(*[visit_nested(v) for v in values])
-        return typ(zip(keys, values)) if return_data else None
+        result = typ(zip(keys, values)) if return_data else None
 
     elif is_dataclass(expr) and not isinstance(expr, type):
         values = await gather(
             *[visit_nested(getattr(expr, f.name)) for f in fields(expr)]
         )
-        result = {field.name: value for field, value in zip(fields(expr), values)}
-        return typ(**result) if return_data else None
+        items = {field.name: value for field, value in zip(fields(expr), values)}
+        result = typ(**items) if return_data else None
 
     elif isinstance(expr, pydantic.BaseModel):
         # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
         # to retrieve the public keys to visit.
         # NOTE: This implementation *does not* traverse private attributes
-        results = await gather(
+        items = await gather(
             *[visit_nested(getattr(expr, key)) for key in expr.__fields_set__]
         )
 
         if return_data:
             model_instance = typ(
-                **{key: value for key, value in zip(expr.__fields_set__, results)}
+                **{key: value for key, value in zip(expr.__fields_set__, items)}
             )
 
             # Private attributes are not included in `__fields_set__` but we do not want
@@ -321,11 +363,15 @@ async def visit_collection(
                 # Use `object.__setattr__` to avoid errors on immutable models
                 object.__setattr__(model_instance, attr, getattr(expr, attr))
 
-            return model_instance
-        return None
-
+            result = model_instance
+        else:
+            result = None
     else:
-        return result if return_data else None
+        result = result if return_data else None
+
+    # Store the result for this expression so it can be set on revisit items
+    results[id(expr)] = result
+    return result
 
 
 def remove_nested_keys(keys_to_remove: List[Hashable], obj):

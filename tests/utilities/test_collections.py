@@ -51,6 +51,7 @@ class TestFlatDict:
 
 
 async def negative_even_numbers(x):
+    print("Function called on", x)
     if isinstance(x, int) and x % 2 == 0:
         return -x
     return x
@@ -111,6 +112,17 @@ class PrivatePydantic(pydantic.BaseModel):
 class ImmutablePrivatePydantic(PrivatePydantic):
     class Config:
         allow_mutation = False
+
+
+@dataclass
+class Foo:
+    x: Any
+
+
+@dataclass
+class Bar:
+    y: Any
+    z: int = 2
 
 
 class TestPydanticObjects:
@@ -281,8 +293,9 @@ class TestVisitCollection:
         assert result._y == 3
         assert result._z == 4
 
-    async def test_visit_collection_avoids_infinite_recursion(self):
-        async def show_visited(expr):
+    @pytest.mark.parametrize("return_data", [True, False])
+    async def test_visit_collection_avoids_infinite_recursion(self, return_data):
+        async def identity(expr):
             print(expr)
             return expr
 
@@ -299,8 +312,31 @@ class TestVisitCollection:
         bar = Bar(y=foo)
         foo.x = bar
 
-        result = await visit_collection(foo, visit_fn=show_visited, return_data=False)
-        assert result is None
+        result = await visit_collection(foo, visit_fn=identity, return_data=return_data)
+        if not return_data:
+            assert result is None
+        else:
+            assert result == foo
+
+    async def test_visit_collection_transforms_correctly_with_revisit(self):
+        """
+        When there is a recursive relationship, the object will be fully resolved in
+        one place and ignored in the other then the collections will be traversed a
+        second time to perform an update on the ignored item
+        """
+        # Create references to each other
+        foo = Foo(x=None)
+        bar = Bar(y=foo)
+        foo.x = bar
+
+        result = await visit_collection(
+            [foo, bar], visit_fn=negative_even_numbers, return_data=True
+        )
+        expected_foo = Foo(x=None)
+        expected_bar = Bar(y=foo, z=-2)
+        expected_foo.x = expected_bar
+
+        assert result == [expected_foo, expected_bar]
 
 
 class TestRemoveKeys:
