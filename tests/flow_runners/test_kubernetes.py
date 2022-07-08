@@ -423,7 +423,7 @@ class TestKubernetesFlowRunner:
 
         await KubernetesFlowRunner().submit_flow_run(flow_run, fake_status)
 
-        mock_cluster_config.incluster_config.load_incluster_config.assert_called_once()
+        mock_cluster_config.load_incluster_config.assert_called_once()
         assert not mock_cluster_config.load_kube_config.called
 
     async def test_uses_cluster_config_if_not_in_cluster(
@@ -438,9 +438,7 @@ class TestKubernetesFlowRunner:
         mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
         fake_status = MagicMock(spec=anyio.abc.TaskStatus)
 
-        mock_cluster_config.incluster_config.load_incluster_config.side_effect = (
-            ConfigException()
-        )
+        mock_cluster_config.load_incluster_config.side_effect = ConfigException()
 
         await KubernetesFlowRunner().submit_flow_run(flow_run, fake_status)
 
