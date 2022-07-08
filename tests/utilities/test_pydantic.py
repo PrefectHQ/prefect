@@ -34,7 +34,6 @@ try:
         x: int = 0
         y: str
 
-
 except Exception as exc:
     REDUCTION_MODELS_EXC = exc
 
