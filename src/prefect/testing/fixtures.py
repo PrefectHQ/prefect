@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from prefect.settings import PREFECT_API_URL, get_current_settings, temporary_settings
+from prefect.utilities.processutils import open_process
 
 
 def is_port_in_use(port: int) -> bool:
@@ -38,7 +39,7 @@ async def hosted_orion_api():
             break
 
     # Will connect to the same database as normal test clients
-    process = await anyio.open_process(
+    async with open_process(
         command=[
             "uvicorn",
             "--factory",
@@ -53,15 +54,14 @@ async def hosted_orion_api():
         stdout=sys.stdout,
         stderr=sys.stderr,
         env={**get_current_settings().to_environment_variables(), **os.environ},
-    )
+    ) as process:
 
-    api_url = f"http://localhost:{port}/api"
+        api_url = f"http://localhost:{port}/api"
 
-    try:
         # Wait for the server to be ready
         async with httpx.AsyncClient() as client:
             response = None
-            with anyio.move_on_after(10):
+            with anyio.move_on_after(20):
                 while True:
                     try:
                         response = await client.get(api_url + "/health")
@@ -80,15 +80,6 @@ async def hosted_orion_api():
 
         # Yield to the consuming tests
         yield api_url
-
-    finally:
-        # Cleanup the process
-        try:
-            process.terminate()
-        except Exception:
-            pass  # May already be terminated
-
-        await process.aclose()
 
 
 @pytest.fixture

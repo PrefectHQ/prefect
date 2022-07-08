@@ -11,11 +11,7 @@ import typer
 
 import prefect
 from prefect.cli._types import PrefectTyper, SettingsOption
-from prefect.cli._utilities import (
-    exit_with_error,
-    exit_with_success,
-    open_process_and_stream_output,
-)
+from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.logging import get_logger
 from prefect.orion.database.alembic_commands import (
@@ -35,6 +31,7 @@ from prefect.settings import (
     PREFECT_ORION_UI_ENABLED,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.processutils import run_process
 
 orion_app = PrefectTyper(
     name="orion",
@@ -121,7 +118,7 @@ async def start(
         app.console.print("Starting...")
         await tg.start(
             partial(
-                open_process_and_stream_output,
+                run_process,
                 command=[
                     "uvicorn",
                     "--factory",
@@ -132,6 +129,7 @@ async def start(
                     str(port),
                 ],
                 env=server_env,
+                stream_output=True,
             )
         )
 

@@ -123,8 +123,7 @@ def install_prefect_if_necessary(python: List[str]):
         # Attempt to import `prefect`, which should be there via site-packages on
         # CI and systems where folks have installed an editable prefect globally
         version = subprocess.check_output(
-            python + ["-c", "import prefect; print(prefect.__version__)"],
-            stderr=subprocess.STDOUT,
+            python + ["-c", "import prefect; print(prefect.__version__)"]
         )
         version = version.decode().strip()
         print(f"Found `prefect` version {version!r} in environment")
@@ -154,6 +153,10 @@ class TestSubprocessFlowRunner:
         self, monkeypatch, flow_run
     ):
         monkeypatch.setattr("anyio.open_process", AsyncMock())
+        anyio.open_process.return_value.terminate = (
+            MagicMock()
+        )  #  Not an async attribute
+
         fake_status = MagicMock(spec=anyio.abc.TaskStatus)
         # By raising an exception when started is called we can assert the process
         # is opened before this time
@@ -181,7 +184,8 @@ class TestSubprocessFlowRunner:
             command = " ".join(command)
         anyio.open_process.assert_awaited_once_with(
             command,
-            stderr=subprocess.STDOUT,
+            stderr=ANY,
+            stdout=ANY,
             env=ANY,
         )
 
@@ -210,7 +214,7 @@ class TestSubprocessFlowRunner:
             else ["--prefix", str(condaenv.expanduser().resolve())]
         )
 
-        command = [
+        expected_command = [
             "conda",
             "run",
             *name_or_prefix,
@@ -220,10 +224,12 @@ class TestSubprocessFlowRunner:
             flow_run.id.hex,
         ]
         if sys.platform == "win32":
-            command = " ".join(command)
+            expected_command = " ".join(expected_command)
+
         anyio.open_process.assert_awaited_once_with(
-            command,
-            stderr=subprocess.STDOUT,
+            expected_command,
+            stderr=ANY,
+            stdout=ANY,
             env=ANY,
         )
 
@@ -256,17 +262,19 @@ class TestSubprocessFlowRunner:
         expected_env.pop("PYTHONHOME")
         expected_env["VIRTUAL_ENV"] = str(virtualenv_path)
 
-        command = [
+        expected_command = [
             python_executable,
             "-m",
             "prefect.engine",
             flow_run.id.hex,
         ]
         if sys.platform == "win32":
-            command = " ".join(command)
+            expected_command = " ".join(expected_command)
+
         anyio.open_process.assert_awaited_once_with(
-            command,
-            stderr=subprocess.STDOUT,
+            expected_command,
+            stderr=ANY,
+            stdout=ANY,
             env=expected_env,
         )
 
