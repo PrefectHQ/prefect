@@ -6,7 +6,7 @@ import typer.core
 
 from prefect.cli._utilities import with_cli_exception_handling
 from prefect.settings import Setting
-from prefect.utilities.asyncio import is_async_fn, sync_compatible
+from prefect.utilities.asyncutils import is_async_fn, sync_compatible
 
 
 def SettingsOption(setting: Setting, *args, **kwargs) -> typer.Option:
