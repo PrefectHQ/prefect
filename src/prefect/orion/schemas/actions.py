@@ -18,11 +18,17 @@ class FlowCreate(
 ):
     """Data used by the Orion API to create a flow."""
 
+    class Config:
+        extra = "forbid"
+
 
 class FlowUpdate(
     schemas.core.Flow.subclass(name="FlowUpdate", include_fields=["tags"])
 ):
     """Data used by the Orion API to update a flow."""
+
+    class Config:
+        extra = "forbid"
 
 
 class DeploymentCreate(
@@ -42,6 +48,9 @@ class DeploymentCreate(
 ):
     """Data used by the Orion API to create a deployment."""
 
+    class Config:
+        extra = "forbid"
+
 
 class FlowRunUpdate(
     schemas.core.FlowRun.subclass(
@@ -50,6 +59,9 @@ class FlowRunUpdate(
     )
 ):
     """Data used by the Orion API to update a flow run."""
+
+    class Config:
+        extra = "forbid"
 
 
 class StateCreate(
@@ -65,6 +77,9 @@ class StateCreate(
     )
 ):
     """Data used by the Orion API to create a new state."""
+
+    class Config:
+        extra = "forbid"
 
 
 class TaskRunCreate(
@@ -104,10 +119,14 @@ class FlowRunCreate(
             "idempotency_key",
             "parent_task_run_id",
             "flow_runner",
+            "empirical_policy",
         ],
     )
 ):
     """Data used by the Orion API to create a flow run."""
+
+    class Config:
+        extra = "forbid"
 
     # FlowRunCreate states must be provided as StateCreate objects
     state: StateCreate = Field(None, description="The state of the flow run to create")
@@ -123,10 +142,14 @@ class DeploymentFlowRunCreate(
             "tags",
             "idempotency_key",
             "flow_runner",
+            "empirical_policy",
         ],
     )
 ):
     """Data used by the Orion API to create a flow run from a deployment."""
+
+    class Config:
+        extra = "forbid"
 
     # FlowRunCreate states must be provided as StateCreate objects
     state: StateCreate = Field(None, description="The state of the flow run to create")
@@ -140,6 +163,9 @@ class SavedSearchCreate(
 ):
     """Data used by the Orion API to create a saved search."""
 
+    class Config:
+        extra = "forbid"
+
 
 class ConcurrencyLimitCreate(
     schemas.core.ConcurrencyLimit.subclass(
@@ -148,6 +174,9 @@ class ConcurrencyLimitCreate(
     )
 ):
     """Data used by the Orion API to create a concurrency limit."""
+
+    class Config:
+        extra = "forbid"
 
 
 class BlockTypeCreate(
@@ -164,9 +193,15 @@ class BlockTypeCreate(
 ):
     """Data used by the Orion API to create a block type."""
 
+    class Config:
+        extra = "forbid"
+
 
 class BlockTypeUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a block type."""
+
+    class Config:
+        extra = "forbid"
 
     logo_url: Optional[str] = None
     documentation_url: Optional[str] = None
@@ -182,6 +217,9 @@ class BlockSchemaCreate(
 ):
     """Data used by the Orion API to create a block schema."""
 
+    class Config:
+        extra = "forbid"
+
 
 class BlockDocumentCreate(
     schemas.core.BlockDocument.subclass(
@@ -196,6 +234,9 @@ class BlockDocumentCreate(
     )
 ):
     """Data used by the Orion API to create a block document."""
+
+    class Config:
+        extra = "forbid"
 
     @root_validator
     def check_anonymous_name(cls, values):
@@ -216,6 +257,9 @@ class BlockDocumentCreate(
 class BlockDocumentUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a block document."""
 
+    class Config:
+        extra = "forbid"
+
     name: Optional[str] = None
     data: Optional[dict] = None
 
@@ -233,6 +277,9 @@ class BlockDocumentReferenceCreate(
 ):
     """Data used to create block document reference."""
 
+    class Config:
+        extra = "forbid"
+
 
 class LogCreate(
     schemas.core.Log.subclass(
@@ -249,6 +296,9 @@ class LogCreate(
 ):
     """Data used by the Orion API to create a log."""
 
+    class Config:
+        extra = "forbid"
+
 
 class WorkQueueCreate(
     schemas.core.WorkQueue.subclass(
@@ -263,6 +313,9 @@ class WorkQueueCreate(
     )
 ):
     """Data used by the Orion API to create a work queue."""
+
+    class Config:
+        extra = "forbid"
 
 
 class WorkQueueUpdate(
@@ -279,6 +332,9 @@ class WorkQueueUpdate(
 ):
     """Data used by the Orion API to update a work queue."""
 
+    class Config:
+        extra = "forbid"
+
     name: Optional[str] = Field(None, description="The name of the work queue.")
 
 
@@ -286,29 +342,28 @@ class FlowRunNotificationPolicyCreate(
     schemas.core.FlowRunNotificationPolicy.subclass(
         "FlowRunNotificationPolicyCreate",
         include_fields=[
-            "name",
             "is_active",
             "state_names",
             "tags",
             "block_document_id",
+            "message_template",
         ],
     )
 ):
     """Data used by the Orion API to create a flow run notification policy."""
 
+    class Config:
+        extra = "forbid"
+
 
 class FlowRunNotificationPolicyUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a flow run notification policy."""
 
-    name: str = Field(None, description="A name for the notification policy")
-    is_active: bool = Field(None, description="Whether the policy is currently active")
-    state_names: List[str] = Field(
-        None, description="The flow run states that trigger notifications"
-    )
-    tags: List[str] = Field(
-        None,
-        description="The flow run tags that trigger notifications (set [] to disable)",
-    )
-    block_document_id: UUID = Field(
-        None, description="The block document ID used for sending notifications"
-    )
+    class Config:
+        extra = "forbid"
+
+    is_active: Optional[bool] = None
+    state_names: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
+    block_document_id: Optional[UUID] = None
+    message_template: Optional[str] = None

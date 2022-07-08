@@ -30,7 +30,7 @@ TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.6.0"
+ORION_API_VERSION = "0.7.0"
 
 logger = get_logger("orion")
 
@@ -52,6 +52,7 @@ API_ROUTERS = (
     api.block_documents.router,
     api.work_queues.router,
     api.block_schemas.router,
+    api.block_capabilities.router,
     api.ui.flow_runs.router,
     api.admin.router,
     api.root.router,
@@ -265,11 +266,12 @@ def create_app(
 
     async def add_block_types():
         """Add all registered blocks to the database"""
-        from prefect.blocks.core import BLOCK_REGISTRY
+        from prefect.blocks.core import Block
         from prefect.orion.database.dependencies import provide_database_interface
         from prefect.orion.models.block_schemas import create_block_schema
         from prefect.orion.models.block_types import create_block_type
         from prefect.orion.schemas.actions import BlockTypeCreate
+        from prefect.utilities.dispatch import get_registry_for_type
 
         db = provide_database_interface()
 
@@ -277,7 +279,7 @@ def create_app(
 
         session = await db.session()
         async with session:
-            for block_class in BLOCK_REGISTRY.values():
+            for block_class in get_registry_for_type(Block).values():
                 # each block schema gets its own transaction
                 async with session.begin():
                     try:

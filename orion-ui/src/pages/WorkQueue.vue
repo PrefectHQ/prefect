@@ -16,8 +16,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, UnionFilters, WorkQueueDetails, PageHeadingWorkQueue, DeploymentsTable } from '@prefecthq/orion-design'
-  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { UnionFilters, WorkQueueDetails, PageHeadingWorkQueue, DeploymentsTable } from '@prefecthq/orion-design'
+  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { routes } from '@/router'

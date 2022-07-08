@@ -1,8 +1,6 @@
 import textwrap
 from typing import Iterable, List, Union
 
-import pytest
-import rich
 from typer.testing import CliRunner, Result
 
 from prefect.cli import app
@@ -108,14 +106,3 @@ def invoke_and_assert(
                 check_contains(result, contents, should_contain=False)
 
     return result
-
-
-@pytest.fixture
-def disable_terminal_wrapping(monkeypatch):
-    """
-    Sometimes, line wrapping makes it hard to make deterministic assertions about the
-    output of a CLI command. Wrapping can be disabled by using this fixture.
-    """
-    monkeypatch.setattr(
-        "prefect.cli.root.app.console", rich.console.Console(soft_wrap=True)
-    )

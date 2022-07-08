@@ -1,5 +1,6 @@
 import asyncio
 import threading
+import time
 import uuid
 from functools import partial
 
@@ -15,6 +16,7 @@ from prefect.utilities.asyncio import (
     in_async_worker_thread,
     run_async_from_worker_thread,
     run_async_in_new_loop,
+    run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
     sync_compatible,
 )
@@ -64,6 +66,77 @@ async def test_run_sync_in_worker_thread():
         return x + y + z
 
     assert await run_sync_in_worker_thread(foo, 1, y=2) == 6
+
+
+async def test_run_sync_in_worker_thread_does_not_hide_exceptions():
+    def foo():
+        raise ValueError("test")
+
+    with pytest.raises(ValueError, match="test"):
+        await run_sync_in_worker_thread(foo)
+
+
+async def test_run_sync_in_interruptible_worker_thread():
+    def foo(x, y, z=3):
+        return x + y + z
+
+    assert await run_sync_in_interruptible_worker_thread(foo, 1, y=2) == 6
+
+
+async def test_run_sync_in_interruptible_worker_thread_does_not_hide_exceptions():
+    def foo():
+        raise ValueError("test")
+
+    with pytest.raises(ValueError, match="test"):
+        await run_sync_in_interruptible_worker_thread(foo)
+
+
+async def test_run_sync_in_interruptible_worker_thread_does_not_hide_base_exceptions():
+    class LikeKeyboardInterrupt(BaseException):
+        """Like a keyboard interrupt but not for real"""
+
+    def foo():
+        raise LikeKeyboardInterrupt("test")
+
+    with pytest.raises(LikeKeyboardInterrupt, match="test"):
+        await run_sync_in_interruptible_worker_thread(foo)
+
+
+async def test_run_sync_in_interruptible_worker_thread_function_can_return_exception():
+    def foo():
+        return ValueError("test")
+
+    result = await run_sync_in_interruptible_worker_thread(foo)
+
+    assert isinstance(result, ValueError)
+    assert result.args == ("test",)
+
+
+async def test_run_sync_in_interruptible_worker_thread_can_be_interrupted():
+    i = 0
+
+    def just_sleep():
+        nonlocal i
+        for i in range(100):  # Sleep for 10 seconds
+            time.sleep(0.1)
+
+    with pytest.raises(TimeoutError):
+        with anyio.fail_after(1):
+            t0 = time.perf_counter()
+            await run_sync_in_interruptible_worker_thread(just_sleep)
+
+    t1 = time.perf_counter()
+    runtime = t1 - t0
+    assert runtime < 2, "The call should be return quickly after timeout"
+
+    # Sleep for an extra second to check if the thread is still running. We cannot
+    # check `thread.is_alive()` because it is still alive — presumably this is because
+    # AnyIO is using long-lived worker threads instead of creating a new thread per
+    # task. Without a check like this, the thread can be running after timeout in the
+    # background and we will not know — the next test will start.
+    await anyio.sleep(1)
+
+    assert i <= 10, "`just_sleep` should not be running after timeout"
 
 
 async def test_run_async_from_worker_thread():

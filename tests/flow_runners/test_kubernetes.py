@@ -21,12 +21,8 @@ from urllib3.exceptions import MaxRetryError
 
 import prefect
 from prefect.client import get_client
-from prefect.flow_runners import (
-    KubernetesFlowRunner,
-    KubernetesImagePullPolicy,
-    KubernetesRestartPolicy,
-    base_flow_run_environment,
-)
+from prefect.flow_runners import KubernetesFlowRunner, KubernetesImagePullPolicy
+from prefect.flow_runners.base import base_flow_run_environment
 from prefect.flow_runners.kubernetes import KubernetesManifest
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
@@ -57,8 +53,11 @@ class TestKubernetesFlowRunner:
         pytest.importorskip("kubernetes")
 
         mock = MagicMock()
+        # We cannot mock this or the `except` clause will complain
+        mock.config.ConfigException = ConfigException
 
         monkeypatch.setattr("kubernetes.config", mock)
+        monkeypatch.setattr("kubernetes.config.ConfigException", ConfigException)
         return mock
 
     @pytest.fixture
@@ -103,7 +102,7 @@ class TestKubernetesFlowRunner:
 
         return [{"object": job_pod}, {"object": job}]
 
-    def test_runner_type(restart_policy):
+    def test_runner_type(self):
         assert KubernetesFlowRunner().typename == "kubernetes"
 
     def test_building_a_job_is_idempotent(self, flow_run: FlowRun):
@@ -393,29 +392,6 @@ class TestKubernetesFlowRunner:
         ]["spec"]["template"]["spec"].get("imagePullPolicy")
         assert call_restart_policy is None
 
-    async def test_warns_and_replaces_user_supplied_restart_policy(
-        self,
-        mock_k8s_client,
-        mock_watch,
-        mock_k8s_batch_client,
-        flow_run,
-        use_hosted_orion,
-        hosted_orion_api,
-    ):
-        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
-
-        with pytest.warns(DeprecationWarning, match="restart_policy is deprecated"):
-            flow_runner = KubernetesFlowRunner(
-                restart_policy=KubernetesRestartPolicy.ON_FAILURE
-            )
-
-        await flow_runner.submit_flow_run(flow_run, MagicMock())
-        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
-        call_restart_policy = mock_k8s_batch_client.create_namespaced_job.call_args[0][
-            1
-        ]["spec"]["template"]["spec"].get("restartPolicy")
-        assert call_restart_policy == "Never"
-
     async def test_raises_on_submission_with_ephemeral_api(self, flow_run):
         with pytest.raises(
             RuntimeError,
@@ -447,7 +423,7 @@ class TestKubernetesFlowRunner:
 
         await KubernetesFlowRunner().submit_flow_run(flow_run, fake_status)
 
-        mock_cluster_config.incluster_config.load_incluster_config.assert_called_once()
+        mock_cluster_config.load_incluster_config.assert_called_once()
         assert not mock_cluster_config.load_kube_config.called
 
     async def test_uses_cluster_config_if_not_in_cluster(
@@ -462,9 +438,7 @@ class TestKubernetesFlowRunner:
         mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
         fake_status = MagicMock(spec=anyio.abc.TaskStatus)
 
-        mock_cluster_config.incluster_config.load_incluster_config.side_effect = (
-            ConfigException()
-        )
+        mock_cluster_config.load_incluster_config.side_effect = ConfigException()
 
         await KubernetesFlowRunner().submit_flow_run(flow_run, fake_status)
 
@@ -608,7 +582,7 @@ class TestIntegrationWithRealKubernetesCluster:
         k8s cluster.
 
         NOTE: Before running this, you will need to do the following:
-            - Create an orion deployment: `prefect orion kubernetes-manifest | kubectl apply -f -`
+            - Create an orion deployment: `prefect kubernetes manifest orion | kubectl apply -f -`
             - Forward port 4200 in the cluster to port 4205 locally: `kubectl port-forward deployment/orion 4205:4200`
         """
         fake_status = MagicMock(spec=anyio.abc.TaskStatus)

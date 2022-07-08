@@ -6,24 +6,15 @@ import packaging.version
 import pkg_resources
 from typing_extensions import Literal, Self
 
+from prefect.software.base import Requirement
 
-class PipRequirement(packaging.requirements.Requirement):
+
+class PipRequirement(Requirement, packaging.requirements.Requirement):
     """
     A parsed Python requirement.
 
     An extension for `packaging.version.Requirement` with Pydantic support.
     """
-
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value):
-        if not isinstance(value, cls):
-            # Attempt to parse the string representation of the input type
-            return cls(str(value))
-        return value
 
     @classmethod
     def from_distribution(cls: Type[Self], dist: pkg_resources.Distribution) -> Self:
@@ -36,15 +27,6 @@ class PipRequirement(packaging.requirements.Requirement):
                 "used as a requirement."
             )
         return cls.validate(dist.as_requirement())
-
-    def __eq__(self, other: object) -> bool:
-        """
-        Requirements are equal if their string specification matches.
-        """
-        if not isinstance(other, PipRequirement):
-            return NotImplemented
-
-        return str(self) == str(other)
 
 
 def _get_installed_distributions() -> Dict[str, pkg_resources.Distribution]:

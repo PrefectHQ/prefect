@@ -1,5 +1,7 @@
 # ensure core blocks are registered
-from prefect.blocks import storage
-from prefect.blocks import notifications
 
-__all__ = ["notifications", "storage"]
+import prefect.blocks.system
+import prefect.blocks.notifications
+import prefect.blocks.storage
+
+__all__ = ["notifications", "storage", "system"]

@@ -1,5 +1,5 @@
 collectionName: prefect-airbyte
 author: Prefect
 authorUrl: https://prefect.io
-documentation: prefecthq.github.io/prefect-airbyte/
+documentation: https://prefecthq.github.io/prefect-airbyte/
 iconUrl: /img/collections/airbyte.png

@@ -2,10 +2,14 @@ from textwrap import dedent
 from typing import List
 from uuid import uuid4
 
+import pendulum
 import pydantic
 import pytest
 from fastapi import status
 
+import prefect
+from prefect.blocks.core import Block
+from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockTypeCreate, BlockTypeUpdate
 from prefect.orion.schemas.core import BlockDocument, BlockType
 from tests.orion.models.test_block_types import CODE_EXAMPLE
@@ -20,6 +24,16 @@ CODE_EXAMPLE = dedent(
         ```
         """
 )
+
+
+@pytest.fixture
+async def system_block_type(session):
+    block_type = await models.block_types.create_block_type(
+        session=session,
+        block_type=schemas.core.BlockType(name="system_block", is_protected=True),
+    )
+    await session.commit()
+    return block_type
 
 
 class TestCreateBlockType:
@@ -107,6 +121,22 @@ class TestCreateBlockType:
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
+    @pytest.mark.parametrize(
+        "name", ["PrefectBlockType", "Prefect", "prefect_block_type", "pReFeCt!"]
+    )
+    async def test_create_block_type_with_reserved_name_fails(self, client, name):
+        response = await client.post(
+            "/block_types/",
+            json=dict(
+                name=name,
+            ),
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert (
+            response.json()["detail"]
+            == "Block type names beginning with 'Prefect' are reserved."
+        )
+
 
 class TestReadBlockType:
     async def test_read_block_type_by_id(self, client, block_type_x):
@@ -129,6 +159,61 @@ class TestReadBlockType:
 
 
 class TestReadBlockTypes:
+    @pytest.fixture
+    async def block_types_with_associated_capabilities(self, session):
+        class CanRun(Block):
+            _block_schema_capabilities = ["run"]
+
+            def run(self):
+                pass
+
+        class CanFly(Block):
+            _block_schema_capabilities = ["fly"]
+
+            def fly(self):
+                pass
+
+        class CanSwim(Block):
+            _block_schema_capabilities = ["swim"]
+
+            def swim(self):
+                pass
+
+        class Duck(CanSwim, CanFly, Block):
+            a: str
+
+        class Bird(CanFly, Block):
+            b: str
+
+        class Cat(CanRun, Block):
+            c: str
+
+        block_type_duck = await models.block_types.create_block_type(
+            session=session, block_type=Duck._to_block_type()
+        )
+        block_schema_duck = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Duck._to_block_schema(block_type_id=block_type_duck.id),
+        )
+        block_type_bird = await models.block_types.create_block_type(
+            session=session, block_type=Bird._to_block_type()
+        )
+        block_schema_bird = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Bird._to_block_schema(block_type_id=block_type_bird.id),
+        )
+        block_type_cat = await models.block_types.create_block_type(
+            session=session, block_type=Cat._to_block_type()
+        )
+        block_schema_cat = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Cat._to_block_schema(block_type_id=block_type_cat.id),
+        )
+
+        await session.commit()
+
+        return block_type_duck, block_type_bird, block_type_cat
+
     async def test_read_block_types(
         self, client, block_type_x, block_type_y, block_type_z
     ):
@@ -158,6 +243,73 @@ class TestReadBlockTypes:
         assert [block_type.id for block_type in read_block_types] == [
             block_type_z.id,
         ]
+
+    async def test_read_block_types_filter_by_name(
+        self, client, block_types_with_associated_capabilities
+    ):
+        response = await client.post(
+            "/block_types/filter", json=dict(block_types=dict(name=dict(like_="duck")))
+        )
+
+        assert response.status_code == 200
+        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(read_block_types) == 1
+        assert read_block_types[0].id == block_types_with_associated_capabilities[0].id
+
+        response = await client.post(
+            "/block_types/filter", json=dict(block_types=dict(name=dict(like_="c")))
+        )
+
+        assert response.status_code == 200
+        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(read_block_types) == 2
+        assert [b.id for b in read_block_types] == [
+            block_types_with_associated_capabilities[2].id,
+            block_types_with_associated_capabilities[0].id,
+        ]
+
+        response = await client.post(
+            "/block_types/filter", json=dict(block_types=dict(name=dict(like_="z")))
+        )
+        assert response.status_code == 200
+        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+
+    async def test_read_block_types_filter_by_associated_capability(
+        self, client, block_types_with_associated_capabilities
+    ):
+        response = await client.post(
+            "/block_types/filter",
+            json=dict(
+                block_schemas=dict(block_capabilities=dict(all_=["fly", "swim"]))
+            ),
+        )
+
+        assert response.status_code == 200
+        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(read_block_types) == 1
+        assert read_block_types[0].id == block_types_with_associated_capabilities[0].id
+
+        response = await client.post(
+            "/block_types/filter",
+            json=dict(block_schemas=dict(block_capabilities=dict(all_=["fly"]))),
+        )
+
+        assert response.status_code == 200
+        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(read_block_types) == 2
+        assert [b.id for b in read_block_types] == [
+            block_types_with_associated_capabilities[1].id,
+            block_types_with_associated_capabilities[0].id,
+        ]
+
+        response = await client.post(
+            "/block_types/filter",
+            json=dict(block_schemas=dict(block_capabilities=dict(all_=["swim"]))),
+        )
+        assert response.status_code == 200
+        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(read_block_types) == 1
+        assert read_block_types[0].id == block_types_with_associated_capabilities[0].id
 
 
 class TestUpdateBlockType:
@@ -193,6 +345,16 @@ class TestUpdateBlockType:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    async def test_update_system_block_type_fails(self, client, system_block_type):
+        response = await client.patch(
+            f"/block_types/{system_block_type.id}",
+            json=BlockTypeUpdate(
+                description="Hi there!",
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.json()["detail"] == "protected block types cannot be updated."
+
 
 class TestDeleteBlockType:
     async def test_delete_block_type(self, client, block_type_x):
@@ -205,6 +367,11 @@ class TestDeleteBlockType:
     async def test_delete_nonexistent_block_type(self, client):
         response = await client.delete(f"/block_types/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_delete_system_block_type_fails(self, client, system_block_type):
+        response = await client.delete(f"/block_types/{system_block_type.id}")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.json()["detail"] == "protected block types cannot be deleted."
 
 
 class TestReadBlockDocumentsForBlockType:
@@ -256,3 +423,62 @@ class TestReadBlockDocumentByNameForBlockType:
             f"/block_types/name/{block_type_x.name}/block_documents/name/nonsense"
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestSystemBlockTypes:
+    async def test_install_system_block_types(self, client):
+
+        response = await client.post("/block_types/filter")
+        block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(block_types) == 0
+
+        r = await client.post("/block_types/install_system_block_types")
+        assert r.status_code == status.HTTP_200_OK
+
+        response = await client.post("/block_types/filter")
+        block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(block_types) > 0
+
+    async def test_install_system_block_types_multiple_times(self, client):
+
+        response = await client.post("/block_types/filter")
+        block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(block_types) == 0
+
+        await client.post("/block_types/install_system_block_types")
+        await client.post("/block_types/install_system_block_types")
+        await client.post("/block_types/install_system_block_types")
+
+    async def test_create_system_block_type(self, client, session):
+        # install system blocks
+        await client.post("/block_types/install_system_block_types")
+
+        # create a datetime block
+        datetime_block_type = await client.get("/block_types/name/DateTime")
+        datetime_block_schema = await client.post(
+            "/block_schemas/filter",
+            json=dict(
+                block_schema_filter=dict(
+                    block_type_id=dict(any_=[datetime_block_type.json()["id"]])
+                ),
+                limit=1,
+            ),
+        )
+        block = prefect.blocks.system.DateTime(value="2022-01-01T00:00:00+00:00")
+        response = await client.post(
+            "/block_documents/",
+            json=block._to_block_document(
+                name="MyTestDateTime",
+                block_type_id=datetime_block_type.json()["id"],
+                block_schema_id=datetime_block_schema.json()[0]["id"],
+            ).dict(
+                json_compatible=True,
+                exclude_unset=True,
+                exclude={"id", "block_schema", "block_type"},
+            ),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+        # load the datetime block
+        api_block = await prefect.blocks.system.DateTime.load("MyTestDateTime")
+        assert api_block.value == pendulum.datetime(2022, 1, 1, tz="UTC")

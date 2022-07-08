@@ -356,7 +356,12 @@ class ORMFlowRun(ORMRun):
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     idempotency_key = sa.Column(sa.String)
     context = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    empirical_policy = sa.Column(JSON, server_default="{}", default={}, nullable=False)
+    empirical_policy = sa.Column(
+        Pydantic(schemas.core.FlowRunPolicy),
+        server_default="{}",
+        default=schemas.core.FlowRunPolicy,
+        nullable=False,
+    )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     flow_runner_type = sa.Column(sa.String, index=True)
@@ -737,6 +742,9 @@ class ORMBlockType:
     documentation_url = sa.Column(sa.String, nullable=True)
     description = sa.Column(sa.String, nullable=True)
     code_example = sa.Column(sa.String, nullable=True)
+    is_protected = sa.Column(
+        sa.Boolean, nullable=False, server_default="0", default=False
+    )
 
     @declared_attr
     def __table_args__(cls):
@@ -962,7 +970,6 @@ class ORMAgent:
 
 @declarative_mixin
 class ORMFlowRunNotificationPolicy:
-    name = sa.Column(sa.String, nullable=False, index=True)
     is_active = sa.Column(sa.Boolean, server_default="1", default=True, nullable=False)
     state_names = sa.Column(JSON, server_default="[]", default=[], nullable=False)
     tags = sa.Column(JSON, server_default="[]", default=[], nullable=False)

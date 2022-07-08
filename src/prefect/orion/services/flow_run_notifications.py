@@ -67,7 +67,9 @@ class FlowRunNotifications(LoopService):
                     continue
                 block = Block._from_block_document(
                     await schemas.core.BlockDocument.from_orm_model(
-                        session=session, orm_block_document=orm_block_document
+                        session=session,
+                        orm_block_document=orm_block_document,
+                        include_secrets=True,
                     )
                 )
 
@@ -81,7 +83,10 @@ class FlowRunNotifications(LoopService):
                         for k in schemas.core.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS
                     }
                 )
-                await block.notify(data=message)
+                await block.notify(
+                    subject="Prefect flow run notification",
+                    body=message,
+                )
 
                 self.logger.debug(
                     f"Successfully sent notification for flow run {notification.flow_run_id} "

@@ -1,7 +1,6 @@
 """
 Full schemas of Orion API objects.
 """
-
 import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
@@ -13,13 +12,17 @@ import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.names import generate_slug
-from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
+from prefect.orion.utilities.schemas import (
+    OBFUSCATED_SECRET,
+    ORMBaseModel,
+    PrefectBaseModel,
+)
+from prefect.utilities.collections import listrepr
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
 FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_notification_policy_id",
-    "flow_run_notification_policy_name",
     "flow_id",
     "flow_name",
     "flow_run_id",
@@ -86,6 +89,15 @@ class FlowRunnerSettings(PrefectBaseModel):
         return self.type, self.config
 
 
+class FlowRunPolicy(PrefectBaseModel):
+    """Defines of how a flow run should retry."""
+
+    # TODO: Determine how to separate between infrastructure and within-process level
+    #       retries
+    max_retries: int = 0
+    retry_delay_seconds: float = 0
+
+
 class FlowRun(ORMBaseModel):
     """An ORM representation of flow run data."""
 
@@ -117,7 +129,9 @@ class FlowRun(ORMBaseModel):
         description="Additional context for the flow run.",
         example={"my_var": "my_val"},
     )
-    empirical_policy: dict = Field(default_factory=dict)
+    empirical_policy: FlowRunPolicy = Field(
+        default_factory=FlowRunPolicy,
+    )
     empirical_config: dict = Field(default_factory=dict)
     tags: List[str] = Field(
         default_factory=list,
@@ -377,6 +391,9 @@ class BlockType(ORMBaseModel):
     code_example: Optional[str] = Field(
         None, description="A code snippet demonstrating use of the corresponding block"
     )
+    is_protected: bool = Field(
+        False, description="Protected block types cannot be modified via API."
+    )
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
@@ -391,7 +408,7 @@ class BlockSchema(ORMBaseModel):
     fields: dict = Field(
         default_factory=dict, description="The block schema's field schema"
     )
-    block_type_id: UUID = Field(..., description="A block type ID")
+    block_type_id: Optional[UUID] = Field(..., description="A block type ID")
     block_type: Optional[BlockType] = Field(
         None, description="The associated block type"
     )
@@ -482,13 +499,38 @@ class BlockDocument(ORMBaseModel):
         cls,
         session,
         orm_block_document: "prefect.orion.database.orm_models.ORMBlockDocument",
+        include_secrets: bool = False,
     ):
+        data = await orm_block_document.decrypt_data(session=session)
+
+        # if secrets are not included, obfuscate them based on the schema's
+        # `secret_fields`. Note this walks any nested blocks as well. If the
+        # nested blocks were recovered from named blocks, they will already
+        # be obfuscated, but if nested fields were hardcoded into the parent
+        # blocks data, this is the only opportunity to obfuscate them.
+        if not include_secrets:
+            for field in orm_block_document.block_schema.fields.get(
+                "secret_fields", []
+            ):
+                data_dict = data
+                split_fields = field.split(".")
+                k, keys = split_fields[0], split_fields[1:]
+                # while there are children fields, walk the data dict
+                while keys:
+                    data_dict = data_dict.get(k)
+                    if data_dict is None:
+                        break
+                    k = keys.pop(0)
+
+                if data_dict is not None:
+                    data_dict[k] = OBFUSCATED_SECRET
+
         return cls(
             id=orm_block_document.id,
             created=orm_block_document.created,
             updated=orm_block_document.updated,
             name=orm_block_document.name,
-            data=await orm_block_document.decrypt_data(session=session),
+            data=data,
             block_schema_id=orm_block_document.block_schema_id,
             block_schema=orm_block_document.block_schema,
             block_type_id=orm_block_document.block_type_id,
@@ -662,7 +704,6 @@ class WorkQueue(ORMBaseModel):
 class FlowRunNotificationPolicy(ORMBaseModel):
     """An ORM representation of a flow run notification."""
 
-    name: str = Field(..., description="A name for the notification policy")
     is_active: bool = Field(True, description="Whether the policy is currently active")
     state_names: List[str] = Field(
         ..., description="The flow run states that trigger notifications"
@@ -674,8 +715,23 @@ class FlowRunNotificationPolicy(ORMBaseModel):
     block_document_id: UUID = Field(
         ..., description="The block document ID used for sending notifications"
     )
-    # message_template: str = Field(None, description=f'A templatable notification message.
-    # Valid variables include: {FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS.join(",")}')
+    message_template: str = Field(
+        None,
+        description=(
+            "A templatable notification message. Use {braces} to add variables. "
+            f'Valid variables include: {listrepr(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=", ")}'
+        ),
+        example="Flow run {flow_run_name} with id {flow_run_id} entered state {flow_run_state_name}.",
+    )
+
+    @validator("message_template")
+    def validate_message_template_variables(cls, v):
+        if v is not None:
+            try:
+                v.format(**{k: "test" for k in FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS})
+            except KeyError as exc:
+                raise ValueError(f"Invalid template variable provided: '{exc.args[0]}'")
+        return v
 
 
 class Agent(ORMBaseModel):

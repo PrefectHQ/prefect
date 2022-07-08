@@ -1,21 +1,18 @@
+import json
+import warnings
 from textwrap import dedent
 from typing import Dict, Type, Union
 from uuid import UUID, uuid4
 
 import pytest
-from pydantic import Field
+from pydantic import Field, SecretBytes, SecretStr
 
-from prefect.blocks.core import BLOCK_REGISTRY, Block, get_block_class, register_block
+from prefect.blocks.core import Block
 from prefect.client import OrionClient
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
-
-
-@pytest.fixture(autouse=True)
-def reset_registered_blocks(monkeypatch):
-    _copy = BLOCK_REGISTRY.copy()
-    monkeypatch.setattr("prefect.blocks.core.BLOCK_REGISTRY", _copy)
-    yield
+from prefect.orion.utilities.schemas import OBFUSCATED_SECRET
+from prefect.utilities.dispatch import lookup_type, register_type
 
 
 class TestAPICompatibility:
@@ -23,30 +20,29 @@ class TestAPICompatibility:
         x: str
         y: int = 1
 
-    @register_block
+    @register_type
     class MyRegisteredBlock(Block):
         x: str
         y: int = 1
 
-    @register_block
+    @register_type
     class MyOtherRegisteredBlock(Block):
         x: str
         y: int = 1
         z: int = 2
 
-    def test_registration_checksums(self):
+    def test_registration(self):
         assert (
-            get_block_class(self.MyRegisteredBlock._calculate_schema_checksum())
+            lookup_type(Block, self.MyRegisteredBlock.__dispatch_key__())
             is self.MyRegisteredBlock
         )
 
         assert (
-            get_block_class(self.MyOtherRegisteredBlock._calculate_schema_checksum())
+            lookup_type(Block, self.MyOtherRegisteredBlock.__dispatch_key__())
             is self.MyOtherRegisteredBlock
         )
 
-        with pytest.raises(ValueError, match="(No block schema exists)"):
-            get_block_class(self.MyBlock._calculate_schema_checksum())
+        assert lookup_type(Block, self.MyBlock.__dispatch_key__()) is self.MyBlock
 
     def test_create_api_block_schema(self, block_type_x):
         block_schema = self.MyRegisteredBlock._to_block_schema(
@@ -66,18 +62,170 @@ class TestAPICompatibility:
             "block_schema_references": {},
             "block_type_name": "MyRegisteredBlock",
             "required": ["x"],
+            "secret_fields": [],
+        }
+
+    def test_create_api_block_with_secret_fields_reflected_in_schema(self):
+        class SecretBlock(Block):
+            x: SecretStr
+            y: SecretBytes
+            z: str
+
+        assert SecretBlock.schema()["secret_fields"] == ["x", "y"]
+
+        schema = SecretBlock._to_block_schema(block_type_id=uuid4())
+        assert schema.fields["secret_fields"] == ["x", "y"]
+        assert schema.fields == {
+            "block_schema_references": {},
+            "block_type_name": "SecretBlock",
+            "properties": {
+                "x": {
+                    "format": "password",
+                    "title": "X",
+                    "type": "string",
+                    "writeOnly": True,
+                },
+                "y": {
+                    "format": "password",
+                    "title": "Y",
+                    "type": "string",
+                    "writeOnly": True,
+                },
+                "z": {"title": "Z", "type": "string"},
+            },
+            "required": ["x", "y", "z"],
+            "secret_fields": ["x", "y"],
+            "title": "SecretBlock",
+            "type": "object",
+        }
+
+    def test_create_api_block_with_nested_secret_fields_reflected_in_schema(self):
+        class Child(Block):
+            a: SecretStr
+            b: str
+
+        class Parent(Block):
+            a: SecretStr
+            b: str
+            child: Child
+
+        assert Child.schema()["secret_fields"] == ["a"]
+        assert Parent.schema()["secret_fields"] == ["a", "child.a"]
+        schema = Parent._to_block_schema(block_type_id=uuid4())
+        assert schema.fields["secret_fields"] == ["a", "child.a"]
+        assert schema.fields == {
+            "block_schema_references": {
+                "child": {
+                    "block_schema_checksum": "sha256:c6b7886dfd347159cbf5160d88310978b5b75b5f481aed6dca64c45b1b011284",
+                    "block_type_name": "Child",
+                }
+            },
+            "block_type_name": "Parent",
+            "definitions": {
+                "Child": {
+                    "block_schema_references": {},
+                    "block_type_name": "Child",
+                    "properties": {
+                        "a": {
+                            "format": "password",
+                            "title": "A",
+                            "type": "string",
+                            "writeOnly": True,
+                        },
+                        "b": {"title": "B", "type": "string"},
+                    },
+                    "required": ["a", "b"],
+                    "secret_fields": ["a"],
+                    "title": "Child",
+                    "type": "object",
+                }
+            },
+            "properties": {
+                "a": {
+                    "format": "password",
+                    "title": "A",
+                    "type": "string",
+                    "writeOnly": True,
+                },
+                "b": {"title": "B", "type": "string"},
+                "child": {"$ref": "#/definitions/Child"},
+            },
+            "required": ["a", "b", "child"],
+            "secret_fields": ["a", "child.a"],
+            "title": "Parent",
+            "type": "object",
+        }
+
+    def test_create_api_block_with_secret_values_are_obfuscated_by_default(self):
+        class SecretBlock(Block):
+            x: SecretStr
+            y: SecretBytes
+            z: str
+
+        block = SecretBlock(x="x", y=b"y", z="z")
+
+        block_type_id = uuid4()
+        block_schema_id = uuid4()
+        blockdoc = block._to_block_document(
+            name="name", block_type_id=block_type_id, block_schema_id=block_schema_id
+        )
+        assert isinstance(blockdoc.data["x"], SecretStr)
+        assert isinstance(blockdoc.data["y"], SecretBytes)
+
+        json_blockdoc = json.loads(blockdoc.json())
+        assert json_blockdoc["data"] == {"x": "**********", "y": "**********", "z": "z"}
+
+        json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
+        assert json_blockdoc_with_secrets["data"] == {"x": "x", "y": "y", "z": "z"}
+
+    def test_create_nested_api_block_with_secret_values_are_obfuscated_by_default(self):
+        class Child(Block):
+            a: SecretStr
+            b: str
+
+        class Parent(Block):
+            a: SecretStr
+            b: str
+            child: Child
+
+        block = Parent(a="a", b="b", child=dict(a="a", b="b"))
+        block_type_id = uuid4()
+        block_schema_id = uuid4()
+        blockdoc = block._to_block_document(
+            name="name", block_type_id=block_type_id, block_schema_id=block_schema_id
+        )
+        assert isinstance(blockdoc.data["a"], SecretStr)
+        assert isinstance(blockdoc.data["child"]["a"], SecretStr)
+
+        json_blockdoc = json.loads(blockdoc.json())
+        assert json_blockdoc["data"] == {
+            "a": "**********",
+            "b": "b",
+            "child": {"a": "**********", "b": "b"},
+        }
+
+        json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
+        assert json_blockdoc_with_secrets["data"] == {
+            "a": "a",
+            "b": "b",
+            "child": {"a": "a", "b": "b"},
         }
 
     def test_registering_blocks_with_capabilities(self):
-        @register_block
+        @register_type
         class IncapableBlock(Block):
             # could use a little confidence
             _block_type_id = uuid4()
 
-        @register_block
-        class CapableBlock(Block):
-            # kind of rude to the other Blocks
+        class CanBluff(Block):
             _block_schema_capabilities = ["bluffing"]
+
+            def bluff(self):
+                pass
+
+        @register_type
+        class CapableBlock(CanBluff, Block):
+            # kind of rude to the other Blocks
             _block_type_id = uuid4()
             all_the_answers: str = "42 or something"
 
@@ -88,7 +236,7 @@ class TestAPICompatibility:
         assert incapable_schema.capabilities == []
 
     def test_create_api_block_schema_only_includes_pydantic_fields(self, block_type_x):
-        @register_block
+        @register_type
         class MakesALottaAttributes(Block):
             real_field: str
             authentic_field: str
@@ -121,25 +269,39 @@ class TestAPICompatibility:
             "block_type_name": "MyOtherRegisteredBlock",
             "block_schema_references": {},
             "required": ["x"],
+            "secret_fields": [],
         }
 
-    def test_block_classes_with_same_fields_but_different_comments_same_checksum(self):
-        class A(Block):
-            "This is A block"
+    @pytest.fixture
+    def OriginalBlock(self):
+        class Original(Block):
+            "This is the original block"
             x: str = Field(..., description="This is x field")
             y: str
             z: str
 
-        class B(Block):
-            "This is B block"
+        return Original
+
+    @pytest.fixture
+    def CloneBlock(self):
+        # Ignore warning of duplicate registration
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+        class Original(Block):
+            "This is the clone block"
             x: str
             y: str
             z: str
 
-        # Rename so that two classes have same name
-        B.__name__ = "A"
+        return Original
 
-        assert A._calculate_schema_checksum() == B._calculate_schema_checksum()
+    def test_block_classes_with_same_fields_but_different_comments_same_checksum(
+        self, OriginalBlock, CloneBlock
+    ):
+        assert (
+            OriginalBlock._calculate_schema_checksum()
+            == CloneBlock._calculate_schema_checksum()
+        )
 
     def test_create_api_block_with_arguments(self, block_type_x):
         with pytest.raises(ValueError, match="(No name provided)"):
@@ -301,7 +463,7 @@ class TestAPICompatibility:
         assert block._block_type_id == block_type_id
 
     def test_create_block_document_from_block(self, block_type_x):
-        @register_block
+        @register_type
         class MakesALottaAttributes(Block):
             real_field: str
             authentic_field: str
@@ -341,6 +503,37 @@ class TestAPICompatibility:
             block_schema.capabilities == []
         ), "No capabilities should be defined for this Block and defaults to []"
 
+    def test_collecting_capabilities(self):
+        class CanRun(Block):
+            _block_schema_capabilities = ["run"]
+
+        class CanFly(Block):
+            _block_schema_capabilities = ["fly"]
+
+        class CanSwim(Block):
+            _block_schema_capabilities = ["swim"]
+
+        class Duck(CanSwim, CanFly):
+            pass
+
+        class Bird(CanFly):
+            pass
+
+        class Crow(Bird, CanRun):
+            pass
+
+        class Cat(CanRun):
+            pass
+
+        class FlyingCat(Cat, Bird):
+            pass
+
+        assert Duck.get_block_capabilities() == {"swim", "fly"}
+        assert Bird.get_block_capabilities() == {"fly"}
+        assert Cat.get_block_capabilities() == {"run"}
+        assert Crow.get_block_capabilities() == {"fly", "run"}
+        assert FlyingCat.get_block_capabilities() == {"fly", "run"}
+
     def test_create_block_schema_from_nested_blocks(self):
 
         block_schema_id = uuid4()
@@ -374,12 +567,14 @@ class TestAPICompatibility:
                     "block_type_name": "Nested Block",
                 }
             },
+            "secret_fields": [],
             "definitions": {
                 "NestedBlock": {
                     "block_schema_references": {},
                     "block_type_name": "Nested Block",
                     "properties": {"x": {"title": "X", "type": "string"}},
                     "required": ["x"],
+                    "secret_fields": [],
                     "title": "NestedBlock",
                     "type": "object",
                 },
@@ -498,8 +693,24 @@ class TestAPICompatibility:
         assert block_instance._block_document_id == outer_block_document.id
         assert block_instance._block_type_id == outer_block_document.block_type_id
         assert block_instance._block_schema_id == outer_block_document.block_schema_id
-        assert block_instance.c == {"y": 2}
-        assert block_instance.d == {"b": {"x": 1}, "z": "ztop"}
+        assert block_instance.c.dict() == {
+            "y": 2,
+            "_block_document_id": middle_block_document_1.id,
+            "_block_document_name": "middle_block_document_1",
+            "_is_anonymous": False,
+        }
+        assert block_instance.d.dict() == {
+            "b": {
+                "x": 1,
+                "_block_document_id": inner_block_document.id,
+                "_block_document_name": "inner_block_document",
+                "_is_anonymous": False,
+            },
+            "z": "ztop",
+            "_block_document_id": middle_block_document_2.id,
+            "_block_document_name": "middle_block_document_2",
+            "_is_anonymous": False,
+        }
 
     async def test_create_block_from_nonexistent_name(self, test_block):
         with pytest.raises(
@@ -509,13 +720,13 @@ class TestAPICompatibility:
             await test_block.load("blocky")
 
 
-class TestRegisterBlock:
+class TestRegisterBlockTypeAndSchema:
     class NewBlock(Block):
         a: str
         b: str
         c: int
 
-    async def test_register_block(self, orion_client: OrionClient):
+    async def test_register_type_and_schema(self, orion_client: OrionClient):
         await self.NewBlock.register_type_and_schema()
 
         block_type = await orion_client.read_block_type_by_name(name="NewBlock")
@@ -655,6 +866,378 @@ class TestRegisterBlock:
             "class and not on the Block class directly.",
         ):
             await Block.register_type_and_schema()
+
+    def test_save_and_load_sync_compatible(self):
+        class CoolBlock(Block):
+            cool_factor: int
+
+        CoolBlock(cool_factor=1000000).save("my-rad-block")
+        loaded_block = CoolBlock.load("my-rad-block")
+        assert loaded_block.cool_factor == 1000000
+
+
+class TestSaveBlock:
+    @pytest.fixture
+    def NewBlock(self):
+        class NewBlock(Block):
+            a: str
+            b: str
+
+        return NewBlock
+
+    @pytest.fixture
+    def InnerBlock(self):
+        class InnerBlock(Block):
+            size: int
+
+        return InnerBlock
+
+    @pytest.fixture
+    def OuterBlock(self, InnerBlock):
+        class OuterBlock(Block):
+            size: int
+            contents: InnerBlock
+
+        return OuterBlock
+
+    async def test_save_block(self, NewBlock):
+        new_block = NewBlock(a="foo", b="bar")
+        new_block_name = "my-block"
+        await new_block.save(new_block_name)
+
+        assert new_block._block_document_name == new_block_name
+        assert new_block._block_document_id is not None
+        assert not new_block._is_anonymous
+
+        loaded_new_block = await new_block.load(new_block_name)
+
+        assert loaded_new_block._block_document_name == new_block_name
+        assert loaded_new_block._block_document_id == new_block._block_document_id
+        assert not loaded_new_block._is_anonymous
+
+        assert loaded_new_block._block_type_name == new_block._block_type_name
+        assert loaded_new_block._block_type_id == new_block._block_type_id
+
+        assert loaded_new_block == new_block
+
+    async def test_save_anonymous_block(self, NewBlock):
+        new_anon_block = NewBlock(a="foo", b="bar")
+        await new_anon_block._save(is_anonymous=True)
+
+        assert new_anon_block._block_document_name is not None
+        assert new_anon_block._block_document_id is not None
+        assert new_anon_block._is_anonymous
+
+        loaded_new_anon_block = await NewBlock.load(new_anon_block._block_document_name)
+
+        assert (
+            loaded_new_anon_block._block_document_name
+            == new_anon_block._block_document_name
+        )
+        assert (
+            loaded_new_anon_block._block_document_id
+            == new_anon_block._block_document_id
+        )
+        assert loaded_new_anon_block._is_anonymous
+
+        assert loaded_new_anon_block._block_type_name == new_anon_block._block_type_name
+        assert loaded_new_anon_block._block_type_id == new_anon_block._block_type_id
+
+        assert loaded_new_anon_block == new_anon_block
+
+    async def test_save_anonymous_block_more_than_once(self, NewBlock):
+        new_anon_block = NewBlock(a="foo", b="bar")
+        first_id = await new_anon_block._save(is_anonymous=True)
+        second_id = await new_anon_block._save(is_anonymous=True)
+        assert first_id == second_id
+
+    async def test_save_throws_on_mismatched_kwargs(self, NewBlock):
+        new_block = NewBlock(a="foo", b="bar")
+        with pytest.raises(
+            ValueError,
+            match="You're attempting to save a block document without a name.",
+        ):
+            await new_block._save()
+
+        with pytest.raises(
+            ValueError,
+            match="You're attempting to save an anonymous block document with a name.",
+        ):
+            await new_block._save(name="my-new-block", is_anonymous=True)
+
+    async def test_save_nested_blocks(self):
+        block_name = "biggest-block-in-all-the-land"
+
+        class Big(Block):
+            id: UUID = Field(default_factory=uuid4)
+            size: int
+
+        class Bigger(Block):
+            size: int
+            contents: Big
+            random_other_field: Dict[str, float]
+
+        class Biggest(Block):
+            size: int
+            contents: Bigger
+
+        new_big_block = Big(size=1)
+        await new_big_block.save("big-block")
+
+        loaded_big_block = await Big.load("big-block")
+        assert loaded_big_block == new_big_block
+
+        new_bigger_block = Bigger(
+            size=10, random_other_field={}, contents=new_big_block
+        )
+        await new_bigger_block.save("bigger-block")
+
+        loaded_bigger_block = await Bigger.load("bigger-block")
+        assert loaded_bigger_block == new_bigger_block
+
+        new_biggest_block = Biggest(
+            size=100,
+            contents=new_bigger_block,
+        )
+
+        await new_biggest_block.save(block_name)
+
+        loaded_biggest_block = await Biggest.load(block_name)
+        assert loaded_biggest_block == new_biggest_block
+
+    async def test_save_named_block_nested_in_anonymous_block(
+        self, InnerBlock, OuterBlock
+    ):
+        named_inner_block = InnerBlock(size=1)
+        await named_inner_block.save("the-inside-block")
+
+        anonymous_outer_block = OuterBlock(size=10, contents=named_inner_block)
+        await anonymous_outer_block._save(is_anonymous=True)
+
+        assert anonymous_outer_block._block_document_name is not None
+        assert anonymous_outer_block._is_anonymous
+
+        loaded_anonymous_outer_block = await OuterBlock.load(
+            anonymous_outer_block._block_document_name
+        )
+        assert loaded_anonymous_outer_block == anonymous_outer_block
+
+    async def test_save_anonymous_block_nested_in_named_block(
+        self, InnerBlock, OuterBlock
+    ):
+        anonymous_inner_block = InnerBlock(size=1)
+        await anonymous_inner_block._save(is_anonymous=True)
+
+        assert anonymous_inner_block._block_document_name is not None
+        assert anonymous_inner_block._is_anonymous
+
+        named_outer_block = OuterBlock(size=10, contents=anonymous_inner_block)
+        await named_outer_block.save("the-outer-block")
+
+        loaded_anonymous_outer_block = await OuterBlock.load("the-outer-block")
+        assert loaded_anonymous_outer_block == named_outer_block
+
+    async def test_save_nested_block_without_references(self, InnerBlock, OuterBlock):
+        new_inner_block = InnerBlock(size=1)
+        new_outer_block = OuterBlock(size=10, contents=new_inner_block)
+        await new_outer_block.save("outer-block-no-references")
+
+        loaded_outer_block = await OuterBlock.load("outer-block-no-references")
+        assert loaded_outer_block == new_outer_block
+        assert isinstance(loaded_outer_block.contents, InnerBlock)
+        assert loaded_outer_block.contents == new_inner_block
+        assert loaded_outer_block.contents._block_document_id is None
+        assert loaded_outer_block.contents._block_document_name is None
+
+    async def test_save_and_load_block_with_secrets_includes_secret_data(self, session):
+        class SecretBlock(Block):
+            x: SecretStr
+            y: SecretBytes
+            z: str
+
+        block = SecretBlock(x="x", y=b"y", z="z")
+        await block.save("secret block")
+
+        # read from DB without secrets
+        db_block_without_secrets = (
+            await models.block_documents.read_block_document_by_id(
+                session=session,
+                block_document_id=block._block_document_id,
+            )
+        )
+        assert db_block_without_secrets.data == {
+            "x": OBFUSCATED_SECRET,
+            "y": OBFUSCATED_SECRET,
+            "z": "z",
+        }
+
+        # read from DB with secrets
+        db_block = await models.block_documents.read_block_document_by_id(
+            session=session,
+            block_document_id=block._block_document_id,
+            include_secrets=True,
+        )
+        assert db_block.data == {"x": "x", "y": "y", "z": "z"}
+
+        # load block with secrets
+        api_block = await SecretBlock.load("secret block")
+        assert api_block.x.get_secret_value() == "x"
+        assert api_block.y.get_secret_value() == b"y"
+        assert api_block.z == "z"
+
+    async def test_save_and_load_nested_block_with_secrets_hardcoded_child(
+        self, session
+    ):
+        class Child(Block):
+            a: SecretStr
+            b: str
+
+        class Parent(Block):
+            a: SecretStr
+            b: str
+            child: Child
+
+        block = Parent(a="a", b="b", child=dict(a="a", b="b"))
+        await block.save("secret block")
+
+        # read from DB without secrets
+        db_block_without_secrets = (
+            await models.block_documents.read_block_document_by_id(
+                session=session,
+                block_document_id=block._block_document_id,
+            )
+        )
+        assert db_block_without_secrets.data == {
+            "a": OBFUSCATED_SECRET,
+            "b": "b",
+            "child": {"a": OBFUSCATED_SECRET, "b": "b"},
+        }
+
+        # read from DB with secrets
+        db_block = await models.block_documents.read_block_document_by_id(
+            session=session,
+            block_document_id=block._block_document_id,
+            include_secrets=True,
+        )
+        assert db_block.data == {"a": "a", "b": "b", "child": {"a": "a", "b": "b"}}
+
+        # load block with secrets
+        api_block = await Parent.load("secret block")
+        assert api_block.a.get_secret_value() == "a"
+        assert api_block.b == "b"
+        assert api_block.child.a.get_secret_value() == "a"
+        assert api_block.child.b == "b"
+
+    async def test_save_and_load_nested_block_with_secrets_saved_child(self, session):
+        class Child(Block):
+            a: SecretStr
+            b: str
+
+        class Parent(Block):
+            a: SecretStr
+            b: str
+            child: Child
+
+        child = Child(a="a", b="b")
+        await child.save("child block")
+        block = Parent(a="a", b="b", child=child)
+        await block.save("parent block")
+
+        # read from DB without secrets
+        db_block_without_secrets = (
+            await models.block_documents.read_block_document_by_id(
+                session=session,
+                block_document_id=block._block_document_id,
+            )
+        )
+        assert db_block_without_secrets.data == {
+            "a": OBFUSCATED_SECRET,
+            "b": "b",
+            "child": {"a": OBFUSCATED_SECRET, "b": "b"},
+        }
+
+        # read from DB with secrets
+        db_block = await models.block_documents.read_block_document_by_id(
+            session=session,
+            block_document_id=block._block_document_id,
+            include_secrets=True,
+        )
+        assert db_block.data == {"a": "a", "b": "b", "child": {"a": "a", "b": "b"}}
+
+        # load block with secrets
+        api_block = await Parent.load("parent block")
+        assert api_block.a.get_secret_value() == "a"
+        assert api_block.b == "b"
+        assert api_block.child.a.get_secret_value() == "a"
+        assert api_block.child.b == "b"
+
+    async def test_save_block_with_overwrite(self, InnerBlock):
+        inner_block = InnerBlock(size=1)
+        await inner_block.save("my-inner-block")
+
+        inner_block.size = 2
+        await inner_block.save("my-inner-block", overwrite=True)
+
+        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block.size = 2
+        assert loaded_inner_block == inner_block
+
+    async def test_save_block_without_overwrite_raises(self, InnerBlock):
+        inner_block = InnerBlock(size=1)
+        await inner_block.save("my-inner-block")
+
+        inner_block.size = 2
+
+        with pytest.raises(
+            ValueError,
+            match="You are attempting to save values with a name that is already in "
+            "use for this block type",
+        ):
+            await inner_block.save("my-inner-block")
+
+        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block.size = 1
+
+    async def test_update_from_loaded_block(self, InnerBlock):
+        inner_block = InnerBlock(size=1)
+        await inner_block.save("my-inner-block")
+
+        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block.size = 2
+        await loaded_inner_block.save("my-inner-block", overwrite=True)
+
+        loaded_inner_block_after_update = await InnerBlock.load("my-inner-block")
+        assert loaded_inner_block == loaded_inner_block_after_update
+
+    async def test_update_from_in_memory_block(self, InnerBlock):
+        inner_block = InnerBlock(size=1)
+        await inner_block.save("my-inner-block")
+
+        updated_inner_block = InnerBlock(size=2)
+        await updated_inner_block.save("my-inner-block", overwrite=True)
+
+        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block.size = 2
+
+        assert loaded_inner_block == updated_inner_block
+
+    async def test_update_block_with_secrets(self, InnerBlock):
+        class HasSomethingToHide(Block):
+            something_to_hide: SecretStr
+
+        shifty_block = HasSomethingToHide(something_to_hide="a surprise birthday party")
+        await shifty_block.save("my-shifty-block")
+
+        updated_shifty_block = HasSomethingToHide(
+            something_to_hide="a birthday present"
+        )
+        await updated_shifty_block.save("my-shifty-block", overwrite=True)
+
+        loaded_shifty_block = await HasSomethingToHide.load("my-shifty-block")
+        assert (
+            loaded_shifty_block.something_to_hide.get_secret_value()
+            == "a birthday present"
+        )
 
 
 class TestToBlockType:
