@@ -906,10 +906,10 @@ class TestFlowParameterTypes:
 
         assert my_flow() == data
 
-    def test_subflow_parameters_can_be_pydantic_types(self):
+    def test_subflow_parameters_can_be_pydantic_types_from_task_future(self):
         @flow
         def my_flow():
-            return my_subflow(identity(ParameterTestModel(data=1)))
+            return my_subflow(identity.submit(ParameterTestModel(data=1)))
 
         @task
         def identity(x):
@@ -1049,15 +1049,15 @@ class TestFlowRunLogs:
             try:
                 x + y
             except:
-                logger.error("There was an issue", exc_info=True)
+                logger.error("There was an issue", exc_info=True, stacklevel=2)
 
         my_flow()
 
         logs = await orion_client.read_logs()
         error_log = [log.message for log in logs if log.level == 40].pop()
         assert "Traceback" in error_log
-        assert "NameError" in error_log, "References the exception type"
-        assert "x + y" in error_log, "References the line of code"
+        assert "NameError" in error_log, "Should reference the exception type"
+        assert "x + y" in error_log, "Should reference the line of code"
 
     async def test_raised_exceptions_include_tracebacks(self, orion_client):
         @flow

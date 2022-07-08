@@ -1210,12 +1210,9 @@ def get_state_for_result(obj: Any) -> Optional[State]:
 
     `link_state_to_result` must have been called first.
     """
-    if hasattr(obj, "__prefect_state__"):
-        return obj.__prefect_state__
-    else:
-        flow_run_context = FlowRunContext.get()
-        if flow_run_context:
-            return flow_run_context.task_run_results.get(id(obj))
+    flow_run_context = FlowRunContext.get()
+    if flow_run_context:
+        return flow_run_context.task_run_results.get(id(obj))
 
 
 def link_state_to_result(state: State, result: Any) -> None:
@@ -1225,14 +1222,6 @@ def link_state_to_result(state: State, result: Any) -> None:
     """
     if type(result) in UNTRACKABLE_TYPES:
         return
-
-    # Attempt to cache the state onto the result itself, which will give a
-    # stable relationship between the result and the state. However some
-    # objects, like dictionaries, do not allow arbitrary attributes to be set.
-    try:
-        object.__setattr__(result, "__prefect_state__", state)
-    except (AttributeError, TypeError):
-        pass
 
     # Cache the state onto the flow_run_context, associated by the id of the
     # result. This allows a best-effort attempt to get the state from an object
