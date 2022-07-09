@@ -81,6 +81,9 @@ async def hosted_orion_api():
         # Yield to the consuming tests
         yield api_url
 
+        # Then shutdown the process
+        process.terminate()
+
 
 @pytest.fixture
 def use_hosted_orion(hosted_orion_api):
