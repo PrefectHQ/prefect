@@ -504,7 +504,7 @@ def enter_root_settings_context():
     GLOBAL_SETTINGS_CM = use_profile(
         profiles[active_name],
         # Override environment variables if the profile was set by the CLI
-        override_environment_variables=profile_source == "command line argument",
+        override_environment_variables=profile_source == "by command line argument",
     )
 
     GLOBAL_SETTINGS_CM.__enter__()
