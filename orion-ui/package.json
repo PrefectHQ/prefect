@@ -46,7 +46,7 @@
     "jest-dev-server": "^6.0.3",
     "jest-puppeteer": "^6.1.1",
     "miragejs": "^0.1.44",
-    "puppeteer": "^15.3.1",
+    "puppeteer": "^15.3.2",
     "ts-jest": "^27.1.4",
     "ts-node": "10.8.2",
     "typescript": "^4.7.4",
