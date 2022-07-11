@@ -26,11 +26,6 @@ def upgrade():
                 nullable=True,
             )
         )
-        batch_op.create_index(
-            batch_op.f("ix_deployment__infrastructure_document_id"),
-            ["infrastructure_document_id"],
-            unique=False,
-        )
         batch_op.create_foreign_key(
             batch_op.f("fk_deployment__infrastructure_document_id__block_document"),
             "block_document",
@@ -47,11 +42,6 @@ def upgrade():
                 nullable=True,
             )
         )
-        batch_op.create_index(
-            batch_op.f("ix_flow_run__infrastructure_document_id"),
-            ["infrastructure_document_id"],
-            unique=False,
-        )
         batch_op.create_foreign_key(
             batch_op.f("fk_flow_run__infrastructure_document_id__block_document"),
             "block_document",
@@ -67,7 +57,6 @@ def downgrade():
             batch_op.f("fk_deployment__infrastructure_document_id__block_document"),
             type_="foreignkey",
         )
-        batch_op.drop_index(batch_op.f("ix_deployment__infrastructure_document_id"))
         batch_op.drop_column("infrastructure_document_id")
 
     with op.batch_alter_table("flow_run", schema=None) as batch_op:
@@ -75,6 +64,4 @@ def downgrade():
             batch_op.f("fk_flow_run__infrastructure_document_id__block_document"),
             type_="foreignkey",
         )
-        batch_op.drop_index(batch_op.f("ix_flow_run__infrastructure_document_id"))
-
         batch_op.drop_column("infrastructure_document_id")
