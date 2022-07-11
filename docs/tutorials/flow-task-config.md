@@ -308,7 +308,7 @@ Completed(message='All states completed.', type=COMPLETED, result=[Completed(mes
 For further details on cache key functions, see the [Caching](/concepts/tasks/#caching) topic in the Tasks documentation.
 
 !!! warning "The persistence of state"
-    Note that up until now we have run all of our workflows interactively. This means that our metadata store is a SQLite database located at the default database location.  This can be configured in various ways, but please note that any cache keys you experiment with will be persisted in this SQLite database until they expire or you clear it manually!
+    Note that, up until now, we have run all of our workflows interactively. This means our metadata store is a SQLite database located at the default database location.  This can be configured in various ways, but please note that any cache keys you experiment with will be persisted in this SQLite database until they expire or you clear the database manually!
 
     That is why the examples here include `cache_expiration=timedelta(minutes=1)` so that tutorial cache keys do not remain in your database permanently.
 
