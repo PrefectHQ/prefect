@@ -278,6 +278,7 @@ class Task(Generic[P, R]):
         **kwargs: P.kwargs,
     ):
         from prefect.engine import enter_task_run_engine
+        from prefect.task_runners import SequentialTaskRunner
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
@@ -286,6 +287,7 @@ class Task(Generic[P, R]):
             self,
             parameters=parameters,
             wait_for=wait_for,
+            task_runner=SequentialTaskRunner(),
             return_type="result",
         )
 
@@ -322,6 +324,7 @@ class Task(Generic[P, R]):
         **kwargs: P.kwargs,
     ) -> Union[State, Awaitable[State]]:
         from prefect.engine import enter_task_run_engine
+        from prefect.task_runners import SequentialTaskRunner
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
@@ -331,6 +334,7 @@ class Task(Generic[P, R]):
             parameters=parameters,
             wait_for=wait_for,
             return_type="state",
+            task_runner=SequentialTaskRunner(),
         )
 
     @overload
@@ -459,6 +463,7 @@ class Task(Generic[P, R]):
             parameters=parameters,
             wait_for=wait_for,
             return_type="future",
+            task_runner=None,  # Use the flow's task runner
         )
 
 

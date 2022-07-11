@@ -62,6 +62,7 @@ from prefect.states import (
     return_value_to_state,
     safe_encode_exception,
 )
+from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import (
     gather,
@@ -628,6 +629,7 @@ def enter_task_run_engine(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
+    task_runner: Optional[BaseTaskRunner],
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
     """
     Sync entrypoint for task calls
@@ -654,6 +656,7 @@ def enter_task_run_engine(
         parameters=parameters,
         wait_for=wait_for,
         return_type=return_type,
+        task_runner=task_runner,
     )
 
     # Async task run in async flow run
@@ -711,6 +714,7 @@ async def create_task_run_then_submit(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
+    task_runner: Optional[BaseTaskRunner],
 ) -> Union[PrefectFuture, State]:
     task_run = await create_task_run(
         task=task,
@@ -726,6 +730,7 @@ async def create_task_run_then_submit(
         parameters=parameters,
         task_run=task_run,
         wait_for=wait_for,
+        task_runner=task_runner or flow_run_context.task_runner,
     )
 
     if return_type == "future":
@@ -771,6 +776,7 @@ async def submit_task_run(
     parameters: Dict[str, Any],
     task_run: TaskRun,
     wait_for: Optional[Iterable[PrefectFuture]],
+    task_runner: BaseTaskRunner,
 ) -> PrefectFuture:
     """
     Async entrypoint for task calls.
@@ -781,7 +787,7 @@ async def submit_task_run(
     """
     logger = get_run_logger(flow_run_context)
 
-    future = await flow_run_context.task_runner.submit(
+    future = await task_runner.submit(
         task_run=task_run,
         run_key=f"{task_run.name}-{task_run.id.hex}-{flow_run_context.flow_run.run_count}",
         run_fn=begin_task_run,
