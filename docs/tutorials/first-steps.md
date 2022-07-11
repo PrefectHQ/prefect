@@ -46,7 +46,7 @@ A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorat
 
 All Prefect workflows are defined within the context of a flow. Every Prefect workflow must contain at least one flow function that serves as the entrypoint for execution of the flow. 
 
-Flows can include calls to tasks as well as to child flows, which we call "subflows" in this context. At a high level this is just like writing any other Python applications: you organize specific, repetitive work into tasks, and call those tasks from flows.
+Flows can include calls to tasks as well as to child flows, which we call "subflows" in this context. At a high level, this is just like writing any other Python applications: you organize specific, repetitive work into tasks, and call those tasks from flows.
 
 ## Run a basic flow
 
@@ -306,7 +306,7 @@ Abraham Lincoln loved cats. He had four of them while he lived in the White Hous
 
 ## Run a flow within a flow
 
-Not only can you call tasks functions within a flow, but you can also call other flow functions! Child flows are called [subflows](/concepts/flows/#subflows) and allow you to efficiently manage, track, and version common multi-task logic. See the [Subflows](/concepts/flows/#subflows) section of the Flows documentation for details.
+Not only can you call task functions within a flow, but you can also call other flow functions! Child flows are called [subflows](/concepts/flows/#subflows) and allow you to efficiently manage, track, and version common multi-task logic. See the [Subflows](/concepts/flows/#subflows) section of the Flows documentation for details.
 
 Consider the following simple example:
 
@@ -357,7 +357,7 @@ The Prefect UI and Prefect Cloud provide an overview of all of your flows, flow 
 
 ## Parameter type conversion
 
-As with any standard Python function, you can pass parameters to your flow function, which are then used elsewhere in your flow. Prefect flows and tasks include the ability to perform type conversion for the parameters passed to your flow function.  This is most easily demonstrated via a simple example:
+As with any standard Python function, you can pass parameters to your flow function, which are then used elsewhere in your flow. Prefect flows and tasks include the ability to perform type conversion for the parameters passed to your flow function. This is most easily demonstrated via a simple example:
 
 ```python
 from prefect import task, flow
@@ -415,7 +415,7 @@ Received a <class '__main__.Model'> with value a=42 b=0.0 c='55'
 
 ## Asynchronous functions
 
-Even asynchronous functions work with Prefect!  Here's a variation of a previous example that makes the API request as an async operation:
+Even asynchronous functions work with Prefect! Here's a variation of a previous example that makes the API request as an async operation:
 
 ```python
 import httpx
