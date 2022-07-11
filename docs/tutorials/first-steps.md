@@ -80,7 +80,7 @@ This function doesn't do much
 ```
 </div>
 
-Notice is the messages surrounding the expected output, "This function doesn't do much". 
+Notice the messages surrounding the expected output, "This function doesn't do much". 
 
 By adding the `@flow` decorator to a function, function calls will create a _flow run_ &mdash; the Prefect Orion orchestration engine manages flow and task state, including inspecting their progress, regardless of where your flow code runs.
 
@@ -88,7 +88,7 @@ For clarity in future tutorial examples, these Prefect orchestration messages in
 
 ## Flow state
 
-Flows and tasks return [states](/concepts/states/), which contain information about the status of a particular task run or flow run.
+Flows and tasks return [states](/concepts/states/), which contain information about the status of a particular flow run or task run.
 
 Because we assigned the result of `my_favorite_function()` to the variable `state` in the previous example, printing `state` shows the result state of the `my_favorite_function()` flow.
 
@@ -220,7 +220,7 @@ This behavior is consistent across flow runs _and_ task runs and allows you to r
 
 Let's now add some [tasks](/concepts/tasks/) to a flow so that we can orchestrate and monitor at a more granular level. 
 
-A task is a function that represents a distinct piece of work executed within a flow. You don't have to use tasks &mdash; you can include all of the logic of your workflow within the flow itself. However, encapsulating your business logic into smaller task units gives you more granular observability, control over how specific tasks are run (potentially taking advantage of parallel execution), and reusing tasks across flows and subflows.
+A task is a function that represents a distinct piece of work executed within a flow. You don't have to use tasks &mdash; you can include all of the logic of your workflow within the flow itself. However, encapsulating your business logic into smaller task units gives you more granular observability, control over how specific tasks are run (potentially taking advantage of parallel execution), and the ability to reuse tasks across flows and subflows.
 
 Creating and adding tasks follows the exact same pattern as for flows. Import `task` and use the [`@task` decorator][prefect.tasks.task] to annotate functions as tasks.
 
@@ -301,6 +301,9 @@ Abraham Lincoln loved cats. He had four of them while he lived in the White Hous
 !!! note "Combining tasks with arbitrary Python code"
     Notice in the above example that *all* of our Python logic is encapsulated within task functions. While there are many benefits to using Prefect in this way, it is not a strict requirement. Using tasks enables Prefect to automatically identify the execution graph of your workflow and provides observability of task execution in the [Prefect UI](/ui/flows-and-tasks/).
 
+!!! warning "Tasks must be called from flows"
+    All tasks must be called from within a flow. Tasks may not call other tasks directly.
+
 ## Run a flow within a flow
 
 Not only can you call tasks functions within a flow, but you can also call other flow functions! Child flows are called [subflows](/concepts/flows/#subflows) and allow you to efficiently manage, track, and version common multi-task logic. See the [Subflows](/concepts/flows/#subflows) section of the Flows documentation for details.
@@ -349,6 +352,8 @@ $ prefect orion start
 Open the URL for the Orion UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser. You should see all of the runs that we have run throughout this tutorial, including one for `common_flow`:
 
 ![Viewing the orchestrated flow runs in the Orion UI.](/img/tutorials/first-steps-ui.png)
+
+The Prefect UI and Prefect Cloud provide an overview of all of your flows, flow runs, and task runs, plus a lot more. For details on using the Prefect UI, see the [Prefect UI & Prefect Cloud](/ui/overview/) documentation.
 
 ## Parameter type conversion
 
@@ -445,7 +450,7 @@ task_run_id=1a50b4df-a505-4a2f-8d28-3d1bf7db206e)], flow_run_id=42d2bd19-8c3b-4d
 ```
 </div>
 
-This is a more advanced use case and will be covered in future tutorials.
+You can also run async tasks within non-async flows. This is a more advanced use case and will be covered in [future tutorials](/tutorials/execution/#asynchronous-execution).
 
 !!! tip "Next steps: Flow and task configuration"
     Now that you've seen some flow and task basics, the next step is learning about [configuring your flows and tasks](/tutorials/flow-task-config/) with options such as parameters, retries, caching, and task runners.
