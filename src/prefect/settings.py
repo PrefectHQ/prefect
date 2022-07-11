@@ -1078,7 +1078,8 @@ def load_profiles() -> ProfilesCollection:
                 source=user_profiles[name].source,
             )
 
-        profiles.set_active(user_profiles.active_name, check=False)
+        if user_profiles.active_name:
+            profiles.set_active(user_profiles.active_name, check=False)
 
     return profiles
 
