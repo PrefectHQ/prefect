@@ -225,7 +225,7 @@ Completed(message='All states completed.', type=COMPLETED, result=[Completed(mes
 ```
 </div>
 
-Why does this happen? Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`.  The Prefect Orion orchestration engine identified that there was a `COMPLETED` state associated with this key and instructed the run to immediately enter the same state, including the same return values. See the Tasks [Caching](/concepts/tasks/#caching) documentation for more details.
+Why does this happen? Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`. The Prefect Orion orchestration engine identified that there was a `COMPLETED` state associated with this key and instructed the run to immediately enter the same state, including the same return values. See the Tasks [Caching](/concepts/tasks/#caching) documentation for more details.
 
 !!! tip "Cache expiration"
     Note that in this example we're also specifying a cache expiration duration: `cache_expiration=timedelta(minutes=1)`. This causes the cache to expire after one minute regardless of the task input. You can demonstrate this by: 
@@ -308,7 +308,7 @@ Completed(message='All states completed.', type=COMPLETED, result=[Completed(mes
 For further details on cache key functions, see the [Caching](/concepts/tasks/#caching) topic in the Tasks documentation.
 
 !!! warning "The persistence of state"
-    Note that, up until now, we have run all of our workflows interactively. This means our metadata store is a SQLite database located at the default database location.  This can be configured in various ways, but please note that any cache keys you experiment with will be persisted in this SQLite database until they expire or you clear the database manually!
+    Note that, up until now, we have run all of our workflows interactively. This means our metadata store is a SQLite database located at the default database location. This can be configured in various ways, but please note that any cache keys you experiment with will be persisted in this SQLite database until they expire or you clear the database manually!
 
     That is why the examples here include `cache_expiration=timedelta(minutes=1)` so that tutorial cache keys do not remain in your database permanently.
 
