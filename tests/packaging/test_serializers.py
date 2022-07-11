@@ -118,7 +118,7 @@ def test_pickle_serializer_supports_module_serialization(monkeypatch):
     sys.modules.pop("my_module")
 
     flow = serializer.loads(content)
-    assert flow().result() == "test!"
+    assert flow() == "test!"
 
 
 def test_pickle_serializer_fails_on_relative_import_without_module_serialization(

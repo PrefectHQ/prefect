@@ -12,7 +12,9 @@ from typing import Dict, List, Union
 import pytest
 
 import prefect.context
+import prefect.orion.schemas as schemas
 import prefect.settings
+from prefect.client import OrionClient, get_client
 from prefect.orion.database.dependencies import temporary_database_interface
 
 
@@ -127,3 +129,14 @@ def prefect_test_harness():
                 )
             )
             yield
+
+
+async def get_most_recent_flow_run(client: OrionClient = None):
+    if client is None:
+        client = get_client()
+
+    flow_runs = await client.read_flow_runs(
+        sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_ASC, limit=1
+    )
+
+    return flow_runs[0]

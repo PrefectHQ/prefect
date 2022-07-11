@@ -172,7 +172,7 @@ async def test_unpackaging_outside_container(howdy_context: Path):
     manifest = await packager.package(howdy)
 
     unpackaged_howdy = await manifest.unpackage()
-    assert unpackaged_howdy("dude").result() == "howdy, dude!"
+    assert unpackaged_howdy("dude") == "howdy, dude!"
 
 
 @pytest.mark.service("docker")
@@ -220,7 +220,7 @@ def assert_unpackaged_flow_works(docker: DockerClient, manifest: DockerPackageMa
 
     flow = asyncio.get_event_loop().run_until_complete(manifest.unpackage())
 
-    assert flow('there').result() == 'howdy, there!'
+    assert flow('there') == 'howdy, there!'
     """
     )
 

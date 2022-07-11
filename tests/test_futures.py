@@ -132,14 +132,14 @@ def test_raise_warning_futures_in_condition():
 
     @flow
     def if_flow():
-        if a_task():
+        if a_task.submit():
             pass
 
     @flow
     def elif_flow():
         if False:
             pass
-        elif a_task():
+        elif a_task.submit():
             pass
 
     @flow
@@ -149,10 +149,10 @@ def test_raise_warning_futures_in_condition():
 
     match = "A 'PrefectFuture' from a task call was cast to a boolean"
     with pytest.warns(UserWarning, match=match):
-        if_flow()
+        if_flow.run()
 
     with pytest.warns(UserWarning, match=match):
-        elif_flow()
+        elif_flow.run()
 
     with assert_does_not_warn():
-        if_result_flow()
+        if_result_flow.run()
