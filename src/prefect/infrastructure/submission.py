@@ -7,6 +7,8 @@ from prefect.infrastructure.base import Infrastructure
 from prefect.orion.schemas.core import FlowRun
 from prefect.settings import get_current_settings
 
+FLOW_RUN_ENTRYPOINT = ["python", "-m", "prefect.engine"]
+
 
 def base_flow_run_labels(flow_run: FlowRun) -> Dict[str, str]:
     return {
