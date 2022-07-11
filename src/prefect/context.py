@@ -193,8 +193,10 @@ class FlowRunContext(RunContext):
         flow_run: The API metadata for the flow run
         task_runner: The task runner instance being used for the flow run
         result_storage: A block to used to persist run state data
-        task_run_futures: A list of futures for task runs created within this flow run
-        subflow_states: A list of states for flow runs created within this flow run
+        task_run_futures: A list of futures for task runs submitted within this flow run
+        task_run_states: A list of states for task runs created within this flow run
+        task_run_results: A mapping of result ids to task run states for this flow run
+        flow_run_states: A list of states for flow runs created within this flow run
         sync_portal: A blocking portal for sync task/flow runs in an async flow
         timeout_scope: The cancellation scope for flow level timeouts
     """
@@ -204,10 +206,14 @@ class FlowRunContext(RunContext):
     task_runner: BaseTaskRunner
     result_storage: StorageBlock
 
-    # Tracking created objects
+    # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
+
+    # Tracking for objects created by this flow run
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
-    subflow_states: List[State] = Field(default_factory=list)
+    task_run_states: List[State] = Field(default_factory=list)
+    task_run_results: Dict[int, State] = Field(default_factory=dict)
+    flow_run_states: List[State] = Field(default_factory=list)
 
     # The synchronous portal is only created for async flows for creating engine calls
     # from synchronous task and subflow calls
