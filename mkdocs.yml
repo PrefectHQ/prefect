@@ -150,7 +150,8 @@ nav:
                 - 'prefect.cli.flow_run': api-ref/prefect/cli/flow_run.md
                 - 'prefect.cli.orion': api-ref/prefect/cli/orion.md
             - 'Utilities':
-                - 'prefect.utilities.asyncio': api-ref/prefect/utilities/asyncio.md
+                - 'prefect.utilities.asyncutils': api-ref/prefect/utilities/asyncutils.md
+                - 'prefect.utilities.processutils': api-ref/prefect/utilities/processutils.md
                 - 'prefect.utilities.callables': api-ref/prefect/utilities/callables.md
                 - 'prefect.utilities.collections': api-ref/prefect/utilities/collections.md
                 - 'prefect.utilities.filesystem': api-ref/prefect/utilities/filesystem.md

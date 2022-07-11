@@ -17,11 +17,7 @@ import typer
 
 import prefect
 from prefect.cli._types import PrefectTyper, SettingsOption
-from prefect.cli._utilities import (
-    exit_with_error,
-    exit_with_success,
-    open_process_and_stream_output,
-)
+from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.agent import start as start_agent
 from prefect.cli.root import app
 from prefect.flow_runners.base import get_prefect_image_name, python_version_minor
@@ -32,6 +28,7 @@ from prefect.settings import (
     PREFECT_ORION_API_PORT,
 )
 from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.processutils import run_process
 
 DEV_HELP = """
 Commands for development.
@@ -133,7 +130,7 @@ async def ui():
             subprocess.check_output(["npm", "install"], shell=sys.platform == "win32")
 
             app.console.print("Starting UI development server...")
-            await open_process_and_stream_output(command=["npm", "run", "serve"])
+            await run_process(command=["npm", "run", "serve"], stream_output=True)
 
 
 @dev_app.command()
@@ -167,7 +164,7 @@ async def api(
 
     app.console.print(f"Running: {' '.join(command)}")
 
-    await open_process_and_stream_output(command=command, env=server_env)
+    await run_process(command=command, env=server_env, stream_output=True)
 
 
 @dev_app.command()
