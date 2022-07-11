@@ -373,7 +373,7 @@ class ORMFlowRun(ORMRun):
             UUID,
             sa.ForeignKey("block_document.id", ondelete="CASCADE"),
             nullable=True,
-            index=True,
+            index=False,
         )
 
     @declared_attr
@@ -699,7 +699,7 @@ class ORMDeployment:
             UUID,
             sa.ForeignKey("block_document.id", ondelete="CASCADE"),
             nullable=True,
-            index=True,
+            index=False,
         )
 
     @declared_attr
