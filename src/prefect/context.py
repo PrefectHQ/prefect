@@ -479,11 +479,11 @@ def enter_root_settings_context():
 
     profiles = prefect.settings.load_profiles()
     active_name = profiles.active_name
-    profile_source = "the profiles file"
+    profile_source = "in the profiles file"
 
     if "PREFECT_PROFILE" in os.environ:
         active_name = os.environ["PREFECT_PROFILE"]
-        profile_source = "environment variable"
+        profile_source = "by environment variable"
 
     if (
         sys.argv[0].endswith("/prefect")
@@ -491,17 +491,20 @@ def enter_root_settings_context():
         and sys.argv[1] == "--profile"
     ):
         active_name = sys.argv[2]
-        profile_source = "command line argument"
+        profile_source = "by command line argument"
 
     if active_name not in profiles.names:
-        raise ValueError(
-            f"Prefect profile {active_name!r} set by {profile_source} not found."
+        print(
+            f"WARNING: Active profile {active_name!r} set {profile_source} not "
+            "found. The default profile will be used instead. ",
+            file=sys.stderr,
         )
+        active_name = "default"
 
     GLOBAL_SETTINGS_CM = use_profile(
         profiles[active_name],
         # Override environment variables if the profile was set by the CLI
-        override_environment_variables=profile_source == "command line argument",
+        override_environment_variables=profile_source == "by command line argument",
     )
 
     GLOBAL_SETTINGS_CM.__enter__()
