@@ -63,6 +63,7 @@ from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentErro
 from prefect.flow_runners.base import FlowRunner, FlowRunnerSettings
 from prefect.flows import Flow, load_flow_from_script, load_flow_from_text
 from prefect.infrastructure.base import AnyInfrastructure, Infrastructure
+from prefect.infrastructure.submission import FLOW_RUN_ENTRYPOINT
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.packaging.base import PackageManifest, Packager
@@ -175,22 +176,27 @@ class Deployment(BaseModel):
 
         flow_id = await client.create_flow_from_name(flow_name)
 
+        if self.flow_runner:
+            if "image" in manifest.__fields__:
+                self.flow_runner = self.flow_runner.copy(
+                    update={"image": manifest.image}
+                )
+
         if self.infrastructure:
+            updates = {}
             if "image" in manifest.__fields__:
                 stream_progress_to.write(
                     f"Updating infrastructure image to {manifest.image!r}..."
                 )
-                infrastructure = self.infrastructure.copy(
-                    update={"image": manifest.image}
-                )
-            else:
-                infrastructure = self.infrastructure
+                updates["image"] = manifest.image
 
-            if not infrastructure.command:
-                stream_progress_to.write("Updating infrastructure command...")
-                infrastructure = infrastructure.copy(
-                    update={"command": ["python", "-m", "prefect.engine"]}
+            if not self.infrastructure.command:
+                stream_progress_to.write(
+                    f"Updating infrastructure command to {' '.join(FLOW_RUN_ENTRYPOINT)!r}..."
                 )
+                updates["command"] = FLOW_RUN_ENTRYPOINT
+
+            infrastructure = self.infrastructure.copy(update=updates)
 
             # Always save as an anonymous block even if we are given a block that is
             # already registered. This will make behavior consistent when we need to
