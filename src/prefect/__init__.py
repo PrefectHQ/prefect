@@ -31,7 +31,7 @@ import prefect.blocks.kubernetes
 import prefect.blocks.notifications
 import prefect.blocks.storage
 import prefect.blocks.system
-import prefect.infrastructure.subprocess
+import prefect.infrastructure.process
 import prefect.infrastructure.kubernetes
 import prefect.infrastructure.docker
 
