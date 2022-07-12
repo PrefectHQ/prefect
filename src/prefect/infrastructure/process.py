@@ -38,26 +38,32 @@ class Process(Infrastructure):
             raise ValueError("Process cannot be run with empty command.")
 
         _use_threaded_child_watcher()
+        display_name = f" {self.name!r}" or ""
 
         # Open a subprocess to execute the flow run
-        self.logger.info(f"Opening process {self.name!r}...")
+        self.logger.info(f"Opening process{display_name}...")
         self.logger.debug(
-            f"Process {self.name!r} running command: {' '.join(self.command)}"
+            f"Process{display_name} running command: {' '.join(self.command)}"
         )
 
         process = await run_process(
             self.command,
             stream_output=self.stream_output,
             task_status=task_status,
+            # The base environment must override the current environment or
+            # the Prefect settings context may not be respected
             env={**os.environ, **self._base_environment(), **self.env},
         )
 
+        # Use the pid for display if no name was given
+        display_name = display_name or f" {process.pid}"
+
         if process.returncode:
             self.logger.error(
-                f"Process {self.name!r} exited with bad code: " f"{process.returncode}"
+                f"Process{display_name} exited with bad code: " f"{process.returncode}"
             )
         else:
-            self.logger.info(f"Process '{self.name}' exited cleanly.")
+            self.logger.info(f"Process{display_name} exited cleanly.")
 
         return ProcessResult(returncode=process.returncode)
 
