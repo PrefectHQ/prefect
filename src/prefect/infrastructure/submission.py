@@ -5,7 +5,6 @@ from anyio.abc import TaskStatus
 import prefect
 from prefect.infrastructure.base import Infrastructure
 from prefect.orion.schemas.core import FlowRun
-from prefect.settings import get_current_settings
 
 FLOW_RUN_ENTRYPOINT = ["python", "-m", "prefect.engine"]
 
@@ -22,7 +21,7 @@ def base_flow_run_environment(flow_run) -> Dict[str, str]:
     """
     Generate a dictionary of environment variables for a flow run job.
     """
-    environment = get_current_settings().to_environment_variables(exclude_unset=True)
+    environment = {}
     environment["PREFECT__FLOW_RUN_ID"] = flow_run.id.hex
     return environment
 

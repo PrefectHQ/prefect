@@ -1,7 +1,6 @@
 import re
 import sys
 import urllib.parse
-import uuid
 import warnings
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
@@ -20,10 +19,12 @@ from prefect.utilities.importtools import lazy_import
 
 if TYPE_CHECKING:
     import docker
+    import docker.errors
     from docker import DockerClient
     from docker.models.containers import Container
 else:
     docker = lazy_import("docker")
+    docker.errors = lazy_import("docker.errors")
 
 
 class ImagePullPolicy(AutoEnum):
@@ -326,12 +327,14 @@ class DockerContainer(Infrastructure):
 
         return docker_client
 
-    def _get_container_name(self) -> str:
+    def _get_container_name(self) -> Optional[str]:
         """
-        Generates a container name to match the flow run name, ensuring it is Docker
-        compatible and unique.
+        Generates a container name to match the configured name, ensuring it is Docker
+        compatible.
         """
         # Must match `/?[a-zA-Z0-9][a-zA-Z0-9_.-]+` in the end
+        if not self.name:
+            return None
 
         return (
             slugify(
@@ -346,9 +349,9 @@ class DockerContainer(Infrastructure):
                 # Docker does not allow leading underscore, dash, or period
                 "_-."
             )
-            # Docker does not allow 0 character names so use the flow run id if name
-            # would be empty after cleaning
-            or uuid.uuid4()
+            # Docker does not allow 0 character names so cast to null if the name is
+            # empty after slufification
+            or None
         )
 
     def _get_extra_hosts(self, docker_client) -> Dict[str, str]:
@@ -383,13 +386,17 @@ class DockerContainer(Infrastructure):
                 return {"host.docker.internal": "host-gateway"}
 
     def _get_environment_variables(self, network_mode):
-        # If the API URL has been set by the base environment rather than the flow
-        # runner config, update the value to ensure connectivity when using a bridge
-        # network by update local connections to use the docker internal host unless the
+        # If the API URL has been set by the base environment rather than the by the
+        # user, update the value to ensure connectivity when using a bridge network by
+        # updating local connections to use the docker internal host unless the
         # network mode is "host" where localhost is available already.
-        env = self.env.copy()
+        env = {**self._base_environment(), **self.env}
 
-        if "PREFECT_API_URL" in env and network_mode != "host":
+        if (
+            "PREFECT_API_URL" in env
+            and "PREFECT_API_URL" not in self.env
+            and network_mode != "host"
+        ):
             env["PREFECT_API_URL"] = (
                 env["PREFECT_API_URL"]
                 .replace("localhost", "host.docker.internal")
