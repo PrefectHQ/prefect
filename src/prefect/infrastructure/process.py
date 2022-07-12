@@ -11,7 +11,7 @@ from prefect.infrastructure.base import Infrastructure
 from prefect.utilities.processutils import run_process
 
 
-class Subprocess(Infrastructure):
+class Process(Infrastructure):
     type: Literal["subprocess"] = "subprocess"
     stream_output: bool = True
 
