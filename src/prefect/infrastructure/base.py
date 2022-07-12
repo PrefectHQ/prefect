@@ -7,6 +7,7 @@ from typing_extensions import Literal
 
 from prefect.blocks.core import Block
 from prefect.logging import get_logger
+from prefect.settings import get_current_settings
 from prefect.utilities.pydantic import lookup_type
 
 
@@ -34,6 +35,15 @@ class Infrastructure(Block, abc.ABC):
     @property
     def logger(self):
         return get_logger(f"prefect.infrastructure.{self.type}")
+
+    @classmethod
+    def _base_environment(cls) -> Dict[str, str]:
+        """
+        Environment variables that should be passed to all created infrastructure.
+
+        These values should be overridable with the `env` field.
+        """
+        return get_current_settings().to_environment_variables(exclude_unset=True)
 
 
 class AnyInfrastructure(Infrastructure):

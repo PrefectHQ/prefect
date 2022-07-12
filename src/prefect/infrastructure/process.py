@@ -49,7 +49,7 @@ class Process(Infrastructure):
             self.command,
             stream_output=self.stream_output,
             task_status=task_status,
-            env={**os.environ, **self.env},
+            env={**os.environ, **self._base_environment(), **self.env},
         )
 
         if process.returncode:
