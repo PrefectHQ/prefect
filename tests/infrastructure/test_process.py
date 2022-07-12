@@ -9,6 +9,13 @@ from prefect.infrastructure.process import Process
 from prefect.testing.utilities import AsyncMock
 
 
+@pytest.fixture
+def mock_open_process(monkeypatch):
+    monkeypatch.setattr("anyio.open_process", AsyncMock())
+    anyio.open_process.return_value.terminate = MagicMock()  #  Not an async attribute
+    yield anyio.open_process
+
+
 @pytest.mark.parametrize("stream_output", [True, False])
 async def test_process_stream_output(capsys, stream_output):
     assert await Process(
@@ -71,10 +78,7 @@ async def test_process_env_override_current_env_vars(monkeypatch, capsys):
     assert "VALUE-B" in out
 
 
-async def test_process_created_then_marked_as_started(monkeypatch):
-    monkeypatch.setattr("anyio.open_process", AsyncMock())
-    anyio.open_process.return_value.terminate = MagicMock()  #  Not an async attribute
-
+async def test_process_created_then_marked_as_started(mock_open_process):
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     # By raising an exception when started is called we can assert the process
     # is opened before this time
@@ -86,4 +90,4 @@ async def test_process_created_then_marked_as_started(monkeypatch):
         )
 
     fake_status.started.assert_called_once()
-    anyio.open_process.assert_awaited_once()
+    mock_open_process.assert_awaited_once()
