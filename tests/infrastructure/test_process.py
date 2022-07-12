@@ -1,3 +1,4 @@
+import os
 import sys
 from unittest.mock import MagicMock
 
@@ -60,6 +61,14 @@ async def test_process_runs_command(tmp_path):
 async def test_process_cannot_be_run_with_empty_command():
     with pytest.raises(ValueError, match="cannot be run with empty command"):
         await Process().run()
+
+
+async def test_process_environment_variables(monkeypatch, mock_open_process):
+    monkeypatch.setenv("MYVAR", "VALUE")
+    await Process(command=["echo", "hello"], stream_output=False).run()
+    mock_open_process.assert_awaited_once()
+    env = mock_open_process.call_args[1].get("env")
+    assert env == {**os.environ, **Process._base_environment(), "MYVAR": "VALUE"}
 
 
 async def test_process_includes_current_env_vars(monkeypatch, capsys):
