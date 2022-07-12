@@ -906,6 +906,14 @@ class TestK8sAgentRunConfig:
         job = self.agent.generate_job_spec(flow_run)
         assert re.match(r"custom-job-name-[a-f0-9]{8}", job["metadata"]["name"])
 
+    def test_generate_job_spec_truncates_job_template_name_provided_in_run_config(self):
+        template = self.read_default_template()
+        template.setdefault("metadata", {})["name"] = "custom-job-name-that-has-a-lot-of-characters-and-will-truncate"
+
+        flow_run = self.build_flow_run(KubernetesRun(job_template=template))
+        job = self.agent.generate_job_spec(flow_run)
+        assert re.match(r"custom-job-name-that-has-a-lot-of-characters-and-[a-f0-9]{8}", job["metadata"]["name"])
+
     def test_generate_job_spec_uses_job_template_path_provided_in_run_config(
         self, tmpdir, monkeypatch
     ):
