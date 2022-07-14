@@ -1,8 +1,9 @@
 """
 Command line interface for interacting with Prefect Cloud
 """
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Optional
 
+import anyio
 import httpx
 import readchar
 import typer
@@ -50,10 +51,13 @@ def confirm_logged_in():
         )
 
 
-def get_cloud_client(host: str = None, api_key: str = None) -> "CloudClient":
+def get_cloud_client(
+    host: str = None, api_key: str = None, httpx_settings: dict = None
+) -> "CloudClient":
     return CloudClient(
         host=host or PREFECT_CLOUD_URL.value(),
         api_key=api_key or PREFECT_API_KEY.value(),
+        httpx_settings=httpx_settings,
     )
 
 
@@ -77,6 +81,17 @@ class CloudClient:
 
         httpx_settings.setdefault("base_url", host)
         self._client = httpx.AsyncClient(**httpx_settings)
+
+    async def api_healthcheck(self) -> Optional[Exception]:
+        """
+        Attempts to connect to the Cloud API and returns the encountered exception if not
+        successful.
+
+        If successful, returns `None`.
+        """
+        with anyio.fail_after(10):
+            await self.read_workspaces()
+            return None
 
     async def read_workspaces(self) -> List[Dict]:
         return await self.get("/me/workspaces")
