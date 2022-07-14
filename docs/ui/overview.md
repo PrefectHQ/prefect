@@ -11,6 +11,8 @@ tags:
 
 The Prefect UI provides an overview of all of your flows. It was designed around a simple question: what's the health of my system?
 
+![Prefect UI](/img/ui/orion-dashboard.png)
+
 There are two ways to access the UI:
 
 - The [Prefect UI](#using-the-orion-ui) gives you insight into the flows running with any local Prefect API server instance.
