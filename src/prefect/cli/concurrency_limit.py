@@ -42,6 +42,7 @@ async def create(tag: str, concurrency_limit: int):
         result = await client.read_concurrency_limit_by_tag(tag)
 
     app.console.print(Pretty(result))
+    # placeholder
 
 
 @concurrency_limit_app.command()
@@ -81,6 +82,7 @@ async def inspect(tag: str):
         trid_table,
     )
     app.console.print(Panel(group, expand=False))
+    # placeholder
 
 
 @concurrency_limit_app.command()
