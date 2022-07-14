@@ -61,6 +61,16 @@ def get_cloud_client(
     )
 
 
+def get_better_cloud_client(
+    host: str = None, api_key: str = None, httpx_settings: dict = None
+) -> "CloudClient":
+    return CloudClient(
+        host=prefect.settings.PREFECT_API_URL.value(),
+        api_key=api_key or PREFECT_API_KEY.value(),
+        httpx_settings=httpx_settings,
+    )
+
+
 class CloudUnauthorizedError(PrefectException):
     """
     Raised when the CloudClient receives a 401 or 403 from the Cloud API.
@@ -75,8 +85,8 @@ class CloudClient:
         httpx_settings: dict = None,
     ) -> None:
 
-        httpx_settings = httpx_settings or {}
-        httpx_settings.setdefault("headers", {})
+        httpx_settings = httpx_settings or dict()
+        httpx_settings.setdefault("headers", dict())
         httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
         httpx_settings.setdefault("base_url", host)
