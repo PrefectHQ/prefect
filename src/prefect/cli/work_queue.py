@@ -46,7 +46,14 @@ async def create(
         except ObjectAlreadyExists:
             exit_with_error(f"Work queue with name: {name!r} already exists.")
 
-    app.console.print(Pretty(result))
+    result_msg = (
+        f"You created work-queue: '{name}'."
+        f"Start an agent to pick up flows from the work-queue by running: "
+        f"`prefect agent start {result}`"
+        f"See all your work-queues:"
+        f"`prefect work-queue ls`"
+    )
+    app.console.print(result_msg)
 
 
 @work_app.command()
