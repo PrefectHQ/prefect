@@ -82,6 +82,7 @@ nav:
             - tutorials/docker-flow-runner.md
             - tutorials/kubernetes-flow-runner.md
             - tutorials/testing.md
+            - Prefect Cloud: ui/cloud-getting-started.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
