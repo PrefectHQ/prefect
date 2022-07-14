@@ -291,19 +291,37 @@ async def create(path: Path):
                 await _create_deployment(deployment, client=client)
             except Exception as exc:
                 app.console.print(exception_traceback(exc))
-                app.console.print("Failed to create deployment!", style="red")
+                app.console.print(
+                    "Failed to create deployment {deployment.name}", style="red"
+                )
                 failed += 1
             else:
                 created += 1
 
-    if failed:
+    if failed or created == 0:
         exit_with_error(
             f"Failed to create {failed} out of {len(valid_deployments) + len(deployment_specs)} deployments."
         )
     else:
         s = "s" if created > 1 else ""
-        exit_with_success(f"Created {created} deployment{s}!")
-        # placeholder! leave your comments here
+        deployments_listing = "\n".join(
+            f"'{deployment.name}/{deployment.flow.name}'"
+            for deployment in valid_deployments
+        )
+        app.console.print(
+            textwrap.dedent(
+                f"""
+                You created {created} deployment{s}:
+                {deployments_listing}
+
+                Run a deployment:
+                `prefect run {valid_deployments[-1].name}`
+
+                See all your deployments:
+                `prefect deployment ls`
+            """
+            )
+        )
 
 
 def _stylized_flow_name(deployment: Deployment, flow_name: str):
