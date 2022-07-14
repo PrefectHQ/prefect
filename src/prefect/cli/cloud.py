@@ -64,8 +64,10 @@ def get_cloud_client(
 def get_better_cloud_client(
     host: str = None, api_key: str = None, httpx_settings: dict = None
 ) -> "CloudClient":
+    current_settings = prefect.settings.get_current_settings()
+    host_url = current_settings.PREFECT_API_URL
     return CloudClient(
-        host=prefect.settings.PREFECT_API_URL.value(),
+        host=host_url,
         api_key=api_key or PREFECT_API_KEY.value(),
         httpx_settings=httpx_settings,
     )
