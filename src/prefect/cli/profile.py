@@ -107,16 +107,18 @@ async def use(name: str):
     updated_settings = prefect.settings.load_profile(name).settings
 
     app.console.print("Connecting...")
-
     print_args = dict(style="green")
-    httpx_settings = dict(timeout=3)
 
     with prefect.settings.temporary_settings(updates=updated_settings):
+        httpx_settings = dict(timeout=3)
         try:
             await get_better_cloud_client(
                 httpx_settings=httpx_settings
             ).api_healthcheck()
             msg = f"Connected to Prefect Cloud using profile {name!r}"
+        except CloudUnauthorizedError:
+            msg = "Error authenticating with Prefect Cloud"
+            print_args["style"] = "red"
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == status.HTTP_404_NOT_FOUND:
                 try:
@@ -126,13 +128,21 @@ async def use(name: str):
                     msg = f"Connected to Prefect Orion using profile {name!r}"
                 except Exception as exc:
                     app.console.print(exc)
-                    msg = f"Error connecting to Prefect Orion"
+                    msg = "Error connecting to Prefect Orion"
                     print_args["style"] = "red"
             else:
-                msg = f"Error connecting to Prefect Cloud"
+                msg = "Error connecting to Prefect Cloud"
                 print_args["style"] = "red"
-        except CloudUnauthorizedError:
-            msg = f"Error authenticating with Prefect Cloud"
+        except TypeError:
+            try:
+                res = await get_client(httpx_settings=httpx_settings).api_healthcheck()
+                msg = f"Connected to Prefect Orion using profile {name!r}"
+            except Exception as exc:
+                app.console.print(exc)
+                msg = "Error connecting to Prefect Orion"
+                print_args["style"] = "red"
+        except (httpx.ConnectError, httpx.UnsupportedProtocol) as exc:
+            msg = f"Invalid Prefect API URL"
             print_args["style"] = "red"
 
     app.console.print(textwrap.dedent(msg).strip(), **print_args)
