@@ -6,6 +6,7 @@ from typing import Dict, Iterable, List, Optional
 import anyio
 import httpx
 import readchar
+import re
 import typer
 from fastapi import status
 from rich.live import Live
@@ -65,9 +66,10 @@ def get_better_cloud_client(
     host: str = None, api_key: str = None, httpx_settings: dict = None
 ) -> "CloudClient":
     current_settings = prefect.settings.get_current_settings()
-    host_url = current_settings.PREFECT_API_URL
+    configured_url = current_settings.PREFECT_API_URL
+    cloud_url = re.sub("accounts/.{36}/workspaces/.{36}\Z", "", configured_url)
     return CloudClient(
-        host=host_url,
+        host=cloud_url,
         api_key=api_key or PREFECT_API_KEY.value(),
         httpx_settings=httpx_settings.copy(),
     )
@@ -102,7 +104,7 @@ class CloudClient:
         If successful, returns `None`.
         """
         with anyio.fail_after(10):
-            await self.read_workspaces()
+            res = await self.read_workspaces()
             return None
 
     async def read_workspaces(self) -> List[Dict]:
