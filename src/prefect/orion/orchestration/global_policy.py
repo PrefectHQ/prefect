@@ -251,4 +251,5 @@ class UpdateStateDetails(BaseUniversalTransform):
 
         elif isinstance(context, TaskOrchestrationContext):
             task_run = await context.task_run()
+            context.proposed_state.state_details.flow_run_id = task_run.flow_run_id
             context.proposed_state.state_details.task_run_id = task_run.id
