@@ -57,7 +57,7 @@ def get_cloud_client(
     return CloudClient(
         host=host or PREFECT_CLOUD_URL.value(),
         api_key=api_key or PREFECT_API_KEY.value(),
-        httpx_settings=httpx_settings,
+        httpx_settings=httpx_settings.copy(),
     )
 
 
@@ -69,7 +69,7 @@ def get_better_cloud_client(
     return CloudClient(
         host=host_url,
         api_key=api_key or PREFECT_API_KEY.value(),
-        httpx_settings=httpx_settings,
+        httpx_settings=httpx_settings.copy(),
     )
 
 
