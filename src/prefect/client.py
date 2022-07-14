@@ -109,11 +109,12 @@ def inject_client(fn):
     return with_injected_client
 
 
-def get_client() -> "OrionClient":
+def get_client(httpx_settings: dict = None) -> "OrionClient":
     ctx = prefect.context.get_settings_context()
     return OrionClient(
         PREFECT_API_URL.value() or create_app(ctx.settings, ephemeral=True),
         api_key=PREFECT_API_KEY.value(),
+        httpx_settings=httpx_settings,
     )
 
 
@@ -268,7 +269,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
             if retry_after:
                 retry_seconds = float(retry_after)
             else:
-                retry_seconds = 2**retry_count
+                retry_seconds = 2 ** retry_count
 
             await sleep(retry_seconds)
             response = await super().send(*args, **kwargs)
