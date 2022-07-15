@@ -9,7 +9,7 @@ import pytest
 from prefect import flow, get_run_logger, tags
 from prefect.context import PrefectObjectRegistry
 from prefect.engine import get_state_for_result
-from prefect.exceptions import ReservedArgumentError
+from prefect.exceptions import MappingLengthMismatch, ReservedArgumentError
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
@@ -1705,3 +1705,98 @@ class TestTaskRegistration:
                 pass
 
             task_one.with_options(tags=["hello"])
+
+
+class TestTaskMap:
+    @task
+    def add_one(x):
+        return x + 1
+
+    @task
+    def add_together(x, y):
+        return x + y
+
+    def test_map_returns_results(self):
+        @flow
+        def my_flow():
+            return TestTaskMap.add_one.map([1, 2, 3])
+
+        assert my_flow() == [2, 3, 4]
+
+    def test_map_run_returns_states(self):
+        @flow
+        def my_flow():
+            states = TestTaskMap.add_one.map.run([1, 2, 3])
+            assert all(isinstance(s, State) for s in states)
+            return states
+
+        states = my_flow()
+        assert [state.result() for state in states] == [2, 3, 4]
+
+    def test_map_run_returns_futures(self):
+        @flow
+        def my_flow():
+            futures = TestTaskMap.add_one.map.submit([1, 2, 3])
+            assert all(isinstance(f, PrefectFuture) for f in futures)
+            return futures
+
+        futures = my_flow()
+        assert [future.result() for future in futures] == [2, 3, 4]
+
+    def test_map_can_take_state_as_input(self):
+        @task
+        def some_numbers():
+            return [1, 2, 3]
+
+        @flow
+        def my_flow():
+            numbers_state = some_numbers.run()
+            return TestTaskMap.add_one.map.run(numbers_state)
+
+        states = my_flow()
+        assert [state.result() for state in states] == [2, 3, 4]
+
+    def test_map_can_take_future_as_input(self):
+        @task
+        def some_numbers():
+            return [1, 2, 3]
+
+        @flow
+        def my_flow():
+            numbers_future = some_numbers.submit()
+            return TestTaskMap.add_one.map.submit(numbers_future)
+
+        futures = my_flow()
+        assert [future.result() for future in futures] == [2, 3, 4]
+
+    def test_map_can_take_flow_state_as_input(self):
+        @flow
+        def child_flow():
+            return [1, 2, 3]
+
+        @flow
+        def my_flow():
+            numbers_state = child_flow.run()
+            return TestTaskMap.add_one.map.submit(numbers_state)
+
+        futures = my_flow()
+        assert [future.result() for future in futures] == [2, 3, 4]
+
+    def test_multiple_inputs(self):
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            others = [4, 5, 6]
+            return TestTaskMap.add_together.map(numbers, others)
+
+        assert my_flow() == [5, 7, 9]
+
+    def test_mismatching_input_lengths(self):
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            others = [4, 5, 6, 7]
+            return TestTaskMap.add_together.map(numbers, others)
+
+        with pytest.raises(MappingLengthMismatch):
+            assert my_flow()
