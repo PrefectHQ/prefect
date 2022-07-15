@@ -38,7 +38,7 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_deployment
-from prefect.exceptions import Abort, UpstreamTaskError
+from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_data
 from prefect.logging.configuration import setup_logging
@@ -62,13 +62,14 @@ from prefect.states import (
     return_value_to_state,
     safe_encode_exception,
 )
-from prefect.task_runners import BaseTaskRunner
+from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
     run_async_from_worker_thread,
     run_sync_in_interruptible_worker_thread,
+    sync,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import Quote, visit_collection
@@ -671,6 +672,44 @@ def enter_task_run_engine(
     else:
         # Call out to the sync portal since we are not in a worker thread
         return flow_run_context.sync_portal.call(begin_run)
+
+
+def enter_task_map_engine(
+    task: Task,
+    parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
+    return_type: EngineReturnType,
+):
+    """Sync entrypoint for task mapping calls"""
+
+    # Synchronously resolve any futures / states that are in the parameters as
+    # we need to validate the lengths of those values before proceeding.
+    parameters.update(sync(resolve_inputs, parameters))
+    parameter_lengths = {key: len(val) for key, val in parameters.items()}
+
+    lengths = set(parameter_lengths.values())
+    if len(lengths) > 1:
+        raise MappingLengthMismatch(
+            "Received parameters with different lengths. Parameters for map "
+            f"must all be the same length. Got lengths: {parameter_lengths}"
+        )
+
+    map_length = list(lengths)[0] if lengths else 1
+
+    results = []
+    for i in range(map_length):
+        call_parameters = {key: value[i] for key, value in parameters.items()}
+        results.append(
+            enter_task_run_engine(
+                task,
+                parameters=call_parameters,
+                wait_for=wait_for,
+                task_runner=None if return_type == "future" else SequentialTaskRunner(),
+                return_type=return_type,
+            )
+        )
+
+    return results
 
 
 async def collect_task_run_inputs(
