@@ -18,6 +18,7 @@ from typing import (
     Dict,
     Generic,
     Iterable,
+    List,
     NoReturn,
     Optional,
     TypeVar,
@@ -257,14 +258,6 @@ class Task(Generic[P, R]):
 
     @overload
     def __call__(
-        self: "Task[P, Coroutine[Any, Any, T]]",
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> Awaitable[T]:
-        ...
-
-    @overload
-    def __call__(
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
@@ -471,6 +464,69 @@ class Task(Generic[P, R]):
             wait_for=wait_for,
             return_type="future",
             task_runner=None,  # Use the flow's task runner
+        )
+
+    @property
+    def map(self) -> "TaskMapper":
+        return TaskMapper(self)
+
+
+class TaskMapper:
+    def __init__(self, task: Task):
+        self.task = task
+
+    def __call__(
+        self,
+        *args: Any,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        **kwargs: Any,
+    ) -> List[T]:
+        from prefect.engine import enter_task_map_engine
+
+        # Convert the call args/kwargs to a parameter dict
+        parameters = get_call_parameters(self.task.fn, args, kwargs)
+
+        return enter_task_map_engine(
+            self.task,
+            parameters=parameters,
+            wait_for=wait_for,
+            return_type="result",
+        )
+
+    def run(
+        self,
+        *args: Any,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        **kwargs: Any,
+    ) -> List[State[T]]:
+        from prefect.engine import enter_task_map_engine
+
+        # Convert the call args/kwargs to a parameter dict
+        parameters = get_call_parameters(self.task.fn, args, kwargs)
+
+        return enter_task_map_engine(
+            self.task,
+            parameters=parameters,
+            wait_for=wait_for,
+            return_type="state",
+        )
+
+    def submit(
+        self,
+        *args: Any,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        **kwargs: Any,
+    ) -> List[PrefectFuture[T, Async]]:
+        from prefect.engine import enter_task_map_engine
+
+        # Convert the call args/kwargs to a parameter dict
+        parameters = get_call_parameters(self.task.fn, args, kwargs)
+
+        return enter_task_map_engine(
+            self.task,
+            parameters=parameters,
+            wait_for=wait_for,
+            return_type="future",
         )
 
 
