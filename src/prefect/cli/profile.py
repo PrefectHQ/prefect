@@ -6,6 +6,7 @@ from typing import Optional
 
 import httpx
 import typer
+from rich.progress import Progress, SpinnerColumn, TextColumn
 from fastapi import status
 
 import prefect.context
@@ -101,51 +102,76 @@ async def use(name: str):
     if name not in profiles.names:
         exit_with_error(f"Profile {name!r} not found.")
 
-    profiles.set_active(name)
-    prefect.settings.save_profiles(profiles)
+    previous_profile = prefect.settings.load_profiles().active_name
+    previous_settings = prefect.settings.load_profile(previous_profile).settings
 
-    updated_settings = prefect.settings.load_profile(name).settings
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True,
+    ) as progress:
 
-    app.console.print("Connecting...")
-    print_args = dict(style="green")
+        profiles.set_active(name)
+        prefect.settings.save_profiles(profiles)
+        active_settings = prefect.settings.load_profile(name).settings
 
-    with prefect.settings.temporary_settings(updates=updated_settings):
-        httpx_settings = dict(timeout=3)
-        try:
-            await get_better_cloud_client(
-                httpx_settings=httpx_settings
-            ).api_healthcheck()
-            msg = f"Connected to Prefect Cloud using profile {name!r}"
-        except CloudUnauthorizedError:
-            msg = "Error authenticating with Prefect Cloud"
-            print_args["style"] = "red"
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-                try:
-                    res = await get_client(
-                        httpx_settings=httpx_settings
-                    ).api_healthcheck()
-                    msg = f"Connected to Prefect Orion using profile {name!r}"
-                except Exception as exc:
-                    app.console.print(exc)
-                    msg = "Error connecting to Prefect Orion"
-                    print_args["style"] = "red"
-            else:
-                msg = "Error connecting to Prefect Cloud"
-                print_args["style"] = "red"
-        except TypeError:
+        # attempt to override previous settings if unset
+        unset_keys = previous_settings.keys() - active_settings.keys()
+        active_settings.update({k: None for k in unset_keys})
+
+        progress.add_task(description="Connecting...", total=None)
+
+        with prefect.settings.temporary_settings(active_settings):
+            httpx_settings = dict(timeout=3)
             try:
-                res = await get_client(httpx_settings=httpx_settings).api_healthcheck()
-                msg = f"Connected to Prefect Orion using profile {name!r}"
-            except Exception as exc:
-                app.console.print(exc)
-                msg = "Error connecting to Prefect Orion"
-                print_args["style"] = "red"
-        except (httpx.ConnectError, httpx.UnsupportedProtocol) as exc:
-            msg = f"Invalid Prefect API URL"
-            print_args["style"] = "red"
+                await get_better_cloud_client(
+                    httpx_settings=httpx_settings
+                ).api_healthcheck()
+                exit_method, msg = (
+                    exit_with_success,
+                    f"Connected to Prefect Cloud using profile {name!r}",
+                )
+            except CloudUnauthorizedError:
+                exit_method, msg = (
+                    exit_with_error,
+                    "Error authenticating with Prefect Cloud",
+                )
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == status.HTTP_404_NOT_FOUND:
+                    try:
+                        res = await get_client(
+                            httpx_settings=httpx_settings
+                        ).api_healthcheck()
+                        exit_method, msg = (
+                            exit_with_success,
+                            f"Connected to Prefect Orion using profile {name!r}",
+                        )
+                    except Exception as exc:
+                        exit_method, msg = (
+                            exit_with_error,
+                            "Error connecting to Prefect Orion",
+                        )
+                else:
+                    exit_method, msg = (
+                        exit_with_error,
+                        "Error connecting to Prefect Cloud",
+                    )
+            except TypeError:
+                try:
+                    await get_client(httpx_settings=httpx_settings).api_healthcheck()
+                    exit_method, msg = (
+                        exit_with_success,
+                        f"Connected to Prefect Orion using profile {name!r}",
+                    )
+                except Exception as exc:
+                    exit_method, msg = (
+                        exit_with_error,
+                        "Error connecting to Prefect Orion",
+                    )
+            except (httpx.ConnectError, httpx.UnsupportedProtocol) as exc:
+                exit_method, msg = exit_with_error, "Invalid Prefect API URL"
 
-    app.console.print(textwrap.dedent(msg).strip(), **print_args)
+    exit_method(msg)
 
 
 @profile_app.command()
