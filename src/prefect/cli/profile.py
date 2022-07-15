@@ -4,6 +4,7 @@ Command line interface for working with profiles.
 import textwrap
 from typing import Optional
 
+import asyncio
 import httpx
 import typer
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -16,6 +17,7 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.cloud import CloudUnauthorizedError, get_better_cloud_client
 from prefect.cli.root import app
 from prefect.client import get_client
+from prefect.context import use_profile
 
 profile_app = PrefectTyper(
     name="profile", help="Commands for interacting with your Prefect profiles."
@@ -102,9 +104,6 @@ async def use(name: str):
     if name not in profiles.names:
         exit_with_error(f"Profile {name!r} not found.")
 
-    previous_profile = prefect.settings.load_profiles().active_name
-    previous_settings = prefect.settings.load_profile(previous_profile).settings
-
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -113,15 +112,10 @@ async def use(name: str):
 
         profiles.set_active(name)
         prefect.settings.save_profiles(profiles)
-        active_settings = prefect.settings.load_profile(name).settings
-
-        # attempt to override previous settings if unset
-        unset_keys = previous_settings.keys() - active_settings.keys()
-        active_settings.update({k: None for k in unset_keys})
 
         progress.add_task(description="Connecting...", total=None)
 
-        with prefect.settings.temporary_settings(active_settings):
+        with use_profile(name, include_current_context=False):
             httpx_settings = dict(timeout=3)
             try:
                 await get_better_cloud_client(
