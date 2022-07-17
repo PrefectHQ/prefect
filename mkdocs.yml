@@ -102,7 +102,7 @@ nav:
     - Prefect UI & Prefect Cloud:
         - Overview: ui/overview.md
         - ui/dashboard.md
-        - ui/flows-and-tasks.md
+        - ui/flows.md
         - ui/deployments.md
         - ui/work-queues.md
         - ui/notifications.md
