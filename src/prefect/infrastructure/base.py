@@ -66,6 +66,7 @@ class AnyInfrastructure(Infrastructure):
 
 
 class InfrastructureResult(pydantic.BaseModel, abc.ABC):
+    identifier: str
     status_code: int
 
     def __bool__(self):
