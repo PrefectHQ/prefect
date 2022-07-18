@@ -288,7 +288,8 @@ class KubernetesJob(Infrastructure):
                 {
                     "op": "add",
                     "path": "/metadata/generateName",
-                    "value": "prefect-job-" + stable_hash(*self.command),
+                    "value": "prefect-job-"
+                    + stable_hash(*self.command, *self.env.keys(), *self.env.values()),
                 }
             )
 
