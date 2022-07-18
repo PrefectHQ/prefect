@@ -12,12 +12,13 @@ import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.names import generate_slug
+
 from prefect.orion.utilities.schemas import (
     OBFUSCATED_SECRET,
     ORMBaseModel,
     PrefectBaseModel,
 )
-from prefect.utilities.collections import listrepr
+from prefect.utilities.collections import listrepr, flatdict_to_dict, dict_to_flatdict
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
@@ -509,21 +510,16 @@ class BlockDocument(ORMBaseModel):
         # be obfuscated, but if nested fields were hardcoded into the parent
         # blocks data, this is the only opportunity to obfuscate them.
         if not include_secrets:
+            flat_data = dict_to_flatdict(data)
+            # iterate over the (possibly nested) secret fields
+            # and obfuscate their data
             for field in orm_block_document.block_schema.fields.get(
                 "secret_fields", []
             ):
-                data_dict = data
-                split_fields = field.split(".")
-                k, keys = split_fields[0], split_fields[1:]
-                # while there are children fields, walk the data dict
-                while keys:
-                    data_dict = data_dict.get(k)
-                    if data_dict is None:
-                        break
-                    k = keys.pop(0)
-
-                if data_dict is not None:
-                    data_dict[k] = OBFUSCATED_SECRET
+                key = tuple(field.split("."))
+                if flat_data.get(key) is not None:
+                    flat_data[key] = OBFUSCATED_SECRET
+            data = flatdict_to_dict(flat_data)
 
         return cls(
             id=orm_block_document.id,
