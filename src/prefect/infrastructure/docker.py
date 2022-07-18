@@ -11,7 +11,7 @@ from slugify import slugify
 from typing_extensions import Literal
 
 from prefect.flow_runners.base import get_prefect_image_name
-from prefect.infrastructure.base import Infrastructure
+from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import AutoEnum
@@ -20,17 +20,29 @@ from prefect.utilities.importtools import lazy_import
 if TYPE_CHECKING:
     import docker
     import docker.errors
+    import docker.models.containers
     from docker import DockerClient
     from docker.models.containers import Container
 else:
     docker = lazy_import("docker")
     docker.errors = lazy_import("docker.errors")
+    docker.models = lazy_import("docker.models")
+    docker.models.containers = lazy_import("docker.models.containers")
 
 
 class ImagePullPolicy(AutoEnum):
     IF_NOT_PRESENT = AutoEnum.auto()
     ALWAYS = AutoEnum.auto()
     NEVER = AutoEnum.auto()
+
+
+class DockerContainerResult(InfrastructureResult):
+    """Contains information about a completed Docker container"""
+
+    container: "docker.models.containers.Container"
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class DockerContainer(Infrastructure):
@@ -283,7 +295,7 @@ class DockerContainer(Infrastructure):
         docker_client = self._get_client()
 
         try:
-            container = docker_client.containers.get(container_id)
+            container: "Container" = docker_client.containers.get(container_id)
         except docker.errors.NotFound:
             self.logger.error(f"Flow run container {container_id!r} was removed.")
             return
@@ -306,7 +318,12 @@ class DockerContainer(Infrastructure):
 
         result = container.wait()
         docker_client.close()
-        return result.get("StatusCode") == 0
+
+        # Ensure the model has resolved the deferred type declaration
+        DockerContainerResult.update_forward_refs()
+        return DockerContainerResult(
+            status_code=result.get("StatusCode", -1), container=container
+        )
 
     def _get_client(self):
         try:
