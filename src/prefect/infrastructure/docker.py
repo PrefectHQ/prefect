@@ -2,32 +2,25 @@ import re
 import sys
 import urllib.parse
 import warnings
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
+import docker
+import docker.errors
+import docker.models.containers
 import packaging.version
 from anyio.abc import TaskStatus
+from docker import DockerClient
+from docker.models.containers import Container
 from pydantic import Field, validator
 from slugify import slugify
 from typing_extensions import Literal
 
 from prefect.flow_runners.base import get_prefect_image_name
+from prefect.flow_runners.docker import CONTAINER_LABELS
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import AutoEnum
-from prefect.utilities.importtools import lazy_import
-
-if TYPE_CHECKING:
-    import docker
-    import docker.errors
-    import docker.models.containers
-    from docker import DockerClient
-    from docker.models.containers import Container
-else:
-    docker = lazy_import("docker")
-    docker.errors = lazy_import("docker.errors")
-    docker.models = lazy_import("docker.models")
-    docker.models.containers = lazy_import("docker.models.containers")
 
 
 class ImagePullPolicy(AutoEnum):
@@ -38,11 +31,6 @@ class ImagePullPolicy(AutoEnum):
 
 class DockerContainerResult(InfrastructureResult):
     """Contains information about a completed Docker container"""
-
-    container: "docker.models.containers.Container"
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 class DockerContainer(Infrastructure):
@@ -121,9 +109,9 @@ class DockerContainer(Infrastructure):
         # be run in a thread to avoid blocking the event loop.
         container_id = await run_sync_in_worker_thread(self._create_and_start_container)
 
-        # Mark as started
+        # Mark as started and return the container id
         if task_status:
-            task_status.started()
+            task_status.started(container_id)
 
         # Monitor the container
         return await run_sync_in_worker_thread(self._watch_container, container_id)
@@ -140,7 +128,7 @@ class DockerContainer(Infrastructure):
             command=self.command,
             environment=self._get_environment_variables(network_mode),
             auto_remove=self.auto_remove,
-            labels=self.labels,
+            labels={**CONTAINER_LABELS, **self.labels},
             extra_hosts=self._get_extra_hosts(docker_client),
             name=self._get_container_name(),
             volumes=self.volumes,
@@ -277,13 +265,20 @@ class DockerContainer(Infrastructure):
         # Create the container with retries on name conflicts (with an incremented idx)
         index = 0
         container = None
-        name = original_name = kwargs.pop("name", "prefect-flow-run")
+        name = original_name = kwargs.pop("name")
 
         while not container:
+            from docker.errors import APIError
+
             try:
+                display_name = repr(name) if name else "with auto-generated name"
+                self.logger.info(f"Creating Docker container {display_name}...")
                 container = docker_client.containers.create(name=name, **kwargs)
-            except docker.errors.APIError as exc:
+            except APIError as exc:
                 if "Conflict" in str(exc) and "container name" in str(exc):
+                    self.logger.debug(
+                        f"Docker container name already exists; adding identifier..."
+                    )
                     index += 1
                     name = f"{original_name}-{index}"
                 else:
@@ -297,12 +292,12 @@ class DockerContainer(Infrastructure):
         try:
             container: "Container" = docker_client.containers.get(container_id)
         except docker.errors.NotFound:
-            self.logger.error(f"Flow run container {container_id!r} was removed.")
+            self.logger.error(f"Docker container {container_id!r} was removed.")
             return
 
         status = container.status
         self.logger.info(
-            f"Flow run container {container.name!r} has status {container.status!r}"
+            f"Docker container {container.name!r} has status {container.status!r}"
         )
 
         for log in container.logs(stream=True):
@@ -313,16 +308,15 @@ class DockerContainer(Infrastructure):
         container.reload()
         if container.status != status:
             self.logger.info(
-                f"Flow run container {container.name!r} has status {container.status!r}"
+                f"Docker container {container.name!r} has status {container.status!r}"
             )
 
         result = container.wait()
         docker_client.close()
 
-        # Ensure the model has resolved the deferred type declaration
-        DockerContainerResult.update_forward_refs()
         return DockerContainerResult(
-            status_code=result.get("StatusCode", -1), container=container
+            status_code=result.get("StatusCode", -1),
+            identifier=container.id,
         )
 
     def _get_client(self):

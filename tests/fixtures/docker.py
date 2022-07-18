@@ -1,4 +1,5 @@
 import sys
+from contextlib import contextmanager
 from typing import Generator
 
 import pytest
@@ -21,8 +22,9 @@ from prefect.flow_runners.docker import CONTAINER_LABELS
 
 @pytest.fixture(scope="session")
 def docker(worker_id: str) -> Generator[DockerClient, None, None]:
+    ctx = docker_client()
     try:
-        client = docker_client().__enter__()
+        client = ctx.__enter__()
     except Exception as exc:
         raise RuntimeError(
             "Failed to create Docker client. Exclude tests that require Docker with "
@@ -30,12 +32,13 @@ def docker(worker_id: str) -> Generator[DockerClient, None, None]:
         ) from exc
     else:
         try:
-            with cleanup_all_new_docker_objects(docker, worker_id):
+            with cleanup_all_new_docker_objects(client, worker_id):
                 yield client
         finally:
-            client.__exit__(*sys.exc_info())
+            ctx.__exit__(*sys.exc_info())
 
 
+@contextmanager
 def cleanup_all_new_docker_objects(docker: DockerClient, worker_id: str):
     IMAGE_LABELS["io.prefect.test-worker"] = worker_id
     CONTAINER_LABELS["io.prefect.test-worker"] = worker_id
