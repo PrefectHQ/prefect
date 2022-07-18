@@ -61,6 +61,43 @@ RemoteFileSystem(basepath="s3://my-bucket/folder/")
 
 You may need to install additional libraries to use some remote storage types.
 
+### RemoteFileSystem Examples
+
+How can we use RemoteFileSystem to store our flow code? 
+The following is a use case where we use MinIO as a storage backend:
+
+```
+minio_file_packager = FilePackager(
+    filesystem=RemoteFileSystem(
+        basepath="s3://my-bucket",
+        settings={
+            "key": MINIO_ACCESS_KEY,
+            "secret": MINIO_SECRET_KEY,
+            "client_kwargs": {"endpoint_url": "http://localhost:9000"}
+        }
+    )
+)
+Deployment(
+    flow=hello_world,
+    name="minio_file_package_with_remote_s3fs",
+    packager=minio_file_packager)
+```
+
+Now let's look at how we can use RemoteFileSystem with AWS S3:
+```
+aws_s3_file_packager = FilePackager(filesystem=RemoteFileSystem(
+    basepath="s3://my-bucket",
+    settings={
+        "key": AWS_ACCESS_KEY_ID,
+        "secret": AWS_SECRET_ACCESS_KEY
+    }
+))
+Deployment(
+    flow=hello_world,
+    name="aws_s3_file_package_with_remote_s3fs",
+    packager=aws_s3_file_packager)
+```
+
 ## Saving and loading file systems
 
 Configuration for a file system can be saved to the Prefect API. For example:
@@ -86,3 +123,43 @@ Prefect provides two abstract file system types, `ReadableFileSystem` and `Write
 - All writeable file systems must implement `write_path` which takes a file path and content and writes the content to the file as bytes. 
 
 A file system may implement both of these types.
+
+## Examples
+What does a working example of a MinIO-backed S3 storage block look like within a Prefect flow?
+```
+from prefect import flow, task
+from prefect.deployments import Deployment
+from prefect.filesystems import RemoteFileSystem
+from prefect.logging import get_run_logger
+from prefect.packaging import FilePackager
+
+@task
+def greet_world():
+    logger = get_run_logger()
+    logger.info("Hello world!")
+
+@flow
+def give_greeting() -> str:
+    greet_world()
+    
+minio_packager = FilePackager(
+    filesystem=RemoteFileSystem(
+        basepath="s3://my-bucket",
+        settings={
+            "key": MINIO_ROOT_USER,
+            "secret": MINIO_ROOT_PASSWORD,
+            "client_kwargs": {"endpoint_url": "http://localhost:9000"}
+        }
+    )
+)
+
+Deployment(
+    flow=give_greeting,
+    name="minio_file_package_with_remote_s3fs",
+    packager=minio_packager)
+
+if __name__ == "__main__":
+    give_greeting()
+    
+```
+Starting a MinIO server should output logs including login credentials that can be used as your MINIO_ROOT_USER and MINIO_ROOT_PASSWORD.
