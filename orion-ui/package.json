@@ -41,7 +41,7 @@
     "autoprefixer": "10.4.7",
     "cross-env": "^7.0.3",
     "date-fns": "^2.28.0",
-    "eslint": "^8.19.0",
+    "eslint": "^8.20.0",
     "jest": "^27.5.1",
     "jest-dev-server": "^6.0.3",
     "jest-puppeteer": "^6.1.1",
