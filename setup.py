@@ -33,7 +33,6 @@ orchestration_extras = {
     "azure": [
         "azure-storage-blob >= 12.1.0",
         "azure-identity >= 1.7.0",
-        "azure-mgmt-datafactory >= 2.7.0",
     ],
     "bitbucket": ["atlassian-python-api >= 2.0.1"],
     "gcp": [
@@ -55,6 +54,8 @@ extras = {
         "azure-core >= 1.10.0",
         "azure-storage-blob >= 12.1.0",
         "azure-cosmos >= 3.1.1",
+        "azure-identity >= 1.7.0",
+        "azure-mgmt-datafactory >= 2.7.0",
     ],
     "azureml": ["azureml-sdk"],
     "bitbucket": orchestration_extras["bitbucket"],
