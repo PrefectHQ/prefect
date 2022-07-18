@@ -2,7 +2,6 @@ import { plugin as OrionDesign } from '@prefecthq/orion-design'
 import { plugin as PrefectDesign } from '@prefecthq/prefect-design'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
-import './registerServiceWorker'
 import router from './router'
 import { applyActiveColorModeClass } from './utilities/colorMode'
 
