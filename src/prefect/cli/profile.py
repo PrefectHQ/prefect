@@ -114,13 +114,19 @@ async def check_orion_connection(profile_name):
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == status.HTTP_404_NOT_FOUND:
                 try:
-                    res = await get_client(
-                        httpx_settings=httpx_settings
-                    ).api_healthcheck()
-                    exit_method, msg = (
-                        exit_with_success,
-                        f"Connected to Prefect Orion using profile {profile_name!r}",
-                    )
+                    client = get_client(httpx_settings=httpx_settings)
+                    res = await client.api_healthcheck()
+                    if await client.using_ephemeral_app():
+                        current_settings = prefect.settings.get_current_settings()
+                        exit_method, msg = (
+                            exit_with_success,
+                            f"No Prefect Orion instance specified. Flow run metadata will be stored at the locally configured database: f{current_settings.PREFECT_ORION_DATABASE_CONNECTION_URL}",
+                        )
+                    else:
+                        exit_method, msg = (
+                            exit_with_success,
+                            f"Connected to Prefect Orion using profile {profile_name!r}",
+                        )
                 except Exception as exc:
                     exit_method, msg = (
                         exit_with_error,
@@ -133,11 +139,19 @@ async def check_orion_connection(profile_name):
                 )
         except TypeError:
             try:
-                await get_client(httpx_settings=httpx_settings).api_healthcheck()
-                exit_method, msg = (
-                    exit_with_success,
-                    f"Connected to Prefect Orion using profile {profile_name!r}",
-                )
+                client = get_client(httpx_settings=httpx_settings)
+                res = await client.api_healthcheck()
+                if await client.using_ephemeral_app():
+                    current_settings = prefect.settings.get_current_settings()
+                    exit_method, msg = (
+                        exit_with_success,
+                        f"No Prefect Orion instance specified. Flow run metadata will be stored at the locally configured database: f{current_settings.PREFECT_ORION_DATABASE_CONNECTION_URL}",
+                    )
+                else:
+                    exit_method, msg = (
+                        exit_with_success,
+                        f"Connected to Prefect Orion using profile {profile_name!r}",
+                    )
             except Exception as exc:
                 exit_method, msg = (
                     exit_with_error,
