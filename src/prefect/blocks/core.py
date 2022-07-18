@@ -5,13 +5,15 @@ from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Dict, FrozenSet, List, Optional, Type, Union
 from uuid import UUID, uuid4
 
-from griffe.dataclasses import Docstring
+from griffe.dataclasses import Docstring, DocstringSection
 from griffe.docstrings.dataclasses import DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
+from griffe.logger import get_logger
 from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
 from typing_extensions import Self, get_args, get_origin
 
 import prefect
+from prefect.logging.filters import GriffeParseTypeAnnotationFilter
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.collections import remove_nested_keys
@@ -269,6 +271,20 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
+    def _parse_docstring(cls) -> List[DocstringSection]:
+        """
+        Parses the docstring into list of DocstringSection objects.
+        Helper method used primarily to suppress irrelevant logs, e.g.
+        `<module>:11: No type or annotation for parameter 'write_json'`
+        because griffe is unable to parse the types from pydantic.BaseModel.
+        """
+        griffe_logger = get_logger("griffe.docstrings.google")
+        griffe_logger.addFilter(GriffeParseTypeAnnotationFilter)
+        docstring = Docstring(cls.__doc__)
+        parsed = parse(docstring, Parser.google)
+        return parsed
+
+    @classmethod
     def get_description(cls) -> Optional[str]:
         """
         Returns the description for the current block. Attempts to parse
@@ -278,8 +294,7 @@ class Block(BaseModel, ABC):
         # If no description override has been provided, find the first text section
         # and use that as the description
         if description is None and cls.__doc__ is not None:
-            docstring = Docstring(cls.__doc__)
-            parsed = parse(docstring, Parser.google)
+            parsed = cls._parse_docstring()
             parsed_description = next(
                 (
                     section.as_dict().get("value")
@@ -305,8 +320,7 @@ class Block(BaseModel, ABC):
         # section or an admonition with the annotation "example" and use that as the
         # code example
         if code_example is None and cls.__doc__ is not None:
-            docstring = Docstring(cls.__doc__)
-            parsed = parse(docstring, Parser.google)
+            parsed = cls._parse_docstring()
             for section in parsed:
                 # Section kind will be "examples" if Examples section heading is used.
                 if section.kind == DocstringSectionKind.examples:
