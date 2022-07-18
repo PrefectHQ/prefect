@@ -31,7 +31,8 @@ from typing_extensions import ParamSpec
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import ReservedArgumentError
 from prefect.futures import PrefectFuture
-from prefect.utilities.asyncio import Async, Sync
+from prefect.states import State
+from prefect.utilities.asyncutils import Async, Sync
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
@@ -249,7 +250,7 @@ class Task(Generic[P, R]):
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[None, Sync]:
+    ) -> None:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
         # sync function from matching the `Coroutine` overload
         ...
@@ -259,7 +260,7 @@ class Task(Generic[P, R]):
         self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> Awaitable[PrefectFuture[T, Async]]:
+    ) -> Awaitable[T]:
         ...
 
     @overload
@@ -267,10 +268,102 @@ class Task(Generic[P, R]):
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[T, Sync]:
+    ) -> T:
         ...
 
     def __call__(
+        self,
+        *args: P.args,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        **kwargs: P.kwargs,
+    ):
+        from prefect.engine import enter_task_run_engine
+        from prefect.task_runners import SequentialTaskRunner
+
+        # Convert the call args/kwargs to a parameter dict
+        parameters = get_call_parameters(self.fn, args, kwargs)
+
+        return enter_task_run_engine(
+            self,
+            parameters=parameters,
+            wait_for=wait_for,
+            task_runner=SequentialTaskRunner(),
+            return_type="result",
+        )
+
+    @overload
+    def run(
+        self: "Task[P, NoReturn]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> PrefectFuture[None, Sync]:
+        # `NoReturn` matches if a type can't be inferred for the function which stops a
+        # sync function from matching the `Coroutine` overload
+        ...
+
+    @overload
+    def run(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Awaitable[State[T]]:
+        ...
+
+    @overload
+    def run(
+        self: "Task[P, T]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> State[T]:
+        ...
+
+    def run(
+        self,
+        *args: P.args,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        **kwargs: P.kwargs,
+    ) -> Union[State, Awaitable[State]]:
+        from prefect.engine import enter_task_run_engine
+        from prefect.task_runners import SequentialTaskRunner
+
+        # Convert the call args/kwargs to a parameter dict
+        parameters = get_call_parameters(self.fn, args, kwargs)
+
+        return enter_task_run_engine(
+            self,
+            parameters=parameters,
+            wait_for=wait_for,
+            return_type="state",
+            task_runner=SequentialTaskRunner(),
+        )
+
+    @overload
+    def submit(
+        self: "Task[P, NoReturn]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> PrefectFuture[None, Sync]:
+        # `NoReturn` matches if a type can't be inferred for the function which stops a
+        # sync function from matching the `Coroutine` overload
+        ...
+
+    @overload
+    def submit(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Awaitable[PrefectFuture[T, Async]]:
+        ...
+
+    @overload
+    def submit(
+        self: "Task[P, T]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> PrefectFuture[T, Sync]:
+        ...
+
+    def submit(
         self,
         *args: Any,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
@@ -369,6 +462,8 @@ class Task(Generic[P, R]):
             self,
             parameters=parameters,
             wait_for=wait_for,
+            return_type="future",
+            task_runner=None,  # Use the flow's task runner
         )
 
 
