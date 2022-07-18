@@ -279,7 +279,7 @@ class Block(BaseModel, ABC):
         because griffe is unable to parse the types from pydantic.BaseModel.
         """
         griffe_logger = get_logger("griffe.docstrings.google")
-        griffe_logger.addFilter(GriffeParseTypeAnnotationFilter)
+        griffe_logger.addFilter(GriffeParseTypeAnnotationFilter())
         docstring = Docstring(cls.__doc__)
         parsed = parse(docstring, Parser.google)
         return parsed
