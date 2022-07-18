@@ -63,3 +63,10 @@ class AnyInfrastructure(Infrastructure):
             env=self.env, labels=self.labels, name=self.name, command=self.command
         )
         return await runtime_inst(task_status=task_status)
+
+
+class InfrastructureResult(pydantic.BaseModel, abc.ABC):
+    status_code: int
+
+    def __bool__(self):
+        return self.status_code == 0

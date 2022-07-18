@@ -11,7 +11,7 @@ from typing_extensions import Literal
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.flow_runners.base import get_prefect_image_name
-from prefect.infrastructure.base import Infrastructure
+from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.hashing import stable_hash
 from prefect.utilities.importtools import lazy_import
@@ -41,6 +41,10 @@ class KubernetesRestartPolicy(enum.Enum):
 
 
 KubernetesManifest = Dict[str, Any]
+
+
+class KubernetesJobResult(InfrastructureResult):
+    """Contains information about the final state of a completed Kubernetes Job"""
 
 
 class KubernetesJob(Infrastructure):
