@@ -1411,7 +1411,7 @@ class TestGetDescription:
 
         assert A.get_description() == None
 
-    def test_description_from_docstring(self):
+    def test_description_from_docstring(self, caplog):
         class A(Block):
             """
             A block, verily
@@ -1423,6 +1423,7 @@ class TestGetDescription:
             message: str
 
         assert A.get_description() == "A block, verily"
+        assert len(caplog.records) == 0
 
     def test_description_override(self):
         class A(Block):
@@ -1442,7 +1443,7 @@ class TestGetCodeExample:
 
         assert A.get_code_example() == None
 
-    def test_code_example_from_docstring_example_heading(self):
+    def test_code_example_from_docstring_example_heading(self, caplog):
         class A(Block):
             """
             I won't show up in the code example
@@ -1474,6 +1475,7 @@ class TestGetCodeExample:
             a_block.send_message()
             ```"""
         )
+        assert len(caplog.records) == 0
 
     def test_code_example_from_docstring_examples_heading(self):
         class A(Block):
