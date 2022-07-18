@@ -1,9 +1,13 @@
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 
 from prefect.infrastructure.docker import DockerContainer, ImagePullPolicy
 from prefect.testing.utilities import assert_does_not_warn
+
+if TYPE_CHECKING:
+    pass
 
 
 @pytest.fixture(autouse=True)
@@ -14,9 +18,15 @@ def skip_if_docker_is_not_installed():
 @pytest.fixture
 def mock_docker_client(monkeypatch):
     docker = pytest.importorskip("docker")
+    docker.models.containers = pytest.importorskip("docker.models.containers")
 
     mock = MagicMock(spec=docker.DockerClient)
     mock.version.return_value = {"Version": "20.10"}
+    fake_container = docker.models.containers.Container()
+    fake_container.client = MagicMock()
+    fake_container.collection = MagicMock()
+    fake_container.attrs = MagicMock()
+    mock.containers.get.return_value = fake_container
 
     monkeypatch.setattr(
         "prefect.infrastructure.docker.docker.from_env",
@@ -489,3 +499,10 @@ async def test_does_not_warn_about_gateway_if_not_using_linux(
         "extra_hosts"
     )
     assert not call_extra_hosts
+
+
+@pytest.mark.service("docker")
+async def test_container_result():
+    result = await DockerContainer(command=["echo", "hello"]).run()
+    assert bool(result)
+    assert result.status_code == 0

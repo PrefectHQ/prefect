@@ -5,10 +5,9 @@ from typing import Optional
 
 import sniffio
 from anyio.abc import TaskStatus
-from pydantic import BaseModel
 from typing_extensions import Literal
 
-from prefect.infrastructure.base import Infrastructure
+from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.processutils import run_process
 
 
@@ -60,16 +59,14 @@ class Process(Infrastructure):
 
         if process.returncode:
             self.logger.error(
-                f"Process{display_name} exited with bad code: " f"{process.returncode}"
+                f"Process{display_name} exited with status code: "
+                f"{process.returncode}"
             )
         else:
             self.logger.info(f"Process{display_name} exited cleanly.")
 
-        return ProcessResult(returncode=process.returncode)
+        return ProcessResult(status_code=process.returncode)
 
 
-class ProcessResult(BaseModel):
-    returncode: int
-
-    def __bool__(self):
-        return self.returncode == 0
+class ProcessResult(InfrastructureResult):
+    """Contains information about the final state of a completed process"""

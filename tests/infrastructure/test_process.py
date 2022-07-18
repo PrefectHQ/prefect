@@ -48,7 +48,7 @@ async def test_process_streams_stderr(capsys):
 @pytest.mark.parametrize("exit_code", [0, 1, 2])
 async def test_process_returns_exit_code(exit_code):
     result = await Process(command=["bash", "-c", f"exit {exit_code}"]).run()
-    assert result.returncode == exit_code
+    assert result.status_code == exit_code
     assert bool(result) is (exit_code == 0)
 
 
