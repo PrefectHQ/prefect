@@ -57,6 +57,7 @@ If you'd like to install a version of Prefect for development:
 <div class="terminal">
 ```bash
 $ git clone https://github.com/PrefectHQ/prefect.git
+$ cd prefect
 $ git checkout orion
 
 $ pip install -e ".[dev]"
