@@ -21,7 +21,7 @@ from prefect.flow_runners.base import (
 )
 from prefect.orion.schemas.core import FlowRun
 from prefect.settings import PREFECT_API_URL
-from prefect.utilities.asyncio import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:

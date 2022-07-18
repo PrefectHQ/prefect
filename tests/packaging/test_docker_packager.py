@@ -66,7 +66,11 @@ def test_python_environment_autodetected_when_building():
 
 def test_python_environment_not_autodetected_with_dockerfile():
     packager = DockerPackager(dockerfile="Docky")
-    assert packager.dockerfile == PurePosixPath("Docky")
+
+    # Test the string representations of the path object because
+    # on Windows, we'll get a WindowsPath object, which isn't
+    # comparable to a PurePosixPath.
+    assert str(packager.dockerfile) == str(PurePosixPath("Docky"))
     assert not packager.python_environment
 
 
@@ -168,7 +172,7 @@ async def test_unpackaging_outside_container(howdy_context: Path):
     manifest = await packager.package(howdy)
 
     unpackaged_howdy = await manifest.unpackage()
-    assert unpackaged_howdy("dude").result() == "howdy, dude!"
+    assert unpackaged_howdy("dude") == "howdy, dude!"
 
 
 @pytest.mark.service("docker")
@@ -216,7 +220,7 @@ def assert_unpackaged_flow_works(docker: DockerClient, manifest: DockerPackageMa
 
     flow = asyncio.get_event_loop().run_until_complete(manifest.unpackage())
 
-    assert flow('there').result() == 'howdy, there!'
+    assert flow('there') == 'howdy, there!'
     """
     )
 

@@ -5,4 +5,4 @@ tags:
     - async
 ---
 
-::: prefect.utilities.asyncio
+::: prefect.utilities.asyncutils

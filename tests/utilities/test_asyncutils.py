@@ -7,7 +7,7 @@ from functools import partial
 import anyio
 import pytest
 
-from prefect.utilities.asyncio import (
+from prefect.utilities.asyncutils import (
     GatherIncomplete,
     add_event_loop_shutdown_callback,
     create_gather_task_group,

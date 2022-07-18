@@ -22,7 +22,7 @@ from typing_extensions import Literal
 
 from prefect.blocks.core import Block
 from prefect.settings import PREFECT_HOME
-from prefect.utilities.asyncio import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import is_local_path
 from prefect.utilities.hashing import stable_hash
 
