@@ -159,7 +159,7 @@ class DelayedImportErrorModule(ModuleType):
         super().__init__(*args, **kwargs)
 
     def __getattr__(self, attr):
-        if attr in ("__class__", "__file__", "__frame_data"):
+        if attr in ("__class__", "__file__", "__frame_data", "__help_message"):
             super().__getattr__(attr)
         else:
             fd = self.__frame_data
