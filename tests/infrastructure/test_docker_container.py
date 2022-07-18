@@ -3,11 +3,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect.infrastructure.docker import DockerContainer, ImagePullPolicy
+from prefect.flow_runners.base import get_prefect_image_name
+from prefect.infrastructure.docker import (
+    CONTAINER_LABELS,
+    DockerContainer,
+    ImagePullPolicy,
+)
 from prefect.testing.utilities import assert_does_not_warn
 
 if TYPE_CHECKING:
-    pass
+    from docker import DockerClient
+    from docker.models.containers import Container
 
 
 @pytest.fixture(autouse=True)
@@ -20,18 +26,17 @@ def mock_docker_client(monkeypatch):
     docker = pytest.importorskip("docker")
     docker.models.containers = pytest.importorskip("docker.models.containers")
 
-    mock = MagicMock(spec=docker.DockerClient)
+    mock = MagicMock(name="DockerClient", spec=docker.DockerClient)
     mock.version.return_value = {"Version": "20.10"}
     fake_container = docker.models.containers.Container()
-    fake_container.client = MagicMock()
-    fake_container.collection = MagicMock()
-    fake_container.attrs = MagicMock()
+    fake_container.client = MagicMock(name="Container.client")
+    fake_container.collection = MagicMock(name="Container.collection")
+    attrs = {"Id": "fake-id", "Name": "fake-name", "State": "exited"}
+    fake_container.collection.get().attrs = attrs
+    fake_container.attrs = attrs
     mock.containers.get.return_value = fake_container
 
-    monkeypatch.setattr(
-        "prefect.infrastructure.docker.docker.from_env",
-        MagicMock(return_value=mock),
-    )
+    monkeypatch.setattr("docker.from_env", MagicMock(return_value=mock))
     return mock
 
 
@@ -502,7 +507,41 @@ async def test_does_not_warn_about_gateway_if_not_using_linux(
 
 
 @pytest.mark.service("docker")
-async def test_container_result():
+async def test_container_result(docker: "DockerClient"):
     result = await DockerContainer(command=["echo", "hello"]).run()
     assert bool(result)
     assert result.status_code == 0
+    assert result.identifier
+    container = docker.containers.get(result.identifier)
+    assert container is not None
+
+
+@pytest.mark.service("docker")
+async def test_container_metadata(docker: "DockerClient"):
+    result = await DockerContainer(
+        command=["echo", "hello"],
+        name="test-name",
+        labels={"test.foo": "a", "test.bar": "b"},
+    ).run()
+    container: "Container" = docker.containers.get(result.identifier)
+    assert container.name == "test-name"
+    assert container.labels["test.foo"] == "a"
+    assert container.labels["test.bar"] == "b"
+    assert container.image.tags[0] == get_prefect_image_name()
+
+    for key, value in CONTAINER_LABELS.items():
+        assert container.labels[key] == value
+
+
+@pytest.mark.service("docker")
+async def test_container_name_collision(docker: "DockerClient"):
+    container = DockerContainer(
+        command=["echo", "hello"], name="test-name", auto_remove=False
+    )
+    result = await container.run()
+    created_container: "Container" = docker.containers.get(result.identifier)
+    assert created_container.name == "test-name"
+
+    result = await container.run()
+    created_container: "Container" = docker.containers.get(result.identifier)
+    assert created_container.name == "test-name-1"

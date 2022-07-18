@@ -371,7 +371,12 @@ class KubernetesJob(Infrastructure):
             pod_status = client.read_namespaced_pod_status(
                 namespace=self.namespace, name=pod.metadata.name
             )
-        return pod_status.status.container_statuses[0].state.terminated.exit_code == 0
+            first_container_status = pod_status.status.container_statuses[0]
+
+        return KubernetesJobResult(
+            status_code=first_container_status.state.terminated.exit_code,
+            identifier=job.metadata.name,
+        )
 
     def _create_job(self, job_manifest: KubernetesManifest) -> str:
         """
