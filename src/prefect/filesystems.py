@@ -8,7 +8,7 @@ import fsspec
 from pydantic import Field, validator
 
 from prefect.blocks.core import Block
-from prefect.utilities.asyncio import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 class ReadableFileSystem(Block, abc.ABC):

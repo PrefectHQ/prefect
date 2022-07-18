@@ -42,7 +42,7 @@ from prefect.exceptions import (
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
-from prefect.utilities.asyncio import is_async_fn
+from prefect.utilities.asyncutils import is_async_fn
 from prefect.utilities.callables import (
     get_call_parameters,
     parameter_schema,
@@ -301,9 +301,7 @@ class Flow(Generic[P, R]):
         return serialized_parameters
 
     @overload
-    def __call__(
-        self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs
-    ) -> State[T]:
+    def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> T:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
         # sync function from matching the `Coroutine` overload
         ...
@@ -311,11 +309,11 @@ class Flow(Generic[P, R]):
     @overload
     def __call__(
         self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
-    ) -> Awaitable[State[T]]:
+    ) -> Awaitable[T]:
         ...
 
     @overload
-    def __call__(self: "Flow[P, T]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
+    def __call__(self: "Flow[P, T]", *args: P.args, **kwargs: P.kwargs) -> T:
         ...
 
     def __call__(
@@ -367,7 +365,39 @@ class Flow(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        return enter_flow_run_engine_from_flow_call(self, parameters)
+        return enter_flow_run_engine_from_flow_call(
+            self, parameters, return_type="result"
+        )
+
+    @overload
+    def run(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
+        # `NoReturn` matches if a type can't be inferred for the function which stops a
+        # sync function from matching the `Coroutine` overload
+        ...
+
+    @overload
+    def run(
+        self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
+    ) -> Awaitable[T]:
+        ...
+
+    @overload
+    def run(self: "Flow[P, T]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
+        ...
+
+    def run(
+        self,
+        *args: "P.args",
+        **kwargs: "P.kwargs",
+    ):
+        from prefect.engine import enter_flow_run_engine_from_flow_call
+
+        # Convert the call args/kwargs to a parameter dict
+        parameters = get_call_parameters(self.fn, args, kwargs)
+
+        return enter_flow_run_engine_from_flow_call(
+            self, parameters, return_type="state"
+        )
 
 
 @overload
