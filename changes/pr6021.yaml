@@ -1,5 +1,2 @@
 fix:
   - "Proper default initialization of `polling_interval` in azure.datafactory.PipelineRun - [#6021](https://github.com/PrefectHQ/prefect/pull/6021)"
-
-contributor:
-  - "[EmilRex](https://github.com/EmilRex)"
