@@ -54,10 +54,8 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
-import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
 from prefect.context import PrefectObjectRegistry
-from prefect.deprecated import deployments as deprecated
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
 from prefect.flow_runners.base import (
     FlowRunner,
@@ -314,24 +312,10 @@ def load_deployments_from_yaml(
 
     with PrefectObjectRegistry(capture_failures=True) as registry:
         for node in nodes:
-            line = node.start_mark.line + 1
-
-            # Load deployments relative to the yaml file's directory
             with tmpchdir(path):
                 deployment_dict = yaml.safe_load(yaml.serialize(node))
-                if "flow_location" in deployment_dict:
-                    deployment = parse_obj_as(DeploymentSpec, deployment_dict)
-                else:
-                    deployment = parse_obj_as(Deployment, deployment_dict)
-
-            if isinstance(deployment, DeploymentSpec):
-                # Update the source to be from the YAML file instead of this utility
-                deployment._source = {"file": str(path), "line": line}
+                # The return value is not necessary, just instantiating the Deployment
+                # is enough to get it recorded on the registry
+                parse_obj_as(Deployment, deployment_dict)
 
     return registry
-
-
-# Backwards compatibility
-
-
-DeploymentSpec = deprecated.DeploymentSpec
