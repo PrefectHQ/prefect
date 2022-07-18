@@ -5,7 +5,6 @@ import { createApp } from 'vue'
 import './registerServiceWorker'
 import router from './router'
 import { applyActiveColorModeClass } from './utilities/colorMode'
-import { VITE_PREFECT_USE_MIRAGEJS } from './utilities/meta'
 
 // styles
 import '@prefecthq/prefect-design/dist/style.css'
@@ -18,13 +17,7 @@ import App from './App.vue'
 
 applyActiveColorModeClass()
 
-async function start(): Promise<void> {
-  if (VITE_PREFECT_USE_MIRAGEJS()) {
-    const { startServer } = await import('./server')
-
-    startServer()
-  }
-
+function start(): void {
   const app = createApp(App)
 
   app.use(router)
