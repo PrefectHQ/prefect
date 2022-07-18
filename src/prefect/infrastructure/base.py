@@ -11,6 +11,14 @@ from prefect.settings import get_current_settings
 from prefect.utilities.pydantic import lookup_type
 
 
+class InfrastructureResult(pydantic.BaseModel, abc.ABC):
+    identifier: str
+    status_code: int
+
+    def __bool__(self):
+        return self.status_code == 0
+
+
 class Infrastructure(Block, abc.ABC):
     _block_schema_capabilities = ["run"]
 
@@ -25,7 +33,7 @@ class Infrastructure(Block, abc.ABC):
     async def run(
         self,
         task_status: TaskStatus = None,
-    ) -> Optional[bool]:
+    ) -> InfrastructureResult:
         """
         Run the infrastructure, reporting a `task_status.started()` when the
         infrastructure is created and returning a `bool` at the end indicating if the
@@ -63,11 +71,3 @@ class AnyInfrastructure(Infrastructure):
             env=self.env, labels=self.labels, name=self.name, command=self.command
         )
         return await runtime_inst(task_status=task_status)
-
-
-class InfrastructureResult(pydantic.BaseModel, abc.ABC):
-    identifier: str
-    status_code: int
-
-    def __bool__(self):
-        return self.status_code == 0
