@@ -52,11 +52,10 @@ extras = {
     "aws": orchestration_extras["aws"],
     "azure": [
         "azure-core >= 1.10.0",
-        "azure-storage-blob >= 12.1.0",
         "azure-cosmos >= 3.1.1",
-        "azure-identity >= 1.7.0",
         "azure-mgmt-datafactory >= 2.7.0",
-    ],
+    ]
+    + orchestration_extras["azure"],
     "azureml": ["azureml-sdk"],
     "bitbucket": orchestration_extras["bitbucket"],
     "dask_cloudprovider": ["dask_cloudprovider[aws] >= 0.2.0"],
