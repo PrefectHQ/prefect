@@ -152,6 +152,51 @@ We do not have a best practice for this yet. See the `kubernetes`, `docker`, and
 
 Sometimes, imports are slow. We'd like to keep the `prefect` module import times fast. In these cases, we can lazily import the slow module by deferring import to the relevant function body. For modules that are consumed by many functions, the pattern used for optional requirements may be used instead.
 
+#### Command line interface (CLI) output messages
+
+Upon executing a command, the output message should offer:
+- a short description on what the command just did
+- next steps, like the next command to run, if applicable
+- other relevant, pre-formatted commands that can be copy + pasted
+- a new line before the first line and after the last line
+
+Example:
+```bash
+$ prefect work-queue create testing
+
+You created work-queue: 'testing'
+
+Start an agent to pick up flows from the created work-queue:
+    prefect agent start '989c64da-1144-4fbb-8fe8-d7b298ea2f84'
+
+Inspect the created work-queue:
+    prefect work-queue inspect '989c64da-1144-4fbb-8fe8-d7b298ea2f84'
+
+```
+
+Additionally:
+- example commands should be indentated, rather than wrapped in backticks (`)
+- if an example command cannot be pre-formatted completely, use placeholders wrapped in less than (<) and greater than (>) signs
+- to ensure validity, generated results must be wrapped in apostrophes (')
+- if triple quotes are used, be sure to utilize `textwrap.dedent` to remove extraneous spacing
+
+Example:
+```python
+from textwrap import dedent
+...
+output_msg = dedent(
+    f"""
+    You created work-queue: '{name}'
+    
+    Start an agent to pick up flows from the work-queue:
+        prefect agent start '{result}'
+    
+    Inspect the created work-queue:
+        prefect work-queue inspect '{result}'
+"""
+)
+```
+
 ## API Versioning
 
 The Prefect 2.0 client can be run separately from the Prefect 2.0 orchestration server and communicate entirely via an API. Among other things, the Prefect client includes anything that runs task or flow code, (e.g. agents, and the Python client) or any consumer of Prefect metadata, (e.g. the Prefect UI, and CLI). The Prefect 2.0 stores this metadata and serves it via the REST API.
