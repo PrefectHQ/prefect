@@ -21,7 +21,7 @@ from prefect.orion.schemas.core import (
 )
 from prefect.orion.schemas.filters import BlockDocumentFilterIsAnonymous
 from prefect.utilities.hashing import hash_objects
-
+from prefect.utilities.collections import flatdict_to_dict, dict_to_flatdict
 
 # ensure argument types are preservered because e.g. UUIDs as strings will have
 # different hashes than UUIDs as UUIDs
@@ -519,9 +519,14 @@ async def update_block_document(
         # it means someone is probably trying to update all of the documents
         # fields without realizing they are positing back obfuscated data,
         # so we disregard them
-        for key, value in list(update_values["data"].items()):
-            if value == OBFUSCATED_SECRET:
-                del update_values["data"][key]
+        flat_data = dict_to_flatdict(update_values["data"])
+        for field in current_block_document.block_schema.fields.get(
+            "secret_fields", []
+        ):
+            key = tuple(field.split("."))
+            if flat_data.get(key) == OBFUSCATED_SECRET:
+                del flat_data[key]
+        update_values["data"] = flatdict_to_dict(flat_data)
 
         # merge the existing data and the new data for partial updates
         merged_data = await current_block_document.decrypt_data(session=session)
