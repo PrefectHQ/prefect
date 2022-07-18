@@ -282,6 +282,7 @@ class PipelineRun(Task):
         self.pipeline_name = pipeline_name
         self.azure_credentials_secret = azure_credentials_secret
         self.parameters = parameters
+        self.polling_interval = polling_interval
         self.last_updated_after = last_updated_after
         self.last_updated_before = last_updated_before
         super().__init__(**kwargs)
@@ -292,6 +293,7 @@ class PipelineRun(Task):
         "pipeline_name",
         "azure_credentials_secret",
         "parameters",
+        "polling_interval",
         "last_updated_after",
         "last_updated_before",
     )
