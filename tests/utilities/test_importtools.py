@@ -1,10 +1,12 @@
 import importlib.util
 import sys
 from types import ModuleType
+from uuid import uuid4
 
 import pytest
 
 import prefect
+from prefect.docker import docker_client
 from prefect.utilities.importtools import (
     from_qualified_name,
     lazy_import,
@@ -55,6 +57,20 @@ def test_lazy_import():
     assert isinstance(docker, importlib.util._LazyModule)
     assert isinstance(docker, ModuleType)
     assert callable(docker.from_env)
+
+
+def test_lazy_import_does_not_break_type_comparisons():
+    docker = lazy_import("docker")
+    docker.errors = lazy_import("docker.errors")
+
+    with docker_client() as client:
+        try:
+            client.containers.get(uuid4().hex)  # Better not exist
+        except docker.errors.NotFound:
+            pass
+
+    # The exception should not raise but can raise if `lazy_import` creates a duplicate
+    # copy of the `docker` module
 
 
 def test_lazy_import_fails_for_missing_modules():
