@@ -1709,34 +1709,17 @@ class TestTaskRegistration:
 
 class TestTaskMap:
     @task
-    def add_one(x):
+    async def add_one(x):
         return x + 1
 
     @task
     def add_together(x, y):
         return x + y
 
-    def test_map_returns_results(self):
+    def test_simple_map(self):
         @flow
         def my_flow():
-            return TestTaskMap.add_one.map([1, 2, 3])
-
-        assert my_flow() == [2, 3, 4]
-
-    def test_map_run_returns_states(self):
-        @flow
-        def my_flow():
-            states = TestTaskMap.add_one.map.run([1, 2, 3])
-            assert all(isinstance(s, State) for s in states)
-            return states
-
-        states = my_flow()
-        assert [state.result() for state in states] == [2, 3, 4]
-
-    def test_map_run_returns_futures(self):
-        @flow
-        def my_flow():
-            futures = TestTaskMap.add_one.map.submit([1, 2, 3])
+            futures = TestTaskMap.add_one.map([1, 2, 3])
             assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
@@ -1750,11 +1733,11 @@ class TestTaskMap:
 
         @flow
         def my_flow():
-            numbers_state = some_numbers.run()
-            return TestTaskMap.add_one.map.run(numbers_state)
+            numbers_state = some_numbers._run()
+            return TestTaskMap.add_one.map(numbers_state)
 
-        states = my_flow()
-        assert [state.result() for state in states] == [2, 3, 4]
+        futures = my_flow()
+        assert [future.result() for future in futures] == [2, 3, 4]
 
     def test_map_can_take_future_as_input(self):
         @task
@@ -1764,7 +1747,7 @@ class TestTaskMap:
         @flow
         def my_flow():
             numbers_future = some_numbers.submit()
-            return TestTaskMap.add_one.map.submit(numbers_future)
+            return TestTaskMap.add_one.map(numbers_future)
 
         futures = my_flow()
         assert [future.result() for future in futures] == [2, 3, 4]
@@ -1776,8 +1759,8 @@ class TestTaskMap:
 
         @flow
         def my_flow():
-            numbers_state = child_flow.run()
-            return TestTaskMap.add_one.map.submit(numbers_state)
+            numbers_state = child_flow._run()
+            return TestTaskMap.add_one.map(numbers_state)
 
         futures = my_flow()
         assert [future.result() for future in futures] == [2, 3, 4]
@@ -1789,7 +1772,8 @@ class TestTaskMap:
             others = [4, 5, 6]
             return TestTaskMap.add_together.map(numbers, others)
 
-        assert my_flow() == [5, 7, 9]
+        futures = my_flow()
+        assert [future.result() for future in futures] == [5, 7, 9]
 
     def test_mismatching_input_lengths(self):
         @flow
@@ -1800,3 +1784,27 @@ class TestTaskMap:
 
         with pytest.raises(MappingLengthMismatch):
             assert my_flow()
+
+    async def test_async_flow_with_async_map(self):
+        @task
+        async def some_numbers():
+            return [1, 2, 3]
+
+        @flow
+        async def my_flow():
+            return await TestTaskMap.add_one.map(await some_numbers())
+
+        futures = await my_flow()
+        assert [future.result() for future in futures] == [2, 3, 4]
+
+    async def test_async_flow_with_sync_map(self):
+        @task
+        def subtract_them(x, y):
+            return x - y
+
+        @flow
+        async def my_flow():
+            return subtract_them.map([4, 5, 6], [1, 2, 3])
+
+        futures = await my_flow()
+        assert [future.result() for future in futures] == [3, 3, 3]

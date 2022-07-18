@@ -466,52 +466,7 @@ class Task(Generic[P, R]):
             task_runner=None,  # Use the flow's task runner
         )
 
-    @property
-    def map(self) -> "TaskMapper":
-        return TaskMapper(self)
-
-
-class TaskMapper:
-    def __init__(self, task: Task):
-        self.task = task
-
-    def __call__(
-        self,
-        *args: Any,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
-        **kwargs: Any,
-    ) -> List[T]:
-        from prefect.engine import enter_task_map_engine
-
-        # Convert the call args/kwargs to a parameter dict
-        parameters = get_call_parameters(self.task.fn, args, kwargs)
-
-        return enter_task_map_engine(
-            self.task,
-            parameters=parameters,
-            wait_for=wait_for,
-            return_type="result",
-        )
-
-    def run(
-        self,
-        *args: Any,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
-        **kwargs: Any,
-    ) -> List[State[T]]:
-        from prefect.engine import enter_task_map_engine
-
-        # Convert the call args/kwargs to a parameter dict
-        parameters = get_call_parameters(self.task.fn, args, kwargs)
-
-        return enter_task_map_engine(
-            self.task,
-            parameters=parameters,
-            wait_for=wait_for,
-            return_type="state",
-        )
-
-    def submit(
+    def map(
         self,
         *args: Any,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
@@ -520,13 +475,14 @@ class TaskMapper:
         from prefect.engine import enter_task_map_engine
 
         # Convert the call args/kwargs to a parameter dict
-        parameters = get_call_parameters(self.task.fn, args, kwargs)
+        parameters = get_call_parameters(self.fn, args, kwargs)
 
         return enter_task_map_engine(
-            self.task,
+            self,
             parameters=parameters,
             wait_for=wait_for,
             return_type="future",
+            task_runner=None,
         )
 
 
