@@ -578,6 +578,12 @@ module = "prefect.tasks.databricks"
 classes = ["DatabricksSubmitRun", "DatabricksRunNow", "DatabricksSubmitMultitaskRun", "DatabricksGetJobID"]
 verified_task = true
 
+[pages.tasks.fugue]
+title = "Fugue Tasks"
+module = "prefect.tasks.fugue"
+classes = ["FugueExecutionEngine"]
+functions = ["fsql", "transform"]
+
 [pages.tasks.spacy]
 title = "spaCy Tasks"
 module = "prefect.tasks.spacy"

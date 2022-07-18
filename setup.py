@@ -105,6 +105,7 @@ extras = {
     "transform": ["transform >= 1.0.12"],
     "sftp": ["paramiko >= 2.10.4"],
     "toloka": ["toloka-kit >= 0.1.25"],
+    "fugue": ["fugue >= 0.7.0"],
 }
 
 
