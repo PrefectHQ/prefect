@@ -12,7 +12,7 @@ As Prefect 2 usage has grown, we've observed a pattern among users, especially f
 States and futures are still important concepts in dictating and understanding the behavior of flows. You will still be able to easily access and use them with the `.submit()` method. You will need to modify tasks in existing Prefect 2 flows to use this method to continue working as before.
 
 ### Other improvements and bug fixes
-- Date filters on the flow run page now support filtering by date _and_ time
+- Date filters on the flow run page in the UI now support filtering by date _and_ time
 - Each work queue page now includes a command to start a corresponding agent
 - Tutorials have been updated for increased clarity and consistency
 - Cron schedule setting errors are now more informative
