@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
 
 import prefect
 import prefect.orion.api as api
@@ -68,12 +69,10 @@ class SPAStaticFiles(StaticFiles):
     """
 
     async def get_response(self, path: str, scope):
-        response = await super().get_response(path, scope)
-
-        if response.status_code == status.HTTP_404_NOT_FOUND:
-            response = await super().get_response("./index.html", scope)
-
-        return response
+        try:
+            return await super().get_response(path, scope)
+        except HTTPException:
+            return await super().get_response("./index.html", scope)
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -222,7 +221,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     ):
         ui_app.mount(
             "/",
-            SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
+            SPAStaticFiles(directory=prefect.__ui_static_path__),
             name="ui_root",
         )
 
