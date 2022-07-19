@@ -200,7 +200,7 @@ output_msg = dedent(
     
     Inspect the created work-queue:
         prefect work-queue inspect '{result}'
-"""
+    """
 )
 ```
 
