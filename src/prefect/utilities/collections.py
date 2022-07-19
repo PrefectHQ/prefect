@@ -303,8 +303,19 @@ async def visit_collection(
         )
 
         if return_data:
+            # This line supports `pydantic.Field`s where alias is used, so that
+            # it won't yield a validation error on object reconstruction
+            aliases = {
+                key: value.alias
+                for key, value in expr.__fields__.items()
+                if value.has_alias
+            }
+
             model_instance = typ(
-                **{key: value for key, value in zip(model_fields, items)}
+                **{
+                    aliases.get(key, key): value
+                    for key, value in zip(model_fields, items)
+                }
             )
 
             # Private attributes are not included in `__fields_set__` but we do not want
