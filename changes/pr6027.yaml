@@ -1,0 +1,5 @@
+enhancement:
+  - "Add new `S3Move` task for AWS s3 task library - [#6027](https://github.com/PrefectHQ/prefect/pull/6027)"
+
+contributor:
+  - "[Dennis Hinnenkamp](https://github.com/mcfuhrt)"
