@@ -66,7 +66,7 @@ You may need to install additional libraries to use some remote storage types.
 How can we use RemoteFileSystem to store our flow code? 
 The following is a use case where we use [MinIO](https://min.io/) as a storage backend:
 
-```
+```python
 minio_file_packager = FilePackager(
     filesystem=RemoteFileSystem(
         basepath="s3://my-bucket",
