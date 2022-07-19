@@ -2,8 +2,6 @@ import pytest
 import respx
 from httpx import Response
 
-from prefect.cli import cloud
-from prefect.cli.cloud import CloudClient
 from prefect.context import use_profile
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
