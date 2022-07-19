@@ -47,7 +47,7 @@ Prefect is often used with [Docker and Kubernetes](concepts/deployments/#packagi
 Prefect helps you keep your data and code secure. Prefect's patented [hybrid execution model](https://www.prefect.io/why-prefect/hybrid-model/) means your data can stay in your environment while Prefect Cloud orchestrates your flows. Prefect the company is SOC2 compliant and our enterprise product makes it easy for you to restrict access to the right people in your organization.
 
 ### Flexible and easy to start
-You don’t need to rewrite your entire dataflow as a directed acyclic graph (DAG) to take advantage of Prefect 2.0. DAGs represent a rigid framework that is overly constraining for modern, dynamic dataflows. Instead, you can incrementally adopt Prefect 2.0 for to coordinate dynamic dataflows.
+You don’t need to rewrite your entire dataflow as a directed acyclic graph (DAG) to take advantage of Prefect 2.0. DAGs represent a rigid framework that is overly constraining for modern, dynamic dataflows. Instead, you can incrementally adopt Prefect 2.0 to coordinate dynamic dataflows.
 
 ## How to get started
 
