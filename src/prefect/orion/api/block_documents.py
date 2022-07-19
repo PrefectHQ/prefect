@@ -26,7 +26,7 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/block_documents", tags=["Block documents"])
 
 
-@router.post("/")
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_block_document(
     block_document: schemas.actions.BlockDocumentCreate,
     response: Response,
@@ -37,14 +37,9 @@ async def create_block_document(
     Create a new block document.
     """
     try:
-        now = pendulum.now("UTC")
         new_block_document = await models.block_documents.create_block_document(
             session=session, block_document=block_document
         )
-        # anonymous blocks are idempotent so only set 201 if the block document
-        # was actually created
-        if new_block_document.created >= now:
-            response.status_code = status.HTTP_201_CREATED
     except sa.exc.IntegrityError:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
