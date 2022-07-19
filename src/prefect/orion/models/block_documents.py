@@ -23,27 +23,6 @@ from prefect.orion.schemas.filters import BlockDocumentFilterIsAnonymous
 from prefect.utilities.hashing import hash_objects
 
 
-# ensure argument types are preservered because e.g. UUIDs as strings will have
-# different hashes than UUIDs as UUIDs
-@validate_arguments
-def generate_anonymous_name_from_fields(
-    data: dict, block_schema_id: UUID, block_type_id: UUID
-) -> str:
-    """
-    Generate a consistent name for anonymous blocks based on idempotent
-    properties
-    """
-    checksum = hash_objects(
-        dict(
-            data=data,
-            block_schema_id=block_schema_id,
-            block_type_id=block_type_id,
-        ),
-        hash_algo=hashlib.sha256,
-    )
-    return f"anonymous:{checksum}"
-
-
 @inject_db
 async def create_block_document(
     session: sa.orm.Session,
@@ -51,20 +30,14 @@ async def create_block_document(
     db: OrionDBInterface,
 ):
 
-    # anonymous blocks are automatically assigned names that act as idempotency keys
-    if block_document.is_anonymous:
-        document_name = generate_anonymous_name_from_fields(
-            data=block_document.data,
-            block_schema_id=block_document.block_schema_id,
-            block_type_id=block_document.block_type_id,
-        )
+    # anonymous block documents can be given a random name if none is provided
+    if block_document.is_anonymous and not block_document.name:
+        name = f"anonymous:{uuid4()}"
     else:
-        document_name = block_document.name
+        name = block_document.name
 
     orm_block = db.BlockDocument(
-        # set the id ourselves so we can check for anonymous block idempotency
-        id=uuid4(),
-        name=document_name,
+        name=name,
         block_schema_id=block_document.block_schema_id,
         block_type_id=block_document.block_type_id,
         is_anonymous=block_document.is_anonymous,
@@ -78,46 +51,8 @@ async def create_block_document(
     # encrypt the data and store in block document
     await orm_block.encrypt_data(session=session, data=block_document_data_without_refs)
 
-    if not orm_block.is_anonymous:
-        session.add(orm_block)
-        await session.flush()
-
-    else:
-        # Named blocks raise an error if the unique name constraint is violated,
-        # but anonymous blocks are idempotent and we return the existing one
-        # instead of erroring. We use SQLAlchemy ORM here to take advantage of
-        # methods such as `encrypt_data`, but ORM doesn't support "on conflict"
-        # statements. Therefore this line converts the ORM model to a SQLAlchemy
-        # Core model so we can do a graceful insert with conflict checks.
-        core_block_values = orm_block.__dict__.copy()
-        core_block_values.pop("_sa_instance_state")
-
-        insert_stmt = (
-            (await db.insert(db.BlockDocument))
-            .values(**core_block_values)
-            .on_conflict_do_nothing(
-                index_elements=db.block_document_unique_upsert_columns,
-            )
-        )
-        await session.execute(insert_stmt)
-
-        result = await session.execute(
-            # select using unique index on block type id / name
-            sa.select(db.BlockDocument.id).where(
-                db.BlockDocument.block_type_id == orm_block.block_type_id,
-                db.BlockDocument.name == document_name,
-            )
-        )
-        idempotent_id = result.scalar()
-
-        # if the idempotent ID is different from the ID we tried to insert,
-        # then the block already exists and we return that block
-        if idempotent_id != orm_block.id:
-            return await read_block_document_by_id(
-                session=session,
-                block_document_id=idempotent_id,
-                include_secrets=False,
-            )
+    session.add(orm_block)
+    await session.flush()
 
     # Create a block document reference for each reference in the block document data
     for key, reference_block_document_id in block_document_references:
@@ -508,9 +443,6 @@ async def update_block_document(
     update_values = block_document.dict(shallow=True, exclude_unset=True)
 
     if "name" in update_values:
-        # anonymous block names cannot be updated
-        if current_block_document.is_anonymous:
-            raise ValueError("Names cannot be provided for anonymous blocks.")
         current_block_document.name = update_values["name"]
 
     if "data" in update_values and update_values["data"] is not None:
@@ -573,16 +505,6 @@ async def update_block_document(
                 await delete_block_document_reference(
                     session, block_document_reference_id=block_document_reference.id
                 )
-
-        # if the block is anonymous and the data is being updated, then we need to update
-        # its name as if it had just been created
-        if current_block_document.is_anonymous:
-            current_block_document.name = generate_anonymous_name_from_fields(
-                # note: use the unencrypted data values to generate name
-                data=update_values["data"],
-                block_schema_id=current_block_document.block_schema_id,
-                block_type_id=current_block_document.block_type_id,
-            )
 
     await session.flush()
 
