@@ -322,18 +322,21 @@ class Flow(Generic[P, R]):
         **kwargs: "P.kwargs",
     ):
         """
-        Run the flow using the Prefect engine against a backing API (note this will create a new flow run in the backend).
+        Run the flow and return its result.
+
 
         Flow parameter values must be serializable by Pydantic.
 
         If writing an async flow, this call must be awaited.
+
+        This will create a new flow run in the API.
 
         Args:
             *args: Arguments to run the flow with.
             **kwargs: Keyword arguments to run the flow with.
 
         Returns:
-            The final state of the flow run.
+            The result of the flow run.
 
         Examples:
 
@@ -348,10 +351,6 @@ class Flow(Generic[P, R]):
 
             >>> my_flow("marvin")
             hello marvin
-
-            Run a flow and get the returned result
-
-            >>> my_flow("marvin").result()
             "goodbye marvin"
 
             Run a flow with additional tags
@@ -370,26 +369,37 @@ class Flow(Generic[P, R]):
         )
 
     @overload
-    def run(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
+    def _run(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
         # sync function from matching the `Coroutine` overload
         ...
 
     @overload
-    def run(
+    def _run(
         self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
     ) -> Awaitable[T]:
         ...
 
     @overload
-    def run(self: "Flow[P, T]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
+    def _run(self: "Flow[P, T]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
         ...
 
-    def run(
+    def _run(
         self,
         *args: "P.args",
         **kwargs: "P.kwargs",
     ):
+        """
+        Run the flow and return its final state.
+
+        Examples:
+
+            Run a flow and get the returned result
+
+            >>> state = my_flow._run("marvin")
+            >>> state.result()
+           "goodbye marvin"
+        """
         from prefect.engine import enter_flow_run_engine_from_flow_call
 
         # Convert the call args/kwargs to a parameter dict
