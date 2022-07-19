@@ -318,11 +318,11 @@ class S3Move(Task):
         Args:
             - key (str, optional): the Key to move the data to; if not
                 provided, a random `uuid` will be created
-            - copy_source (str): The name of the source bucket, key name of the source object, and 
-                optional version ID of the source object. You can either provide this value as a 
-                string or a dictionary. The string form is {bucket}/{key} or 
-                {bucket}/{key}?versionId={versionId} if you want to copy a specific version. You 
-                can also provide this value as a dictionary. The dictionary format is recommended 
+            - copy_source (str): The name of the source bucket, key name of the source object, and
+                optional version ID of the source object. You can either provide this value as a
+                string or a dictionary. The string form is {bucket}/{key} or
+                {bucket}/{key}?versionId={versionId} if you want to copy a specific version. You
+                can also provide this value as a dictionary. The dictionary format is recommended
                 over the string format because it is more explicit. The dictionary format
                 is: {'Bucket': 'bucket', 'Key': 'key', 'VersionId': 'id'}. Note that the VersionId
                 key is optional and may be omitted. To specify an S3 access point, provide the access
