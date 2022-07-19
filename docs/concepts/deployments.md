@@ -206,7 +206,7 @@ A `Deployment` object has the following parameters:
 | Parameter | Description |
 | --------- | ----------- |
 | `name` | String specifying the name of the deployment. |
-| `flow` | The flow object to associate with the deployment. May provide the flow function name as `flow="flow_name"` if defined in the same file as the `Deployment` specification, or may provide additional information to define the flow code via a `FlowScript` or `PackageManifest` object. (Required) |
+| `flow` | The flow object to associate with the deployment. May provide the flow object directly as `flow=my_flow` if available in the same file as the `Deployment`. Alternatively, may provide a `Path`, `FlowScript`, or `PackageManifest` allowing access to the flow. (Required) |
 | <span class="no-wrap">`flow_runner`</span> | Specifies the [flow runner](/api-ref/prefect/flow-runners/) used for flow runs. Uses the `UniversalFlowRunner` if none is specified. |
 | `packager` | The [prefect.packaging](/api-ref/prefect/packaging/) packager to use for packaging the flow. |
 | `parameters` | Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects. |
@@ -215,7 +215,25 @@ A `Deployment` object has the following parameters:
 
 The `Deployment` specification must clearly indicate the flow function and the location of the file in which the function is defined on the `flow` parameter. If you define the `Deployment` within the file that contains the flow, you only need to specify the flow function and the deployment name.
 
-If you are defining the `Deployment` specification in a different file from the flow code, you'll need to provide a flow location so the script at the given location will be run when the deployment is created to load metadata about the flow. You can provide that on the `flow` parameter using either a `FlowScript` or `PackageManifest` object.
+If you are defining the `Deployment` specification in a different file from the flow code, you'll need to either import the flow or provide a flow location so the script at the given location will be run when the deployment is created to load metadata about the flow. You can provide that on the `flow` parameter using a `Path`, `FlowScript`, or `PackageManifest`.
+
+When there is only one flow in a file, you may just provide the path to the file.
+
+```python
+from prefect.deployments import Deployment
+Deployment(
+    flow=Path(__file__).parent / "examples" / "single_flow_in_file.py"
+)
+```
+
+If you provide a string, we will cast it to a `Path` object for you.
+
+```python
+from prefect.deployments import Deployment
+Deployment(
+    flow="~/flows/my_flow.py"
+)
+```
 
 `FlowScript` is a simple Pydantic model with the following properties:
 
