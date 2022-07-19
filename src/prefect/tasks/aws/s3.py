@@ -328,7 +328,8 @@ class S3Move(Task):
                 key is optional and may be omitted. To specify an S3 access point, provide the access
                 point ARN for the Bucket key in the copy source dictionary. If you want to provide
                 the copy source for an S3 access point as a string instead of a dictionary, the ARN
-                provided must be the full S3 access point object ARN (i.e. {accesspoint_arn}/object/{key})
+                provided must be the full S3 access point object ARN
+                (i.e. {accesspoint_arn}/object/{key})
             - credentials (dict, optional): your AWS credentials passed from an upstream
                 Secret task; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
