@@ -53,23 +53,19 @@ def confirm_logged_in():
 
 
 def get_cloud_client(
-    host: str = None, api_key: str = None, httpx_settings: dict = None
+    host: str = None,
+    api_key: str = None,
+    httpx_settings: dict = None,
+    infer_cloud_url: bool = False,
 ) -> "CloudClient":
+    if infer_cloud_url is False:
+        host = (host or PREFECT_CLOUD_URL.value(),)
+    else:
+        current_settings = prefect.settings.get_current_settings()
+        configured_url = current_settings.PREFECT_API_URL
+        host = re.sub("accounts/.{36}/workspaces/.{36}\Z", "", configured_url)
     return CloudClient(
-        host=host or PREFECT_CLOUD_URL.value(),
-        api_key=api_key or PREFECT_API_KEY.value(),
-        httpx_settings=httpx_settings.copy(),
-    )
-
-
-def get_better_cloud_client(
-    host: str = None, api_key: str = None, httpx_settings: dict = None
-) -> "CloudClient":
-    current_settings = prefect.settings.get_current_settings()
-    configured_url = current_settings.PREFECT_API_URL
-    cloud_url = re.sub("accounts/.{36}/workspaces/.{36}\Z", "", configured_url)
-    return CloudClient(
-        host=cloud_url,
+        host=host,
         api_key=api_key or PREFECT_API_KEY.value(),
         httpx_settings=httpx_settings.copy(),
     )
