@@ -199,7 +199,7 @@ There are several ways to build a deployment specification and use it to create 
 
 ## Deployment object
 
-You can create a [`Deployment`](/api-ref/prefect/deployments/#prefect.deployments.Deployment) object in your code and pass that to Prefect Cloud or a Prefect API server instance to create a deployment.
+You can create a [`Deployment`](/api-ref/prefect/deployments/#prefect.deployments.Deployment) object in your code and pass it to Prefect Cloud or a Prefect Orion server instance to create a deployment.
 
 A `Deployment` object has the following parameters:
 
