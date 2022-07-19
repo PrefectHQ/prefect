@@ -26,16 +26,10 @@ if TYPE_CHECKING:
     import kubernetes
     import kubernetes.client
     import kubernetes.config
-    from kubernetes.client import BatchV1Api, Configuration, CoreV1Api, V1Job, V1Pod
+    import kubernetes.watch
+    from kubernetes.client import BatchV1Api, CoreV1Api, V1Job, V1Pod
 else:
-    # Note that we are attempting to reduce the import time of the library overall, and
-    # so we are deferring the import of the `kubernetes` module until it is used.  This
-    # means that all further kubernetes imports (except for the TYPE_CHECKING ones) should
-    # be done locally in the runtime functions they are needed in.
     kubernetes = lazy_import("kubernetes")
-    kubernetes.config = lazy_import("kubernetes.config")
-    kubernetes.client = lazy_import("kubernetes.client")
-    kubernetes.watch = lazy_import("kubernetes.watch")
 
 
 class KubernetesImagePullPolicy(enum.Enum):
