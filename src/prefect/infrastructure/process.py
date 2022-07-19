@@ -37,7 +37,7 @@ class Process(Infrastructure):
             raise ValueError("Process cannot be run with empty command.")
 
         _use_threaded_child_watcher()
-        display_name = f" {self.name!r}" or ""
+        display_name = f" {self.name!r}" if self.name else ""
 
         # Open a subprocess to execute the flow run
         self.logger.info(f"Opening process{display_name}...")
