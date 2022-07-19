@@ -175,7 +175,7 @@ Inspect the created work-queue:
 ```
 
 Additionally:
-- example commands should be indentated, rather than wrapped in backticks (`)
+- example commands should be indented, rather than wrapped in backticks (`)
 - if an example command cannot be pre-formatted completely, use placeholders wrapped in less than (<) and greater than (>) signs
 - to ensure validity, generated results must be wrapped in apostrophes (')
 - if triple quotes are used, be sure to utilize `textwrap.dedent` to remove extraneous spacing
