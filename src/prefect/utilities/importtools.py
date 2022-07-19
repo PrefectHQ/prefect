@@ -1,5 +1,6 @@
 import importlib
 import importlib.util
+import inspect
 import os
 import runpy
 import sys
@@ -139,27 +140,80 @@ def load_script_as_module(path: str) -> ModuleType:
     return module
 
 
-def lazy_import(name: str) -> ModuleType:
+class DelayedImportErrorModule(ModuleType):
+    """
+    A fake module returned by `lazy_import` when the module cannot be found. When any
+    of the module's attributes are accessed, we will throw a `ModuleNotFoundError`.
+
+    Adapted from [lazy_loader][1]
+
+    [1]: https://github.com/scientific-python/lazy_loader
+    """
+
+    def __init__(self, frame_data, help_message, *args, **kwargs):
+        self.__frame_data = frame_data
+        self.__help_message = (
+            help_message
+            or f"Import errors for this module are only reported when used."
+        )
+        super().__init__(*args, **kwargs)
+
+    def __getattr__(self, attr):
+        if attr in ("__class__", "__file__", "__frame_data", "__help_message"):
+            super().__getattr__(attr)
+        else:
+            fd = self.__frame_data
+            raise ModuleNotFoundError(
+                f"No module named '{fd['spec']}'\n\n"
+                "This module was originally imported at:\n"
+                f'  File "{fd["filename"]}", line {fd["lineno"]}, in {fd["function"]}\n\n'
+                f'    {"".join(fd["code_context"]).strip()}\n' + self.__help_message
+            )
+
+
+def lazy_import(
+    name: str, error_on_import: bool = False, help_message: str = ""
+) -> ModuleType:
     """
     Create a lazily-imported module to use in place of the module of the given name.
     Use this to retain module-level imports for libraries that we don't want to
     actually import until they are needed.
 
-    Note: this still raises `ModuleNotFoundError` if the given module is not installed,
-    it is merely deferring the import of the module until its attributes are accessed.
-
-    Adapted from the [Python documentation][1], which gives this exact example.
+    Adapted from the [Python documentation][1] and [lazy_loader][2]
 
     [1]: https://docs.python.org/3/library/importlib.html#implementing-lazy-imports
+    [2]: https://github.com/scientific-python/lazy_loader
     """
+
+    try:
+        return sys.modules[name]
+    except KeyError:
+        pass
+
     spec = importlib.util.find_spec(name)
-    if not spec:
-        raise ModuleNotFoundError(
-            f"No module named {name!r} available for lazy importing"
-        )
-    loader = importlib.util.LazyLoader(spec.loader)
-    spec.loader = loader
+    if spec is None:
+        if error_on_import:
+            raise ModuleNotFoundError(f"No module named '{name}'.\n{help_message}")
+        else:
+            try:
+                parent = inspect.stack()[1]
+                frame_data = {
+                    "spec": name,
+                    "filename": parent.filename,
+                    "lineno": parent.lineno,
+                    "function": parent.function,
+                    "code_context": parent.code_context,
+                }
+                return DelayedImportErrorModule(
+                    frame_data, help_message, "DelayedImportErrorModule"
+                )
+            finally:
+                del parent
+
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
+
+    loader = importlib.util.LazyLoader(spec.loader)
     loader.exec_module(module)
+
     return module

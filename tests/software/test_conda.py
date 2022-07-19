@@ -23,6 +23,8 @@ CONDA_REQUIREMENT_TEST_CASES = [
     ("x=1.2.3", {"name": "x", "version_specifier": "=", "version": "1.2.3"}),
     ("x=1.2b1", {"name": "x", "version_specifier": "=", "version": "1.2b1"}),
     ("x=1.2b1=", None),
+    ("x.y=1", {"name": "x.y", "version_specifier": "=", "version": "1"}),
+    ("x_y=1", {"name": "x_y", "version_specifier": "=", "version": "1"}),
     (
         "x=1.2b1=ashfa_0",
         {
@@ -71,7 +73,7 @@ CONDA_ENV_EXPORT_WITH_BUILDS_JSON = r"""
     "certifi=2022.5.18.1=py38hecd8cb5_0",
     "python=3.8.3=h26836e1_1",
     "sqlite=3.31.1=h5c1f38d_1"
-  ],  
+  ],
   "name": "flirty-crocodile",
   "prefix": "/opt/homebrew/Caskroom/miniconda/base/envs/flirty-crocodile"
 }
