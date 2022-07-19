@@ -11,7 +11,7 @@ tags:
 
 ## Welcome to Prefect!
 
-Prefect is Air Traffic Control for the modern data stack. It's the coordination plane that provides you with everything from dataflow observability to dataflow orchestration. 
+Prefect is Air Traffic Control for your dataflows. It's the coordination plane that provides you with everything from dataflow observability to dataflow orchestration. 
 
 ## Why Prefect?
 
@@ -27,7 +27,7 @@ Prefect 2.0 makes it easy to decorate your existing Python functions and provide
 
 Building this kind of functionality from scratch is a huge pain. It's estimated that 80% of a data engineer's time is spent writing code to guard against edge cases and provide information when a dataflow inevitably fails. Prefect 2.0 helps eliminate this negative engineering, so you can do more faster with confidence in your dataflows.
 
-Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Prefect integrates with all the major cloud providers and modern data stack tools such as Snowflake, Databricks, dbt, Airbyte, and Fivetran. Prefect uses concurrency by default and you can set up parallel processing across clusters with our Dask and Ray integrations. Prefect is often used with Docker and Kubernetes.
+Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable workloads that today's dataflows demands. Prefect integrates with all the major cloud providers and modern data stack tools such as Snowflake, Databricks, dbt, Airbyte, and Fivetran. Prefect uses concurrency by default and you can set up parallel processing across clusters with our Dask and Ray integrations. Prefect is often used with Docker and Kubernetes.
 
 Prefect helps you keep your data and code secure. Prefect's hybrid execution model means your data can stay in your environment while Prefect Cloud orchestrates your flows. Prefect the company is SOC2 compliant and our enterprise product makes it easy for you to restrict access to the right people in your organization.
 
