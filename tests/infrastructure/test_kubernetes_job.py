@@ -1,5 +1,4 @@
 import json
-import os
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict
@@ -7,7 +6,6 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import anyio.abc
-import httpx
 import kubernetes
 import kubernetes as k8s
 import pendulum
@@ -16,17 +14,12 @@ import yaml
 from jsonpatch import JsonPatch
 from kubernetes.config import ConfigException
 from pydantic import ValidationError
-from urllib3.exceptions import MaxRetryError
 
-import prefect
-from prefect.client import get_client
 from prefect.infrastructure.kubernetes import (
     KubernetesImagePullPolicy,
     KubernetesJob,
     KubernetesManifest,
 )
-from prefect.orion.schemas.data import DataDocument
-from prefect.settings import PREFECT_API_URL, temporary_settings
 
 
 @pytest.fixture(autouse=True)
@@ -393,154 +386,6 @@ async def test_watches_the_right_namespace(
             ),
         ]
     )
-
-
-@pytest.mark.skip(
-    "As of 7/18 prefect-dev image does not know about Deployment.infrastructure_document_id."
-)
-class TestIntegrationWithRealKubernetesCluster:
-    @pytest.fixture
-    async def k8s_orion_client(self, k8s_hosted_orion):
-        pytest.importorskip("kubernetes")
-
-        async with get_client() as orion_client:
-            yield orion_client
-
-    @pytest.fixture
-    def k8s_hosted_orion(self, tmp_path):
-        """
-        Sets `PREFECT_API_URL` to the k8s-hosted API endpoint.
-        """
-        pytest.importorskip("kubernetes")
-
-        # TODO: pytest flag to configure this URL
-        k8s_api_url = "http://localhost:4205/api"
-        with temporary_settings(updates={PREFECT_API_URL: k8s_api_url}):
-            yield k8s_api_url
-
-    @pytest.fixture
-    async def require_k8s_cluster(self, k8s_hosted_orion):
-        """
-        Skip any test that uses this fixture if a connection to a live
-        Kubernetes cluster is not available.
-        """
-        skip_message = "Could not reach live Kubernetes cluster."
-        try:
-            k8s.config.load_kube_config()
-        except ConfigException:
-            pytest.skip(skip_message)
-
-        try:
-            with k8s.client.ApiClient() as client:
-                k8s.client.VersionApi(api_client=client).get_code()
-                client.rest_client.pool_manager.clear()
-        except MaxRetryError:
-            pytest.skip(skip_message)
-
-        # TODO: Check API server health
-        health_check = f"{k8s_hosted_orion}/health"
-        try:
-            async with httpx.AsyncClient() as http_client:
-                await http_client.get(health_check)
-        except httpx.ConnectError:
-            pytest.skip("Kubernetes-hosted Orion is unavailable.")
-
-    @pytest.fixture(scope="module")
-    async def results_directory(self) -> Path:
-        """In order to share results reliably with the Kubernetes cluster, we need to be
-        somewhere in the user's directory tree for the most cross-platform
-        compatibilty. It's challenging to coordinate /tmp/ directories across systems"""
-        directory = Path(os.getcwd()) / ".prefect-results"
-        os.makedirs(directory, exist_ok=True)
-        for filename in os.listdir(directory):
-            os.unlink(directory / filename)
-        return directory
-
-    @pytest.mark.service("kubernetes")
-    async def test_executing_flow_run_has_environment_variables(
-        self,
-        k8s_orion_client,
-        results_directory: Path,
-        require_k8s_cluster,
-    ):
-        """
-        Test KubernetesFlowRunner against an API server running in a live
-        k8s cluster.
-
-        NOTE: Before running this, you will need to do the following:
-            - Create an orion deployment: `prefect kubernetes manifest orion | kubectl apply -f -`
-            - Forward port 4200 in the cluster to port 4205 locally: `kubectl port-forward deployment/orion 4205:4200`
-        """
-        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
-
-        # TODO: pytest flags to configure this URL
-        in_cluster_k8s_api_url = "http://orion:4200/api"
-
-        @prefect.flow
-        def my_flow():
-            import os
-
-            return os.environ
-
-        flow_id = await k8s_orion_client.create_flow(my_flow)
-
-        flow_data = DataDocument.encode("cloudpickle", my_flow)
-
-        deployment_id = await k8s_orion_client.create_deployment(
-            flow_id=flow_id,
-            name="k8s_test_deployment",
-            flow_data=flow_data,
-        )
-
-        flow_run = await k8s_orion_client.create_flow_run_from_deployment(deployment_id)
-
-        # When we submit the flow run, we need to use the Prefect URL that
-        # the job needs to reach the k8s-hosted API inside the cluster, not
-        # the URL that the tests used, which use a port forwarded to
-        # localhost.
-        #
-        # In order to receive results back from the flow, we need to share a filesystem
-        # between the job and our host, which we'll do by mounting the /tmp/ directory
-        # from the test host using a hostPath volumeMount to the directory that matches
-        # tempfile.gettempdir(), which is what prefect.blocks.storage.TempStorageBlock
-        # uses
-        assert await KubernetesJob(
-            command=["python", "-m", "prefect.engine", str(flow_run.id)],
-            env={
-                "TEST_FOO": "foo",
-                "PREFECT_API_URL": in_cluster_k8s_api_url,
-            },
-            customizations=[
-                {
-                    "op": "add",
-                    "path": "/spec/template/spec/volumes",
-                    "value": [
-                        {
-                            "name": "results-volume",
-                            "hostPath": {"path": str(results_directory)},
-                        }
-                    ],
-                },
-                {
-                    "op": "add",
-                    "path": "/spec/template/spec/containers/0/volumeMounts",
-                    "value": [{"name": "results-volume", "mountPath": "/tmp/prefect/"}],
-                },
-            ],
-        ).submit_flow_run(flow_run, fake_status)
-
-        fake_status.started.assert_called_once()
-        flow_run = await k8s_orion_client.read_flow_run(flow_run.id)
-        result = flow_run.state.result()
-
-        # replace the container's /tmp/ with gettempdir() so we can get at the results
-        result.blob = result.blob.replace(
-            b"/tmp/prefect/", str(results_directory).encode() + b"/"
-        )
-
-        flow_run_environ = await k8s_orion_client.resolve_datadoc(result)
-        assert "TEST_FOO" in flow_run_environ
-        assert flow_run_environ["TEST_FOO"] == "foo"
 
 
 class TestCustomizingBaseJob:
