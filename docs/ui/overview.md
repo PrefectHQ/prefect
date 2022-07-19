@@ -73,7 +73,7 @@ Use the left side of the Prefect UI to navigate between pages.
 
 | Page | Description |
 | --- | --- |
-| **Flow Runs**      | Displays the **Flow Runs** dashboard displaying flow run status for the current API server or Prefect Cloud workspace. From this dashboard you can create filters](/ui/dashboard/#filters) to display only certain flow runs, or click into details about specific flows or flow runs. |
+| **Flow Runs**      | Displays the **Flow Runs** dashboard displaying flow run status for the current API server or Prefect Cloud workspace. From this dashboard you can create [filters](/ui/dashboard/#filters) to display only certain flow runs, or click into details about specific flows or flow runs. |
 | **Flows**          | Displays a searchable list of flows tracked by the API. |
 | **Deployments**    | Displays flow [deployments](/concepts/deployments/) created on the API. |
 | <span class="no-wrap">**Work Queues**</span> | Displays configured [work queues](/ui/work-queues/) and enables creating new work queues. |
