@@ -247,7 +247,7 @@ class TestFlowCall:
         def foo(x: int):
             pass
 
-        state = foo.run(x="foo")
+        state = foo._run(x="foo")
 
         with pytest.raises(
             ParameterTypeError,
@@ -269,7 +269,7 @@ class TestFlowCall:
             if error:
                 raise error
 
-        state = foo.run()
+        state = foo._run()
 
         # Assert the final state is correct
         assert state.is_failed() if error else state.is_completed()
@@ -284,7 +284,7 @@ class TestFlowCall:
                 data=DataDocument.encode("json", "hello!"),
             )
 
-        state = foo.run()
+        state = foo._run()
 
         # Assert the final state is correct
         assert state.is_failed()
@@ -298,9 +298,9 @@ class TestFlowCall:
 
         @flow(version="test")
         def foo():
-            return fail.run()
+            return fail._run()
 
-        flow_state = foo.run()
+        flow_state = foo._run()
 
         assert flow_state.is_failed()
 
@@ -318,11 +318,11 @@ class TestFlowCall:
 
         @flow(version="test")
         def foo():
-            fail.run()
-            fail.run()
+            fail._run()
+            fail._run()
             return None
 
-        flow_state = foo.run()
+        flow_state = foo._run()
 
         assert flow_state.is_failed()
 
@@ -346,7 +346,7 @@ class TestFlowCall:
             succeed()
             return None
 
-        flow_state = foo.run()
+        flow_state = foo._run()
 
         # The task run states are returned as the data of the flow state
         task_run_states = flow_state.result()
@@ -365,11 +365,11 @@ class TestFlowCall:
 
         @flow(version="test")
         def foo():
-            succeed.run()
-            fail.run()
+            succeed._run()
+            fail._run()
             return None
 
-        states = foo.run().result(raise_on_failure=False)
+        states = foo._run().result(raise_on_failure=False)
         assert len(states) == 2
         assert all(isinstance(state, State) for state in states)
         assert states[0].result() == "foo"
@@ -383,18 +383,18 @@ class TestFlowCall:
 
         @flow
         def fail_flow():
-            fail_task.run()
+            fail_task._run()
 
         @flow
         def wrapper_flow():
-            fail_flow.run()
+            fail_flow._run()
 
         @flow(version="test")
         def foo():
-            wrapper_flow.run()
+            wrapper_flow._run()
             return None
 
-        states = foo.run().result(raise_on_failure=False)
+        states = foo._run().result(raise_on_failure=False)
         assert len(states) == 1
         state = states[0]
         assert isinstance(state, State)
@@ -416,9 +416,9 @@ class TestFlowCall:
 
         @flow(version="test")
         def foo():
-            return fail1.run(), fail2.run(), succeed.run()
+            return fail1._run(), fail2._run(), succeed._run()
 
-        flow_state = foo.run()
+        flow_state = foo._run()
         assert flow_state.is_failed()
         assert flow_state.message == "2/3 states failed."
 
@@ -523,9 +523,9 @@ class TestSubflowCalls:
 
         @flow
         def parent(x):
-            return child.run(x)
+            return child._run(x)
 
-        parent_state = parent.run("foo")
+        parent_state = parent._run("foo")
 
         with pytest.raises(ParameterTypeError, match="not a valid integer"):
             parent_state.result()
@@ -557,9 +557,9 @@ class TestSubflowCalls:
 
         @flow()
         def parent():
-            return child.run(1, 2)
+            return child._run(1, 2)
 
-        parent_state = parent.run()
+        parent_state = parent._run()
         parent_flow_run_id = parent_state.state_details.flow_run_id
         child_state = parent_state.result()
         child_flow_run_id = child_state.state_details.flow_run_id
@@ -610,7 +610,7 @@ class TestFlowRunTags:
             pass
 
         with tags("a", "b"):
-            state = my_flow.run()
+            state = my_flow._run()
 
         flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
         assert set(flow_run.tags) == {"a", "b"}
@@ -619,14 +619,14 @@ class TestFlowRunTags:
         @flow
         def my_flow():
             with tags("c", "d"):
-                return my_subflow.run()
+                return my_subflow._run()
 
         @flow
         def my_subflow():
             pass
 
         with tags("a", "b"):
-            subflow_state = my_flow.run().result()
+            subflow_state = my_flow._run().result()
 
         flow_run = await orion_client.read_flow_run(
             subflow_state.state_details.flow_run_id
@@ -640,7 +640,7 @@ class TestFlowTimeouts:
         def my_flow():
             time.sleep(1)
 
-        state = my_flow.run()
+        state = my_flow._run()
         assert state.is_failed()
         assert state.name == "TimedOut"
         assert "exceeded timeout of 0.1 seconds" in state.message
@@ -650,7 +650,7 @@ class TestFlowTimeouts:
         async def my_flow():
             await anyio.sleep(1)
 
-        state = await my_flow.run()
+        state = await my_flow._run()
         assert state.is_failed()
         assert state.name == "TimedOut"
         assert "exceeded timeout of 0.1 seconds" in state.message
@@ -660,7 +660,7 @@ class TestFlowTimeouts:
         def my_flow():
             time.sleep(0.1)
 
-        state = my_flow.run()
+        state = my_flow._run()
         assert state.is_completed()
 
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
@@ -678,7 +678,7 @@ class TestFlowTimeouts:
             canary_file.touch()
 
         t0 = time.perf_counter()
-        state = my_flow.run()
+        state = my_flow._run()
         t1 = time.perf_counter()
 
         assert state.is_failed()
@@ -705,7 +705,7 @@ class TestFlowTimeouts:
             my_task()
             canary_file.touch()  # Should not run
 
-        state = my_flow.run()
+        state = my_flow._run()
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
@@ -732,7 +732,7 @@ class TestFlowTimeouts:
             canary_file.touch()  # Should not run
 
         t0 = anyio.current_time()
-        state = await my_flow.run()
+        state = await my_flow._run()
         t1 = anyio.current_time()
 
         assert state.is_failed()
@@ -763,11 +763,11 @@ class TestFlowTimeouts:
         @flow
         async def my_flow():
             t0 = anyio.current_time()
-            subflow_state = await my_subflow.run()
+            subflow_state = await my_subflow._run()
             t1 = anyio.current_time()
             return t1 - t0, subflow_state
 
-        state = await my_flow.run()
+        state = await my_flow._run()
 
         runtime, subflow_state = state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
@@ -797,11 +797,11 @@ class TestFlowTimeouts:
         @flow
         def my_flow():
             t0 = time.perf_counter()
-            subflow_state = my_subflow.run()
+            subflow_state = my_subflow._run()
             t1 = time.perf_counter()
             return t1 - t0, subflow_state
 
-        state = my_flow.run()
+        state = my_flow._run()
 
         runtime, subflow_state = state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
@@ -935,7 +935,7 @@ class TestSubflowTaskInputs:
         @flow
         def parent_flow():
             task_future = child_task.submit(1)
-            flow_state = child_flow.run(x=task_future)
+            flow_state = child_flow._run(x=task_future)
             task_state = task_future.wait()
             return task_state, flow_state
 
@@ -959,8 +959,8 @@ class TestSubflowTaskInputs:
 
         @flow
         def parent_flow():
-            task_state = child_task.run(1)
-            flow_state = child_flow.run(x=task_state)
+            task_state = child_task._run(1)
+            flow_state = child_flow._run(x=task_state)
             return task_state, flow_state
 
         task_state, flow_state = parent_flow()
@@ -983,9 +983,9 @@ class TestSubflowTaskInputs:
 
         @flow
         def parent_flow():
-            task_state = child_task.run(1)
+            task_state = child_task._run(1)
             task_result = task_state.result()
-            flow_state = child_flow.run(x=task_result)
+            flow_state = child_flow._run(x=task_result)
             return task_state, flow_state
 
         task_state, flow_state = parent_flow()
@@ -1004,7 +1004,7 @@ class TestSubflowTaskInputs:
 
         @flow
         def foo():
-            return bar.run(x=2, y=1)
+            return bar._run(x=2, y=1)
 
         child_flow_state = foo()
         flow_tracking_task_run = await orion_client.read_task_run(
@@ -1092,7 +1092,7 @@ class TestFlowRunLogs:
             logger = get_run_logger()
             logger.info("Hello world!")
 
-        state = my_flow.run()
+        state = my_flow._run()
         flow_run_id = state.state_details.flow_run_id
 
         logs = await orion_client.read_logs()
@@ -1112,9 +1112,9 @@ class TestSubflowRunLogs:
         def my_flow():
             logger = get_run_logger()
             logger.info("Hello world!")
-            return my_subflow.run()
+            return my_subflow._run()
 
-        state = my_flow.run()
+        state = my_flow._run()
         flow_run_id = state.state_details.flow_run_id
         subflow_run_id = state.result().state_details.flow_run_id
 
@@ -1147,9 +1147,9 @@ class TestSubflowRunLogs:
         def my_flow():
             logger = get_run_logger()
             logger.info("Hello world!")
-            return my_subflow.run()
+            return my_subflow._run()
 
-        state = my_flow.run()
+        state = my_flow._run()
         subflow_run_id = state.result().state_details.flow_run_id
 
         logs = await orion_client.read_logs()
@@ -1169,7 +1169,7 @@ class TestFlowResults:
         def foo():
             return 6
 
-        state = foo.run()
+        state = foo._run()
 
         flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
 
@@ -1193,7 +1193,7 @@ class TestFlowResults:
             local_storage_block._block_document_id
         )
 
-        state = foo.run()
+        state = foo._run()
         assert state.result() == 6
 
         flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
@@ -1216,13 +1216,13 @@ class TestFlowResults:
             await orion_client.set_default_storage_block_document(
                 local_storage_block._block_document_id
             )
-            return bar.run()
+            return bar._run()
 
         @flow
         def bar():
             return 6
 
-        parent_state = await foo.run()
+        parent_state = await foo._run()
         child_state = parent_state.result()
 
         parent_flow_run = await orion_client.read_flow_run(
@@ -1404,7 +1404,7 @@ class TestFlowRetries:
             flow_run_count += 1
             return child_flow()
 
-        state = parent_flow.run()
+        state = parent_flow._run()
         assert state.result() == "hello"
         assert flow_run_count == 2
         assert child_run_count == 2, "Child flow should be reset and run again"
@@ -1469,7 +1469,7 @@ class TestFlowRetries:
             nonlocal flow_run_count
             flow_run_count += 1
 
-            state = child_flow.run()
+            state = child_flow._run()
 
             # It is important that the flow run fails after the child flow run is created
             if flow_run_count == 1:
@@ -1477,7 +1477,7 @@ class TestFlowRetries:
 
             return state
 
-        parent_state = parent_flow.run()
+        parent_state = parent_flow._run()
         child_state = parent_state.result()
         assert child_state.result() == "hello"
         assert flow_run_count == 2
