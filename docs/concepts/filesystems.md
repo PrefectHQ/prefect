@@ -86,7 +86,7 @@ Deployment(
 
 Now let's look at how we can use `RemoteFileSystem` with AWS S3:
 
-```
+```python
 aws_s3_file_packager = FilePackager(filesystem=RemoteFileSystem(
     basepath="s3://my-bucket",
     settings={
@@ -130,7 +130,7 @@ A file system may implement both of these types.
 ## Examples
 What does a working example of a MinIO-backed S3 storage block look like within a Prefect flow?
 
-```
+```python
 from prefect import flow, task
 from prefect.deployments import Deployment
 from prefect.filesystems import RemoteFileSystem
@@ -164,7 +164,6 @@ Deployment(
 
 if __name__ == "__main__":
     give_greeting()
-    
 ```
 
 Starting a MinIO server should output logs including login credentials that can be used as your `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD`.
