@@ -62,7 +62,7 @@ from prefect.deprecated import deployments as deprecated
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
 from prefect.flow_runners.base import FlowRunner, FlowRunnerSettings
 from prefect.flows import Flow, load_flow_from_script, load_flow_from_text
-from prefect.infrastructure.base import AnyInfrastructure, Infrastructure
+from prefect.infrastructure import Infrastructure, Process
 from prefect.infrastructure.submission import FLOW_RUN_ENTRYPOINT
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
@@ -102,7 +102,7 @@ class Deployment(BaseModel):
     schedule: schemas.schedules.SCHEDULE_TYPES = None
 
     flow_runner: Optional[Union[FlowRunner, FlowRunnerSettings]] = None
-    infrastructure: Infrastructure = Field(default_factory=AnyInfrastructure)
+    infrastructure: Infrastructure = Field(default_factory=Process)
 
     def __init__(__pydantic_self__, **data: Any) -> None:
         super().__init__(**data)

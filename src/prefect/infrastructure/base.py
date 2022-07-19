@@ -3,12 +3,10 @@ from typing import Dict, List, Optional
 
 import pydantic
 from anyio.abc import TaskStatus
-from typing_extensions import Literal
 
 from prefect.blocks.core import Block
 from prefect.logging import get_logger
 from prefect.settings import get_current_settings
-from prefect.utilities.pydantic import lookup_type
 
 
 class InfrastructureResult(pydantic.BaseModel, abc.ABC):
@@ -58,22 +56,3 @@ class Infrastructure(Block, abc.ABC):
         These values should be overridable with the `env` field.
         """
         return get_current_settings().to_environment_variables(exclude_unset=True)
-
-
-class AnyInfrastructure(Infrastructure):
-    """
-    Placeholder infrastructure type. The actual type will be determined by the caller.
-    """
-
-    type: Literal["any"] = "any"
-
-    async def run(
-        self,
-        type: str,
-        task_status: TaskStatus = None,
-    ) -> Optional[bool]:
-        runtime_type = lookup_type(Infrastructure, type)
-        runtime_inst = runtime_type(
-            env=self.env, labels=self.labels, name=self.name, command=self.command
-        )
-        return await runtime_inst(task_status=task_status)
