@@ -177,7 +177,7 @@ Inspect the created work-queue:
 Additionally:
 
 - Wrap generated arguments in apostrophes (') to ensure validity.
-- Indent example commands, instead of wrapping in backticks (`).
+- Indent example commands, instead of wrapping in backticks (&#96;).
 - Use placeholders if the example cannot be pre-formatted completely.
 - Capitalize placeholder labels and wrap them in less than (<) and greater than (>) signs.
 - Utilize `textwrap.dedent` to remove extraneous spacing for strings that are written with triple quotes (""").
