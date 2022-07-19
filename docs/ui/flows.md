@@ -11,7 +11,7 @@ tags:
 
 A [flow](/concepts/flows/) contains the instructions for workflow logic, including the `@flow` and `@task` functions that define the work of your workflow. 
 
-The **Flows** page in the Prefect UI lists any flows that have been observed by a Prefect API. This may be your [Prefect Cloud](/ui/cloud/) workspace API, a local Prefect Orion API server, or the Prefect ephemeral API.
+The **Flows** page in the Prefect UI lists any flows that have been observed by a Prefect API. This may be your [Prefect Cloud](/ui/cloud/) workspace API, a local Prefect Orion API server, or the Prefect ephemeral API in your local development environment.
 
 ![View a list of flows observed by Prefect in the Prefect UI.](/img/ui/orion-flows.png)
 
@@ -29,6 +29,6 @@ If deployments have been created for the flow, you'll see them here. Select the 
 
 On this page you can also:
 
-- Copy the ID of the flow or delete the flow from the API by using the command button to the right of the flow name. Note that this does not delete your flow code. It only removes any record of the flow from the Prefect API.
+- Copy the ID of the flow or delete the flow from the API by using the options button to the right of the flow name. Note that this does not delete your flow code. It only removes any record of the flow from the Prefect API.
 - Pause a schedule for a deployment by using the toggle control.
-- Copy the ID of the deployment or delete the deployment by using the command button to the right of the deployment.
+- Copy the ID of the deployment or delete the deployment by using the options button to the right of the deployment.
