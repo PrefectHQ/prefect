@@ -303,8 +303,7 @@ async def visit_collection(
         )
 
         if return_data:
-            # This line supports `pydantic.Field`s where alias is used, so that
-            # it won't yield a validation error on object reconstruction
+            # Collect fields with aliases so reconstruction can use the correct field name
             aliases = {
                 key: value.alias
                 for key, value in expr.__fields__.items()
