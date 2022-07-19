@@ -15,7 +15,7 @@ from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client import OrionClient, get_client
+from prefect.client import get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import (
     Deployment,
