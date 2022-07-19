@@ -78,7 +78,7 @@ minio_file_packager = FilePackager(
     )
 )
 Deployment(
-    flow=hello_world,
+    flow=give_greeting,
     name="minio_file_package_with_remote_s3fs",
     packager=minio_file_packager)
 ```
@@ -93,7 +93,7 @@ aws_s3_file_packager = FilePackager(filesystem=RemoteFileSystem(
     }
 ))
 Deployment(
-    flow=hello_world,
+    flow=give_greeting,
     name="aws_s3_file_package_with_remote_s3fs",
     packager=aws_s3_file_packager)
 ```
