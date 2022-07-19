@@ -1,7 +1,6 @@
 """
 Command line interface for working with profiles.
 """
-import asyncio
 import textwrap
 from typing import Optional
 
