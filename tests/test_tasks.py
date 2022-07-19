@@ -1726,6 +1726,32 @@ class TestTaskMap:
         futures = my_flow()
         assert [future.result() for future in futures] == [2, 3, 4]
 
+    def test_map_can_take_tuple_as_input(self):
+        @flow
+        def my_flow():
+            futures = TestTaskMap.add_one.map((1, 2, 3))
+            assert all(isinstance(f, PrefectFuture) for f in futures)
+            return futures
+
+        futures = my_flow()
+        assert [future.result() for future in futures] == [2, 3, 4]
+
+    def test_map_can_take_generator_as_input(self):
+        def generate_numbers():
+            i = 1
+            while i <= 3:
+                yield i
+                i += 1
+
+        @flow
+        def my_flow():
+            futures = TestTaskMap.add_one.map(generate_numbers())
+            assert all(isinstance(f, PrefectFuture) for f in futures)
+            return futures
+
+        futures = my_flow()
+        assert [future.result() for future in futures] == [2, 3, 4]
+
     def test_map_can_take_state_as_input(self):
         @task
         def some_numbers():
