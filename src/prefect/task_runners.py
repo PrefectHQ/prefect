@@ -75,7 +75,7 @@ from prefect.logging import get_logger
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
 from prefect.states import exception_to_crashed_state
-from prefect.utilities.asyncio import A
+from prefect.utilities.asyncutils import A
 from prefect.utilities.collections import AutoEnum
 
 T = TypeVar("T", bound="BaseTaskRunner")
@@ -202,11 +202,6 @@ class SequentialTaskRunner(BaseTaskRunner):
         run_kwargs: Dict[str, Any],
         asynchronous: A = True,
     ) -> PrefectFuture[R, A]:
-        if not self._started:
-            raise RuntimeError(
-                "The task runner must be started before submitting work."
-            )
-
         # Run the function immediately and store the result in memory
         try:
             result = await run_fn(**run_kwargs)

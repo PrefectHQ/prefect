@@ -7,6 +7,7 @@ tags:
     - task order
     - data dependencies
     - state
+    - SQLite
 ---
 
 # Task dependencies
@@ -56,8 +57,8 @@ if __name__ == "__main__":
 
 We can save this script as `example.py` and confirm it worked from the command line:
 
-<div class="termy">
-```
+<div class='terminal'>
+```bash
 $ python example.py '["prefect"]'
 $ sqlite3 /tmp/example.db 
 SQLite version 3.33.0 2020-08-14 13:23:32
@@ -73,16 +74,16 @@ $ SELECT * FROM projects;
 
 Suppose that one day some bad data gets into our CLI call:
 
-<div class="termy">
-```
+<div class='terminal'>
+```bash
 $ python example.py '["orion", "", "critically-important"]' 
 sqlite3.IntegrityError: CHECK constraint failed: projects
 ```
 </div>
 
-Depending on how we have instrumented this script, it may be a while before we realize that the "critically-important" project was not correctly added to our database due to bad data!  
+Depending on how we have instrumented this script, it may be a while before we realize that the "critically-important" project was not added to our database correctly due to bad data!  
 
-Prefect helps remove this edge case from your workflows by managing your tasks' state automatically.  We can quickly convert the above example to a state managed Prefect flow:
+Prefect helps remove this edge case from your workflows by managing your tasks' state automatically.  We can quickly convert the above example to a state-managed Prefect flow:
 
 ```python
 from prefect import task, flow
@@ -108,8 +109,8 @@ def main(project_names, db_file="/tmp/example.db"):
 
 When we run this as a flow, the "critically-important" project is indeed created! 
 
-<div class="termy">
-```
+<div class='terminal'>
+```bash
 $ python example.py '["orion", "", "critically-important"]'
 14:52:47.292 | Beginning flow run 'neon-guan' for flow 'Add Projects to DB'...
 14:52:47.292 | Starting task runner `SequentialTaskRunner`...
@@ -134,15 +135,15 @@ Failed(message='1/4 states failed.', type=FAILED)
 ```
 </div>
 
-Note that the final state of the flow run is failed, as we would expect given that one of the tasks did fail due to the integrity check.
+Note that the final state of the flow run is `Failed`, as we would expect given that one of the tasks did fail due to the integrity check.
 
-## Enforcing State Dependencies
+## Enforcing state dependencies
 
-You may have observed that all of the `add_project` tasks have an implicit dependency on `create_tables` finishing successfully &mdash; if the table isn't created, then we have no need to run these tasks as we know they will fail.  In more complex use cases, they may actually "succeed", but not produce the correct effect if this dependency is not enforced!
+You may have observed that all of the `add_project` tasks have an implicit dependency on `create_tables` finishing successfully &mdash; if the table isn't created, then we have no need to run these tasks as we know they will fail. In more complex use cases, they may actually "succeed", but not produce the correct effect if this dependency is not enforced!
 
 Luckily, Prefect makes it easy to configure a state dependency between two or more task runs using the special `wait_for` keyword argument:
 
-```python
+```python hl_lines="9"
 @flow(name="Add Projects to DB")
 def main(project_names, db_file="/tmp/example.db"):
 

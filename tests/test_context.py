@@ -329,27 +329,31 @@ class TestSettingsContext:
             foo_profile, override_environment_variables=False
         )
 
-    def test_enter_global_profile_missing_cli(self, monkeypatch):
+    def test_enter_global_profile_missing_cli(self, monkeypatch, capsys):
         use_profile = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setattr("sys.argv", ["/prefect", "--profile", "bar"])
-        with pytest.raises(
-            ValueError,
-            match="Prefect profile 'bar' set by command line argument not found",
-        ):
-            enter_root_settings_context()
+        enter_root_settings_context()
+        _, err = capsys.readouterr()
+        assert (
+            "profile 'bar' set by command line argument not found. The default profile will be used instead."
+            in err
+        )
 
-    def test_enter_global_profile_missing_environment_variables(self, monkeypatch):
+    def test_enter_global_profile_missing_environment_variables(
+        self, monkeypatch, capsys
+    ):
         use_profile = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setenv("PREFECT_PROFILE", "bar")
-        with pytest.raises(
-            ValueError,
-            match="Prefect profile 'bar' set by environment variable not found",
-        ):
-            enter_root_settings_context()
+        enter_root_settings_context()
+        _, err = capsys.readouterr()
+        assert (
+            "profile 'bar' set by environment variable not found. The default profile will be used instead."
+            in err
+        )
 
     def test_enter_global_profile_is_idempotent(self, monkeypatch):
         use_profile = MagicMock()
