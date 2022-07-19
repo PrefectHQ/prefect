@@ -19,6 +19,8 @@ import prefect.exceptions
 from prefect import flow
 from prefect.client import OrionClient, PrefectHttpxClient, get_client
 from prefect.flow_runners import UniversalFlowRunner
+from prefect.flow_runners.base import FlowRunnerSettings
+from prefect.infrastructure import Process
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -859,6 +861,35 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
         .in_seconds()
         < 1
     )
+
+
+async def test_create_flow_run_from_deployment_with_anonymous_infrastructure(
+    orion_client, deployment
+):
+    infrastructure = Process(env={"foo": "bar"})
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        deployment.id, infrastructure=infrastructure
+    )
+    assert flow_run.infrastructure_document_id == await infrastructure._save(
+        is_anonymous=True
+    )
+
+    # Flow runner is empty
+    assert flow_run.flow_runner == FlowRunnerSettings(type=None, config=None)
+
+
+async def test_create_flow_run_from_deployment_with_saved_infrastructure(
+    orion_client, deployment
+):
+    infrastructure = Process(env={"foo": "bar"})
+    expected_id = await infrastructure.save("hello")
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        deployment.id, infrastructure=infrastructure
+    )
+    assert flow_run.infrastructure_document_id == expected_id
+
+    # Flow runner is empty
+    assert flow_run.flow_runner == FlowRunnerSettings(type=None, config=None)
 
 
 async def test_update_flow_run(orion_client):
