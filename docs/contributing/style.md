@@ -177,6 +177,7 @@ Inspect the created work-queue:
 Additionally:
 - Example commands should be indented, rather than wrapped in backticks (`).
 - If an example command cannot be pre-formatted completely, use placeholders wrapped in less than (<) and greater than (>) signs.
+- Placeholder labels should be capitalized, e.g. `prefect work-queue create <WORK QUEUE NAME> -t <OPTIONAL TAGS>`.
 - To ensure validity, generated results must be wrapped in apostrophes (').
 - If triple quotes are used, be sure to utilize `textwrap.dedent` to remove extraneous spacing.
 
