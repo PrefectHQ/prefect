@@ -71,8 +71,8 @@ minio_file_packager = FilePackager(
     filesystem=RemoteFileSystem(
         basepath="s3://my-bucket",
         settings={
-            "key": MINIO_ACCESS_KEY,
-            "secret": MINIO_SECRET_KEY,
+            "key": MINIO_ROOT_USER,
+            "secret": MINIO_ROOT_PASSWORD,
             "client_kwargs": {"endpoint_url": "http://localhost:9000"}
         }
     )
