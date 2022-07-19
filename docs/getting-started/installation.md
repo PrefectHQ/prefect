@@ -26,7 +26,7 @@ To install a specific version, specify the version, such as:
 
 <div class="terminal">
 ```bash
-pip install -U "prefect==2.0b8"
+pip install -U "prefect==2.0b9"
 ```
 </div>
 
@@ -74,11 +74,11 @@ To check that Prefect was installed correctly, use the Prefect CLI command `pref
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.0b8
+Version:             2.0b9
 API version:         0.7.0
 Python version:      3.9.10
-Git commit:          e7e7c09a
-Built:               Wed, Jul 6, 2022 1:18 PM
+Git commit:          6379bc53
+Built:               Tue, Jul 19, 2022 12:33 PM
 OS/Arch:             darwin/x86_64
 Profile:             default
 Server type:         ephemeral
@@ -174,11 +174,11 @@ Or use the Prefect CLI command `prefect version`, which prints version and envir
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.0b5
-API version:         0.3.1
+Version:             2.0b9
+API version:         0.7.0
 Python version:      3.9.10
-Git commit:          7b27c7cf
-Built:               Tue, May 17, 2022 4:54 PM
+Git commit:          6379bc53
+Built:               Tue, Jul 19, 2022 12:33 PM
 OS/Arch:             darwin/x86_64
 Profile:             default
 Server type:         ephemeral
