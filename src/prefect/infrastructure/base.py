@@ -35,9 +35,15 @@ class Infrastructure(Block, abc.ABC):
         task_status: TaskStatus = None,
     ) -> InfrastructureResult:
         """
-        Run the infrastructure, reporting a `task_status.started()` when the
-        infrastructure is created and returning a `bool` at the end indicating if the
-        infrastructure exited cleanly or encountered an error.
+        Run the infrastructure.
+        
+        If provided a `task_status`, the status will be reported as started when the
+        infrastructure is successfully created. The status return value will be an
+        identifier for the infrastructure.
+        
+        The call will then monitor the created infrastructure, returning a result at 
+        the end containing a status code indicating if the infrastructure exited cleanly\
+        or encountered an error.
         """
 
     @property
