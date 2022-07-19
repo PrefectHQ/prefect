@@ -39,7 +39,7 @@ def test_deployment_added_to_registry():
 
 def test_deployment_not_added_to_registry_on_failure():
     with pytest.raises(pydantic.ValidationError):
-        Deployment(flow="foobar")
+        Deployment(flow=None)
 
     assert PrefectObjectRegistry.get().get_instances(Deployment) == []
 
@@ -131,6 +131,7 @@ async def test_deployment_flow_runner(orion_client: OrionClient, flow_runner):
 @pytest.mark.parametrize(
     "flow_script",
     [
+        EXAMPLES / "single_flow_in_file.py",
         {"path": __file__, "name": "foo"},
         FlowScript(path=__file__, name="foo"),
         FlowScript(path=EXAMPLES / "single_flow_in_file.py"),

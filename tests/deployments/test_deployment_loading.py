@@ -37,4 +37,4 @@ def test_deployment_added_to_registry_on_failure_when_loading_from_script():
     assert isinstance(failures[0][0], pydantic.ValidationError)
     assert isinstance(failures[0][1], Deployment)
     assert failures[0][2] == tuple()
-    assert failures[0][3] == dict(flow="hello!")
+    assert failures[0][3] == dict(flow=None, parameters={"test": 1})

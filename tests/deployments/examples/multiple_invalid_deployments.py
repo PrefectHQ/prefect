@@ -1,4 +1,4 @@
 from prefect.deployments import Deployment
 
-Deployment(name="foo", flow="hello!")
-Deployment(name="bar", flow="goodbye!")
+Deployment(name="foo", flow=None)
+Deployment(name="bar", flow=None)
