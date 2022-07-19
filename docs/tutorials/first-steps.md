@@ -65,14 +65,14 @@ Running a Prefect flow manually is as easy as calling the annotated function &md
 
 <div class="terminal">
 ```bash
->>> from prefect import flow
->>>
+from prefect import flow
+
 >>> @flow
 ... def my_favorite_function():
 ...     print("This function doesn't do much")
 ...     return 42
 ...
->>> state = my_favorite_function()
+>>> number = my_favorite_function()
 15:27:42.543 | INFO    | prefect.engine - Created flow run 'olive-poodle' for flow 'my-favorite-function'
 15:27:42.543 | INFO    | Flow run 'olive-poodle' - Using task runner 'ConcurrentTaskRunner'
 This function doesn't do much
@@ -86,32 +86,8 @@ By adding the `@flow` decorator to a function, function calls will create a _flo
 
 For clarity in future tutorial examples, these Prefect orchestration messages in results will only be shown where they are relevant to the discussion.
 
-## Flow state
 
-Flows and tasks return [states](/concepts/states/), which contain information about the status of a particular flow run or task run.
-
-Because we assigned the result of `my_favorite_function()` to the variable `state` in the previous example, printing `state` shows the result state of the `my_favorite_function()` flow.
-
-<div class="terminal">
-```bash
->>> print(state)
-Completed(None)
-```
-</div>
-
-In this case, the state of `my_favorite_function()` is "Completed", with no further message details ("None" in this example). This reflects the logged message we saw earlier, `Flow run 'olive-poodle' - Finished in state Completed(None)`. 
-
-!!! note "Flows return states"
-    Notice that this call did not return the number 42, but rather a Prefect [`State`][prefect.orion.schemas.states.State] object. States are the basic currency of communication between Prefect clients and the Prefect API, and can be used to define the conditions for orchestration rules as well as an interface for client-side logic.  
-
-If you want to see the data returned by the flow, access it via the [`.result()`](/api-ref/orion/schemas/states/#prefect.orion.schemas.states.State.result) method on the `State` object.
-
-<div class="terminal">
-```bash
->>> print(state.result())
-42
-```
-</div>
+In this case, the state of `my_favorite_function()` is "Completed", with no further message details. This reflects the logged message we saw earlier, `Flow run 'olive-poodle' - Finished in state Completed()`. 
 
 ## Run flows with parameters
 
@@ -142,24 +118,17 @@ For now, run the `call_api()` flow, passing a valid URL as a parameter. In this 
 >>> api_result = call_api("http://time.jsontest.com/")
 14:33:48.770 | INFO    | prefect.engine - Created flow run 'bronze-lyrebird' for flow 'call-api'
 14:33:48.770 | INFO    | Flow run 'bronze-lyrebird' - Using task runner 'ConcurrentTaskRunner'
-14:33:49.060 | INFO    | Flow run 'bronze-lyrebird' - Finished in state Completed(None)
+14:33:49.060 | INFO    | Flow run 'bronze-lyrebird' - Finished in state Completed()
 ```
 </div>
 
-Again, Prefect Orion automatically orchestrates the flow run. Again, print the state and note the "Completed" state matches what Prefect Orion prints in your terminal.
+Again, Prefect Orion automatically orchestrates the flow run.
+
+As you did previously, print you can print the JSON returned by the API call:
 
 <div class="terminal">
 ```bash
 >>> print(api_result)
-Completed(None)
-```
-</div>
-
-As you did previously, print the `result()` to see the JSON returned by the API call:
-
-<div class="terminal">
-```bash
->>> print(api_result.result())
 {'date': '02-24-2022', 'milliseconds_since_epoch': 1645731229114, 'time': '07:33:49 PM'}
 ```
 </div>
@@ -174,47 +143,14 @@ What happens if the Python function encounters an error while your flow is runni
 14:34:35.687 | INFO    | prefect.engine - Created flow run 'purring-swine' for flow 'call-api'
 14:34:35.687 | INFO    | Flow run 'purring-swine' - Using task runner 'ConcurrentTaskRunner'
 14:34:35.710 | ERROR   | Flow run 'purring-swine' - Encountered exception during execution:
-Traceback (most recent call last):
-  File "/Users/terry/test/ktest/orion/src/prefect/engine.py", line 445, in orchestrate_flow_run
-    result = await run_sync_in_worker_thread(flow_call)
-  File "/Users/terry/test/ktest/orion/src/prefect/utilities/asyncio.py", line 51, in run_sync_in_worker_thread
-    return await anyio.to_thread.run_sync(context.run, call, cancellable=True)
-  File "/Users/terry/test/ktest/venv/lib/python3.8/site-packages/anyio/to_thread.py", line 28, in run_sync
-    return await get_asynclib().run_sync_in_worker_thread(func, *args, cancellable=cancellable,
-  File "/Users/terry/test/ktest/venv/lib/python3.8/site-packages/anyio/_backends/_asyncio.py", line 818, in run_sync_in_worker_thread
-    return await future
-  File "/Users/terry/test/ktest/venv/lib/python3.8/site-packages/anyio/_backends/_asyncio.py", line 754, in run
-    result = context.run(func, *args)
-  File "<stdin>", line 3, in call_api
-  File "/Users/terry/test/ktest/venv/lib/python3.8/site-packages/requests/api.py", line 75, in get
-    return request('get', url, params=params, **kwargs)
-  File "/Users/terry/test/ktest/venv/lib/python3.8/site-packages/requests/api.py", line 61, in request
-    return session.request(method=method, url=url, **kwargs)
-  File "/Users/terry/test/ktest/venv/lib/python3.8/site-packages/requests/sessions.py", line 515, in request
-    prep = self.prepare_request(req)
-  File "/Users/terry/test/ktest/venv/lib/python3.8/site-packages/requests/sessions.py", line 443, in prepare_request
-    p.prepare(
-  File "/Users/terry/test/ktest/venv/lib/python3.8/site-packages/requests/models.py", line 318, in prepare
-    self.prepare_url(url, params)
+...
+...
   File "/Users/terry/test/ktest/venv/lib/python3.8/site-packages/requests/models.py", line 392, in prepare_url
     raise MissingSchema(error)
 requests.exceptions.MissingSchema: Invalid URL 'foo': No scheme supplied. Perhaps you meant http://foo?
-14:34:35.746 | ERROR   | Flow run 'purring-swine' - Finished in state Failed('Flow run encountered an exception.')
+
 ```
 </div>
-
-In this situation, the call to `requests.get()` encounters an exception, but the flow run still returns! The exception is captured by Prefect, which continues to shut down the flow run normally. 
-
-However, in contrast to the 'Completed' state, we now encounter a 'Failed' state signaling that something unexpected happened during execution.
-
-<div class="terminal">
-```bash
->>> print(api_result)
-Failed('Flow run encountered an exception.')
-```
-</div>
-
-This behavior is consistent across flow runs _and_ task runs and allows you to respond to failures in a first-class way &mdash; whether by configuring orchestration rules in the Prefect Orion backend using flow retries or task retries or by directly responding to failed states in client code.
 
 ## Run a basic flow with tasks
 
@@ -242,8 +178,10 @@ def api_flow(url):
     return fact_json
 ```
 
-As you can see, we still call these tasks as normal functions and can pass their return values to other tasks.  We can then
-call our flow function &mdash; now called `api_flow()` &mdash; just as before and see the printed output. Prefect manages all the relevant intermediate states.
+As you can see, we still call these tasks as normal functions and can pass their return values to other tasks.  
+We can then call our flow function &mdash; now called `api_flow()` &mdash; 
+just as before and see the printed output. 
+Prefect manages all the relevant intermediate states.
 
 <div class="terminal">
 ```bash
@@ -252,8 +190,8 @@ call our flow function &mdash; now called `api_flow()` &mdash; just as before an
 15:10:17.955 | INFO    | Flow run 'jasper-ammonite' - Using task runner 'ConcurrentTaskRunner'
 15:10:18.022 | INFO    | Flow run 'jasper-ammonite' - Created task run 'call_api-190c7484-0' for task 'call_api'
 200
-15:10:18.360 | INFO    | Task run 'call_api-190c7484-0' - Finished in state Completed(None)
-15:10:18.707 | INFO    | Flow run 'jasper-ammonite' - Finished in state Completed('All states completed.')
+15:10:18.360 | INFO    | Task run 'call_api-190c7484-0' - Finished in state Completed()
+15:10:18.707 | INFO    | Flow run 'jasper-ammonite' - Finished in state Completed()
 ```
 </div>
 
@@ -418,6 +356,7 @@ Received a <class '__main__.Model'> with value a=42 b=0.0 c='55'
 Even asynchronous functions work with Prefect! Here's a variation of a previous example that makes the API request as an async operation:
 
 ```python
+import asyncio
 import httpx
 from prefect import flow, task
 
@@ -445,8 +384,7 @@ If we run this in the interpreter, the output looks just like previous runs.
 16:41:50.582 | INFO    | Task run 'call_api-190c7484-0' - Finished in state Completed(None)
 16:41:50.890 | INFO    | Flow run 'dashing-elephant' - Finished in state Completed('All states completed.')
 Completed(message='All states completed.', type=COMPLETED, result=[Completed(message=None, type=COMPLETED, 
-result={'fact': 'Cats have about 130,000 hairs per square inch (20,155 hairs per square centimeter).', 'length': 83}, 
-task_run_id=1a50b4df-a505-4a2f-8d28-3d1bf7db206e)], flow_run_id=42d2bd19-8c3b-4dd1-b494-52cc764acc3d)
+result={'fact': 'Cats have about 130,000 hairs per square inch (20,155 hairs per square centimeter).', 'length': 83}
 ```
 </div>
 
