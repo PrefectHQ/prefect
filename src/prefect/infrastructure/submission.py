@@ -37,6 +37,7 @@ async def submit_flow_run(
             "env": {**base_flow_run_environment(flow_run), **infrastructure.env},
             "labels": {**base_flow_run_labels(flow_run), **infrastructure.labels},
             "name": infrastructure.name or flow_run.name,
+            "command": infrastructure.command or FLOW_RUN_ENTRYPOINT,
         }
     )
 

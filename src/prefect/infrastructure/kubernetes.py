@@ -72,6 +72,9 @@ class KubernetesJob(Infrastructure):
     pod_watch_timeout_seconds: int = 60
     stream_output: bool = True
 
+    # internal-use only right now
+    _api_dns_name: Optional[str] = None  # Replaces 'localhost' in API URL
+
     @validator("job")
     def ensure_job_includes_all_required_components(cls, value: KubernetesManifest):
         patch = JsonPatch.from_diff(value, cls.base_job_manifest())
@@ -244,7 +247,7 @@ class KubernetesJob(Infrastructure):
                 "path": "/spec/template/spec/containers/0/env/-",
                 "value": {"name": key, "value": value},
             }
-            for key, value in self.env.items()
+            for key, value in self._get_environment_variables().items()
         ]
 
         if self.image_pull_policy:
@@ -333,11 +336,11 @@ class KubernetesJob(Infrastructure):
     def _watch_job(self, job_name: str) -> bool:
         job = self._get_job(job_name)
         if not job:
-            return False
+            return KubernetesJobResult(status_code=-1, identifier=job_name)
 
         pod = self._get_job_pod(job_name)
         if not pod:
-            return False
+            return KubernetesJobResult(status_code=-1, identifier=job.metadata.name)
 
         if self.stream_output:
             with self.get_client() as client:
@@ -365,7 +368,7 @@ class KubernetesJob(Infrastructure):
                     break
             else:
                 self.logger.error(f"Job {job_name!r}: Job did not complete.")
-                return False
+                return KubernetesJobResult(status_code=-1, identifier=job.metadata.name)
 
         with self.get_client() as client:
             pod_status = client.read_namespaced_pod_status(
@@ -440,3 +443,22 @@ class KubernetesJob(Infrastructure):
             regex_pattern=r"[^a-zA-Z0-9-]+",
         )
         return slug
+
+    def _get_environment_variables(self):
+        # If the API URL has been set by the base environment rather than the by the
+        # user, update the value to ensure connectivity when using a bridge network by
+        # updating local connections to use the internal host
+        env = {**self._base_environment(), **self.env}
+
+        if (
+            "PREFECT_API_URL" in env
+            and "PREFECT_API_URL" not in self.env
+            and self._api_dns_name
+        ):
+            env["PREFECT_API_URL"] = (
+                env["PREFECT_API_URL"]
+                .replace("localhost", self._api_dns_name)
+                .replace("127.0.0.1", self._api_dns_name)
+            )
+
+        return env
