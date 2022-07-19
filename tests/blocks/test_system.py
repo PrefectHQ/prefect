@@ -1,4 +1,5 @@
 import pendulum
+from pydantic import SecretStr
 
 from prefect.blocks import system
 
@@ -28,3 +29,11 @@ async def test_environment_variable_block(monkeypatch):
 
     monkeypatch.setenv("ORION_TEST_EV", "123")
     assert api_block.get() == "123"
+
+
+async def test_secret_block():
+    await system.Secret(value="test").save(name="test")
+    api_block = await system.Secret.load("test")
+    assert isinstance(api_block.value, SecretStr)
+
+    assert api_block.get() == "test"
