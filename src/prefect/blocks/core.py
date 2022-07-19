@@ -1,11 +1,12 @@
 import hashlib
 import inspect
+import logging
 from abc import ABC
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Dict, FrozenSet, List, Optional, Type, Union
 from uuid import UUID, uuid4
 
-from griffe.dataclasses import Docstring
+from griffe.dataclasses import Docstring, DocstringSection
 from griffe.docstrings.dataclasses import DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
@@ -269,6 +270,21 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
+    def _parse_docstring(cls) -> List[DocstringSection]:
+        """
+        Parses the docstring into list of DocstringSection objects.
+        Helper method used primarily to suppress irrelevant logs, e.g.
+        `<module>:11: No type or annotation for parameter 'write_json'`
+        because griffe is unable to parse the types from pydantic.BaseModel.
+        """
+        griffe_logger = logging.getLogger("griffe.docstrings.google")
+        griffe_logger.disabled = True
+        docstring = Docstring(cls.__doc__)
+        parsed = parse(docstring, Parser.google)
+        griffe_logger.disabled = False
+        return parsed
+
+    @classmethod
     def get_description(cls) -> Optional[str]:
         """
         Returns the description for the current block. Attempts to parse
@@ -278,8 +294,7 @@ class Block(BaseModel, ABC):
         # If no description override has been provided, find the first text section
         # and use that as the description
         if description is None and cls.__doc__ is not None:
-            docstring = Docstring(cls.__doc__)
-            parsed = parse(docstring, Parser.google)
+            parsed = cls._parse_docstring()
             parsed_description = next(
                 (
                     section.as_dict().get("value")
@@ -305,8 +320,7 @@ class Block(BaseModel, ABC):
         # section or an admonition with the annotation "example" and use that as the
         # code example
         if code_example is None and cls.__doc__ is not None:
-            docstring = Docstring(cls.__doc__)
-            parsed = parse(docstring, Parser.google)
+            parsed = cls._parse_docstring()
             for section in parsed:
                 # Section kind will be "examples" if Examples section heading is used.
                 if section.kind == DocstringSectionKind.examples:
