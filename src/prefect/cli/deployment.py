@@ -157,7 +157,7 @@ async def execute(name: str):
         parameters = deployment.parameters or {}
 
     app.console.print("Running flow...")
-    state = flow(**parameters)
+    state = flow.run(**parameters)
 
     if state.is_failed():
         exit_with_error("Flow run failed!")

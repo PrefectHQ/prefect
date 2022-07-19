@@ -13,7 +13,7 @@ from typing_extensions import Self, get_args, get_origin
 
 import prefect
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
-from prefect.utilities.asyncio import asyncnullcontext, sync_compatible
+from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects

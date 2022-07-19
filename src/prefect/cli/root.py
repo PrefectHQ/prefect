@@ -55,7 +55,11 @@ def main(
         settings_ctx = prefect.context.use_profile(
             profile, override_environment_variables=True
         )
-        ctx.with_resource(settings_ctx)
+        try:
+            ctx.with_resource(settings_ctx)
+        except KeyError:
+            print(f"Unknown profile {profile!r}.")
+            exit(1)
 
     # Configure the output console after loading the profile
 
