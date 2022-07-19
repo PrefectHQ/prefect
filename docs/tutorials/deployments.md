@@ -106,7 +106,7 @@ from prefect.deployments import FlowScript
 
 Deployment(
     name="leonardo-deployment",
-    flow=FlowScript(path="./leo_flow.py", name="leonardo_dicapriflow"),
+    flow="./leo_flow.py",
     tags=['tutorial','test'],
     parameters={'name':'Leo'}
 )
