@@ -63,7 +63,7 @@ def get_cloud_client(
     else:
         current_settings = prefect.settings.get_current_settings()
         configured_url = current_settings.PREFECT_API_URL
-        host = re.sub("accounts/.{36}/workspaces/.{36}\Z", "", configured_url)
+        host = re.sub(r"accounts/.{36}/workspaces/.{36}\Z", "", configured_url)
     return CloudClient(
         host=host,
         api_key=api_key or PREFECT_API_KEY.value(),
