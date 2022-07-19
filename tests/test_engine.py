@@ -329,7 +329,7 @@ class TestOrchestrateTaskRun:
                     just_sleep()
 
         t0 = time.perf_counter()
-        my_flow.run()
+        my_flow._run()
         t1 = time.perf_counter()
 
         runtime = t1 - t0
@@ -711,7 +711,7 @@ class TestFlowRunCrashes:
                     just_sleep()
 
         t0 = time.perf_counter()
-        my_flow.run()
+        my_flow._run()
         t1 = time.perf_counter()
 
         runtime = t1 - t0
@@ -814,7 +814,7 @@ class TestTaskRunCrashes:
 
         @flow
         async def my_flow():
-            await my_task.run()
+            await my_task._run()
 
         # Note exception should not be re-raised
         state = await begin_flow_run(
@@ -962,7 +962,7 @@ class TestDynamicKeyHandling:
             subflow()
             my_task()
 
-        state = my_flow.run()
+        state = my_flow._run()
 
         task_runs = await orion_client.read_task_runs()
         parent_task_runs = [

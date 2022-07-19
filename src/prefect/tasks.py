@@ -277,6 +277,9 @@ class Task(Generic[P, R]):
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: P.kwargs,
     ):
+        """
+        Run the task and return the result.
+        """
         from prefect.engine import enter_task_run_engine
         from prefect.task_runners import SequentialTaskRunner
 
@@ -292,7 +295,7 @@ class Task(Generic[P, R]):
         )
 
     @overload
-    def run(
+    def _run(
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
@@ -302,7 +305,7 @@ class Task(Generic[P, R]):
         ...
 
     @overload
-    def run(
+    def _run(
         self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
@@ -310,19 +313,22 @@ class Task(Generic[P, R]):
         ...
 
     @overload
-    def run(
+    def _run(
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> State[T]:
         ...
 
-    def run(
+    def _run(
         self,
         *args: P.args,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: P.kwargs,
     ) -> Union[State, Awaitable[State]]:
+        """
+        Run the task and return the final state.
+        """
         from prefect.engine import enter_task_run_engine
         from prefect.task_runners import SequentialTaskRunner
 
@@ -370,9 +376,10 @@ class Task(Generic[P, R]):
         **kwargs: Any,
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
         """
-        Run the task - must be called within a flow function.
+        Submit a run of the task to a worker.
 
-        If writing an async task, this call must be awaited.
+        Must be called within a flow function. If writing an async task, this call must
+        be awaited.
 
         Will create a new task run in the backing API and submit the task to the flow's
         task runner. This call only blocks execution while the task is being submitted,
