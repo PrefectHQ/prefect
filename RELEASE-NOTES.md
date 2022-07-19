@@ -13,7 +13,7 @@ States and futures are still important concepts in dictating and understanding t
 
 ### Other improvements and bug fixes
 - Date filters on the flow run page in the UI now support filtering by date _and_ time
-- Each work queue page now includes a command to start a corresponding agent
+- Each work queue page in the UI now includes a command to start a corresponding agent
 - Tutorials have been updated for increased clarity and consistency
 - Cron schedule setting errors are now more informative
 - Prefect now still works even if the active profile is missing
