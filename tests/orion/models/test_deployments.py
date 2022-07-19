@@ -763,13 +763,6 @@ class TestCheckWorkQueuesForDeployment:
             ["y", "z"],
         ]
 
-        flow_runners = [
-            [],
-            ["subprocess"],  # subprocess is a match
-            ["kubernetes"],  # kubernetes is a miss
-            ["subprocess", "kubernetes"],
-        ]
-
         deployments = [
             [],
             [match_id],
@@ -779,18 +772,15 @@ class TestCheckWorkQueuesForDeployment:
 
         # Generate all combinations of work queues
         for t in tags:
-            for f in flow_runners:
-                for d in deployments:
+            for d in deployments:
 
-                    await models.work_queues.create_work_queue(
-                        session=session,
-                        work_queue=schemas.core.WorkQueue(
-                            name=f"{t}:{f}:{d}",
-                            filter=schemas.core.QueueFilter(
-                                tags=t, flow_runner_types=f, deployment_ids=d
-                            ),
-                        ),
-                    )
+                await models.work_queues.create_work_queue(
+                    session=session,
+                    work_queue=schemas.core.WorkQueue(
+                        name=f"{t}:{d}",
+                        filter=schemas.core.QueueFilter(tags=t, deployment_ids=d),
+                    ),
+                )
 
         # return the two IDs needed to compare results
         return match_id, miss_id
@@ -799,10 +789,7 @@ class TestCheckWorkQueuesForDeployment:
         queues = await check_work_queues_for_deployment(
             session=session, deployment_id=deployment_id
         )
-        actual_queue_attrs = [
-            [q.filter.tags, q.filter.flow_runner_types, q.filter.deployment_ids]
-            for q in queues
-        ]
+        actual_queue_attrs = [[q.filter.tags, q.filter.deployment_ids] for q in queues]
 
         for q in desired_queues:
             assert q in actual_queue_attrs
@@ -818,7 +805,7 @@ class TestCheckWorkQueuesForDeployment:
         match_id, miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function
         )
-        match_q = [[[], [], []]]
+        match_q = [[[], []]]
         await self.assert_queues_found(session, match_id, match_q)
 
     async def test_no_tag_picks_up_no_tags_no_runners_with_id_match_q(
@@ -828,8 +815,8 @@ class TestCheckWorkQueuesForDeployment:
             session=session, flow=flow, flow_function=flow_function
         )
         match_q = [
-            [[], [], [match_id]],
-            [[], [], [match_id, miss_id]],
+            [[], [match_id]],
+            [[], [match_id, miss_id]],
         ]
         await self.assert_queues_found(session, match_id, match_q)
 
@@ -840,8 +827,8 @@ class TestCheckWorkQueuesForDeployment:
             session=session, flow=flow, flow_function=flow_function
         )
         match_q = [
-            [[], ["subprocess"], []],
-            [[], ["subprocess", "kubernetes"], []],
+            [[], []],
+            [[], []],
         ]
         await self.assert_queues_found(session, match_id, match_q)
 
@@ -852,10 +839,10 @@ class TestCheckWorkQueuesForDeployment:
             session=session, flow=flow, flow_function=flow_function
         )
         match_q = [
-            [[], ["subprocess"], [match_id]],
-            [[], ["subprocess"], [match_id, miss_id]],
-            [[], ["subprocess", "kubernetes"], [match_id]],
-            [[], ["subprocess", "kubernetes"], [match_id, miss_id]],
+            [[], [match_id]],
+            [[], [match_id, miss_id]],
+            [[], [match_id]],
+            [[], [match_id, miss_id]],
         ]
         await self.assert_queues_found(session, match_id, match_q)
 
@@ -870,51 +857,25 @@ class TestCheckWorkQueuesForDeployment:
             session=session, deployment_id=match_id
         )
 
-        assert len(actual_queues) == 9
+        assert len(actual_queues) == 3
 
     # ONE TAG DEPLOYMENTS with no-tag queues
     async def test_one_tag_picks_up_no_filter_q(self, session, flow, flow_function):
         match_id, miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a"]
         )
-        match_q = [[[], [], []]]
+        match_q = [[[], []]]
         await self.assert_queues_found(session, match_id, match_q)
 
-    async def test_one_tag_picks_up_no_tags_no_runners_with_id_match_q(
+    async def test_one_tag_picks_up_no_tags_with_id_match_q(
         self, session, flow, flow_function
     ):
         match_id, miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a"]
         )
         match_q = [
-            [[], [], [match_id]],
-            [[], [], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_one_tag_picks_up_no_tags_no_id_with_runners_match(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a"]
-        )
-        match_q = [
-            [[], ["subprocess"], []],
-            [[], ["subprocess", "kubernetes"], []],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_one_tag_picks_up_no_tags_with_id_and_runners_match(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a"]
-        )
-        match_q = [
-            [[], ["subprocess"], [match_id]],
-            [[], ["subprocess"], [match_id, miss_id]],
-            [[], ["subprocess", "kubernetes"], [match_id]],
-            [[], ["subprocess", "kubernetes"], [match_id, miss_id]],
+            [[], [match_id]],
+            [[], [match_id, miss_id]],
         ]
         await self.assert_queues_found(session, match_id, match_q)
 
@@ -923,44 +884,18 @@ class TestCheckWorkQueuesForDeployment:
         match_id, miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a"]
         )
-        match_q = [[["a"], [], []]]
+        match_q = [[["a"], []]]
         await self.assert_queues_found(session, match_id, match_q)
 
-    async def test_one_tag_picks_up_one_tag_no_runners_with_id_match_q(
+    async def test_one_tag_picks_up_one_tag_with_id_match_q(
         self, session, flow, flow_function
     ):
         match_id, miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a"]
         )
         match_q = [
-            [["a"], [], [match_id]],
-            [["a"], [], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_one_tag_picks_up_one_tag_no_id_with_runners_match(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a"]
-        )
-        match_q = [
-            [["a"], ["subprocess"], []],
-            [["a"], ["subprocess", "kubernetes"], []],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_one_tag_picks_up_one_tag_with_id_and_runners_match(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a"]
-        )
-        match_q = [
-            [["a"], ["subprocess"], [match_id]],
-            [["a"], ["subprocess"], [match_id, miss_id]],
-            [["a"], ["subprocess", "kubernetes"], [match_id]],
-            [["a"], ["subprocess", "kubernetes"], [match_id, miss_id]],
+            [["a"], [match_id]],
+            [["a"], [match_id, miss_id]],
         ]
         await self.assert_queues_found(session, match_id, match_q)
 
@@ -975,51 +910,25 @@ class TestCheckWorkQueuesForDeployment:
             session=session, deployment_id=match_id
         )
 
-        assert len(actual_queues) == 18
+        assert len(actual_queues) == 6
 
     # TWO TAG DEPLOYMENTS with no-tag queues
     async def test_two_tag_picks_up_no_filter_q(self, session, flow, flow_function):
         match_id, miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
         )
-        match_q = [[[], [], []]]
+        match_q = [[[], []]]
         await self.assert_queues_found(session, match_id, match_q)
 
-    async def test_two_tag_picks_up_no_tags_no_runners_with_id_match_q(
+    async def test_two_tag_picks_up_no_tags_with_id_match_q(
         self, session, flow, flow_function
     ):
         match_id, miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
         )
         match_q = [
-            [[], [], [match_id]],
-            [[], [], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_two_tag_picks_up_no_tags_no_id_with_runners_match(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [
-            [[], ["subprocess"], []],
-            [[], ["subprocess", "kubernetes"], []],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_two_tag_picks_up_no_tags_with_id_and_runners_match(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [
-            [[], ["subprocess"], [match_id]],
-            [[], ["subprocess"], [match_id, miss_id]],
-            [[], ["subprocess", "kubernetes"], [match_id]],
-            [[], ["subprocess", "kubernetes"], [match_id, miss_id]],
+            [[], [match_id]],
+            [[], [match_id, miss_id]],
         ]
         await self.assert_queues_found(session, match_id, match_q)
 
@@ -1028,44 +937,18 @@ class TestCheckWorkQueuesForDeployment:
         match_id, miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
         )
-        match_q = [[["a"], [], []]]
+        match_q = [[["a"], []]]
         await self.assert_queues_found(session, match_id, match_q)
 
-    async def test_two_tag_picks_up_one_tag_no_runners_with_id_match_q(
+    async def test_two_tag_picks_up_one_tag_with_id_match_q(
         self, session, flow, flow_function
     ):
         match_id, miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
         )
         match_q = [
-            [["a"], [], [match_id]],
-            [["a"], [], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_two_tag_picks_up_one_tag_no_id_with_runners_match(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [
-            [["a"], ["subprocess"], []],
-            [["a"], ["subprocess", "kubernetes"], []],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_two_tag_picks_up_one_tag_with_id_and_runners_match(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [
-            [["a"], ["subprocess"], [match_id]],
-            [["a"], ["subprocess"], [match_id, miss_id]],
-            [["a"], ["subprocess", "kubernetes"], [match_id]],
-            [["a"], ["subprocess", "kubernetes"], [match_id, miss_id]],
+            [["a"], [match_id]],
+            [["a"], [match_id, miss_id]],
         ]
         await self.assert_queues_found(session, match_id, match_q)
 
@@ -1074,44 +957,18 @@ class TestCheckWorkQueuesForDeployment:
         match_id, miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
         )
-        match_q = [[["a", "b"], [], []]]
+        match_q = [[["a", "b"], []]]
         await self.assert_queues_found(session, match_id, match_q)
 
-    async def test_two_tag_picks_up_two_tag_no_runners_with_id_match_q(
+    async def test_two_tag_picks_up_two_tag_with_id_match_q(
         self, session, flow, flow_function
     ):
         match_id, miss_id = await self.setup_work_queues_and_deployment(
             session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
         )
         match_q = [
-            [["a", "b"], [], [match_id]],
-            [["a", "b"], [], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_two_tag_picks_up_two_tag_no_id_with_runners_match(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [
-            [["a", "b"], ["subprocess"], []],
-            [["a", "b"], ["subprocess", "kubernetes"], []],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_two_tag_picks_up_two_tag_with_id_and_runners_match(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [
-            [["a", "b"], ["subprocess"], [match_id]],
-            [["a", "b"], ["subprocess"], [match_id, miss_id]],
-            [["a", "b"], ["subprocess", "kubernetes"], [match_id]],
-            [["a", "b"], ["subprocess", "kubernetes"], [match_id, miss_id]],
+            [["a", "b"], [match_id]],
+            [["a", "b"], [match_id, miss_id]],
         ]
         await self.assert_queues_found(session, match_id, match_q)
 
@@ -1126,4 +983,4 @@ class TestCheckWorkQueuesForDeployment:
             session=session, deployment_id=match_id
         )
 
-        assert len(actual_queues) == 27
+        assert len(actual_queues) == 9
