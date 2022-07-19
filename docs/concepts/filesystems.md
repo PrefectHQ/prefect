@@ -164,4 +164,5 @@ if __name__ == "__main__":
     give_greeting()
     
 ```
-Starting a MinIO server should output logs including login credentials that can be used as your MINIO_ROOT_USER and MINIO_ROOT_PASSWORD.
+
+Starting a MinIO server should output logs including login credentials that can be used as your `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD`.
