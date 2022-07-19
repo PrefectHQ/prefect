@@ -100,3 +100,11 @@ async def test_process_created_then_marked_as_started(mock_open_process):
 
     fake_status.started.assert_called_once()
     mock_open_process.assert_awaited_once()
+
+
+async def test_task_status_receives_pid():
+    fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+    result = await Process(command=["echo", "hello"], stream_output=False).run(
+        task_status=fake_status
+    )
+    fake_status.started.assert_called_once_with(result.identifier)

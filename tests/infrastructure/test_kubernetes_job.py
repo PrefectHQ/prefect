@@ -85,6 +85,7 @@ def mock_k8s_batch_client(monkeypatch, mock_cluster_config, mock_k8s_v1_job):
 
     mock = MagicMock(spec=k8s.client.BatchV1Api)
     mock.read_namespaced_job.return_value = mock_k8s_v1_job
+    mock.create_namespaced_job.return_value = mock_k8s_v1_job
 
     @contextmanager
     def get_batch_client(_):
@@ -140,6 +141,16 @@ async def test_creates_job_by_building_a_manifest(
     )
 
     fake_status.started.assert_called_once()
+
+
+async def test_task_status_receives_job_name(
+    mock_k8s_batch_client,
+    mock_k8s_client,
+    mock_watch,
+):
+    fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+    result = await KubernetesJob(command=["echo", "hello"]).run(task_status=fake_status)
+    fake_status.started.assert_called_once_with(result.identifier)
 
 
 @pytest.mark.parametrize(
