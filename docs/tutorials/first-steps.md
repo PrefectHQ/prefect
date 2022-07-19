@@ -65,8 +65,8 @@ Running a Prefect flow manually is as easy as calling the annotated function &md
 
 <div class="terminal">
 ```bash
-from prefect import flow
-
+>>> from prefect import flow
+>>>
 >>> @flow
 ... def my_favorite_function():
 ...     print("This function doesn't do much")
