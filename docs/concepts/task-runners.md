@@ -18,7 +18,7 @@ Calling a task function from within a flow executes the function sequentially. I
 You can also submit the task to a _task runner_. Using a task runner allows you to control whether tasks run sequentially, concurrently, or in parallel.
 
 !!! note "Concurrency versus parallelism"
-    The words "concurrency" and "parallelism" may sound the same, they mean different things in computing.
+    The words "concurrency" and "parallelism" may sound the same, but they mean different things in computing.
 
     **Concurrency** refers to a system that can do more than one thing simultaneously, but not at the _exact_ same time. For example, imagine a restaurant with one employee who is both the cook and waiter. While food cooks on the stove, the employee can take orders, but the employee can't take two orders at the same time.
 
