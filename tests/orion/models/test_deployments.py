@@ -779,18 +779,15 @@ class TestCheckWorkQueuesForDeployment:
 
         # Generate all combinations of work queues
         for t in tags:
-            for f in flow_runners:
-                for d in deployments:
+            for d in deployments:
 
-                    await models.work_queues.create_work_queue(
-                        session=session,
-                        work_queue=schemas.core.WorkQueue(
-                            name=f"{t}:{f}:{d}",
-                            filter=schemas.core.QueueFilter(
-                                tags=t, flow_runner_types=f, deployment_ids=d
-                            ),
-                        ),
-                    )
+                await models.work_queues.create_work_queue(
+                    session=session,
+                    work_queue=schemas.core.WorkQueue(
+                        name=f"{t}:{d}",
+                        filter=schemas.core.QueueFilter(tags=t, deployment_ids=d),
+                    ),
+                )
 
         # return the two IDs needed to compare results
         return match_id, miss_id
@@ -799,10 +796,7 @@ class TestCheckWorkQueuesForDeployment:
         queues = await check_work_queues_for_deployment(
             session=session, deployment_id=deployment_id
         )
-        actual_queue_attrs = [
-            [q.filter.tags, q.filter.flow_runner_types, q.filter.deployment_ids]
-            for q in queues
-        ]
+        actual_queue_attrs = [[q.filter.tags, q.filter.deployment_ids] for q in queues]
 
         for q in desired_queues:
             assert q in actual_queue_attrs

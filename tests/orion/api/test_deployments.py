@@ -867,18 +867,14 @@ class TestGetDeploymentWorkQueueCheck:
             session=session,
             work_queue=schemas.core.WorkQueue(
                 name=f"First",
-                filter=schemas.core.QueueFilter(
-                    tags=["a"], flow_runner_types=["subprocess", "kubernetes"]
-                ),
+                filter=schemas.core.QueueFilter(tags=["a"]),
             ),
         )
         await models.work_queues.create_work_queue(
             session=session,
             work_queue=schemas.core.WorkQueue(
                 name=f"Second",
-                filter=schemas.core.QueueFilter(
-                    tags=["b"], flow_runner_types=["subprocess"]
-                ),
+                filter=schemas.core.QueueFilter(tags=["b"]),
             ),
         )
 
@@ -903,6 +899,3 @@ class TestGetDeploymentWorkQueueCheck:
         assert {q1["name"], q2["name"]} == {"First", "Second"}
         assert set(q1["filter"]["tags"] + q2["filter"]["tags"]) == {"a", "b"}
         assert q1["filter"]["deployment_ids"] == q2["filter"]["deployment_ids"] == None
-        assert set(
-            q1["filter"]["flow_runner_types"] + q2["filter"]["flow_runner_types"]
-        ) == {"subprocess", "kubernetes"}

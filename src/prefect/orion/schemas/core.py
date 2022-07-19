@@ -613,10 +613,6 @@ class QueueFilter(PrefectBaseModel):
         None,
         description="Only include flow runs from these deployments in the work queue.",
     )
-    flow_runner_types: Optional[List[str]] = Field(
-        None,
-        description="Only include flow runs with these flow runner types in the work queue.",
-    )
 
     def get_flow_run_filter(self) -> "schemas.filters.FlowRunFilter":
         """
@@ -627,9 +623,6 @@ class QueueFilter(PrefectBaseModel):
             deployment_id=schemas.filters.FlowRunFilterDeploymentId(
                 any_=self.deployment_ids,
                 is_null_=False,
-            ),
-            flow_runner_type=schemas.filters.FlowRunFilterFlowRunnerType(
-                any_=self.flow_runner_types,
             ),
         )
 
