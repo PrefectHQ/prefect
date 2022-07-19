@@ -545,27 +545,6 @@ class TestGetRunsInWorkQueue:
             )
         ) == []
 
-    async def test_get_runs_in_work_queue_filters_on_flow_runner_type(
-        self,
-        session,
-        flow_run_1_id,
-    ):
-        # should only return SCHEDULED runs before NOW with
-        # the correct flow_runner_type
-        test_flow_runner_work_queue = await models.work_queues.create_work_queue(
-            session=session,
-            work_queue=schemas.core.WorkQueue(
-                name=f"Work Queue for my very cool flow runner type",
-                filter=schemas.core.QueueFilter(flow_runner_types=["test"]),
-            ),
-        )
-        runs = await models.work_queues.get_runs_in_work_queue(
-            session=session,
-            work_queue_id=test_flow_runner_work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
-        )
-        assert {run.id for run in runs} == {flow_run_1_id}
-
     async def test_get_runs_in_work_queue_uses_union_of_filter_criteria(self, session):
         # tags "tb12" will match but the deployment ids should not match any flow runs
         conflicting_filter_work_queue = await models.work_queues.create_work_queue(
