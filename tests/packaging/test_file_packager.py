@@ -21,7 +21,7 @@ async def test_file_packager_by_serializer(serializer):
 
     assert isinstance(manifest, FilePackageManifest)
     unpackaged_howdy = await manifest.unpackage()
-    assert unpackaged_howdy("bro").result() == "howdy, bro!"
+    assert unpackaged_howdy("bro") == "howdy, bro!"
 
 
 async def test_packager_sets_manifest_flow_parameter_schema():

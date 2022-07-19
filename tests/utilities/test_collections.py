@@ -1,4 +1,5 @@
 import json
+import uuid
 from dataclasses import dataclass
 from typing import Any
 
@@ -51,6 +52,7 @@ class TestFlatDict:
 
 
 async def negative_even_numbers(x):
+    print("Function called on", x)
     if isinstance(x, int) and x % 2 == 0:
         return -x
     return x
@@ -65,9 +67,17 @@ async def visit_even_numbers(x):
     return x
 
 
+VISITED = list()
+
+
+async def add_to_visited_list(x):
+    VISITED.append(x)
+
+
 @pytest.fixture(autouse=True)
-def clear_even_set():
+def clear_sets():
     EVEN.clear()
+    VISITED.clear()
 
 
 @dataclass
@@ -103,6 +113,17 @@ class PrivatePydantic(pydantic.BaseModel):
 class ImmutablePrivatePydantic(PrivatePydantic):
     class Config:
         allow_mutation = False
+
+
+@dataclass
+class Foo:
+    x: Any
+
+
+@dataclass
+class Bar:
+    y: Any
+    z: int = 2
 
 
 class TestPydanticObjects:
@@ -204,6 +225,33 @@ class TestVisitCollection:
         assert result is None
         assert EVEN == expected
 
+    @pytest.mark.parametrize(
+        "inp,expected",
+        [
+            ({"x": 1}, [{"x": 1}, "x", 1]),
+            (SimpleDataclass(x=1, y=2), [SimpleDataclass(x=1, y=2), 1, 2]),
+        ],
+    )
+    async def test_visit_collection_visits_nodes(self, inp, expected):
+        result = await visit_collection(
+            inp, visit_fn=add_to_visited_list, return_data=False
+        )
+        assert result is None
+        assert VISITED == expected
+
+    async def test_visit_collection_allows_mutation_of_nodes(self):
+        async def collect_and_drop_x_from_dicts(node):
+            await add_to_visited_list(node)
+            if isinstance(node, dict):
+                return {key: value for key, value in node.items() if key != "x"}
+            return node
+
+        result = await visit_collection(
+            {"x": 1, "y": 2}, visit_fn=collect_and_drop_x_from_dicts, return_data=True
+        )
+        assert result == {"y": 2}
+        assert VISITED == [{"x": 1, "y": 2}, "y", 2]
+
     async def test_visit_collection_with_private_pydantic_attributes(self):
         """
         We should not visit private fields on Pydantic models.
@@ -221,6 +269,19 @@ class TestVisitCollection:
         # The original model should not be mutated
         assert input._y == 3
         assert input._z == 4
+
+    async def test_visit_collection_includes_unset_pydantic_fields(self):
+        class RandomPydantic(pydantic.BaseModel):
+            val: uuid.UUID = pydantic.Field(default_factory=uuid.uuid4)
+
+        input_model = RandomPydantic()
+        output_model = await visit_collection(
+            input_model, visit_fn=visit_even_numbers, return_data=True
+        )
+
+        assert (
+            output_model.val == input_model.val
+        ), "The fields value should be used, not the default factory"
 
     @pytest.mark.parametrize("immutable", [True, False])
     async def test_visit_collection_mutation_with_private_pydantic_attributes(
@@ -245,6 +306,49 @@ class TestVisitCollection:
         # Private attributes are retained without modification
         assert result._y == 3
         assert result._z == 4
+
+    @pytest.mark.skipif(True, reason="We will recurse forever in this case")
+    async def test_visit_collection_does_not_recurse_forever_in_reference_cycle(self):
+        # Create references to each other
+        foo = Foo(x=None)
+        bar = Bar(y=foo)
+        foo.x = bar
+
+        await visit_collection(
+            [foo, bar], visit_fn=negative_even_numbers, return_data=True
+        )
+
+    @pytest.mark.skipif(True, reason="We will recurse forever in this case")
+    @pytest.mark.xfail(reason="We do not return correct results in this case")
+    async def test_visit_collection_returns_correct_result_in_reference_cycle(self):
+        # Create references to each other
+        foo = Foo(x=None)
+        bar = Bar(y=foo)
+        foo.x = bar
+
+        result = await visit_collection(
+            [foo, bar], visit_fn=negative_even_numbers, return_data=True
+        )
+        expected_foo = Foo(x=None)
+        expected_bar = Bar(y=foo, z=-2)
+        expected_foo.x = expected_bar
+
+        assert result == [expected_foo, expected_bar]
+
+    async def test_visit_collection_works_with_field_alias(self):
+        class TargetConfigs(pydantic.BaseModel):
+            type: str
+            schema_: str = pydantic.Field(alias="schema")
+            threads: int = 4
+
+        target_configs = TargetConfigs(
+            type="a_type", schema="a working schema", threads=1
+        )
+        result = await visit_collection(
+            target_configs, visit_fn=negative_even_numbers, return_data=True
+        )
+
+        assert result == target_configs
 
 
 class TestRemoveKeys:

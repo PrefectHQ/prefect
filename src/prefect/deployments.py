@@ -55,10 +55,8 @@ from typing import Any, Dict, Iterable, List, Optional, TextIO, Union
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
-import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
 from prefect.context import PrefectObjectRegistry
-from prefect.deprecated import deployments as deprecated
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
 from prefect.flow_runners.base import FlowRunner, FlowRunnerSettings
 from prefect.flows import Flow, load_flow_from_script, load_flow_from_text
@@ -83,7 +81,7 @@ class FlowScript(BaseModel):
         return value.resolve()
 
 
-FlowSource = Union[Flow, FlowScript, PackageManifest]
+FlowSource = Union[Flow, Path, FlowScript, PackageManifest]
 
 
 @PrefectObjectRegistry.register_instances
@@ -324,8 +322,12 @@ async def load_flow_from_deployment(
 async def _source_to_flow(flow_source: FlowSource) -> Flow:
     if isinstance(flow_source, Flow):
         return flow_source
+    elif isinstance(flow_source, Path):
+        return load_flow_from_script(flow_source.expanduser().resolve())
     elif isinstance(flow_source, FlowScript):
-        return load_flow_from_script(flow_source.path, flow_name=flow_source.name)
+        return load_flow_from_script(
+            flow_source.path.expanduser().resolve(), flow_name=flow_source.name
+        )
     elif isinstance(flow_source, PackageManifest):
         return await flow_source.unpackage()
     else:
@@ -349,24 +351,10 @@ def load_deployments_from_yaml(
 
     with PrefectObjectRegistry(capture_failures=True) as registry:
         for node in nodes:
-            line = node.start_mark.line + 1
-
-            # Load deployments relative to the yaml file's directory
             with tmpchdir(path):
                 deployment_dict = yaml.safe_load(yaml.serialize(node))
-                if "flow_location" in deployment_dict:
-                    deployment = parse_obj_as(DeploymentSpec, deployment_dict)
-                else:
-                    deployment = parse_obj_as(Deployment, deployment_dict)
-
-            if isinstance(deployment, DeploymentSpec):
-                # Update the source to be from the YAML file instead of this utility
-                deployment._source = {"file": str(path), "line": line}
+                # The return value is not necessary, just instantiating the Deployment
+                # is enough to get it recorded on the registry
+                parse_obj_as(Deployment, deployment_dict)
 
     return registry
-
-
-# Backwards compatibility
-
-
-DeploymentSpec = deprecated.DeploymentSpec

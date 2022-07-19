@@ -800,7 +800,6 @@ class OrionClient:
         name: str,
         tags: List[str] = None,
         deployment_ids: List[UUID] = None,
-        flow_runner_types: List[str] = None,
     ) -> UUID:
         """
         Create a work queue.
@@ -810,8 +809,6 @@ class OrionClient:
             tags: an optional list of tags to filter on; only work scheduled with these tags
                 will be included in the queue
             deployment_ids: an optional list of deployment IDs to filter on; only work scheduled from these deployments
-                will be included in the queue
-            flow_runner_types: an optional list of FlowRunner types to filter on; only work scheduled with these FlowRunners
                 will be included in the queue
 
         Raises:
@@ -826,7 +823,6 @@ class OrionClient:
             filter=QueueFilter(
                 tags=tags or None,
                 deployment_ids=deployment_ids or None,
-                flow_runner_types=flow_runner_types or None,
             ),
         ).dict(json_compatible=True)
         try:
