@@ -4,7 +4,7 @@ Reduced schemas for accepting API actions.
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import Field, root_validator
+from pydantic import Field
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
