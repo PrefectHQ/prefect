@@ -313,7 +313,7 @@ async def visit_collection(
 
             model_instance = typ(
                 **{
-                    aliases.get(key, key): value
+                    aliases.get(key) or key: value
                     for key, value in zip(model_fields, items)
                 }
             )
