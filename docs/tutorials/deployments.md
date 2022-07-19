@@ -135,7 +135,7 @@ def leonardo_dicapriflow(name: str):
 
 ## Running Prefect Orion
 
-For this tutorial, you'll use a local Prefect Orion API server. Open a separate terminal and start the Prefect Orion server with the `prefect orion start` CLI command:
+For this tutorial, you'll use a local Prefect Orion server. Open a separate terminal and start the Prefect Orion server with the `prefect orion start` CLI command:
 
 <div class='terminal'>
 ```bash
@@ -396,7 +396,7 @@ Remember that:
 
 With a work queue and agent in place, you can create a flow run for `leonardo_dicapriflow` directly from the UI.
 
-In the Prefect UI, select the **Deployments** page. You'll see a list of all deployments that have been created in this Prefect API.
+In the Prefect UI, select the **Deployments** page. You'll see a list of all deployments that have been created in this Prefect Orion instance.
 
 ![The Deployments page displays a list of deployments created in Prefect](/img/tutorials/orion-deployments.png)
 
