@@ -624,7 +624,18 @@ async def orchestrate_flow_run(
     return state
 
 
-def validate_run_context_ready_for_task_run():
+def enter_task_run_engine(
+    task: Task,
+    parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
+    return_type: EngineReturnType,
+    task_runner: Optional[BaseTaskRunner],
+    mapped: bool,
+) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    """
+    Sync entrypoint for task calls
+    """
+
     flow_run_context = FlowRunContext.get()
     if not flow_run_context:
         raise RuntimeError(
@@ -640,24 +651,8 @@ def validate_run_context_ready_for_task_run():
     if flow_run_context.timeout_scope and flow_run_context.timeout_scope.cancel_called:
         raise TimeoutError("Flow run timed out")
 
-
-def enter_task_run_engine(
-    task: Task,
-    parameters: Dict[str, Any],
-    wait_for: Optional[Iterable[PrefectFuture]],
-    return_type: EngineReturnType,
-    task_runner: Optional[BaseTaskRunner],
-) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
-    """
-    Sync entrypoint for task calls
-    """
-
-    validate_run_context_ready_for_task_run()
-
-    flow_run_context = FlowRunContext.get()
-
     begin_run = partial(
-        create_task_run_then_submit,
+        begin_task_map if mapped else create_task_run_then_submit,
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
@@ -669,43 +664,6 @@ def enter_task_run_engine(
     # Async task run in async flow run
     if task.isasync and flow_run_context.flow.isasync:
         return begin_run()  # Return a coroutine for the user to await
-
-    # Async or sync task run in sync flow run
-    elif not flow_run_context.flow.isasync:
-        return run_async_from_worker_thread(begin_run)
-
-    # Sync task run in async flow run
-    else:
-        # Call out to the sync portal since we are not in a worker thread
-        return flow_run_context.sync_portal.call(begin_run)
-
-
-def enter_task_map_engine(
-    task: Task,
-    parameters: Dict[str, Any],
-    wait_for: Optional[Iterable[PrefectFuture]],
-    return_type: EngineReturnType,
-    task_runner: Optional[BaseTaskRunner],
-):
-    """Sync entrypoint for task mapping calls"""
-
-    validate_run_context_ready_for_task_run()
-
-    flow_run_context = FlowRunContext.get()
-
-    begin_run = partial(
-        begin_task_map,
-        task=task,
-        flow_run_context=flow_run_context,
-        parameters=parameters,
-        wait_for=wait_for,
-        return_type=return_type,
-        task_runner=task_runner,
-    )
-
-    # Async task run in async flow run
-    if task.isasync and flow_run_context.flow.isasync:
-        return begin_run()
 
     # Async or sync task run in sync flow run
     elif not flow_run_context.flow.isasync:
