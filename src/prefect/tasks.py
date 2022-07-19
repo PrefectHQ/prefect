@@ -404,19 +404,19 @@ class Task(Generic[P, R]):
             >>> from prefect import flow
             >>> @flow
             >>> def my_flow():
-            >>>     my_task()
+            >>>     my_task.submit()
 
             Wait for a task to finish
 
             >>> @flow
             >>> def my_flow():
-            >>>     my_task().wait()
+            >>>     my_task.submit().wait()
 
             Use the result from a task in a flow
 
             >>> @flow
             >>> def my_flow():
-            >>>     print(my_task().wait().result)
+            >>>     print(my_task.submit().wait().result())
             >>>
             >>> my_flow()
             hello
@@ -429,13 +429,13 @@ class Task(Generic[P, R]):
             >>>
             >>> @flow
             >>> async def my_flow():
-            >>>     await my_async_task()
+            >>>     await my_async_task.submit()
 
             Run a sync task in an async flow
 
             >>> @flow
             >>> async def my_flow():
-            >>>     my_task()
+            >>>     my_task.submit()
 
             Enforce ordering between tasks that do not exchange data
             >>> @task
@@ -448,10 +448,10 @@ class Task(Generic[P, R]):
             >>>
             >>> @flow
             >>> def my_flow():
-            >>>     x = task_1()
+            >>>     x = task_1.submit()
             >>>
             >>>     # task 2 will wait for task_1 to complete
-            >>>     y = task_2(wait_for=[x])
+            >>>     y = task_2.submit(wait_for=[x])
 
         """
 
@@ -468,6 +468,32 @@ class Task(Generic[P, R]):
             task_runner=None,  # Use the flow's task runner
             mapped=False,
         )
+
+    @overload
+    def map(
+        self: "Task[P, NoReturn]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> List[PrefectFuture[None, Sync]]:
+        # `NoReturn` matches if a type can't be inferred for the function which stops a
+        # sync function from matching the `Coroutine` overload
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> List[Awaitable[PrefectFuture[T, Async]]]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, T]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> List[PrefectFuture[T, Sync]]:
+        ...
 
     def map(
         self,
