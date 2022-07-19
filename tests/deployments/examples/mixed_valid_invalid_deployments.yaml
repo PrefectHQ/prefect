@@ -1,5 +1,5 @@
 name: "foo"
-flow: "invalid!"
+flow: null
 ---
 name: "bar"
 flow: 
