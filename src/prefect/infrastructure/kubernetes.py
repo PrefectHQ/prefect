@@ -401,16 +401,20 @@ class KubernetesJob(Infrastructure):
         RFC 1035 (domain names).
 
         Args:
-            flow_run: The flow run
+            name: The name of the job
 
         Returns:
-            the slugified flow name
+            the slugified job name
         """
         slug = slugify(
             name,
             max_length=45,  # Leave enough space for generateName
             regex_pattern=r"[^a-zA-Z0-9-]+",
         )
+
+        # TODO: Handle the case that the name is an empty string after being
+        # slugified.
+
         return slug
 
     def _slugify_label(self, label: str) -> str:
