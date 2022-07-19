@@ -82,8 +82,7 @@ def github_stars(repos: List[str]):
 github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
 ```
 
-By adding `retries=3 ` to the `task` decorator, the `get_stars` function will automatically rerun up to three times on failure.
-
+By adding `retries=3 ` to the `task` decorator, the `get_stars` function will automatically rerun up to three times on failure!
 
 ### Observe in the Prefect Orion UI dashboard 
 Fire up the UI locally to visualize the task run history and gain insight into their execution:
@@ -98,7 +97,8 @@ From here, you can continue to use Prefect interactively, set up automated [depl
 
 ### Parallel execution
 
-Control the task execution environment by changing a flow's `task_runner`. The tasks in this flow, using the `DaskTaskRunner`, will automatically be submitted to run in parallel on a [Dask.distributed](http://distributed.dask.org/) cluster:
+Control the task execution environment by changing a flow's `task_runner`. 
+The tasks in this flow, using the `DaskTaskRunner`, will automatically be submitted to run in parallel on a [Dask.distributed](http://distributed.dask.org/) cluster:
 
 ```python hl_lines="2 12"
 from prefect import flow, task
@@ -124,7 +124,8 @@ if __name__ == "__main__":
 
 ### Async concurrency
 
-Prefect 2.0 ships with native async support. Flows can include a mix of synchronous and asynchronous tasks, just like Python.
+Prefect 2.0 ships with native async support. 
+Flows can include a mix of synchronous and asynchronous tasks, just like Python.
 
 ```python hl_lines="4 7-9 14-15 18"
 from prefect import flow, task
