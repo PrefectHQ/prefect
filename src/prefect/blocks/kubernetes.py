@@ -27,9 +27,6 @@ class KubernetesClusterConfig(Block):
         context_name (str): The name of the context to use
     """
 
-    _block_type_name = "Kubernetes Cluster Config"
-    _logo_url = "https://upload.wikimedia.org/wikipedia/labs/thumb/b/ba/Kubernetes-icon-color.svg/512px-Kubernetes-icon-color.svg.png"
-
     config: Dict
     context_name: str
 
