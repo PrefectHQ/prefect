@@ -15,7 +15,7 @@ Prefect is Air Traffic Control for your dataflows. It's the coordination plane t
 
 ## Why Prefect?
 
-If you move data then you probably need 
+If you move data then you probably need: 
 
 - scheduling
 - retries
