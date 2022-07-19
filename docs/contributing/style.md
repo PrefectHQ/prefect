@@ -154,7 +154,7 @@ Sometimes, imports are slow. We'd like to keep the `prefect` module import times
 
 #### Command line interface (CLI) output messages
 
-Upon executing a command, the output message should offer:
+Upon executing a command that create things, the output message should offer:
 - a short description on what the command just did
 - next steps, like the next command to run, if applicable
 - other relevant, pre-formatted commands that can be copy + pasted
@@ -164,7 +164,7 @@ Example:
 ```bash
 $ prefect work-queue create testing
 
-You created work-queue: 'testing'
+Created work-queue: 'testing'
 
 Start an agent to pick up flows from the created work-queue:
     prefect agent start '989c64da-1144-4fbb-8fe8-d7b298ea2f84'
@@ -186,7 +186,7 @@ from textwrap import dedent
 ...
 output_msg = dedent(
     f"""
-    You created work-queue: '{name}'
+    Created work-queue: '{name}'
     
     Start an agent to pick up flows from the work-queue:
         prefect agent start '{result}'
