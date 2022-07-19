@@ -318,16 +318,17 @@ class S3Move(Task):
         Args:
             - key (str, optional): the Key to move the data to; if not
                 provided, a random `uuid` will be created
-            - copy_source (str): The name of the source bucket, key name of the source object, and optional
-                version ID of the source object. You can either provide this value as a string or a dictionary.
-                The string form is {bucket}/{key} or {bucket}/{key}?versionId={versionId} if you want to copy
-                a specific version. You can also provide this value as a dictionary. The dictionary format
-                is recommended over the string format because it is more explicit. The dictionary format
-                is: {'Bucket': 'bucket', 'Key': 'key', 'VersionId': 'id'}. Note that the VersionId key is
-                optional and may be omitted. To specify an S3 access point, provide the access point ARN
-                for the Bucket key in the copy source dictionary. If you want to provide the copy source for
-                an S3 access point as a string instead of a dictionary, the ARN provided must be the full
-                S3 access point object ARN (i.e. {accesspoint_arn}/object/{key})
+            - copy_source (str): The name of the source bucket, key name of the source object, and 
+                optional version ID of the source object. You can either provide this value as a 
+                string or a dictionary. The string form is {bucket}/{key} or 
+                {bucket}/{key}?versionId={versionId} if you want to copy a specific version. You 
+                can also provide this value as a dictionary. The dictionary format is recommended 
+                over the string format because it is more explicit. The dictionary format
+                is: {'Bucket': 'bucket', 'Key': 'key', 'VersionId': 'id'}. Note that the VersionId
+                key is optional and may be omitted. To specify an S3 access point, provide the access
+                point ARN for the Bucket key in the copy source dictionary. If you want to provide
+                the copy source for an S3 access point as a string instead of a dictionary, the ARN
+                provided must be the full S3 access point object ARN (i.e. {accesspoint_arn}/object/{key})
             - credentials (dict, optional): your AWS credentials passed from an upstream
                 Secret task; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
