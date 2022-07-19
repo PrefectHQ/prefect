@@ -95,7 +95,8 @@ aws_s3_file_packager = FilePackager(filesystem=RemoteFileSystem(
 Deployment(
     flow=give_greeting,
     name="aws_s3_file_package_with_remote_s3fs",
-    packager=aws_s3_file_packager)
+    packager=aws_s3_file_packager
+)
 ```
 
 ## Saving and loading file systems
