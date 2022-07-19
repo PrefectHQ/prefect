@@ -187,7 +187,7 @@ class KubernetesJob(Infrastructure):
 
         # Indicate that the job has started
         if task_status is not None:
-            task_status.started()
+            task_status.started(job_name)
 
         # Monitor the job
         return await run_sync_in_worker_thread(self._watch_job, job_name)

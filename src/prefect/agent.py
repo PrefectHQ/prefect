@@ -137,8 +137,8 @@ class OrionAgent:
         document = await self.client.read_block_document(
             flow_run.infrastructure_document_id
         )
-        block = Block._from_block_document(document)
-        return block
+        infrastructure_block = Block._from_block_document(document)
+        return infrastructure_block
 
     async def submit_run(self, flow_run: FlowRun) -> None:
         """
