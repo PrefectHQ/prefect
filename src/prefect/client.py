@@ -532,12 +532,17 @@ class OrionClient:
         context = context or {}
         state = state or Scheduled()
 
+        if infrastructure and not infrastructure._block_document_id:
+            await infrastructure._save(is_anonymous=True)
+
         flow_run_create = schemas.actions.DeploymentFlowRunCreate(
             parameters=parameters,
             context=context,
             state=state,
             flow_runner=flow_runner.to_settings() if flow_runner else None,
-            # TODO: Add infrastructure override support here
+            infrastructure_document_id=(
+                infrastructure._block_document_id if infrastructure else None
+            ),
         )
 
         response = await self._client.post(
