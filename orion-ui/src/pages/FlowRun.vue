@@ -26,6 +26,10 @@
       <template #sub-flow-runs>
         <FlowRunSubFlows v-if="flowRun" :flow-run-id="flowRun.id" />
       </template>
+
+      <template #parameters>
+        <ParametersTable v-if="flowRun" :parameters="flowRun.parameters" />
+      </template>
     </p-tabs>
 
     <template #well>
@@ -62,7 +66,8 @@
     DurationIconText,
     FlowRunLogs,
     FlowRunTaskRuns,
-    FlowRunSubFlows
+    FlowRunSubFlows,
+    ParametersTable
   } from '@prefecthq/orion-design'
   import { PDivider, media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
@@ -75,7 +80,7 @@
   const flowRunId = useRouteParam('id')
 
   const tabs = computed(() => {
-    const values = ['Logs', 'Task Runs', 'Sub Flow Runs']
+    const values = ['Logs', 'Task Runs', 'Sub Flow Runs', 'Parameters']
 
     if (!media.xl) {
       values.push('Details')
