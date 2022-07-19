@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
 
 import prefect
 import prefect.orion.api as api
@@ -70,7 +71,7 @@ class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         try:
             return await super().get_response(path, scope)
-        except:
+        except HTTPException:
             return await super().get_response("./index.html", scope)
 
 
