@@ -1283,3 +1283,12 @@ async def test_delete_flow_run(orion_client, flow_run):
     # Check that trying to delete the deleted flow run raises an error
     with pytest.raises(prefect.exceptions.ObjectNotFound):
         await orion_client.delete_flow_run(flow_run.id)
+
+
+async def test_ephemeral_app_check(orion_client):
+    assert await orion_client.using_ephemeral_app()
+
+
+async def test_ephemeral_app_check_when_using_hosted_orion(hosted_orion_api):
+    async with OrionClient(hosted_orion_api) as orion_client:
+        assert (await orion_client.using_ephemeral_app()) is False

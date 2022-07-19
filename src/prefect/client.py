@@ -365,9 +365,6 @@ class OrionClient:
 
     # API methods ----------------------------------------------------------------------
 
-    async def using_ephemeral_app(self) -> bool:
-        return self._ephemeral_app is not None
-
     async def api_healthcheck(self) -> Optional[Exception]:
         """
         Attempts to connect to the API and returns the encountered exception if not
@@ -387,6 +384,9 @@ class OrionClient:
         Send a GET request to /hello for testing purposes.
         """
         return await self._client.get("/hello")
+
+    async def using_ephemeral_app(self) -> bool:
+        return self._ephemeral_app is not None
 
     async def create_flow(self, flow: "Flow") -> UUID:
         """
