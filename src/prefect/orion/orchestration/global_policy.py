@@ -13,7 +13,9 @@ import prefect.orion.models as models
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
     BaseUniversalTransform,
+    FlowOrchestrationContext,
     OrchestrationContext,
+    TaskOrchestrationContext,
 )
 
 COMMON_GLOBAL_TRANSFORMS = lambda: [
@@ -242,10 +244,12 @@ class UpdateStateDetails(BaseUniversalTransform):
         self,
         context: OrchestrationContext,
     ) -> None:
-        task_run = await context.task_run()
-        flow_run = await context.flow_run()
 
-        if flow_run:
+        if isinstance(context, FlowOrchestrationContext):
+            flow_run = await context.flow_run()
             context.proposed_state.state_details.flow_run_id = flow_run.id
-        if task_run:
+
+        elif isinstance(context, TaskOrchestrationContext):
+            task_run = await context.task_run()
+            context.proposed_state.state_details.flow_run_id = task_run.flow_run_id
             context.proposed_state.state_details.task_run_id = task_run.id
