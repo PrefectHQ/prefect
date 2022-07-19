@@ -1,14 +1,14 @@
 """
 Command line interface for working with profiles.
 """
+import asyncio
 import textwrap
 from typing import Optional
 
-import asyncio
 import httpx
 import typer
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from fastapi import status
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 import prefect.context
 import prefect.settings
