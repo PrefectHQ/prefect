@@ -80,7 +80,8 @@ minio_file_packager = FilePackager(
 Deployment(
     flow=give_greeting,
     name="minio_file_package_with_remote_s3fs",
-    packager=minio_file_packager)
+    packager=minio_file_packager
+)
 ```
 
 Now let's look at how we can use RemoteFileSystem with AWS S3:
