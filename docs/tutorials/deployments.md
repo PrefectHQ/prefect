@@ -434,21 +434,20 @@ So far you've seen a simple example of a single deployment for a single flow. Bu
 For example, you can extend the earlier example by creating a second deployment for `leo_flow.py` that logs different greetings by passing different parameters.
 
 ```python
-from prefect.deployments import DeploymentSpec
-from prefect.flow_runners import SubprocessFlowRunner
+from prefect.deployments import Deployment
+from prefect.deployments import FlowScript
 
-DeploymentSpec(
+Deployment(
     name="leonardo-deployment",
-    flow_location="./leo_flow.py",
+    flow=FlowScript(path="./leo_flow.py", name="leonardo_dicapriflow"),
     tags=['tutorial','test'],
     parameters={'name':'Leo'}
 )
 
-DeploymentSpec(
+Deployment(
     name="marvin-deployment",
-    flow_location="./leo_flow.py",
+    flow=FlowScript(path="./leo_flow.py", name="leonardo_dicapriflow"),
     tags=['tutorial','dev'],
-    flow_runner=SubprocessFlowRunner(),
     parameters={'name':'Marvin'}
 )
 ```
@@ -457,7 +456,6 @@ If you run `prefect deployment create leo_deployment.py` again with this code, i
 
 - Running `leonardo_deployment` logs the message "Hello Leo!".
 - Running `marvin-deployment` logs the message "Hello Marvin!".
-- `marvin-deployment` uses the `SubprocessFlowRunner`.
 
 Both deployments can use the `tutorial_queue` work queue because they have "tutorial" tags. But if you created a new work queue that served deployments with, say, a "dev" tag, only `marvin-deployment` would be served by that queue and its agents.
 
