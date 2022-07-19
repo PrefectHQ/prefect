@@ -14,7 +14,7 @@ import prefect.context
 import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.cloud import CloudUnauthorizedError, get_better_cloud_client
+from prefect.cli.cloud import CloudUnauthorizedError, get_cloud_client
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.context import use_profile
@@ -99,8 +99,8 @@ async def check_orion_connection(profile_name):
     with use_profile(profile_name, include_current_context=False):
         httpx_settings = dict(timeout=3)
         try:
-            await get_better_cloud_client(
-                httpx_settings=httpx_settings
+            await get_cloud_client(
+                httpx_settings=httpx_settings, infer_cloud_url=True
             ).api_healthcheck()
             exit_method, msg = (
                 exit_with_success,
@@ -171,7 +171,7 @@ async def use(name: str):
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
-        transient=True,
+        transient=False,
     ) as progress:
 
         profiles = prefect.settings.load_profiles()
@@ -181,10 +181,11 @@ async def use(name: str):
             profiles.set_active(name)
             prefect.settings.save_profiles(profiles)
 
-        progress.add_task(description="Connecting...", total=None)
-        (exit_method, msg), _ = await asyncio.gather(
-            check_orion_connection(name), asyncio.sleep(2)
+        progress.add_task(
+            description="Connecting...",
+            total=None,
         )
+        exit_method, msg = await check_orion_connection(name)
 
     exit_method(msg)
 
