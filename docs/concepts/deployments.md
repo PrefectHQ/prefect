@@ -226,6 +226,7 @@ If you are defining the `Deployment` specification in a different file from the 
 
 ```python
 from prefect.deployments import Deployment
+from prefect.deployments import FlowScript
 
 Deployment(
     flow=FlowScript(
