@@ -1,5 +1,7 @@
 import pytest
+import respx
 
+from httpx import Response
 from prefect.context import use_profile
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
@@ -12,6 +14,8 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+from prefect.cli import cloud
+from prefect.cli.cloud import CloudClient
 from prefect.testing.cli import invoke_and_assert
 
 
@@ -30,17 +34,210 @@ def test_use_profile_unknown_key():
     )
 
 
-def test_use_profile_sets_active():
-    save_profiles(
-        ProfilesCollection(profiles=[Profile(name="foo", settings={})], active=None)
-    )
+class TestCheckingOrionConnection:
+    @pytest.fixture
+    def authorized_cloud(self):
+        # attempts to reach the Cloud 2 API implies a good connection to Prefect Cloud
+        with respx.mock:
+            authorized = respx.get(
+                "https://mock-cloud.prefect.io/api/me/workspaces",
+            ).mock(return_value=Response(200, json={}))
 
-    invoke_and_assert(
-        ["profile", "use", "foo"], expected_output="Profile 'foo' now active."
-    )
+            yield authorized
 
-    profiles = load_profiles()
-    assert profiles.active_name == "foo"
+    @pytest.fixture
+    def unauthorized_cloud(self):
+        with respx.mock:
+            unauthorized = respx.get(
+                "https://mock-cloud.prefect.io/api/me/workspaces",
+            ).mock(return_value=Response(401, json={}))
+
+            yield unauthorized
+
+    @pytest.fixture
+    def unhealthy_cloud(self):
+        with respx.mock:
+            unhealthy_cloud = respx.get(
+                "https://mock-cloud.prefect.io/api/me/workspaces",
+            ).mock(return_value=Response(500, json={}))
+
+            yield unhealthy_cloud
+
+    @pytest.fixture
+    def hosted_orion_has_no_nebula_api(self):
+        with respx.mock:
+            hosted = respx.get(
+                "https://hosted-orion.prefect.io/api/me/workspaces",
+            ).mock(return_value=Response(404, json={}))
+
+            yield hosted
+
+    @pytest.fixture
+    def healthy_hosted_orion(self):
+        with respx.mock:
+            hosted = respx.get(
+                "https://hosted-orion.prefect.io/api/health",
+            ).mock(return_value=Response(200, json={}))
+
+            yield hosted
+
+    def connection_error(self, *args):
+        raise Exception
+
+    @pytest.fixture
+    def unhealthy_hosted_orion(self):
+        with respx.mock:
+            badly_hosted = respx.get(
+                "https://hosted-orion.prefect.io/api/health",
+            ).mock(side_effect=self.connection_error)
+
+            yield badly_hosted
+
+    def test_authorized_cloud_connection(self, authorized_cloud):
+        save_profiles(
+            ProfilesCollection(
+                profiles=[
+                    Profile(
+                        name="good-cloud-connection",
+                        settings={
+                            "PREFECT_API_URL": "https://mock-cloud.prefect.io/api/accounts/00000000-0000-0000-0000-000000000000/workspaces/00000000-0000-0000-0000-000000000000",
+                        },
+                    ),
+                ],
+                active=None,
+            )
+        )
+
+        invoke_and_assert(
+            ["profile", "use", "good-cloud-connection"],
+            expected_output_contains="Connected to Prefect Cloud using profile 'good-cloud-connection'",
+            expected_code=0,
+        )
+
+        profiles = load_profiles()
+        assert profiles.active_name == "good-cloud-connection"
+
+    def test_unauthorized_cloud_connection(self, unauthorized_cloud):
+        save_profiles(
+            ProfilesCollection(
+                profiles=[
+                    Profile(
+                        name="bad-cloud-key",
+                        settings={
+                            "PREFECT_API_URL": "https://mock-cloud.prefect.io/api/accounts/00000000-0000-0000-0000-000000000000/workspaces/00000000-0000-0000-0000-000000000000",
+                        },
+                    ),
+                ],
+                active=None,
+            )
+        )
+
+        invoke_and_assert(
+            ["profile", "use", "bad-cloud-key"],
+            expected_output_contains="Error authenticating with Prefect Cloud using profile 'bad-cloud-key'",
+            expected_code=1,
+        )
+
+        profiles = load_profiles()
+        assert profiles.active_name == "bad-cloud-key"
+
+    def test_unhealthy_cloud_connection(self, unhealthy_cloud):
+        save_profiles(
+            ProfilesCollection(
+                profiles=[
+                    Profile(
+                        name="unhealthy-cloud",
+                        settings={
+                            "PREFECT_API_URL": "https://mock-cloud.prefect.io/api/accounts/00000000-0000-0000-0000-000000000000/workspaces/00000000-0000-0000-0000-000000000000",
+                        },
+                    ),
+                ],
+                active=None,
+            )
+        )
+
+        invoke_and_assert(
+            ["profile", "use", "unhealthy-cloud"],
+            expected_output_contains="Error connecting to Prefect Cloud",
+            expected_code=1,
+        )
+
+        profiles = load_profiles()
+        assert profiles.active_name == "unhealthy-cloud"
+
+    def test_using_hosted_orion(
+        self, hosted_orion_has_no_nebula_api, healthy_hosted_orion
+    ):
+        save_profiles(
+            ProfilesCollection(
+                profiles=[
+                    Profile(
+                        name="hosted-orion",
+                        settings={
+                            "PREFECT_API_URL": "https://hosted-orion.prefect.io/api",
+                        },
+                    ),
+                ],
+                active=None,
+            )
+        )
+
+        invoke_and_assert(
+            ["profile", "use", "hosted-orion"],
+            expected_output_contains="Connected to Prefect Orion using profile 'hosted-orion'",
+            expected_code=0,
+        )
+
+        profiles = load_profiles()
+        assert profiles.active_name == "hosted-orion"
+
+    def test_unhealthy_hosted_orion(
+        self, hosted_orion_has_no_nebula_api, unhealthy_hosted_orion
+    ):
+        save_profiles(
+            ProfilesCollection(
+                profiles=[
+                    Profile(
+                        name="unhealthy-hosted-orion",
+                        settings={
+                            "PREFECT_API_URL": "https://hosted-orion.prefect.io/api",
+                        },
+                    ),
+                ],
+                active=None,
+            )
+        )
+
+        invoke_and_assert(
+            ["profile", "use", "unhealthy-hosted-orion"],
+            expected_output_contains="Error connecting to Prefect Orion",
+            expected_code=1,
+        )
+
+        profiles = load_profiles()
+        assert profiles.active_name == "unhealthy-hosted-orion"
+
+    def test_using_ephemeral_orion(self):
+        save_profiles(
+            ProfilesCollection(
+                profiles=[
+                    Profile(
+                        name="ephemeral-orion",
+                        settings={},
+                    ),
+                ],
+                active=None,
+            )
+        )
+
+        invoke_and_assert(
+            ["profile", "use", "ephemeral-orion"],
+            expected_output_contains="No Prefect Orion instance specified using profile 'ephemeral-orion'.",
+            expected_code=0,
+        )
+
+        profiles = load_profiles()
+        assert profiles.active_name == "ephemeral-orion"
 
 
 def test_ls_default_profiles():
