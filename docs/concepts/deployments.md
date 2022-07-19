@@ -38,7 +38,7 @@ Deployments enable you to:
 - Assign tags for filtering flow runs on work queues and in the UI
 - Create ad-hoc flow runs from the API or UI
 
-Deployments can package your flow code and store the manifest in the API &mdash; either Prefect Cloud or a local Prefect Orion server run with `prefect orion start`. The manifest includes information about the location to which a flow has been persisted so the server can schedule and execute flow runs for you. This manifest can include details about the execution environment, parameters, and tags that should be used to create a flow run from the deployment. 
+Deployments can package your flow code and store the manifest in the API &mdash; either Prefect Cloud or a local Prefect Orion server run with `prefect orion start`. The manifest contains the parameter schema so the UI can display a rich interface for providing parameters for a run. 
 
 Deployments are uniquely identified by the combination of flow_name/deployment_name. 
 
@@ -199,7 +199,7 @@ There are several ways to build a deployment specification and use it to create 
 
 ## Deployment object
 
-You can create a [`Deployment`](/api-ref/prefect/deployments/#prefect.deployments.Deployment) object in your code and pass that to Prefect Cloud or a Prefect API server instance to create a deployment.
+You can create a [`Deployment`](/api-ref/prefect/deployments/#prefect.deployments.Deployment) object in your code and pass it to Prefect Cloud or a Prefect Orion server instance to create a deployment.
 
 A `Deployment` object has the following parameters:
 
@@ -221,6 +221,7 @@ When there is only one flow in a file, you may just provide the path to the file
 
 ```python
 from prefect.deployments import Deployment
+
 Deployment(
     flow=Path(__file__).parent / "examples" / "single_flow_in_file.py"
 )
@@ -230,12 +231,13 @@ If you provide a string, we will cast it to a `Path` object for you.
 
 ```python
 from prefect.deployments import Deployment
+
 Deployment(
     flow="~/flows/my_flow.py"
 )
 ```
 
-`FlowScript` is a simple Pydantic model with the following properties:
+When providing a path with multiple flows, we'll need the name of the flow to determine which one you would like to deploy. `FlowScript` is a simple Pydantic model with the following properties:
 
 | Parameter | Description |
 | --------- | ----------- |

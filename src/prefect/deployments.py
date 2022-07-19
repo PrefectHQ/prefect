@@ -82,7 +82,7 @@ class FlowScript(BaseModel):
         return value.resolve()
 
 
-FlowSource = Union[Flow, FlowScript, PackageManifest]
+FlowSource = Union[Flow, Path, FlowScript, PackageManifest]
 
 
 @PrefectObjectRegistry.register_instances
@@ -287,8 +287,12 @@ async def load_flow_from_deployment(
 async def _source_to_flow(flow_source: FlowSource) -> Flow:
     if isinstance(flow_source, Flow):
         return flow_source
+    elif isinstance(flow_source, Path):
+        return load_flow_from_script(flow_source.expanduser().resolve())
     elif isinstance(flow_source, FlowScript):
-        return load_flow_from_script(flow_source.path, flow_name=flow_source.name)
+        return load_flow_from_script(
+            flow_source.path.expanduser().resolve(), flow_name=flow_source.name
+        )
     elif isinstance(flow_source, PackageManifest):
         return await flow_source.unpackage()
     else:
