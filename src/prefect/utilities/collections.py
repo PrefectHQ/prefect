@@ -303,8 +303,18 @@ async def visit_collection(
         )
 
         if return_data:
+            # Collect fields with aliases so reconstruction can use the correct field name
+            aliases = {
+                key: value.alias
+                for key, value in expr.__fields__.items()
+                if value.has_alias
+            }
+
             model_instance = typ(
-                **{key: value for key, value in zip(model_fields, items)}
+                **{
+                    aliases.get(key) or key: value
+                    for key, value in zip(model_fields, items)
+                }
             )
 
             # Private attributes are not included in `__fields_set__` but we do not want

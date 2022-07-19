@@ -237,8 +237,7 @@ Deployment(
 )
 ```
 
-
-`FlowScript` is a simple Pydantic model with the following properties:
+When providing a path with multiple flows, we'll need the name of the flow to determine which one you would like to deploy. `FlowScript` is a simple Pydantic model with the following properties:
 
 | Parameter | Description |
 | --------- | ----------- |
