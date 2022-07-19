@@ -7,10 +7,10 @@
     <div class="flow-runs__filters">
       <div class="flow-runs__date-filters">
         <p-label label="Start Date">
-          <PDateInput v-model="startDate" />
+          <PDateInput v-model="startDate" show-time />
         </p-label>
         <p-label label="End Date">
-          <PDateInput v-model="endDate" />
+          <PDateInput v-model="endDate" show-time />
         </p-label>
       </div>
       <div class="flow-runs__meta-filters">

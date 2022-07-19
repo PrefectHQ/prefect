@@ -157,7 +157,7 @@ class TestReturnValueToState:
             _final_state=state,
         )
         result_state = await return_value_to_state(future)
-        assert result_state.data.decode() is state
+        assert result_state.data.decode() == state
         assert result_state.is_completed()
         assert result_state.message == "All states completed."
 

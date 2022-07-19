@@ -26,16 +26,10 @@ if TYPE_CHECKING:
     import kubernetes
     import kubernetes.client
     import kubernetes.config
-    from kubernetes.client import BatchV1Api, Configuration, CoreV1Api, V1Job, V1Pod
+    import kubernetes.watch
+    from kubernetes.client import BatchV1Api, CoreV1Api, V1Job, V1Pod
 else:
-    # Note that we are attempting to reduce the import time of the library overall, and
-    # so we are deferring the import of the `kubernetes` module until it is used.  This
-    # means that all further kubernetes imports (except for the TYPE_CHECKING ones) should
-    # be done locally in the runtime functions they are needed in.
     kubernetes = lazy_import("kubernetes")
-    kubernetes.config = lazy_import("kubernetes.config")
-    kubernetes.client = lazy_import("kubernetes.client")
-    kubernetes.watch = lazy_import("kubernetes.watch")
 
 
 class KubernetesImagePullPolicy(enum.Enum):
@@ -225,7 +219,11 @@ class KubernetesFlowRunner(UniversalFlowRunner):
                 if event["object"].status.phase == "Running":
                     watch.stop()
                     return event["object"]
-        self.logger.error(f"Pod never started. Job: {job_name}")
+        raise RuntimeError(
+            f"Pod for job {job_name!r} did not start after "
+            f"{self.pod_watch_timeout_seconds} seconds. "
+            f"Consider increasing the value of `pod_watch_timeout_seconds`."
+        )
 
     def _watch_job(self, job_name: str) -> bool:
         job = self._get_job(job_name)
