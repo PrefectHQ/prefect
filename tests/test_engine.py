@@ -301,7 +301,6 @@ class TestOrchestrateTaskRun:
         state = await orchestrate_task_run(
             task=my_task,
             task_run=task_run,
-            # Nest the future in a collection to ensure that it is found
             parameters={"x": quote(upstream_task_state)},
             wait_for=None,
             result_storage=local_storage_block,
@@ -311,7 +310,7 @@ class TestOrchestrateTaskRun:
         # The task ran with the state as its input
         mock.assert_called_once_with(upstream_task_state)
 
-        # Check that the state completed happily
+        # Check that the task completed happily
         assert state.is_completed()
 
     async def test_interrupt_task(self):
@@ -330,7 +329,7 @@ class TestOrchestrateTaskRun:
                     just_sleep()
 
         t0 = time.perf_counter()
-        my_flow()
+        my_flow._run()
         t1 = time.perf_counter()
 
         runtime = t1 - t0
@@ -712,7 +711,7 @@ class TestFlowRunCrashes:
                     just_sleep()
 
         t0 = time.perf_counter()
-        my_flow()
+        my_flow._run()
         t1 = time.perf_counter()
 
         runtime = t1 - t0
@@ -815,7 +814,7 @@ class TestTaskRunCrashes:
 
         @flow
         async def my_flow():
-            await my_task()
+            await my_task._run()
 
         # Note exception should not be re-raised
         state = await begin_flow_run(
@@ -963,7 +962,7 @@ class TestDynamicKeyHandling:
             subflow()
             my_task()
 
-        state = my_flow()
+        state = my_flow._run()
 
         task_runs = await orion_client.read_task_runs()
         parent_task_runs = [

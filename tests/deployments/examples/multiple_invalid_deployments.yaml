@@ -1,5 +1,5 @@
 name: "foo"
-flow: "foobar"
+flow: null
 ---
 name: "bar"
-flow: "foobar"
+flow: null

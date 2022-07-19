@@ -4,7 +4,7 @@ import pytest
 
 import prefect.exceptions
 from prefect.testing.cli import invoke_and_assert
-from prefect.utilities.asyncio import sync_compatible
+from prefect.utilities.asyncutils import sync_compatible
 
 
 @sync_compatible

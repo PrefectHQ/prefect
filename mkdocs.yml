@@ -82,6 +82,7 @@ nav:
             - tutorials/docker-flow-runner.md
             - tutorials/kubernetes-flow-runner.md
             - tutorials/testing.md
+            - Prefect Cloud: ui/cloud-getting-started.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
@@ -101,7 +102,7 @@ nav:
     - Prefect UI & Prefect Cloud:
         - Overview: ui/overview.md
         - ui/dashboard.md
-        - ui/flows-and-tasks.md
+        - ui/flows.md
         - ui/deployments.md
         - ui/work-queues.md
         - ui/notifications.md
@@ -150,7 +151,8 @@ nav:
                 - 'prefect.cli.flow_run': api-ref/prefect/cli/flow_run.md
                 - 'prefect.cli.orion': api-ref/prefect/cli/orion.md
             - 'Utilities':
-                - 'prefect.utilities.asyncio': api-ref/prefect/utilities/asyncio.md
+                - 'prefect.utilities.asyncutils': api-ref/prefect/utilities/asyncutils.md
+                - 'prefect.utilities.processutils': api-ref/prefect/utilities/processutils.md
                 - 'prefect.utilities.callables': api-ref/prefect/utilities/callables.md
                 - 'prefect.utilities.collections': api-ref/prefect/utilities/collections.md
                 - 'prefect.utilities.filesystem': api-ref/prefect/utilities/filesystem.md
