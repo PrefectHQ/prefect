@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+import anyio.abc
 import pytest
 
 from prefect.flow_runners.base import get_prefect_image_name
@@ -28,13 +29,18 @@ def mock_docker_client(monkeypatch):
 
     mock = MagicMock(name="DockerClient", spec=docker.DockerClient)
     mock.version.return_value = {"Version": "20.10"}
+
+    # Build a fake container object to return
     fake_container = docker.models.containers.Container()
     fake_container.client = MagicMock(name="Container.client")
     fake_container.collection = MagicMock(name="Container.collection")
     attrs = {"Id": "fake-id", "Name": "fake-name", "State": "exited"}
     fake_container.collection.get().attrs = attrs
     fake_container.attrs = attrs
+
+    # Return the fake container on lookups and creation
     mock.containers.get.return_value = fake_container
+    mock.containers.create.return_value = fake_container
 
     monkeypatch.setattr("docker.from_env", MagicMock(return_value=mock))
     return mock
@@ -484,6 +490,14 @@ async def test_does_not_warn_about_gateway_if_user_has_provided_nonlocal_api_url
         "extra_hosts"
     )
     assert not call_extra_hosts
+
+
+async def test_task_status_receives_container_id(mock_docker_client):
+    fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+    result = await DockerContainer(command=["echo", "hello"], stream_output=False).run(
+        task_status=fake_status
+    )
+    fake_status.started.assert_called_once_with(result.identifier)
 
 
 @pytest.mark.usefixtures("use_hosted_orion")
