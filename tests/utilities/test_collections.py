@@ -335,6 +335,21 @@ class TestVisitCollection:
 
         assert result == [expected_foo, expected_bar]
 
+    async def test_visit_collection_works_with_field_alias(self):
+        class TargetConfigs(pydantic.BaseModel):
+            type: str
+            schema_: str = pydantic.Field(alias="schema")
+            threads: int = 4
+
+        target_configs = TargetConfigs(
+            type="a_type", schema="a working schema", threads=1
+        )
+        result = await visit_collection(
+            target_configs, visit_fn=negative_even_numbers, return_data=True
+        )
+
+        assert result == target_configs
+
 
 class TestRemoveKeys:
     def test_remove_single_key(self):
