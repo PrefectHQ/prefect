@@ -25,17 +25,17 @@ If you move data then you probably need
 
 Prefect 2.0 makes it easy to decorate your existing Python functions and provide you with retries, caching, and dynamic workflows. In the Prefect Orion UI you can quickly set up notifications, visualize run history, and inspect logs.  
 
-Building this kind of functionality from scratch is a huge pain. It's estimated that 80% of a data engineer's time is spent writing code to guard against edge cases and provide information when a dataflow inevitably fails. Prefect 2.0 helps eliminate this negative engineering, helping you do more faster and giving you confidence in your dataflows.
+Building this kind of functionality from scratch is a huge pain. It's estimated that 80% of a data engineer's time is spent writing code to guard against edge cases and provide information when a dataflow inevitably fails. Prefect 2.0 helps eliminate this negative engineering, so you can do more faster with confidence in your dataflows.
 
-Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Prefect integrates with all the major cloud providers and modern data stack tools such as Snowflake, Databricks, dbt, Airbyte, and Fivetran. Prefect uses concurrency by default and you can achieve parallel processing across machines with our Dask and Ray integrations. Prefect is often run on Kubernetes and your code can be easily packaged into a Docker image.
+Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Prefect integrates with all the major cloud providers and modern data stack tools such as Snowflake, Databricks, dbt, Airbyte, and Fivetran. Prefect uses concurrency by default and you can set up parallel processing across clusters with our Dask and Ray integrations. Prefect is often used with Docker and Kubernetes.
 
-Prefect helps you keep your data and code secure. Prefect's hybrid execution model means your data can stay in your environment while Prefect Cloud uses your code and metadata to orchestrate your flows. The company is SOC2 compliant and our enterprise product makes it easy for you to restrict access to the right people in your organization.
+Prefect helps you keep your data and code secure. Prefect's hybrid execution model means your data can stay in your environment while Prefect Cloud orchestrates your flows. Prefect the company is SOC2 compliant and our enterprise product makes it easy for you to restrict access to the right people in your organization.
 
-You don’t need to rewrite your entire workflow as a directed acyclic graph (DAG) to take advantage of Prefect 2.0. DAGs represent a rigid framework that is overly constraining for modern, dynamic dataflows. 
+You don’t need to rewrite your entire dataflow as a directed acyclic graph (DAG) to take advantage of Prefect 2.0. DAGs represent a rigid framework that is overly constraining for modern, dynamic dataflows. Instead, you can incrementally adopt Prefect 2.0 for dynamic dataflows.
 
 ## How to get started
 
-Read the docs, run the code and join 20,000 thousand community members in [our Slack community](https://www.prefect.io/slack) to share your thoughts and feedback. Thanks for being part of the mission to build a new kind of workflow system and, of course, **happy engineering!**
+Read the docs, run the code, and join 20,000 thousand community members in [our Slack community](https://www.prefect.io/slack). Thank you for being part of the mission to coordinate the world's dataflow and, of course, **happy engineering!**
 
 !!! info "Don't Panic"
     Prefect 2.0 is under active development and may change rapidly. For production use, we recommend [Prefect 1.0](https://github.com/prefecthq/prefect).
