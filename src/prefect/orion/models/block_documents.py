@@ -2,12 +2,10 @@
 Functions for interacting with block document ORM objects.
 Intended for internal use by the Orion API.
 """
-import hashlib
 from typing import Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
-from pydantic import validate_arguments
 
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
@@ -20,7 +18,6 @@ from prefect.orion.schemas.core import (
     BlockDocumentReference,
 )
 from prefect.orion.schemas.filters import BlockDocumentFilterIsAnonymous
-from prefect.utilities.hashing import hash_objects
 
 
 @inject_db
