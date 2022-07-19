@@ -15,22 +15,32 @@ Prefect is Air Traffic Control for your dataflows. It's the coordination plane t
 
 ## Why Prefect?
 
-If you move data then you probably need 
+If you move data then you probably need the following functionality:
 
-- scheduling
-- retries
-- logging
-- caching
-- notifications
+- [schedules](concepts/schedules/)
+- [retries](concepts/tasks/#task-arguments)
+- [logging](concepts/logs/)
+- [caching](concepts/tasks/#caching)
+- [notifications](ui/notifications/)
 
-Prefect 2.0 makes it easy to decorate your existing Python functions and provide you with retries, caching, and dynamic workflows. In the Prefect Orion UI you can quickly set up notifications, visualize run history, and inspect logs.  
+Prefect 2.0 makes it easy to decorate your existing Python functions and provide you with retries, caching, and dynamic workflows. 
 
-Building this kind of functionality from scratch is a huge pain. It's estimated that 80% of a data engineer's time is spent writing code to guard against edge cases and provide information when a dataflow inevitably fails. Prefect 2.0 helps eliminate this negative engineering, so you can do more faster with confidence in your dataflows.
+### A user friendly GUI 
+In the Prefect Orion UI you can quickly set up notifications, visualize run history, and inspect logs.  
 
-Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable workloads that today's dataflows demands. Prefect integrates with all the major cloud providers and modern data stack tools such as Snowflake, Databricks, dbt, Airbyte, and Fivetran. Prefect uses concurrency by default and you can set up parallel processing across clusters with our Dask and Ray integrations. Prefect is often used with Docker and Kubernetes.
+### Faster and easier than building from scratch
+Building this kind of functionality from scratch is a huge pain. It's estimated that up to 80% of a data engineer's time is spent writing code to guard against edge cases and provide information when a dataflow inevitably fails. Prefect 2.0 helps eliminate this negative engineering, so you can do more faster with confidence in your dataflows.
 
+### Designed for performance
+Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable workloads that today's dataflows demands. 
+
+### Integrates with other modern tools
+Prefect integrates with all the major cloud providers and modern data stack tools such as Snowflake, Databricks, dbt, Airbyte, and Fivetran. Prefect uses concurrency by default and you can set up parallel processing across clusters with our Dask and Ray integrations. Prefect is often used with Docker and Kubernetes.
+
+### Security first
 Prefect helps you keep your data and code secure. Prefect's hybrid execution model means your data can stay in your environment while Prefect Cloud orchestrates your flows. Prefect the company is SOC2 compliant and our enterprise product makes it easy for you to restrict access to the right people in your organization.
 
+### Flexible and easy to start
 You don’t need to rewrite your entire dataflow as a directed acyclic graph (DAG) to take advantage of Prefect 2.0. DAGs represent a rigid framework that is overly constraining for modern, dynamic dataflows. Instead, you can incrementally adopt Prefect 2.0 for dynamic dataflows.
 
 ## How to get started
@@ -41,9 +51,9 @@ Read the docs, run the code, and join 20,000 thousand community members in [our 
     Prefect 2.0 is under active development and may change rapidly. For production use, we recommend [Prefect 1.0](https://github.com/prefecthq/prefect).
 ---
 
-### Basic orchestration
+### Basic coordination
 
-Decorate functions to automatically retry them on failure while providing complete visibility in the Prefect 2.0 UI.
+The code below fetches data on GitHub stars. Add the three highlighted lines of code to your functions and you're off to the races. 
 
 
 ```python hl_lines="1 5 11"
@@ -65,6 +75,19 @@ def github_stars(repos: List[str]):
 # run the flow!
 github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
 ```
+
+By adding `retries=3 ` to the `task` decorator, the `get_stars` function will automatically rerun up to three times on failure.
+
+### Observe in the Prefect Orion UI dashboard 
+Fire up the UI locally to visualize the task run history and gain insight into their execution:
+
+```bash
+prefect orion start
+```
+
+![](./img/ui/orion-dashboard.png)
+
+From here, you can continue to use Prefect interactively, set up automated [deployments](concepts/deployments.md), or move to the hosted Prefecct Cloud.
 
 ### Parallel execution
 
@@ -92,8 +115,6 @@ if __name__ == "__main__":
     github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
 ```
 
----
-
 ### Async concurrency
 
 Prefect 2.0 ships with native async support. Flows can include a mix of synchronous and asynchronous tasks, just like Python.
@@ -119,17 +140,7 @@ async def github_stars(repos: List[str]):
 asyncio.run(github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"]))
 ```
 
-### Orion dashboard
-
-After running flows, fire up the UI to gain insight into their execution:
-
-```bash
-prefect orion start
-```
-
-![](./img/ui/orion-dashboard.png)
-
-From here, you can continue to use Prefect interactively, set up automated [deployments](concepts/deployments.md), or move to the hosted Prefecct Cloud.
+The above examples are just scratching the surface of how Prefect can help you coordinate your dataflows.
 
 ## Next steps
 
