@@ -1386,7 +1386,7 @@ class TestTaskInputs:
     async def test_task_inputs_populated_with_collection_result_upstream(
         self, result, orion_client, flow_with_upstream_downstream
     ):
-        flow_state = flow_with_upstream_downstream.run(result)
+        flow_state = flow_with_upstream_downstream._run(result)
         upstream_state, downstream_state = flow_state.result()
 
         task_run = await orion_client.read_task_run(
@@ -1401,7 +1401,7 @@ class TestTaskInputs:
     async def test_task_inputs_populated_with_basic_result_types_upstream(
         self, result, orion_client, flow_with_upstream_downstream
     ):
-        flow_state = flow_with_upstream_downstream.run(result)
+        flow_state = flow_with_upstream_downstream._run(result)
         upstream_state, downstream_state = flow_state.result()
 
         task_run = await orion_client.read_task_run(
@@ -1416,7 +1416,7 @@ class TestTaskInputs:
     async def test_task_inputs_not_populated_with_singleton_results_upstream(
         self, result, orion_client, flow_with_upstream_downstream
     ):
-        flow_state = flow_with_upstream_downstream.run(result)
+        flow_state = flow_with_upstream_downstream._run(result)
         _, downstream_state = flow_state.result()
 
         task_run = await orion_client.read_task_run(
