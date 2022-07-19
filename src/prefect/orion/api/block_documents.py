@@ -4,7 +4,6 @@ Routes for interacting with block objects.
 from typing import List, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from fastapi import (
     Body,
