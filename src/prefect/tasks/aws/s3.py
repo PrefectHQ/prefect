@@ -273,3 +273,92 @@ class S3List(Task):
             files.extend(obj["Key"] for obj in page.get("Contents", []))
 
         return files
+
+
+class S3Move(Task):
+    """
+    Task for moving data within a S3 bucket.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+    For authentication, there are two options: you can set a Prefect Secret containing your AWS
+    access keys which will be passed directly to the `boto3` client, or you can [configure your
+    flow's runtime
+    environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
+    for `boto3`.
+
+    Args:
+        - bucket (str, optional): the name of the S3 Bucket to upload to
+        - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+    """
+
+    def __init__(self, bucket: str = None, boto_kwargs: dict = None, **kwargs):
+        self.bucket = bucket
+
+        if boto_kwargs is None:
+            self.boto_kwargs = {}
+        else:
+            self.boto_kwargs = boto_kwargs
+
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs("bucket")
+    def run(
+        self,
+        key: str,
+        copy_source: str,
+        credentials: str = None,
+        bucket: str = None,
+        delete: bool = True,
+    ):
+        """
+        Task run method.
+
+        Args:
+            - key (str, optional): the Key to move the data to; if not
+                provided, a random `uuid` will be created
+            - copy_source (str): The name of the source bucket, key name of the source object, and optional
+                version ID of the source object. You can either provide this value as a string or a dictionary.
+                The string form is {bucket}/{key} or {bucket}/{key}?versionId={versionId} if you want to copy
+                a specific version. You can also provide this value as a dictionary. The dictionary format
+                is recommended over the string format because it is more explicit. The dictionary format
+                is: {'Bucket': 'bucket', 'Key': 'key', 'VersionId': 'id'}. Note that the VersionId key is
+                optional and may be omitted. To specify an S3 access point, provide the access point ARN
+                for the Bucket key in the copy source dictionary. If you want to provide the copy source for
+                an S3 access point as a string instead of a dictionary, the ARN provided must be the full
+                S3 access point object ARN (i.e. {accesspoint_arn}/object/{key})
+            - credentials (dict, optional): your AWS credentials passed from an upstream
+                Secret task; this Secret must be a JSON string
+                with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
+                passed directly to `boto3`.  If not provided here or in context, `boto3`
+                will fall back on standard AWS rules for authentication.
+            - bucket (str, optional): the name of the S3 Bucket to copy to
+            - delete (bool, optional): specify if the file should be deleted after copying
+
+        Returns:
+            - str: the name of the Key the data payload was moved to
+        """
+        if bucket is None:
+            raise ValueError("A bucket name must be provided.")
+
+        s3_client = get_boto_client("s3", credentials=credentials)
+
+        src_bucket = copy_source.split("/")[0]
+        source_key = "/".join(copy_source.split("/")[1:])
+
+        # create key if not provided
+        if key is None:
+            key = str(uuid.uuid4())
+
+        # move
+        self.logger.info(
+            f"Move file {source_key} from bucket {src_bucket} to {bucket}/{key}"
+        )
+        s3_client.copy_object(Bucket=bucket, CopySource=copy_source, Key=key)
+
+        # delete old file
+        if delete:
+            self.logger.info(f"Delete file {source_key} from bucket {src_bucket}")
+            s3_client.delete_object(Bucket=bucket, Key=source_key)
+        return key

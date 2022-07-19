@@ -6,7 +6,7 @@ import pytest
 pytest.importorskip("boto3")
 
 import prefect
-from prefect.tasks.aws import S3Download, S3Upload, S3List
+from prefect.tasks.aws import S3Download, S3Upload, S3List, S3Move
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -135,3 +135,18 @@ class TestS3List:
         task = S3List()
         with pytest.raises(ValueError, match="bucket"):
             task.run(prefix="fake/path")
+
+
+class TestS3Move:
+    def test_initialization(self):
+        S3Move()
+
+    def test_initialization_passes_to_task_constructor(self):
+        task = S3Move(name="test", tags=["AWS"])
+        assert task.name == "test"
+        assert task.tags == {"AWS"}
+
+    def test_raises_if_bucket_not_eventually_provided(self):
+        task = S3Move()
+        with pytest.raises(ValueError, match="bucket"):
+            task.run(copy_source="fake/path")
