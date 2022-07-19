@@ -84,7 +84,8 @@ Deployment(
 )
 ```
 
-Now let's look at how we can use RemoteFileSystem with AWS S3:
+Now let's look at how we can use `RemoteFileSystem` with AWS S3:
+
 ```
 aws_s3_file_packager = FilePackager(filesystem=RemoteFileSystem(
     basepath="s3://my-bucket",
