@@ -1,12 +1,12 @@
 """
 Command line interface for interacting with Prefect Cloud
 """
+import re
 from typing import Dict, Iterable, List, Optional
 
 import anyio
 import httpx
 import readchar
-import re
 import typer
 from fastapi import status
 from rich.live import Live
