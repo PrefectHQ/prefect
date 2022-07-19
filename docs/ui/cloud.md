@@ -16,19 +16,20 @@ Prefect Cloud is an orchestration-as-a-service platform. Prefect Cloud provides 
 - Flow run summaries
 - Details of upcoming scheduled flow runs
 - Warnings for late or failed runs
-- Task run details 
-- Radar flow and task dependency visualizer 
+- [Flows](/ui/flows/) observed by the Prefect Cloud API
+- Task runs within flow run, including the Radar task dependency visualizer 
 - Logs
-- [Deployments](/concepts/deployments/)
-- [Work queues](/concepts/work-queues/)
-- [Blocks](/concepts/blocks/)
+- [Deployments](/ui/deployments/)
+- [Work queues](/ui/work-queues/)
+- [Blocks](/ui/blocks/)
 - [Notifications](/ui/notifications/)
-- Create ad-hoc flow runs from deployments
+
+You can also use the Prefect Cloud UI to create ad-hoc flow runs from deployments.
 
 Features only available on Prefect Cloud include:
 
 - User accounts: personal accounts for working in Prefect Cloud. 
-- Workspaces: isolated environments for your flows and deployments.
+- Workspaces: isolated environments for your flows, deployments, and flow runs.
 - Collaborators: invite others to work in your workspace.
 - Email notifications: configure email alerts based on flow run states and tags.
 
@@ -54,7 +55,7 @@ While in the current beta phase, Prefect Cloud allows only one workspace per per
 Each workspace keeps track of its own:
 
 - Flow runs and task runs executed in an environment that is [syncing with the workspace](/ui/cloud/#workspaces)
-- Flows associated with flow runs or deployments tracked by the Prefect Cloud API
+- [Flows](/concepts/flows/) associated with flow runs or deployments observed by the Prefect Cloud API
 - [Deployments](/concepts/deployments/)
 - [Work queues](/concepts/work-queues/)
 - [Blocks](/ui/blocks/) and [Storage](/concepts/storage/)

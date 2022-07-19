@@ -11,12 +11,14 @@ tags:
 
 The Prefect UI provides an overview of all of your flows. It was designed around a simple question: what's the health of my system?
 
+![Prefect UI](/img/ui/orion-dashboard.png)
+
 There are two ways to access the UI:
 
-- The [Prefect UI](#using-the-orion-ui) gives you insight into the flows running with any local Prefect API server instance.
-- [Prefect Cloud](/ui/cloud/) is a hosted service that provides all the capabilities of the Prefect API server and orchestration engine, plus personal accounts, workspaces, and collaborators.
+- [Prefect Cloud](/ui/cloud/) is a hosted service that gives you observability over your flows, flow runs, and deployments, plus the ability to configure personal accounts, workspaces, and collaborators.
+- The [Prefect Orion UI](#using-the-orion-ui) is also available as an open source, locally hosted orchestration engine, API server, and UI, giving you insight into the flows running with any local Prefect Orion instance.
 
-The UI displays many useful insights about your flow runs, including:
+The Prefect UI displays many useful insights about your flow runs, including:
 
 - Flow run summaries
 - Deployed flow details
@@ -30,7 +32,9 @@ You can filter the information displayed in the UI by time, flow state, and tags
 
 ## Using the Prefect UI
 
-The Prefect UI is available in any environment where the Prefect API server is running with `prefect orion start`.
+The Prefect UI is available via [Prefect Cloud](/ui/cloud/) by logging into your account at [https://beta.prefect.io/](https://beta.prefect.io/).
+
+The Prefect UI is also available in any environment where a Prefect Orion server is running with `prefect orion start`.
 
 <div class="terminal">
 ```bash
@@ -50,14 +54,13 @@ Check out the dashboard at http://127.0.0.1:4200
 ```
 </div>
 
-When the Prefect API server is running, you can access the UI at [http://127.0.0.1:4200](http://127.0.0.1:4200).
+When the Prefect Orion server is running, you can access the Prefect UI at [http://127.0.0.1:4200](http://127.0.0.1:4200).
 
 ![Prefect UI](/img/ui/orion-dashboard.png)
 
 The following sections provide details about Prefect UI pages and visualizations:
 
 - [Flow Runs](/ui/dashboard/) page provides a high-level overview of your flow runs.
-- [Flow and flow run](/ui/flows-and-tasks/) pages let you dig into details of flow runs and task runs.
 - [Flows](/ui/flows/) provides an overview of specific flows tracked by by the API.
 - [Deployments](/ui/deployments/) provides an overview of flow deployments that you've created on the API.
 - [Work Queues](/ui/work-queues/) enable you to create and manage work queues that distribute flow runs to agents.
@@ -70,7 +73,7 @@ Use the left side of the Prefect UI to navigate between pages.
 
 | Page | Description |
 | --- | --- |
-| **Flow Runs**      | Displays the **Flow Runs** dashboard displaying flow run status for the current API server or Prefect Cloud workspace. From this dashboard you can create filters](/ui/dashboard/#filters) to display only certain flow runs, or click into details about specific flows or flow runs. |
+| **Flow Runs**      | Displays the **Flow Runs** dashboard displaying flow run status for the current API server or Prefect Cloud workspace. From this dashboard you can create [filters](/ui/dashboard/#filters) to display only certain flow runs, or click into details about specific flows or flow runs. |
 | **Flows**          | Displays a searchable list of flows tracked by the API. |
 | **Deployments**    | Displays flow [deployments](/concepts/deployments/) created on the API. |
 | <span class="no-wrap">**Work Queues**</span> | Displays configured [work queues](/ui/work-queues/) and enables creating new work queues. |
