@@ -152,13 +152,13 @@ We do not have a best practice for this yet. See the `kubernetes`, `docker`, and
 
 Sometimes, imports are slow. We'd like to keep the `prefect` module import times fast. In these cases, we can lazily import the slow module by deferring import to the relevant function body. For modules that are consumed by many functions, the pattern used for optional requirements may be used instead.
 
-#### Command line interface (CLI) output messages
+## Command line interface (CLI) output messages
 
-Upon executing a command that create things, the output message should offer:
-- a short description on what the command just did
-- next steps, like the next command to run, if applicable
-- other relevant, pre-formatted commands that can be copy + pasted
-- a new line before the first line and after the last line
+Upon executing a command that creates an object, the output message should offer the following:
+- A short description of what the command just did.
+- Next steps, like the next command to run, if applicable.
+- Other relevant, pre-formatted commands that can be copied and pasted, if applicable.
+- A new line before the first line and after the last line.
 
 Example:
 ```bash
@@ -175,10 +175,10 @@ Inspect the created work-queue:
 ```
 
 Additionally:
-- example commands should be indented, rather than wrapped in backticks (`)
-- if an example command cannot be pre-formatted completely, use placeholders wrapped in less than (<) and greater than (>) signs
-- to ensure validity, generated results must be wrapped in apostrophes (')
-- if triple quotes are used, be sure to utilize `textwrap.dedent` to remove extraneous spacing
+- Example commands should be indented, rather than wrapped in backticks (`).
+- If an example command cannot be pre-formatted completely, use placeholders wrapped in less than (<) and greater than (>) signs.
+- To ensure validity, generated results must be wrapped in apostrophes (').
+- If triple quotes are used, be sure to utilize `textwrap.dedent` to remove extraneous spacing.
 
 Example:
 ```python
@@ -199,7 +199,7 @@ output_msg = dedent(
 
 ## API Versioning
 
-The Prefect 2.0 client can be run separately from the Prefect 2.0 orchestration server and communicate entirely via an API. Among other things, the Prefect client includes anything that runs task or flow code, (e.g. agents, and the Python client) or any consumer of Prefect metadata, (e.g. the Prefect UI, and CLI). The Prefect 2.0 stores this metadata and serves it via the REST API.
+The Prefect 2.0 client can be run separately from the Prefect 2.0 orchestration server and communicate entirely via an API. Among other things, the Prefect client includes anything that runs task or flow code, (e.g. agents, and the Python client) or any consumer of Prefect metadata, (e.g. the Prefect UI, and CLI). The Orion server stores this metadata and serves it via the REST API.
 
 Sometimes, we make breaking changes to the API (for good reasons). In order to check that a Prefect 2.0 client is compatible with the API it's making requests to, every API call the client makes includes a three-component `API_VERSION` header with major, minor, and patch versions.
 
