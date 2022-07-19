@@ -167,7 +167,7 @@ async def test_uses_label_setting(
     await DockerContainer(labels={"foo": "FOO", "bar": "BAR"}).run()
     mock_docker_client.containers.create.assert_called_once()
     call_labels = mock_docker_client.containers.create.call_args[1].get("labels")
-    assert call_labels == {"foo": "FOO", "bar": "BAR"}
+    assert call_labels == {**CONTAINER_LABELS, "foo": "FOO", "bar": "BAR"}
 
 
 async def test_uses_network_mode_setting(
