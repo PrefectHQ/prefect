@@ -11,14 +11,9 @@ from typing_extensions import Literal
 import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
-from prefect.orion.utilities.names import generate_slug
-
-from prefect.orion.utilities.schemas import (
-    OBFUSCATED_SECRET,
-    ORMBaseModel,
-    PrefectBaseModel,
-)
-from prefect.utilities.collections import listrepr, flatdict_to_dict, dict_to_flatdict
+from prefect.orion.utilities.names import generate_slug, obfuscate_string
+from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
+from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
@@ -518,7 +513,7 @@ class BlockDocument(ORMBaseModel):
             ):
                 key = tuple(field.split("."))
                 if flat_data.get(key) is not None:
-                    flat_data[key] = OBFUSCATED_SECRET
+                    flat_data[key] = obfuscate_string(flat_data[key])
             data = flatdict_to_dict(flat_data)
 
         return cls(

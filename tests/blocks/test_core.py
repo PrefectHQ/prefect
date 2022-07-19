@@ -11,7 +11,7 @@ from prefect.blocks.core import Block
 from prefect.client import OrionClient
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
-from prefect.orion.utilities.schemas import OBFUSCATED_SECRET
+from prefect.orion.utilities.names import obfuscate_string
 from prefect.utilities.dispatch import lookup_type, register_type
 
 
@@ -1066,8 +1066,8 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "x": OBFUSCATED_SECRET,
-            "y": OBFUSCATED_SECRET,
+            "x": obfuscate_string("x"),
+            "y": obfuscate_string("x"),
             "z": "z",
         }
 
@@ -1108,9 +1108,9 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "a": OBFUSCATED_SECRET,
+            "a": obfuscate_string("a"),
             "b": "b",
-            "child": {"a": OBFUSCATED_SECRET, "b": "b"},
+            "child": {"a": obfuscate_string("a"), "b": "b"},
         }
 
         # read from DB with secrets
@@ -1151,9 +1151,9 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "a": OBFUSCATED_SECRET,
+            "a": obfuscate_string("a"),
             "b": "b",
-            "child": {"a": OBFUSCATED_SECRET, "b": "b"},
+            "child": {"a": obfuscate_string("a"), "b": "b"},
         }
 
         # read from DB with secrets
