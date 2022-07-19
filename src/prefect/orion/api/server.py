@@ -68,12 +68,10 @@ class SPAStaticFiles(StaticFiles):
     """
 
     async def get_response(self, path: str, scope):
-        response = await super().get_response(path, scope)
-
-        if response.status_code == status.HTTP_404_NOT_FOUND:
-            response = await super().get_response("./index.html", scope)
-
-        return response
+        try:
+            return await super().get_response(path, scope)
+        except:
+            return await super().get_response("./index.html", scope)
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -213,6 +211,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     def ui_settings():
         return {
             "api_url": prefect.settings.PREFECT_ORION_UI_API_URL.value(),
+            "ui_url": prefect.__ui_static_path__,
         }
 
     if (
@@ -222,7 +221,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     ):
         ui_app.mount(
             "/",
-            SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
+            SPAStaticFiles(directory=prefect.__ui_static_path__),
             name="ui_root",
         )
 
