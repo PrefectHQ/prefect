@@ -154,13 +154,13 @@ Sometimes, imports are slow. We'd like to keep the `prefect` module import times
 
 ## Command line interface (CLI) output messages
 
-Upon executing a command that creates an object, the output message should offer the following:
+Upon executing a command that creates an object, the output message should offer:
 - A short description of what the command just did.
 - Next steps, like the next command to run, if applicable.
 - Other relevant, pre-formatted commands that can be copied and pasted, if applicable.
 - A new line before the first line and after the last line.
 
-Example:
+Output Example:
 ```bash
 $ prefect work-queue create testing
 
@@ -175,13 +175,19 @@ Inspect the created work-queue:
 ```
 
 Additionally:
-- Example commands should be indented, rather than wrapped in backticks (`).
-- If an example command cannot be pre-formatted completely, use placeholders wrapped in less than (<) and greater than (>) signs.
-- Placeholder labels should be capitalized, e.g. `prefect work-queue create <WORK QUEUE NAME> -t <OPTIONAL TAGS>`.
-- To ensure validity, generated results must be wrapped in apostrophes (').
-- If triple quotes are used, be sure to utilize `textwrap.dedent` to remove extraneous spacing.
+- Wrap generated arguments in apostrophes (') to ensure validity.
+- Indent example commands, instead of wrapping in backticks (`).
+- Use placeholders if the example cannot be pre-formatted completely.
+- Capitalize placeholder labels and wrap them in less than (<) and greater than (>) signs.
+- Utilize `textwrap.dedent` to remove extraneous spacing for strings that are written with triple quotes (""").
 
-Example:
+Placholder Example:
+```bash
+Create a work-queue with tags:
+    prefect work-queue create '<WORK QUEUE NAME>' -t '<OPTIONAL TAG 1>' -t '<OPTIONAL TAG 2>'
+```
+
+Dedent Example:
 ```python
 from textwrap import dedent
 ...
