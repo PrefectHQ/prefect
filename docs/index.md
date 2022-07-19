@@ -53,7 +53,7 @@ Read the docs, run the code, and join 20,000 thousand community members in [our 
 
 ### Basic coordination
 
-The code below fetches data on GitHub stars. Add the three highlighted lines of code to your functions and you're off to the races. 
+The code below fetches data on GitHub stars from a few repositories. Add the three highlighted lines of code to your functions and you're off to the races! 
 
 
 ```python hl_lines="1 5 11"
@@ -72,11 +72,12 @@ def github_stars(repos: List[str]):
     for repo in repos:
         get_stars(repo)
 
-# run the flow!
+# call the flow!
 github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
 ```
 
 By adding `retries=3 ` to the `task` decorator, the `get_stars` function will automatically rerun up to three times on failure.
+
 
 ### Observe in the Prefect Orion UI dashboard 
 Fire up the UI locally to visualize the task run history and gain insight into their execution:
