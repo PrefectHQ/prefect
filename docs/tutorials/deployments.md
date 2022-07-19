@@ -98,7 +98,9 @@ A deployment specification is a definition of a `Deployment` object. You can cre
 
 To create the deployment specification, import `Deployment`, then define a `Deployment` object as either Python or [YAML code](/concepts/deployments/#deployment-specifications-as-code). 
 
-Here's an example of a deployment specification for the flow you created earlier in `leo_flow.py`. Save the following code in a new `leo_deployment.py` file. 
+Here's an example of a deployment specification for the flow you created earlier in `leo_flow.py`. We'll also use a [`FlowScript`](/concepts/deployments/#deployment-object) to pass the name of the flow function and the location of the flow script. 
+
+Save the following deployment specification code in a new `leo_deployment.py` file. 
 
 ```python
 from prefect.deployments import Deployment
