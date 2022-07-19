@@ -129,6 +129,7 @@ A file system may implement both of these types.
 
 ## Examples
 What does a working example of a MinIO-backed S3 storage block look like within a Prefect flow?
+
 ```
 from prefect import flow, task
 from prefect.deployments import Deployment
