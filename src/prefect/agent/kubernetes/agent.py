@@ -486,6 +486,7 @@ class KubernetesAgent(Agent):
             "prefect.io/identifier": identifier,
             "prefect.io/flow_run_id": flow_run.id,  # type: ignore
             "prefect.io/flow_id": flow_run.flow.id,  # type: ignore
+            "prefect.io/flow_run_name": flow_run.name,  # type: ignore
         }
         _get_or_create(job, "metadata.labels")
         _get_or_create(job, "spec.template.metadata.labels")
