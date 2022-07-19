@@ -1,5 +1,23 @@
 # Prefect Release Notes
 
+## 2.0b9
+
+Big things are in the works for Prefect 2! This release includes breaking changes and deprecations in preparation for Prefect 2 graduating from its beta period to General Availability next week. With next week's release on 7/27, Prefect 2 will become the default package installed with `pip install prefect`. **Flows written with Prefect 1 will require modifications to run with Prefect 2**. Please ensure that your package management process enables to to make the transition when the time is right for you.
+
+### Code as workflows
+As Prefect 2 usage has grown, we've observed a pattern among users, especially folks that were not previously users of Prefect 1. Working with Prefect was so much like working in native Python, users were often surprised that their tasks returned futures and states, Prefect objects, rather than results, the data that their Python functions were handling. This led to unfamiliar, potentially intimidating, errors in some cases. With this release, Prefect moves one step closer to code as workflows - tasks now return the results of their functions, rather than their states, by default. This means that you can truly take most native Python scripts, add the relevant @flow and @task decorators, and start running that script as a flow, benefitting from the observability and resilience that Prefect provides.
+
+States and futures are still important concepts in dictating and understanding the behavior of flows. You will still be able to easily access and use them with the `.submit()` method. You will need to modify tasks in existing Prefect 2 flows to use this method to continue working as before.
+
+### Other improvements and bug fixes
+- Date filters on the flow run page now support filtering by date _and_ time
+- Each work queue page now includes a command to start a corresponding agent
+- Tutorials have been updated for increased clarity and consistency
+- Cron schedule setting errors are now more informative
+- Prefect now still works even if the active profile is missing
+- Conda requirements regex now supports underscores and dots
+- The previously deprecated `DeploymentSpec` has been removed
+
 ## 2.0b8
 
 This is our biggest release yet! It's full of exciting new features and refinements to existing concepts. Some of these features are the result of careful planning and execution over the past few months, while others are responses to your feedback, unplanned but carefully considered. None would be possible without your continued support. Take it for a spin and let us know what you think!
@@ -46,7 +64,7 @@ Learn more in the [Deployment concept documentation](https://orion-docs.prefect.
 You can continue to use your existing `DeploymentSpec`s, but they are deprecated and will be removed in the coming weeks.
 
 ### Blocks
-We've been working on Blocks behind the scenes for a while. Whether you know it or not, if you've used the past few releases, you've used them. Blocks enable you to securely store configuration with the Prefect Orion server and access it from your code later with just a simple reference. Think of Blocks as secure, UI-editable, type-checked environment variables. We're starting with just a few Blocks - mostly storage, but over time we’ll expand this pattern to include every tool and service in the growing modern data stack. You'll be able to set up access to your entire stack once in just a few minutes, then manage access forever without editing your code. In particular, we've made the following enhancements: 
+We've been working on Blocks behind the scenes for a while. Whether you know it or not, if you've used the past few releases, you've used them. Blocks enable you to securely store configuration with the Prefect Orion server and access it from your code later with just a simple reference. Think of Blocks as secure, UI-editable, type-checked environment variables. We're starting with just a few Blocks - mostly storage, but over time we’ll expand this pattern to include every tool and service in the growing modern data stack. You'll be able to set up access to your entire stack once in just a few minutes, then manage access forever without editing your code. In particular, we've made the following enhancements:
 - Block document values can now be updated via the Python client with the `overwrite` flag.
 - Blocks now support secret fields. By default, fields identified as secret will be obfuscated when returned to the Prefect UI. The actual values can still be retrieved as necessary.
 -  `BlockSchema` objects have a new `secret_fields: List[str]` item in their schema's extra fields. This is a list of all fields that should be considered "secret". It also includes any secret fields from nested blocks referenced by the schema.
@@ -102,7 +120,7 @@ This release includes a number of important improvements and bug fixes in respon
 
 Note that the Dask and Ray task runners have been moved out of the Prefect core library to reduce the number of dependencies we require for most use cases. Install from the command line with `pip install prefect-dask` and import with `from prefect_dask.task_runners import DaskTaskRunner`.
 
-### Bug squashing
+### Bug fixes
 - [Allow Orion UI to run on Windows](https://github.com/PrefectHQ/prefect/pull/5802)
 - Fixed a bug in terminal state data handling that caused timeouts
 - Disabled flow execution during deployment creation to prevent accidental execution.
