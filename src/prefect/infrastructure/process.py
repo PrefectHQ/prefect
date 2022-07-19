@@ -65,7 +65,9 @@ class Process(Infrastructure):
         else:
             self.logger.info(f"Process{display_name} exited cleanly.")
 
-        return ProcessResult(status_code=process.returncode, identifier=process.pid)
+        return ProcessResult(
+            status_code=process.returncode, identifier=str(process.pid)
+        )
 
 
 class ProcessResult(InfrastructureResult):
