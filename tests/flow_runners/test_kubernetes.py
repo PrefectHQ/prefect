@@ -416,7 +416,7 @@ class TestKubernetesFlowRunner:
         flow_run,
         use_hosted_orion,
     ):
-        with pytest.raises(RuntimeError, match="Pod never started"):
+        with pytest.raises(RuntimeError, match="Pod for job"):
             await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
 
     async def test_defaults_to_incluster_config(
