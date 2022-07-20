@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping, Optional, Union
 
-from pydantic import AnyHttpUrl, root_validator
+from pydantic import AnyHttpUrl, root_validator, validator
 from slugify import slugify
 from typing_extensions import Literal
 
@@ -69,6 +69,13 @@ class DockerPackager(Packager):
         if values.get("base_image") and not values.get("python_environment"):
             values["python_environment"] = PythonEnvironment.from_environment()
         return values
+
+    @validator("registry_url", pre=True)
+    def ensure_registry_url_is_prefixed(cls, value):
+        if isinstance(value, str):
+            if "://" not in value:
+                return "https://" + value
+        return value
 
     async def package(self, flow: Flow) -> DockerPackageManifest:
         """

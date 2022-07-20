@@ -112,6 +112,27 @@ async def test_packaging_a_flow_to_registry(prefect_base_image: str, registry: s
 
 
 @pytest.mark.service("docker")
+async def test_packaging_a_flow_to_registry_without_scheme(
+    prefect_base_image: str, registry: str
+):
+    packager = DockerPackager(
+        base_image=prefect_base_image,
+        python_environment=PythonEnvironment(
+            python_version="3.9",
+            pip_requirements=["requests==2.28.0"],
+        ),
+        registry_url="localhost:5555",
+    )
+
+    manifest = await packager.package(howdy)
+
+    assert isinstance(manifest, DockerPackageManifest)
+    assert manifest.image.startswith("localhost:5555/howdy:")
+    assert manifest.image_flow_location == "/flow.py"
+    assert manifest.flow_name == "howdy"
+
+
+@pytest.mark.service("docker")
 async def test_creating_deployments(prefect_base_image: str, orion_client: OrionClient):
     deployment = Deployment(
         name="howdy-deployed",

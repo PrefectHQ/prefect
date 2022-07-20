@@ -22,20 +22,20 @@ from prefect.flow_runners.docker import CONTAINER_LABELS
 
 @pytest.fixture(scope="session")
 def docker(worker_id: str) -> Generator[DockerClient, None, None]:
-    ctx = docker_client()
+    context = docker_client()
     try:
-        client = ctx.__enter__()
+        client = context.__enter__()
     except Exception as exc:
         raise RuntimeError(
             "Failed to create Docker client. Exclude tests that require Docker with "
             "'--exclude-service docker'."
         ) from exc
-    else:
-        try:
-            with cleanup_all_new_docker_objects(client, worker_id):
-                yield client
-        finally:
-            ctx.__exit__(*sys.exc_info())
+
+    try:
+        with cleanup_all_new_docker_objects(client, worker_id):
+            yield client
+    finally:
+        context.__exit__(*sys.exc_info())
 
 
 @contextmanager

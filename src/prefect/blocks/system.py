@@ -43,12 +43,12 @@ class EnvironmentVariable(Block):
     behavior to be modified remotely by changing the environment variable name.
 
     Example:
-    ```python
-    block = EnvironmentVariable(name="MY_ENV_VAR")
+        ```python
+        block = EnvironmentVariable(name="MY_ENV_VAR")
 
-    # loads the value of MY_ENV_VAR
-    block.get()
-    ```
+        # loads the value of MY_ENV_VAR
+        block.get()
+        ```
 
     """
 
@@ -67,14 +67,14 @@ class Secret(Block):
     this block is logged or shown in the UI.
 
     Example:
-    ```python
-    from prefect.blocks.system import Secret
+        ```python
+        from prefect.blocks.system import Secret
 
-    secret_block = Secret.load("BLOCK_NAME")
+        secret_block = Secret.load("BLOCK_NAME")
 
-    # Access the stored secret
-    secret_block.get()
-    ```
+        # Access the stored secret
+        secret_block.get()
+        ```
     """
 
     value: SecretStr = Field(
