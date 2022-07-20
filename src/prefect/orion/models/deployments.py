@@ -518,17 +518,6 @@ async def check_work_queues_for_deployment(
                 json_contains([], db.WorkQueue.filter["deployment_ids"]),
             )
         )
-        # flow_runner_types is null or contains the deployment's flow runner type
-        .filter(
-            or_(
-                json_contains(
-                    db.WorkQueue.filter["flow_runner_types"],
-                    deployment.flow_runner_type,
-                ),
-                json_contains(None, db.WorkQueue.filter["flow_runner_types"]),
-                json_contains([], db.WorkQueue.filter["flow_runner_types"]),
-            )
-        )
     )
 
     result = await session.execute(query)

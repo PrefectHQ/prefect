@@ -17,7 +17,7 @@ import pydantic
 from azure.storage.blob import BlobServiceClient
 from fsspec.implementations.local import LocalFileSystem
 from google.oauth2 import service_account
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from typing_extensions import Literal
 
 from prefect.blocks.core import Block
@@ -167,9 +167,11 @@ class S3StorageBlock(StorageBlock):
     _block_type_name = "S3 Storage"
 
     bucket: str
-    aws_access_key_id: Optional[str] = None
-    aws_secret_access_key: Optional[SecretStr] = None
-    aws_session_token: Optional[str] = None
+    aws_access_key_id: Optional[str] = Field(None, title="AWS Access Key ID")
+    aws_secret_access_key: Optional[SecretStr] = Field(
+        None, title="AWS Secret Access Key"
+    )
+    aws_session_token: Optional[str] = Field(None, title="AWS Session Token")
     profile_name: Optional[str] = None
     region_name: Optional[str] = None
 

@@ -18,7 +18,7 @@ Engine process overview
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
-from typing import Any, Awaitable, Dict, Iterable, Optional, Set, TypeVar, Union
+from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
 from uuid import UUID
 
 import anyio
@@ -38,7 +38,7 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_deployment
-from prefect.exceptions import Abort, UpstreamTaskError
+from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_data
 from prefect.logging.configuration import setup_logging
@@ -630,10 +630,12 @@ def enter_task_run_engine(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
+    mapped: bool,
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
     """
     Sync entrypoint for task calls
     """
+
     flow_run_context = FlowRunContext.get()
     if not flow_run_context:
         raise RuntimeError(
@@ -650,7 +652,7 @@ def enter_task_run_engine(
         raise TimeoutError("Flow run timed out")
 
     begin_run = partial(
-        create_task_run_then_submit,
+        begin_task_map if mapped else create_task_run_then_submit,
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
@@ -671,6 +673,48 @@ def enter_task_run_engine(
     else:
         # Call out to the sync portal since we are not in a worker thread
         return flow_run_context.sync_portal.call(begin_run)
+
+
+async def begin_task_map(
+    task: Task,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
+    return_type: EngineReturnType,
+    task_runner: Optional[BaseTaskRunner],
+) -> List[Union[PrefectFuture, Awaitable[PrefectFuture]]]:
+    """Async entrypoint for task mapping"""
+
+    # Resolve any futures / states that are in the parameters as we need to
+    # validate the lengths of those values before proceeding.
+    parameters.update(await resolve_inputs(parameters))
+    parameter_lengths = {key: len(val) for key, val in parameters.items()}
+
+    lengths = set(parameter_lengths.values())
+    if len(lengths) > 1:
+        raise MappingLengthMismatch(
+            "Received parameters with different lengths. Parameters for map "
+            f"must all be the same length. Got lengths: {parameter_lengths}"
+        )
+
+    map_length = list(lengths)[0] if lengths else 1
+
+    task_runs = []
+    for i in range(map_length):
+        call_parameters = {key: value[i] for key, value in parameters.items()}
+        task_runs.append(
+            partial(
+                create_task_run_then_submit,
+                task=task,
+                flow_run_context=flow_run_context,
+                parameters=call_parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=task_runner,
+            )
+        )
+
+    return await gather(*task_runs)
 
 
 async def collect_task_run_inputs(
