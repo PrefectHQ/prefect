@@ -24,14 +24,14 @@ If you move data then you probably need the following functionality:
 - [notifications](ui/notifications/)
 - [observability](/ui/overview/)
 
-Coding all these features for your dataflows is a huge pain that takes a lot of time. 
+Coding all these features for your dataflows is a huge pain that takes a lot of time--time that could be better used for functional code.
 
 That's why Prefect 2.0 offers all this functionality and more! 
 
-All it takes to get started is a adding a few decorators and a little configuration. Check out this quick example. 
+To dive right in, simply sprinkle in a few decorators and add a little configuration, like the example below. 
 ## Brief example
 
-The code below fetches data about GitHub stars for two repositories. Add the three highlighted lines of code to your functions and you're off to the races! 
+The code below fetches data about GitHub stars for two repositories. Add the three highlighted lines of code to your functions to use Prefect, and you're off to the races! 
 
 
 ```python hl_lines="1 4 10"
@@ -88,7 +88,7 @@ Prefect provides [concurrency and sequential execution options](concepts/task-ru
 Prefect is often used with [Docker and Kubernetes](concepts/deployments/#packaging-flows). Prefect can even package your flow directly into a Docker image. 
 
 ### Security first
-Prefect helps you keep your data and code secure. Prefect's patented [hybrid execution model](https://www.prefect.io/why-prefect/hybrid-model/) means your data can stay in your environment while Prefect Cloud orchestrates your flows. Prefect the company is SOC2 compliant and our enterprise product makes it easy for you to restrict access to the right people in your organization.
+Prefect helps you keep your data and code secure. Prefect's patented [hybrid execution model](https://www.prefect.io/why-prefect/hybrid-model/) means your data can stay in your environment while Prefect Cloud orchestrates your flows. Prefect, the company, is SOC2 compliant and our enterprise product makes it easy for you to restrict access to the right people in your organization.
 
 ### Faster and easier than building from scratch
 It's estimated that up to 80% of a data engineer's time is spent writing code to guard against edge cases and provide information when a dataflow inevitably fails. Building the functionality that Prefect 2.0 delivers by hand would be a significant cost of engineering time. 
