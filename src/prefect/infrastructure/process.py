@@ -26,7 +26,22 @@ def _use_threaded_child_watcher():
 
 
 class Process(Infrastructure):
-    type: Literal["subprocess"] = "subprocess"
+    """
+    Run a command in a new process.
+
+    Current environment variables and Prefect settings will be included in the created
+    process. Configured environment variables will override any current environment
+    variables.
+
+    Attributes:
+        command: A list of strings specifying the command to run for the process
+        env: Environment variables to set for the new process.
+        name: A name for the process. For display purposes only.
+        labels: Labels for the process. Labels are for metadata purposes only and
+            cannot be attached to the process itself.
+    """
+
+    type: Literal["process"] = "process"
     stream_output: bool = True
 
     async def run(
