@@ -402,7 +402,4 @@ async def preview(path: Path):
     for deployment in deployments:
         name = repr(deployment.name) if deployment.name else "<unnamed deployment>"
         app.console.print(f"[green]Preview for {name}[/]:\n")
-        # TODO: Add preview to infrastructure blocks
-        app.console.print(
-            _prepare_infrastructure(flow_run, deployment.infrastructure).dict()
-        )
+        print(_prepare_infrastructure(flow_run, deployment.infrastructure).preview())

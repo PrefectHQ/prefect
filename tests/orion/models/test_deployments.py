@@ -1,7 +1,7 @@
 import datetime
-import time
 from uuid import uuid4
 
+import anyio
 import pendulum
 import pytest
 import sqlalchemy as sa
@@ -39,9 +39,13 @@ class TestCreateDeployment:
         assert deployment.infrastructure_document_id == infrastructure_document_id
 
     async def test_create_deployment_updates_existing_deployment(
-        self, session, flow, flow_function, infrastructure_document_id
+        self,
+        session,
+        flow,
+        flow_function,
+        infrastructure_document_id,
+        infrastructure_document_id_2,
     ):
-        from prefect.infrastructure import DockerContainer
 
         flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
@@ -62,13 +66,11 @@ class TestCreateDeployment:
         assert deployment.tags == []
         assert deployment.infrastructure_document_id == infrastructure_document_id
 
-        time.sleep(1)
+        await anyio.sleep(1)  # Sleep so update time is easy to differentiate
 
         schedule = schemas.schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
         )
-
-        new_infrastructure_document_id = DockerContainer._save(is_anonymous=True)
 
         flow_data = DataDocument.encode("json", "test-override")
         deployment = await models.deployments.create_deployment(
@@ -81,9 +83,10 @@ class TestCreateDeployment:
                 is_schedule_active=False,
                 parameters={"foo": "bar"},
                 tags=["foo", "bar"],
-                infrastructure_document_id=new_infrastructure_document_id,
+                infrastructure_document_id=infrastructure_document_id_2,
             ),
         )
+
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
         assert deployment.flow_data == flow_data
@@ -92,7 +95,7 @@ class TestCreateDeployment:
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
         assert deployment.updated > original_update_time
-        assert deployment.infrastructure_document_id == new_infrastructure_document_id
+        assert deployment.infrastructure_document_id == infrastructure_document_id_2
 
     async def test_create_deployment_with_schedule(
         self, session, flow, flow_function, infrastructure_document_id

@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
-from prefect.infrastructure import Process
+from prefect.infrastructure import DockerContainer, Process
 from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.orchestration.rules import (
@@ -181,6 +181,11 @@ async def task_run_states(session, task_run, task_run_state):
 @pytest.fixture
 async def infrastructure_document_id():
     return await Process(env={"MY_TEST_VARIABLE": 1})._save(is_anonymous=True)
+
+
+@pytest.fixture
+async def infrastructure_document_id_2():
+    return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(is_anonymous=True)
 
 
 @pytest.fixture

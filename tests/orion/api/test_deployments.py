@@ -6,6 +6,7 @@ import pytest
 import sqlalchemy as sa
 from fastapi import status
 
+from prefect.infrastructure import DockerContainer
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import DeploymentCreate
 from prefect.orion.schemas.data import DataDocument
@@ -33,8 +34,8 @@ class TestCreateDeployment:
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "My Deployment"
         assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
-        assert (
-            response.json()["infrastructure_document_id"] == infrastructure_document_id
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
         )
         deployment_id = response.json()["id"]
 
@@ -79,8 +80,8 @@ class TestCreateDeployment:
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
         assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
-        assert (
-            response.json()["infrastructure_document_id"] == infrastructure_document_id
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
         )
         assert not response.json()["is_schedule_active"]
 
@@ -100,8 +101,8 @@ class TestCreateDeployment:
         assert response.json()["flow_data"] == DataDocument.encode("json", "test").dict(
             json_compatible=True
         )
-        assert (
-            response.json()["infrastructure_document_id"] == infrastructure_document_id
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
         )
 
     async def test_create_deployment_populates_and_returned_created(
@@ -311,8 +312,8 @@ class TestReadDeployment:
         assert response.json()["name"] == "My Deployment"
         assert response.json()["flow_id"] == str(flow.id)
         assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
-        assert (
-            response.json()["infrastructure_document_id"] == infrastructure_document_id
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
         )
 
     async def test_read_deployment_returns_404_if_does_not_exist(self, client):
@@ -342,8 +343,8 @@ class TestReadDeploymentByName:
         assert response.json()["name"] == "My Deployment"
         assert response.json()["flow_id"] == str(flow.id)
         assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
-        assert (
-            response.json()["infrastructure_document_id"] == infrastructure_document_id
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
         )
 
     async def test_read_deployment_by_name_returns_404_if_does_not_exist(self, client):
@@ -820,9 +821,8 @@ class TestCreateFlowRunFromDeployment:
         assert response.json()["parameters"] == deployment.parameters
         assert response.json()["flow_id"] == str(deployment.flow_id)
         assert response.json()["deployment_id"] == str(deployment.id)
-        assert (
-            response.json()["infrastructure_document_id"]
-            == deployment.infrastructure_document_id
+        assert response.json()["infrastructure_document_id"] == str(
+            deployment.infrastructure_document_id
         )
 
     async def test_create_flow_run_from_deployment_override_params(
@@ -850,20 +850,16 @@ class TestCreateFlowRunFromDeployment:
     async def test_create_flow_run_from_deployment_override_infrastructure_document_id(
         self, deployment, client
     ):
-        from prefect.infrastructure import DockerContainer
-
-        infrastructure_document_id = await DockerContainer._save(is_anonymous=True)
+        infrastructure_document_id = await DockerContainer()._save(is_anonymous=True)
 
         response = await client.post(
             f"deployments/{deployment.id}/create_flow_run",
             json=schemas.actions.DeploymentFlowRunCreate(
-                infrastructure_document_id=schemas.core.FlowRunnerSettings(
-                    type="override", config={"apple": "berry"}
-                )
+                infrastructure_document_id=infrastructure_document_id
             ).dict(json_compatible=True),
         )
-        assert (
-            response.json()["infrastructure_document_id"] == infrastructure_document_id
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
         )
 
 

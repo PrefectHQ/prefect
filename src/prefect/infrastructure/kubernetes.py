@@ -209,6 +209,9 @@ class KubernetesJob(Infrastructure):
         # Monitor the job
         return await run_sync_in_worker_thread(self._watch_job, job_name)
 
+    def preview(self):
+        return yaml.dump(self.build_job())
+
     def build_job(self) -> KubernetesManifest:
         """Builds the Kubernetes Job Manifest"""
         job_manifest = copy.copy(self.job)
