@@ -137,8 +137,10 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     schema = pydantic.create_model("Parameters", **model_fields).schema()
 
     # Restore aliased names
-    for alias, name in aliases.items():
-        schema["properties"][name] = schema["properties"].pop(alias)
-    schema["required"] = [aliases.get(name) or name for name in schema["required"]]
+    if "properties" in schema:
+        for alias, name in aliases.items():
+            schema["properties"][name] = schema["properties"].pop(alias)
+    if "required" in schema:
+        schema["required"] = [aliases.get(name) or name for name in schema["required"]]
 
     return ParameterSchema(**schema)
