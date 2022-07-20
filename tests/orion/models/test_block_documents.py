@@ -117,7 +117,7 @@ class TestCreateBlockDocument:
         )
         await session.commit()
 
-        assert result.name == X
+        assert result.name == "x"
         assert result.data == dict(y=1)
         assert result.block_schema_id == block_schemas[0].id
         assert result.block_schema.checksum == block_schemas[0].checksum
