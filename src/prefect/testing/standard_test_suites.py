@@ -434,7 +434,7 @@ class TaskRunnerStandardTestSuite(ABC):
 
         assert tmp_file.read_text() == "bar"
 
-    def test_sync_tasks_run_concurrently_with_parallel_task_runners(
+    def test_sync_tasks_run_sequentially_with_parallel_task_runners(
         self, task_runner, tmp_file, tmp_path
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.PARALLEL:
@@ -459,9 +459,9 @@ class TaskRunnerStandardTestSuite(ABC):
             foo()
             bar()
 
-        test_flow().result()
+        test_flow()
 
-        assert tmp_file.read_text() == "foo"
+        assert tmp_file.read_text() == "bar"
 
     async def test_async_tasks_run_sequentially_with_sequential_task_runners(
         self, task_runner, tmp_file
@@ -489,7 +489,7 @@ class TaskRunnerStandardTestSuite(ABC):
 
         assert tmp_file.read_text() == "bar"
 
-    async def test_async_tasks_run_concurrently_with_parallel_task_runners(
+    async def test_async_tasks_run_sequentially_with_parallel_task_runners(
         self, task_runner, tmp_file
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.PARALLEL:
@@ -511,9 +511,9 @@ class TaskRunnerStandardTestSuite(ABC):
             await foo()
             await bar()
 
-        (await test_flow()).result()
+        await test_flow()
 
-        assert tmp_file.read_text() == "foo"
+        assert tmp_file.read_text() == "bar"
 
     async def test_async_tasks_run_concurrently_with_task_group_with_all_task_runners(
         self, task_runner, tmp_file
