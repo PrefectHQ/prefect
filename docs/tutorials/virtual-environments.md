@@ -22,7 +22,7 @@ We recommend reading the documentation for the virtual environment of your choic
 In this example, we create an environment named `prefect-dev` with Python 3.8:
 
 ```bash
-conda create --name prefect-dev python=3.8   
+conda create --name prefect-dev python=3.10   
 ```
 
 Then, we activate the environment:
@@ -33,7 +33,7 @@ conda activate prefect-dev
 
 Now, [install Prefect](/getting-started/installation.md):
 ```bash
-pip install prefect>=2.0a
+pip install prefect>=2.0b
 ```
 
 ## Isolating settings per environment
