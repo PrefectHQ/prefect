@@ -882,11 +882,12 @@ async def test_create_flow_run_from_deployment_with_saved_infrastructure(
     orion_client, deployment
 ):
     infrastructure = Process(env={"foo": "bar"})
-    expected_id = await infrastructure.save("hello")
+    infrastructure_document_id = await infrastructure.save("hello")
     flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id, infrastructure=infrastructure
+        deployment.id,
+        infrastructure_document_id=infrastructure_document_id,
     )
-    assert flow_run.infrastructure_document_id == expected_id
+    assert flow_run.infrastructure_document_id == infrastructure_document_id
 
     # Flow runner is empty
     assert flow_run.flow_runner == FlowRunnerSettings(type=None, config=None)
