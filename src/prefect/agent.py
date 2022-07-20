@@ -2,7 +2,6 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
-from functools import partial
 from typing import List, Optional
 from uuid import UUID
 
@@ -16,11 +15,10 @@ from fastapi import status
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client
 from prefect.exceptions import Abort
-from prefect.flow_runners import FlowRunner
-from prefect.infrastructure.base import Infrastructure
+from prefect.infrastructure import Infrastructure, Process
 from prefect.infrastructure.submission import submit_flow_run
 from prefect.logging import get_logger
-from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
+from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Failed, Pending
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
@@ -32,6 +30,8 @@ class OrionAgent:
         work_queue_id: UUID = None,
         work_queue_name: str = None,
         prefetch_seconds: int = None,
+        default_infrastructure: Infrastructure = None,
+        default_infrastructure_document_id: UUID = None,
     ) -> None:
         if not work_queue_id and not work_queue_name:
             raise ValueError(
@@ -39,6 +39,12 @@ class OrionAgent:
             )
         if work_queue_id and work_queue_name:
             raise ValueError("Provide only one of work_queue_id and work_queue_name.")
+
+        if default_infrastructure and default_infrastructure_document_id:
+            raise ValueError(
+                "Provide only one of 'default_infrastructure' and 'default_infrastructure_document_id'."
+            )
+
         self.work_queue_id = work_queue_id
         self.work_queue_name = work_queue_name
         self.prefetch_seconds = prefetch_seconds
@@ -47,6 +53,18 @@ class OrionAgent:
         self.logger = get_logger("agent")
         self.task_group: Optional[TaskGroup] = None
         self.client: Optional[OrionClient] = None
+
+        if default_infrastructure:
+            self.default_infrastructure_document_id = (
+                default_infrastructure._block_document_id
+            )
+            self.default_infrastructure = default_infrastructure
+        elif default_infrastructure_document_id:
+            self.default_infrastructure_document_id = default_infrastructure_document_id
+            self.default_infrastructure = None
+        else:
+            self.default_infrastructure = Process()
+            self.default_infrastructure_document_id = None
 
     async def work_queue_id_from_name(self) -> Optional[UUID]:
         """
@@ -121,23 +139,15 @@ class OrionAgent:
             )
         return submittable_runs
 
-    def get_flow_runner(self, flow_run: FlowRun) -> Optional[FlowRunner]:
-        # TODO: Here, the agent may merge settings with those contained in the
-        #       flow_run.flow_runner settings object
-        if not flow_run.flow_runner.type and not flow_run.flow_runner.config:
-            return None
-
-        flow_runner_settings = flow_run.flow_runner.copy() or FlowRunnerSettings()
-        if not flow_runner_settings.type or flow_runner_settings.type == "universal":
-            flow_runner_settings.type = "subprocess"
-
-        return FlowRunner.from_settings(flow_runner_settings)
-
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
-        document = await self.client.read_block_document(
+        infrastructure_document_id = (
             flow_run.infrastructure_document_id
+            or self.default_infrastructure_document_id
         )
+        document = await self.client.read_block_document(infrastructure_document_id)
         infrastructure_block = Block._from_block_document(document)
+
+        # TODO: Here the agent may update the infrastructure with agent-level settings
         return infrastructure_block
 
     async def submit_run(self, flow_run: FlowRun) -> None:
@@ -147,20 +157,12 @@ class OrionAgent:
         ready_to_submit = await self._propose_pending_state(flow_run)
 
         if ready_to_submit:
-            # Successfully entered a pending state; submit to flow runner
-            flow_runner = self.get_flow_runner(flow_run)
-            if flow_runner:
-                submit = partial(flow_runner.submit_flow_run, flow_run)
-            else:
-                infrastructure = await self.get_infrastructure(flow_run)
-                submit = partial(
-                    submit_flow_run, flow_run, infrastructure=infrastructure
-                )
+            infrastructure = await self.get_infrastructure(flow_run)
 
             try:
                 # Wait for submission to be completed. Note that the submission function
                 # may continue to run in the background after this exits.
-                await self.task_group.start(submit)
+                await self.task_group.start(submit_flow_run, flow_run, infrastructure)
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
             except Exception as exc:
                 self.logger.error(
@@ -224,6 +226,12 @@ class OrionAgent:
         self.client = get_client()
         await self.client.__aenter__()
         await self.task_group.__aenter__()
+
+        # Convert the passed default infrastructure to an id
+        if self.default_infrastructure and not self.default_infrastructure_document_id:
+            self.default_infrastructure_document_id = (
+                await self.default_infrastructure._save(is_anonymous=True)
+            )
 
     async def shutdown(self, *exc_info):
         self.started = False

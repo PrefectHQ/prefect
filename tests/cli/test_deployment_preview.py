@@ -4,7 +4,8 @@ from uuid import UUID
 import pytest
 import yaml
 
-from prefect.flow_runners.kubernetes import KubernetesFlowRunner
+from prefect.infrastructure.kubernetes import KubernetesJob
+from prefect.infrastructure.submission import _prepare_infrastructure
 from prefect.orion.schemas.core import FlowRun
 from prefect.testing.cli import invoke_and_assert
 
@@ -73,12 +74,16 @@ def test_previewing_single_kubernetes_deployment_from_python(example_deployments
     assert len(previews) == 1
 
     manifest = yaml.load(previews[0], yaml.SafeLoader)
-    assert manifest == KubernetesFlowRunner().build_job(
-        FlowRun(
-            id=UUID(int=0),
-            flow_id=UUID(int=0),
-            name="cool-name",
-        )
+    assert (
+        manifest
+        == _prepare_infrastructure(
+            FlowRun(
+                id=UUID(int=0),
+                flow_id=UUID(int=0),
+                name="cool-name",
+            ),
+            KubernetesJob(),
+        ).build_job()
     )
 
 

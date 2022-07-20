@@ -2,8 +2,10 @@ from functools import partial
 from unittest.mock import MagicMock
 
 import pytest
+from packaging.version import Version
 
 import prefect
+from prefect.docker import get_prefect_image_name
 from prefect.infrastructure import (
     DockerContainer,
     Infrastructure,
@@ -12,6 +14,7 @@ from prefect.infrastructure import (
 )
 from prefect.infrastructure.submission import (
     FLOW_RUN_ENTRYPOINT,
+    MIN_COMPAT_PREFECT_VERSION,
     base_flow_run_environment,
     base_flow_run_labels,
     submit_flow_run,
@@ -148,3 +151,34 @@ async def test_submission_does_not_override_existing_name(
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
     await submit_flow_run(flow_run, infrastructure=MockInfrastructure(name="test"))
     MockInfrastructure._run.call_args[0][0]["name"] == "test"
+
+
+@pytest.mark.service("docker")
+@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.skipif(
+    (Version(MIN_COMPAT_PREFECT_VERSION) > Version(prefect.__version__.split("+")[0])),
+    reason=f"Expected breaking change in next version: {MIN_COMPAT_PREFECT_VERSION}",
+)
+async def test_execution_is_compatible_with_old_prefect_container_version(
+    flow_run,
+    orion_client,
+    deployment,
+):
+    """
+    This test confirms that submission can properly start a flow run in a container
+    running an old version of Prefect. This tests for regression in the path of
+    "starting a flow run" as well as basic API communication.
+
+    When making a breaking change to the API, it's likely that no compatible image
+    will exist. If so, bump MIN_COMPAT_PREFECT_VERSION past the current prefect
+    version and this test will be skipped until a compatible image can be found.
+    """
+    flow_run = await orion_client.create_flow_run_from_deployment(deployment)
+
+    result = await submit_flow_run(
+        flow_run,
+        DockerContainer(image=get_prefect_image_name(MIN_COMPAT_PREFECT_VERSION)),
+    )
+    assert result.status_code == 0
+    flow_run = await orion_client.read_flow_run(flow_run.id)
+    assert flow_run.state.is_completed()

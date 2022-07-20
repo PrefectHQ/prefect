@@ -9,7 +9,6 @@ from contextlib import nullcontext
 from functools import partial
 from unittest.mock import ANY, MagicMock
 
-import anyio
 import pendulum
 import pytest
 
@@ -18,7 +17,8 @@ import prefect.logging.configuration
 import prefect.settings
 from prefect import flow, task
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.flow_runners import SubprocessFlowRunner
+from prefect.infrastructure import Process
+from prefect.infrastructure.submission import submit_flow_run
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
     load_logging_config,
@@ -182,9 +182,9 @@ async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deploym
         logger_test_deployment
     )
 
-    assert await SubprocessFlowRunner(
-        env={"PREFECT_LOGGING_EXTRA_LOGGERS": "foo"}
-    ).submit_flow_run(flow_run, MagicMock(spec=anyio.abc.TaskStatus))
+    assert await submit_flow_run(
+        flow_run, Process(env={"PREFECT_LOGGING_EXTRA_LOGGERS": "foo"})
+    )
 
     state = (await orion_client.read_flow_run(flow_run.id)).state
     settings = await orion_client.resolve_datadoc(state.data)

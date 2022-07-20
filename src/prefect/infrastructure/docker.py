@@ -15,12 +15,17 @@ from pydantic import Field, validator
 from slugify import slugify
 from typing_extensions import Literal
 
-from prefect.flow_runners.base import get_prefect_image_name
-from prefect.flow_runners.docker import CONTAINER_LABELS
+import prefect
+from prefect.docker import get_prefect_image_name
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import AutoEnum
+
+# Labels to apply to all containers started by Prefect
+CONTAINER_LABELS = {
+    "io.prefect.version": prefect.__version__,
+}
 
 
 class ImagePullPolicy(AutoEnum):
