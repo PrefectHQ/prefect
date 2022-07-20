@@ -91,9 +91,9 @@ class CloudClient:
         httpx_settings.setdefault("base_url", host)
         self._client = httpx.AsyncClient(**httpx_settings)
 
-    async def api_healthcheck(self) -> Optional[Exception]:
+    async def api_healthcheck(self):
         """
-        Attempts to connect to the Cloud API and returns the encountered exception if not
+        Attempts to connect to the Cloud API and raises the encountered exception if not
         successful.
 
         If successful, returns `None`.
