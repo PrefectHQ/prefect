@@ -23,7 +23,6 @@ def upgrade():
 
     with op.batch_alter_table("flow_run", schema=None) as batch_op:
         batch_op.drop_index("ix_flow_run__flow_runner_type")
-        batch_op.drop_index("ix_flow_run__end_time_desc")
         batch_op.drop_column("flow_runner_type")
         batch_op.drop_column("empirical_config")
         batch_op.drop_column("flow_runner_config")
@@ -48,9 +47,6 @@ def downgrade():
         batch_op.create_index(
             "ix_flow_run__flow_runner_type", ["flow_runner_type"], unique=False
         )
-
-    with op.batch_alter_table("flow", schema=None) as batch_op:
-        batch_op.create_index("ix_flow_name_case_insensitive", ["name"], unique=False)
 
     with op.batch_alter_table("deployment", schema=None) as batch_op:
         batch_op.add_column(

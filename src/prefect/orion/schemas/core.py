@@ -132,7 +132,6 @@ class FlowRun(ORMBaseModel):
     empirical_policy: FlowRunPolicy = Field(
         default_factory=FlowRunPolicy,
     )
-    empirical_config: dict = Field(default_factory=dict)
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags on the flow run",
