@@ -122,10 +122,9 @@ async def check_orion_connection(profile_name):
                             f"Error connecting to Prefect Orion using profile {profile_name!r}",
                         )
                     elif await client.using_ephemeral_app():
-                        current_settings = prefect.settings.get_current_settings()
                         exit_method, msg = (
                             exit_with_success,
-                            f"No Prefect Orion instance specified using profile {profile_name!r}. Flow run metadata will be stored at the locally configured database: f{current_settings.PREFECT_ORION_DATABASE_CONNECTION_URL}",
+                            f"No Prefect Orion instance specified using profile {profile_name!r}. Flow run metadata will be stored at the locally configured database: f{prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
                         )
                     else:
                         exit_method, msg = (
@@ -152,10 +151,9 @@ async def check_orion_connection(profile_name):
                         f"Error connecting to Prefect Orion using profile {profile_name!r}",
                     )
                 elif await client.using_ephemeral_app():
-                    current_settings = prefect.settings.get_current_settings()
                     exit_method, msg = (
                         exit_with_success,
-                        f"No Prefect Orion instance specified using profile {profile_name!r}. Flow run metadata will be stored at the locally configured database: f{current_settings.PREFECT_ORION_DATABASE_CONNECTION_URL}",
+                        f"No Prefect Orion instance specified using profile {profile_name!r}. Flow run metadata will be stored at the locally configured database: f{prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
                     )
                 else:
                     exit_method, msg = (
