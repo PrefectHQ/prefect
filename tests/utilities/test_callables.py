@@ -21,6 +21,54 @@ class TestFunctionToSchema:
             "type": "object",
         }
 
+    def test_function_with_pydantic_base_model_collisions(self):
+        def f(
+            json,
+            copy,
+            parse_obj,
+            parse_raw,
+            parse_file,
+            from_orm,
+            schema,
+            schema_json,
+            construct,
+            validate,
+            foo,
+        ):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "foo": {"title": "foo"},
+                "json": {"title": "json"},
+                "copy": {"title": "copy"},
+                "parse_obj": {"title": "parse_obj"},
+                "parse_raw": {"title": "parse_raw"},
+                "parse_file": {"title": "parse_file"},
+                "from_orm": {"title": "from_orm"},
+                "schema": {"title": "schema"},
+                "schema_json": {"title": "schema_json"},
+                "construct": {"title": "construct"},
+                "validate": {"title": "validate"},
+            },
+            "required": [
+                "json",
+                "copy",
+                "parse_obj",
+                "parse_raw",
+                "parse_file",
+                "from_orm",
+                "schema",
+                "schema_json",
+                "construct",
+                "validate",
+                "foo",
+            ],
+        }
+
     def test_function_with_one_required_argument(self):
         def f(x):
             pass
