@@ -416,7 +416,7 @@ class Task(Generic[P, R]):
 
             >>> @flow
             >>> def my_flow():
-            >>>     print(my_task.submit().wait().result())
+            >>>     print(my_task.submit().result())
             >>>
             >>> my_flow()
             hello
@@ -548,15 +548,16 @@ class Task(Generic[P, R]):
             >>> @flow
             >>> def my_flow():
             >>>     futures = my_task.map([1, 2, 3])
-            >>>     [future.wait() for future in futures]
+            >>>     for future in futures:
+            >>>         future.wait()
 
             Use the result from a map in a flow
 
             >>> @flow
             >>> def my_flow():
             >>>     futures = my_task.map([1, 2, 3])
-            >>>     print([future.wait().result() for future in futures])
-            >>>
+            >>>     for future in futures:
+            >>>         future.result()
             >>> my_flow()
             [2, 3, 4]
 
