@@ -175,9 +175,7 @@ class TestInfrastructureIntegration:
         ) as agent:
             await agent.get_and_submit_flow_runs()
 
-        mock_submit.assert_awaited_once_with(
-            flow_run, infrastructure=infrastructure, task_status=ANY
-        )
+        mock_submit.assert_awaited_once_with(flow_run, infrastructure, task_status=ANY)
 
     async def test_agent_submit_run_sets_pending_state(
         self, orion_client, deployment, work_queue_id, mock_submit
@@ -338,9 +336,7 @@ class TestInfrastructureIntegration:
             agent.logger = MagicMock()
             await agent.get_and_submit_flow_runs()
 
-        mock_submit.assert_awaited_once_with(
-            flow_run, infrastructure=infrastructure, task_status=ANY
-        )
+        mock_submit.assert_awaited_once_with(flow_run, infrastructure, task_status=ANY)
         agent.logger.error.assert_called_once_with(
             f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
         )
