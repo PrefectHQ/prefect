@@ -2,7 +2,7 @@
 Command line interface for interacting with Prefect Cloud
 """
 import re
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List
 
 import anyio
 import httpx
