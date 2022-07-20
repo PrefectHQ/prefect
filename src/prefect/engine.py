@@ -241,22 +241,14 @@ async def retrieve_flow_then_begin_flow_run(
         )
         return state
 
-    from prefect.utilities.callables import get_call_parameters
-
-    try:
-        parameters = get_call_parameters(flow.fn, **flow_run.parameters)
-    except:
-        ...  # Fail the flow run
-
     await client.update_flow_run(
         flow_run_id=flow_run_id,
         flow_version=flow.version,
-        parameters=parameters,
     )
 
     if flow.should_validate_parameters:
         try:
-            parameters = flow.validate_parameters(parameters)
+            parameters = flow.validate_parameters(flow_run.parameters)
         except Exception as exc:
             state = Failed(
                 message="Flow run received invalid parameters.",
@@ -267,6 +259,8 @@ async def retrieve_flow_then_begin_flow_run(
                 flow_run_id=flow_run_id,
             )
             return state
+    else:
+        parameters = flow_run.parameters
 
     return await begin_flow_run(
         flow=flow,
