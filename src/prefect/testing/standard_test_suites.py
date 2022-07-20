@@ -456,10 +456,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         def test_flow():
-            foo()
-            bar()
+            foo.submit()
+            bar.submit()
 
-        test_flow().result()
+        test_flow()
 
         assert tmp_file.read_text() == "foo"
 
@@ -508,10 +508,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         async def test_flow():
-            await foo()
-            await bar()
+            await foo.submit()
+            await bar.submit()
 
-        (await test_flow()).result()
+        await test_flow()
 
         assert tmp_file.read_text() == "foo"
 
