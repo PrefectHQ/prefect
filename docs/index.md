@@ -138,7 +138,9 @@ Prefect 2.0 is designed for incremental adoption. You can decorate as many of yo
     Prefect 2.0 is under active development and may change rapidly. For production use, we recommend [Prefect 1.0](https://github.com/prefecthq/prefect).
 ---
 
-## Examples
+## Expanded Examples
+
+Let's show how the aforementioned basic example can be expanded on to add parallelism or async concurrency!
 
 ### Parallel execution
 
@@ -195,7 +197,7 @@ The above examples just scratch the surface of how Prefect can help you coordina
 
 ---
 
-## Using the Docs
+## Using the docs
 
 Prefect 2.0 was designed for incremental adoption into your workflows. The documentation is organized to support your exploration. Here are a few sections you might find helpful:
 
