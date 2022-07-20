@@ -152,9 +152,62 @@ We do not have a best practice for this yet. See the `kubernetes`, `docker`, and
 
 Sometimes, imports are slow. We'd like to keep the `prefect` module import times fast. In these cases, we can lazily import the slow module by deferring import to the relevant function body. For modules that are consumed by many functions, the pattern used for optional requirements may be used instead.
 
+## Command line interface (CLI) output messages
+
+Upon executing a command that creates an object, the output message should offer:
+- A short description of what the command just did.
+- Next steps, like the next command to run, if applicable.
+- Other relevant, pre-formatted commands that can be copied and pasted, if applicable.
+- A new line before the first line and after the last line.
+
+Output Example:
+```bash
+$ prefect work-queue create testing
+
+Created work-queue: 'testing'
+
+Start an agent to pick up flows from the created work-queue:
+    prefect agent start '989c64da-1144-4fbb-8fe8-d7b298ea2f84'
+
+Inspect the created work-queue:
+    prefect work-queue inspect '989c64da-1144-4fbb-8fe8-d7b298ea2f84'
+
+```
+
+Additionally:
+
+- Wrap generated arguments in apostrophes (') to ensure validity.
+- Indent example commands, instead of wrapping in backticks (&#96;).
+- Use placeholders if the example cannot be pre-formatted completely.
+- Capitalize placeholder labels and wrap them in less than (<) and greater than (>) signs.
+- Utilize `textwrap.dedent` to remove extraneous spacing for strings that are written with triple quotes (""").
+
+Placholder Example:
+```bash
+Create a work-queue with tags:
+    prefect work-queue create '<WORK QUEUE NAME>' -t '<OPTIONAL TAG 1>' -t '<OPTIONAL TAG 2>'
+```
+
+Dedent Example:
+```python
+from textwrap import dedent
+...
+output_msg = dedent(
+    f"""
+    Created work-queue: '{name}'
+    
+    Start an agent to pick up flows from the work-queue:
+        prefect agent start '{result}'
+    
+    Inspect the created work-queue:
+        prefect work-queue inspect '{result}'
+    """
+)
+```
+
 ## API Versioning
 
-The Prefect 2.0 client can be run separately from the Prefect 2.0 orchestration server and communicate entirely via an API. Among other things, the Prefect client includes anything that runs task or flow code, (e.g. agents, and the Python client) or any consumer of Prefect metadata, (e.g. the Prefect UI, and CLI). The Prefect 2.0 stores this metadata and serves it via the REST API.
+The Prefect 2.0 client can be run separately from the Prefect 2.0 orchestration server and communicate entirely via an API. Among other things, the Prefect client includes anything that runs task or flow code, (e.g. agents, and the Python client) or any consumer of Prefect metadata, (e.g. the Prefect UI, and CLI). The Orion server stores this metadata and serves it via the REST API.
 
 Sometimes, we make breaking changes to the API (for good reasons). In order to check that a Prefect 2.0 client is compatible with the API it's making requests to, every API call the client makes includes a three-component `API_VERSION` header with major, minor, and patch versions.
 
