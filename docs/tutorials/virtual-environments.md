@@ -38,7 +38,7 @@ pip install prefect>=2.0b
 
 ## Isolating settings per environment
 
-You may want each Python environment to have isolated Prefect settings. By default, Prefect settings are stored in your home directory and are shared across all versions of Python. To avoid this, you can change the `PREFECT_HOME` setting to a unique directory per environment. For example, with `conda` you may [configure the environment so the variable is set when your environment is activated](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#setting-environment-variables):
+You may want each Python environment to have isolated Prefect settings. By default, Prefect settings are stored in your home directory and are shared across all versions of Python. To avoid this, you can change the `PREFECT_HOME` setting to a unique directory per environment. For example, with `conda` you can [configure the environment so the variable is set when your environment is activated](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#setting-environment-variables):
 
 ```bash
 conda env config vars set PREFECT_HOME="~/.prefect/prefect-dev"
@@ -72,7 +72,7 @@ When doing ad hoc flow runs (by calling the flow function directly), the flow wi
 
 If you run your Orion API or agent in the virtual environment, all flow runs using the subprocess flow runner will use the same Python environment by default.
 
-This may be desirable for development or in simple cases where your flow does not have many dependencies.
+This behavior may be desirable for development or in simple cases where your flow does not have many dependencies.
 
 ## Specifying a virtual environment on a deployment
 
@@ -88,7 +88,7 @@ For example, you can configure the deployment to run in the `prefect-dev` enviro
 ```python
 import sys
 from prefect import flow
-from prefect.deployments import DeploymentSpec
+from prefect.deployments import Deployment
 from prefect.flow_runners import SubprocessFlowRunner
 
 @flow
@@ -96,7 +96,7 @@ def my_flow():
     print(f"Hello! Running with {sys.executable}")
 
 
-DeploymentSpec(
+Deployment(
     name="example",
     flow=my_flow,
     flow_runner=SubprocessFlowRunner(condaenv="prefect-dev", stream_output=True)
@@ -106,16 +106,27 @@ DeploymentSpec(
 Create the deployment:
 
 ```bash
-prefect deployment create ./example-deployment.py
+prefect deployment create example-deployment.py
 ```
 
-In a separate terminal, start an agent:
+Create a work queue named *my_first_work_queue* with the deployment ID returned when you created your deployment:
 
 ```bash
-prefect agent start
+ prefect work-queue create -d 'a408a0f8-014a-4db4-a374-87b3b9e5776c' my_first_work_queue
+
 ```
 
-Then create a flow run for the deployment:
+Your deployment ID will be unique.
+
+
+Then start an agent:
+
+```bash
+prefect agent start my_first_work_queue
+```
+
+The agent will continue running in your terminal. 
+In a separate terminal window, create a flow run for your deployment:
 
 ```bash
 prefect deployment run my-flow/example
@@ -140,3 +151,5 @@ SubprocessFlowRunner(virtualenv="./my-venv")
 Relative paths will be resolved relative to the agent's working directory.
 
 Note, the same field is used for both venv and virtualenv.
+
+Shut down your agent by pressing `control` + `c` in the terminal window.
