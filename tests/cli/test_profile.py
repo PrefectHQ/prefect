@@ -1,7 +1,8 @@
+from uuid import uuid4
+
 import pytest
 import respx
 from httpx import Response
-from uuid import uuid4
 
 from prefect.context import use_profile
 from prefect.settings import (
