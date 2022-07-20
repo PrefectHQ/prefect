@@ -98,6 +98,7 @@ async def check_orion_connection(profile_name):
     with use_profile(profile_name, include_current_context=False):
         httpx_settings = dict(timeout=3)
         try:
+            # attempt to infer Cloud 2.0 API from the connection URL
             cloud_client = get_cloud_client(
                 httpx_settings=httpx_settings, infer_cloud_url=True
             )
@@ -107,13 +108,17 @@ async def check_orion_connection(profile_name):
                 f"Connected to Prefect Cloud using profile {profile_name!r}",
             )
         except CloudUnauthorizedError:
+            # if the Cloud 2.0 API exists and fails to authenticate, notify the user
             exit_method, msg = (
                 exit_with_error,
                 f"Error authenticating with Prefect Cloud using profile {profile_name!r}",
             )
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == status.HTTP_404_NOT_FOUND:
+                # if the route does not exist, attmpt to connect as a hosted Orion instance
                 try:
+                    # inform the user if Prefect Orion endpoints exist, but there are
+                    # connection issues
                     client = get_client(httpx_settings=httpx_settings)
                     connect_error = await client.api_healthcheck()
                     if connect_error is not None:
@@ -122,6 +127,7 @@ async def check_orion_connection(profile_name):
                             f"Error connecting to Prefect Orion using profile {profile_name!r}",
                         )
                     elif await client.using_ephemeral_app():
+                        # if the client is using an ephemeral Orion app, inform the user
                         exit_method, msg = (
                             exit_with_success,
                             f"No Prefect Orion instance specified using profile {profile_name!r}. Flow run metadata will be stored at the locally configured database: f{prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
@@ -142,7 +148,10 @@ async def check_orion_connection(profile_name):
                     "Error connecting to Prefect Cloud",
                 )
         except TypeError:
+            # if no Prefect Orion API URL has been set, httpx will throw a TypeError
             try:
+                # try to connect with the client anyway, it will likely use an
+                # ephemeral Orion instance
                 client = get_client(httpx_settings=httpx_settings)
                 connect_error = await client.api_healthcheck()
                 if connect_error is not None:
