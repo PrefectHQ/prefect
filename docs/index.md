@@ -59,7 +59,7 @@ Run the code:
 python github_stars_example.py
 ```
 
-And see the output in your terminal:
+And see the logger's output in your terminal:
 
 ```bash
 10:56:06.988 | INFO    | prefect.engine - Created flow run 'grinning-crab' for flow 'github-stars'
@@ -81,14 +81,19 @@ By adding `retries=3 ` to the `task` decorator, the `get_stars` function will au
 
 **Observe your flow runs in the Prefect Orion UI dashboard**
 
-Fire up the UI locally to visualize the task run history and gain insight into task run execution:
+Fire up the UI locally by entering this command in your terminal:
 
 ```bash
 prefect orion start
 ```
 
+Follow the link in your terminal to see the dashboard.
+
 ![screenshot of prefect orion dashboard with flow runs in a scatter plot](./img/intro-ui-dashboard.png)
 
+Click on your flow name to see logs and other details.
+
+![screenshot of prefect orion dashboard with logs, radar plot, and flow info](./img/intro-ui-logs.png)
 ## Prefect data coordination benefits
 **Graceful failures**
 
@@ -219,7 +224,7 @@ Prefect integrates with the other tools of the modern data stack. In our [collec
 
 **Frequently asked questions**
 
-Prefect 2.0 represents a fundamentally new way of building and orchestrating dataflows. You can find responses to common questions by reading our [FAQ](faq.md).
+Prefect 2.0 represents a fundamentally new way of building and orchestrating dataflows. You can find responses to common questions by reading our [FAQ](faq.md) and checking out the [Prefect Discourse](https://discourse.prefect.io/).
 
 **API reference**
 
@@ -236,7 +241,7 @@ The [Prefect Discourse](https://discourse.prefect.io/) is an additional communit
 
 ## Next steps
 
-Follow the [Getting Started docs](http://127.0.0.1:8000/getting-started/overview/) and start building!
+Follow the [Getting Started docs](getting-started/overview/) and start building!
 
 While you're at it [give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) and join the thousands of community members in [our Slack community](https://www.prefect.io/slack). 
 
