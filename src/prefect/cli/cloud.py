@@ -99,8 +99,7 @@ class CloudClient:
         If successful, returns `None`.
         """
         with anyio.fail_after(10):
-            res = await self.read_workspaces()
-            return None
+            await self.read_workspaces()
 
     async def read_workspaces(self) -> List[Dict]:
         return await self.get("/me/workspaces")
