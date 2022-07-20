@@ -29,7 +29,6 @@ Coding all these features for your dataflows is a huge pain that takes a lot of 
 That's why Prefect 2.0 offers all this functionality and more! 
 
 All it takes to get started is a adding a few decorators and a little configuration. Check out this quick example. 
-
 ## Brief example
 
 The code below fetches data about GitHub stars for two repositories. Add the three highlighted lines of code to your functions and you're off to the races! 
