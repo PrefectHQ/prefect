@@ -74,6 +74,17 @@ from prefect.utilities.filesystem import tmpchdir
 
 
 class FlowScript(BaseModel):
+    """
+    A simple Pydantic model defining the location of a flow script and, optionally,
+    the flow object that begins the workflow.
+
+    Args:
+        path: Path to a script containing the flow to deploy. If you specify a string
+        path, it will be cast to a Path.
+        name: String specifying the name of the flow object to associate
+        with the deployment. Optional if the flow can be inferred from the script.
+    """
+
     path: Path
     name: Optional[str] = None
 
