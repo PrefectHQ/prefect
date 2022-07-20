@@ -45,6 +45,9 @@ async def test_process_streams_stderr(capsys):
     assert err.strip() == "hello world"
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="bash calls are not working on Windows"
+)
 @pytest.mark.parametrize("exit_code", [0, 1, 2])
 async def test_process_returns_exit_code(exit_code):
     result = await Process(command=["bash", "-c", f"exit {exit_code}"]).run()
@@ -71,6 +74,9 @@ async def test_process_environment_variables(monkeypatch, mock_open_process):
     assert env == {**os.environ, **Process._base_environment(), "MYVAR": "VALUE"}
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="bash calls are not working on Windows"
+)
 async def test_process_includes_current_env_vars(monkeypatch, capsys):
     monkeypatch.setenv("MYVAR", "VALUE-A")
     assert await Process(command=["bash", "-c", "echo $MYVAR"]).run()
@@ -78,6 +84,9 @@ async def test_process_includes_current_env_vars(monkeypatch, capsys):
     assert "VALUE-A" in out
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="bash calls are not working on Windows"
+)
 async def test_process_env_override_current_env_vars(monkeypatch, capsys):
     monkeypatch.setenv("MYVAR", "VALUE-A")
     assert await Process(
