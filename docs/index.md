@@ -94,7 +94,7 @@ Follow the link in your terminal to see the dashboard.
 Click on your flow name to see logs and other details.
 
 ![screenshot of prefect orion dashboard with logs, radar plot, and flow info](./img/intro-ui-logs.png)
-## Prefect data coordination benefits
+## Prefect highlights
 **Graceful failures**
 
 Inevitably dataflows will fail. Prefect helps your code automatically retry on failure. 
@@ -143,7 +143,7 @@ Prefect 2.0 is designed for incremental adoption. You can decorate as many of yo
     Prefect 2.0 is under active development and may change rapidly. For production use, we recommend [Prefect 1.0](https://github.com/prefecthq/prefect).
 ---
 
-## Expanded Examples
+## Expanded examples
 
 Let's show how the aforementioned basic example can be expanded on to add parallelism or async concurrency!
 
