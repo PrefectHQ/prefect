@@ -112,12 +112,8 @@ prefect deployment create example-deployment.py
 Create a work queue named *my_first_work_queue* with the deployment ID returned when you created your deployment:
 
 ```bash
- prefect work-queue create -d 'a408a0f8-014a-4db4-a374-87b3b9e5776c' my_first_work_queue
-
+ prefect work-queue create my_first_work_queue
 ```
-
-Your deployment ID will be unique.
-
 
 Then start an agent:
 
