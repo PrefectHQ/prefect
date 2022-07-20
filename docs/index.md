@@ -24,7 +24,7 @@ If you move data, you probably need the following functionality:
 - [notifications](ui/notifications/)
 - [observability](/ui/overview/)
 
-Implementing all of these features for your dataflows is a huge pain that takes a lot of time--time that could be better used for functional code.
+Implementing all of these features for your dataflows is a huge pain that takes a lot of time &mdash; time that could be better used for functional code.
 
 That's why Prefect 2.0 offers all this functionality and more! 
 
@@ -77,11 +77,11 @@ PrefectHQ/prefect-dbt has 12 stars!
 10:56:07.477 | INFO    | Flow run 'grinning-crab' - Finished in state Completed('All states completed.')
 ```
 
-By adding `retries=3 ` to the `task` decorator, the `get_stars` function will automatically rerun up to three times on failure!
+By adding `retries=3 ` to the `@task` decorator, the `get_stars` function automatically reruns up to three times on failure!
 
-**Observe your flow runs in the Prefect Orion UI dashboard**
+**Observe your flow runs in the Prefect UI**
 
-Fire up the UI locally by entering this command in your terminal:
+Fire up the Prefect UI locally by entering this command in your terminal:
 
 ```bash
 prefect orion start
