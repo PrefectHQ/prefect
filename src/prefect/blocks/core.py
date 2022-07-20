@@ -534,8 +534,9 @@ class Block(BaseModel, ABC):
         Args:
             name: User specified name to give saved block document which can later be used to load the
                 block document.
-            is_anonymous: Boolean value specifying if the block document should or should
-                not be stored without a user specified name.
+            is_anonymous: Boolean value specifying whether the block document is anonymous. Anonymous
+                blocks are intended for system use and are not shown in the UI. Anonymous blocks do not
+                require a user-supplied name.
             overwrite: Boolean value specifying if values should be overwritten if a block document with
                 the specified name already exists.
 
@@ -548,13 +549,6 @@ class Block(BaseModel, ABC):
                 "You're attempting to save a block document without a name. "
                 "Please either save a block document with a name or set "
                 "is_anonymous to True."
-            )
-
-        if name is not None and is_anonymous:
-            raise ValueError(
-                "You're attempting to save an anonymous block document with a name. "
-                "Please either save a block document without a name or set "
-                "is_anonymous to False."
             )
 
         self._is_anonymous = is_anonymous
