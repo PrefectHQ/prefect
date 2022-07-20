@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import anyio
 import anyio.abc
 import pytest
+from packaging.version import Version
 
 import prefect
 from prefect.docker import Image, ImageNotFound, NotFound, docker_client
@@ -624,7 +625,10 @@ class TestDockerFlowRunner:
 
     @pytest.mark.service("docker")
     @pytest.mark.skipif(
-        MIN_COMPAT_PREFECT_VERSION > prefect.__version__.split("+")[0],
+        (
+            Version(MIN_COMPAT_PREFECT_VERSION)
+            > Version(prefect.__version__.split("+")[0])
+        ),
         reason=f"Expected breaking change in next version: {MIN_COMPAT_PREFECT_VERSION}",
     )
     @pytest.mark.skipif(
