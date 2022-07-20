@@ -115,8 +115,16 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     """
     signature = inspect.signature(fn)
     model_fields = {}
+    aliases = {}
     for param in signature.parameters.values():
-        model_fields[param.name] = (
+        # Pydantic model creation will fail if names collide with the BaseModel type
+        if hasattr(pydantic.BaseModel, param.name):
+            name = param.name + "__"
+            aliases[name] = param.name
+        else:
+            name = param.name
+
+        model_fields[name] = (
             Any if param.annotation is inspect._empty else param.annotation,
             pydantic.Field(
                 default=... if param.default is param.empty else param.default,
@@ -124,6 +132,15 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
                 description=None,
             ),
         )
-    return ParameterSchema(
-        **pydantic.create_model("Parameters", **model_fields).schema()
-    )
+
+    # Generate the pydantic model and use it to build a schema
+    schema = pydantic.create_model("Parameters", **model_fields).schema()
+
+    # Restore aliased names
+    if "properties" in schema:
+        for alias, name in aliases.items():
+            schema["properties"][name] = schema["properties"].pop(alias)
+    if "required" in schema:
+        schema["required"] = [aliases.get(name) or name for name in schema["required"]]
+
+    return ParameterSchema(**schema)
