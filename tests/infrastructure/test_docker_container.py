@@ -1,3 +1,4 @@
+import uuid
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -549,13 +550,16 @@ async def test_container_metadata(docker: "DockerClient"):
 
 @pytest.mark.service("docker")
 async def test_container_name_collision(docker: "DockerClient"):
+    # Generate a unique base name to avoid collissions with existing images
+    base_name = uuid.uuid4().hex
+
     container = DockerContainer(
-        command=["echo", "hello"], name="test-name", auto_remove=False
+        command=["echo", "hello"], name=base_name, auto_remove=False
     )
     result = await container.run()
     created_container: "Container" = docker.containers.get(result.identifier)
-    assert created_container.name == "test-name"
+    assert created_container.name == base_name
 
     result = await container.run()
     created_container: "Container" = docker.containers.get(result.identifier)
-    assert created_container.name == "test-name-1"
+    assert created_container.name == base_name + "-1"
