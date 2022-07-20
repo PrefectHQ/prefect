@@ -102,7 +102,16 @@ class TestKubernetesFlowRunner:
 
         return [{"object": job_pod}, {"object": job}]
 
-    def test_runner_type(self):
+    @staticmethod
+    def _mock_pods_stream_that_returns_queued_pod(*args, **kwargs):
+        job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+        job_pod.status.phase = "Queued"
+
+        job = MagicMock(spec=kubernetes.client.V1Job)
+
+        return [{"object": job_pod}, {"object": job}]
+
+    def test_runner_type(restart_policy):
         assert KubernetesFlowRunner().typename == "kubernetes"
 
     def test_building_a_job_is_idempotent(self, flow_run: FlowRun):
@@ -399,7 +408,7 @@ class TestKubernetesFlowRunner:
         ):
             await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
 
-    async def test_no_raise_on_submission_with_hosted_api(
+    async def test_raise_pod_never_started(
         self,
         mock_cluster_config,
         mock_k8s_batch_client,
@@ -407,7 +416,8 @@ class TestKubernetesFlowRunner:
         flow_run,
         use_hosted_orion,
     ):
-        await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
+        with pytest.raises(RuntimeError, match="Pod for job"):
+            await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
 
     async def test_defaults_to_incluster_config(
         self,

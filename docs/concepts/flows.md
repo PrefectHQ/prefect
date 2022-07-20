@@ -16,13 +16,24 @@ Flows are the most basic Prefect object. Flows are the only Prefect abstraction 
 
 Flows are like functions. They can take inputs, perform work, and return an output. In fact, you can turn any function into a Prefect flow by adding the `@flow` decorator. When a function becomes a flow, its behavior changes, giving it advantages.
 
-Flows also take advantage of automatic Prefect logging to capture details about flow runs such as runtime, tags, and final state. Flows are required for [deployments](/concepts/deployments/) &mdash; every deployment points to a specific flow as the entrypoint of an API-generated flow run.
+Flows also take advantage of automatic Prefect logging to capture details about [flow runs](#flow-runs) such as run time, task tags, and final state. Flows are required for [deployments](/concepts/deployments/) &mdash; every deployment points to a specific flow as the entrypoint of an API-generated flow run.
 
 All workflows are defined within the context of a flow. Flows can include calls to [tasks](/concepts/tasks/) as well as to other flows, which we call ["subflows"](#subflows) in this context. Flows may be defined within modules and imported for use as subflows in your flow definitions. 
 
 !!! warning "Tasks must be called from flows"
     All tasks must be called from within a flow. Tasks may not be called from other tasks.
 
+## Flow runs
+
+A _flow run_ is the execution of the flow and task functions in a flow script.
+
+You can run a flow by executing the flow's Python script, or by creating a [deployment](/concepts/deployments/) on Prefect Cloud or a locally run Prefect Orion server, then running the deployment flow via a schedule, the Prefect UI, or the Prefect API. 
+
+However you run the flow, the Prefect API monitors the flow run, capturing flow run state for observability.
+
+![Prefect UI](/img/ui/orion-dashboard.png)
+
+## Writing flows
 For most use cases, we recommend using the [`@flow`][prefect.flows.flow] decorator to designate a flow:
 
 ```python hl_lines="3"

@@ -216,3 +216,9 @@ class PrefectHTTPStatusError(HTTPStatusError):
         return cls(
             new_message, request=httpx_error.request, response=httpx_error.response
         )
+
+
+class MappingLengthMismatch(PrefectException):
+    """
+    Raised when attempting to call Task.map with arguments of different lengths.
+    """
