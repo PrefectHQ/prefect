@@ -15,7 +15,7 @@ Prefect is Air Traffic Control for your dataflows. It's the coordination plane t
 
 ## Why Prefect?
 
-If you move data then you probably need the following functionality:
+If you move data, you probably need the following functionality:
 
 - [schedules](concepts/schedules/)
 - [retries](concepts/tasks/#task-arguments)
@@ -24,12 +24,12 @@ If you move data then you probably need the following functionality:
 - [notifications](ui/notifications/)
 - [observability](/ui/overview/)
 
-Coding all these features for your dataflows is a huge pain that takes a lot of time--time that could be better used for functional code.
+Implementing all of these features for your dataflows is a huge pain that takes a lot of time--time that could be better used for functional code.
 
 That's why Prefect 2.0 offers all this functionality and more! 
 
 To dive right in, simply sprinkle in a few decorators and add a little configuration, like the example below. 
-## Brief example
+## Basic example
 
 This code fetches data about GitHub stars for a few repositories. Add the three highlighted lines of code to your functions to use Prefect, and you're off to the races! 
 
@@ -159,7 +159,7 @@ if __name__ == "__main__":
 ### Async concurrency
 
 Prefect 2.0 ships with native async support. 
-Flows can include a mix of synchronous and asynchronous tasks, just like Python.
+Flows can include a mix of synchronous and asynchronous tasks, just like native Python.
 
 ```python hl_lines="3 6-8 13-14 17"
 from prefect import flow, task
@@ -207,7 +207,7 @@ Prefect integrates with the other tools of the modern data stack. In our [collec
 
 ### Frequently asked questions
 
-Prefect 2.0 represents a fundamentally new way of building and orchestrating dataflows. Learn more about common questions by reading our [FAQ](faq.md).
+Prefect 2.0 represents a fundamentally new way of building and orchestrating dataflows. You can find responses to common questions by reading our [FAQ](faq.md).
 
 ### API reference
 
