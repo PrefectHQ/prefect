@@ -73,6 +73,15 @@ from prefect.utilities.filesystem import tmpchdir, to_display_path
 
 
 class FlowScript(BaseModel):
+    """
+    A simple Pydantic model defining the location of a flow script and, optionally,
+    the flow object that begins the workflow.
+
+    Args:
+        path: Path to a script containing the flow to deploy. If you specify a string path, it will be cast to a `Path`.
+        name: String specifying the name of the flow object to associate with the deployment. Optional if the flow can be inferred from the script.
+    """
+
     path: Path
     name: Optional[str] = None
 
@@ -86,6 +95,18 @@ FlowSource = Union[Flow, Path, FlowScript, PackageManifest]
 
 @PrefectObjectRegistry.register_instances
 class Deployment(BaseModel):
+    """
+    Defines the settings used to create a deployment on the API.
+
+    Args:
+        name: String specifying the name of the deployment.
+        flow: The flow object to associate with the deployment. You may provide the flow object directly as `flow=my_flow` if available in the same file as the `Deployment`. Alternatively, you may provide a `Path`, `FlowScript`, or `PackageManifest` specifying how to access to the flow.
+        flow_runner: Specifies the [flow runner](/api-ref/prefect/flow-runners/) used for flow runs. Uses the `UniversalFlowRunner` if none is specified.
+        packager: The [prefect.packaging](/api-ref/prefect/packaging/) packager to use for packaging the flow.
+        parameters: Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects.
+        schedule: [Schedule](/concepts/schedules/) instance specifying a schedule for running the deployment.
+        tags: List containing tags to assign to the deployment.
+    """
 
     # Metadata fields
     name: str = None
@@ -158,6 +179,9 @@ class Deployment(BaseModel):
         client: OrionClient,
         stream_progress_to: Optional[TextIO] = None,
     ):
+        """
+        Create the deployment by registering with the API.
+        """
         stream_progress_to = stream_progress_to or StringIO()
         if isinstance(self.flow, PackageManifest):
             manifest = self.flow
