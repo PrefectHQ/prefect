@@ -35,25 +35,31 @@ class DockerContainerResult(InfrastructureResult):
 
 class DockerContainer(Infrastructure):
     """
-    Runs a container.
+    Runs a command in a container.
 
-    Requires a Docker Engine to be connectable.
+    Requires a Docker Engine to be connectable. Docker settings will be retrieved from
+    the environment.
 
     Attributes:
+        command: A list of strings specifying the command to run in the container.
         image: An optional string specifying the tag of a Docker image to use.
+            Defaults to the Prefect image.
+        image_pull_policy: Specifies if the image should be pulled. One of 'ALWAYS',
+            'NEVER', 'IF_NOT_PRESENT'.
         network_mode: Set the network mode for the created container. Defaults to 'host'
             if a local API url is detected, otherwise the Docker default of 'bridge' is
             used. If 'networks' is set, this cannot be set.
         networks: An optional list of strings specifying Docker networks to connect the
             container to.
         labels: An optional dictionary of labels, mapping name to value.
+        name: An optional name for the container.
         auto_remove: If set, the container will be removed on completion. Otherwise,
             the container will remain after exit for inspection.
         volumes: An optional list of volume mount strings in the format of
             "local_path:container_path".
         stream_output: If set, stream output from the container to local standard output.
 
-    ## Connecting to a locally hosted API
+    ## Connecting to a locally hosted Prefect API
 
     If using a local API URL on Linux, we will update the network mode default to 'host'
     to enable connectivity. If using another OS or an alternative network mode is used,
