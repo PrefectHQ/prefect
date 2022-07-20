@@ -150,11 +150,20 @@ Let's show how the aforementioned basic example can be expanded on to add parall
 ### Parallel execution
 
 Control the task execution environment by changing a flow's `task_runner`. 
-The tasks in this flow, using the `DaskTaskRunner`, will automatically be submitted to run in parallel on a [Dask.distributed](http://distributed.dask.org/) cluster:
+
+By using the `DaskTaskRunner`, tasks will automatically be submitted to run in parallel on a [Dask.distributed](http://distributed.dask.org/) cluster. 
+
+Install the `prefect-dask` [collection](https://prefecthq.github.io/prefect-dask/) package with:
+
+```bash
+pip install prefect-dask
+```
+
+Then import the `DaskTaskRunner` and pass an instance of it in your flow decorator.
 
 ```python hl_lines="2 11"
 from prefect import flow, task
-from prefect.task_runners import DaskTaskRunner
+from prefect_dask import DaskTaskRunner
 import httpx
 
 @task(retries=3)
@@ -163,22 +172,23 @@ def get_stars(repo):
     count = httpx.get(url).json()["stargazers_count"]
     print(f"{repo} has {count} stars!")
 
-@flow(name="GitHub Stars", task_runner=DaskTaskRunner())
+@flow(task_runner=DaskTaskRunner())
 def github_stars(repos):
     for repo in repos:
-        get_stars(repo)
+        get_stars.submit(repo)
 
 # call the flow!
 if __name__ == "__main__":
     github_stars(["PrefectHQ/Prefect", "PrefectHQ/prefect-aws",  "PrefectHQ/prefect-dbt"])
 ```
 
+You should see similar output to the first example, with additional information about your Dask cluster.
 ### Async concurrency
 
 Prefect 2.0 ships with native async support. 
 Flows can include a mix of synchronous and asynchronous tasks, just like native Python.
 
-```python hl_lines="3 6-8 13-14 17"
+```python hl_lines="3 6-8 13-14 16 20"
 from prefect import flow, task
 import httpx
 import asyncio
@@ -190,12 +200,13 @@ async def get_stars(repo):
     count = response.json()["stargazers_count"]
     print(f"{repo} has {count} stars!")
 
-@flow(name="GitHub Stars")
+@flow()
 async def github_stars(repos):
-    await asyncio.gather(*[get_stars(repo) for repo in repos])
+    for repo in repos:
+        await get_stars.submit(repo)
 
 # call the flow!
-asyncio.run(github_stars(["PrefectHQ/Prefect", "PrefectHQ/prefect-dbt"]))
+asyncio.run(github_stars(["PrefectHQ/Prefect", "PrefectHQ/prefect-aws", "PrefectHQ/prefect-dbt"]))
 ```
 
 The above examples just scratch the surface of how Prefect can help you coordinate your dataflows.
@@ -209,6 +220,9 @@ Prefect 2.0 was designed for incremental adoption into your workflows. The docum
 **Getting started**
 
 Begin by [installing Prefect 2.0](getting-started/installation.md) on your machine, then follow one of our [friendly tutorials](tutorials/first-steps) to learn by example. See the [Getting Started overview](getting-started/overview) for more.
+
+Even if you have used Prefect 1.0 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps. Prefect 2.0 offers significant new functionality.
+
 
 **Concepts**
 
