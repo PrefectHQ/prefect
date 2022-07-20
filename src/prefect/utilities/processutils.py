@@ -23,10 +23,6 @@ async def open_process(command: List[str], **kwargs):
     # generally necessary for Unix-like commands on Windows but otherwise should
     # be avoided
     if sys.platform == "win32":
-        executable, arguments = command[0], command[1:] if len(command) > 1 else []
-        # Wrap arguments in quotes to preserve intention
-        arguments = [f"'{arg}'" for arg in arguments]
-        command = [executable] + arguments
         command = " ".join(command)
 
     process = await anyio.open_process(command, **kwargs)
