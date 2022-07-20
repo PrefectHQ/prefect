@@ -881,8 +881,7 @@ async def test_create_flow_run_from_deployment_with_saved_infrastructure(
     infrastructure = Process(env={"foo": "bar"})
     infrastructure_document_id = await infrastructure.save("hello")
     flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id,
-        infrastructure_document_id=infrastructure_document_id,
+        deployment.id, infrastructure_document_id=infrastructure_document_id
     )
     assert flow_run.infrastructure_document_id == infrastructure_document_id
 
