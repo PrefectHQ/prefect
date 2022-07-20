@@ -500,11 +500,12 @@ class TestInfrastructureIntegration:
         self, orion_client, deployment, work_queue_id, mock_submit
     ):
         infrastructure = Process(env={"foo": "bar"})
+        infrastructure_document_id = await infrastructure._save(is_anonymous=True)
 
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure=infrastructure,
+            infrastructure_document_id=infrastructure_document_id,
         )
 
         async with OrionAgent(
@@ -520,11 +521,12 @@ class TestInfrastructureIntegration:
         self, orion_client, deployment, work_queue_id, mock_submit
     ):
         infrastructure = Process(env={"foo": "bar"})
+        infrastructure_document_id = await infrastructure._save(is_anonymous=True)
 
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure=infrastructure,
+            infrastructure_document_id=infrastructure_document_id,
         )
 
         async with OrionAgent(
@@ -558,7 +560,9 @@ class TestInfrastructureIntegration:
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=now.add(seconds=10)),
-            infrastructure=Process(env={"foo": "bar"}),
+            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
+                is_anonymous=True
+            ),
         )
 
         async with OrionAgent(
@@ -580,7 +584,9 @@ class TestInfrastructureIntegration:
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure=Process(env={"foo": "bar"}),
+            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
+                is_anonymous=True
+            ),
         )
 
         async with OrionAgent(
@@ -605,7 +611,9 @@ class TestInfrastructureIntegration:
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure=Process(env={"foo": "bar"}),
+            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
+                is_anonymous=True
+            ),
         )
 
         await orion_client.delete_flow_run(flow_run.id)
@@ -631,7 +639,9 @@ class TestInfrastructureIntegration:
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure=Process(env={"foo": "bar"}),
+            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
+                is_anonymous=True
+            ),
         )
 
         async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
@@ -652,10 +662,12 @@ class TestInfrastructureIntegration:
         self, orion_client, deployment, work_queue_id, mock_submit
     ):
         infrastructure = Process(env={"foo": "bar"})
+        infrastructure_document_id = await infrastructure._save(is_anonymous=True)
+
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure=infrastructure,
+            infrastructure_document_id=infrastructure_document_id,
         )
 
         mock_submit.side_effect = ValueError("Hello!")
@@ -683,7 +695,9 @@ class TestInfrastructureIntegration:
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure=Process(env={"foo": "bar"}),
+            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
+                is_anonymous=True
+            ),
         )
 
         # This excludes calling `task_status.started()` which will throw an anyio error
@@ -716,7 +730,7 @@ class TestInfrastructureIntegration:
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure=infrastructure,
+            infrastructure_document_id=expected_id,
         )
 
         async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
