@@ -185,9 +185,9 @@ The above examples just scratch the surface of how Prefect can help you coordina
 
 ---
 
-## Next steps
+## Using the Docs
 
-Prefect 2.0 was designed for incremental adoption into your workflows. Our documentation is organized to support your exploration. Here are a few sections you might find helpful:
+Prefect 2.0 was designed for incremental adoption into your workflows. The documentation is organized to support your exploration. Here are a few sections you might find helpful:
 
 ### Getting started
 
@@ -216,6 +216,7 @@ Prefect 2.0 provides a number of programmatic workflow interfaces, each of which
 ## Join the community
 
 Prefect 2.0 was made possible by the fastest-growing community of data practitioner. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more, ask questions, or get help with workflow design. The [Prefect Discourse](https://discourse.prefect.io/) is an additional community-driven knowledge base to find answers to your Prefect-related questions. Join us and thousands of friendly data folks to learn how to coordinate your dataflows with Prefect.
+
 
 ## Next steps
 
