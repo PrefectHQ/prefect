@@ -79,7 +79,8 @@ PrefectHQ/prefect-dbt has 12 stars!
 
 By adding `retries=3 ` to the `task` decorator, the `get_stars` function will automatically rerun up to three times on failure!
 
-### Observe your flow runs in the Prefect Orion UI dashboard 
+**Observe your flow runs in the Prefect Orion UI dashboard**
+
 Fire up the UI locally to visualize the task run history and gain insight into task run execution:
 
 ```bash
@@ -88,40 +89,49 @@ prefect orion start
 
 ![screenshot of prefect orion dashboard with flow runs in a scatter plot](./img/intro-ui-dashboard.png)
 
-## Other Prefect data coordination benefits
-### Graceful failures
+## Prefect data coordination benefits
+**Graceful failures**
+
 Inevitably dataflows will fail. Prefect helps your code automatically retry on failure. 
 
-### Notifications
+**Notifications**
+
 You can easily set up e-mail or Slack notifications so that the right people are notified when something doesn't go as planned. 
 
-### Designed for performance
+**Designed for performance**
+
 Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable workloads that today's dataflows demands. 
 
-### Integrates with other modern data tools
+**Integrates with other modern data tools**
+
 Prefect has [integrations](collections/overview/) for all the major cloud providers and modern data tools such as Snowflake, Databricks, dbt, Airbyte, and Fivetran. 
 
-### Async and parallelization options
+**Async and parallelization options**
+
 Prefect provides [concurrency and sequential execution options](concepts/task-runners/). With a single import and one argument to your flow decorator you can set up parallel processing across clusters with Dask and Ray integrations. 
 
-### Works well with containers
+**Works well with containers**
+
 Prefect is often used with [Docker and Kubernetes](concepts/deployments/#packaging-flows). Prefect can even package your flow directly into a Docker image. 
 
-### Security first
+**Security first**
+
 Prefect helps you keep your data and code secure. Prefect's patented [hybrid execution model](https://www.prefect.io/why-prefect/hybrid-model/) means your data can stay in your environment while Prefect Cloud orchestrates your flows. Prefect, the company, is SOC2 compliant and our enterprise product makes it easy for you to restrict access to the right people in your organization.
 
-### A user friendly, interactive dashboard for your dataflows
+**A user friendly, interactive dashboard for your dataflows**
+
 In the [Prefect Orion UI](ui/overview/) you can quickly set up notifications, visualize run history, and schedule your dataflows.  
 
-### Faster and easier than building from scratch
+**Faster and easier than building from scratch**
+
 It's estimated that up to 80% of a data engineer's time is spent writing code to guard against edge cases and provide information when a dataflow inevitably fails. Building the functionality that Prefect 2.0 delivers by hand would be a significant cost of engineering time. 
 
-Plug Prefect 2.0 into your existing code and you can move faster with greater confidence in your dataflows!
+**Flexible** 
 
-### Flexible 
 Some workflow tools require you to make DAGs (directed acyclic graphs). DAGs represent a rigid framework that is overly constraining for modern, dynamic dataflows. Prefect 2.0 allows you to create dynamic dataflows in native Python - no DAGs required. 
 
-### Incremental adoption
+**Incremental adoption**
+
 Prefect 2.0 is designed for incremental adoption. You can decorate as many of your dataflow functions as you like and get all the benefits of Prefect as you go!
 
 !!! info "Don't Panic"
@@ -189,39 +199,43 @@ The above examples just scratch the surface of how Prefect can help you coordina
 
 Prefect 2.0 was designed for incremental adoption into your workflows. The documentation is organized to support your exploration. Here are a few sections you might find helpful:
 
-### Getting started
+**Getting started**
 
 Begin by [installing Prefect 2.0](getting-started/installation.md) on your machine, then follow one of our [friendly tutorials](tutorials/first-steps) to learn by example. See the [Getting Started overview](getting-started/overview) for more.
 
-### Concepts
+**Concepts**
 
 Learn more about Prefect 2.0's features and design by reading our in-depth [concept docs](concepts/overview.md). The concept docs are intended to introduce the building blocks of Prefect, build up to orchestration and deployment, and finally cover some of the advanced use cases that Prefect makes possible.
 
-### Prefect UI & Prefect Cloud
+**Prefect UI & Prefect Cloud**
 
 See how [Prefect's UI and cloud hosted functionality](ui/overview/) can make orchestrating dataflows a joy.
 
-### Collections
+**Collections**
 
 Prefect integrates with the other tools of the modern data stack. In our [collections docs](collections/overview) learn about our pre-built integrations and see how to add your own.
 
-### Frequently asked questions
+**Frequently asked questions**
 
 Prefect 2.0 represents a fundamentally new way of building and orchestrating dataflows. You can find responses to common questions by reading our [FAQ](faq.md).
 
-### API reference
+**API reference**
 
 Prefect 2.0 provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](api-ref/overview). This section is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
 
-## Join the community
+**Contributing**
 
-Prefect 2.0 was made possible by the fastest-growing community of data practitioner. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more, ask questions, or get help with workflow design. The [Prefect Discourse](https://discourse.prefect.io/) is an additional community-driven knowledge base to find answers to your Prefect-related questions. Join us and thousands of friendly data folks to learn how to coordinate your dataflows with Prefect.
+Learn how [you can get involved](contributing/overview/).
+
+Prefect 2.0 was made possible by the fastest-growing community of data practitioners. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more, ask questions, or get help with workflow design. 
+
+The [Prefect Discourse](https://discourse.prefect.io/) is an additional community-driven knowledge base to find answers to your Prefect-related questions. 
 
 
 ## Next steps
 
 Follow the [Getting Started docs](http://127.0.0.1:8000/getting-started/overview/) and start building!
 
-While you're at it [give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) and join the 20,000 thousand community members in [our Slack community](https://www.prefect.io/slack). 
+While you're at it [give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) and join the thousands of community members in [our Slack community](https://www.prefect.io/slack). 
 
 Thank you for being part of the mission to coordinate the world's dataflow and, of course, **happy engineering!**
