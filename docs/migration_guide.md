@@ -10,7 +10,7 @@ Let’s start by explicitly calling out what hasn’t changed:
 - the fundamental building blocks you are so familiar with: [tasks](https://orion-docs.prefect.io/concepts/tasks/) and [flows](https://orion-docs.prefect.io/concepts/flows/)
 - the main functionality of how Prefect orchestrates your flow runs and task runs, and provides observability into their execution [states](https://orion-docs.prefect.io/concepts/states/)
 - the way you can [run and inspect flow runs locally](https://discourse.prefect.io/t/how-can-i-inspect-the-flow-run-states-locally/81)
-- the [principles](https://medium.com/the-prefect-blog/positive-and-negative-data-engineering-a02cb497583d) of Prefect being the coordination plane of your dataflow
+- the [principles](https://medium.com/the-prefect-blog/your-code-will-fail-but-thats-ok-f0327a208dbe) of Prefect being the coordination plane of your dataflow
 - the [hybrid execution model](https://medium.com/the-prefect-blog/the-prefect-hybrid-model-1b70c7fd296)
 
 ---
