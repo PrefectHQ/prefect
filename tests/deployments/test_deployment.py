@@ -232,11 +232,17 @@ async def test_deployment_sets_infrastructure_image_to_match_manifest_image(
     )
 
     deployment_id = await deployment.create(client=orion_client)
-    assert infrastructure == original_infrastructure, "Flow runner is not mutated"
+    assert (
+        infrastructure == original_infrastructure
+    ), "Input configuration is not mutated"
 
     # Image is updated on in registered runner
     api_deployment = await orion_client.read_deployment(deployment_id)
-    assert api_deployment.infrastructure.config["image"] == "test-tag"
+    block_document = await orion_client.read_block_document(
+        api_deployment.infrastructure_document_id
+    )
+    block = Block._from_block_document(block_document)
+    assert block.image == "test-tag"
 
 
 async def test_deployment_errors_if_infrastructure_image_set_with_image_manifest():

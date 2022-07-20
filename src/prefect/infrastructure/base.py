@@ -44,6 +44,12 @@ class Infrastructure(Block, abc.ABC):
         or encountered an error.
         """
 
+    @abc.abstractmethod
+    def preview(self) -> str:
+        """
+        View a preview of the infrastructure that would be run.
+        """
+
     @property
     def logger(self):
         return get_logger(f"prefect.infrastructure.{self.type}")

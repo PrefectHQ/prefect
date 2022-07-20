@@ -188,7 +188,9 @@ class TestCreateFlowRun:
 
 class TestUpdateFlowRun:
     async def test_update_flow_run_succeeds(
-        self, flow, session, infrastructure_document_id
+        self,
+        flow,
+        session,
     ):
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
@@ -202,7 +204,6 @@ class TestUpdateFlowRun:
             flow_run_id=flow_run_id,
             flow_run=schemas.actions.FlowRunUpdate(
                 flow_version="The next one",
-                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         assert update_result
@@ -212,7 +213,6 @@ class TestUpdateFlowRun:
         )
         assert flow_run_id == updated_flow_run.id == flow_run.id
         assert updated_flow_run.flow_version == "The next one"
-        assert updated_flow_run.infrastructure_document_id == infrastructure_document_id
 
     async def test_update_flow_run_does_not_update_if_nothing_set(self, flow, session):
         flow_run = await models.flow_runs.create_flow_run(

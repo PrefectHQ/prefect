@@ -145,13 +145,11 @@ def test_previewing_docker_deployment(example_deployments):
     # spot-check some variables and the command-line
     assert "PREFECT_TEST_MODE" in preview
     assert "PREFECT_LOGGING_LEVEL" in preview
-    assert (
-        '["python", "-m", "prefect.engine", "00000000-0000-0000-0000-000000000000"]'
-        in preview
-    )
+    assert "PREFECT__FLOW_RUN_ID" in preview
+    assert '["python", "-m", "prefect.engine"]' in preview
 
 
-def test_previewing_subprocess_deployment(example_deployments):
+def test_previewing_process_deployment(example_deployments):
     """`prefect deployment preview my-flow-file.py` should render the
     shell command that will be run for the subprocess"""
 
@@ -170,4 +168,5 @@ def test_previewing_subprocess_deployment(example_deployments):
     # spot-check some variables and the command-line
     assert "\nPREFECT_TEST_MODE=True \\" in preview
     assert "\nPREFECT_LOGGING_LEVEL=DEBUG \\" in preview
-    assert preview.endswith(" -m prefect.engine 00000000000000000000000000000000")
+    assert "\nPREFECT__FLOW_RUN_ID=00000000000000000000000000000000 \\" in preview
+    assert preview.endswith(" -m prefect.engine")

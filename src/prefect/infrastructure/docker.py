@@ -1,3 +1,4 @@
+import json
 import re
 import sys
 import urllib.parse
@@ -126,6 +127,14 @@ class DockerContainer(Infrastructure):
 
         # Monitor the container
         return await run_sync_in_worker_thread(self._watch_container, container_id)
+
+    def preview(self):
+        # TODO: build and document a more sophisticated preview
+        docker_client = self._get_client()
+        try:
+            return json.dumps(self._build_container_settings(docker_client))
+        finally:
+            docker_client.close()
 
     def _build_container_settings(
         self,

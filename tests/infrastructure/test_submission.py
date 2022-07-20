@@ -37,6 +37,9 @@ class MockInfrastructure(Infrastructure):
             task_status.started()
         self._run(self.dict())
 
+    def preview(self):
+        return self.json()
+
     class Config:
         arbitrary_types_allowed = True
 

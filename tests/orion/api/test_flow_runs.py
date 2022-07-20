@@ -45,8 +45,8 @@ class TestCreateFlowRun:
                 infrastructure_document_id=infrastructure_document_id,
             ).dict(json_compatible=True),
         )
-        assert (
-            response.json()["infrastructure_document_id"] == infrastructure_document_id
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
         )
 
     async def test_create_flow_run_with_state_sets_timestamp_on_server(
@@ -203,17 +203,12 @@ class TestUpdateFlowRun:
         await session.commit()
         now = pendulum.now("UTC")
 
-        from prefect.infrastructure import DockerContainer
-
-        infrastructure_document_id = await DockerContainer()._save(is_anonymous=True)
-
         response = await client.patch(
             f"flow_runs/{flow_run.id}",
             json=actions.FlowRunUpdate(
                 flow_version="The next one",
                 name="not yellow salamander",
-                infrastructure_document_id=infrastructure_document_id,
-            ),
+            ).dict(json_compatible=True),
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
@@ -222,7 +217,6 @@ class TestUpdateFlowRun:
         assert updated_flow_run.flow_version == "The next one"
         assert updated_flow_run.name == "not yellow salamander"
         assert updated_flow_run.updated > now
-        assert updated_flow_run.infrastructure_document_id == infrastructure_document_id
 
     async def test_update_flow_run_does_not_update_if_fields_not_set(
         self, flow, session, client
