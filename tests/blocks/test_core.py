@@ -11,7 +11,7 @@ from prefect.blocks.core import Block
 from prefect.client import OrionClient
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
-from prefect.orion.utilities.schemas import OBFUSCATED_SECRET
+from prefect.orion.utilities.names import obfuscate_string
 from prefect.utilities.dispatch import lookup_type, register_type
 
 
@@ -945,11 +945,13 @@ class TestSaveBlock:
 
         assert loaded_new_anon_block == new_anon_block
 
-    async def test_save_anonymous_block_more_than_once(self, NewBlock):
+    async def test_save_anonymous_block_more_than_once_creates_two_blocks(
+        self, NewBlock
+    ):
         new_anon_block = NewBlock(a="foo", b="bar")
         first_id = await new_anon_block._save(is_anonymous=True)
         second_id = await new_anon_block._save(is_anonymous=True)
-        assert first_id == second_id
+        assert first_id != second_id
 
     async def test_save_throws_on_mismatched_kwargs(self, NewBlock):
         new_block = NewBlock(a="foo", b="bar")
@@ -958,12 +960,6 @@ class TestSaveBlock:
             match="You're attempting to save a block document without a name.",
         ):
             await new_block._save()
-
-        with pytest.raises(
-            ValueError,
-            match="You're attempting to save an anonymous block document with a name.",
-        ):
-            await new_block._save(name="my-new-block", is_anonymous=True)
 
     async def test_save_nested_blocks(self):
         block_name = "biggest-block-in-all-the-land"
@@ -1066,8 +1062,8 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "x": OBFUSCATED_SECRET,
-            "y": OBFUSCATED_SECRET,
+            "x": obfuscate_string("x"),
+            "y": obfuscate_string("x"),
             "z": "z",
         }
 
@@ -1108,9 +1104,9 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "a": OBFUSCATED_SECRET,
+            "a": obfuscate_string("a"),
             "b": "b",
-            "child": {"a": OBFUSCATED_SECRET, "b": "b"},
+            "child": {"a": obfuscate_string("a"), "b": "b"},
         }
 
         # read from DB with secrets
@@ -1151,9 +1147,9 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
-            "a": OBFUSCATED_SECRET,
+            "a": obfuscate_string("a"),
             "b": "b",
-            "child": {"a": OBFUSCATED_SECRET, "b": "b"},
+            "child": {"a": obfuscate_string("a"), "b": "b"},
         }
 
         # read from DB with secrets

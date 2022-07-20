@@ -15,8 +15,6 @@ from pydantic.json import custom_pydantic_encoder
 
 T = TypeVar("T")
 
-OBFUSCATED_SECRET = "**********"
-
 
 def pydantic_subclass(
     base: BaseModel,
