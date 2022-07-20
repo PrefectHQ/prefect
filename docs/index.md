@@ -31,7 +31,7 @@ That's why Prefect 2.0 offers all this functionality and more!
 To dive right in, simply sprinkle in a few decorators and add a little configuration, like the example below. 
 ## Brief example
 
-The code below fetches data about GitHub stars for two repositories. Add the three highlighted lines of code to your functions to use Prefect, and you're off to the races! 
+This code fetches data about GitHub stars for a few repositories. Add the three highlighted lines of code to your functions to use Prefect, and you're off to the races! 
 
 
 ```python hl_lines="1 4 10"
@@ -50,25 +50,45 @@ def github_stars(repos):
         get_stars(repo)
 
 # call the flow!
-github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
+github_stars(["PrefectHQ/Prefect", "PrefectHQ/prefect-aws",  "PrefectHQ/prefect-dbt"])
+```
+
+Run the code:
+
+```bash
+python github_stars_example.py
+```
+
+And see the output in your terminal:
+
+```bash
+10:56:06.988 | INFO    | prefect.engine - Created flow run 'grinning-crab' for flow 'github-stars'
+10:56:06.988 | INFO    | Flow run 'grinning-crab' - Using task runner 'ConcurrentTaskRunner'
+10:56:06.996 | WARNING | Flow run 'grinning-crab' - No default storage is configured on the server. Results from this flow run will be stored in a temporary directory in its runtime environment.
+10:56:07.027 | INFO    | Flow run 'grinning-crab' - Created task run 'get_stars-2ca9fbe1-0' for task 'get_stars'
+PrefectHQ/Prefect has 9579 stars!
+10:56:07.190 | INFO    | Task run 'get_stars-2ca9fbe1-0' - Finished in state Completed()
+10:56:07.199 | INFO    | Flow run 'grinning-crab' - Created task run 'get_stars-2ca9fbe1-1' for task 'get_stars'
+PrefectHQ/prefect-aws has 7 stars!
+10:56:07.327 | INFO    | Task run 'get_stars-2ca9fbe1-1' - Finished in state Completed()
+10:56:07.337 | INFO    | Flow run 'grinning-crab' - Created task run 'get_stars-2ca9fbe1-2' for task 'get_stars'
+PrefectHQ/prefect-dbt has 12 stars!
+10:56:07.464 | INFO    | Task run 'get_stars-2ca9fbe1-2' - Finished in state Completed()
+10:56:07.477 | INFO    | Flow run 'grinning-crab' - Finished in state Completed('All states completed.')
 ```
 
 By adding `retries=3 ` to the `task` decorator, the `get_stars` function will automatically rerun up to three times on failure!
 
-### Observe in the Prefect Orion UI dashboard 
-Fire up the UI locally to visualize the task run history and gain insight into their execution:
+### Observe your flow runs in the Prefect Orion UI dashboard 
+Fire up the UI locally to visualize the task run history and gain insight into task run execution:
 
 ```bash
 prefect orion start
 ```
 
-![](./img/ui/orion-dashboard.png)
+![screenshot of prefect orion dashboard with flow runs in a scatter plot](./img/intro-ui-dashboard.png)
 
 ## Other Prefect data coordination benefits
-
-### A user friendly GUI dashboard for your dataflows
-In the [Prefect Orion UI](ui/overview/) shown above you can quickly set up notifications, visualize run history, and schedule your dataflows.  
-
 ### Graceful failures
 Inevitably dataflows will fail. Prefect helps your code automatically retry on failure. 
 
@@ -90,6 +110,9 @@ Prefect is often used with [Docker and Kubernetes](concepts/deployments/#packagi
 ### Security first
 Prefect helps you keep your data and code secure. Prefect's patented [hybrid execution model](https://www.prefect.io/why-prefect/hybrid-model/) means your data can stay in your environment while Prefect Cloud orchestrates your flows. Prefect, the company, is SOC2 compliant and our enterprise product makes it easy for you to restrict access to the right people in your organization.
 
+### A user friendly, interactive dashboard for your dataflows
+In the [Prefect Orion UI](ui/overview/) you can quickly set up notifications, visualize run history, and schedule your dataflows.  
+
 ### Faster and easier than building from scratch
 It's estimated that up to 80% of a data engineer's time is spent writing code to guard against edge cases and provide information when a dataflow inevitably fails. Building the functionality that Prefect 2.0 delivers by hand would be a significant cost of engineering time. 
 
@@ -100,10 +123,6 @@ Some workflow tools require you to make DAGs (directed acyclic graphs). DAGs rep
 
 ### Incremental adoption
 Prefect 2.0 is designed for incremental adoption. You can decorate as many of your dataflow functions as you like and get all the benefits of Prefect as you go!
-
-## How to get started
-
-Read the docs, run the code, and join 20,000 thousand community members in [our Slack community](https://www.prefect.io/slack). Thank you for being part of the mission to coordinate the world's dataflow and, of course, **happy engineering!**
 
 !!! info "Don't Panic"
     Prefect 2.0 is under active development and may change rapidly. For production use, we recommend [Prefect 1.0](https://github.com/prefecthq/prefect).
@@ -132,9 +151,9 @@ def github_stars(repos):
     for repo in repos:
         get_stars(repo)
 
-# run the flow!
+# call the flow!
 if __name__ == "__main__":
-    github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
+    github_stars(["PrefectHQ/Prefect", "PrefectHQ/prefect-aws",  "PrefectHQ/prefect-dbt"])
 ```
 
 ### Async concurrency
@@ -158,11 +177,11 @@ async def get_stars(repo):
 async def github_stars(repos):
     await asyncio.gather(*[get_stars(repo) for repo in repos])
 
-# run the flow!
-asyncio.run(github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"]))
+# call the flow!
+asyncio.run(github_stars(["PrefectHQ/Prefect", "PrefectHQ/prefect-dbt"]))
 ```
 
-The above examples are just scratching the surface of how Prefect can help you coordinate your dataflows.
+The above examples just scratch the surface of how Prefect can help you coordinate your dataflows.
 
 ---
 
@@ -197,3 +216,11 @@ Prefect 2.0 provides a number of programmatic workflow interfaces, each of which
 ## Join the community
 
 Prefect 2.0 was made possible by the fastest-growing community of data practitioner. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more, ask questions, or get help with workflow design. The [Prefect Discourse](https://discourse.prefect.io/) is an additional community-driven knowledge base to find answers to your Prefect-related questions. Join us and thousands of friendly data folks to learn how to coordinate your dataflows with Prefect.
+
+## Next steps
+
+Follow the [Getting Started docs](http://127.0.0.1:8000/getting-started/overview/) and start building!
+
+While you're at it [give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) and join the 20,000 thousand community members in [our Slack community](https://www.prefect.io/slack). 
+
+Thank you for being part of the mission to coordinate the world's dataflow and, of course, **happy engineering!**
