@@ -1,5 +1,5 @@
 from prefect import Deployment, flow
-from prefect.flow_runners import KubernetesFlowRunner
+from prefect.infrastructure import KubernetesJob
 
 
 @flow
@@ -7,4 +7,4 @@ def foo():
     pass
 
 
-deployment = Deployment(flow=foo, flow_runner=KubernetesFlowRunner())
+deployment = Deployment(flow=foo, infrastructure=KubernetesJob())

@@ -9,9 +9,8 @@ import pytest
 
 from prefect.client import OrionClient
 from prefect.deployments import Deployment
-from prefect.docker import Container, DockerClient
-from prefect.flow_runners.base import get_prefect_image_name
-from prefect.flow_runners.docker import DockerFlowRunner
+from prefect.docker import Container, DockerClient, get_prefect_image_name
+from prefect.infrastructure.docker import DockerContainer
 from prefect.packaging.docker import DockerPackageManifest, DockerPackager
 from prefect.software.conda import CondaEnvironment
 from prefect.software.python import PythonEnvironment
@@ -137,7 +136,7 @@ async def test_creating_deployments(prefect_base_image: str, orion_client: Orion
     deployment = Deployment(
         name="howdy-deployed",
         flow=howdy,
-        flow_runner=DockerFlowRunner(),
+        infrastrucutre=DockerContainer(),
         packager=DockerPackager(
             base_image=prefect_base_image,
             python_environment=PythonEnvironment(

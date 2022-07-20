@@ -364,9 +364,6 @@ class ORMFlowRun(ORMRun):
     )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
-    flow_runner_type = sa.Column(sa.String, index=True)
-    flow_runner_config = sa.Column(JSON)
-
     @declared_attr
     def infrastructure_document_id(cls):
         return sa.Column(
@@ -375,20 +372,6 @@ class ORMFlowRun(ORMRun):
             nullable=True,
             index=False,
         )
-
-    @declared_attr
-    def flow_runner(cls):
-        return sa.orm.composite(
-            schemas.core.FlowRunnerSettings,
-            cls.flow_runner_type,
-            cls.flow_runner_config,
-        )
-
-    # TODO: This field is unused and should be replaced with `empirical_flow_runner_type`
-    #       and `empirical_flow_runner_config` to capture final settings used by agents
-    empirical_config = sa.Column(
-        JSON, server_default="{}", default=dict, nullable=False
-    )
 
     @declared_attr
     def parent_task_run_id(cls):
@@ -690,9 +673,6 @@ class ORMDeployment:
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     flow_data = sa.Column(Pydantic(schemas.data.DataDocument))
 
-    flow_runner_type = sa.Column(sa.String)
-    flow_runner_config = sa.Column(JSON)
-
     @declared_attr
     def infrastructure_document_id(cls):
         return sa.Column(
@@ -700,14 +680,6 @@ class ORMDeployment:
             sa.ForeignKey("block_document.id", ondelete="CASCADE"),
             nullable=True,
             index=False,
-        )
-
-    @declared_attr
-    def flow_runner(cls):
-        return sa.orm.composite(
-            schemas.core.FlowRunnerSettings,
-            cls.flow_runner_type,
-            cls.flow_runner_config,
         )
 
     @declared_attr

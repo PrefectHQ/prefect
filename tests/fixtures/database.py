@@ -5,6 +5,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
+from prefect.infrastructure import Process
 from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.orchestration.rules import (
@@ -178,7 +179,12 @@ async def task_run_states(session, task_run, task_run_state):
 
 
 @pytest.fixture
-async def deployment(session, flow, flow_function):
+async def infrastructure_document_id():
+    return await Process(env={"MY_TEST_VARIABLE": 1})._save(is_anonymous=True)
+
+
+@pytest.fixture
+async def deployment(session, flow, flow_function, infrastructure_document_id):
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -188,9 +194,7 @@ async def deployment(session, flow, flow_function):
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=1)
             ),
-            flow_runner=schemas.core.FlowRunnerSettings(
-                type="subprocess", config={"env": {"TEST_VARIABLE": "1"}}
-            ),
+            infrastructure_document_id=infrastructure_document_id,
         ),
     )
     await session.commit()

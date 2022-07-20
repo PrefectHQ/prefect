@@ -44,16 +44,9 @@ async def create_deployment(
 
     insert_values = deployment.dict(shallow=True, exclude_unset=True)
 
-    # Unpack the flow runner composite if set
-    flow_runner = insert_values.pop("flow_runner", None)
-    flow_runner_values = {}
-    if flow_runner:
-        flow_runner_values["flow_runner_type"] = flow_runner.type
-        flow_runner_values["flow_runner_config"] = flow_runner.config
-
     insert_stmt = (
         (await db.insert(db.Deployment))
-        .values(**insert_values, **flow_runner_values)
+        .values(**insert_values)
         .on_conflict_do_update(
             index_elements=db.deployment_unique_upsert_columns,
             set_={
@@ -69,7 +62,6 @@ async def create_deployment(
                         "infrastructure_document_id",
                     },
                 ),
-                **flow_runner_values,
             },
         )
     )
@@ -375,15 +367,13 @@ async def _generate_scheduled_flow_runs(
     )
 
     for date in dates:
-        flow_runner = deployment.flow_runner
         runs.append(
             {
                 "id": uuid4(),
                 "flow_id": deployment.flow_id,
                 "deployment_id": deployment_id,
                 "parameters": deployment.parameters,
-                "flow_runner_type": flow_runner.type if flow_runner else None,
-                "flow_runner_config": flow_runner.config if flow_runner else None,
+                "infrastructure_document_id": deployment.infrastructure_document_id,
                 "idempotency_key": f"scheduled {deployment.id} {date}",
                 "tags": ["auto-scheduled"] + deployment.tags,
                 "auto_scheduled": True,

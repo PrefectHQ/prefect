@@ -77,7 +77,6 @@ from prefect.utilities.asyncutils import asyncnullcontext
 from prefect.utilities.hashing import stable_hash
 
 if TYPE_CHECKING:
-    from prefect.flow_runners import FlowRunner
     from prefect.flows import Flow
     from prefect.tasks import Task
 
@@ -506,7 +505,6 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         context: dict = None,
         state: schemas.states.State = None,
-        flow_runner: "FlowRunner" = None,
         infrastructure_document_id: UUID = None,
     ) -> schemas.core.FlowRun:
         """
@@ -519,7 +517,8 @@ class OrionClient:
             context: Optional run context data
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
-            flow_runner: An optional flow runnner to use to execute this flow run.
+            infrastructure: An optional infrastructure object to use to for this flow
+                run.
 
         Raises:
             httpx.RequestError: if Orion does not successfully create a run for any reason
@@ -535,7 +534,6 @@ class OrionClient:
             parameters=parameters,
             context=context,
             state=state,
-            flow_runner=flow_runner.to_settings() if flow_runner else None,
             infrastructure_document_id=infrastructure_document_id,
         )
 
@@ -554,7 +552,7 @@ class OrionClient:
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: schemas.states.State = None,
-        flow_runner: "FlowRunner" = None,
+        infrastructure_document_id: UUID = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a flow.
@@ -569,7 +567,6 @@ class OrionClient:
                 of the parent flow
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
-            flow_runner: An optional flow runnner to use to execute this flow run.
 
         Raises:
             httpx.RequestError: if Orion does not successfully create a run for any reason
@@ -599,7 +596,7 @@ class OrionClient:
                 max_retries=flow.retries,
                 retry_delay_seconds=flow.retry_delay_seconds,
             ),
-            flow_runner=flow_runner.to_settings() if flow_runner else None,
+            infrastructure_document_id=infrastructure_document_id,
         )
 
         flow_run_create_json = flow_run_create.dict(json_compatible=True)
@@ -1239,7 +1236,6 @@ class OrionClient:
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         parameters: Dict[str, Any] = None,
         tags: List[str] = None,
-        flow_runner: "FlowRunner" = None,
         infrastructure_document_id: UUID = None,
     ) -> UUID:
         """
@@ -1251,7 +1247,8 @@ class OrionClient:
             flow_data: a data document that can be resolved into a flow object or script
             schedule: an optional schedule to apply to the deployment
             tags: an optional list of tags to apply to the deployment
-            flow_runner: an optional flow runner to specify for this deployment
+            infrastructure_document_id: an reference to an infrastructure block document
+                to use for this deployment
 
         Raises:
             httpx.RequestError: if the deployment was not created for any reason
@@ -1266,7 +1263,6 @@ class OrionClient:
             flow_data=flow_data,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
-            flow_runner=flow_runner.to_settings() if flow_runner else None,
             infrastructure_document_id=infrastructure_document_id,
         )
 

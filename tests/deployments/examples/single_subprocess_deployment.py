@@ -1,5 +1,5 @@
 from prefect import Deployment, flow
-from prefect.flow_runners import SubprocessFlowRunner
+from prefect.infrastructure import Process
 
 
 @flow
@@ -7,4 +7,4 @@ def foo():
     pass
 
 
-Deployment(name="hello-world-daily", flow=foo, flow_runner=SubprocessFlowRunner())
+Deployment(name="hello-world-daily", flow=foo, infrastructure=Process())

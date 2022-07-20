@@ -10,7 +10,7 @@ from slugify import slugify
 from typing_extensions import Literal
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
-from prefect.flow_runners.base import get_prefect_image_name
+from prefect.docker import get_prefect_image_name
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.hashing import stable_hash
