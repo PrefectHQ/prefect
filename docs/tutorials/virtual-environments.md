@@ -128,7 +128,7 @@ In a separate terminal window, create a flow run for your deployment:
 prefect deployment run my-flow/example
 ```
 
-You should see output from the agent as the flow run is submitted and run in your conda environment.
+You should see output from the agent in your terminal as the flow run is submitted and run.
 
 ## Specifying environment paths
 
