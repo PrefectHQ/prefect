@@ -189,7 +189,7 @@ class TestCreateBlockDocument:
         )
         assert response.status_code == status.HTTP_409_CONFLICT
 
-    async def test_create_anonymous_block_document_already_exists(
+    async def test_create_multiple_anonymous_block_document_without_names(
         self, session, client, block_schemas
     ):
         response = await client.post(
@@ -203,7 +203,7 @@ class TestCreateBlockDocument:
         )
         assert response.status_code == status.HTTP_201_CREATED
 
-        response = await client.post(
+        response2 = await client.post(
             "/block_documents/",
             json=BlockDocumentCreate(
                 data=dict(y=1),
@@ -212,7 +212,8 @@ class TestCreateBlockDocument:
                 is_anonymous=True,
             ).dict(json_compatible=True),
         )
-        assert response.status_code == status.HTTP_200_OK
+        assert response2.status_code == status.HTTP_201_CREATED
+        assert response2.json()["name"] != response.json()["name"]
 
     async def test_create_block_document_with_same_name_but_different_block_type(
         self, session, client, block_schemas

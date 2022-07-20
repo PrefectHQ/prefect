@@ -150,21 +150,34 @@ class TestCreateBlockDocument:
             session=session, block_document_id=result.id
         )
         assert db_block_document.id == result.id
+        assert db_block_document.name.startswith("anonymous:")
 
-    async def test_create_anonymous_block_document_errors_if_name_provided(
+    async def test_create_anonymous_block_document_with_name(
         self, session, block_schemas
     ):
-        with pytest.raises(
-            ValueError,
-            match="(Names cannot be provided for anonymous block documents.)",
-        ):
-            schemas.actions.BlockDocumentCreate(
-                name="test-name",
+        result = await models.block_documents.create_block_document(
+            session=session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="anon-123",
                 data=dict(y=1),
                 block_schema_id=block_schemas[0].id,
                 block_type_id=block_schemas[0].block_type_id,
                 is_anonymous=True,
-            )
+            ),
+        )
+        await session.commit()
+
+        assert result.name == "anon-123"
+        assert result.data == dict(y=1)
+        assert result.block_schema_id == block_schemas[0].id
+        assert result.block_schema.checksum == block_schemas[0].checksum
+        assert result.is_anonymous is True
+
+        db_block_document = await models.block_documents.read_block_document_by_id(
+            session=session, block_document_id=result.id
+        )
+        assert db_block_document.id == result.id
+        assert db_block_document.name == "anon-123"
 
     async def test_create_block_document_errors_if_no_name_provided(
         self, session, block_schemas
@@ -178,32 +191,33 @@ class TestCreateBlockDocument:
                 block_type_id=block_schemas[0].block_type_id,
             )
 
-    async def test_create_anonymous_block_document_creates_deterministic_name(
-        self, session, block_schemas
-    ):
+    async def test_anonymous_blocks_get_random_names(self, session, block_schemas):
         block_document = schemas.actions.BlockDocumentCreate(
             data=dict(y=1),
             block_schema_id=block_schemas[0].id,
             block_type_id=block_schemas[0].block_type_id,
             is_anonymous=True,
         )
-        result = await models.block_documents.create_block_document(
+        result_1 = await models.block_documents.create_block_document(
             session=session, block_document=block_document
         )
 
-        anonymous_name = models.block_documents.generate_anonymous_name_from_fields(
-            data=block_document.data,
-            block_schema_id=block_document.block_schema_id,
-            block_type_id=block_document.block_type_id,
+        result_2 = await models.block_documents.create_block_document(
+            session=session, block_document=block_document
         )
-        assert result.name == anonymous_name
 
-    async def test_named_blocks_have_unique_names(self, session, block_schemas, db):
+        assert result_1.name != result_2.name
+
+    @pytest.mark.parametrize("is_anonymous", [False, True])
+    async def test_named_blocks_have_unique_names(
+        self, session, block_schemas, db, is_anonymous
+    ):
         block_document = schemas.actions.BlockDocumentCreate(
             name="test-block",
             data=dict(y=1),
             block_schema_id=block_schemas[0].id,
             block_type_id=block_schemas[0].block_type_id,
+            is_anonymous=is_anonymous,
         )
 
         before_count = await session.execute(
@@ -225,35 +239,6 @@ class TestCreateBlockDocument:
         )
 
         # only one block created
-        assert after_count.scalar() == before_count.scalar() + 1
-
-    async def test_anonymous_blocks_are_idempotent(self, session, block_schemas, db):
-        block_document = schemas.actions.BlockDocumentCreate(
-            # name="hi",
-            data=dict(y=1),
-            block_schema_id=block_schemas[0].id,
-            block_type_id=block_schemas[0].block_type_id,
-            is_anonymous=True,
-        )
-
-        before_count = await session.execute(
-            sa.select(sa.func.count()).select_from(db.BlockDocument)
-        )
-        # create the same block document twice
-        result1 = await models.block_documents.create_block_document(
-            session=session, block_document=block_document
-        )
-        await session.commit()
-        result2 = await models.block_documents.create_block_document(
-            session=session, block_document=block_document
-        )
-        await session.commit()
-        after_count = await session.execute(
-            sa.select(sa.func.count()).select_from(db.BlockDocument)
-        )
-
-        # only one block created
-        assert result1.id == result2.id
         assert after_count.scalar() == before_count.scalar() + 1
 
     async def test_create_nested_block_document(self, session, block_schemas):
@@ -1063,7 +1048,11 @@ class TestDefaultStorage:
 
 
 class TestUpdateBlockDocument:
-    async def test_update_block_document_name(self, session, block_schemas):
+    async def test_update_block_document_name(
+        self,
+        session,
+        block_schemas,
+    ):
         block_document = await models.block_documents.create_block_document(
             session,
             block_document=schemas.actions.BlockDocumentCreate(
@@ -1085,8 +1074,10 @@ class TestUpdateBlockDocument:
         )
         assert updated_block_document.name == "updated"
 
-    async def test_update_block_document_name_fails_for_anonymous_blocks(
-        self, session, block_schemas
+    async def test_update_anonymous_block_document_name(
+        self,
+        session,
+        block_schemas,
     ):
         block_document = await models.block_documents.create_block_document(
             session,
@@ -1098,14 +1089,18 @@ class TestUpdateBlockDocument:
             ),
         )
 
-        with pytest.raises(
-            ValueError, match="(Names cannot be provided for anonymous blocks.)"
-        ):
-            await models.block_documents.update_block_document(
-                session,
-                block_document_id=block_document.id,
-                block_document=schemas.actions.BlockDocumentUpdate(name="updated"),
-            )
+        assert block_document.name.startswith("anonymous:")
+
+        await models.block_documents.update_block_document(
+            session,
+            block_document_id=block_document.id,
+            block_document=schemas.actions.BlockDocumentUpdate(name="updated"),
+        )
+
+        updated_block_document = await models.block_documents.read_block_document_by_id(
+            session, block_document_id=block_document.id
+        )
+        assert updated_block_document.name == "updated"
 
     async def test_update_block_document_data(self, session, block_schemas):
         block_document = await models.block_documents.create_block_document(
@@ -1173,73 +1168,6 @@ class TestUpdateBlockDocument:
             session, block_document_id=block_document.id
         )
         assert updated_block_document.data == dict(x=2)
-
-    async def test_update_anonymous_block_document_data_changes_name(
-        self, session, block_schemas
-    ):
-
-        block_document = await models.block_documents.create_block_document(
-            session,
-            block_document=schemas.actions.BlockDocumentCreate(
-                data=dict(x=1),
-                block_schema_id=block_schemas[1].id,
-                block_type_id=block_schemas[1].block_type_id,
-                is_anonymous=True,
-            ),
-        )
-
-        assert block_document.name.startswith("anonymous:")
-
-        await models.block_documents.update_block_document(
-            session,
-            block_document_id=block_document.id,
-            block_document=schemas.actions.BlockDocumentUpdate(data=dict(x=2)),
-        )
-
-        updated_block_document = await models.block_documents.read_block_document_by_id(
-            session, block_document_id=block_document.id
-        )
-
-        # name was updated
-
-        expected_anonymous_name = (
-            models.block_documents.generate_anonymous_name_from_fields(
-                data=dict(x=2),
-                block_schema_id=block_document.block_schema_id,
-                block_type_id=block_document.block_type_id,
-            )
-        )
-        assert updated_block_document.name == expected_anonymous_name
-        assert updated_block_document.name.startswith("anonymous:")
-        assert updated_block_document.name != block_document.name
-
-    async def test_update_anonymous_block_document_data_doesnt_change_name_if_data_doesnt_change(
-        self, session, block_schemas
-    ):
-
-        block_document = await models.block_documents.create_block_document(
-            session,
-            block_document=schemas.actions.BlockDocumentCreate(
-                data=dict(x=1),
-                block_schema_id=block_schemas[1].id,
-                block_type_id=block_schemas[1].block_type_id,
-                is_anonymous=True,
-            ),
-        )
-
-        await models.block_documents.update_block_document(
-            session,
-            block_document_id=block_document.id,
-            # note the new data is the same as the old data
-            block_document=schemas.actions.BlockDocumentUpdate(data=dict(x=1)),
-        )
-
-        updated_block_document = await models.block_documents.read_block_document_by_id(
-            session, block_document_id=block_document.id
-        )
-
-        # name was not updated
-        assert updated_block_document.name == block_document.name
 
     async def test_update_nested_block_document_data(self, session, block_schemas):
         inner_block_document = await models.block_documents.create_block_document(
