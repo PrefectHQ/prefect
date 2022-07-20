@@ -866,13 +866,13 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
 async def test_create_flow_run_from_deployment_with_anonymous_infrastructure(
     orion_client, deployment
 ):
-    infrastructure = Process(env={"foo": "bar"})
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id, infrastructure=infrastructure
-    )
-    assert flow_run.infrastructure_document_id == await infrastructure._save(
+    infrastructure_document_id = await Process(env={"foo": "bar"})._save(
         is_anonymous=True
     )
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        deployment.id, infrastructure_document_id=infrastructure_document_id
+    )
+    assert flow_run.infrastructure_document_id == infrastructure_document_id
 
     # Flow runner is empty
     assert flow_run.flow_runner == FlowRunnerSettings(type=None, config=None)
