@@ -28,8 +28,6 @@ from typing_extensions import Literal
 
 import prefect
 import prefect.context
-from prefect.blocks.core import Block
-from prefect.blocks.storage import StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import (
     FlowRunContext,
@@ -39,6 +37,7 @@ from prefect.context import (
 )
 from prefect.deployments import load_flow_from_deployment
 from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
+from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_data
 from prefect.logging.configuration import setup_logging
@@ -56,7 +55,12 @@ from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import Failed, Pending, Running, State, StateDetails
-from prefect.settings import PREFECT_DEBUG_MODE
+from prefect.results import (
+    _persist_serialized_result,
+    _retrieve_result,
+    _retrieve_serialized_result,
+)
+from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_LOCAL_STORAGE_PATH
 from prefect.states import (
     exception_to_crashed_state,
     return_value_to_state,
@@ -312,22 +316,9 @@ async def begin_flow_run(
             flow.task_runner.start()
         )
 
-        default_storage_block_document = (
-            await client.get_default_storage_block_document()
-        )
-        result_storage = (
-            Block._from_block_document(default_storage_block_document)
-            if default_storage_block_document is not None
-            else None
-        )
-        if not result_storage:
-            logger.warning(
-                "No default storage is configured on the server. Results from this "
-                "flow run will be stored in a temporary directory in its runtime "
-                "environment."
-            )
-            result_storage = TempStorageBlock()
-        flow_run_context.result_storage = result_storage
+        result_filesystem = get_default_result_filesystem()
+        await result_filesystem._save(is_anonymous=True)
+        flow_run_context.result_filesystem = result_filesystem
 
         terminal_state = await orchestrate_flow_run(
             flow,
@@ -402,9 +393,7 @@ async def create_and_begin_subflow_run(
         flow_run = flow_runs[-1]
 
         # Hydrate the retrieved state
-        flow_run.state.data._cache_data(
-            await client.resolve_datadoc(flow_run.state.data)
-        )
+        flow_run.state.data._cache_data(await _retrieve_result(flow_run.state))
 
         # Set up variables required downstream
         terminal_state = flow_run.state
@@ -453,7 +442,7 @@ async def create_and_begin_subflow_run(
                 partial_flow_run_context=PartialModel(
                     FlowRunContext,
                     sync_portal=parent_flow_run_context.sync_portal,
-                    result_storage=parent_flow_run_context.result_storage,
+                    result_filesystem=parent_flow_run_context.result_filesystem,
                     task_runner=task_runner,
                 ),
             )
@@ -596,9 +585,9 @@ async def orchestrate_flow_run(
             state=terminal_state,
             flow_run_id=flow_run.id,
             backend_state_data=(
-                await client.persist_data(
+                await _persist_serialized_result(
                     terminal_state.data.json().encode(),
-                    block=flow_run_context.result_storage,
+                    filesystem=flow_run_context.result_filesystem,
                 )
                 if terminal_state.data is not None and flow_run_context
                 # if None is passed, state.data will be sent
@@ -620,6 +609,11 @@ async def orchestrate_flow_run(
             )
             # Attempt to enter a running state again
             state = await client.propose_state(Running(), flow_run_id=flow_run.id)
+
+    if state.data is not None and state.data.encoding == "result":
+        state.data = DataDocument.parse_raw(
+            await _retrieve_serialized_result(state.data)
+        )
 
     return state
 
@@ -840,7 +834,7 @@ async def submit_task_run(
             task_run=task_run,
             parameters=parameters,
             wait_for=wait_for,
-            result_storage=flow_run_context.result_storage,
+            result_filesystem=flow_run_context.result_filesystem,
             settings=prefect.context.SettingsContext.get().copy(),
         ),
         asynchronous=task.isasync and flow_run_context.flow.isasync,
@@ -859,7 +853,7 @@ async def begin_task_run(
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
-    result_storage: StorageBlock,
+    result_filesystem: WritableFileSystem,
     settings: prefect.context.SettingsContext,
 ):
     """
@@ -919,16 +913,14 @@ async def begin_task_run(
                 task_run=task_run,
                 parameters=parameters,
                 wait_for=wait_for,
-                result_storage=result_storage,
+                result_filesystem=result_filesystem,
                 client=client,
             )
         except Abort:
             # Task run already completed, just fetch its state
             task_run = await client.read_task_run(task_run.id)
             # Hydrate the state data
-            task_run.state.data._cache_data(
-                await client.resolve_datadoc(task_run.state.data)
-            )
+            task_run.state.data._cache_data(await _retrieve_result(task_run.state))
             return task_run.state
 
 
@@ -937,7 +929,7 @@ async def orchestrate_task_run(
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
-    result_storage: StorageBlock,
+    result_filesystem: WritableFileSystem,
     client: OrionClient,
 ) -> State:
     """
@@ -970,7 +962,7 @@ async def orchestrate_task_run(
         task_run=task_run,
         task=task,
         client=client,
-        result_storage=result_storage,
+        result_filesystem=result_filesystem,
     )
 
     try:
@@ -1048,9 +1040,8 @@ async def orchestrate_task_run(
             terminal_state,
             task_run_id=task_run.id,
             backend_state_data=(
-                await client.persist_data(
-                    terminal_state.data.json().encode(),
-                    block=task_run_context.result_storage,
+                await _persist_serialized_result(
+                    terminal_state.data.json().encode(), filesystem=result_filesystem
                 )
                 if terminal_state.data is not None
                 # if None is passed, terminal_state.data will be sent
@@ -1081,6 +1072,11 @@ async def orchestrate_task_run(
         msg=f"Finished in state {display_state}",
         extra={"send_to_orion": False},
     )
+
+    if state.data is not None and state.data.encoding == "result":
+        state.data = DataDocument.parse_raw(
+            await _retrieve_serialized_result(state.data)
+        )
 
     return state
 
@@ -1207,6 +1203,41 @@ def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
     return context.task_run_dynamic_keys[task.task_key]
 
 
+def get_state_for_result(obj: Any) -> Optional[State]:
+    """
+    Get the state related to a result object.
+
+    `link_state_to_result` must have been called first.
+    """
+    flow_run_context = FlowRunContext.get()
+    if flow_run_context:
+        return flow_run_context.task_run_results.get(id(obj))
+
+
+def link_state_to_result(state: State, result: Any) -> None:
+    """
+    Stores information about the state on the result or in the global context for
+    relationship tracking.
+    """
+    if type(result) in UNTRACKABLE_TYPES:
+        return
+
+    # Cache the state onto the flow_run_context, associated by the id of the
+    # result. This allows a best-effort attempt to get the state from an object
+    # that wouldn't allow the __prefect_state__ attribute to be set. It also
+    # acts as a complete cache of states for reporting in a flow run state.
+    flow_run_context = FlowRunContext.get()
+    if flow_run_context:
+        flow_run_context.task_run_results[id(result)] = state
+
+
+def get_default_result_filesystem() -> LocalFileSystem:
+    """
+    Generate a default file system for result storage.
+    """
+    return LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
+
+
 if __name__ == "__main__":
     import sys
 
@@ -1240,31 +1271,3 @@ if __name__ == "__main__":
         )
         # Let the exit code be determined by the base exception type
         raise
-
-
-def get_state_for_result(obj: Any) -> Optional[State]:
-    """
-    Get the state related to a result object.
-
-    `link_state_to_result` must have been called first.
-    """
-    flow_run_context = FlowRunContext.get()
-    if flow_run_context:
-        return flow_run_context.task_run_results.get(id(obj))
-
-
-def link_state_to_result(state: State, result: Any) -> None:
-    """
-    Stores information about the state on the result or in the global context for
-    relationship tracking.
-    """
-    if type(result) in UNTRACKABLE_TYPES:
-        return
-
-    # Cache the state onto the flow_run_context, associated by the id of the
-    # result. This allows a best-effort attempt to get the state from an object
-    # that wouldn't allow the __prefect_state__ attribute to be set. It also
-    # acts as a complete cache of states for reporting in a flow run state.
-    flow_run_context = FlowRunContext.get()
-    if flow_run_context:
-        flow_run_context.task_run_results[id(result)] = state

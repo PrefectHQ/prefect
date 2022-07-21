@@ -374,9 +374,8 @@ async def test_agent_fails_flow_if_flow_runner_submission_fails(
 
     state = (await orion_client.read_flow_run(flow_run.id)).state
     assert state.is_failed()
-    result = await orion_client.resolve_datadoc(state.data)
     with pytest.raises(ValueError, match="Hello!"):
-        raise result
+        state.result()
 
 
 async def test_agent_fails_flow_if_flow_runner_does_not_mark_as_started(
@@ -408,11 +407,10 @@ async def test_agent_fails_flow_if_flow_runner_does_not_mark_as_started(
 
     state = (await orion_client.read_flow_run(flow_run.id)).state
     assert state.is_failed()
-    result = await orion_client.resolve_datadoc(state.data)
     with pytest.raises(
         RuntimeError, match="Child exited without calling task_status.started"
     ):
-        raise result
+        state.result()
 
 
 async def test_agent_dispatches_null_flow_runner_to_subprocess_runner(

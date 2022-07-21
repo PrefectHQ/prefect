@@ -314,6 +314,13 @@ PREFECT_PROFILES_PATH = Setting(
     value_callback=template_with_settings(PREFECT_HOME),
 )
 
+PREFECT_LOCAL_STORAGE_PATH = Setting(
+    Path,
+    default=Path("${PREFECT_HOME}") / "storage",
+    description="""The path to a directory to store things in.""",
+    value_callback=template_with_settings(PREFECT_HOME),
+)
+
 PREFECT_LOGGING_LEVEL = Setting(
     str,
     default="INFO",

@@ -21,7 +21,7 @@ from prefect.flow_runners.subprocess import SubprocessFlowRunner
 # The flow runner should be able to run containers with this version or newer.
 # Containers with versions of prefect before this version are not expected to run
 # correctly.
-MIN_COMPAT_PREFECT_VERSION = "2.0b8"
+MIN_COMPAT_PREFECT_VERSION = "2.0b10"
 
 
 __all__ = [
