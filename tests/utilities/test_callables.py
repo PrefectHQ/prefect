@@ -223,6 +223,50 @@ class TestFunctionToSchema:
             "required": ["a", "b", "c", "d", "e"],
         }
 
+    def test_function_with_user_defined_type(self):
+        class Foo:
+            x: int
+
+        def f(x: Foo):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {"x": {"title": "x"}},
+            "required": ["x"],
+        }
+
+    def test_function_with_user_defined_pydantic_model(self):
+        class Foo(pydantic.BaseModel):
+            x: int
+            y: str
+
+        def f(x: Foo):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "definitions": {
+                "Foo": {
+                    "properties": {
+                        "x": {"title": "X", "type": "integer"},
+                        "y": {"title": "Y", "type": "string"},
+                    },
+                    "required": ["x", "y"],
+                    "title": "Foo",
+                    "type": "object",
+                }
+            },
+            "properties": {
+                "x": {"allOf": [{"$ref": "#/definitions/Foo"}], "title": "x"}
+            },
+            "required": ["x"],
+            "title": "Parameters",
+            "type": "object",
+        }
+
 
 class TestMethodToSchema:
     def test_methods_with_no_arguments(self):
