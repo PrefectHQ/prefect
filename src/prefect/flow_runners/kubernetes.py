@@ -1,6 +1,5 @@
 import copy
 import enum
-import warnings
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Union
 
@@ -20,23 +19,17 @@ from prefect.flow_runners.base import (
 )
 from prefect.orion.schemas.core import FlowRun
 from prefect.settings import PREFECT_API_URL
-from prefect.utilities.asyncio import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.importtools import lazy_import
 
 if TYPE_CHECKING:
     import kubernetes
     import kubernetes.client
     import kubernetes.config
-    from kubernetes.client import BatchV1Api, Configuration, CoreV1Api, V1Job, V1Pod
+    import kubernetes.watch
+    from kubernetes.client import BatchV1Api, CoreV1Api, V1Job, V1Pod
 else:
-    # Note that we are attempting to reduce the import time of the library overall, and
-    # so we are deferring the import of the `kubernetes` module until it is used.  This
-    # means that all further kubernetes imports (except for the TYPE_CHECKING ones) should
-    # be done locally in the runtime functions they are needed in.
     kubernetes = lazy_import("kubernetes")
-    kubernetes.config = lazy_import("kubernetes.config")
-    kubernetes.client = lazy_import("kubernetes.client")
-    kubernetes.watch = lazy_import("kubernetes.watch")
 
 
 class KubernetesImagePullPolicy(enum.Enum):
@@ -66,7 +59,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         service_account_name: An optional string specifying which Kubernetes service account to use.
         labels: An optional dictionary of labels to add to the job.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
-        restart_policy: The Kubernetes restart policy to use for jobs.
         job: The base manifest for the Kubernetes Job.
         customizations: A list of JSON 6902 patches to apply to the base Job manifest.
         job_watch_timeout_seconds: Number of seconds to watch for job creation before timing out (default 5).
@@ -82,9 +74,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     service_account_name: str = None
     labels: Dict[str, str] = Field(default_factory=dict)
     image_pull_policy: Optional[KubernetesImagePullPolicy] = None
-
-    # deprecated: remove in 2.0b8
-    restart_policy: KubernetesRestartPolicy = None
 
     # settings allowing full customization of the Job
     job: KubernetesManifest = Field(
@@ -148,25 +137,11 @@ class KubernetesFlowRunner(UniversalFlowRunner):
             return JsonPatch(value)
         return value
 
-    @validator("restart_policy")
-    def deprecate_restart_policy(
-        cls, value: Optional[KubernetesRestartPolicy]
-    ) -> Optional[KubernetesRestartPolicy]:
-        if value is not None:
-            warnings.warn(
-                "KubernetesFlowRunner.restart_policy is deprecated.  Prefect will "
-                "always override it to Never. This option will be removed in 2.0b8.",
-                DeprecationWarning,
-            )
-        return None
-
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
         task_status: TaskStatus,
     ) -> Optional[bool]:
-        self.logger.info("RUNNING")
-
         # Throw an error immediately if the flow run won't be able to contact the API
         self._assert_orion_settings_are_compatible()
 
@@ -178,7 +153,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
             # work, try to load the configuration from the local environment, allowing
             # any further ConfigExceptions to bubble up.
             try:
-                kubernetes.config.incluster_config.load_incluster_config()
+                kubernetes.config.load_incluster_config()
             except kubernetes.config.ConfigException:
                 kubernetes.config.load_kube_config()
 
@@ -244,7 +219,11 @@ class KubernetesFlowRunner(UniversalFlowRunner):
                 if event["object"].status.phase == "Running":
                     watch.stop()
                     return event["object"]
-        self.logger.error(f"Pod never started. Job: {job_name}")
+        raise RuntimeError(
+            f"Pod for job {job_name!r} did not start after "
+            f"{self.pod_watch_timeout_seconds} seconds. "
+            f"Consider increasing the value of `pod_watch_timeout_seconds`."
+        )
 
     def _watch_job(self, job_name: str) -> bool:
         job = self._get_job(job_name)

@@ -4,7 +4,6 @@ Routes for interacting with block objects.
 from typing import List, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from fastapi import (
     Body,
@@ -26,7 +25,7 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/block_documents", tags=["Block documents"])
 
 
-@router.post("/")
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_block_document(
     block_document: schemas.actions.BlockDocumentCreate,
     response: Response,
@@ -37,14 +36,9 @@ async def create_block_document(
     Create a new block document.
     """
     try:
-        now = pendulum.now("UTC")
         new_block_document = await models.block_documents.create_block_document(
             session=session, block_document=block_document
         )
-        # anonymous blocks are idempotent so only set 201 if the block document
-        # was actually created
-        if new_block_document.created >= now:
-            response.status_code = status.HTTP_201_CREATED
     except sa.exc.IntegrityError:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
@@ -135,56 +129,3 @@ async def update_block_document_data(
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, detail="Block document not found"
         )
-
-
-@router.post(
-    "/{id}/set_default_storage_block_document", status_code=status.HTTP_204_NO_CONTENT
-)
-async def set_default_storage_block_document(
-    block_document_id: str = Path(..., description="The block document id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
-):
-    try:
-        await models.block_documents.set_default_storage_block_document(
-            session=session, block_document_id=block_document_id
-        )
-    except ValueError as exc:
-        if "Block document not found" in str(exc):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Block document not found"
-            )
-        elif "Block schema must have the 'storage' capability" in str(exc):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Specified block document is not a storage block document",
-            )
-        else:
-            raise
-
-
-@router.post("/get_default_storage_block_document")
-async def get_default_storage_block_document(
-    response: Response,
-    session: sa.orm.Session = Depends(dependencies.get_session),
-    include_secrets: bool = Body(
-        True,
-        description="Whether to include sensitive values in the block document.",
-        embed=True,
-    ),
-) -> Optional[schemas.core.BlockDocument]:
-    block_document = await models.block_documents.get_default_storage_block_document(
-        session=session, include_secrets=include_secrets
-    )
-    if block_document is not None:
-        return block_document
-    else:
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.post(
-    "/clear_default_storage_block_document", status_code=status.HTTP_204_NO_CONTENT
-)
-async def clear_default_storage_block_document(
-    session: sa.orm.Session = Depends(dependencies.get_session),
-):
-    await models.block_documents.clear_default_storage_block_document(session=session)

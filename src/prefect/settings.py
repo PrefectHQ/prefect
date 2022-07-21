@@ -314,6 +314,13 @@ PREFECT_PROFILES_PATH = Setting(
     value_callback=template_with_settings(PREFECT_HOME),
 )
 
+PREFECT_LOCAL_STORAGE_PATH = Setting(
+    Path,
+    default=Path("${PREFECT_HOME}") / "storage",
+    description="""The path to a directory to store things in.""",
+    value_callback=template_with_settings(PREFECT_HOME),
+)
+
 PREFECT_LOGGING_LEVEL = Setting(
     str,
     default="INFO",
@@ -911,14 +918,14 @@ class ProfilesCollection:
             return None
         return self[self.active_name]
 
-    def set_active(self, name: Optional[str]):
+    def set_active(self, name: Optional[str], check: bool = True):
         """
         Set the active profile name in the collection.
 
         A null value may be passed to indicate that this collection does not determine
         the active profile.
         """
-        if name is not None and name not in self.names:
+        if check and name is not None and name not in self.names:
             raise ValueError(f"Unknown profile name {name!r}.")
         self.active_name = name
 
@@ -1078,9 +1085,8 @@ def load_profiles() -> ProfilesCollection:
                 source=user_profiles[name].source,
             )
 
-        # Include the active key if set
         if user_profiles.active_name:
-            profiles.set_active(user_profiles.active_name)
+            profiles.set_active(user_profiles.active_name, check=False)
 
     return profiles
 

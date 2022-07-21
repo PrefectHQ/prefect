@@ -55,3 +55,19 @@ def is_local_path(path: Union[str, pathlib.Path, OpenFile]):
         raise TypeError(f"Invalid path of type {type(path).__name__!r}")
 
     return type(of.fs) == LocalFileSystem
+
+
+def to_display_path(
+    path: Union[pathlib.Path, str], relative_to: Union[pathlib.Path, str] = None
+) -> str:
+    """
+    Convert a path to a displayable path. The absolute path or relative path to the
+    current (or given) directory will be returned, whichever is shorter.
+    """
+    path, relative_to = (
+        pathlib.Path(path).resolve(),
+        pathlib.Path(relative_to or ".").resolve(),
+    )
+    relative_path = str(path.relative_to(relative_to))
+    absolute_path = str(path)
+    return relative_path if len(relative_path) < len(absolute_path) else absolute_path

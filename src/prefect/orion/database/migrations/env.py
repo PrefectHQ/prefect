@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.utilities.database import get_dialect
-from prefect.utilities.asyncio import sync_compatible
+from prefect.utilities.asyncutils import sync_compatible
 
 db_interface = provide_database_interface()
 config = context.config

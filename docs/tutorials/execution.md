@@ -27,13 +27,17 @@ If, however, we want our tasks to run in parallel (or sequentially) then we need
 
 ## Parallel Execution
 
-Achieving parallelism within a flow run is as simple as switching your task runner to Prefect's `DaskTaskRunner`; however please note that because the `DaskTaskRunner` uses multiprocessing, it can only be used when running interactively or when protected by an `if __name__ == "__main__":` guard when used in a script.
+
+Achieving parallelism within a flow run is as simple as:
+
+1. Switching your task runner to Prefect's `DaskTaskRunner`; however please note that because the `DaskTaskRunner` uses multiprocessing, it can only be used when running interactively or when protected by an `if __name__ == "__main__":` guard when used in a script.
+2. Calling `.submit` on the task instead of calling the task directly. This submits the task to the runner rather than running the task in-process.
 
 ```python
 import time
 
 from prefect import task, flow
-from prefect.task_runners import DaskTaskRunner
+from prefect_dask.task_runners import DaskTaskRunner
 
 @task
 def print_values(values):
@@ -43,8 +47,8 @@ def print_values(values):
 
 @flow(task_runner=DaskTaskRunner())
 def parallel_flow():
-    print_values(["AAAA"] * 15)
-    print_values(["BBBB"] * 10)
+    print_values.submit(["AAAA"] * 15)
+    print_values.submit(["BBBB"] * 10)
 
 if __name__ == "__main__":
     parallel_flow()

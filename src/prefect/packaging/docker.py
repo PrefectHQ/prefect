@@ -1,17 +1,19 @@
 import json
+import sys
 from pathlib import Path
 from typing import Any, Mapping, Optional, Union
 
-from pydantic import AnyHttpUrl, root_validator
+from pydantic import AnyHttpUrl, root_validator, validator
 from slugify import slugify
 from typing_extensions import Literal
 
 from prefect.docker import ImageBuilder, build_image, push_image, to_run_command
+from prefect.flow_runners.docker import get_prefect_image_name
 from prefect.flows import Flow, load_flow_from_script
 from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.serializers import SourceSerializer
 from prefect.software import CondaEnvironment, PythonEnvironment
-from prefect.utilities.asyncio import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 class DockerPackageManifest(PackageManifest):
@@ -39,19 +41,18 @@ class DockerPackager(Packager):
 
     base_image: Optional[str] = None
     python_environment: Optional[Union[PythonEnvironment, CondaEnvironment]] = None
-
     dockerfile: Optional[Path] = None
-
+    platform: Optional[str] = (None,)
     image_flow_location: str = "/flow.py"
-
     registry_url: Optional[AnyHttpUrl] = None
 
     @root_validator
-    def base_image_and_dockerfile_required(cls, values: Mapping[str, Any]):
+    def set_default_base_image(cls, values):
         if not values.get("base_image") and not values.get("dockerfile"):
-            raise ValueError(
-                "One of `base_image` or `dockerfile` is required to package flows in "
-                "Docker images."
+            values["base_image"] = get_prefect_image_name(
+                flavor="conda"
+                if isinstance(values.get("python_environment"), CondaEnvironment)
+                else None
             )
         return values
 
@@ -69,6 +70,13 @@ class DockerPackager(Packager):
             values["python_environment"] = PythonEnvironment.from_environment()
         return values
 
+    @validator("registry_url", pre=True)
+    def ensure_registry_url_is_prefixed(cls, value):
+        if isinstance(value, str):
+            if "://" not in value:
+                return "https://" + value
+        return value
+
     async def package(self, flow: Flow) -> DockerPackageManifest:
         """
         Package a flow as a Docker image and, optionally, push it to a registry
@@ -81,10 +89,8 @@ class DockerPackager(Packager):
                 push_image, image_reference, self.registry_url, image_name
             )
 
-        return DockerPackageManifest(
-            image=image_reference,
-            image_flow_location=self.image_flow_location,
-            flow_name=flow.name,
+        return self.base_manifest(flow).finalize(
+            image=image_reference, image_flow_location=self.image_flow_location
         )
 
     async def _build_image(self, flow: Flow) -> str:
@@ -96,11 +102,16 @@ class DockerPackager(Packager):
         context = self.dockerfile.resolve().parent
         dockerfile = self.dockerfile.relative_to(context)
         return await run_sync_in_worker_thread(
-            build_image, context=context, dockerfile=str(dockerfile)
+            build_image,
+            platform=self.platform,
+            context=context,
+            dockerfile=str(dockerfile),
         )
 
     async def _build_from_base_image(self, flow: Flow) -> str:
-        with ImageBuilder(base_image=self.base_image) as builder:
+        with ImageBuilder(
+            base_image=self.base_image, platform=self.platform
+        ) as builder:
             for command in self.python_environment.install_commands():
                 builder.add_line(to_run_command(command))
 
@@ -108,4 +119,6 @@ class DockerPackager(Packager):
 
             builder.write_text(source_info["source"], self.image_flow_location)
 
-            return await run_sync_in_worker_thread(builder.build)
+            return await run_sync_in_worker_thread(
+                builder.build, stream_progress_to=sys.stdout
+            )

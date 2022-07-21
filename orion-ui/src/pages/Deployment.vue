@@ -22,7 +22,7 @@
       </template>
 
       <template #parameters>
-        <DeploymentParametersTable :parameters="deployment.parameters" />
+        <ParametersTable :parameters="deployment.parameters" />
       </template>
     </p-tabs>
 
@@ -33,7 +33,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingDeployment, DeploymentDetails, DeploymentParametersTable } from '@prefecthq/orion-design'
+  import { PageHeadingDeployment, DeploymentDetails, ParametersTable } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'

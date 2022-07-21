@@ -8,7 +8,7 @@ import fsspec
 from pydantic import Field, validator
 
 from prefect.blocks.core import Block
-from prefect.utilities.asyncio import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 class ReadableFileSystem(Block, abc.ABC):
@@ -59,6 +59,10 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
     async def read_path(self, path: str) -> bytes:
         path: Path = self._resolve_path(path)
 
+        # Check if the path exists
+        if not path.exists():
+            raise ValueError(f"Path {path} does not exist.")
+
         # Validate that its a file
         if not path.is_file():
             raise ValueError(f"Path {path} is not a file.")
@@ -69,10 +73,14 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
         return content
 
     async def write_path(self, path: str, content: bytes) -> str:
-        path = self._resolve_path(path)
+        path: Path = self._resolve_path(path)
 
         # Construct the path if it does not exist
         path.parent.mkdir(exist_ok=True, parents=True)
+
+        # Check if the file already exists
+        if path.exists() and not path.is_file():
+            raise ValueError(f"Path {path} already exists and is not a file.")
 
         async with await anyio.open_file(path, mode="wb") as f:
             await f.write(content)
