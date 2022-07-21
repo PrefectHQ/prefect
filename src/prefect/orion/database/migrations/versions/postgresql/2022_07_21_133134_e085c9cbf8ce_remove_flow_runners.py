@@ -1,7 +1,7 @@
 """Remove flow runners
 
 Revision ID: e085c9cbf8ce
-Revises: 0f27d462bf6d
+Revises: bb4dc90d3e29
 Create Date: 2022-07-21 13:31:34.045385
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "e085c9cbf8ce"
-down_revision = "0f27d462bf6d"
+down_revision = "bb4dc90d3e29"
 branch_labels = None
 depends_on = None
 
