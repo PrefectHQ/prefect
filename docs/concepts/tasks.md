@@ -48,10 +48,6 @@ def my_flow():
 
 Tasks are uniquely identified by a task key, which is a hash composed of the task name, the fully-qualified name of the function, and any tags. If the task does not have a name specified, the name is derived from the task function.
 
-Task calls return a [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture), which represents the status of a task executing in a task runner. See [Using results from tasks](#using-results-from-tasks) for further information.
-
-The future can be used to retrieve the current [`State`](/api-ref/orion/schemas/states/#prefect.orion.schemas.states.State) of the task run or wait for the task run to enter a final state. See [States](/concepts/states/) for further information.
-
 !!! note "How big should a task be?"
     Prefect encourages "small tasks" &mdash; each one should represent a single logical step of your workflow. This allows Prefect to better contain task failures.
 
@@ -70,6 +66,7 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 | cache_expiration | An optional amount of time indicating how long cached states for this task should be restorable; if not provided, cached states will never expire. |
 | retries | An optional number of times to retry on task run failure. |
 | retry_delay_seconds | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero. |
+| version | An optional string specifying the version of this task definition. |
 
 For example, you can provide a `name` value for the task. Here we've used the optional `description` argument as well.
 
@@ -203,144 +200,6 @@ def cached_task():
 ```
 
 See the [Flow and task configuration](/tutorials/flow-task-config/#task-caching) tutorial for additional examples of task caching.
-
-## Using results from tasks
-
-By default, Prefect attempts to create an execution graph for the tasks in your flow based on data dependencies. 
-
-When tasks are called, they are submitted to a task runner, which creates a future for access to the state and result of the task. A [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) provides access to a computation happening in a task runner.
-
-```python
-@task
-def say_hello(name):
-    return f"Hello {name}!"
-
-@flow
-def hello_world():
-    future = say_hello("Marvin")
-    print(f"variable 'future' is type {type(future)}")
-```
-
-You'll see that, in the context of a flow, the variable `future` is a `PrefectFuture`.
-
-<div class="terminal">
-```bash
->>> hello_world()
-variable 'future' is type <class 'prefect.futures.PrefectFuture'>
-```
-</div>
-
-But if we pass `future` to another task, the task receives only the value as a variable:
-
-```python
-@task
-def print_result(result):
-    print(type(result))
-    print(result)
-
-...
-
-@flow(name="hello-flow")
-def hello_world():
-    future = say_hello("Marvin")
-    print_result(future)
-```
-
-<div class="terminal">
-```bash
->>> hello_world()
-<class 'str'>
-Hello Marvin!
-```
-</div>
-
-When you pass a future into a task, we will wait for the upstream task it references to reach a final state before starting the downstream task.
-
-Futures have a few useful methods. For example, you can retrieve the result of the task run with  [`result()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result):
-
-```python
-@flow
-def my_flow():
-    future = my_task()
-    result = future.result()
-```
-
-This method will wait for the task to return before returning the result. If the task run has failed, it will raise the task run's exception. You may disable this behavior with the `raise_on_failure` option:
-
-```python
-@flow
-def my_flow():
-    future = my_task()
-    result = future.result(raise_on_failure=False)
-    if future.get_state().is_failed():
-        # `result` is an exception! handle accordingly
-        ...
-    else:
-        # `result` is the expected return value of our task
-```
-
-You can retrieve the current state of the task run associated with the `PrefectFuture` using [`get_state()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.get_state):
-
-```python
-@flow
-def my_flow():
-    future = my_task()
-    state = future.get_state()
-```
-
-You can also wait for a task to complete by using the [`wait()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.wait) method:
-
-```python
-@flow
-def my_flow():
-    future = my_task()
-    final_state = future.wait()
-```
-
-You can include a timeout in the `wait` call to take perform logic if the task has not finished in a given amount of time:
-
-```python
-@flow
-def my_flow():
-    future = my_task()
-    final_state = future.wait(1)  # Wait one second max
-    if final_state:
-        # Take action if the task is done
-        result = final_state.result()
-    else:
-        ... # Task action if the task is still running
-```
-
-
-You may also use the [`wait_for=[]`](/api-ref/prefect/tasks/#prefect.tasks.Task.__call__) parameter when calling a task, specifying upstream task dependencies. This enables you to control task execution order for tasks that do not share data dependencies.
-
-```python
-@task
-def task_a():
-    pass
-
-@task
-def task_b():
-    pass
-
-@task
-def task_c():
-    pass
-    
-@task
-def task_d():
-    pass
-
-@flow
-def my_flow():
-    a = task_a()
-    b = task_b()
-    # Wait for task_a and task_2 to complete
-    c = task_c(wait_for=[a, b])
-    # If waiting for one task it must still be in a list
-    # task_d will wait for task_c to complete
-    d = task_d(wait_for=[c])
-```
 
 ## Async tasks
 

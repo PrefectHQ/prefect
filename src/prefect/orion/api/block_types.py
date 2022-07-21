@@ -2,7 +2,7 @@ from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import Body, Depends, HTTPException, Path, Query, status
 
 import prefect
 from prefect.orion import models, schemas
@@ -141,6 +141,9 @@ async def delete_block_type(
 async def read_block_documents_for_block_type(
     session: sa.orm.Session = Depends(dependencies.get_session),
     block_type_name: str = Path(..., description="The block type name", alias="name"),
+    include_secrets: bool = Query(
+        False, description="Whether to include sensitive values in the block document."
+    ),
 ) -> List[schemas.core.BlockDocument]:
     block_type = await models.block_types.read_block_type_by_name(
         session=session, block_type_name=block_type_name
@@ -152,6 +155,7 @@ async def read_block_documents_for_block_type(
         block_document_filter=schemas.filters.BlockDocumentFilter(
             block_type_id=dict(any_=[block_type.id])
         ),
+        include_secrets=include_secrets,
     )
 
 
@@ -166,9 +170,15 @@ async def read_block_document_by_name_for_block_type(
         description="The block type name",
     ),
     block_document_name: str = Path(..., description="The block type name"),
+    include_secrets: bool = Query(
+        False, description="Whether to include sensitive values in the block document."
+    ),
 ) -> schemas.core.BlockDocument:
     block_document = await models.block_documents.read_block_document_by_name(
-        session=session, block_type_name=block_type_name, name=block_document_name
+        session=session,
+        block_type_name=block_type_name,
+        name=block_document_name,
+        include_secrets=include_secrets,
     )
     if not block_document:
         raise HTTPException(

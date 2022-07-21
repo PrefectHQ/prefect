@@ -17,15 +17,10 @@ import typer
 
 import prefect
 from prefect.cli._types import PrefectTyper, SettingsOption
-from prefect.cli._utilities import (
-    exit_with_error,
-    exit_with_success,
-    open_process_and_stream_output,
-)
+from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.agent import start as start_agent
 from prefect.cli.root import app
-from prefect.flow_runners import get_prefect_image_name
-from prefect.flow_runners.base import python_version_minor
+from prefect.flow_runners.base import get_prefect_image_name, python_version_minor
 from prefect.orion.api.server import create_app
 from prefect.settings import (
     PREFECT_API_URL,
@@ -33,6 +28,7 @@ from prefect.settings import (
     PREFECT_ORION_API_PORT,
 )
 from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.processutils import run_process
 
 DEV_HELP = """
 Commands for development.
@@ -45,15 +41,27 @@ dev_app = PrefectTyper(
 app.add_typer(dev_app)
 
 
+def exit_with_error_if_not_editable_install():
+    if (
+        prefect.__module_path__.parent == "site-packages"
+        or not (prefect.__root_path__ / "setup.py").exists()
+    ):
+        exit_with_error(
+            "Development commands cannot be used without an editable installation of Prefect. "
+            "Development commands require content outside of the 'prefect' module which "
+            "is not available when installed into your site-packages. "
+            f"Detected module path: {prefect.__module_path__}."
+        )
+
+
 @dev_app.command()
 def build_docs(
     schema_path: str = None,
 ):
     """
     Builds REST API reference documentation for static display.
-
-    Note that this command only functions properly with an editable install.
     """
+    exit_with_error_if_not_editable_install()
     schema = create_app(ephemeral=True).openapi()
 
     if not schema_path:
@@ -78,13 +86,20 @@ Requires npm.
 
 @dev_app.command(help=BUILD_UI_HELP)
 def build_ui():
+    exit_with_error_if_not_editable_install()
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
 
             app.console.print("Installing npm packages...")
-            subprocess.check_output(
-                ["npm", "ci", "install"], shell=sys.platform == "win32"
-            )
+            try:
+                subprocess.check_output(
+                    ["npm", "ci", "install"], shell=sys.platform == "win32"
+                )
+            except Exception as exc:
+                app.console.print(
+                    "npm call failed - try running `nvm use` first.", style="red"
+                )
+                raise
 
             app.console.print("Building for distribution...")
             env = os.environ.copy()
@@ -108,13 +123,14 @@ async def ui():
     """
     Starts a hot-reloading development UI.
     """
+    exit_with_error_if_not_editable_install()
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
             app.console.print("Installing npm packages...")
             subprocess.check_output(["npm", "install"], shell=sys.platform == "win32")
 
             app.console.print("Starting UI development server...")
-            await open_process_and_stream_output(command=["npm", "run", "serve"])
+            await run_process(command=["npm", "run", "serve"], stream_output=True)
 
 
 @dev_app.command()
@@ -148,7 +164,7 @@ async def api(
 
     app.console.print(f"Running: {' '.join(command)}")
 
-    await open_process_and_stream_output(command=command, env=server_env)
+    await run_process(command=command, env=server_env, stream_output=True)
 
 
 @dev_app.command()
@@ -229,6 +245,7 @@ def build_image(
     """
     Build a docker image for development.
     """
+    exit_with_error_if_not_editable_install()
     # TODO: Once https://github.com/tiangolo/typer/issues/354 is addresesd, the
     #       default can be set in the function signature
     arch = arch or platform.machine()
@@ -272,6 +289,7 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
     """
     Run a docker container with local code mounted and installed.
     """
+    exit_with_error_if_not_editable_install()
     import docker
     from docker.models.containers import Container
 
@@ -360,6 +378,7 @@ def kubernetes_manifest():
     Example:
         $ prefect dev kubernetes-manifest | kubectl apply -f -
     """
+    exit_with_error_if_not_editable_install()
 
     template = Template(
         (

@@ -80,7 +80,7 @@ async def read_flow_run_notification_policies(
     limit: int = None,
 ):
     """
-    Read WorkQueues.
+    Read notification policies.
 
     Args:
         session (sa.orm.Session): A database session
@@ -88,11 +88,11 @@ async def read_flow_run_notification_policies(
         limit(int): Query limit
 
     Returns:
-        List[db.FlowRunNotificationPolicy]: WorkQueues
+        List[db.FlowRunNotificationPolicy]: Notification policies
     """
 
     query = select(db.FlowRunNotificationPolicy).order_by(
-        db.FlowRunNotificationPolicy.name
+        db.FlowRunNotificationPolicy.id
     )
 
     if flow_run_notification_policy_filter:

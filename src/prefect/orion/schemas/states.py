@@ -129,9 +129,14 @@ class State(IDBaseModel, Generic[R]):
         data = None
 
         if self.data:
-            if self.data.encoding == "blockstorage":
-                return self.data
             data = self.data.decode()
+
+        # Link the result to this state for dependency tracking
+        # Performing this here lets us capture relationships for futures resolved into
+        # data
+        from prefect.engine import link_state_to_result
+
+        link_state_to_result(self, data)
 
         if self.is_failed() and raise_on_failure:
             if isinstance(data, Exception):
@@ -225,13 +230,8 @@ class State(IDBaseModel, Generic[R]):
         display = dict(
             message=repr(self.message),
             type=self.type,
-            result=repr(self.result(raise_on_failure=False)),
+            result=repr(self.data.decode()) if self.data else None,
         )
-
-        if self.state_details.task_run_id is not None:
-            display["task_run_id"] = self.state_details.task_run_id
-        elif self.state_details.flow_run_id is not None:
-            display["flow_run_id"] = self.state_details.flow_run_id
 
         return f"{self.name}({', '.join(f'{k}={v}' for k, v in display.items())})"
 

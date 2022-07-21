@@ -67,7 +67,9 @@ class FlowRunNotifications(LoopService):
                     continue
                 block = Block._from_block_document(
                     await schemas.core.BlockDocument.from_orm_model(
-                        session=session, orm_block_document=orm_block_document
+                        session=session,
+                        orm_block_document=orm_block_document,
+                        include_secrets=True,
                     )
                 )
 

@@ -26,10 +26,10 @@
   const updateQueue = async (workQueue: IWorkQueueRequest): Promise<void> => {
     try {
       await workQueuesApi.updateWorkQueue(workQueueId.value, workQueue)
-      showToast(`${workQueueDetails.name} updated`, 'success', undefined, 3000)
+      showToast(`${workQueueDetails.name} updated`, 'success')
       goBack()
     } catch (error) {
-      showToast('Error occurred while updating your queue', 'error', undefined, 3000)
+      showToast('Error occurred while updating your queue', 'error')
       console.error(error)
     }
   }

@@ -8,7 +8,7 @@ import yaml
 import prefect
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli.root import app
-from prefect.flow_runners import get_prefect_image_name
+from prefect.flow_runners.base import get_prefect_image_name
 from prefect.flow_runners.kubernetes import KubernetesFlowRunner
 from prefect.settings import PREFECT_LOGGING_SERVER_LEVEL
 

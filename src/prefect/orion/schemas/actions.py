@@ -4,7 +4,7 @@ Reduced schemas for accepting API actions.
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import Field, root_validator
+from pydantic import Field
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -119,6 +119,7 @@ class FlowRunCreate(
             "idempotency_key",
             "parent_task_run_id",
             "flow_runner",
+            "empirical_policy",
         ],
     )
 ):
@@ -141,6 +142,7 @@ class DeploymentFlowRunCreate(
             "tags",
             "idempotency_key",
             "flow_runner",
+            "empirical_policy",
         ],
     )
 ):
@@ -236,21 +238,6 @@ class BlockDocumentCreate(
     class Config:
         extra = "forbid"
 
-    @root_validator
-    def check_anonymous_name(cls, values):
-        # when creating a new anonymous block document, a name should never be
-        # provided Anonymous names are used for idempotency and generated when
-        # the document is actually created on the server
-        if values.get("is_anonymous") and values.get("name"):
-            raise ValueError("Names cannot be provided for anonymous block documents")
-        elif not values.get("is_anonymous") and (values.get("name") or "").startswith(
-            "anonymous"
-        ):
-            raise ValueError(
-                "Block document names that start with 'anonymous' are reserved."
-            )
-        return values
-
 
 class BlockDocumentUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a block document."""
@@ -340,7 +327,6 @@ class FlowRunNotificationPolicyCreate(
     schemas.core.FlowRunNotificationPolicy.subclass(
         "FlowRunNotificationPolicyCreate",
         include_fields=[
-            "name",
             "is_active",
             "state_names",
             "tags",
@@ -361,7 +347,6 @@ class FlowRunNotificationPolicyUpdate(PrefectBaseModel):
     class Config:
         extra = "forbid"
 
-    name: Optional[str] = None
     is_active: Optional[bool] = None
     state_names: Optional[List[str]] = None
     tags: Optional[List[str]] = None

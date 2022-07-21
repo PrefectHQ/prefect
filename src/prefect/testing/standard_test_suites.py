@@ -65,13 +65,8 @@ class TaskRunnerStandardTestSuite(ABC):
             c = task_c(b)
             return a, b, c
 
-        a, b, c = test_flow().result()
-
-        assert (a.result(), b.result(), c.result()) == (
-            "a",
-            "b",
-            "bc",
-        )
+        a, b, c = test_flow()
+        assert (a, b, c) == ("a", "b", "bc")
 
     def test_failing_flow_run(self, task_runner):
         @task
@@ -89,14 +84,14 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         def test_flow():
-            a = task_a()
-            b = task_b()
-            c = task_c(b)
-            d = task_c(c)
+            a = task_a.submit()
+            b = task_b.submit()
+            c = task_c.submit(b)
+            d = task_c.submit(c)
 
             return a, b, c, d
 
-        state = test_flow()
+        state = test_flow._run()
 
         assert state.is_failed()
         a, b, c, d = state.result(raise_on_failure=False)
@@ -149,7 +144,7 @@ class TaskRunnerStandardTestSuite(ABC):
             foo()
             bar()
 
-        test_flow().result()
+        test_flow()
 
         assert tmp_file.read_text() == "bar"
 
@@ -175,10 +170,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         def test_flow():
-            foo()
-            bar()
+            foo.submit()
+            bar.submit()
 
-        test_flow().result()
+        test_flow()
 
         assert tmp_file.read_text() == "foo"
 
@@ -201,10 +196,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         async def test_flow():
-            await foo()
-            await bar()
+            await foo.submit()
+            await bar.submit()
 
-        (await test_flow()).result()
+        await test_flow()
 
         assert tmp_file.read_text() == "bar"
 
@@ -227,10 +222,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         async def test_flow():
-            await foo()
-            await bar()
+            await foo.submit()
+            await bar.submit()
 
-        (await test_flow()).result()
+        await test_flow()
 
         assert tmp_file.read_text() == "foo"
 
@@ -249,10 +244,10 @@ class TaskRunnerStandardTestSuite(ABC):
         @flow(version="test", task_runner=task_runner)
         async def test_flow():
             async with anyio.create_task_group() as tg:
-                tg.start_soon(foo)
-                tg.start_soon(bar)
+                tg.start_soon(foo.submit)
+                tg.start_soon(bar.submit)
 
-        (await test_flow()).result()
+        await test_flow()
 
         assert tmp_file.read_text() == "foo"
 
@@ -273,7 +268,7 @@ class TaskRunnerStandardTestSuite(ABC):
             foo()
             bar()
 
-        test_flow().result()
+        test_flow()
 
         assert tmp_file.read_text() == "bar"
 
@@ -294,7 +289,7 @@ class TaskRunnerStandardTestSuite(ABC):
             await foo()
             await bar()
 
-        (await test_flow()).result()
+        await test_flow()
 
         assert tmp_file.read_text() == "bar"
 
@@ -316,7 +311,7 @@ class TaskRunnerStandardTestSuite(ABC):
                 tg.start_soon(foo)
                 tg.start_soon(bar)
 
-        (await test_flow()).result()
+        await test_flow()
 
         assert tmp_file.read_text() == "foo"
 
@@ -341,6 +336,7 @@ class TaskRunnerStandardTestSuite(ABC):
         async with task_runner.start():
             fut = await task_runner.submit(
                 task_run=task_run,
+                run_key=f"{task_run.name}-{task_run.id.hex}",
                 run_fn=fake_orchestrate_task_run,
                 run_kwargs=dict(example_kwarg=1),
             )
@@ -369,7 +365,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         async with task_runner.start():
             future = await task_runner.submit(
-                task_run=task_run, run_fn=fake_orchestrate_task_run, run_kwargs={}
+                task_run=task_run,
+                run_key=f"{task_run.name}-{task_run.id.hex}",
+                run_fn=fake_orchestrate_task_run,
+                run_kwargs={},
             )
 
             state = await task_runner.wait(future, 5)
@@ -428,10 +427,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         def test_flow():
-            foo()
-            bar()
+            foo.submit()
+            bar.submit()
 
-        test_flow().result()
+        test_flow()
 
         assert tmp_file.read_text() == "bar"
 
@@ -457,10 +456,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         def test_flow():
-            foo()
-            bar()
+            foo.submit()
+            bar.submit()
 
-        test_flow().result()
+        test_flow()
 
         assert tmp_file.read_text() == "foo"
 
@@ -483,10 +482,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         async def test_flow():
-            await foo()
-            await bar()
+            await foo.submit()
+            await bar.submit()
 
-        (await test_flow()).result()
+        await test_flow()
 
         assert tmp_file.read_text() == "bar"
 
@@ -509,10 +508,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         async def test_flow():
-            await foo()
-            await bar()
+            await foo.submit()
+            await bar.submit()
 
-        (await test_flow()).result()
+        await test_flow()
 
         assert tmp_file.read_text() == "foo"
 
@@ -531,10 +530,10 @@ class TaskRunnerStandardTestSuite(ABC):
         @flow(version="test", task_runner=task_runner)
         async def test_flow():
             async with anyio.create_task_group() as tg:
-                tg.start_soon(foo)
-                tg.start_soon(bar)
+                tg.start_soon(foo.submit)
+                tg.start_soon(bar.submit)
 
-        (await test_flow()).result()
+        await test_flow()
 
         assert tmp_file.read_text() == "foo"
 
@@ -552,10 +551,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         def test_flow():
-            foo()
-            bar()
+            foo._run()
+            bar._run()
 
-        test_flow().result()
+        test_flow()
 
         assert tmp_file.read_text() == "bar"
 
@@ -573,10 +572,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         async def test_flow():
-            await foo()
-            await bar()
+            await foo._run()
+            await bar._run()
 
-        (await test_flow()).result()
+        await test_flow()
 
         assert tmp_file.read_text() == "bar"
 
@@ -595,9 +594,9 @@ class TaskRunnerStandardTestSuite(ABC):
         @flow(version="test", task_runner=task_runner)
         async def test_flow():
             async with anyio.create_task_group() as tg:
-                tg.start_soon(foo)
-                tg.start_soon(bar)
+                tg.start_soon(foo._run)
+                tg.start_soon(bar._run)
 
-        (await test_flow()).result()
+        await test_flow()
 
         assert tmp_file.read_text() == "foo"

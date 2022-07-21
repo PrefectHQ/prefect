@@ -1,6 +1,7 @@
 import contextlib
 import random
 from itertools import product
+from unittest import mock
 
 import pendulum
 import pytest
@@ -13,7 +14,8 @@ from prefect.orion.orchestration.core_policy import (
     PreventTransitionsFromTerminalStates,
     ReleaseTaskConcurrencySlots,
     RenameReruns,
-    RetryPotentialFailures,
+    RetryFailedFlows,
+    RetryFailedTasks,
     SecureTaskConcurrencySlots,
     WaitForScheduledTime,
 )
@@ -22,8 +24,9 @@ from prefect.orion.orchestration.rules import (
     TERMINAL_STATES,
     BaseOrchestrationRule,
 )
-from prefect.orion.schemas import actions, states
+from prefect.orion.schemas import actions, filters, states
 from prefect.orion.schemas.responses import SetStateStatus
+from prefect.testing.utilities import AsyncMock
 
 # Convert constants from sets to lists for deterministic ordering of tests
 ALL_ORCHESTRATION_STATES = list(
@@ -215,13 +218,105 @@ class TestCachingBackendLogic:
         assert ctx2.response_status == SetStateStatus.ACCEPT
 
 
-class TestRetryingRule:
+class TestFlowRetryingRule:
+    async def test_retries(
+        self,
+        session,
+        initialize_orchestration,
+        monkeypatch,
+    ):
+        now = pendulum.now()
+        monkeypatch.setattr("pendulum.now", lambda *args: now)
+
+        failed_task_runs = [
+            mock.Mock(id="task_run_001"),
+            mock.Mock(id="task_run_002"),
+        ]
+        read_task_runs = AsyncMock(side_effect=lambda *args, **kwargs: failed_task_runs)
+        monkeypatch.setattr(
+            "prefect.orion.models.task_runs.read_task_runs", read_task_runs
+        )
+        set_task_run_state = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.orion.models.task_runs.set_task_run_state", set_task_run_state
+        )
+
+        retry_policy = [RetryFailedFlows]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.run_count = 1
+        ctx.run_settings.max_retries = 1
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        # When retrying a flow any failed tasks should be set to AwaitingRetry
+        read_task_runs.assert_awaited_once_with(
+            session,
+            flow_run_filter=filters.FlowRunFilter(id={"any_": [ctx.run.id]}),
+            task_run_filter=filters.TaskRunFilter(state={"type": {"any_": ["FAILED"]}}),
+        )
+        set_task_run_state.assert_has_awaits(
+            [
+                mock.call(
+                    session,
+                    "task_run_001",
+                    state=states.AwaitingRetry(scheduled_time=now),
+                    force=True,
+                ),
+                mock.call(
+                    session,
+                    "task_run_002",
+                    state=states.AwaitingRetry(scheduled_time=now),
+                    force=True,
+                ),
+            ]
+        )
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.SCHEDULED
+
+    async def test_stops_retrying_eventually(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        retry_policy = [RetryFailedFlows]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.run_count = 2
+        ctx.run_settings.max_retries = 1
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.FAILED
+
+
+class TestTaskRetryingRule:
     async def test_retry_potential_failures(
         self,
         session,
         initialize_orchestration,
     ):
-        retry_policy = [RetryPotentialFailures]
+        retry_policy = [RetryFailedTasks]
         initial_state_type = states.StateType.RUNNING
         proposed_state_type = states.StateType.FAILED
         intended_transition = (initial_state_type, proposed_state_type)
@@ -249,7 +344,7 @@ class TestRetryingRule:
         session,
         initialize_orchestration,
     ):
-        retry_policy = [RetryPotentialFailures]
+        retry_policy = [RetryFailedTasks]
         initial_state_type = states.StateType.RUNNING
         proposed_state_type = states.StateType.FAILED
         intended_transition = (initial_state_type, proposed_state_type)

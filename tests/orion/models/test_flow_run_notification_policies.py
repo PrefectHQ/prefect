@@ -3,23 +3,7 @@ from uuid import uuid4
 import pytest
 import sqlalchemy as sa
 
-from prefect.blocks.notifications import DebugPrintNotification
 from prefect.orion import models, schemas
-
-
-@pytest.fixture
-async def notifier_block(orion_client):
-
-    block = DebugPrintNotification()
-    schema = await orion_client.read_block_schema_by_checksum(
-        block._calculate_schema_checksum()
-    )
-
-    return await orion_client.create_block_document(
-        block._to_block_document(
-            name="Debug Print Notification", block_schema_id=schema.id
-        )
-    )
 
 
 @pytest.fixture
@@ -28,10 +12,9 @@ async def all_states_policy(session, notifier_block):
         await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My EVERYTHING Policy",
                 state_names=[],
                 tags=[],
-                block_document_id=notifier_block.id,
+                block_document_id=notifier_block._block_document_id,
             ),
         )
     )
@@ -45,10 +28,9 @@ async def completed_policy(session, notifier_block):
         await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My Success Policy",
                 state_names=["Completed"],
                 tags=[],
-                block_document_id=notifier_block.id,
+                block_document_id=notifier_block._block_document_id,
             ),
         )
     )
@@ -62,10 +44,9 @@ async def completed_etl_policy(session, notifier_block):
         await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My Success ETL Policy",
                 state_names=["Completed"],
                 tags=["ETL"],
-                block_document_id=notifier_block.id,
+                block_document_id=notifier_block._block_document_id,
             ),
         )
     )
@@ -79,10 +60,9 @@ async def failed_policy(session, notifier_block):
         await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My Failed Policy",
                 state_names=["Failed"],
                 tags=[],
-                block_document_id=notifier_block.id,
+                block_document_id=notifier_block._block_document_id,
             ),
         )
     )
@@ -95,14 +75,12 @@ class TestCreateFlowRunNotificationPolicy:
         policy = await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
-                name="My Success Policy",
                 state_names=["Completed"],
                 tags=[],
-                block_document_id=notifier_block.id,
+                block_document_id=notifier_block._block_document_id,
             ),
         )
         await session.commit()
-        assert policy.name == "My Success Policy"
         assert policy.state_names == ["Completed"]
 
 
@@ -112,7 +90,6 @@ class TestReadFlowRunNotificationPolicy:
             session=session, flow_run_notification_policy_id=completed_policy.id
         )
         assert policy.id == completed_policy.id
-        assert policy.name == completed_policy.name
 
     async def test_read_policy_with_invalid_id(self, session):
         policy = await models.flow_run_notification_policies.read_flow_run_notification_policy(

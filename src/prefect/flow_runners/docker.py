@@ -12,6 +12,7 @@ from pydantic import Field, validator
 from slugify import slugify
 from typing_extensions import Literal
 
+import prefect
 from prefect.flow_runners.base import (
     UniversalFlowRunner,
     base_flow_run_environment,
@@ -20,7 +21,7 @@ from prefect.flow_runners.base import (
 )
 from prefect.orion.schemas.core import FlowRun
 from prefect.settings import PREFECT_API_URL
-from prefect.utilities.asyncio import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
@@ -35,6 +36,12 @@ class ImagePullPolicy(AutoEnum):
     IF_NOT_PRESENT = AutoEnum.auto()
     ALWAYS = AutoEnum.auto()
     NEVER = AutoEnum.auto()
+
+
+# Labels to apply to all containers started by Prefect
+CONTAINER_LABELS = {
+    "io.prefect.version": prefect.__version__,
+}
 
 
 @register_flow_runner
@@ -460,10 +467,8 @@ class DockerFlowRunner(UniversalFlowRunner):
         return env
 
     def _get_labels(self, flow_run: FlowRun):
-        labels = self.labels.copy() if self.labels else {}
-        labels.update(
-            {
-                "io.prefect.flow-run-id": str(flow_run.id),
-            }
-        )
-        return labels
+        return {
+            **CONTAINER_LABELS,
+            **(self.labels or {}),
+            "io.prefect.flow-run-id": str(flow_run.id),
+        }

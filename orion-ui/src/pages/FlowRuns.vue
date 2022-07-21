@@ -7,17 +7,17 @@
     <div class="flow-runs__filters">
       <div class="flow-runs__date-filters">
         <p-label label="Start Date">
-          <PDateInput v-model="startDate" />
+          <PDateInput v-model="startDate" show-time />
         </p-label>
         <p-label label="End Date">
-          <PDateInput v-model="endDate" />
+          <PDateInput v-model="endDate" show-time />
         </p-label>
       </div>
       <div class="flow-runs__meta-filters">
         <StateSelect v-model:selected="states" empty-message="All run states" />
         <FlowCombobox v-model:selected="flows" empty-message="All flows" />
         <DeploymentCombobox v-model:selected="deployments" empty-message="All deployments" />
-        <PTagsInput v-model:tags="tags" empty-message="All Tags" inline />
+        <PTagsInput v-model="tags" empty-message="All Tags" inline />
         <template v-if="!media.md">
           <SearchInput v-model="flowRunSearchTerm" placeholder="Search by run name" label="Search by run name" />
         </template>
@@ -25,7 +25,7 @@
     </div>
 
     <template v-if="media.md">
-      <FlowRunsScatterPlot :history="flowRunHistory" v-bind="{ startDate, endDate }" style="height: 275px" />
+      <FlowRunsScatterPlot :history="flowRunHistory" v-bind="{ startDate, endDate }" class="flow-runs__chart" />
     </template>
 
     <div class="flow-runs__list">
@@ -153,5 +153,9 @@
   .flow-runs__meta-filters { @apply
     grid-cols-4
   }
+}
+
+.flow-runs__chart {
+  height: 275px;
 }
 </style>

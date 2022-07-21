@@ -351,8 +351,8 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
         ), f"Setting displayed multiple times: {setting}"
         printed_settings[setting] = value
 
-    assert (
-        printed_settings.keys() == expected.keys()
+    assert set(printed_settings.keys()) == set(
+        expected.keys()
     ), "Only set keys should be included."
 
     for key, value in printed_settings.items():

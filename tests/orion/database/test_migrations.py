@@ -16,7 +16,7 @@ from prefect.orion.database.orm_models import (
 )
 from prefect.orion.utilities.database import get_dialect
 from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
-from prefect.utilities.asyncio import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 @pytest.fixture

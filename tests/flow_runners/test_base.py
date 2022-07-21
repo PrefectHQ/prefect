@@ -12,6 +12,8 @@ from prefect.flow_runners import (
     FlowRunner,
     SubprocessFlowRunner,
     UniversalFlowRunner,
+)
+from prefect.flow_runners.base import (
     base_flow_run_environment,
     get_prefect_image_name,
     lookup_flow_runner,

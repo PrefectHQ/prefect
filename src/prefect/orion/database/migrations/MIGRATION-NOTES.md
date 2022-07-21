@@ -8,13 +8,35 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
-## Add protected column for block types
+## Removes DebugPrintNotification block type
 
-## Add indexes for block entity filtering
+SQLite: `061c7e518b40`
+Postgres: `e905fd199258`
+
+## Migrates block schemas with new secrets fields
+
+SQLite: `e2dae764a603`
+Postgres: `4cdc2ba709a4`
+
+## Add description column to deployment table
+
+SQLite: `3bd87ecdac38`
+Postgres: `813ddf14e2de`
+
+## Remove name column for flow run notification policies
+
+SQLite: `42762c37b7bc`
+Postgres: `2f46fc3f3beb`
+
+## Add protected column for block types
 
 SQLite: `dff8da7a6c2c`
 Postgres: `7296741dff68`
 
+## Add indexes for block entity filtering
+
+SQLite: `a205b458d997`
+Postgres: `29ad9bef6147`
 ## Add indexes for block schemas
 
 SQLite: `9e2a1c08c6f1`

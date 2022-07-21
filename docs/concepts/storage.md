@@ -21,6 +21,11 @@ Local storage works fine for many local flow and task run scenarios. However, to
 
 Prefect 2.0 supports creating multiple storage configurations and switching between storage as needed.
 
+!!! tip "Storage uses blocks"
+    [Blocks](/concepts/blocks/) is the Prefect technology underlying storage, and enables you to leverage do so much more. 
+
+    In addition to creating storage blocks via the Prefect CLI, you can now create storage blocks and other kinds of block configuration objects via the [Prefect UI and Prefect Cloud](/ui/blocks/).
+
 ## Configuring storage
 
 To create a storage configuration, use the `prefect storage create` CLI command. You'll be able to select from available storage types. When necessary, you must provide storage location and authentication details.

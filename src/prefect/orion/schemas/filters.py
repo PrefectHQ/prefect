@@ -363,20 +363,6 @@ class FlowRunFilterParentTaskRunId(PrefectFilterBaseModel):
         return filters
 
 
-class FlowRunFilterFlowRunnerType(PrefectFilterBaseModel):
-    """Filter by `FlowRun.flow_runner_type`."""
-
-    any_: List[str] = Field(
-        None, description="A list of flow run flow runner types to include"
-    )
-
-    def _get_filter_list(self, db: "OrionDBInterface") -> List:
-        filters = []
-        if self.any_ is not None:
-            filters.append(db.FlowRun.flow_runner_type.in_(self.any_))
-        return filters
-
-
 class FlowRunFilter(PrefectFilterBaseModel):
     """Filter flow runs. Only flow runs matching all criteria will be returned"""
 
@@ -411,10 +397,6 @@ class FlowRunFilter(PrefectFilterBaseModel):
         None, description="Filter criteria for `FlowRun.parent_task_run_id`"
     )
 
-    flow_runner_type: Optional[FlowRunFilterFlowRunnerType] = Field(
-        None, description="Filter criteria for FlowRun.flow_runner_type."
-    )
-
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
 
@@ -438,8 +420,6 @@ class FlowRunFilter(PrefectFilterBaseModel):
             filters.append(self.next_scheduled_start_time.as_sql_filter(db))
         if self.parent_task_run_id is not None:
             filters.append(self.parent_task_run_id.as_sql_filter(db))
-        if self.flow_runner_type is not None:
-            filters.append(self.flow_runner_type.as_sql_filter(db))
 
         return filters
 
@@ -936,11 +916,11 @@ class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
-        from prefect.orion.utilities.database import json_contains
+        from prefect.orion.utilities.database import json_has_all_keys
 
         filters = []
         if self.all_ is not None:
-            filters.append(json_contains(db.BlockSchema.capabilities, self.all_))
+            filters.append(json_has_all_keys(db.BlockSchema.capabilities, self.all_))
         return filters
 
 

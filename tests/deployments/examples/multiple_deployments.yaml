@@ -1,0 +1,7 @@
+name: "foo"
+flow: 
+  path: single_flow_in_file.py
+---
+name: "bar"
+flow: 
+  path: single_flow_in_file.py

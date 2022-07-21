@@ -26,7 +26,7 @@ To install a specific version, specify the version, such as:
 
 <div class="terminal">
 ```bash
-pip install -U "prefect==2.0b6"
+pip install -U "prefect==2.0b9"
 ```
 </div>
 
@@ -74,11 +74,11 @@ To check that Prefect was installed correctly, use the Prefect CLI command `pref
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.0b6
-API version:         0.5.0
+Version:             2.0b9
+API version:         0.7.0
 Python version:      3.9.10
-Git commit:          1594c9c5
-Built:               Mon, Jun 6, 2022 6:11 PM
+Git commit:          6379bc53
+Built:               Tue, Jul 19, 2022 12:33 PM
 OS/Arch:             darwin/x86_64
 Profile:             default
 Server type:         ephemeral
@@ -129,7 +129,7 @@ You can also:
 
 ## Upgrading to 2.0b6
 
-In Prefect 2.0b6 we've added breaking changes with respect to the [Blocks API](/api-ref/prefect/blocks/storage/). This API is an important abstraction you may have used already to create default [Storage](/concepts/storage/) or specifying `flow_storage` as part of a [`DeploymentSpec`](/concepts/deployments/#deployment-specifications). As a result, the backend API in 2.0b6 is incompatible with previous Prefect client versions.
+In Prefect 2.0b6 we added breaking changes with respect to the [Blocks API](/api-ref/prefect/blocks/storage/). This API is an important abstraction you may have used already to create default [Storage](/concepts/storage/) or specifying `flow_storage` as part of a [`DeploymentSpec`](/concepts/deployments/#deployment-specifications). As a result, the backend API in 2.0b6 is incompatible with previous Prefect client versions.
 
 After the upgrade, your data will remain intact, but you will need to upgrade to 2.0b6 to continue using the Cloud 2.0 API.
 
@@ -174,11 +174,11 @@ Or use the Prefect CLI command `prefect version`, which prints version and envir
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.0b5
-API version:         0.3.1
+Version:             2.0b9
+API version:         0.7.0
 Python version:      3.9.10
-Git commit:          7b27c7cf
-Built:               Tue, May 17, 2022 4:54 PM
+Git commit:          6379bc53
+Built:               Tue, Jul 19, 2022 12:33 PM
 OS/Arch:             darwin/x86_64
 Profile:             default
 Server type:         ephemeral
