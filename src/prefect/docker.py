@@ -73,6 +73,7 @@ def build_image(
     context: Path,
     dockerfile: str = "Dockerfile",
     pull: bool = False,
+    platform: str = None,
     stream_progress_to: Optional[TextIO] = None,
 ) -> str:
     """Builds a Docker image, returning the image ID
@@ -101,6 +102,7 @@ def build_image(
             pull=pull,
             decode=True,
             labels=IMAGE_LABELS,
+            platform=platform,
         )
 
         try:
@@ -128,12 +130,14 @@ class ImageBuilder:
 
     base_directory: Path
     context: Optional[Path]
+    platform: Optional[str]
     dockerfile_lines: List[str]
 
     def __init__(
         self,
         base_image: str,
         base_directory: Path = None,
+        platform: str = None,
         context: Path = None,
     ):
         """Create an ImageBuilder
@@ -151,6 +155,7 @@ class ImageBuilder:
         self.base_directory = base_directory or context or Path().absolute()
         self.temporary_directory = None
         self.context = context
+        self.platform = platform
         self.dockerfile_lines = []
 
         if self.context:
@@ -241,7 +246,10 @@ class ImageBuilder:
 
         try:
             return build_image(
-                self.context, pull=pull, stream_progress_to=stream_progress_to
+                self.context,
+                platform=self.platform,
+                pull=pull,
+                stream_progress_to=stream_progress_to,
             )
         finally:
             os.unlink(dockerfile_path)

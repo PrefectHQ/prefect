@@ -2,6 +2,7 @@ from functools import partial
 from typing import Any, Callable, Generic, Type, TypeVar, cast, overload
 
 import pydantic
+from jsonpatch import JsonPatch as JsonPatchBase
 from typing_extensions import Self
 
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
@@ -223,3 +224,9 @@ class PartialModel(Generic[M]):
     def __repr__(self) -> str:
         dsp_fields = ", ".join(f"{key}={repr(value)}" for key, value in self.fields)
         return f"PartialModel({self.model_cls.__name__}{dsp_fields})"
+
+
+class JsonPatch(JsonPatchBase):
+    @classmethod
+    def __modify_schema__(cls, field_schema):
+        field_schema.update(type="string", format="json-string")
