@@ -126,7 +126,7 @@ Deployment(
 )
 ```
 
-Once the deployment has been created, you'll see it in the [Prefect UI](/ui/dashboard/) and can inspect it using the CLI.
+Once the deployment has been created, you'll see it in the [Prefect UI](/ui/flow-runs/) and can inspect it using the CLI.
 
 ![Viewing deployments in the Prefect UI](/img/ui/orion-deployments.png)
 
