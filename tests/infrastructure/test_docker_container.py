@@ -1,0 +1,565 @@
+import uuid
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
+
+import anyio.abc
+import pytest
+
+from prefect.flow_runners.base import get_prefect_image_name
+from prefect.infrastructure.docker import (
+    CONTAINER_LABELS,
+    DockerContainer,
+    ImagePullPolicy,
+)
+from prefect.testing.utilities import assert_does_not_warn
+
+if TYPE_CHECKING:
+    from docker import DockerClient
+    from docker.models.containers import Container
+
+
+@pytest.fixture(autouse=True)
+def skip_if_docker_is_not_installed():
+    pytest.importorskip("docker")
+
+
+@pytest.fixture
+def mock_docker_client(monkeypatch):
+    docker = pytest.importorskip("docker")
+    docker.models.containers = pytest.importorskip("docker.models.containers")
+
+    mock = MagicMock(name="DockerClient", spec=docker.DockerClient)
+    mock.version.return_value = {"Version": "20.10"}
+
+    # Build a fake container object to return
+    fake_container = docker.models.containers.Container()
+    fake_container.client = MagicMock(name="Container.client")
+    fake_container.collection = MagicMock(name="Container.collection")
+    attrs = {"Id": "fake-id", "Name": "fake-name", "State": "exited"}
+    fake_container.collection.get().attrs = attrs
+    fake_container.attrs = attrs
+
+    # Return the fake container on lookups and creation
+    mock.containers.get.return_value = fake_container
+    mock.containers.create.return_value = fake_container
+
+    monkeypatch.setattr("docker.from_env", MagicMock(return_value=mock))
+    return mock
+
+
+@pytest.mark.parametrize(
+    "requested_name,container_name",
+    [
+        ("_flow_run", "flow_run"),
+        ("...flow_run", "flow_run"),
+        ("._-flow_run", "flow_run"),
+        ("9flow-run", "9flow-run"),
+        ("-flow.run", "flow.run"),
+        ("flow*run", "flow-run"),
+        ("flow9.-foo_bar^x", "flow9.-foo_bar-x"),
+    ],
+)
+async def test_name_cast_to_valid_container_name(
+    mock_docker_client, requested_name, container_name
+):
+
+    await DockerContainer(name=requested_name).run()
+    mock_docker_client.containers.create.assert_called_once()
+    call_name = mock_docker_client.containers.create.call_args[1].get("name")
+    assert call_name == container_name
+
+
+async def test_container_name_falls_back_to_null(mock_docker_client):
+    await DockerContainer(name="--__....").run()
+    mock_docker_client.containers.create.assert_called_once()
+    call_name = mock_docker_client.containers.create.call_args[1].get("name")
+    assert call_name is None
+
+
+@pytest.mark.parametrize("collision_count", (0, 1, 5))
+async def test_container_name_includes_index_on_conflict(
+    mock_docker_client, collision_count
+):
+    import docker.errors
+
+    if collision_count:
+        # Add the basic name first
+        existing_names = [f"test-name"]
+        for i in range(1, collision_count):
+            existing_names.append(f"test-name-{i}")
+    else:
+        existing_names = []
+
+    def fail_if_name_exists(*args, **kwargs):
+        if kwargs.get("name") in existing_names:
+            raise docker.errors.APIError(
+                "Conflict. The container name 'foobar' is already in use"
+            )
+        return MagicMock()  # A container
+
+    mock_docker_client.containers.create.side_effect = fail_if_name_exists
+
+    await DockerContainer(name="test-name").run()
+
+    assert mock_docker_client.containers.create.call_count == collision_count + 1
+    call_name = mock_docker_client.containers.create.call_args[1].get("name")
+    expected_name = (
+        "test-name" if not collision_count else f"test-name-{collision_count}"
+    )
+    assert call_name == expected_name
+
+
+async def test_container_creation_failure_reraises_if_not_name_conflict(
+    mock_docker_client,
+):
+    import docker.errors
+
+    mock_docker_client.containers.create.side_effect = docker.errors.APIError(
+        "test error"
+    )
+
+    with pytest.raises(docker.errors.APIError, match="test error"):
+        await DockerContainer().run()
+
+
+async def test_uses_image_setting(mock_docker_client):
+    await DockerContainer(image="foo").run()
+    mock_docker_client.containers.create.assert_called_once()
+    call_image = mock_docker_client.containers.create.call_args[1].get("image")
+    assert call_image == "foo"
+
+
+async def test_uses_volumes_setting(mock_docker_client):
+    await DockerContainer(volumes=["a:b", "c:d"]).run()
+    mock_docker_client.containers.create.assert_called_once()
+    call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
+    assert "a:b" in call_volumes
+    assert "c:d" in call_volumes
+
+
+@pytest.mark.parametrize("networks", [[], ["a"], ["a", "b"]])
+async def test_uses_network_setting(mock_docker_client, networks):
+    await DockerContainer(networks=networks).run()
+    mock_docker_client.containers.create.assert_called_once()
+    call_network = mock_docker_client.containers.create.call_args[1].get("network")
+
+    if not networks:
+        assert not call_network
+    else:
+        assert call_network == networks[0]
+
+    # Additional networks must be added after
+    if len(networks) <= 1:
+        mock_docker_client.networks.get.assert_not_called()
+    else:
+        for network_name in networks[1:]:
+            mock_docker_client.networks.get.assert_called_with(network_name)
+
+        # network.connect called with the created container
+        mock_docker_client.networks.get().connect.assert_called_with(
+            mock_docker_client.containers.create()
+        )
+
+
+async def test_uses_label_setting(
+    mock_docker_client,
+):
+
+    await DockerContainer(labels={"foo": "FOO", "bar": "BAR"}).run()
+    mock_docker_client.containers.create.assert_called_once()
+    call_labels = mock_docker_client.containers.create.call_args[1].get("labels")
+    assert call_labels == {**CONTAINER_LABELS, "foo": "FOO", "bar": "BAR"}
+
+
+async def test_uses_network_mode_setting(
+    mock_docker_client,
+):
+
+    await DockerContainer(network_mode="bridge").run()
+    mock_docker_client.containers.create.assert_called_once()
+    network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
+    assert network_mode == "bridge"
+
+
+async def test_uses_env_setting(
+    mock_docker_client,
+):
+
+    await DockerContainer(env={"foo": "FOO", "bar": "BAR"}).run()
+    mock_docker_client.containers.create.assert_called_once()
+    call_env = mock_docker_client.containers.create.call_args[1].get("environment")
+    assert call_env == {
+        **DockerContainer._base_environment(),
+        "foo": "FOO",
+        "bar": "BAR",
+    }
+
+
+@pytest.mark.parametrize("localhost", ["localhost", "127.0.0.1"])
+async def test_network_mode_defaults_to_host_if_using_localhost_api_on_linux(
+    mock_docker_client, localhost, monkeypatch
+):
+    monkeypatch.setattr("sys.platform", "linux")
+
+    await DockerContainer(env=dict(PREFECT_API_URL=f"http://{localhost}/test")).run()
+    mock_docker_client.containers.create.assert_called_once()
+    network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
+    assert network_mode == "host"
+
+
+async def test_network_mode_defaults_to_none_if_using_networks(mock_docker_client):
+    # Despite using localhost for the API, we will set the network mode to `None`
+    # because `networks` and `network_mode` cannot both be set.
+    await DockerContainer(
+        env=dict(PREFECT_API_URL="http://localhost/test"),
+        networks=["test"],
+    ).run()
+    mock_docker_client.containers.create.assert_called_once()
+    network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
+    assert network_mode is None
+
+
+async def test_network_mode_defaults_to_none_if_using_nonlocal_api(mock_docker_client):
+
+    await DockerContainer(env=dict(PREFECT_API_URL="http://foo/test")).run()
+    mock_docker_client.containers.create.assert_called_once()
+    network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
+    assert network_mode is None
+
+
+async def test_network_mode_defaults_to_none_if_not_on_linux(
+    mock_docker_client, monkeypatch
+):
+    monkeypatch.setattr("sys.platform", "darwin")
+
+    await DockerContainer(env=dict(PREFECT_API_URL="http://localhost/test")).run()
+
+    mock_docker_client.containers.create.assert_called_once()
+    network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
+    assert network_mode is None
+
+
+async def test_network_mode_defaults_to_none_if_api_url_cannot_be_parsed(
+    mock_docker_client, monkeypatch
+):
+    monkeypatch.setattr("sys.platform", "darwin")
+
+    # It is hard to actually get urlparse to fail, so we'll just raise an error
+    # manually
+    monkeypatch.setattr(
+        "urllib.parse.urlparse", MagicMock(side_effect=ValueError("test"))
+    )
+
+    with pytest.warns(UserWarning, match="Failed to parse host"):
+        await DockerContainer(env=dict(PREFECT_API_URL="foo")).run()
+
+    mock_docker_client.containers.create.assert_called_once()
+    network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
+    assert network_mode is None
+
+
+@pytest.mark.usefixtures("use_hosted_orion")
+async def test_replaces_localhost_api_with_dockerhost_when_not_using_host_network(
+    mock_docker_client, hosted_orion_api
+):
+
+    await DockerContainer(
+        network_mode="bridge",
+    ).run()
+    mock_docker_client.containers.create.assert_called_once()
+    call_env = mock_docker_client.containers.create.call_args[1].get("environment")
+    assert "PREFECT_API_URL" in call_env
+    assert call_env["PREFECT_API_URL"] == hosted_orion_api.replace(
+        "localhost", "host.docker.internal"
+    )
+
+
+@pytest.mark.usefixtures("use_hosted_orion")
+async def test_does_not_replace_localhost_api_when_using_host_network(
+    mock_docker_client,
+    hosted_orion_api,
+    monkeypatch,
+):
+    # We will warn if setting 'host' network mode on non-linux platforms
+    monkeypatch.setattr("sys.platform", "linux")
+
+    await DockerContainer(
+        network_mode="host",
+    ).run()
+    mock_docker_client.containers.create.assert_called_once()
+    call_env = mock_docker_client.containers.create.call_args[1].get("environment")
+    assert "PREFECT_API_URL" in call_env
+    assert call_env["PREFECT_API_URL"] == hosted_orion_api
+
+
+@pytest.mark.usefixtures("use_hosted_orion")
+async def test_warns_at_runtime_when_using_host_network_mode_on_non_linux_platform(
+    mock_docker_client,
+    monkeypatch,
+):
+    monkeypatch.setattr("sys.platform", "darwin")
+
+    with assert_does_not_warn():
+        runner = DockerContainer(
+            network_mode="host",
+        )
+
+    with pytest.warns(
+        UserWarning,
+        match="'host' network mode is not supported on platform 'darwin'",
+    ):
+        await runner.run()
+
+    mock_docker_client.containers.create.assert_called_once()
+    network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
+    assert network_mode == "host", "The setting is passed to dockerpy still"
+
+
+async def test_does_not_override_user_provided_api_host(
+    mock_docker_client,
+):
+    await DockerContainer(env={"PREFECT_API_URL": "http://localhost/api"}).run()
+    mock_docker_client.containers.create.assert_called_once()
+    call_env = mock_docker_client.containers.create.call_args[1].get("environment")
+    assert call_env.get("PREFECT_API_URL") == "http://localhost/api"
+
+
+async def test_adds_docker_host_gateway_on_linux(mock_docker_client, monkeypatch):
+    monkeypatch.setattr("sys.platform", "linux")
+
+    await DockerContainer().run()
+
+    mock_docker_client.containers.create.assert_called_once()
+    call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
+        "extra_hosts"
+    )
+    assert call_extra_hosts == {"host.docker.internal": "host-gateway"}
+
+
+async def test_default_image_pull_policy_pulls_image_with_latest_tag(
+    mock_docker_client,
+):
+    await DockerContainer(image="prefect:latest").run()
+    mock_docker_client.images.pull.assert_called_once()
+    mock_docker_client.images.pull.assert_called_with("prefect", "latest")
+
+
+async def test_default_image_pull_policy_pulls_image_with_no_tag(
+    mock_docker_client,
+):
+    await DockerContainer(image="prefect").run()
+    mock_docker_client.images.pull.assert_called_once()
+    mock_docker_client.images.pull.assert_called_with("prefect", None)
+
+
+async def test_default_image_pull_policy_pulls_image_with_tag_other_than_latest_if_not_present(
+    mock_docker_client,
+):
+    from docker.errors import ImageNotFound
+
+    mock_docker_client.images.get.side_effect = ImageNotFound("No way, bub")
+
+    await DockerContainer(image="prefect:omega").run()
+    mock_docker_client.images.pull.assert_called_once()
+    mock_docker_client.images.pull.assert_called_with("prefect", "omega")
+
+
+async def test_default_image_pull_policy_does_not_pull_image_with_tag_other_than_latest_if_present(
+    mock_docker_client,
+):
+    from docker.models.images import Image
+
+    mock_docker_client.images.get.return_value = Image()
+
+    await DockerContainer(image="prefect:omega").run()
+    mock_docker_client.images.pull.assert_not_called()
+
+
+async def test_image_pull_policy_always_pulls(
+    mock_docker_client,
+):
+    await DockerContainer(
+        image="prefect", image_pull_policy=ImagePullPolicy.ALWAYS
+    ).run()
+    mock_docker_client.images.get.assert_not_called()
+    mock_docker_client.images.pull.assert_called_once()
+    mock_docker_client.images.pull.assert_called_with("prefect", None)
+
+
+async def test_image_pull_policy_never_does_not_pull(
+    mock_docker_client,
+):
+    await DockerContainer(
+        image="prefect", image_pull_policy=ImagePullPolicy.NEVER
+    ).run()
+    mock_docker_client.images.pull.assert_not_called()
+
+
+async def test_image_pull_policy_if_not_present_pulls_image_if_not_present(
+    mock_docker_client,
+):
+    from docker.errors import ImageNotFound
+
+    mock_docker_client.images.get.side_effect = ImageNotFound("No way, bub")
+
+    await DockerContainer(
+        image="prefect", image_pull_policy=ImagePullPolicy.IF_NOT_PRESENT
+    ).run()
+    mock_docker_client.images.pull.assert_called_once()
+    mock_docker_client.images.pull.assert_called_with("prefect", None)
+
+
+async def test_image_pull_policy_if_not_present_does_not_pull_image_if_present(
+    mock_docker_client,
+):
+    from docker.models.images import Image
+
+    mock_docker_client.images.get.return_value = Image()
+
+    await DockerContainer(
+        image="prefect", image_pull_policy=ImagePullPolicy.IF_NOT_PRESENT
+    ).run()
+    mock_docker_client.images.pull.assert_not_called()
+
+
+@pytest.mark.parametrize("platform", ["win32", "darwin"])
+async def test_does_not_add_docker_host_gateway_on_other_platforms(
+    mock_docker_client, monkeypatch, platform
+):
+    monkeypatch.setattr("sys.platform", platform)
+
+    await DockerContainer().run()
+
+    mock_docker_client.containers.create.assert_called_once()
+    call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
+        "extra_hosts"
+    )
+    assert not call_extra_hosts
+
+
+@pytest.mark.parametrize(
+    "explicit_api_url",
+    [
+        None,
+        "http://localhost/api",
+        "http://127.0.0.1:2222/api",
+        "http://host.docker.internal:10/foo/api",
+    ],
+)
+@pytest.mark.usefixtures("use_hosted_orion")
+async def test_warns_if_docker_version_does_not_support_host_gateway_on_linux(
+    mock_docker_client,
+    explicit_api_url,
+    monkeypatch,
+):
+    monkeypatch.setattr("sys.platform", "linux")
+
+    mock_docker_client.version.return_value = {"Version": "19.1.1"}
+
+    with pytest.warns(
+        UserWarning,
+        match=(
+            "`host.docker.internal` could not be automatically resolved.*"
+            f"feature is not supported on Docker Engine v19.1.1"
+        ),
+    ):
+        await DockerContainer(
+            env={"PREFECT_API_URL": explicit_api_url} if explicit_api_url else {}
+        ).run()
+
+    mock_docker_client.containers.create.assert_called_once()
+    call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
+        "extra_hosts"
+    )
+    assert not call_extra_hosts
+
+
+async def test_does_not_warn_about_gateway_if_user_has_provided_nonlocal_api_url(
+    mock_docker_client,
+    monkeypatch,
+):
+    monkeypatch.setattr("sys.platform", "linux")
+    mock_docker_client.version.return_value = {"Version": "19.1.1"}
+
+    with assert_does_not_warn():
+        await DockerContainer(
+            env={"PREFECT_API_URL": "http://my-domain.test/api"}
+        ).run()
+
+    mock_docker_client.containers.create.assert_called_once()
+    call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
+        "extra_hosts"
+    )
+    assert not call_extra_hosts
+
+
+async def test_task_status_receives_container_id(mock_docker_client):
+    fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+    result = await DockerContainer(command=["echo", "hello"], stream_output=False).run(
+        task_status=fake_status
+    )
+    fake_status.started.assert_called_once_with(result.identifier)
+
+
+@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.parametrize("platform", ["win32", "darwin"])
+async def test_does_not_warn_about_gateway_if_not_using_linux(
+    mock_docker_client,
+    platform,
+    monkeypatch,
+):
+    monkeypatch.setattr("sys.platform", platform)
+    mock_docker_client.version.return_value = {"Version": "19.1.1"}
+
+    with assert_does_not_warn():
+        await DockerContainer().run()
+
+    mock_docker_client.containers.create.assert_called_once()
+    call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
+        "extra_hosts"
+    )
+    assert not call_extra_hosts
+
+
+@pytest.mark.service("docker")
+async def test_container_result(docker: "DockerClient"):
+    result = await DockerContainer(command=["echo", "hello"]).run()
+    assert bool(result)
+    assert result.status_code == 0
+    assert result.identifier
+    container = docker.containers.get(result.identifier)
+    assert container is not None
+
+
+@pytest.mark.service("docker")
+async def test_container_metadata(docker: "DockerClient"):
+    result = await DockerContainer(
+        command=["echo", "hello"],
+        name="test-name",
+        labels={"test.foo": "a", "test.bar": "b"},
+    ).run()
+    container: "Container" = docker.containers.get(result.identifier)
+    assert container.name == "test-name"
+    assert container.labels["test.foo"] == "a"
+    assert container.labels["test.bar"] == "b"
+    assert container.image.tags[0] == get_prefect_image_name()
+
+    for key, value in CONTAINER_LABELS.items():
+        assert container.labels[key] == value
+
+
+@pytest.mark.service("docker")
+async def test_container_name_collision(docker: "DockerClient"):
+    # Generate a unique base name to avoid collissions with existing images
+    base_name = uuid.uuid4().hex
+
+    container = DockerContainer(
+        command=["echo", "hello"], name=base_name, auto_remove=False
+    )
+    result = await container.run()
+    created_container: "Container" = docker.containers.get(result.identifier)
+    assert created_container.name == base_name
+
+    result = await container.run()
+    created_container: "Container" = docker.containers.get(result.identifier)
+    assert created_container.name == base_name + "-1"
