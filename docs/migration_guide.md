@@ -79,12 +79,12 @@ The role of agents has changed between Prefect 1.0 and Prefect 2.0:
 The following new components and capabilities are enabled by Prefect 2.0.
 
 - More flexibility thanks to the elimination of flow pre-registration
-- More flexibility with respect to flow deployments and how you can promote a flow between environments (development, staging, production)
+- More flexibility with respect to flow deployments, including easier promotion of a flow through development, staging, and production environments.
 - Native `async` support
 - Out-of-the-box `pydantic` validation
 - [Blocks](https://orion-docs.prefect.io/ui/blocks/) allowing you to securely store UI-editable, type-checked configuration to external systems and an easy-to-use Key-Value Store &mdash; all configurable in one place and provided as part of the open-source Prefect 2.0 product. The concept of [Secrets](https://docs.prefect.io/orchestration/concepts/secrets.html) in Prefect 1.0 was much more narrow and only available in Prefect Cloud.  
 - Prefect 2.0 introduced a concept of [Notifications](https://orion-docs.prefect.io/ui/notifications/) available in the open-source Prefect 2.0 version, as opposed to Cloud-only [Automations](https://docs.prefect.io/orchestration/ui/automations.html) in Prefect 1.0.  
-- A first-class `subflows` concept - Prefect 1.0 only allowed the [flow-of-flows orchestrator pattern](https://discourse.prefect.io/tag/orchestrator-pattern), which is still supported, but with subflows, you are gaining a natural and intuitive way of organizing your flows into modular sub-components. For more details, see [the following list of resources about subflows](https://discourse.prefect.io/tag/subflows).
+- A first-class `subflows` concept: Prefect 1.0 only allowed the [flow-of-flows orchestrator pattern](https://discourse.prefect.io/tag/orchestrator-pattern), which is still supported. With Prefect 2.0 subflows, you are gaining a natural and intuitive way of organizing your flows into modular sub-components. For more details, see [the following list of resources about subflows](https://discourse.prefect.io/tag/subflows).
 
 
 ### 3.1 Orchestration behind the API
