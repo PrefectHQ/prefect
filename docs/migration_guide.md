@@ -1,6 +1,6 @@
 # Migrating from Prefect 1.0 to 2.0
 
-This guide is here to help you migrate your workflows from Prefect 1.0 (and lower) to Prefect 2.0. 
+This guide helps you migrate your workflows from Prefect 1.0 (and lower) to Prefect 2.0. 
 It is broken down into several sections to make your migration journey as seamless as possible.
 
 ## 1. What stayed the same
