@@ -18,7 +18,7 @@ class InfrastructureResult(pydantic.BaseModel, abc.ABC):
 
 
 class Infrastructure(Block, abc.ABC):
-    _block_schema_capabilities = ["run"]
+    _block_schema_capabilities = ["run-infrastructure"]
 
     type: str
 
