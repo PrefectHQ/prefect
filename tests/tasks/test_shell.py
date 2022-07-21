@@ -278,6 +278,7 @@ def test_shell_task_accepts_helper_script():
     out = f.run()
     assert out.is_successful()
 
+
 def test_shell_runs_powershell():
     with Flow(name="test") as f:
         task = ShellTask(shell="powershell")(command="dir")

@@ -126,18 +126,22 @@ class ShellTask(prefect.Task):
         current_env = os.environ.copy()
         current_env.update(env or {})
 
-        powershell_pattern_match = bool(re.match(r"^(powershell|pwsh)(.exe)?", self.shell))
-        suffix=".ps1" if powershell_pattern_match else None
+        powershell_pattern_match = bool(
+            re.match(r"^(powershell|pwsh)(.exe)?", self.shell)
+        )
+        suffix = ".ps1" if powershell_pattern_match else None
         # powershell cannot access temp file open in another process.
         # so, update the temp file with helper script and command,
         # close and run the file with self.shell, and then unlink the temp file to delete it
-        tmp = tempfile.NamedTemporaryFile(prefix="prefect-", suffix=suffix, delete=False)
+        tmp = tempfile.NamedTemporaryFile(
+            prefix="prefect-", suffix=suffix, delete=False
+        )
         if helper_script:
             tmp.write(helper_script.encode())
             tmp.write(os.linesep.encode())
         tmp.write(command.encode())
         tmp.close()
-        
+
         with Popen(
             [self.shell, tmp.name],
             stdout=PIPE,
@@ -173,6 +177,6 @@ class ShellTask(prefect.Task):
                     msg,
                     result=lines if self.return_all else line,
                 )
-        
+
         os.unlink(tmp.name)
         return lines if self.return_all else line
