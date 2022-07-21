@@ -202,7 +202,7 @@ Save this as `ray_flow.py`.
 
 ```python hl_lines="2 12"
 from prefect import flow, task
-from prefect.task_runners import RayTaskRunner
+from prefect_ray.task_runners import RayTaskRunner
 
 @task
 def say_hello(name):
@@ -272,7 +272,7 @@ This example uses the same tasks as the previous examples, but on the parent flo
 
 ```python
 from prefect import flow, task
-from prefect.task_runners import RayTaskRunner
+from prefect_ray.task_runners import RayTaskRunner
 
 @task
 def say_hello(name):
