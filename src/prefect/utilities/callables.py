@@ -130,17 +130,16 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
                 default=... if param.default is param.empty else param.default,
                 title=param.name,
                 description=None,
+                alias=aliases.get(name),
             ),
         )
 
-    # Generate the pydantic model and use it to build a schema
-    schema = pydantic.create_model("Parameters", **model_fields).schema()
+    class ModelConfig:
+        arbitrary_types_allowed = True
 
-    # Restore aliased names
-    if "properties" in schema:
-        for alias, name in aliases.items():
-            schema["properties"][name] = schema["properties"].pop(alias)
-    if "required" in schema:
-        schema["required"] = [aliases.get(name) or name for name in schema["required"]]
+    # Generate the pydantic model and use it to build a schema
+    schema = pydantic.create_model(
+        "Parameters", __config__=ModelConfig, **model_fields
+    ).schema(by_alias=True)
 
     return ParameterSchema(**schema)
