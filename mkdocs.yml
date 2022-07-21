@@ -68,7 +68,7 @@ plugins:
         scripts:
             - docs/collections/generate_catalog.py
 nav:
-    - Home: index.md
+    - Prefect 2.0: index.md
     - 'Getting Started':
         - Overview: getting-started/overview.md
         - Installation: getting-started/installation.md
