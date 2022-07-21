@@ -4,55 +4,63 @@
       <PageHeadingFlowRuns />
     </template>
 
-    <div class="flow-runs__filters">
-      <div class="flow-runs__date-filters">
-        <p-label label="Start Date">
-          <PDateInput v-model="startDate" show-time />
-        </p-label>
-        <p-label label="End Date">
-          <PDateInput v-model="endDate" show-time />
-        </p-label>
-      </div>
-      <div class="flow-runs__meta-filters">
-        <StateSelect v-model:selected="states" empty-message="All run states" />
-        <FlowCombobox v-model:selected="flows" empty-message="All flows" />
-        <DeploymentCombobox v-model:selected="deployments" empty-message="All deployments" />
-        <PTagsInput v-model="tags" empty-message="All Tags" inline />
-        <template v-if="!media.md">
-          <SearchInput v-model="flowRunSearchTerm" placeholder="Search by run name" label="Search by run name" />
-        </template>
-      </div>
-    </div>
-
-    <template v-if="media.md">
-      <FlowRunsScatterPlot :history="flowRunHistory" v-bind="{ startDate, endDate }" class="flow-runs__chart" />
-    </template>
-
-    <div class="flow-runs__list">
-      <div class="flow-runs__list-controls">
-        <ResultsCount :count="flowRunCount" class="mr-auto" />
-        <template v-if="media.md">
-          <SearchInput v-model="flowRunSearchTerm" placeholder="Search by run name" label="Search by run name" />
-        </template>
-        <FlowRunsSort v-model="sort" />
-      </div>
-
-      <FlowRunList :flow-runs="flowRuns" :selected="selectedFlowRuns" disabled />
-      <template v-if="!flowRuns.length">
-        <PEmptyResults>
-          <template v-if="hasFilters" #actions>
-            <p-button size="sm" secondary @click="clear">
-              Clear Filters
-            </p-button>
-          </template>
-        </PEmptyResults>
+    <template v-if="loaded">
+      <template v-if="empty">
+        <FlowRunsPageEmptyState />
       </template>
-    </div>
+      <template v-else>
+        <div class="flow-runs__filters">
+          <div class="flow-runs__date-filters">
+            <p-label label="Start Date">
+              <PDateInput v-model="startDate" show-time />
+            </p-label>
+            <p-label label="End Date">
+              <PDateInput v-model="endDate" show-time />
+            </p-label>
+          </div>
+          <div class="flow-runs__meta-filters">
+            <StateSelect v-model:selected="states" empty-message="All run states" />
+            <FlowCombobox v-model:selected="flows" empty-message="All flows" />
+            <DeploymentCombobox v-model:selected="deployments" empty-message="All deployments" />
+            <PTagsInput v-model="tags" empty-message="All Tags" inline />
+            <template v-if="!media.md">
+              <SearchInput v-model="flowRunSearchTerm" placeholder="Search by run name" label="Search by run name" />
+            </template>
+          </div>
+        </div>
+
+        <template v-if="media.md">
+          <FlowRunsScatterPlot :history="flowRunHistory" v-bind="{ startDate, endDate }" class="flow-runs__chart" />
+        </template>
+
+        <div class="flow-runs__list">
+          <div class="flow-runs__list-controls">
+            <ResultsCount :count="flowRunCount" class="mr-auto" />
+            <template v-if="media.md">
+              <SearchInput v-model="flowRunSearchTerm" placeholder="Search by run name" label="Search by run name" />
+            </template>
+            <FlowRunsSort v-model="sort" />
+          </div>
+
+          <FlowRunList :flow-runs="flowRuns" :selected="selectedFlowRuns" disabled />
+
+          <template v-if="!flowRuns.length">
+            <PEmptyResults>
+              <template v-if="hasFilters" #actions>
+                <p-button size="sm" secondary @click="clear">
+                  Clear Filters
+                </p-button>
+              </template>
+            </PEmptyResults>
+          </template>
+        </div>
+      </template>
+    </template>
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingFlowRuns, FlowRunsSort, FlowRunSortValues, FlowRunList, FlowRunsScatterPlot, StateSelect, StateType, DeploymentCombobox, FlowCombobox, useFlowRunFilter, SearchInput, ResultsCount } from '@prefecthq/orion-design'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunSortValues, FlowRunList, FlowRunsScatterPlot, StateSelect, StateType, DeploymentCombobox, FlowCombobox, useFlowRunFilter, SearchInput, ResultsCount } from '@prefecthq/orion-design'
   import { PTagsInput, PDateInput, PEmptyResults, formatDateTimeNumeric, parseDateTimeNumeric, media } from '@prefecthq/prefect-design'
   import { useDebouncedRef, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import { addDays, endOfToday, startOfToday, subDays } from 'date-fns'
@@ -63,6 +71,11 @@
   import { uiApi } from '@/services/uiApi'
 
   const router = useRouter()
+
+  const flowRunsCountAllSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [{}])
+  const loaded = computed(() => flowRunsCountAllSubscription.executed)
+  const empty = computed(() => flowRunsCountAllSubscription.response === 0)
+
   const sort = ref<FlowRunSortValues>('EXPECTED_START_TIME_DESC')
 
   const defaultStartDate = formatDateTimeNumeric(subDays(startOfToday(), 7))
