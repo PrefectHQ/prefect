@@ -69,7 +69,7 @@ what_day_is_it("2021-01-01T02:00:19.180906")
 
 Parameters are validated before a flow is run. If a flow call receives invalid parameters, a flow run is created in a `Failed` state. If a flow run for a deployment receives invalid parameters, it will move from a `Pending` state to a `Failed` without entering a `Running` state.
 
-## Final state determination
+<!-- ## Final state determination
 
 The final state of the flow is determined by its return value.  The following rules apply:
 
@@ -209,7 +209,7 @@ The following examples illustrate each of these cases:
 
 !!! note
 
-    When returning multiple states, they must be contained in a `set`, `list`, or `tuple`. If other collection types are used, the result of the contained states will not be checked.
+    When returning multiple states, they must be contained in a `set`, `list`, or `tuple`. If other collection types are used, the result of the contained states will not be checked. -->
 
 ## Subflows
 
