@@ -27,6 +27,8 @@ markdown_extensions:
               class: mermaid
               format: !!python/name:pymdownx.superfences.fence_code_format
     - pymdownx.tabbed
+    - toc:
+          permalink: true
 theme:
     name: material
     custom_dir: overrides
@@ -114,6 +116,7 @@ nav:
         - Overview: collections/overview.md
         - Collections Catalog: collections/catalog.md
     - FAQ: faq.md
+    - Migration Guide: migration_guide.md
     - 'API Reference': 
         - Overview: api-ref/overview.md
         - Prefect Python API: 
