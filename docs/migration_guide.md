@@ -8,7 +8,7 @@ It is broken down into several sections to make your migration journey as seamle
 Let’s start by explicitly calling out what hasn’t changed:
 
 - The fundamental building blocks you are so familiar with: [tasks](../concepts/tasks/) and [flows](../concepts/flows/)
-- the main functionality of how Prefect orchestrates your flow runs and task runs, and provides observability into their execution [states](../concepts/states/)
+- The main functionality of how Prefect orchestrates your flow runs and task runs, and provides observability into their execution [states](../concepts/states/)
 - The ability to [run and inspect flow runs locally](https://discourse.prefect.io/t/how-can-i-inspect-the-flow-run-states-locally/81)
 - The [principles](https://medium.com/the-prefect-blog/your-code-will-fail-but-thats-ok-f0327a208dbe) of Prefect providing the coordination plane for your dataflows
 - The [hybrid execution model](https://medium.com/the-prefect-blog/the-prefect-hybrid-model-1b70c7fd296)
@@ -45,7 +45,7 @@ The changes listed below require you to modify your workflow code. The following
 | Configuration that determines how and where to execute your flow runs | Run configuration such as `flow.run_config = DockerRun()`                                                                              | Flow runner defined on a Deployment such as `Deployment(flow_runner=DockerFlowRunner)`                                                                                                                        | [How can I run my flow in a Docker container?](https://discourse.prefect.io/t/how-can-i-run-my-flow-in-a-docker-container/64)                                                                     |
 | Assignment of schedules and default parameter values | Schedules are attached to the flow object and default parameter values are defined within the Parameter tasks                          | Schedules and default parameters are assigned to a flow’s `Deployment`, rather than to a Flow object                                                                                                          | [How can I attach a schedule to a flow?](https://discourse.prefect.io/t/how-can-i-attach-a-schedule-to-a-flow/65)                                                                                 |
 | Retries | `@task(max_retries=2, retry_delay=timedelta(seconds=5))`                                                                               | `@task(retries=2, retry_delay_seconds=5)`                                                                                                                                                                     | [How can I specify the retry behavior for a specific task?](https://discourse.prefect.io/t/how-can-i-specify-the-retry-behavior-for-a-specific-task/60)                                           |
-| Logger syntax | Logger is retrieved from the `prefect.context` and can only be used within tasks                                                       | In Prefect 2.0, you can log not only from tasks, but also within flows. To get the logger object, use: `prefect.get_run_logger()`                                                                             | [How can I add logs to my flow?](https://discourse.prefect.io/t/how-can-i-add-logs-to-my-flow/86)                                                                                                 |
+| Logger syntax | Logger is retrieved from `prefect.context` and can only be used within tasks                                                       | In Prefect 2.0, you can log not only from tasks, but also within flows. To get the logger object, use: `prefect.get_run_logger()`                                                                             | [How can I add logs to my flow?](https://discourse.prefect.io/t/how-can-i-add-logs-to-my-flow/86)                                                                                                 |
 | The syntax and contents of Prefect context  | Context is a thread-safe way of accessing variables related to the flow run and task run. The syntax to retrieve it: `prefect.context` | Context is still available, but its content is much richer, allowing you to retrieve even more information about your flow runs and task runs. The syntax to retrieve it: `prefect.context.get_run_context()` | [How to access Prefect context values?](https://discourse.prefect.io/t/how-to-access-prefect-context-values/62)                                                                                   |
 | Task library | Included in the [main Prefect Core repository](https://docs.prefect.io/core/task_library/overview.html)                                                                                       | Separated into [individual repositories](../collections/catalog/) per system, cloud provider, or technology                                                                                                                          | [How to migrate Prefect 1.0 tasks to Prefect 2.0 collections](https://discourse.prefect.io/t/how-to-migrate-prefect-1-0-task-library-tasks-to-a-prefect-collection-repository-in-prefect-2-0/792) |
 
@@ -53,7 +53,7 @@ The changes listed below require you to modify your workflow code. The following
 
 Let’s look at the differences in how Prefect 2.0 transitions your flow and task runs between various execution states.
 
-- In Prefect 2.0, the final state of a flow run that finished without errors is `Completed`, while in Prefect 1.0, such flow run is marked by a `Success` state. You can find more about that topic [here](https://discourse.prefect.io/t/what-is-the-final-state-of-a-successful-flow-run/59).
+- In Prefect 2.0, the final state of a flow run that finished without errors is `Completed`, while in Prefect 1.0, this flow run has a `Success` state. You can find more about that topic [here](https://discourse.prefect.io/t/what-is-the-final-state-of-a-successful-flow-run/59).
 - The decision about whether a flow run should be considered successful or not is no longer based on special reference tasks. Instead, your flow’s return value determines the final state of a flow run. This [link](https://discourse.prefect.io/t/how-can-i-control-the-final-state-of-a-flow-run/56) provides a more detailed explanation with code examples.
 - In Prefect 1.0, concurrency limits were only available to Prefect Cloud users. Prefect 2.0 provides highly customizable concurrency limits as part of the open-source product.
     - Task-level concurrency limits are based on tags that you can set within your flow.
@@ -71,6 +71,7 @@ To deploy your Prefect 1.0 flows, you have to send flow metadata to the backend 
 The API is now implemented as a REST API rather than GraphQL. [This page](https://discourse.prefect.io/t/how-can-i-interact-with-the-backend-api-using-a-python-client/80) illustrates how you can interact with the API.
 
 In Prefect 1.0, the logical grouping of flows was based on [projects](https://docs.prefect.io/orchestration/concepts/projects.html). Prefect 2.0 provides a much more flexible way of organizing your flows, tasks, and deployments through customizable filters and tags. [This page](https://discourse.prefect.io/t/how-can-i-organize-my-flows-based-on-my-business-logic-or-team-structure/66) provides more details on how to assign tags to various Prefect 2.0 objects.
+
 The role of agents has changed between Prefect 1.0 and Prefect 2.0:
 
 - In Prefect 1.0, agents are required to see the flow run history in the UI.
@@ -83,10 +84,10 @@ The role of agents has changed between Prefect 1.0 and Prefect 2.0:
 
 The following new components and capabilities are enabled by Prefect 2.0.
 
-- More flexibility thanks to the elimination of flow pre-registration
+- More flexibility thanks to the elimination of flow pre-registration.
 - More flexibility with respect to flow deployments, including easier promotion of a flow through development, staging, and production environments.
-- Native `async` support
-- Out-of-the-box `pydantic` validation
+- Native `async` support.
+- Out-of-the-box `pydantic` validation.
 - [Blocks](../ui/blocks/) allowing you to securely store UI-editable, type-checked configuration to external systems and an easy-to-use Key-Value Store. All those components are configurable in one place and provided as part of the open-source Prefect 2.0 product. In contrast, the concept of [Secrets](https://docs.prefect.io/orchestration/concepts/secrets.html) in Prefect 1.0 was much more narrow and only available in Prefect Cloud.  
 - [Notifications](../ui/notifications/) available in the open-source Prefect 2.0 version, as opposed to Cloud-only [Automations](https://docs.prefect.io/orchestration/ui/automations.html) in Prefect 1.0.  
 - A first-class `subflows` concept: Prefect 1.0 only allowed the [flow-of-flows orchestrator pattern](https://discourse.prefect.io/tag/orchestrator-pattern), which is still supported. With Prefect 2.0 subflows, you are gaining a natural and intuitive way of organizing your flows into modular sub-components. For more details, see [the following list of resources about subflows](https://discourse.prefect.io/tag/subflows).
