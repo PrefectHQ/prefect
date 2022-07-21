@@ -73,6 +73,7 @@ from prefect.utilities.asyncutils import (
     in_async_main_thread,
     run_async_from_worker_thread,
     run_sync_in_interruptible_worker_thread,
+    run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import Quote, visit_collection
@@ -326,6 +327,8 @@ async def begin_flow_run(
             parameters=parameters,
             client=client,
             partial_flow_run_context=flow_run_context,
+            # Orchestration needs to be interruptible if it has a timeout
+            interruptible=flow.timeout_seconds is not None,
         )
 
     # If debugging, use the more complete `repr` than the usual `str` description
@@ -438,6 +441,9 @@ async def create_and_begin_subflow_run(
                 flow,
                 flow_run=flow_run,
                 parameters=parameters,
+                # If the parent flow run has a timeout, then this one needs to be
+                # interruptible as well
+                interruptible=parent_flow_run_context.timeout_scope is not None,
                 client=client,
                 partial_flow_run_context=PartialModel(
                     FlowRunContext,
@@ -470,6 +476,7 @@ async def orchestrate_flow_run(
     flow: Flow,
     flow_run: FlowRun,
     parameters: Dict[str, Any],
+    interruptible: bool,
     client: OrionClient,
     partial_flow_run_context: PartialModel[FlowRunContext],
 ) -> State:
@@ -530,9 +537,12 @@ async def orchestrate_flow_run(
                     if flow.isasync:
                         result = await flow_call()
                     else:
-                        result = await run_sync_in_interruptible_worker_thread(
-                            flow_call
+                        run_sync = (
+                            run_sync_in_interruptible_worker_thread
+                            if interruptible or timeout_scope
+                            else run_sync_in_worker_thread
                         )
+                        result = await run_sync(flow_call)
 
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
@@ -896,9 +906,14 @@ async def begin_task_run(
         if flow_run_context:
             # Accessible if on a worker that is running in the same thread as the flow
             client = flow_run_context.client
+            # Only run the task in an interruptible thread if it in the same thread as
+            # the flow _and_ the flow run has a timeout attached. If the task is on a
+            # worker, the flow run timeout will not be raised in the worker process.
+            interruptible = flow_run_context.timeout_scope is not None
         else:
             # Otherwise, retrieve a new client
             client = await stack.enter_async_context(get_client())
+            interruptible = False
 
         connect_error = await client.api_healthcheck()
         if connect_error:
@@ -914,6 +929,7 @@ async def begin_task_run(
                 parameters=parameters,
                 wait_for=wait_for,
                 result_filesystem=result_filesystem,
+                interruptible=interruptible,
                 client=client,
             )
         except Abort:
@@ -930,6 +946,7 @@ async def orchestrate_task_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     result_filesystem: WritableFileSystem,
+    interruptible: bool,
     client: OrionClient,
 ) -> State:
     """
@@ -1003,9 +1020,12 @@ async def orchestrate_task_run(
                 if task.isasync:
                     result = await task.fn(*args, **kwargs)
                 else:
-                    result = await run_sync_in_interruptible_worker_thread(
-                        task.fn, *args, **kwargs
+                    run_sync = (
+                        run_sync_in_interruptible_worker_thread
+                        if interruptible
+                        else run_sync_in_worker_thread
                     )
+                    result = await run_sync(task.fn, *args, **kwargs)
 
         except Exception as exc:
             logger.error(
