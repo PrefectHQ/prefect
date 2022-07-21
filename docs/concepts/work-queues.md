@@ -44,7 +44,6 @@ Work queues contain scheduled runs from any deployments that match the queue cri
 
 - Deployments
 - Tags
-- Flow runners
 
 These criteria can be modified at any time, and agent processes requesting work for a specific queue will only see matching runs.
 
@@ -62,7 +61,6 @@ To configure a work queue to handle specific work, you can specify filters such 
 
 - One or more deployment tags
 - One or more deployments
-- One or more flow runner types
 
 Only scheduled work that meets the specified criteria will route through the worker queue to available agents.
 
@@ -91,7 +89,6 @@ Optional configuration parameters you can specify to filter work on the queue in
 | --- | --- |
 | -t, --tag          | One or more tags. |
 | -d, --deployment   | One or more deployment IDs. |
-| -fr, --flow-runner | One or more [flow runner types](/concepts/flow-runners/). |
 
 For example, to create a work queue called `test_queue` for a specific deployment with ID `'156edead-fe6a-4783-a618-21d3a63e95c4'`, you would run this command: 
 

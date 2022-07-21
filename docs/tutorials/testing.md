@@ -28,7 +28,7 @@ def my_favorite_flow():
 def test_my_favorite_flow():
   with prefect_test_harness():
       # run the flow against a temporary testing database
-      assert my_favorite_function().result() == 42
+      assert my_favorite_function() == 42 
 ```
 
 For more extensive testing, you can leverage `prefect_test_harness` as a fixture in your unit testing framework. For example, when using `pytest`:

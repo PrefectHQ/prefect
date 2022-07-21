@@ -91,7 +91,7 @@ class TaskRunnerStandardTestSuite(ABC):
 
             return a, b, c, d
 
-        state = test_flow.run()
+        state = test_flow._run()
 
         assert state.is_failed()
         a, b, c, d = state.result(raise_on_failure=False)
@@ -456,10 +456,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         def test_flow():
-            foo()
-            bar()
+            foo.submit()
+            bar.submit()
 
-        test_flow().result()
+        test_flow()
 
         assert tmp_file.read_text() == "foo"
 
@@ -508,10 +508,10 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         async def test_flow():
-            await foo()
-            await bar()
+            await foo.submit()
+            await bar.submit()
 
-        (await test_flow()).result()
+        await test_flow()
 
         assert tmp_file.read_text() == "foo"
 
@@ -551,8 +551,8 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         def test_flow():
-            foo.run()
-            bar.run()
+            foo._run()
+            bar._run()
 
         test_flow()
 
@@ -572,8 +572,8 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @flow(version="test", task_runner=task_runner)
         async def test_flow():
-            await foo.run()
-            await bar.run()
+            await foo._run()
+            await bar._run()
 
         await test_flow()
 
@@ -594,8 +594,8 @@ class TaskRunnerStandardTestSuite(ABC):
         @flow(version="test", task_runner=task_runner)
         async def test_flow():
             async with anyio.create_task_group() as tg:
-                tg.start_soon(foo.run)
-                tg.start_soon(bar.run)
+                tg.start_soon(foo._run)
+                tg.start_soon(bar._run)
 
         await test_flow()
 

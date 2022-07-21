@@ -29,9 +29,6 @@ async def create(
     deployment_ids: List[UUID] = typer.Option(
         None, "-d", "--deployment", help="One or more optional deployment IDs"
     ),
-    flow_runner_types: List[str] = typer.Option(
-        None, "-fr", "--flow-runner", help="One or more optional flow runner types"
-    ),
 ):
     """
     Create a work queue.
@@ -42,7 +39,6 @@ async def create(
                 name=name,
                 tags=tags or None,
                 deployment_ids=deployment_ids or None,
-                flow_runner_types=flow_runner_types or None,
             )
         except ObjectAlreadyExists:
             exit_with_error(f"Work queue with name: {name!r} already exists.")
