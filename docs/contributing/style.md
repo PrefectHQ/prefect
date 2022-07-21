@@ -156,6 +156,7 @@ Sometimes, imports are slow. We'd like to keep the `prefect` module import times
 
 Upon executing a command that creates an object, the output message should offer:
 - A short description of what the command just did.
+- An bullet point list, rehashing user inputs, if possible.
 - Next steps, like the next command to run, if applicable.
 - Other relevant, pre-formatted commands that can be copied and pasted, if applicable.
 - A new line before the first line and after the last line.
@@ -164,19 +165,23 @@ Output Example:
 ```bash
 $ prefect work-queue create testing
 
-Created work-queue: 'testing'
+Created work-queue with properties:
+    name - 'abcde'
+    uuid - 940f9828-c820-4148-9526-ea8107082bda
+    tags - None
+    deployment_ids - None
 
 Start an agent to pick up flows from the created work-queue:
-    prefect agent start '989c64da-1144-4fbb-8fe8-d7b298ea2f84'
+    prefect agent start '940f9828-c820-4148-9526-ea8107082bda'
 
 Inspect the created work-queue:
-    prefect work-queue inspect '989c64da-1144-4fbb-8fe8-d7b298ea2f84'
+    prefect work-queue inspect '940f9828-c820-4148-9526-ea8107082bda'
 
 ```
 
 Additionally:
 
-- Wrap generated arguments in apostrophes (') to ensure validity.
+- Wrap generated arguments in apostrophes (') to ensure validity by using suffixing formats with `!r`.
 - Indent example commands, instead of wrapping in backticks (&#96;).
 - Use placeholders if the example cannot be pre-formatted completely.
 - Capitalize placeholder labels and wrap them in less than (<) and greater than (>) signs.
@@ -194,11 +199,15 @@ from textwrap import dedent
 ...
 output_msg = dedent(
     f"""
-    Created work-queue: '{name}'
-    
-    Start an agent to pick up flows from the work-queue:
+    Created work-queue with properties:
+        name - {name!r}
+        uuid - {result}
+        tags - {tags or None}
+        deployment_ids - {deployment_ids or None}
+
+    Start an agent to pick up flows from the created work-queue:
         prefect agent start '{result}'
-    
+
     Inspect the created work-queue:
         prefect work-queue inspect '{result}'
     """

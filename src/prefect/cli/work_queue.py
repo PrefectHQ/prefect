@@ -43,18 +43,22 @@ async def create(
         except ObjectAlreadyExists:
             exit_with_error(f"Work queue with name: {name!r} already exists.")
 
-    result_msg = dedent(
+    output_msg = dedent(
         f"""
-        You created work-queue: '{name}'
+        [green]Created work-queue with properties:[/green]
+            name - {name!r}
+            uuid - {result}
+            tags - {tags or None}
+            deployment_ids - {deployment_ids or None}
 
-        Start an agent to pick up flows from the work-queue:
-        `prefect agent start {result}`
+        Start an agent to pick up flows from the created work-queue:
+            prefect agent start '{result}'
 
-        See all your work queues:
-        `prefect work-queue ls`
-    """
+        Inspect the created work-queue:
+            prefect work-queue inspect '{result}'
+        """
     )
-    app.console.print(result_msg)
+    app.console.print(output_msg)
 
 
 @work_app.command()

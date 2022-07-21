@@ -1,6 +1,8 @@
 """
 Command line interface for working with concurrency limits.
 """
+import textwrap
+
 import pendulum
 
 try:
@@ -41,8 +43,21 @@ async def create(tag: str, concurrency_limit: int):
         )
         result = await client.read_concurrency_limit_by_tag(tag)
 
-    app.console.print(Pretty(result))
-    # placeholder
+    app.console.print(
+        textwrap.dedent(
+            f"""
+            Created concurrency limit with properties:
+                tag - {tag!r}
+                concurrency_limit - {concurrency_limit}
+
+            Delete the concurrency limit:
+                prefect concurrency-limit delete {tag!r}
+            
+            Inspect the concurrency limit:
+                prefect concurrency-limit inspect {tag!r}
+        """
+        )
+    )
 
 
 @concurrency_limit_app.command()
