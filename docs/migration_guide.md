@@ -17,10 +17,10 @@ Let’s start by explicitly calling out what hasn’t changed:
 
 ## 2. What changed
 
-Some changes require modifications to your existing tasks, flows and deployment patterns. For more transparency, we've organized this information in the following categories:
+Some changes require modifications to your existing tasks, flows, and deployment patterns. For more transparency, we've organized this information in the following categories:
 
-- **Simplified patterns** &mdash; abstractions that had their place in Prefect 1.0, but that are no longer necessary in the dynamic DAG-free Orion workflows that support running native Python code in your flows
-- **Conceptual and syntax changes** that often clarify the naming and simplify familiar abstractions such as retries and caching
+- **Simplified patterns** &mdash; abstractions that had their place in Prefect 1.0, but that are no longer necessary in the dynamic, DAG-free Prefect Orion workflows that support running native Python code in your flows.
+- **Conceptual and syntax changes** that often clarify the naming and simplify familiar abstractions such as retries and caching.
 - **New features** enabled by the dynamic and flexible Orion API
 
 ### 2.1 Simplified patterns
