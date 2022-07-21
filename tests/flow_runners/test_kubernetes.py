@@ -26,6 +26,7 @@ from prefect.flow_runners.base import base_flow_run_environment
 from prefect.flow_runners.kubernetes import KubernetesManifest
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
+from prefect.results import _retrieve_result
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, temporary_settings
 from prefect.testing.utilities import kubernetes_environments_equal
 
@@ -34,10 +35,6 @@ class TestKubernetesFlowRunner:
     @pytest.fixture(autouse=True)
     def skip_if_kubernetes_is_not_installed(self):
         pytest.importorskip("kubernetes")
-
-    @pytest.fixture(autouse=True)
-    async def configure_remote_storage(self, set_up_kv_storage):
-        pass
 
     @pytest.fixture
     def mock_watch(self, monkeypatch):
@@ -626,8 +623,7 @@ class TestIntegrationWithRealKubernetesCluster:
         # In order to receive results back from the flow, we need to share a filesystem
         # between the job and our host, which we'll do by mounting the /tmp/ directory
         # from the test host using a hostPath volumeMount to the directory that matches
-        # tempfile.gettempdir(), which is what prefect.blocks.storage.TempStorageBlock
-        # uses
+        # tempfile.gettempdir()
         assert await KubernetesFlowRunner(
             env={
                 "TEST_FOO": "foo",
@@ -661,7 +657,7 @@ class TestIntegrationWithRealKubernetesCluster:
             b"/tmp/prefect/", str(results_directory).encode() + b"/"
         )
 
-        flow_run_environ = await k8s_orion_client.resolve_datadoc(result)
+        flow_run_environ = await _retrieve_result(result)
         assert "TEST_FOO" in flow_run_environ
         assert flow_run_environ["TEST_FOO"] == "foo"
 

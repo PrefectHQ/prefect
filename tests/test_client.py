@@ -1,6 +1,5 @@
 import random
 import threading
-from dataclasses import dataclass
 from datetime import timedelta
 from unittest.mock import MagicMock, call
 from uuid import UUID
@@ -12,7 +11,6 @@ import pytest
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBearer
 from httpx import AsyncClient, HTTPStatusError, Request, Response
-from pydantic import BaseModel
 
 import prefect.context
 import prefect.exceptions
@@ -951,33 +949,6 @@ async def test_set_then_read_task_run_state(orion_client):
     assert run.state.message == "Test!"
 
 
-@dataclass
-class ExDataClass:
-    x: int
-
-
-class ExPydanticModel(BaseModel):
-    x: int
-
-
-@pytest.mark.parametrize(
-    "put_obj",
-    [
-        "hello",
-        7,
-        ExDataClass(x=1),
-        ExPydanticModel(x=0),
-    ],
-)
-async def test_put_then_retrieve_object(put_obj, orion_client, local_storage_block):
-    data_document = await orion_client.persist_object(
-        put_obj, storage_block=local_storage_block
-    )
-    assert isinstance(data_document, DataDocument)
-    retrieved_obj = await orion_client.retrieve_object(data_document)
-    assert retrieved_obj == put_obj
-
-
 class TestResolveDataDoc:
     async def test_does_not_allow_other_types(self, orion_client):
         with pytest.raises(TypeError, match="invalid type str"):
@@ -1002,19 +973,6 @@ class TestResolveDataDoc:
             DataDocument.encode(
                 "cloudpickle", DataDocument.encode("json", "hello").json().encode()
             )
-        )
-        assert innermost == "hello"
-
-    async def test_resolves_persisted_data_documents(
-        self, orion_client, local_storage_block
-    ):
-        innermost = await orion_client.resolve_datadoc(
-            (
-                await orion_client.persist_data(
-                    DataDocument.encode("json", "hello").json().encode(),
-                    block=local_storage_block,
-                )
-            ),
         )
         assert innermost == "hello"
 

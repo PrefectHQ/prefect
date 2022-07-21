@@ -14,6 +14,7 @@ import pytest
 import prefect
 from prefect.flow_runners import SubprocessFlowRunner
 from prefect.flow_runners.base import base_flow_run_environment
+from prefect.results import _retrieve_result
 from prefect.settings import SETTING_VARIABLES
 from prefect.testing.utilities import AsyncMock
 
@@ -294,7 +295,7 @@ class TestSubprocessFlowRunner:
         assert happy_exit
         fake_status.started.assert_called_once()
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        runtime_python = await orion_client.resolve_datadoc(state.data)
+        runtime_python = await _retrieve_result(state)
         assert runtime_python == sys.executable
 
     @pytest.mark.service("environment")
@@ -315,7 +316,7 @@ class TestSubprocessFlowRunner:
 
         assert happy_exit
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        runtime_python = await orion_client.resolve_datadoc(state.data)
+        runtime_python = await _retrieve_result(state)
         assert runtime_python == str(virtualenv_environment_path / "bin" / "python")
 
     @pytest.mark.service("environment")
@@ -336,7 +337,7 @@ class TestSubprocessFlowRunner:
 
         assert happy_exit
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        runtime_python = await orion_client.resolve_datadoc(state.data)
+        runtime_python = await _retrieve_result(state)
         assert runtime_python == str(venv_environment_path / "bin" / "python")
 
     @pytest.mark.service("environment")
@@ -358,7 +359,7 @@ class TestSubprocessFlowRunner:
 
         assert happy_exit
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        runtime_python = await orion_client.resolve_datadoc(state.data)
+        runtime_python = await _retrieve_result(state)
         assert runtime_python == str(conda_environment_path / "bin" / "python")
 
     @pytest.mark.parametrize("stream_output", [True, False])
