@@ -18,8 +18,6 @@ Now that you have all of these awesome flows, you probably want to test them!
 Prefect provides a simple context manager for unit tests that allows you to run flows and tasks against a temporary local SQLite database.
 
 ```python
-import unittest
-
 from prefect import flow
 from prefect.testing.utilities import prefect_test_harness
 
@@ -27,14 +25,10 @@ from prefect.testing.utilities import prefect_test_harness
 def my_favorite_flow():
     return 42
 
-class TestMyFavoriteFlow(unittest.TestCase):
-    def test_my_favorite_flow(self):
-        with prefect_test_harness():
-            # run the flow against a temporary testing database
-            assert my_favorite_flow() == 42
-
-if __name__ == "__main__":
-    unittest.main()
+def test_my_favorite_flow():
+  with prefect_test_harness():
+      # run the flow against a temporary testing database
+      assert my_favorite_flow() == 42 
 ```
 
 For more extensive testing, you can leverage `prefect_test_harness` as a fixture in your unit testing framework. For example, when using `pytest`:
