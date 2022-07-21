@@ -75,12 +75,11 @@ nav:
         - Tutorials:
             - tutorials/first-steps.md
             - tutorials/flow-task-config.md
-            - tutorials/task-dependencies.md
             - tutorials/execution.md
-            - tutorials/dask-ray-task-runners.md
             - tutorials/orion.md
             - tutorials/deployments.md
             - tutorials/virtual-environments.md
+            - tutorials/dask-ray-task-runners.md
             - tutorials/docker-flow-runner.md
             - tutorials/kubernetes-flow-runner.md
             - tutorials/testing.md
