@@ -2,8 +2,6 @@ import os
 import tempfile
 import logging
 import sys
-import re
-import pathlib
 from subprocess import PIPE, STDOUT, Popen
 from typing import Any, List, Union, Optional
 
@@ -149,6 +147,9 @@ class PowershellTask(prefect.Task):
         ) as sub_process:
             line = None
             lines = []
+            # mypy: None is not compatible with non-optional types
+            # https://mypy.readthedocs.io/en/latest/common_issues.html#unexpected-errors-about-none-and-or-optional-types
+            assert sub_process.stdout is not None
             for raw_line in iter(sub_process.stdout.readline, b""):
                 line = raw_line.decode("utf-8").rstrip()
 
