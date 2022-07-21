@@ -133,9 +133,18 @@ async def create():
                 app.console.print(f"[red]The name {name!r} is already taken.[/]")
                 name = typer.prompt("Choose a new name for this storage configuration")
 
-    app.console.print(
-        f"[green]Registered storage {name!r} with identifier '{block_document_id}'.[/]"
+    output_msg = textwrap.dedent(
+        f"""
+        Created storage with properties:
+            name - {name!r}
+            uuid - {block_document_id}
+            type - {schema.block_type.name}
+
+        Use the created storage as default:
+            prefect storage set-default '{block_document_id}'
+        """
     )
+    app.console.print(output_msg)
 
     async with get_client() as client:
         if not await client.get_default_storage_block_document():

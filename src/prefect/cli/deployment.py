@@ -302,20 +302,23 @@ async def create(path: Path):
     else:
         s = "s" if created > 1 else ""
         deployments_listing = "\n".join(
-            f"'{deployment.name}/{deployment.flow.name}'"
+            f"'{deployment.flow.name}/{deployment.name or deployment.flow.name}'"
             for deployment in valid_deployments
+        )
+        last_deployment = (
+            f"{deployment.flow.name}/{deployment.name or deployment.flow.name}"
         )
         app.console.print(
             textwrap.dedent(
                 f"""
-                You created {created} deployment{s}:
-                {deployments_listing}
+                Created {created} deployment{s}:
+                    {deployments_listing}
 
-                Run a deployment:
-                `prefect run {valid_deployments[-1].name}`
-
-                See all your deployments:
-                `prefect deployment ls`
+                Run the last created deployment:
+                    prefect deployment run {last_deployment!r}
+                
+                Inspect the last created deployment:
+                    prefect deployment inspect {last_deployment!r}
             """
             )
         )
