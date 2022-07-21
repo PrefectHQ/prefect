@@ -905,6 +905,18 @@ class BlockSchemaFilterBlockTypeId(PrefectFilterBaseModel):
         return filters
 
 
+class BlockSchemaFilterId(PrefectFilterBaseModel):
+    """Filter by BlockSchema.id"""
+
+    any_: List[UUID] = Field(None, description="A list of IDs to include")
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.BlockSchema.id.in_(self.any_))
+        return filters
+
+
 class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
     """Filter by `BlockSchema.capabilities`"""
 
@@ -933,6 +945,9 @@ class BlockSchemaFilter(PrefectFilterBaseModel):
     block_capabilities: Optional[BlockSchemaFilterCapabilities] = Field(
         None, description="Filter criteria for `BlockSchema.capabilities`"
     )
+    id: Optional[BlockSchemaFilterId] = Field(
+        None, description="Filter criteria for `BlockSchema.id`"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -941,6 +956,8 @@ class BlockSchemaFilter(PrefectFilterBaseModel):
             filters.append(self.block_type_id.as_sql_filter(db))
         if self.block_capabilities is not None:
             filters.append(self.block_capabilities.as_sql_filter(db))
+        if self.id is not None:
+            filters.append(self.id.as_sql_filter(db))
 
         return filters
 
