@@ -151,7 +151,7 @@ Let's show how the aforementioned basic example can be expanded on to add parall
 
 Control the task execution environment by changing a flow's `task_runner`. 
 
-By using the `DaskTaskRunner`, tasks will automatically be submitted to run in parallel on a [Dask.distributed](http://distributed.dask.org/) cluster. 
+By using the `DaskTaskRunner`, tasks can be submitted to run in parallel on a [Dask.distributed](http://distributed.dask.org/) cluster. 
 
 Install the `prefect-dask` [collection](https://prefecthq.github.io/prefect-dask/) package with:
 
