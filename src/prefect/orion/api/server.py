@@ -31,12 +31,14 @@ TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-MINIMUM_ORION_API_VERSION = "0.7.0"
+ORION_API_VERSION = "0.7.0"
 
 logger = get_logger("orion")
 
 enforce_minimum_version = EnforceMinimumAPIVersion(
-    minimum_api_version=MINIMUM_ORION_API_VERSION,
+    # this should be <= ORION_API_VERSION; clients that send
+    # a version header under this value will be rejected
+    minimum_api_version="0.7.0",
     logger=logger,
 )
 
