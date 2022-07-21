@@ -68,7 +68,7 @@ Prefect 2.0 provides a number of programmatic workflow interfaces, each of which
 
 Learn how [you can get involved](contributing/overview/).
 
-Prefect 2.0 was made possible by the fastest-growing community of data practitioners. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more, ask questions, or get help with workflow design. 
+Prefect 2.0 is made possible by the fastest-growing community of data practitioners. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more, ask questions, or get help with workflow design. 
 
 The [Prefect Discourse](https://discourse.prefect.io/) is an additional community-driven knowledge base to find answers to your Prefect-related questions. 
 
