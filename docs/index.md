@@ -188,7 +188,7 @@ You should see similar output to the first example, with additional information 
 Prefect 2.0 ships with native async support. 
 Flows can include a mix of synchronous and asynchronous tasks, just like native Python.
 
-```python hl_lines="3 6-8 13-14 16 20"
+```python hl_lines="3 6-8 13 15 18"
 from prefect import flow, task
 import httpx
 import asyncio
