@@ -12,6 +12,9 @@ We recommend installing Prefect 2.0 using a Python virtual environment manager s
 
 The following sections describe how to install Prefect in your development or execution environment.
 
+!!! success "Upgrading from Prefect 1.0 to Prefect 2.0"
+    If you're upgrading from Prefect 1.0 to Prefect 2.0, we recommend creating a new environment. Should you encounter any issues when upgrading, this ensures being able to roll back to a known working state easily.
+
 ### Installing the latest version
 
 Prefect is published as a Python package. To install the latest 2.0 release, run the following in a shell or terminal session:
@@ -26,7 +29,7 @@ To install a specific version, specify the version, such as:
 
 <div class="terminal">
 ```bash
-pip install -U "prefect==2.0b9"
+pip install -U "prefect==2.0"
 ```
 </div>
 
@@ -34,15 +37,15 @@ Find the available release versions in the [Prefect 2.0 Release Notes](https://g
 
 ### Installing the bleeding edge
 
-If you'd like to test with the most up-to-date code, you can install directly off the `orion` branch on GitHub:
+If you'd like to test with the most up-to-date code, you can install directly off the `prefect` branch on GitHub:
 
 <div class="terminal">
 ```bash
-pip install git+https://github.com/PrefectHQ/prefect@orion
+pip install git+https://github.com/PrefectHQ/prefect
 ```
 </div>
 
-!!! warning "The `orion` branch may not be stable"
+!!! warning "The `prefect` branch may not be stable"
     Please be aware that this method installs unreleased code and may not be stable.
 
 ### Installing for development
@@ -50,17 +53,13 @@ pip install git+https://github.com/PrefectHQ/prefect@orion
 If you'd like to install a version of Prefect for development:
 
 1. Clone the [Prefect repository](https://github.com/PrefectHQ/prefect).
-2. Check out the `orion` branch.
-3. Install an editable version of the Python package with `pip install -e`.
-4. Install pre-commit hooks.
+2. Install an editable version of the Python package with `pip install -e`.
+3. Install pre-commit hooks.
 
 <div class="terminal">
 ```bash
 $ git clone https://github.com/PrefectHQ/prefect.git
-$ git checkout orion
-
 $ pip install -e ".[dev]"
-
 $ pre-commit install
 ```
 </div>
@@ -74,7 +73,7 @@ To check that Prefect was installed correctly, use the Prefect CLI command `pref
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.0b9
+Version:             2.0
 API version:         0.7.0
 Python version:      3.9.10
 Git commit:          6379bc53
@@ -174,7 +173,7 @@ Or use the Prefect CLI command `prefect version`, which prints version and envir
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.0b9
+Version:             2.0
 API version:         0.7.0
 Python version:      3.9.10
 Git commit:          6379bc53
