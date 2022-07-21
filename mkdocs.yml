@@ -101,7 +101,7 @@ nav:
         - Settings: concepts/settings.md
     - Prefect UI & Prefect Cloud:
         - Overview: ui/overview.md
-        - ui/dashboard.md
+        - ui/flow-runs.md
         - ui/flows.md
         - ui/deployments.md
         - ui/work-queues.md
