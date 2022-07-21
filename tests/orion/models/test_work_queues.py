@@ -629,7 +629,7 @@ class TestGetRunsInWorkQueue:
         await models.work_queues.update_work_queue(
             session=session,
             work_queue_id=work_queue.id,
-            work_queue=schemas.actions.WorkQueueUpdate(concurrency_limit=2),
+            work_queue=schemas.actions.WorkQueueUpdate(concurrency_limit=0),
         )
 
         await models.work_queues.get_runs_in_work_queue(
