@@ -21,17 +21,17 @@ Some changes require modifications to your existing tasks, flows, and deployment
 
 - **Simplified patterns** &mdash; abstractions that had their place in Prefect 1.0, but that are no longer necessary in the dynamic, DAG-free Prefect Orion workflows that support running native Python code in your flows.
 - **Conceptual and syntax changes** that often clarify the naming and simplify familiar abstractions such as retries and caching.
-- **New features** enabled by the dynamic and flexible Orion API
+- **New features** enabled by the dynamic and flexible Prefect Orion API.
 
 ### 2.1 Simplified patterns
 
-Since Orion allows running native Python code within the flow function, some abstractions are no longer necessary:
+Since Prefect 2.0 allows running native Python code within the flow function, some abstractions are no longer necessary:
 
 - `Parameter` tasks: in Prefect 2.0, inputs to your flow function are automatically treated as [parameters](https://orion-docs.prefect.io/concepts/flows/#parameters) of your flow. You can define the default parameter values in your `Deployment`. The additional benefit to Orion’s parametrization is type validation with [pydantic](https://pydantic-docs.helpmanual.io/).
 - Task-level `state_handlers`: in Prefect 2.0, you can build custom logic that reacts to task-run states within your flow function without the need for `state_handlers`. [This page](https://discourse.prefect.io/t/how-to-take-action-on-a-state-change-of-a-task-run-task-level-state-handler/82) provides a further explanation and code examples.
-- Instead of using `signals`, Prefect 2.0 allows you to raise an arbitrary Exception in your tasks and flows or return a custom state. For more details and examples, see [this page](https://discourse.prefect.io/t/how-can-i-end-the-task-run-based-on-a-custom-logic/83).
+- Instead of using `signals`, Prefect 2.0 allows you to raise an arbitrary exception in your tasks and flows or return a custom state. For more details and examples, see [How can I stop the task run based on a custom logic?](https://discourse.prefect.io/t/how-can-i-end-the-task-run-based-on-a-custom-logic/83).
 - Conditional tasks such as `case` are no longer required. Use Python native `if`/`else` blocks to build a conditional logic. [This page](https://discourse.prefect.io/tag/conditional-logic) provides more information.
-- Since you can use any context manager directly in your flow, `resource_manager` is no longer necessary. As long as you point to your flow script in your `Deployment`, you can share database connections and any other resources between tasks in your flow. [Here](https://discourse.prefect.io/t/how-to-clean-up-resources-used-in-a-flow/84) you can find a full flow example.
+- Since you can use any context manager directly in your flow, `resource_manager` is no longer necessary. As long as you point to your flow script in your `Deployment`, you can share database connections and any other resources between tasks in your flow. [How to clean up resources used in a flow?](https://discourse.prefect.io/t/how-to-clean-up-resources-used-in-a-flow/84) provides a full flow example.
 
 ### 2.2 Conceptual and syntax changes
 
