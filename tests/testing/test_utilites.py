@@ -43,7 +43,7 @@ async def test_prefect_test_harness():
 
     with prefect_test_harness():
         # should be able to run a flow
-        assert test_flow().result() == "foo"
+        assert test_flow() == "foo"
 
         async with get_client() as client:
             # should be able to query for generated data

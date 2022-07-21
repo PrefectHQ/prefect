@@ -1,7 +1,6 @@
 """
 Full schemas of Orion API objects.
 """
-
 import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
@@ -12,15 +11,14 @@ from typing_extensions import Literal
 import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
-from prefect.orion.utilities.names import generate_slug
+from prefect.orion.utilities.names import generate_slug, obfuscate_string
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
-from prefect.utilities.collections import listrepr
+from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
 FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_notification_policy_id",
-    "flow_run_notification_policy_name",
     "flow_id",
     "flow_name",
     "flow_run_id",
@@ -87,6 +85,15 @@ class FlowRunnerSettings(PrefectBaseModel):
         return self.type, self.config
 
 
+class FlowRunPolicy(PrefectBaseModel):
+    """Defines of how a flow run should retry."""
+
+    # TODO: Determine how to separate between infrastructure and within-process level
+    #       retries
+    max_retries: int = 0
+    retry_delay_seconds: float = 0
+
+
 class FlowRun(ORMBaseModel):
     """An ORM representation of flow run data."""
 
@@ -118,7 +125,9 @@ class FlowRun(ORMBaseModel):
         description="Additional context for the flow run.",
         example={"my_var": "my_val"},
     )
-    empirical_policy: dict = Field(default_factory=dict)
+    empirical_policy: FlowRunPolicy = Field(
+        default_factory=FlowRunPolicy,
+    )
     empirical_config: dict = Field(default_factory=dict)
     tags: List[str] = Field(
         default_factory=list,
@@ -395,7 +404,7 @@ class BlockSchema(ORMBaseModel):
     fields: dict = Field(
         default_factory=dict, description="The block schema's field schema"
     )
-    block_type_id: UUID = Field(..., description="A block type ID")
+    block_type_id: Optional[UUID] = Field(..., description="A block type ID")
     block_type: Optional[BlockType] = Field(
         None, description="The associated block type"
     )
@@ -486,13 +495,33 @@ class BlockDocument(ORMBaseModel):
         cls,
         session,
         orm_block_document: "prefect.orion.database.orm_models.ORMBlockDocument",
+        include_secrets: bool = False,
     ):
+        data = await orm_block_document.decrypt_data(session=session)
+
+        # if secrets are not included, obfuscate them based on the schema's
+        # `secret_fields`. Note this walks any nested blocks as well. If the
+        # nested blocks were recovered from named blocks, they will already
+        # be obfuscated, but if nested fields were hardcoded into the parent
+        # blocks data, this is the only opportunity to obfuscate them.
+        if not include_secrets:
+            flat_data = dict_to_flatdict(data)
+            # iterate over the (possibly nested) secret fields
+            # and obfuscate their data
+            for field in orm_block_document.block_schema.fields.get(
+                "secret_fields", []
+            ):
+                key = tuple(field.split("."))
+                if flat_data.get(key) is not None:
+                    flat_data[key] = obfuscate_string(flat_data[key])
+            data = flatdict_to_dict(flat_data)
+
         return cls(
             id=orm_block_document.id,
             created=orm_block_document.created,
             updated=orm_block_document.updated,
             name=orm_block_document.name,
-            data=await orm_block_document.decrypt_data(session=session),
+            data=data,
             block_schema_id=orm_block_document.block_schema_id,
             block_schema=orm_block_document.block_schema,
             block_type_id=orm_block_document.block_type_id,
@@ -575,10 +604,6 @@ class QueueFilter(PrefectBaseModel):
         None,
         description="Only include flow runs from these deployments in the work queue.",
     )
-    flow_runner_types: Optional[List[str]] = Field(
-        None,
-        description="Only include flow runs with these flow runner types in the work queue.",
-    )
 
     def get_flow_run_filter(self) -> "schemas.filters.FlowRunFilter":
         """
@@ -589,9 +614,6 @@ class QueueFilter(PrefectBaseModel):
             deployment_id=schemas.filters.FlowRunFilterDeploymentId(
                 any_=self.deployment_ids,
                 is_null_=False,
-            ),
-            flow_runner_type=schemas.filters.FlowRunFilterFlowRunnerType(
-                any_=self.flow_runner_types,
             ),
         )
 
@@ -666,7 +688,6 @@ class WorkQueue(ORMBaseModel):
 class FlowRunNotificationPolicy(ORMBaseModel):
     """An ORM representation of a flow run notification."""
 
-    name: str = Field(..., description="A name for the notification policy")
     is_active: bool = Field(True, description="Whether the policy is currently active")
     state_names: List[str] = Field(
         ..., description="The flow run states that trigger notifications"

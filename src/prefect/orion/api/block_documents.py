@@ -4,9 +4,17 @@ Routes for interacting with block objects.
 from typing import List, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, Response, responses, status
+from fastapi import (
+    Body,
+    Depends,
+    HTTPException,
+    Path,
+    Query,
+    Response,
+    responses,
+    status,
+)
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
@@ -17,7 +25,7 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/block_documents", tags=["Block documents"])
 
 
-@router.post("/")
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_block_document(
     block_document: schemas.actions.BlockDocumentCreate,
     response: Response,
@@ -28,14 +36,9 @@ async def create_block_document(
     Create a new block document.
     """
     try:
-        now = pendulum.now("UTC")
         new_block_document = await models.block_documents.create_block_document(
             session=session, block_document=block_document
         )
-        # anonymous blocks are idempotent so only set 201 if the block document
-        # was actually created
-        if new_block_document.created >= now:
-            response.status_code = status.HTTP_201_CREATED
     except sa.exc.IntegrityError:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
@@ -50,6 +53,9 @@ async def read_block_documents(
     limit: int = dependencies.LimitBody(),
     block_documents: Optional[schemas.filters.BlockDocumentFilter] = None,
     block_schemas: Optional[schemas.filters.BlockSchemaFilter] = None,
+    include_secrets: bool = Body(
+        False, description="Whether to include sensitive values in the block document."
+    ),
     offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.BlockDocument]:
@@ -60,6 +66,7 @@ async def read_block_documents(
         session=session,
         block_document_filter=block_documents,
         block_schema_filter=block_schemas,
+        include_secrets=include_secrets,
         offset=offset,
         limit=limit,
     )
@@ -72,10 +79,15 @@ async def read_block_document_by_id(
     block_document_id: UUID = Path(
         ..., description="The block document id", alias="id"
     ),
+    include_secrets: bool = Query(
+        False, description="Whether to include sensitive values in the block document."
+    ),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.BlockDocument:
     block_document = await models.block_documents.read_block_document_by_id(
-        session=session, block_document_id=block_document_id
+        session=session,
+        block_document_id=block_document_id,
+        include_secrets=include_secrets,
     )
     if not block_document:
         return responses.JSONResponse(
@@ -148,9 +160,14 @@ async def set_default_storage_block_document(
 async def get_default_storage_block_document(
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
+    include_secrets: bool = Body(
+        True,
+        description="Whether to include sensitive values in the block document.",
+        embed=True,
+    ),
 ) -> Optional[schemas.core.BlockDocument]:
     block_document = await models.block_documents.get_default_storage_block_document(
-        session=session
+        session=session, include_secrets=include_secrets
     )
     if block_document is not None:
         return block_document

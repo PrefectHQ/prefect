@@ -254,6 +254,24 @@ def test_delete_profile_unknown_name():
     )
 
 
+def test_delete_profile_cannot_target_active_profile():
+    save_profiles(
+        ProfilesCollection(
+            profiles=[
+                Profile(name="foo", settings={PREFECT_API_KEY: "foo"}),
+            ],
+            active=None,
+        )
+    )
+
+    with use_profile("foo"):
+        invoke_and_assert(
+            ["profile", "delete", "foo"],
+            expected_output="Profile 'foo' is the active profile. You must switch profiles before it can be deleted.",
+            expected_code=1,
+        )
+
+
 def test_rename_profile_name_exists():
     save_profiles(
         ProfilesCollection(

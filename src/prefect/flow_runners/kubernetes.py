@@ -1,8 +1,6 @@
 import copy
 import enum
-import warnings
 from contextlib import contextmanager
-from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Union
 
 import yaml
@@ -12,22 +10,26 @@ from pydantic import Field, PrivateAttr, validator
 from slugify import slugify
 from typing_extensions import Literal
 
-from prefect.orion.schemas.core import FlowRun
-from prefect.settings import PREFECT_API_URL
-from prefect.utilities.asyncio import run_sync_in_worker_thread
-
-if TYPE_CHECKING:
-    import kubernetes
-    from kubernetes.client import BatchV1Api, Configuration, CoreV1Api, V1Job, V1Pod
-else:
-    kubernetes = None
-
+from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.flow_runners.base import (
     UniversalFlowRunner,
     base_flow_run_environment,
     get_prefect_image_name,
     register_flow_runner,
 )
+from prefect.orion.schemas.core import FlowRun
+from prefect.settings import PREFECT_API_URL
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.importtools import lazy_import
+
+if TYPE_CHECKING:
+    import kubernetes
+    import kubernetes.client
+    import kubernetes.config
+    import kubernetes.watch
+    from kubernetes.client import BatchV1Api, CoreV1Api, V1Job, V1Pod
+else:
+    kubernetes = lazy_import("kubernetes")
 
 
 class KubernetesImagePullPolicy(enum.Enum):
@@ -57,7 +59,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         service_account_name: An optional string specifying which Kubernetes service account to use.
         labels: An optional dictionary of labels to add to the job.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
-        restart_policy: The Kubernetes restart policy to use for jobs.
         job: The base manifest for the Kubernetes Job.
         customizations: A list of JSON 6902 patches to apply to the base Job manifest.
         job_watch_timeout_seconds: Number of seconds to watch for job creation before timing out (default 5).
@@ -74,9 +75,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     labels: Dict[str, str] = Field(default_factory=dict)
     image_pull_policy: Optional[KubernetesImagePullPolicy] = None
 
-    # deprecated: remove in 2.0b8
-    restart_policy: KubernetesRestartPolicy = None
-
     # settings allowing full customization of the Job
     job: KubernetesManifest = Field(
         default_factory=lambda: KubernetesFlowRunner.base_job_manifest()
@@ -85,8 +83,9 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
     # controls the behavior of the FlowRunner
     job_watch_timeout_seconds: int = 5
-    pod_watch_timeout_seconds: int = 5
+    pod_watch_timeout_seconds: int = 60
     stream_output: bool = True
+    cluster_config: KubernetesClusterConfig = None
 
     _client: "CoreV1Api" = PrivateAttr(None)
     _batch_client: "BatchV1Api" = PrivateAttr(None)
@@ -138,38 +137,25 @@ class KubernetesFlowRunner(UniversalFlowRunner):
             return JsonPatch(value)
         return value
 
-    @validator("restart_policy")
-    def deprecate_restart_policy(
-        cls, value: Optional[KubernetesRestartPolicy]
-    ) -> Optional[KubernetesRestartPolicy]:
-        if value is not None:
-            warnings.warn(
-                "KubernetesFlowRunner.restart_policy is deprecated.  Prefect will "
-                "always override it to Never. This option will be removed in 2.0b8.",
-                DeprecationWarning,
-            )
-        return None
-
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
         task_status: TaskStatus,
     ) -> Optional[bool]:
-        self.logger.info("RUNNING")
-
         # Throw an error immediately if the flow run won't be able to contact the API
         self._assert_orion_settings_are_compatible()
 
-        # Python won't let us use self._k8s.config.ConfigException, it seems
-        from kubernetes.config import ConfigException
-
-        # Try to load Kubernetes configuration within a cluster first. If that doesn't
-        # work, try to load the configuration from the local environment, allowing
-        # any further ConfigExceptions to bubble up.
-        try:
-            self._k8s.config.incluster_config.load_incluster_config()
-        except ConfigException:
-            self._k8s.config.load_kube_config()
+        # if a k8s cluster block is provided to the flow runner, use that
+        if self.cluster_config:
+            self.cluster_config.configure_client()
+        else:
+            # If no block specified, try to load Kubernetes configuration within a cluster. If that doesn't
+            # work, try to load the configuration from the local environment, allowing
+            # any further ConfigExceptions to bubble up.
+            try:
+                kubernetes.config.load_incluster_config()
+            except kubernetes.config.ConfigException:
+                kubernetes.config.load_kube_config()
 
         manifest = self.build_job(flow_run)
         job_name = await run_sync_in_worker_thread(self._create_job, flow_run, manifest)
@@ -179,25 +165,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
         # Monitor the job
         return await run_sync_in_worker_thread(self._watch_job, job_name)
-
-    @property
-    def _k8s(self) -> ModuleType("kubernetes"):
-        """
-        Delayed import of `kubernetes` allowing configuration of the flow runner without
-        the extra installed and improves `prefect` import times.
-        """
-        global kubernetes
-
-        if kubernetes is None:
-            try:
-                import kubernetes
-            except ImportError as exc:
-                raise RuntimeError(
-                    "Using the `KubernetesFlowRunner` requires `kubernetes` to be "
-                    "installed."
-                ) from exc
-
-        return kubernetes
 
     @contextmanager
     def get_batch_client(self) -> Generator["BatchV1Api", None, None]:
@@ -229,7 +196,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         with self.get_batch_client() as batch_client:
             try:
                 job = batch_client.read_namespaced_job(job_id, self.namespace)
-            except self._k8s.client.ApiException:
+            except kubernetes.ApiException:
                 self.logger.error(
                     f"Flow run job {job_id!r} was removed.", exc_info=True
                 )
@@ -240,7 +207,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         """Get the first running pod for a job."""
 
         # Wait until we find a running pod for the job
-        watch = self._k8s.watch.Watch()
+        watch = kubernetes.watch.Watch()
         self.logger.info(f"Starting watch for pod to start. Job: {job_name}")
         with self.get_client() as client:
             for event in watch.stream(
@@ -252,7 +219,11 @@ class KubernetesFlowRunner(UniversalFlowRunner):
                 if event["object"].status.phase == "Running":
                     watch.stop()
                     return event["object"]
-        self.logger.error(f"Pod never started. Job: {job_name}")
+        raise RuntimeError(
+            f"Pod for job {job_name!r} did not start after "
+            f"{self.pod_watch_timeout_seconds} seconds. "
+            f"Consider increasing the value of `pod_watch_timeout_seconds`."
+        )
 
     def _watch_job(self, job_name: str) -> bool:
         job = self._get_job(job_name)
@@ -280,7 +251,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
         # Wait for job to complete
         self.logger.info(f"Starting watch for job completion: {job_name}")
-        watch = self._k8s.watch.Watch()
+        watch = kubernetes.watch.Watch()
         with self.get_batch_client() as batch_client:
             for event in watch.stream(
                 func=batch_client.list_namespaced_job,
@@ -304,7 +275,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     def _create_job(self, flow_run: FlowRun, job_manifest: KubernetesManifest) -> str:
         """Given a FlowRun and Kubernetes Job Manifest, create the Job on the configured
         Kubernetes cluster and return its name."""
-        self.logger.info("Flow run %s has job manifest = %r", flow_run.id, job_manifest)
         with self.get_batch_client() as batch_client:
             job = batch_client.create_namespaced_job(self.namespace, job_manifest)
         return job.metadata.name

@@ -1,8 +1,11 @@
+import abc
+
 import pytest
 
 from prefect.utilities.dispatch import (
     _TYPE_REGISTRIES,
     get_dispatch_key,
+    get_registry_for_type,
     lookup_type,
     register_base_type,
     register_type,
@@ -11,9 +14,13 @@ from prefect.utilities.dispatch import (
 
 @pytest.fixture(autouse=True)
 def reset_dispatch_registry():
-    yield
+    before = _TYPE_REGISTRIES.copy()
 
     _TYPE_REGISTRIES.clear()
+
+    yield
+
+    _TYPE_REGISTRIES.update(before)
 
 
 def test_register_base_type():
@@ -31,6 +38,18 @@ def test_register_base_type_with_key():
 
     assert lookup_type(Foo, "foo") is Foo
     assert Foo in _TYPE_REGISTRIES
+
+
+def test_register_base_type_preserves_existing_init_subclass():
+    @register_base_type
+    class Foo:
+        def __init_subclass__(cls) -> None:
+            cls.x = "test"
+
+    class Bar(Foo):
+        __dispatch_key__ = "x"
+
+    assert Bar.x == "test"
 
 
 def test_register_base_type_can_be_called_more_than_once():
@@ -62,6 +81,29 @@ def test_register_type():
     class Parent:
         pass
 
+    class Child(Parent):
+        __dispatch_key__ = "child"
+
+    assert lookup_type(Parent, "child") is Child
+
+
+def test_register_type_ignores_abstract_classes():
+    @register_base_type
+    class Parent:
+        pass
+
+    class Child(Parent, abc.ABC):
+        pass
+
+    assert Child not in get_registry_for_type(Parent).values()
+
+
+def test_register_type_can_be_repeated_for_same_class():
+    @register_base_type
+    class Parent:
+        pass
+
+    @register_type
     @register_type
     class Child(Parent):
         __dispatch_key__ = "child"
@@ -79,7 +121,6 @@ def test_register_type_with_invalid_dispatch_key():
         match="Type 'Child' has a '__dispatch_key__' of type int but a type of 'str' is required.",
     ):
 
-        @register_type
         class Child(Parent):
             __dispatch_key__ = 1
 
@@ -89,16 +130,17 @@ def test_register_type_with_dispatch_key_collission():
     class Parent:
         pass
 
-    @register_type
     class Child(Parent):
         __dispatch_key__ = "a"
 
     with pytest.warns(
         UserWarning,
-        match="Type 'OtherChild' has key 'a' that matches existing registered type 'Child'. The existing type will be overridden.",
+        match=(
+            "Type 'OtherChild' at .* has key 'a' that matches existing registered type "
+            "'Child' from .*. The existing type will be overridden."
+        ),
     ):
 
-        @register_type
         class OtherChild(Parent):
             __dispatch_key__ = "a"
 
@@ -142,9 +184,8 @@ def test_register_type_with_registered_grandparent():
         pass
 
     class Parent(Grandparent):
-        pass
+        __dispatch_key__ = "parent"
 
-    @register_type
     class Child(Parent):
         __dispatch_key__ = "child"
 
@@ -157,12 +198,12 @@ def test_lookup_type_with_unknown_dispatch_key():
     class Parent:
         pass
 
-    @register_type
     class Child(Parent):
         __dispatch_key__ = "child"
 
     with pytest.raises(
-        KeyError, match="No class found in registry for dispatch key 'foo'"
+        KeyError,
+        match="No class found for dispatch key 'foo' in registry for type 'Parent'",
     ):
         lookup_type(Parent, "foo")
 

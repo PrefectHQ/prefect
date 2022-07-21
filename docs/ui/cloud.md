@@ -14,19 +14,24 @@ tags:
 Prefect Cloud is an orchestration-as-a-service platform. Prefect Cloud provides all the capabilities of the [Prefect UI](/ui/overview/) in a hosted environment, including:
 
 - Flow run summaries
-- Flow deployment details
-- Create ad-hoc flow runs from deployments
 - Details of upcoming scheduled flow runs
 - Warnings for late or failed runs
-- Task run details 
-- Radar flow and task dependency visualizer 
+- [Flows](/ui/flows/) observed by the Prefect Cloud API
+- Task runs within flow run, including the Radar task dependency visualizer 
 - Logs
+- [Deployments](/ui/deployments/)
+- [Work queues](/ui/work-queues/)
+- [Blocks](/ui/blocks/)
+- [Notifications](/ui/notifications/)
+
+You can also use the Prefect Cloud UI to create ad-hoc flow runs from deployments.
 
 Features only available on Prefect Cloud include:
 
 - User accounts: personal accounts for working in Prefect Cloud. 
-- Workspaces: isolated environments for your flows and deployments.
+- Workspaces: isolated environments for your flows, deployments, and flow runs.
 - Collaborators: invite others to work in your workspace.
+- Email notifications: configure email alerts based on flow run states and tags.
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
 
@@ -50,10 +55,11 @@ While in the current beta phase, Prefect Cloud allows only one workspace per per
 Each workspace keeps track of its own:
 
 - Flow runs and task runs executed in an environment that is [syncing with the workspace](/ui/cloud/#workspaces)
-- Flows associated with flow runs or deployments tracked by the Prefect Cloud API
+- [Flows](/concepts/flows/) associated with flow runs or deployments observed by the Prefect Cloud API
 - [Deployments](/concepts/deployments/)
-- [Storage](/concepts/storage/)
 - [Work queues](/concepts/work-queues/)
+- [Blocks](/ui/blocks/) and [Storage](/concepts/storage/)
+- [Notifications](/ui/notifications/)
 
 When you first log into Prefect Cloud and create your workspace, it will most likely be empty. Don't Panic &mdash; you just haven't run any flows tracked by this workspace yet. The next steps will show you how to [get started with Prefect Cloud](/ui/cloud-getting-started/). 
 

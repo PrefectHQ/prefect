@@ -10,15 +10,22 @@ import pytest
 
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.storage import TempStorageBlock
-from prefect.client import get_client
+from prefect.client import OrionClient
+from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import InvalidNameError, ParameterTypeError
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
+from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import State, StateType
-from prefect.states import raise_failed_state
+from prefect.states import StateType, raise_failed_state
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
-from prefect.testing.utilities import exceptions_equal, flaky_on_windows
+from prefect.testing.utilities import (
+    exceptions_equal,
+    flaky_on_windows,
+    get_most_recent_flow_run,
+)
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
 
@@ -193,14 +200,9 @@ class TestFlowCall:
         def foo(x, y=3, z=3):
             return x + y + z
 
-        state = foo(1, 2)
-        assert isinstance(state, State)
-        assert state.result() == 6
-        assert state.state_details.flow_run_id is not None
+        assert foo(1, 2) == 6
 
-        async with get_client() as client:
-            flow_run = await client.read_flow_run(state.state_details.flow_run_id)
-        assert flow_run.id == state.state_details.flow_run_id
+        flow_run = await get_most_recent_flow_run()
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
 
@@ -209,14 +211,9 @@ class TestFlowCall:
         async def foo(x, y=3, z=3):
             return x + y + z
 
-        state = await foo(1, 2)
-        assert isinstance(state, State)
-        assert state.result() == 6
-        assert state.state_details.flow_run_id is not None
+        assert await foo(1, 2) == 6
 
-        async with get_client() as client:
-            flow_run = await client.read_flow_run(state.state_details.flow_run_id)
-        assert flow_run.id == state.state_details.flow_run_id
+        flow_run = await get_most_recent_flow_run()
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
 
@@ -228,29 +225,29 @@ class TestFlowCall:
         def foo(x: int, y: List[int], zt: CustomType):
             return x + sum(y) + zt.z
 
-        state = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
-        assert state.result() == 10
+        result = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
+        assert result == 10
 
     def test_call_with_variadic_args(self):
         @flow
         def test_flow(*foo, bar):
             return foo, bar
 
-        assert test_flow(1, 2, 3, bar=4).result() == ((1, 2, 3), 4)
+        assert test_flow(1, 2, 3, bar=4) == ((1, 2, 3), 4)
 
     def test_call_with_variadic_keyword_args(self):
         @flow
         def test_flow(foo, bar, **foobar):
             return foo, bar, foobar
 
-        assert test_flow(1, 2, x=3, y=4, z=5).result() == (1, 2, dict(x=3, y=4, z=5))
+        assert test_flow(1, 2, x=3, y=4, z=5) == (1, 2, dict(x=3, y=4, z=5))
 
     def test_fails_but_does_not_raise_on_incompatible_parameter_types(self):
         @flow(version="test")
         def foo(x: int):
             pass
 
-        state = foo(x="foo")
+        state = foo._run(x="foo")
 
         with pytest.raises(
             ParameterTypeError,
@@ -263,7 +260,7 @@ class TestFlowCall:
         def foo(x: int):
             return x
 
-        assert foo(x="foo").result() == "foo"
+        assert foo(x="foo") == "foo"
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):
@@ -272,7 +269,7 @@ class TestFlowCall:
             if error:
                 raise error
 
-        state = foo()
+        state = foo._run()
 
         # Assert the final state is correct
         assert state.is_failed() if error else state.is_completed()
@@ -287,7 +284,7 @@ class TestFlowCall:
                 data=DataDocument.encode("json", "hello!"),
             )
 
-        state = foo()
+        state = foo._run()
 
         # Assert the final state is correct
         assert state.is_failed()
@@ -301,9 +298,9 @@ class TestFlowCall:
 
         @flow(version="test")
         def foo():
-            return fail()
+            return fail._run()
 
-        flow_state = foo()
+        flow_state = foo._run()
 
         assert flow_state.is_failed()
 
@@ -321,11 +318,11 @@ class TestFlowCall:
 
         @flow(version="test")
         def foo():
-            fail()
-            fail()
+            fail._run()
+            fail._run()
             return None
 
-        flow_state = foo()
+        flow_state = foo._run()
 
         assert flow_state.is_failed()
 
@@ -349,7 +346,7 @@ class TestFlowCall:
             succeed()
             return None
 
-        flow_state = foo()
+        flow_state = foo._run()
 
         # The task run states are returned as the data of the flow state
         task_run_states = flow_state.result()
@@ -368,11 +365,11 @@ class TestFlowCall:
 
         @flow(version="test")
         def foo():
-            succeed()
-            fail()
+            succeed._run()
+            fail._run()
             return None
 
-        states = foo().result(raise_on_failure=False)
+        states = foo._run().result(raise_on_failure=False)
         assert len(states) == 2
         assert all(isinstance(state, State) for state in states)
         assert states[0].result() == "foo"
@@ -386,18 +383,18 @@ class TestFlowCall:
 
         @flow
         def fail_flow():
-            fail_task()
+            fail_task._run()
 
         @flow
         def wrapper_flow():
-            fail_flow()
+            fail_flow._run()
 
         @flow(version="test")
         def foo():
-            wrapper_flow()
+            wrapper_flow._run()
             return None
 
-        states = foo().result(raise_on_failure=False)
+        states = foo._run().result(raise_on_failure=False)
         assert len(states) == 1
         state = states[0]
         assert isinstance(state, State)
@@ -419,9 +416,9 @@ class TestFlowCall:
 
         @flow(version="test")
         def foo():
-            return fail1(), fail2(), succeed()
+            return fail1._run(), fail2._run(), succeed._run()
 
-        flow_state = foo()
+        flow_state = foo._run()
         assert flow_state.is_failed()
         assert flow_state.message == "2/3 states failed."
 
@@ -442,11 +439,7 @@ class TestFlowCall:
         def foo(x, y=3, z=3):
             return x + y + z
 
-        from prefect.context import PrefectObjectRegistry
-
-        registry = PrefectObjectRegistry.get()
-
-        with registry.block_code_execution():
+        with PrefectObjectRegistry(block_code_execution=True):
             state = foo(1, 2)
             assert state is None
 
@@ -459,14 +452,9 @@ class TestSubflowCalls:
 
         @flow(version="bar")
         def parent(x, y=2, z=3):
-            subflow_state = child(x, y, z)
-            return subflow_state
+            return child(x, y, z)
 
-        parent_state = parent(1, 2)
-        assert isinstance(parent_state, State)
-
-        child_state = parent_state.result()
-        assert child_state.result() == 6
+        assert parent(1, 2) == 6
 
     def test_subflow_call_with_returned_task(self):
         @task
@@ -481,10 +469,7 @@ class TestSubflowCalls:
         def parent(x, y=2, z=3):
             return child(x, y, z)
 
-        parent_state = parent(1, 2)
-        assert isinstance(parent_state, State)
-        child_state = parent_state.result()
-        assert child_state.result().result() == 6
+        assert parent(1, 2) == 6
 
     async def test_async_flow_with_async_subflow_and_async_task(self):
         @task
@@ -499,10 +484,7 @@ class TestSubflowCalls:
         async def parent(x, y=2, z=3):
             return await child(x, y, z)
 
-        parent_state = await parent(1, 2)
-        assert isinstance(parent_state, State)
-        child_state = parent_state.result()
-        assert child_state.result().result() == 6
+        assert await parent(1, 2) == 6
 
     async def test_async_flow_with_async_subflow_and_sync_task(self):
         @task
@@ -517,10 +499,7 @@ class TestSubflowCalls:
         async def parent(x, y=2, z=3):
             return await child(x, y, z)
 
-        parent_state = await parent(1, 2)
-        assert isinstance(parent_state, State)
-        child_state = parent_state.result()
-        assert child_state.result().result() == 6
+        assert await parent(1, 2) == 6
 
     async def test_async_flow_with_sync_subflow_and_sync_task(self):
         @task
@@ -535,10 +514,7 @@ class TestSubflowCalls:
         async def parent(x, y=2, z=3):
             return child(x, y, z)
 
-        parent_state = await parent(1, 2)
-        assert isinstance(parent_state, State)
-        child_state = parent_state.result()
-        assert child_state.result().result() == 6
+        assert await parent(1, 2) == 6
 
     async def test_subflow_with_invalid_parameters_is_failed(self, orion_client):
         @flow
@@ -547,10 +523,9 @@ class TestSubflowCalls:
 
         @flow
         def parent(x):
-            subflow_state = child(x)
-            return subflow_state
+            return child._run(x)
 
-        parent_state = parent("foo")
+        parent_state = parent._run("foo")
 
         with pytest.raises(ParameterTypeError, match="not a valid integer"):
             parent_state.result()
@@ -563,7 +538,7 @@ class TestSubflowCalls:
         assert "invalid parameters" in flow_run.state.message
 
     async def test_subflow_with_invalid_parameters_is_not_failed_without_validation(
-        self, orion_client
+        self,
     ):
         @flow(validate_parameters=False)
         def child(x: int):
@@ -571,22 +546,20 @@ class TestSubflowCalls:
 
         @flow
         def parent(x):
-            subflow_state = child(x)
-            return subflow_state
+            return child(x)
 
-        assert parent("foo").result().result() == "foo"
+        assert parent("foo") == "foo"
 
     async def test_subflow_relationship_tracking(self, orion_client):
-        @flow()
+        @flow(version="inner")
         def child(x, y):
             return x + y
 
         @flow()
         def parent():
-            subflow_state = child(1, 2)
-            return subflow_state
+            return child._run(1, 2)
 
-        parent_state = parent()
+        parent_state = parent._run()
         parent_flow_run_id = parent_state.state_details.flow_run_id
         child_state = parent_state.result()
         child_flow_run_id = child_state.state_details.flow_run_id
@@ -598,6 +571,7 @@ class TestSubflowCalls:
             child_flow_run.parent_task_run_id
         )
 
+        assert parent_flow_run_task.task_version == "inner"
         assert (
             parent_flow_run_id != child_flow_run_id
         ), "The subflow run and parent flow run are distinct"
@@ -636,7 +610,7 @@ class TestFlowRunTags:
             pass
 
         with tags("a", "b"):
-            state = my_flow()
+            state = my_flow._run()
 
         flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
         assert set(flow_run.tags) == {"a", "b"}
@@ -645,14 +619,14 @@ class TestFlowRunTags:
         @flow
         def my_flow():
             with tags("c", "d"):
-                return my_subflow()
+                return my_subflow._run()
 
         @flow
         def my_subflow():
             pass
 
         with tags("a", "b"):
-            subflow_state = my_flow().result()
+            subflow_state = my_flow._run().result()
 
         flow_run = await orion_client.read_flow_run(
             subflow_state.state_details.flow_run_id
@@ -666,7 +640,7 @@ class TestFlowTimeouts:
         def my_flow():
             time.sleep(1)
 
-        state = my_flow()
+        state = my_flow._run()
         assert state.is_failed()
         assert state.name == "TimedOut"
         assert "exceeded timeout of 0.1 seconds" in state.message
@@ -676,7 +650,7 @@ class TestFlowTimeouts:
         async def my_flow():
             await anyio.sleep(1)
 
-        state = await my_flow()
+        state = await my_flow._run()
         assert state.is_failed()
         assert state.name == "TimedOut"
         assert "exceeded timeout of 0.1 seconds" in state.message
@@ -686,14 +660,15 @@ class TestFlowTimeouts:
         def my_flow():
             time.sleep(0.1)
 
-        state = my_flow()
+        state = my_flow._run()
         assert state.is_completed()
 
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
         """
-        Sync flows are not cancellable, we can stop waiting for the worker thread but
-        it will continue running the flow code in the background. This test ensures
-        that the engine continues without waiting for the sleeping flow to finish.
+        Sync flows are cancelled when they change instructions. The flow will return
+        immediately when the timeout is reached, but the thread it executes in will
+        continue until the next instruction is reached. `time.sleep` will return then
+        the thread will be interrupted.
         """
         canary_file = tmp_path / "canary"
 
@@ -703,17 +678,15 @@ class TestFlowTimeouts:
             canary_file.touch()
 
         t0 = time.perf_counter()
-        state = my_flow()
+        state = my_flow._run()
         t1 = time.perf_counter()
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
         assert t1 - t0 < 2, f"The engine returns without waiting; took {t1-t0}s"
 
-        # Unfortunately, the worker thread continues running and we cannot stop it from
-        # doing so. The canary file _will_ be created.
         time.sleep(2)
-        assert canary_file.exists()
+        assert not canary_file.exists()
 
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
         """
@@ -732,7 +705,7 @@ class TestFlowTimeouts:
             my_task()
             canary_file.touch()  # Should not run
 
-        state = my_flow()
+        state = my_flow._run()
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
@@ -759,7 +732,7 @@ class TestFlowTimeouts:
             canary_file.touch()  # Should not run
 
         t0 = anyio.current_time()
-        state = await my_flow()
+        state = await my_flow._run()
         t1 = anyio.current_time()
 
         assert state.is_failed()
@@ -790,11 +763,11 @@ class TestFlowTimeouts:
         @flow
         async def my_flow():
             t0 = anyio.current_time()
-            subflow_state = await my_subflow()
+            subflow_state = await my_subflow._run()
             t1 = anyio.current_time()
             return t1 - t0, subflow_state
 
-        state = await my_flow()
+        state = await my_flow._run()
 
         runtime, subflow_state = state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
@@ -818,17 +791,17 @@ class TestFlowTimeouts:
         def my_subflow():
             time.sleep(0.5)
             timeout_noticing_task()
-            time.sleep(0.5)
+            time.sleep(10)
             canary_file.touch()  # Should not run
 
         @flow
         def my_flow():
             t0 = time.perf_counter()
-            subflow_state = my_subflow()
+            subflow_state = my_subflow._run()
             t1 = time.perf_counter()
             return t1 - t0, subflow_state
 
-        state = my_flow()
+        state = my_flow._run()
 
         runtime, subflow_state = state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
@@ -837,7 +810,7 @@ class TestFlowTimeouts:
         time.sleep(1)
 
         assert not canary_file.exists()
-        assert runtime < 1, f"The engine returns without waiting; took {runtime}s"
+        assert runtime < 5, f"The engine returns without waiting; took {runtime}s"
 
 
 class ParameterTestModel(pydantic.BaseModel):
@@ -860,16 +833,14 @@ class TestFlowParameterTypes:
             return x
 
         data = ParameterTestClass()
-        assert my_flow(data).result() == data
+        assert my_flow(data) == data
 
     def test_flow_parameters_can_be_pydantic_types(self):
         @flow
         def my_flow(x):
             return x
 
-        assert my_flow(ParameterTestModel(data=1)).result() == ParameterTestModel(
-            data=1
-        )
+        assert my_flow(ParameterTestModel(data=1)) == ParameterTestModel(data=1)
 
     @pytest.mark.parametrize(
         "data", ([1, 2, 3], {"foo": "bar"}, {"x", "y"}, 1, "foo", ParameterTestEnum.X)
@@ -879,20 +850,20 @@ class TestFlowParameterTypes:
         def my_flow(x):
             return x
 
-        assert my_flow(data).result() == data
+        assert my_flow(data) == data
 
     def test_subflow_parameters_can_be_unserializable_types(self):
         data = ParameterTestClass()
 
         @flow
         def my_flow():
-            return my_subflow(data).result()
+            return my_subflow(data)
 
         @flow
         def my_subflow(x):
             return x
 
-        assert my_flow().result() == data
+        assert my_flow() == data
 
     def test_flow_parameters_can_be_unserializable_types_that_raise_value_error(self):
         @flow
@@ -905,25 +876,25 @@ class TestFlowParameterTypes:
         # This was notably encountered when using numpy arrays as an
         # input type but applies to exception classes as well.
         # See #1638.
-        assert my_flow(data).result() == data
+        assert my_flow(data) == data
 
     def test_subflow_parameters_can_be_pydantic_types(self):
         @flow
         def my_flow():
-            return my_subflow(ParameterTestModel(data=1)).result()
+            return my_subflow(ParameterTestModel(data=1))
 
         @flow
         def my_subflow(x):
             return x
 
-        assert my_flow().result() == ParameterTestModel(data=1)
+        assert my_flow() == ParameterTestModel(data=1)
 
     def test_subflow_parameters_from_future_can_be_unserializable_types(self):
         data = ParameterTestClass()
 
         @flow
         def my_flow():
-            return my_subflow(identity(data)).result()
+            return my_subflow(identity(data))
 
         @task
         def identity(x):
@@ -933,12 +904,12 @@ class TestFlowParameterTypes:
         def my_subflow(x):
             return x
 
-        assert my_flow().result() == data
+        assert my_flow() == data
 
-    def test_subflow_parameters_can_be_pydantic_types(self):
+    def test_subflow_parameters_can_be_pydantic_types_from_task_future(self):
         @flow
         def my_flow():
-            return my_subflow(identity(ParameterTestModel(data=1)))
+            return my_subflow(identity.submit(ParameterTestModel(data=1)))
 
         @task
         def identity(x):
@@ -948,33 +919,82 @@ class TestFlowParameterTypes:
         def my_subflow(x):
             return x
 
-        assert my_flow().result().result() == ParameterTestModel(data=1)
+        assert my_flow() == ParameterTestModel(data=1)
 
 
 class TestSubflowTaskInputs:
-    async def test_subflow_with_one_upstream_kwarg(self, orion_client):
+    async def test_subflow_with_one_upstream_task_future(self, orion_client):
         @task
-        def foo(x):
+        def child_task(x):
             return x
 
         @flow
-        def bar(x, y):
-            return x + y
+        def child_flow(x):
+            return x
 
         @flow
-        def test_flow():
-            a = foo(1)
-            b = bar(x=a, y=1)
-            return a, b
+        def parent_flow():
+            task_future = child_task.submit(1)
+            flow_state = child_flow._run(x=task_future)
+            task_state = task_future.wait()
+            return task_state, flow_state
 
-        flow_state = test_flow()
-        a, b = flow_state.result()
+        task_state, flow_state = parent_flow()
+        flow_tracking_task_run = await orion_client.read_task_run(
+            flow_state.state_details.task_run_id
+        )
 
-        task_run = await orion_client.read_task_run(b.state_details.task_run_id)
+        assert flow_tracking_task_run.task_inputs == dict(
+            x=[TaskRunResult(id=task_state.state_details.task_run_id)],
+        )
 
-        assert task_run.task_inputs == dict(
-            x=[TaskRunResult(id=a.state_details.task_run_id)],
-            y=[],
+    async def test_subflow_with_one_upstream_task_state(self, orion_client):
+        @task
+        def child_task(x):
+            return x
+
+        @flow
+        def child_flow(x):
+            return x
+
+        @flow
+        def parent_flow():
+            task_state = child_task._run(1)
+            flow_state = child_flow._run(x=task_state)
+            return task_state, flow_state
+
+        task_state, flow_state = parent_flow()
+        flow_tracking_task_run = await orion_client.read_task_run(
+            flow_state.state_details.task_run_id
+        )
+
+        assert flow_tracking_task_run.task_inputs == dict(
+            x=[TaskRunResult(id=task_state.state_details.task_run_id)],
+        )
+
+    async def test_subflow_with_one_upstream_task_result(self, orion_client):
+        @task
+        def child_task(x):
+            return x
+
+        @flow
+        def child_flow(x):
+            return x
+
+        @flow
+        def parent_flow():
+            task_state = child_task._run(1)
+            task_result = task_state.result()
+            flow_state = child_flow._run(x=task_result)
+            return task_state, flow_state
+
+        task_state, flow_state = parent_flow()
+        flow_tracking_task_run = await orion_client.read_task_run(
+            flow_state.state_details.task_run_id
+        )
+
+        assert flow_tracking_task_run.task_inputs == dict(
+            x=[TaskRunResult(id=task_state.state_details.task_run_id)],
         )
 
     async def test_subflow_with_no_upstream_tasks(self, orion_client):
@@ -983,15 +1003,15 @@ class TestSubflowTaskInputs:
             return x + y
 
         @flow
-        def test_flow():
-            return bar(x=2, y=1)
+        def foo():
+            return bar._run(x=2, y=1)
 
-        flow_state = test_flow()
-        state = flow_state.result()
+        child_flow_state = foo()
+        flow_tracking_task_run = await orion_client.read_task_run(
+            child_flow_state.state_details.task_run_id
+        )
 
-        task_run = await orion_client.read_task_run(state.state_details.task_run_id)
-
-        assert task_run.task_inputs == dict(
+        assert flow_tracking_task_run.task_inputs == dict(
             x=[],
             y=[],
         )
@@ -1036,15 +1056,16 @@ class TestFlowRunLogs:
         logs = await orion_client.read_logs()
         error_log = [log.message for log in logs if log.level == 40].pop()
         assert "Traceback" in error_log
-        assert "NameError" in error_log, "References the exception type"
-        assert "x + y" in error_log, "References the line of code"
+        assert "NameError" in error_log, "Should reference the exception type"
+        assert "x + y" in error_log, "Should reference the line of code"
 
     async def test_raised_exceptions_include_tracebacks(self, orion_client):
         @flow
         def my_flow():
             raise ValueError("Hello!")
 
-        my_flow()
+        with pytest.raises(ValueError):
+            my_flow()
 
         logs = await orion_client.read_logs()
         error_log = [log.message for log in logs if log.level == 40].pop()
@@ -1071,7 +1092,7 @@ class TestFlowRunLogs:
             logger = get_run_logger()
             logger.info("Hello world!")
 
-        state = my_flow()
+        state = my_flow._run()
         flow_run_id = state.state_details.flow_run_id
 
         logs = await orion_client.read_logs()
@@ -1091,9 +1112,9 @@ class TestSubflowRunLogs:
         def my_flow():
             logger = get_run_logger()
             logger.info("Hello world!")
-            return my_subflow()
+            return my_subflow._run()
 
-        state = my_flow()
+        state = my_flow._run()
         flow_run_id = state.state_details.flow_run_id
         subflow_run_id = state.result().state_details.flow_run_id
 
@@ -1126,10 +1147,9 @@ class TestSubflowRunLogs:
         def my_flow():
             logger = get_run_logger()
             logger.info("Hello world!")
-            return my_subflow()
+            return my_subflow._run()
 
-        state = my_flow()
-        flow_run_id = state.state_details.flow_run_id
+        state = my_flow._run()
         subflow_run_id = state.result().state_details.flow_run_id
 
         logs = await orion_client.read_logs()
@@ -1149,7 +1169,7 @@ class TestFlowResults:
         def foo():
             return 6
 
-        state = foo()
+        state = foo._run()
 
         flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
 
@@ -1173,7 +1193,7 @@ class TestFlowResults:
             local_storage_block._block_document_id
         )
 
-        state = foo()
+        state = foo._run()
         assert state.result() == 6
 
         flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
@@ -1196,13 +1216,13 @@ class TestFlowResults:
             await orion_client.set_default_storage_block_document(
                 local_storage_block._block_document_id
             )
-            return bar()
+            return bar._run()
 
         @flow
         def bar():
             return 6
 
-        parent_state = await foo()
+        parent_state = await foo._run()
         child_state = parent_state.result()
 
         parent_flow_run = await orion_client.read_flow_run(
@@ -1224,3 +1244,430 @@ class TestFlowResults:
 
         retrieved_result = await orion_client.resolve_datadoc(child_flow_run.state.data)
         assert retrieved_result == child_state.result()
+
+
+class TestFlowRetries:
+    def test_flow_retry_with_error_in_flow(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                raise ValueError()
+            return "hello"
+
+        assert foo() == "hello"
+        assert run_count == 2
+
+    async def test_flow_retry_with_error_in_flow_and_successful_task(self):
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+            return "hello"
+
+        @flow(retries=1)
+        def foo():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            fut = my_task()
+
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return fut
+
+        assert foo() == "hello"
+        assert flow_run_count == 2
+        assert task_run_count == 1
+
+    def test_flow_retry_with_no_error_in_flow_and_one_failed_task(self):
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+
+            # Fail on the first flow run but not the retry
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow(retries=1)
+        def foo():
+            nonlocal flow_run_count
+            flow_run_count += 1
+            return my_task()
+
+        assert foo() == "hello"
+        assert flow_run_count == 2
+        assert task_run_count == 2, "Task should be reset and run again"
+
+    def test_flow_retry_with_error_in_flow_and_one_failed_task(self):
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+
+            # Fail on the first flow run but not the retry
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow(retries=1)
+        def my_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            fut = my_task()
+
+            # It is important that the flow run fails after the task run is created
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return fut
+
+        assert my_flow() == "hello"
+        assert flow_run_count == 2
+        assert task_run_count == 2, "Task should be reset and run again"
+
+    @pytest.mark.xfail
+    async def test_flow_retry_with_branched_tasks(self, orion_client):
+        flow_run_count = 0
+
+        @task
+        def identity(value):
+            return value
+
+        @flow(retries=1)
+        def my_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            # Raise on the first run but use 'foo'
+            if flow_run_count == 1:
+                identity("foo")
+                raise ValueError()
+            else:
+                # On the second run, switch to 'bar'
+                result = identity("bar")
+
+            return result
+
+        my_flow()
+
+        assert flow_run_count == 2
+
+        # The state is pulled from the API and needs to be decoded
+        document = my_flow().result().result()
+        result = await orion_client.retrieve_data(document)
+
+        assert result == "bar"
+        # AssertionError: assert 'foo' == 'bar'
+        # Wait, what? Because tasks are identified by dynamic key which is a simple
+        # increment each time the task is called, if there branching is different
+        # after a flow run retry, the stale value will be pulled from the cache.
+
+    async def test_flow_retry_with_no_error_in_flow_and_one_failed_child_flow(
+        self, orion_client: OrionClient
+    ):
+        child_run_count = 0
+        flow_run_count = 0
+
+        @flow
+        def child_flow():
+            nonlocal child_run_count
+            child_run_count += 1
+
+            # Fail on the first flow run but not the retry
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow(retries=1)
+        def parent_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+            return child_flow()
+
+        state = parent_flow._run()
+        assert state.result() == "hello"
+        assert flow_run_count == 2
+        assert child_run_count == 2, "Child flow should be reset and run again"
+
+        # Ensure that the tracking task run for the subflow is reset and tracked
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(
+                id={"any_": [state.state_details.flow_run_id]}
+            )
+        )
+        state_types = {task_run.state_type for task_run in task_runs}
+        assert state_types == {StateType.COMPLETED}
+
+        # There should only be the child flow run's task
+        assert len(task_runs) == 1
+
+    async def test_flow_retry_with_error_in_flow_and_one_successful_child_flow(self):
+        child_run_count = 0
+        flow_run_count = 0
+
+        @flow
+        def child_flow():
+            nonlocal child_run_count
+            child_run_count += 1
+            return "hello"
+
+        @flow(retries=1)
+        def parent_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+            child_state = child_flow()
+
+            # Fail on the first flow run but not the retry
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return child_state
+
+        assert parent_flow() == "hello"
+        assert flow_run_count == 2
+        assert child_run_count == 1, "Child flow should not run again"
+
+    async def test_flow_retry_with_error_in_flow_and_one_failed_child_flow(
+        self, orion_client: OrionClient
+    ):
+        child_flow_run_count = 0
+        flow_run_count = 0
+
+        @flow
+        def child_flow():
+            nonlocal child_flow_run_count
+            child_flow_run_count += 1
+
+            # Fail on the first flow run but not the retry
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow(retries=1)
+        def parent_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            state = child_flow._run()
+
+            # It is important that the flow run fails after the child flow run is created
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return state
+
+        parent_state = parent_flow._run()
+        child_state = parent_state.result()
+        assert child_state.result() == "hello"
+        assert flow_run_count == 2
+        assert child_flow_run_count == 2, "Child flow should run again"
+
+        child_flow_run = await orion_client.read_flow_run(
+            child_state.state_details.flow_run_id
+        )
+        child_flow_runs = await orion_client.read_flow_runs(
+            flow_filter=FlowFilter(id={"any_": [child_flow_run.flow_id]}),
+            sort=FlowRunSort.EXPECTED_START_TIME_ASC,
+        )
+
+        assert len(child_flow_runs) == 2
+
+        # The original flow run has its failed state preserved
+        assert child_flow_runs[0].state.is_failed()
+
+        # The final flow run is the one returned by the parent flow
+        assert child_flow_runs[-1] == child_flow_run
+
+    async def test_flow_retry_with_failed_child_flow_with_failed_task(self):
+        child_task_run_count = 0
+        child_flow_run_count = 0
+        flow_run_count = 0
+
+        @task
+        def child_task():
+            nonlocal child_task_run_count
+            child_task_run_count += 1
+
+            # Fail on the first task run but not the retry
+            if child_task_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow
+        def child_flow():
+            nonlocal child_flow_run_count
+            child_flow_run_count += 1
+            return child_task()
+
+        @flow(retries=1)
+        def parent_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            state = child_flow()
+
+            return state
+
+        assert parent_flow() == "hello"
+        assert flow_run_count == 2
+        assert child_flow_run_count == 2, "Child flow should run again"
+        assert child_task_run_count == 2, "Child taks should run again with child flow"
+
+    def test_flow_retry_with_error_in_flow_and_one_failed_task_with_retries(self):
+        task_run_retry_count = 0
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task(retries=1)
+        def my_task():
+            nonlocal task_run_count, task_run_retry_count
+            task_run_count += 1
+            task_run_retry_count += 1
+
+            # Always fail on the first flow run
+            if flow_run_count == 1:
+                raise ValueError("Fail on first flow run")
+
+            # Only fail the first time this task is called within a given flow run
+            # This ensures that we will always retry this task so we can ensure
+            # retry logic is preserved
+            if task_run_retry_count == 1:
+                raise ValueError("Fail on first task run")
+
+            return "hello"
+
+        @flow(retries=1)
+        def foo():
+            nonlocal flow_run_count, task_run_retry_count
+            task_run_retry_count = 0
+            flow_run_count += 1
+
+            fut = my_task()
+
+            # It is important that the flow run fails after the task run is created
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return fut
+
+        assert foo() == "hello"
+        assert flow_run_count == 2
+        assert task_run_count == 4, "Task should use all of its retries every time"
+
+    def test_flow_retry_with_error_in_flow_and_one_failed_task_with_retries_cannot_exceed_retries(
+        self,
+    ):
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task(retries=2)
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+            raise ValueError("This task always fails")
+
+        @flow(retries=1)
+        def my_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            fut = my_task()
+
+            # It is important that the flow run fails after the task run is created
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return fut
+
+        with pytest.raises(ValueError, match="This task always fails"):
+            my_flow().result().result()
+
+        assert flow_run_count == 2
+        assert task_run_count == 6, "Task should use all of its retries every time"
+
+    async def test_flow_with_failed_child_flow_with_retries(self):
+        child_flow_run_count = 0
+        flow_run_count = 0
+
+        @flow(retries=1)
+        def child_flow():
+            nonlocal child_flow_run_count
+            child_flow_run_count += 1
+
+            # Fail on first try.
+            if child_flow_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow
+        def parent_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            state = child_flow()
+
+            return state
+
+        assert parent_flow() == "hello"
+        assert flow_run_count == 1, "Parent flow should only run once"
+        assert child_flow_run_count == 2, "Child flow should run again"
+
+    async def test_parent_flow_retries_failed_child_flow_with_retries(self):
+        child_flow_retry_count = 0
+        child_flow_run_count = 0
+        flow_run_count = 0
+
+        @flow(retries=1)
+        def child_flow():
+            nonlocal child_flow_run_count, child_flow_retry_count
+            child_flow_run_count += 1
+            child_flow_retry_count += 1
+
+            # Fail during first parent flow run, but not on parent retry.
+            if flow_run_count == 1:
+                raise ValueError()
+
+            # Fail on first try after parent retry.
+            if child_flow_retry_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow(retries=1)
+        def parent_flow():
+            nonlocal flow_run_count, child_flow_retry_count
+            child_flow_retry_count = 0
+            flow_run_count += 1
+
+            state = child_flow()
+
+            return state
+
+        assert parent_flow() == "hello"
+        assert flow_run_count == 2, "Parent flow should exhaust retries"
+        assert (
+            child_flow_run_count == 4
+        ), "Child flow should run 2 times for each parent run"
