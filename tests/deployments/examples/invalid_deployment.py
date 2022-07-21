@@ -1,4 +1,3 @@
 from prefect.deployments import Deployment
 
-# Strings are not valid flow sources
-Deployment(flow="hello!")
+Deployment(flow=None, parameters={"test": 1})

@@ -2,16 +2,13 @@
 Prefect-specific exceptions.
 """
 from types import ModuleType, TracebackType
-from typing import TYPE_CHECKING, Iterable, Optional, Type
+from typing import Iterable, Optional, Type
 
 from httpx._exceptions import HTTPStatusError
 from rich.traceback import Traceback
 from typing_extensions import Self
 
 import prefect
-
-if TYPE_CHECKING:
-    from prefect.deployments import DeploymentSpec
 
 
 def _trim_traceback(
@@ -70,32 +67,6 @@ class UnspecifiedDeploymentError(PrefectException):
     """
     Raised when multiple deployments are found in the expected script and no name is given.
     """
-
-
-class DeploymentValidationError(PrefectException, ValueError):
-    """
-    Raised when a value for a specification is incorrect
-    """
-
-    def __init__(self, message: str, deployment: "DeploymentSpec") -> None:
-        self.message = message
-        self.deployment = deployment
-
-    def __str__(self) -> str:
-        # Attempt to recover a helpful name
-        if self.deployment.flow_name and self.deployment.name:
-            identifier = f"{self.deployment.flow_name}/{self.deployment.name}"
-        elif self.deployment.name:
-            identifier = f"{self.deployment.name}"
-        elif self.deployment._source:
-            identifier = f"{str(self.deployment._source['file'])!r}, line {self.deployment._source['line']}"
-        else:
-            identifier = ""
-
-        if identifier:
-            identifier = f" {identifier!r}"
-
-        return f"Deployment{identifier} failed validation: {self.message}"
 
 
 class ScriptError(PrefectException):
@@ -245,3 +216,9 @@ class PrefectHTTPStatusError(HTTPStatusError):
         return cls(
             new_message, request=httpx_error.request, response=httpx_error.response
         )
+
+
+class MappingLengthMismatch(PrefectException):
+    """
+    Raised when attempting to call Task.map with arguments of different lengths.
+    """

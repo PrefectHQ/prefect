@@ -11,13 +11,9 @@ from typing_extensions import Literal
 import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
-from prefect.orion.utilities.names import generate_slug
-from prefect.orion.utilities.schemas import (
-    OBFUSCATED_SECRET,
-    ORMBaseModel,
-    PrefectBaseModel,
-)
-from prefect.utilities.collections import listrepr
+from prefect.orion.utilities.names import generate_slug, obfuscate_string
+from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
+from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
@@ -180,6 +176,10 @@ class FlowRun(ORMBaseModel):
     flow_runner: FlowRunnerSettings = Field(
         None,
         description="The flow runner to use to create infrastructure to execute this flow run",
+    )
+    infrastructure_document_id: Optional[UUID] = Field(
+        None,
+        description="The block document defining infrastructure to use this flow run.",
     )
 
     # relationships
@@ -353,9 +353,14 @@ class Deployment(ORMBaseModel):
         example=["tag-1", "tag-2"],
     )
 
-    flow_runner: FlowRunnerSettings = Field(
+    flow_runner: Optional[FlowRunnerSettings] = Field(
         None,
         description="The flow runner to assign to flow runs associated with this deployment.",
+    )
+
+    infrastructure_document_id: Optional[UUID] = Field(
+        None,
+        description="The block document defining infrastructure to use for flow runs.",
     )
 
     @validator("name", check_fields=False)
@@ -509,21 +514,16 @@ class BlockDocument(ORMBaseModel):
         # be obfuscated, but if nested fields were hardcoded into the parent
         # blocks data, this is the only opportunity to obfuscate them.
         if not include_secrets:
+            flat_data = dict_to_flatdict(data)
+            # iterate over the (possibly nested) secret fields
+            # and obfuscate their data
             for field in orm_block_document.block_schema.fields.get(
                 "secret_fields", []
             ):
-                data_dict = data
-                split_fields = field.split(".")
-                k, keys = split_fields[0], split_fields[1:]
-                # while there are children fields, walk the data dict
-                while keys:
-                    data_dict = data_dict.get(k)
-                    if data_dict is None:
-                        break
-                    k = keys.pop(0)
-
-                if data_dict is not None:
-                    data_dict[k] = OBFUSCATED_SECRET
+                key = tuple(field.split("."))
+                if flat_data.get(key) is not None:
+                    flat_data[key] = obfuscate_string(flat_data[key])
+            data = flatdict_to_dict(flat_data)
 
         return cls(
             id=orm_block_document.id,
@@ -613,10 +613,6 @@ class QueueFilter(PrefectBaseModel):
         None,
         description="Only include flow runs from these deployments in the work queue.",
     )
-    flow_runner_types: Optional[List[str]] = Field(
-        None,
-        description="Only include flow runs with these flow runner types in the work queue.",
-    )
 
     def get_flow_run_filter(self) -> "schemas.filters.FlowRunFilter":
         """
@@ -627,9 +623,6 @@ class QueueFilter(PrefectBaseModel):
             deployment_id=schemas.filters.FlowRunFilterDeploymentId(
                 any_=self.deployment_ids,
                 is_null_=False,
-            ),
-            flow_runner_type=schemas.filters.FlowRunFilterFlowRunnerType(
-                any_=self.flow_runner_types,
             ),
         )
 

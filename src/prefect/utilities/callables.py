@@ -3,9 +3,12 @@ Utilities for working with Python callables.
 """
 import inspect
 from functools import partial
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 import cloudpickle
+import pydantic
+import pydantic.schema
+from typing_extensions import Literal
 
 
 def get_call_parameters(
@@ -77,3 +80,78 @@ def _run_serialized_call(payload) -> bytes:
     fn, args, kwargs = cloudpickle.loads(payload)
     retval = fn(*args, **kwargs)
     return cloudpickle.dumps(retval)
+
+
+class ParameterSchema(pydantic.BaseModel):
+    """Simple data model corresponding to an OpenAPI `Schema`."""
+
+    title: Literal["Parameters"] = "Parameters"
+    type: Literal["object"] = "object"
+    properties: Dict[str, Any] = pydantic.Field(default_factory=dict)
+    required: List[str] = None
+    definitions: Dict[str, Any] = None
+
+    def dict(self, *args, **kwargs):
+        """Exclude `None` fields by default to comply with
+        the OpenAPI spec.
+        """
+        kwargs.setdefault("exclude_none", True)
+        return super().dict(*args, **kwargs)
+
+
+def parameter_schema(fn: Callable) -> ParameterSchema:
+    """Given a function, generates an OpenAPI-compatible description
+    of the function's arguments, including:
+        - name
+        - typing information
+        - whether it is required
+        - a default value
+        - additional constraints (like possible enum values)
+
+    Args:
+        fn (function): The function whose arguments will be serialized
+
+    Returns:
+        dict: the argument schema
+    """
+    signature = inspect.signature(fn)
+    model_fields = {}
+    aliases = {}
+
+    class ModelConfig:
+        arbitrary_types_allowed = True
+
+    for param in signature.parameters.values():
+        # Pydantic model creation will fail if names collide with the BaseModel type
+        if hasattr(pydantic.BaseModel, param.name):
+            name = param.name + "__"
+            aliases[name] = param.name
+        else:
+            name = param.name
+
+        type_, field = (
+            Any if param.annotation is inspect._empty else param.annotation,
+            pydantic.Field(
+                default=... if param.default is param.empty else param.default,
+                title=param.name,
+                description=None,
+                alias=aliases.get(name),
+            ),
+        )
+
+        # Generate a Pydantic model at each step so we can check if this parameter
+        # type is supported schema generation
+        try:
+            pydantic.create_model(
+                "CheckParameter", __config__=ModelConfig, **{name: (type_, field)}
+            ).schema(by_alias=True)
+        except ValueError:
+            # This field's type is not valid for schema creation, update it to `Any`
+            type_ = Any
+
+        model_fields[name] = (type_, field)
+
+    # Generate the final model and schema
+    model = pydantic.create_model("Parameters", __config__=ModelConfig, **model_fields)
+    schema = model.schema(by_alias=True)
+    return ParameterSchema(**schema)

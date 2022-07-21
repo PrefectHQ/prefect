@@ -18,7 +18,7 @@ Engine process overview
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
-from typing import Any, Awaitable, Dict, Iterable, Optional, Set, TypeVar, Union
+from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
 from uuid import UUID
 
 import anyio
@@ -28,8 +28,6 @@ from typing_extensions import Literal
 
 import prefect
 import prefect.context
-from prefect.blocks.core import Block
-from prefect.blocks.storage import StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import (
     FlowRunContext,
@@ -38,7 +36,8 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_deployment
-from prefect.exceptions import Abort, UpstreamTaskError
+from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
+from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_data
 from prefect.logging.configuration import setup_logging
@@ -56,29 +55,40 @@ from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import Failed, Pending, Running, State, StateDetails
-from prefect.settings import PREFECT_DEBUG_MODE
+from prefect.results import (
+    _persist_serialized_result,
+    _retrieve_result,
+    _retrieve_serialized_result,
+)
+from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_LOCAL_STORAGE_PATH
 from prefect.states import (
     exception_to_crashed_state,
     return_value_to_state,
     safe_encode_exception,
 )
+from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
-from prefect.utilities.asyncio import (
+from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
     run_async_from_worker_thread,
     run_sync_in_interruptible_worker_thread,
+    run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import Quote, visit_collection
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
+EngineReturnType = Literal["future", "state", "result"]
+
+
+UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
 engine_logger = get_logger("engine")
 
 
 def enter_flow_run_engine_from_flow_call(
-    flow: Flow, parameters: Dict[str, Any]
+    flow: Flow, parameters: Dict[str, Any], return_type: EngineReturnType
 ) -> Union[State, Awaitable[State]]:
     """
     Sync entrypoint for flow calls.
@@ -99,7 +109,7 @@ def enter_flow_run_engine_from_flow_call(
 
     if TaskRunContext.get():
         raise RuntimeError(
-            "Flows cannot be called from within tasks. Did you mean to call this "
+            "Flows cannot be run from within tasks. Did you mean to call this "
             "flow in a flow?"
         )
 
@@ -110,6 +120,7 @@ def enter_flow_run_engine_from_flow_call(
         create_and_begin_subflow_run if is_subflow_run else create_then_begin_flow_run,
         flow=flow,
         parameters=parameters,
+        return_type=return_type,
     )
 
     # Async flow run
@@ -150,13 +161,19 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
 
 @inject_client
 async def create_then_begin_flow_run(
-    flow: Flow, parameters: Dict[str, Any], client: OrionClient
-) -> State:
+    flow: Flow,
+    parameters: Dict[str, Any],
+    return_type: EngineReturnType,
+    client: OrionClient,
+) -> Any:
     """
     Async entrypoint for flow calls
 
     Creates the flow run in the backend, then enters the main flow run engine.
     """
+    # TODO: Returns a `State` depending on `return_type` and we can add an overload to
+    #       the function signature to clarify this eventually.
+
     connect_error = await client.api_healthcheck()
     if connect_error:
         raise RuntimeError(
@@ -187,11 +204,17 @@ async def create_then_begin_flow_run(
         engine_logger.info(
             f"Flow run {flow_run.name!r} received invalid parameters and is marked as failed."
         )
-        return state
+    else:
+        state = await begin_flow_run(
+            flow=flow, flow_run=flow_run, parameters=parameters, client=client
+        )
 
-    return await begin_flow_run(
-        flow=flow, flow_run=flow_run, parameters=parameters, client=client
-    )
+    if return_type == "state":
+        return state
+    elif return_type == "result":
+        return state.result()
+    else:
+        raise ValueError(f"Invalid return type for flow engine {return_type!r}.")
 
 
 @inject_client
@@ -294,22 +317,9 @@ async def begin_flow_run(
             flow.task_runner.start()
         )
 
-        default_storage_block_document = (
-            await client.get_default_storage_block_document()
-        )
-        result_storage = (
-            Block._from_block_document(default_storage_block_document)
-            if default_storage_block_document is not None
-            else None
-        )
-        if not result_storage:
-            logger.warning(
-                "No default storage is configured on the server. Results from this "
-                "flow run will be stored in a temporary directory in its runtime "
-                "environment."
-            )
-            result_storage = TempStorageBlock()
-        flow_run_context.result_storage = result_storage
+        result_filesystem = get_default_result_filesystem()
+        await result_filesystem._save(is_anonymous=True)
+        flow_run_context.result_filesystem = result_filesystem
 
         terminal_state = await orchestrate_flow_run(
             flow,
@@ -317,6 +327,8 @@ async def begin_flow_run(
             parameters=parameters,
             client=client,
             partial_flow_run_context=flow_run_context,
+            # Orchestration needs to be interruptible if it has a timeout
+            interruptible=flow.timeout_seconds is not None,
         )
 
     # If debugging, use the more complete `repr` than the usual `str` description
@@ -339,8 +351,9 @@ async def begin_flow_run(
 async def create_and_begin_subflow_run(
     flow: Flow,
     parameters: Dict[str, Any],
+    return_type: EngineReturnType,
     client: OrionClient,
-) -> State:
+) -> Any:
     """
     Async entrypoint for flows calls within a flow run
 
@@ -383,9 +396,7 @@ async def create_and_begin_subflow_run(
         flow_run = flow_runs[-1]
 
         # Hydrate the retrieved state
-        flow_run.state.data._cache_data(
-            await client.resolve_datadoc(flow_run.state.data)
-        )
+        flow_run.state.data._cache_data(await _retrieve_result(flow_run.state))
 
         # Set up variables required downstream
         terminal_state = flow_run.state
@@ -430,11 +441,14 @@ async def create_and_begin_subflow_run(
                 flow,
                 flow_run=flow_run,
                 parameters=parameters,
+                # If the parent flow run has a timeout, then this one needs to be
+                # interruptible as well
+                interruptible=parent_flow_run_context.timeout_scope is not None,
                 client=client,
                 partial_flow_run_context=PartialModel(
                     FlowRunContext,
                     sync_portal=parent_flow_run_context.sync_portal,
-                    result_storage=parent_flow_run_context.result_storage,
+                    result_filesystem=parent_flow_run_context.result_filesystem,
                     task_runner=task_runner,
                 ),
             )
@@ -448,15 +462,21 @@ async def create_and_begin_subflow_run(
     )
 
     # Track the subflow state so the parent flow can use it to determine its final state
-    parent_flow_run_context.subflow_states.append(terminal_state)
+    parent_flow_run_context.flow_run_states.append(terminal_state)
 
-    return terminal_state
+    if return_type == "state":
+        return terminal_state
+    elif return_type == "result":
+        return terminal_state.result()
+    else:
+        raise ValueError(f"Invalid return type for flow engine {return_type!r}.")
 
 
 async def orchestrate_flow_run(
     flow: Flow,
     flow_run: FlowRun,
     parameters: Dict[str, Any],
+    interruptible: bool,
     client: OrionClient,
     partial_flow_run_context: PartialModel[FlowRunContext],
 ) -> State:
@@ -517,9 +537,12 @@ async def orchestrate_flow_run(
                     if flow.isasync:
                         result = await flow_call()
                     else:
-                        result = await run_sync_in_interruptible_worker_thread(
-                            flow_call
+                        run_sync = (
+                            run_sync_in_interruptible_worker_thread
+                            if interruptible or timeout_scope
+                            else run_sync_in_worker_thread
                         )
+                        result = await run_sync(flow_call)
 
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
@@ -545,7 +568,9 @@ async def orchestrate_flow_run(
                 # All tasks and subflows are reference tasks if there is no return value
                 # If there are no tasks, use `None` instead of an empty iterable
                 result = (
-                    flow_run_context.task_run_futures + flow_run_context.subflow_states
+                    flow_run_context.task_run_futures
+                    + flow_run_context.task_run_states
+                    + flow_run_context.flow_run_states
                 ) or None
 
             terminal_state = await return_value_to_state(
@@ -570,9 +595,9 @@ async def orchestrate_flow_run(
             state=terminal_state,
             flow_run_id=flow_run.id,
             backend_state_data=(
-                await client.persist_data(
+                await _persist_serialized_result(
                     terminal_state.data.json().encode(),
-                    block=flow_run_context.result_storage,
+                    filesystem=flow_run_context.result_filesystem,
                 )
                 if terminal_state.data is not None and flow_run_context
                 # if None is passed, state.data will be sent
@@ -595,6 +620,11 @@ async def orchestrate_flow_run(
             # Attempt to enter a running state again
             state = await client.propose_state(Running(), flow_run_id=flow_run.id)
 
+    if state.data is not None and state.data.encoding == "result":
+        state.data = DataDocument.parse_raw(
+            await _retrieve_serialized_result(state.data)
+        )
+
     return state
 
 
@@ -602,19 +632,23 @@ def enter_task_run_engine(
     task: Task,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
+    return_type: EngineReturnType,
+    task_runner: Optional[BaseTaskRunner],
+    mapped: bool,
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
     """
     Sync entrypoint for task calls
     """
+
     flow_run_context = FlowRunContext.get()
     if not flow_run_context:
         raise RuntimeError(
-            "Tasks cannot be called outside of a flow. To call the underlying task function outside of a flow use `task.fn()`."
+            "Tasks cannot be run outside of a flow. To call the underlying task function outside of a flow use `task.fn()`."
         )
 
     if TaskRunContext.get():
         raise RuntimeError(
-            "Tasks cannot be called from within tasks. Did you mean to call this "
+            "Tasks cannot be run from within tasks. Did you mean to call this "
             "task in a flow?"
         )
 
@@ -622,12 +656,13 @@ def enter_task_run_engine(
         raise TimeoutError("Flow run timed out")
 
     begin_run = partial(
-        create_and_submit_task_run,
+        begin_task_map if mapped else create_task_run_then_submit,
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
-        dynamic_key=_dynamic_key_for_task_run(flow_run_context, task),
         wait_for=wait_for,
+        return_type=return_type,
+        task_runner=task_runner,
     )
 
     # Async task run in async flow run
@@ -642,6 +677,48 @@ def enter_task_run_engine(
     else:
         # Call out to the sync portal since we are not in a worker thread
         return flow_run_context.sync_portal.call(begin_run)
+
+
+async def begin_task_map(
+    task: Task,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
+    return_type: EngineReturnType,
+    task_runner: Optional[BaseTaskRunner],
+) -> List[Union[PrefectFuture, Awaitable[PrefectFuture]]]:
+    """Async entrypoint for task mapping"""
+
+    # Resolve any futures / states that are in the parameters as we need to
+    # validate the lengths of those values before proceeding.
+    parameters.update(await resolve_inputs(parameters))
+    parameter_lengths = {key: len(val) for key, val in parameters.items()}
+
+    lengths = set(parameter_lengths.values())
+    if len(lengths) > 1:
+        raise MappingLengthMismatch(
+            "Received parameters with different lengths. Parameters for map "
+            f"must all be the same length. Got lengths: {parameter_lengths}"
+        )
+
+    map_length = list(lengths)[0] if lengths else 1
+
+    task_runs = []
+    for i in range(map_length):
+        call_parameters = {key: value[i] for key, value in parameters.items()}
+        task_runs.append(
+            partial(
+                create_task_run_then_submit,
+                task=task,
+                flow_run_context=flow_run_context,
+                parameters=call_parameters,
+                wait_for=wait_for,
+                return_type=return_type,
+                task_runner=task_runner,
+            )
+        )
+
+    return await gather(*task_runs)
 
 
 async def collect_task_run_inputs(
@@ -664,10 +741,13 @@ async def collect_task_run_inputs(
     async def add_futures_and_states_to_inputs(obj):
         if isinstance(obj, PrefectFuture):
             inputs.add(core.TaskRunResult(id=obj.task_run.id))
-
-        if isinstance(obj, State):
+        elif isinstance(obj, State):
             if obj.state_details.task_run_id:
                 inputs.add(core.TaskRunResult(id=obj.state_details.task_run_id))
+        else:
+            state = get_state_for_result(obj)
+            if state and state.state_details.task_run_id:
+                inputs.add(core.TaskRunResult(id=state.state_details.task_run_id))
 
     await visit_collection(
         expr, visit_fn=add_futures_and_states_to_inputs, return_data=False
@@ -676,20 +756,48 @@ async def collect_task_run_inputs(
     return inputs
 
 
-async def create_and_submit_task_run(
+async def create_task_run_then_submit(
+    task: Task,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
+    return_type: EngineReturnType,
+    task_runner: Optional[BaseTaskRunner],
+) -> Union[PrefectFuture, State]:
+    task_run = await create_task_run(
+        task=task,
+        flow_run_context=flow_run_context,
+        parameters=parameters,
+        dynamic_key=_dynamic_key_for_task_run(flow_run_context, task),
+        wait_for=wait_for,
+    )
+
+    future = await submit_task_run(
+        task=task,
+        flow_run_context=flow_run_context,
+        parameters=parameters,
+        task_run=task_run,
+        wait_for=wait_for,
+        task_runner=task_runner or flow_run_context.task_runner,
+    )
+
+    if return_type == "future":
+        return future
+    elif return_type == "state":
+        return await future._wait()
+    elif return_type == "result":
+        return await future._result()
+    else:
+        raise ValueError(f"Invalid return type for task engine {return_type!r}.")
+
+
+async def create_task_run(
     task: Task,
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     dynamic_key: str,
     wait_for: Optional[Iterable[PrefectFuture]],
-) -> PrefectFuture:
-    """
-    Async entrypoint for task calls.
-
-    Tasks must be called within a flow. When tasks are called, they create a task run
-    and submit orchestration of the run to the flow run's task runner. The task runner
-    returns a future that is returned immediately.
-    """
+) -> TaskRun:
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
     if wait_for:
         task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
@@ -707,7 +815,27 @@ async def create_and_submit_task_run(
 
     logger.info(f"Created task run {task_run.name!r} for task {task.name!r}")
 
-    future = await flow_run_context.task_runner.submit(
+    return task_run
+
+
+async def submit_task_run(
+    task: Task,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    task_run: TaskRun,
+    wait_for: Optional[Iterable[PrefectFuture]],
+    task_runner: BaseTaskRunner,
+) -> PrefectFuture:
+    """
+    Async entrypoint for task calls.
+
+    Tasks must be called within a flow. When tasks are called, they create a task run
+    and submit orchestration of the run to the flow run's task runner. The task runner
+    returns a future that is returned immediately.
+    """
+    logger = get_run_logger(flow_run_context)
+
+    future = await task_runner.submit(
         task_run=task_run,
         run_key=f"{task_run.name}-{task_run.id.hex}-{flow_run_context.flow_run.run_count}",
         run_fn=begin_task_run,
@@ -716,7 +844,7 @@ async def create_and_submit_task_run(
             task_run=task_run,
             parameters=parameters,
             wait_for=wait_for,
-            result_storage=flow_run_context.result_storage,
+            result_filesystem=flow_run_context.result_filesystem,
             settings=prefect.context.SettingsContext.get().copy(),
         ),
         asynchronous=task.isasync and flow_run_context.flow.isasync,
@@ -735,7 +863,7 @@ async def begin_task_run(
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
-    result_storage: StorageBlock,
+    result_filesystem: WritableFileSystem,
     settings: prefect.context.SettingsContext,
 ):
     """
@@ -778,9 +906,14 @@ async def begin_task_run(
         if flow_run_context:
             # Accessible if on a worker that is running in the same thread as the flow
             client = flow_run_context.client
+            # Only run the task in an interruptible thread if it in the same thread as
+            # the flow _and_ the flow run has a timeout attached. If the task is on a
+            # worker, the flow run timeout will not be raised in the worker process.
+            interruptible = flow_run_context.timeout_scope is not None
         else:
             # Otherwise, retrieve a new client
             client = await stack.enter_async_context(get_client())
+            interruptible = False
 
         connect_error = await client.api_healthcheck()
         if connect_error:
@@ -795,16 +928,15 @@ async def begin_task_run(
                 task_run=task_run,
                 parameters=parameters,
                 wait_for=wait_for,
-                result_storage=result_storage,
+                result_filesystem=result_filesystem,
+                interruptible=interruptible,
                 client=client,
             )
         except Abort:
             # Task run already completed, just fetch its state
             task_run = await client.read_task_run(task_run.id)
             # Hydrate the state data
-            task_run.state.data._cache_data(
-                await client.resolve_datadoc(task_run.state.data)
-            )
+            task_run.state.data._cache_data(await _retrieve_result(task_run.state))
             return task_run.state
 
 
@@ -813,7 +945,8 @@ async def orchestrate_task_run(
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
-    result_storage: StorageBlock,
+    result_filesystem: WritableFileSystem,
+    interruptible: bool,
     client: OrionClient,
 ) -> State:
     """
@@ -846,7 +979,7 @@ async def orchestrate_task_run(
         task_run=task_run,
         task=task,
         client=client,
-        result_storage=result_storage,
+        result_filesystem=result_filesystem,
     )
 
     try:
@@ -887,9 +1020,12 @@ async def orchestrate_task_run(
                 if task.isasync:
                     result = await task.fn(*args, **kwargs)
                 else:
-                    result = await run_sync_in_interruptible_worker_thread(
-                        task.fn, *args, **kwargs
+                    run_sync = (
+                        run_sync_in_interruptible_worker_thread
+                        if interruptible
+                        else run_sync_in_worker_thread
                     )
+                    result = await run_sync(task.fn, *args, **kwargs)
 
         except Exception as exc:
             logger.error(
@@ -924,9 +1060,8 @@ async def orchestrate_task_run(
             terminal_state,
             task_run_id=task_run.id,
             backend_state_data=(
-                await client.persist_data(
-                    terminal_state.data.json().encode(),
-                    block=task_run_context.result_storage,
+                await _persist_serialized_result(
+                    terminal_state.data.json().encode(), filesystem=result_filesystem
                 )
                 if terminal_state.data is not None
                 # if None is passed, terminal_state.data will be sent
@@ -957,6 +1092,11 @@ async def orchestrate_task_run(
         msg=f"Finished in state {display_state}",
         extra={"send_to_orion": False},
     )
+
+    if state.data is not None and state.data.encoding == "result":
+        state.data = DataDocument.parse_raw(
+            await _retrieve_serialized_result(state.data)
+        )
 
     return state
 
@@ -1083,11 +1223,49 @@ def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
     return context.task_run_dynamic_keys[task.task_key]
 
 
+def get_state_for_result(obj: Any) -> Optional[State]:
+    """
+    Get the state related to a result object.
+
+    `link_state_to_result` must have been called first.
+    """
+    flow_run_context = FlowRunContext.get()
+    if flow_run_context:
+        return flow_run_context.task_run_results.get(id(obj))
+
+
+def link_state_to_result(state: State, result: Any) -> None:
+    """
+    Stores information about the state on the result or in the global context for
+    relationship tracking.
+    """
+    if type(result) in UNTRACKABLE_TYPES:
+        return
+
+    # Cache the state onto the flow_run_context, associated by the id of the
+    # result. This allows a best-effort attempt to get the state from an object
+    # that wouldn't allow the __prefect_state__ attribute to be set. It also
+    # acts as a complete cache of states for reporting in a flow run state.
+    flow_run_context = FlowRunContext.get()
+    if flow_run_context:
+        flow_run_context.task_run_results[id(result)] = state
+
+
+def get_default_result_filesystem() -> LocalFileSystem:
+    """
+    Generate a default file system for result storage.
+    """
+    return LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
+
+
 if __name__ == "__main__":
+    import os
     import sys
 
     try:
-        flow_run_id = UUID(sys.argv[1])
+        flow_run_id = UUID(
+            sys.argv[1] if len(sys.argv) > 1 else os.environ.get("PREFECT__FLOW_RUN_ID")
+        )
     except Exception:
         engine_logger.error(
             f"Invalid flow run id. Recieved arguments: {sys.argv}", exc_info=True
