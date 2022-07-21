@@ -861,7 +861,7 @@ async def submit_task_run(
     )
 
     if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
-        logger.info(f"Submitted task run {task_run.name!r} for execution...")
+        logger.info(f"Submitted task run {task_run.name!r} for execution.")
 
     # Track the task run future in the flow run context
     flow_run_context.task_run_futures.append(future)
