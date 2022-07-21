@@ -1,6 +1,5 @@
 import random
 import threading
-from dataclasses import dataclass
 from datetime import timedelta
 from unittest.mock import MagicMock, call
 from uuid import UUID
@@ -12,13 +11,14 @@ import pytest
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBearer
 from httpx import AsyncClient, HTTPStatusError, Request, Response
-from pydantic import BaseModel
 
 import prefect.context
 import prefect.exceptions
 from prefect import flow
 from prefect.client import OrionClient, PrefectHttpxClient, get_client
 from prefect.flow_runners import UniversalFlowRunner
+from prefect.flow_runners.base import FlowRunnerSettings
+from prefect.infrastructure import Process
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -861,6 +861,36 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
     )
 
 
+async def test_create_flow_run_from_deployment_with_anonymous_infrastructure(
+    orion_client, deployment
+):
+    infrastructure_document_id = await Process(env={"foo": "bar"})._save(
+        is_anonymous=True
+    )
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        deployment.id, infrastructure_document_id=infrastructure_document_id
+    )
+    assert flow_run.infrastructure_document_id == infrastructure_document_id
+
+    # Flow runner is empty
+    assert flow_run.flow_runner == FlowRunnerSettings(type=None, config=None)
+
+
+async def test_create_flow_run_from_deployment_with_saved_infrastructure(
+    orion_client, deployment
+):
+    infrastructure = Process(env={"foo": "bar"})
+    infrastructure_document_id = await infrastructure.save("hello")
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        deployment.id,
+        infrastructure_document_id=infrastructure_document_id,
+    )
+    assert flow_run.infrastructure_document_id == infrastructure_document_id
+
+    # Flow runner is empty
+    assert flow_run.flow_runner == FlowRunnerSettings(type=None, config=None)
+
+
 async def test_update_flow_run(orion_client):
     @flow
     def foo():
@@ -951,33 +981,6 @@ async def test_set_then_read_task_run_state(orion_client):
     assert run.state.message == "Test!"
 
 
-@dataclass
-class ExDataClass:
-    x: int
-
-
-class ExPydanticModel(BaseModel):
-    x: int
-
-
-@pytest.mark.parametrize(
-    "put_obj",
-    [
-        "hello",
-        7,
-        ExDataClass(x=1),
-        ExPydanticModel(x=0),
-    ],
-)
-async def test_put_then_retrieve_object(put_obj, orion_client, local_storage_block):
-    data_document = await orion_client.persist_object(
-        put_obj, storage_block=local_storage_block
-    )
-    assert isinstance(data_document, DataDocument)
-    retrieved_obj = await orion_client.retrieve_object(data_document)
-    assert retrieved_obj == put_obj
-
-
 class TestResolveDataDoc:
     async def test_does_not_allow_other_types(self, orion_client):
         with pytest.raises(TypeError, match="invalid type str"):
@@ -1002,19 +1005,6 @@ class TestResolveDataDoc:
             DataDocument.encode(
                 "cloudpickle", DataDocument.encode("json", "hello").json().encode()
             )
-        )
-        assert innermost == "hello"
-
-    async def test_resolves_persisted_data_documents(
-        self, orion_client, local_storage_block
-    ):
-        innermost = await orion_client.resolve_datadoc(
-            (
-                await orion_client.persist_data(
-                    DataDocument.encode("json", "hello").json().encode(),
-                    block=local_storage_block,
-                )
-            ),
         )
         assert innermost == "hello"
 
