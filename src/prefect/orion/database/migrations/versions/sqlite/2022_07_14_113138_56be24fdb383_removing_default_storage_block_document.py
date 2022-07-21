@@ -1,7 +1,7 @@
 """Removing default storage block document.
 
 Revision ID: 56be24fdb383
-Revises: 061c7e518b40
+Revises: 638cbcc2a158
 Create Date: 2022-07-14 11:31:38.843301
 
 """
@@ -10,7 +10,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "56be24fdb383"
-down_revision = "061c7e518b40"
+down_revision = "638cbcc2a158"
 branch_labels = None
 depends_on = None
 
