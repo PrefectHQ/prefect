@@ -229,4 +229,4 @@ class PartialModel(Generic[M]):
 class JsonPatch(JsonPatchBase):
     @classmethod
     def __modify_schema__(cls, field_schema):
-        field_schema.update(type="string")
+        field_schema.update(type="string", format: "json-string")
