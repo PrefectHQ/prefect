@@ -54,7 +54,7 @@
     workQueueCreateRouteKey,
     workQueueRouteKey,
     workQueuesApiKey,
-    workQueuesRouteKey,
+    workQueuesRouteKey
   } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
   import { computed, provide, ref, watchEffect } from 'vue'

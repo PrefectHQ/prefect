@@ -532,59 +532,6 @@ def _find_block_document_reference(
 
 
 @inject_db
-async def get_default_storage_block_document(
-    session: sa.orm.Session,
-    db: OrionDBInterface,
-    include_secrets: bool = True,
-):
-    query = (
-        sa.select(db.BlockDocument)
-        .where(db.BlockDocument.is_default_storage_block_document.is_(True))
-        .limit(1)
-        .execution_options(populate_existing=True)
-    )
-    result = await session.execute(query)
-    orm_block_document = result.scalar()
-    if orm_block_document is None:
-        return None
-    return await BlockDocument.from_orm_model(
-        session, orm_block_document, include_secrets=include_secrets
-    )
-
-
-@inject_db
-async def set_default_storage_block_document(
-    session: sa.orm.Session, block_document_id: UUID, db: OrionDBInterface
-):
-    block_document = await read_block_document_by_id(
-        session=session, block_document_id=block_document_id
-    )
-    if not block_document:
-        raise ValueError("Block document not found")
-    elif "storage" not in block_document.block_schema.capabilities:
-        raise ValueError("Block schema must have the 'storage' capability")
-
-    await clear_default_storage_block_document(session=session)
-    await session.execute(
-        sa.update(db.BlockDocument)
-        .where(db.BlockDocument.id == block_document_id)
-        .values(is_default_storage_block_document=True)
-    )
-
-
-@inject_db
-async def clear_default_storage_block_document(
-    session: sa.orm.Session, db: OrionDBInterface
-):
-    await session.execute(
-        sa.update(db.BlockDocument)
-        .where(db.BlockDocument.is_default_storage_block_document.is_(True))
-        .values(is_default_storage_block_document=False)
-    )
-    await session.flush()
-
-
-@inject_db
 async def create_block_document_reference(
     session: sa.orm.Session,
     block_document_reference: schemas.actions.BlockDocumentReferenceCreate,

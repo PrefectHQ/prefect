@@ -17,8 +17,22 @@ from prefect.flow_runners import (
 )
 from prefect.flow_runners.base import get_prefect_image_name
 from prefect.orion.schemas.data import DataDocument
-from prefect.settings import PREFECT_API_URL, temporary_settings
+from prefect.results import _retrieve_result
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_LOCAL_STORAGE_PATH,
+    temporary_settings,
+)
 from prefect.testing.utilities import assert_does_not_warn
+
+
+def storage_mount() -> str:
+    """
+    Generate a volume mount path to so results created on the image are available
+    outside the image.
+    """
+    storage_path = PREFECT_LOCAL_STORAGE_PATH.value()
+    return f"{storage_path.resolve()}:{storage_path}"
 
 
 class TestDockerFlowRunner:
@@ -38,10 +52,6 @@ class TestDockerFlowRunner:
             MagicMock(return_value=mock),
         )
         return mock
-
-    @pytest.fixture(autouse=True)
-    async def configure_remote_storage(self, set_up_kv_storage):
-        pass
 
     def test_runner_type(self):
         assert DockerFlowRunner().typename == "docker"
@@ -610,11 +620,13 @@ class TestDockerFlowRunner:
             prefect_settings_test_deployment
         )
 
-        assert await DockerFlowRunner().submit_flow_run(flow_run, fake_status)
+        assert await DockerFlowRunner(volumes=[storage_mount()]).submit_flow_run(
+            flow_run, fake_status
+        )
 
         fake_status.started.assert_called_once()
         flow_run = await orion_client.read_flow_run(flow_run.id)
-        runtime_settings = await orion_client.resolve_datadoc(flow_run.state.data)
+        runtime_settings = await _retrieve_result(flow_run.state)
 
         runtime_api_url = PREFECT_API_URL.value_from(runtime_settings)
         assert runtime_api_url == (
@@ -696,12 +708,12 @@ class TestDockerFlowRunner:
         (tmp_path / "readfile").write_text("foo")
 
         assert await DockerFlowRunner(
-            volumes=[f"{tmp_path}:/root/mount"]
+            volumes=[f"{tmp_path}:/root/mount", storage_mount()]
         ).submit_flow_run(flow_run, fake_status)
 
         fake_status.started.assert_called_once()
         flow_run = await orion_client.read_flow_run(flow_run.id)
-        file_contents = await orion_client.resolve_datadoc(flow_run.state.data)
+        file_contents = await _retrieve_result(flow_run.state)
         assert file_contents == "foo"
 
         assert (tmp_path / "writefile").read_text() == "bar"
@@ -741,12 +753,12 @@ class TestDockerFlowRunner:
         )
 
         assert await DockerFlowRunner(
-            env={"TEST_FOO": "foo", "TEST_BAR": "bar"}
+            env={"TEST_FOO": "foo", "TEST_BAR": "bar"}, volumes=[storage_mount()]
         ).submit_flow_run(flow_run, fake_status)
 
         fake_status.started.assert_called_once()
         flow_run = await orion_client.read_flow_run(flow_run.id)
-        flow_run_environ = await orion_client.resolve_datadoc(flow_run.state.data)
+        flow_run_environ = await _retrieve_result(flow_run.state)
         assert "TEST_FOO" in flow_run_environ and "TEST_BAR" in flow_run_environ
         assert flow_run_environ["TEST_FOO"] == "foo"
         assert flow_run_environ["TEST_BAR"] == "bar"

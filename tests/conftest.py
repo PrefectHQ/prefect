@@ -21,6 +21,7 @@ import logging
 import pathlib
 import shutil
 import tempfile
+from pathlib import Path
 from typing import Generator, Optional
 from urllib.parse import urlsplit, urlunsplit
 
@@ -36,6 +37,7 @@ from prefect.settings import (
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
     PREFECT_HOME,
+    PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_ORION_ANALYTICS_ENABLED,
@@ -263,6 +265,7 @@ def pytest_sessionstart(session):
             # Set PREFECT_HOME to a temporary directory to avoid clobbering
             # environments and settings
             PREFECT_HOME: TEST_PREFECT_HOME,
+            PREFECT_LOCAL_STORAGE_PATH: Path(TEST_PREFECT_HOME) / "storage",
             PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
             # Disable connection to an API
             PREFECT_API_URL: None,
@@ -289,6 +292,11 @@ def pytest_sessionstart(session):
         include_current_context=False,
     )
     TEST_PROFILE_CTX.__enter__()
+
+    # Create the storage path now, fixing an obscure bug where it can be created by
+    # when mounted as Docker volume resulting in the directory being owned by root
+    # and unwritable by the normal user
+    PREFECT_LOCAL_STORAGE_PATH.value().mkdir()
 
     # Ensure logging is configured for the test session
     setup_logging()
