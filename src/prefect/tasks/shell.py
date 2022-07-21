@@ -2,7 +2,6 @@ import os
 import tempfile
 import logging
 import sys
-import re
 from subprocess import PIPE, STDOUT, Popen
 from typing import Any, List, Union, Optional
 
@@ -125,58 +124,46 @@ class ShellTask(prefect.Task):
 
         current_env = os.environ.copy()
         current_env.update(env or {})
+        with tempfile.NamedTemporaryFile(prefix="prefect-") as tmp:
+            if helper_script:
+                tmp.write(helper_script.encode())
+                tmp.write(os.linesep.encode())
+            tmp.write(command.encode())
+            tmp.flush()
+            with Popen(
+                [self.shell, tmp.name],
+                stdout=PIPE,
+                stderr=STDOUT,
+                env=current_env,
+                # Windows does not use the PATH during subprocess creation
+                # by default so we will use `shell` mode to do so
+                shell=sys.platform == "win32",
+            ) as sub_process:
+                line = None
+                lines = []
+                for raw_line in iter(sub_process.stdout.readline, b""):
+                    line = raw_line.decode("utf-8").rstrip()
 
-        powershell_pattern_match = bool(
-            re.match(r"^(powershell|pwsh)(.exe)?", self.shell)
-        )
-        suffix = ".ps1" if powershell_pattern_match else None
-        # powershell cannot access temp file open in another process.
-        # so, update the temp file with helper script and command,
-        # close and run the file with self.shell, and then unlink the temp file to delete it
-        tmp = tempfile.NamedTemporaryFile(
-            prefix="prefect-", suffix=suffix, delete=False
-        )
-        if helper_script:
-            tmp.write(helper_script.encode())
-            tmp.write(os.linesep.encode())
-        tmp.write(command.encode())
-        tmp.close()
+                    if self.return_all:
+                        lines.append(line)
 
-        with Popen(
-            [self.shell, tmp.name],
-            stdout=PIPE,
-            stderr=STDOUT,
-            env=current_env,
-            # Windows does not use the PATH during subprocess creation
-            # by default so we will use `shell` mode to do so
-            shell=sys.platform == "win32",
-        ) as sub_process:
-            line = None
-            lines = []
-            for raw_line in iter(sub_process.stdout.readline, b""):
-                line = raw_line.decode("utf-8").rstrip()
+                    if self.stream_output:
+                        self.logger.log(level=self.stream_output, msg=line)
 
-                if self.return_all:
-                    lines.append(line)
+                sub_process.wait()
+                if sub_process.returncode:
+                    msg = "Command failed with exit code {}".format(
+                        sub_process.returncode,
+                    )
 
-                if self.stream_output:
-                    self.logger.log(level=self.stream_output, msg=line)
+                    self.logger.error(msg)
 
-            sub_process.wait()
-            if sub_process.returncode:
-                msg = "Command failed with exit code {}".format(
-                    sub_process.returncode,
-                )
+                    if self.log_stderr and not self.stream_output:
+                        self.logger.error("\n".join(lines) if self.return_all else line)
 
-                self.logger.error(msg)
+                    raise prefect.engine.signals.FAIL(
+                        msg,
+                        result=lines if self.return_all else line,
+                    )
 
-                if self.log_stderr and not self.stream_output:
-                    self.logger.error("\n".join(lines) if self.return_all else line)
-
-                raise prefect.engine.signals.FAIL(
-                    msg,
-                    result=lines if self.return_all else line,
-                )
-
-        os.unlink(tmp.name)
         return lines if self.return_all else line
