@@ -231,6 +231,7 @@ async def test_custom_dockerfile_unpackaging(howdy_context: Path, docker: Docker
     assert_unpackaged_flow_works(docker, manifest)
 
 
+@pytest.mark.service("docker")
 def assert_unpackaged_flow_works(docker: DockerClient, manifest: DockerPackageManifest):
     test_script = textwrap.dedent(
         f"""

@@ -48,7 +48,7 @@ async def run_process(
     command: List[str],
     stream_output: Union[bool, Tuple[Optional[TextSink], Optional[TextSink]]] = False,
     task_status: Optional[anyio.abc.TaskStatus] = None,
-    **kwargs
+    **kwargs,
 ):
     """
     Like `anyio.run_process` but with:
@@ -56,7 +56,7 @@ async def run_process(
     - Use of our `open_process` utility to ensure resources are cleaned up
     - Simple `stream_output` support to connect the subprocess to the parent stdout/err
     - Support for submission with `TaskGroup.start` marking as 'started' after the
-        process has been created.
+        process has been created. When used, the PID is returned to the task status.
 
     """
     if stream_output is True:
@@ -66,11 +66,11 @@ async def run_process(
         command,
         stdout=subprocess.PIPE if stream_output else subprocess.DEVNULL,
         stderr=subprocess.PIPE if stream_output else subprocess.DEVNULL,
-        **kwargs
+        **kwargs,
     ) as process:
 
         if task_status is not None:
-            task_status.started()
+            task_status.started(process.pid)
 
         if stream_output:
             await consume_process_output(

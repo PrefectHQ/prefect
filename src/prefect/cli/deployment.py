@@ -11,17 +11,15 @@ import pendulum
 from rich.pretty import Pretty
 from rich.table import Table
 
+from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client import OrionClient, get_client
+from prefect.client import get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import (
-    DataDocument,
     Deployment,
-    FlowScript,
     PackageManifest,
-    _source_to_flow,
     load_deployments_from_yaml,
     load_flow_from_deployment,
 )
@@ -48,6 +46,17 @@ def exception_traceback(exc: Exception) -> str:
     """
     tb = traceback.TracebackException.from_exception(exc)
     return "".join(list(tb.format()))
+
+
+class RichTextIO:
+    def __init__(self, console, prefix: str = None) -> None:
+        self.console = console
+        self.prefix = prefix
+
+    def write(self, content: str):
+        if self.prefix:
+            content = self.prefix + content
+        self.console.print(content)
 
 
 @deployment_app.command()
@@ -78,7 +87,15 @@ async def inspect(name: str):
         except ObjectNotFound:
             exit_with_error(f"Deployment {name!r} not found!")
 
-    deployment_json = deployment.dict(json_compatible=True)
+        deployment_json = deployment.dict(json_compatible=True)
+
+        if deployment.infrastructure_document_id:
+            deployment_json["infrastructure"] = Block._from_block_document(
+                await client.read_block_document(deployment.infrastructure_document_id)
+            ).dict(
+                exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
+            )
+
     app.console.print(Pretty(deployment_json))
 
 
@@ -284,8 +301,11 @@ async def create(path: Path):
 
     async with get_client() as client:
         for deployment in valid_deployments:
+            name = _deployment_name(deployment)
+            progress_sink = RichTextIO(app.console, prefix=f"Deployment {name!r}: ")
             try:
-                await _create_deployment(deployment, client=client)
+                await deployment.create(client=client, stream_progress_to=progress_sink)
+                app.console.print(f"Created deployment {name!r}.")
             except Exception as exc:
                 app.console.print(exception_traceback(exc))
                 app.console.print("Failed to create deployment!", style="red")
@@ -302,62 +322,20 @@ async def create(path: Path):
         exit_with_success(f"Created {created} deployment{s}!")
 
 
-def _stylized_flow_name(deployment: Deployment, flow_name: str):
-    second_name = deployment.name or flow_name
-    return f"[blue]'{flow_name}/[/][bold blue]{second_name}'[/]"
-
-
-async def _deployment_to_manifest(deployment: Deployment) -> PackageManifest:
-    flow_source = deployment.flow
-
-    if isinstance(flow_source, PackageManifest):
-        return flow_source
-
-    if isinstance(flow_source, FlowScript):
-        # TODO: Add a utility for path display that will do this logic
-        relative_path = str(flow_source.path.relative_to(Path(".").resolve()))
-        absolute_path = str(flow_source.path)
-        display_path = (
-            relative_path if len(relative_path) < len(absolute_path) else absolute_path
-        )
-        app.console.print(
-            f"Retrieving flow from script at [green]{display_path!r}[/]..."
-        )
-
-    flow = await _source_to_flow(flow_source)
-
-    app.console.print(
-        f"Packaging flow for deployment {_stylized_flow_name(deployment, flow.name)}..."
-    )
-    return await deployment.packager.package(flow)
-
-
-async def _create_deployment(deployment: Deployment, client: OrionClient):
-    manifest = await _deployment_to_manifest(deployment)
-    stylized_name = _stylized_flow_name(deployment, manifest.flow_name)
-
-    flow_data = DataDocument.encode("package-manifest", manifest)
-
-    if "image" in manifest.__fields__:
-        flow_runner = deployment.flow_runner.copy(update={"image": manifest.image})
+def _deployment_name(deployment: Deployment):
+    if isinstance(deployment.flow, PackageManifest):
+        flow_name = deployment.flow.flow_name
     else:
-        flow_runner = deployment.flow_runner
+        flow_name = deployment.flow.name
 
-    flow_data = DataDocument.encode("package-manifest", manifest)
-
-    app.console.print(f"Registering deployment {stylized_name} with the server...")
-    flow_id = await client.create_flow_from_name(manifest.flow_name)
-    deployment_id = await client.create_deployment(
-        flow_id=flow_id,
-        name=deployment.name or manifest.flow_name,
-        flow_data=flow_data,
-        schedule=deployment.schedule,
-        parameters=deployment.parameters,
-        tags=deployment.tags,
-        flow_runner=flow_runner,
-    )
-    # TODO: Display a link to the UI if available
-    app.console.print(f"Created deployment {stylized_name} ({deployment_id}).")
+    if flow_name and deployment.name:
+        return f"{flow_name}/{deployment.name}"
+    elif deployment.name and not flow_name:
+        return f"{deployment.name}"
+    elif not deployment.name and flow_name:
+        return f"{flow_name}/{flow_name}"
+    else:
+        return "<no name provided>"
 
 
 @deployment_app.command()
