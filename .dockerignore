@@ -6,8 +6,10 @@ __pycache__/
 *.egg
 dist/
 sdist/
+.python-version
 
 # Test artifacts
+.coverage*
 .pytest_cache/
 
 # Type checking artifacts

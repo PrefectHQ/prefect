@@ -50,8 +50,6 @@ import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
 import prefect.settings
-from prefect.blocks.core import Block
-from prefect.blocks.storage import StorageBlock, TempStorageBlock
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
@@ -1473,133 +1471,6 @@ class OrionClient:
         response = await self._client.post(f"/flow_runs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
-    async def get_default_storage_block_document(
-        self, include_secrets: bool = True
-    ) -> Optional[BlockDocument]:
-        """Returns the default storage block
-
-        Args:
-            as_json (bool, optional): if True, the raw JSON from the API is
-                returned. This can avoid instantiating a storage block (and any side
-                effects) Defaults to False.
-            include_secrets (bool): whether to include secret values
-                on the Block, corresponding to Pydantic's `SecretStr` and
-                `SecretBytes` fields. These fields are automatically obfuscated
-                by Pydantic, but users can additionally choose not to receive
-                their values from the API. Note that any business logic on the
-                Block may not work if this is `False`.
-
-        Returns:
-            Optional[Block]:
-        """
-        response = await self._client.post(
-            "/block_documents/get_default_storage_block_document",
-            json=dict(include_secrets=include_secrets),
-        )
-        if not response.content:
-            return None
-        return BlockDocument.parse_obj(response.json())
-
-    async def set_default_storage_block_document(self, block_document_id: UUID):
-        try:
-            await self._client.post(
-                f"/block_documents/{block_document_id}/set_default_storage_block_document"
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def clear_default_storage_block_document(self):
-        await self._client.post(
-            f"/block_documents/clear_default_storage_block_document"
-        )
-
-    async def persist_data(
-        self, data: bytes, block: StorageBlock = None
-    ) -> DataDocument:
-        """
-        Persist data in orion and return the orion data document
-
-        Args:
-            data: the data to persist
-
-        Returns:
-            Orion data document pointing to persisted data.
-        """
-        block = block or await self.get_default_storage_block_document()
-        if not block:
-            raise ValueError(
-                "No storage block was provided and no default storage block is set "
-                "on the server. Set a default or provide a block to use."
-            )
-
-        storage_token = await block.write(data)
-        storage_datadoc = DataDocument.encode(
-            encoding="blockstorage",
-            data={"data": storage_token, "block_document_id": block._block_document_id},
-        )
-        return storage_datadoc
-
-    async def retrieve_data(
-        self,
-        block_storage_document: dict,
-    ) -> bytes:
-        """
-        Exchange a storage data document for the data previously persisted.
-
-        Args:
-            block_storage_document: A JSON blob describing storage of the data.
-                See `prefect.serializers.BlockStorageSerializer.loads()`.
-
-        Returns:
-            The persisted data in bytes.
-        """
-        embedded_datadoc = block_storage_document["data"]
-        # Handling for block_id is to account for deployments created pre-2.0b6
-        block_document_id = block_storage_document.get(
-            "block_document_id"
-        ) or block_storage_document.get("block_id")
-        if block_document_id is not None:
-            storage_block = Block._from_block_document(
-                await self.read_block_document(block_document_id)
-            )
-        else:
-            storage_block = TempStorageBlock()
-        return await storage_block.read(embedded_datadoc)
-
-    async def persist_object(
-        self, obj: Any, encoder: str = "cloudpickle", storage_block: StorageBlock = None
-    ) -> DataDocument:
-        """
-        Persist an object in orion and return the orion data document
-
-        Args:
-            obj: the object to persist
-            encoder: An optional encoder for the data document.
-
-        Returns:
-            Data document pointing to persisted data.
-        """
-        datadoc = DataDocument.encode(encoding=encoder, data=obj)
-        return await self.persist_data(datadoc.json().encode(), block=storage_block)
-
-    async def retrieve_object(self, storage_datadoc: DataDocument) -> Any:
-        """
-        Exchange a data document for the object previously persisted.
-
-        Args:
-            storage_datadoc: The storage data document to retrieve.
-
-        Returns:
-            the persisted object
-        """
-        datadoc = DataDocument.parse_raw(
-            await self.retrieve_data(storage_datadoc.decode())
-        )
-        return datadoc.decode()
-
     async def set_flow_run_state(
         self,
         flow_run_id: UUID,
@@ -1870,15 +1741,7 @@ class OrionClient:
             )
 
         elif response.status == schemas.responses.SetStateStatus.REJECT:
-            server_state = response.state
-            if server_state.data:
-                if server_state.data.encoding == "blockstorage":
-                    datadoc = DataDocument.parse_raw(
-                        await self.retrieve_data(server_state.data.decode())
-                    )
-                    server_state.data = datadoc
-
-            return server_state
+            return response.state
 
         else:
             raise ValueError(
@@ -2001,11 +1864,7 @@ class OrionClient:
                     return data
 
             if isinstance(data, DataDocument):
-                if data.encoding == "blockstorage":
-                    data = await self.retrieve_data(data.decode())
-                else:
-                    data = data.decode()
-                return await resolve_inner(data)
+                return await resolve_inner(data.decode())
 
             return data
 
