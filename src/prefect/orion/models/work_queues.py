@@ -202,7 +202,7 @@ async def get_runs_in_work_queue(
 
     # if the work queue has a concurrency limit, check how many runs are currently
     # executing and compare that count to the concurrency limit
-    if work_queue.concurrency_limit != None:
+    if work_queue.concurrency_limit is not None:
         # Note this does not guarantee race conditions wont be hit
         concurrent_count = await models.flow_runs.count_flow_runs(
             session=session,
