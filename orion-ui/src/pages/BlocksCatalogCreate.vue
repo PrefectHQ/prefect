@@ -11,7 +11,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocksCatalogCreate, titleCase, BlockSchemaFormCard, BlockDocumentData } from '@prefecthq/orion-design'
+  import { PageHeadingBlocksCatalogCreate, BlockSchemaFormCard, BlockDocumentData } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
