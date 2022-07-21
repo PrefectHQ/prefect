@@ -2,7 +2,7 @@ import os
 from typing import Any
 
 import pendulum
-from pydantic import Field
+from pydantic import Field, SecretStr
 
 from prefect.blocks.core import Block
 
@@ -43,12 +43,12 @@ class EnvironmentVariable(Block):
     behavior to be modified remotely by changing the environment variable name.
 
     Example:
-    ```python
-    block = EnvironmentVariable(name="MY_ENV_VAR")
+        ```python
+        block = EnvironmentVariable(name="MY_ENV_VAR")
 
-    # loads the value of MY_ENV_VAR
-    block.get()
-    ```
+        # loads the value of MY_ENV_VAR
+        block.get()
+        ```
 
     """
 
@@ -59,3 +59,27 @@ class EnvironmentVariable(Block):
 
     def get(self):
         return os.getenv(self.name)
+
+
+class Secret(Block):
+    """
+    A block that represents a secret value. The value stored in this block will be obfuscated when
+    this block is logged or shown in the UI.
+
+    Example:
+        ```python
+        from prefect.blocks.system import Secret
+
+        secret_block = Secret.load("BLOCK_NAME")
+
+        # Access the stored secret
+        secret_block.get()
+        ```
+    """
+
+    value: SecretStr = Field(
+        ..., description="A string value that should be kept secret."
+    )
+
+    def get(self):
+        return self.value.get_secret_value()

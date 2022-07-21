@@ -54,10 +54,8 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
-import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
 from prefect.context import PrefectObjectRegistry
-from prefect.deprecated import deployments as deprecated
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
 from prefect.flow_runners.base import (
     FlowRunner,
@@ -76,6 +74,15 @@ from prefect.utilities.filesystem import tmpchdir
 
 
 class FlowScript(BaseModel):
+    """
+    A simple Pydantic model defining the location of a flow script and, optionally,
+    the flow object that begins the workflow.
+
+    Args:
+        path: Path to a script containing the flow to deploy. If you specify a string path, it will be cast to a `Path`.
+        name: String specifying the name of the flow object to associate with the deployment. Optional if the flow can be inferred from the script.
+    """
+
     path: Path
     name: Optional[str] = None
 
@@ -84,11 +91,23 @@ class FlowScript(BaseModel):
         return value.resolve()
 
 
-FlowSource = Union[Flow, FlowScript, PackageManifest]
+FlowSource = Union[Flow, Path, FlowScript, PackageManifest]
 
 
 @PrefectObjectRegistry.register_instances
 class Deployment(BaseModel):
+    """
+    Defines the settings used to create a deployment on the API.
+
+    Args:
+        name: String specifying the name of the deployment.
+        flow: The flow object to associate with the deployment. You may provide the flow object directly as `flow=my_flow` if available in the same file as the `Deployment`. Alternatively, you may provide a `Path`, `FlowScript`, or `PackageManifest` specifying how to access to the flow.
+        flow_runner: Specifies the [flow runner](/api-ref/prefect/flow-runners/) used for flow runs. Uses the `UniversalFlowRunner` if none is specified.
+        packager: The [prefect.packaging](/api-ref/prefect/packaging/) packager to use for packaging the flow.
+        parameters: Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects.
+        schedule: [Schedule](/concepts/schedules/) instance specifying a schedule for running the deployment.
+        tags: List containing tags to assign to the deployment.
+    """
 
     # Metadata fields
     name: str = None
@@ -159,6 +178,9 @@ class Deployment(BaseModel):
     @sync_compatible
     @inject_client
     async def create(self, client: OrionClient):
+        """
+        Create the deployment on the API.
+        """
         if isinstance(self.flow, PackageManifest):
             manifest = self.flow
             flow_name = manifest.flow_name
@@ -289,8 +311,12 @@ async def load_flow_from_deployment(
 async def _source_to_flow(flow_source: FlowSource) -> Flow:
     if isinstance(flow_source, Flow):
         return flow_source
+    elif isinstance(flow_source, Path):
+        return load_flow_from_script(flow_source.expanduser().resolve())
     elif isinstance(flow_source, FlowScript):
-        return load_flow_from_script(flow_source.path, flow_name=flow_source.name)
+        return load_flow_from_script(
+            flow_source.path.expanduser().resolve(), flow_name=flow_source.name
+        )
     elif isinstance(flow_source, PackageManifest):
         return await flow_source.unpackage()
     else:
@@ -314,24 +340,10 @@ def load_deployments_from_yaml(
 
     with PrefectObjectRegistry(capture_failures=True) as registry:
         for node in nodes:
-            line = node.start_mark.line + 1
-
-            # Load deployments relative to the yaml file's directory
             with tmpchdir(path):
                 deployment_dict = yaml.safe_load(yaml.serialize(node))
-                if "flow_location" in deployment_dict:
-                    deployment = parse_obj_as(DeploymentSpec, deployment_dict)
-                else:
-                    deployment = parse_obj_as(Deployment, deployment_dict)
-
-            if isinstance(deployment, DeploymentSpec):
-                # Update the source to be from the YAML file instead of this utility
-                deployment._source = {"file": str(path), "line": line}
+                # The return value is not necessary, just instantiating the Deployment
+                # is enough to get it recorded on the registry
+                parse_obj_as(Deployment, deployment_dict)
 
     return registry
-
-
-# Backwards compatibility
-
-
-DeploymentSpec = deprecated.DeploymentSpec
