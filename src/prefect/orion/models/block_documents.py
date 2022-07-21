@@ -12,12 +12,10 @@ from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import ORMBlockDocument
 from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
-from prefect.orion.schemas.core import (
-    OBFUSCATED_SECRET,
-    BlockDocument,
-    BlockDocumentReference,
-)
+from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
 from prefect.orion.schemas.filters import BlockDocumentFilterIsAnonymous
+from prefect.orion.utilities.names import obfuscate_string
+from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
 
 @inject_db
@@ -443,19 +441,27 @@ async def update_block_document(
         current_block_document.name = update_values["name"]
 
     if "data" in update_values and update_values["data"] is not None:
+        current_data = await current_block_document.decrypt_data(session=session)
 
-        # if a block data contains Prefect's own OBFUSCATED SECRET value,
-        # it means someone is probably trying to update all of the documents
-        # fields without realizing they are positing back obfuscated data,
-        # so we disregard them
-        for key, value in list(update_values["data"].items()):
-            if value == OBFUSCATED_SECRET:
-                del update_values["data"][key]
+        # if a value for a secret field was provided that is identical to the
+        # obfuscated value of the current secret value, it means someone is
+        # probably trying to update all of the documents fields without
+        # realizing they are posting back obfuscated data, so we disregard the update
+        flat_update_data = dict_to_flatdict(update_values["data"])
+        flat_current_data = dict_to_flatdict(current_data)
+        for field in current_block_document.block_schema.fields.get(
+            "secret_fields", []
+        ):
+            key = tuple(field.split("."))
+            current_secret = flat_current_data.get(key)
+            if current_secret is not None:
+                if flat_update_data.get(key) == obfuscate_string(current_secret):
+                    del flat_update_data[key]
+        update_values["data"] = flatdict_to_dict(flat_update_data)
 
         # merge the existing data and the new data for partial updates
-        merged_data = await current_block_document.decrypt_data(session=session)
-        merged_data.update(update_values["data"])
-        update_values["data"] = merged_data
+        current_data.update(update_values["data"])
+        update_values["data"] = current_data
 
         current_block_document_references = (
             (
@@ -523,59 +529,6 @@ def _find_block_document_reference(
         ),
         None,
     )
-
-
-@inject_db
-async def get_default_storage_block_document(
-    session: sa.orm.Session,
-    db: OrionDBInterface,
-    include_secrets: bool = True,
-):
-    query = (
-        sa.select(db.BlockDocument)
-        .where(db.BlockDocument.is_default_storage_block_document.is_(True))
-        .limit(1)
-        .execution_options(populate_existing=True)
-    )
-    result = await session.execute(query)
-    orm_block_document = result.scalar()
-    if orm_block_document is None:
-        return None
-    return await BlockDocument.from_orm_model(
-        session, orm_block_document, include_secrets=include_secrets
-    )
-
-
-@inject_db
-async def set_default_storage_block_document(
-    session: sa.orm.Session, block_document_id: UUID, db: OrionDBInterface
-):
-    block_document = await read_block_document_by_id(
-        session=session, block_document_id=block_document_id
-    )
-    if not block_document:
-        raise ValueError("Block document not found")
-    elif "storage" not in block_document.block_schema.capabilities:
-        raise ValueError("Block schema must have the 'storage' capability")
-
-    await clear_default_storage_block_document(session=session)
-    await session.execute(
-        sa.update(db.BlockDocument)
-        .where(db.BlockDocument.id == block_document_id)
-        .values(is_default_storage_block_document=True)
-    )
-
-
-@inject_db
-async def clear_default_storage_block_document(
-    session: sa.orm.Session, db: OrionDBInterface
-):
-    await session.execute(
-        sa.update(db.BlockDocument)
-        .where(db.BlockDocument.is_default_storage_block_document.is_(True))
-        .values(is_default_storage_block_document=False)
-    )
-    await session.flush()
 
 
 @inject_db

@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, List, Tuple
 
 import cloudpickle
 import pydantic
+import pydantic.schema
 from typing_extensions import Literal
 
 
@@ -115,15 +116,42 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     """
     signature = inspect.signature(fn)
     model_fields = {}
+    aliases = {}
+
+    class ModelConfig:
+        arbitrary_types_allowed = True
+
     for param in signature.parameters.values():
-        model_fields[param.name] = (
+        # Pydantic model creation will fail if names collide with the BaseModel type
+        if hasattr(pydantic.BaseModel, param.name):
+            name = param.name + "__"
+            aliases[name] = param.name
+        else:
+            name = param.name
+
+        type_, field = (
             Any if param.annotation is inspect._empty else param.annotation,
             pydantic.Field(
                 default=... if param.default is param.empty else param.default,
                 title=param.name,
                 description=None,
+                alias=aliases.get(name),
             ),
         )
-    return ParameterSchema(
-        **pydantic.create_model("Parameters", **model_fields).schema()
-    )
+
+        # Generate a Pydantic model at each step so we can check if this parameter
+        # type is supported schema generation
+        try:
+            pydantic.create_model(
+                "CheckParameter", __config__=ModelConfig, **{name: (type_, field)}
+            ).schema(by_alias=True)
+        except ValueError:
+            # This field's type is not valid for schema creation, update it to `Any`
+            type_ = Any
+
+        model_fields[name] = (type_, field)
+
+    # Generate the final model and schema
+    model = pydantic.create_model("Parameters", __config__=ModelConfig, **model_fields)
+    schema = model.schema(by_alias=True)
+    return ParameterSchema(**schema)
