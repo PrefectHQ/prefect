@@ -27,11 +27,6 @@ def skip_if_kubernetes_is_not_installed():
     pytest.importorskip("kubernetes")
 
 
-@pytest.fixture(autouse=True)
-async def configure_remote_storage(set_up_kv_storage):
-    pass
-
-
 @pytest.fixture
 def mock_watch(monkeypatch):
     pytest.importorskip("kubernetes")
