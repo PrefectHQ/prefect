@@ -2,6 +2,7 @@ import datetime
 
 import pendulum
 import pytest
+import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
@@ -208,11 +209,19 @@ async def deployment(session, flow, flow_function, infrastructure_document_id):
 
 @pytest.fixture
 async def block_type_x(session):
-    block_type = await models.block_types.create_block_type(
-        session=session, block_type=schemas.actions.BlockTypeCreate(name="x")
-    )
-    await session.commit()
-    return block_type
+    # TODO: In some cases, this fixture can run more than once which results in a
+    #       failure due to the block already existing. Instead of failing, we'll read
+    #       the existing block
+    try:
+        block_type = await models.block_types.create_block_type(
+            session=session, block_type=schemas.actions.BlockTypeCreate(name="x")
+        )
+        await session.commit()
+        return block_type
+    except sa.exc.IntegrityError:
+        return await models.block_types.read_block_type_by_name(
+            session=session, block_type_name="x"
+        )
 
 
 @pytest.fixture
