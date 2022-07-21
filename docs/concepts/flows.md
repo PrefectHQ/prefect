@@ -305,37 +305,7 @@ what_day_is_it("2021-01-01T02:00:19.180906")
 
 Parameters are validated before a flow is run. If a flow call receives invalid parameters, a flow run is created in a `Failed` state. If a flow run for a deployment receives invalid parameters, it will move from a `Pending` state to a `Failed` without entering a `Running` state.
 
-## Flow retries
-
-When your flow run encounters an exception or fails due to a failed task run, it can be retried. This is configurable by passing `retries` and, optionally, `retry_delay_seconds` parameters to your task. The retry parameter syntax is the same for both flows and [tasks](/concepts/tasks/#retries).
-
-Flows are not retried unless you specifically configure them to do so.
-
-```python
-from prefect import flow
-
-@flow(retries=1, retry_delay_seconds=60)
-def flow_might_fail():
-    # Call tasks
-```
-
-When a flow run fails, the Prefect orchestration engine will attempt to run the flow again. The client is not responsible for avoiding recomputation or state management.
-
-When the flow runs again, each task will be called to check its state. Task runs that previously failed will run again. Task runs that previously succeeded will return their previous `Completed` state without running again.
-
-### Subflow retries 
-
-If a [subflow](#subflows) is called within a flow with retries, its behavior will vary depending on if it failed or completed.
-
-- If the child run failed, a new flow run will be created for the child flow call.
-- If the child run succeeded, its state will be retrieved and returned.
-- If a child flow run also has retries configured, execution should behave as described for subflow runs and tasks.
-
-### Task retries
-
-If a task within a subflow to be retried has retries configured, it will retry up to its limit for each flow run retry. This is accomplished by resetting the run count of all failed tasks when returning a flow run retry state. For example, if you have a task which retries 3 times, and a flow that retries 2 times, the task could run up to 8 times. However, within each flow retry, the task will not run more than 4 times.
-
-## Final state determination
+<!-- ## Final state determination
 
 The final state of the flow is determined by its return value.  The following rules apply:
 
@@ -545,7 +515,7 @@ Completed(message='I am happy with this result', type=COMPLETED, result=None, fl
 
 ### Return an object
 
-If a flow returns any other Python object, the final state is always `Completed`.
+    When returning multiple states, they must be contained in a `set`, `list`, or `tuple`. If other collection types are used, the result of the contained states will not be checked. -->
 
 ```python hl_lines="10"
 from prefect import task, flow

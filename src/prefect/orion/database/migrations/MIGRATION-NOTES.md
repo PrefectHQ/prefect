@@ -8,6 +8,15 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+## Renames existing block types and deletes removed block types
+
+SQLite: `628a873f0d1a`
+Postgres: `bb4dc90d3e29`
+## Removing default storage block document
+
+SQLite: `56be24fdb383`
+Postgres: `0f27d462bf6d`
+
 ## Removes DebugPrintNotification block type
 
 SQLite: `061c7e518b40`

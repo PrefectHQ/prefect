@@ -25,6 +25,8 @@ import prefect.settings
 from prefect.logging import get_logger
 from prefect.orion.api.dependencies import CheckVersionCompatibility
 from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.models.block_schemas import read_block_schema_by_checksum
+from prefect.orion.models.block_types import read_block_type_by_name, update_block_type
 from prefect.orion.utilities.server import method_paths_from_routes
 
 TITLE = "Prefect Orion"
@@ -269,7 +271,6 @@ def create_app(
         from prefect.orion.database.dependencies import provide_database_interface
         from prefect.orion.models.block_schemas import create_block_schema
         from prefect.orion.models.block_types import create_block_type
-        from prefect.orion.schemas.actions import BlockTypeCreate
         from prefect.utilities.dispatch import get_registry_for_type
 
         db = provide_database_interface()
@@ -281,25 +282,34 @@ def create_app(
             for block_class in get_registry_for_type(Block).values():
                 # each block schema gets its own transaction
                 async with session.begin():
-                    try:
+                    block_type = await read_block_type_by_name(
+                        session=session,
+                        block_type_name=block_class.get_block_type_name(),
+                    )
+                    if block_type is None or should_override:
                         block_type = await create_block_type(
                             session=session,
-                            block_type=BlockTypeCreate(
-                                name=block_class._block_type_name
-                                or block_class.__name__,
-                                logo_url=block_class._logo_url,
-                                documentation_url=block_class._documentation_url,
-                            ),
+                            block_type=block_class._to_block_type(),
                             override=should_override,
                         )
                         block_class._block_type_id = block_type.id
-                        await create_block_schema(
+                    else:
+                        block_class._block_type_id = block_type.id
+                        await update_block_type(
+                            session=session,
+                            block_type_id=block_type.id,
+                            block_type=block_class._to_block_type(),
+                        )
+                    block_schema = await read_block_schema_by_checksum(
+                        session=session,
+                        checksum=block_class._calculate_schema_checksum(),
+                    )
+                    if block_schema is None or should_override:
+                        block_schema = await create_block_schema(
                             session=session,
                             block_schema=block_class._to_block_schema(),
                             override=should_override,
                         )
-                    except sa.exc.IntegrityError:
-                        pass  # Block already exists
 
     async def start_services():
         """Start additional services when the Orion API starts up."""
