@@ -109,7 +109,7 @@ Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable
 
 **Integrates with other modern data tools**
 
-Prefect has [integrations](collections/overview/) for all the major cloud providers and modern data tools such as Snowflake, Databricks, dbt, Airbyte, and Fivetran. 
+Prefect has [integrations](collections/overview/) for all the major cloud providers and modern data tools such as Snowflake, Databricks, dbt, and Airbyte. 
 
 **Async and parallelization options**
 
