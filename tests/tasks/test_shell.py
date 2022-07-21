@@ -281,8 +281,7 @@ def test_shell_task_accepts_helper_script():
 
 def test_shell_runs_powershell():
     with Flow(name="test") as f:
-        task = ShellTask(shell="pwsh.exe")(command=r"dir")
+        task = ShellTask(shell="pwsh")(command=r"dir")
         task2 = ShellTask(shell="powershell")(command=r"echo This is a powershell test")
-        task3 = ShellTask(shell="powershell")(command=r"ls -l")
     out = f.run()
     assert out.is_successful()
