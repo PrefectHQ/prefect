@@ -37,7 +37,7 @@ To show you how it works, let's start small.
 
 You may have seen this briefly in a previous tutorial, but let's look a bit more closely at how you can configure a specific task runner for a flow.
 
-Let's start with this simple flow. We import the `SequentialTaskRunner` and specify a `task_runner` on the flow.
+Let's start with this simple flow. We import the `SequentialTaskRunner`, specify a `task_runner` on the flow, and call the tasks with `.submit()`.
 
 ```python hl_lines="2 12"
 from prefect import flow, task
@@ -54,8 +54,8 @@ def say_goodbye(name):
 @flow(task_runner=SequentialTaskRunner())
 def greetings(names):
     for name in names:
-        say_hello(name)
-        say_goodbye(name)
+        say_hello.submit(name)
+        say_goodbye.submit(name)
 
 greetings(["arthur", "trillian", "ford", "marvin"])
 ```
@@ -138,8 +138,8 @@ def say_goodbye(name):
 @flow(task_runner=DaskTaskRunner())
 def greetings(names):
     for name in names:
-        say_hello(name)
-        say_goodbye(name)
+        say_hello.submit(name)
+        say_goodbye.submit(name)
 
 if __name__ == "__main__":
     greetings(["arthur", "trillian", "ford", "marvin"])
@@ -215,8 +215,8 @@ def say_goodbye(name):
 @flow(task_runner=RayTaskRunner())
 def greetings(names):
     for name in names:
-        say_hello(name)
-        say_goodbye(name)
+        say_hello.submit(name)
+        say_goodbye.submit(name)
 
 if __name__ == "__main__":
     greetings(["arthur", "trillian", "ford", "marvin"])
@@ -285,14 +285,14 @@ def say_goodbye(name):
 @flow(task_runner=RayTaskRunner())
 def ray_greetings(names):
     for name in names:
-        say_hello(name)
-        say_goodbye(name)
+        say_hello.submit(name)
+        say_goodbye.submit(name)
 
 @flow()
 def greetings(names):
     for name in names:
-        say_hello(name)
-        say_goodbye(name)
+        say_hello.submit(name)
+        say_goodbye.submit(name)
     ray_greetings(names)
 
 if __name__ == "__main__":
