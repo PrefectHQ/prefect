@@ -28,6 +28,21 @@ class WritableFileSystem(Block, abc.ABC):
 
 
 class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
+    """
+    Store data as a file on a local file system.
+
+    Example:
+        Load stored local file system config:
+        ```python
+        from prefect.filesystems import LocalFileSystem
+
+        local_file_system_block = LocalFileSystem.load("BLOCK_NAME")
+        ```
+    """
+
+    _block_type_name = "Local File System"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/EVKjxM7fNyi4NGUSkeTEE/95c958c5dd5a56c59ea5033e919c1a63/image1.png?h=250"
+
     basepath: Optional[str] = None
 
     @validator("basepath", pre=True)
@@ -87,6 +102,24 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
 
 
 class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
+    """
+    Store data as a file on a remote file system.
+
+    Supports any remote file system supported by `fsspec`. The file system is specified
+    using a protocol. For example, "s3://my-bucket/my-folder/" will use S3.
+
+    Example:
+        Load stored remote file system config:
+        ```python
+        from prefect.filesystems import RemoteFileSystem
+
+        remote_file_system_block = RemoteFileSystem.load("BLOCK_NAME")
+        ```
+    """
+
+    _block_type_name = "Remote File System"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CxjycqILlT9S9YchI7o1q/ee62e2089dfceb19072245c62f0c69d2/image12.png?h=250"
+
     basepath: str
     settings: dict = Field(default_factory=dict)
 
