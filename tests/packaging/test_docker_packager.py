@@ -136,7 +136,7 @@ async def test_creating_deployments(prefect_base_image: str, orion_client: Orion
     deployment = Deployment(
         name="howdy-deployed",
         flow=howdy,
-        infrastrucutre=DockerContainer(),
+        infrastructure=DockerContainer(),
         packager=DockerPackager(
             base_image=prefect_base_image,
             python_environment=PythonEnvironment(
