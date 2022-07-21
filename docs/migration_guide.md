@@ -15,7 +15,7 @@ Let’s start by explicitly calling out what hasn’t changed:
 
 ---
 
-## 2. What has changed
+## 2. What changed
 
 Some changes require modifications to your existing tasks, flows and deployment patterns. For more transparency, we've organized this information in the following categories:
 
