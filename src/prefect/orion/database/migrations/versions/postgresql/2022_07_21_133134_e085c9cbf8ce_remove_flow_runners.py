@@ -20,6 +20,7 @@ def upgrade():
     op.drop_column("deployment", "flow_runner_type")
     op.drop_column("deployment", "flow_runner_config")
     op.drop_column("deployment", "description")
+    op.drop_index(op.f("ix_flow_run__flow_runner_type"), table_name="flow_run")
     op.drop_column("flow_run", "flow_runner_type")
     op.drop_column("flow_run", "flow_runner_config")
     op.drop_column("flow_run", "empirical_config")
@@ -50,6 +51,14 @@ def downgrade():
         "flow_run",
         sa.Column("flow_runner_type", sa.VARCHAR(), autoincrement=False, nullable=True),
     )
+
+    op.create_index(
+        op.f("ix_flow_run__flow_runner_type"),
+        "flow_run",
+        ["flow_runner_type"],
+        unique=False,
+    )
+
     op.add_column(
         "deployment",
         sa.Column("description", sa.TEXT(), autoincrement=False, nullable=True),
