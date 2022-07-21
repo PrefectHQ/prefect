@@ -100,7 +100,7 @@ Similarly, since the API tracks every flow run behind the scenes, agentless depl
 With Prefect 2.0, your functions *are* your flows. Prefect 2.0 automatically detects your flows and tasks without the need to define a rigid DAG structure. While tasks are encouraged to provide you the maximum visibility into your workflows, they are no longer required. You can add a single `@flow` decorator to your main function to transform any Python script into a Prefect workflow.
 
 ### 3.3 Incremental adoption
-The built-in SQLite database automatically tracks all your locally executed flow runs. As soon as you start Orion (or [authenticate your CLI with your Prefect Cloud workspace](https://orion-docs.prefect.io/ui/cloud-getting-started/)), you can see all your locally executed flow runs in the UI without having to spin up any additional components such as agents.
+The built-in SQLite database automatically tracks all your locally executed flow runs. As soon as you start Prefect Orion and open the Prefect UI in your browser (or [authenticate your CLI with your Prefect Cloud workspace](https://orion-docs.prefect.io/ui/cloud-getting-started/)), you can see all your locally executed flow runs in the UI without having to spin up any additional components such as agents.
 
 To compare that user experience to Prefect 1.0:
 
