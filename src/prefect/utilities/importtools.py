@@ -1,7 +1,11 @@
 import importlib
+import importlib.util
+import inspect
 import os
 import runpy
+import sys
 from tempfile import NamedTemporaryFile
+from types import ModuleType
 from typing import Any, Dict, Union
 
 import fsspec
@@ -62,6 +66,16 @@ def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, 
 
     Supports remote paths by copying to a local temporary file.
 
+    WARNING: The Python documentation does not recommend using runpy for this pattern.
+
+    > Furthermore, any functions and classes defined by the executed code are not
+    > guaranteed to work correctly after a runpy function has returned. If that
+    > limitation is not acceptable for a given use case, importlib is likely to be a
+    > more suitable choice than this module.
+
+    The function `load_script_as_module` uses importlib instead and should be used
+    instead for loading objects from scripts.
+
     Args:
         path: The path to the script to run
         text: Optionally, the text of the script. Skips loading the contents if given.
@@ -101,3 +115,105 @@ def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, 
             return objects_from_script(path, contents)
         else:
             return run_script(path)
+
+
+def load_script_as_module(path: str) -> ModuleType:
+    """
+    Execute a script at the given path.
+
+    Sets the module name to `__prefect_loader__`.
+
+    If an exception occurs during execution of the script, a
+    `prefect.exceptions.ScriptError` is created to wrap the exception and raised.
+
+    See https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
+    """
+    spec = importlib.util.spec_from_file_location("__prefect_loader__", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["__prefect_loader__"] = module
+
+    try:
+        spec.loader.exec_module(module)
+    except Exception as exc:
+        raise ScriptError(user_exc=exc, path=path) from exc
+
+    return module
+
+
+class DelayedImportErrorModule(ModuleType):
+    """
+    A fake module returned by `lazy_import` when the module cannot be found. When any
+    of the module's attributes are accessed, we will throw a `ModuleNotFoundError`.
+
+    Adapted from [lazy_loader][1]
+
+    [1]: https://github.com/scientific-python/lazy_loader
+    """
+
+    def __init__(self, frame_data, help_message, *args, **kwargs):
+        self.__frame_data = frame_data
+        self.__help_message = (
+            help_message
+            or f"Import errors for this module are only reported when used."
+        )
+        super().__init__(*args, **kwargs)
+
+    def __getattr__(self, attr):
+        if attr in ("__class__", "__file__", "__frame_data", "__help_message"):
+            super().__getattr__(attr)
+        else:
+            fd = self.__frame_data
+            raise ModuleNotFoundError(
+                f"No module named '{fd['spec']}'\n\n"
+                "This module was originally imported at:\n"
+                f'  File "{fd["filename"]}", line {fd["lineno"]}, in {fd["function"]}\n\n'
+                f'    {"".join(fd["code_context"]).strip()}\n' + self.__help_message
+            )
+
+
+def lazy_import(
+    name: str, error_on_import: bool = False, help_message: str = ""
+) -> ModuleType:
+    """
+    Create a lazily-imported module to use in place of the module of the given name.
+    Use this to retain module-level imports for libraries that we don't want to
+    actually import until they are needed.
+
+    Adapted from the [Python documentation][1] and [lazy_loader][2]
+
+    [1]: https://docs.python.org/3/library/importlib.html#implementing-lazy-imports
+    [2]: https://github.com/scientific-python/lazy_loader
+    """
+
+    try:
+        return sys.modules[name]
+    except KeyError:
+        pass
+
+    spec = importlib.util.find_spec(name)
+    if spec is None:
+        if error_on_import:
+            raise ModuleNotFoundError(f"No module named '{name}'.\n{help_message}")
+        else:
+            try:
+                parent = inspect.stack()[1]
+                frame_data = {
+                    "spec": name,
+                    "filename": parent.filename,
+                    "lineno": parent.lineno,
+                    "function": parent.function,
+                    "code_context": parent.code_context,
+                }
+                return DelayedImportErrorModule(
+                    frame_data, help_message, "DelayedImportErrorModule"
+                )
+            finally:
+                del parent
+
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+
+    loader = importlib.util.LazyLoader(spec.loader)
+    loader.exec_module(module)
+
+    return module

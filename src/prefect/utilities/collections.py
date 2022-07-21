@@ -4,7 +4,7 @@ Utilities for extensions of and operations on Python collections.
 import itertools
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterator as IteratorABC
-from collections.abc import Sequence, Set
+from collections.abc import Sequence
 from dataclasses import fields, is_dataclass
 from enum import Enum, auto
 from functools import partial
@@ -18,6 +18,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Set,
     Tuple,
     Type,
     TypeVar,
@@ -28,8 +29,7 @@ from unittest.mock import Mock
 
 import pydantic
 
-import prefect
-from prefect.utilities.asyncio import gather
+from prefect.utilities.asyncutils import gather
 
 
 class AutoEnum(str, Enum):
@@ -91,7 +91,8 @@ def dict_to_flatdict(
 
     for k, v in dct.items():
         k_parent = tuple(parent + (k,))
-        if isinstance(v, dict):
+        # if v is a non-empty dict, recurse
+        if isinstance(v, dict) and v:
             items.extend(dict_to_flatdict(v, _parent=k_parent).items())
         else:
             items.append((k_parent, v))
@@ -217,7 +218,9 @@ def quote(expr: T) -> Quote[T]:
 
 
 async def visit_collection(
-    expr, visit_fn: Callable[[Any], Awaitable[Any]], return_data: bool = False
+    expr,
+    visit_fn: Callable[[Any], Awaitable[Any]],
+    return_data: bool = False,
 ):
     """
     This function visits every element of an arbitrary Python collection. If an element
@@ -250,51 +253,69 @@ async def visit_collection(
         # Utility for a recursive call, preserving options.
         # Returns a `partial` for use with `gather`.
         return partial(
-            visit_collection, expr, visit_fn=visit_fn, return_data=return_data
+            visit_collection,
+            expr,
+            visit_fn=visit_fn,
+            return_data=return_data,
         )
+
+    # Visit every expression
+    result = await visit_fn(expr)
+    if return_data:
+        # Only mutate the expression while returning data, otherwise it could be null
+        expr = result
+
+    # Then, visit every child of the expression recursively
 
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)
     typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
 
-    # do not visit mock objects
+    # Then visit every item in the expression if it is a collection
     if isinstance(expr, Mock):
-        return expr if return_data else None
+        # Do not attempt to recurse into mock objects
+        result = expr
 
     elif typ in (list, tuple, set):
-        result = await gather(*[visit_nested(o) for o in expr])
-        return typ(result) if return_data else None
+        items = await gather(*[visit_nested(o) for o in expr])
+        result = typ(items) if return_data else None
 
     elif typ in (dict, OrderedDict):
         assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
         keys, values = zip(*expr.items()) if expr else ([], [])
         keys = await gather(*[visit_nested(k) for k in keys])
         values = await gather(*[visit_nested(v) for v in values])
-        return typ(zip(keys, values)) if return_data else None
+        result = typ(zip(keys, values)) if return_data else None
 
     elif is_dataclass(expr) and not isinstance(expr, type):
         values = await gather(
             *[visit_nested(getattr(expr, f.name)) for f in fields(expr)]
         )
-        result = {field.name: value for field, value in zip(fields(expr), values)}
-        return typ(**result) if return_data else None
+        items = {field.name: value for field, value in zip(fields(expr), values)}
+        result = typ(**items) if return_data else None
 
-    elif (
-        # Recurse into Pydantic models but do _not_ do so for states/datadocs
-        isinstance(expr, pydantic.BaseModel)
-        and not isinstance(expr, prefect.orion.schemas.states.State)
-        and not isinstance(expr, prefect.orion.schemas.data.DataDocument)
-    ):
-        # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
-        # to retrieve the public keys to visit.
+    elif isinstance(expr, pydantic.BaseModel):
         # NOTE: This implementation *does not* traverse private attributes
-        results = await gather(
-            *[visit_nested(getattr(expr, key)) for key in expr.__fields_set__]
+        # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
+        # as well to get all of the relevant attributes
+        model_fields = expr.__fields_set__.union(expr.__fields__)
+        items = await gather(
+            *[visit_nested(getattr(expr, key)) for key in model_fields]
         )
 
         if return_data:
+            # Collect fields with aliases so reconstruction can use the correct field name
+            aliases = {
+                key: value.alias
+                for key, value in expr.__fields__.items()
+                if value.has_alias
+            }
+
             model_instance = typ(
-                **{key: value for key, value in zip(expr.__fields_set__, results)}
+                **{
+                    aliases.get(key) or key: value
+                    for key, value in zip(model_fields, items)
+                }
             )
 
             # Private attributes are not included in `__fields_set__` but we do not want
@@ -304,12 +325,13 @@ async def visit_collection(
                 # Use `object.__setattr__` to avoid errors on immutable models
                 object.__setattr__(model_instance, attr, getattr(expr, attr))
 
-            return model_instance
-        return None
-
+            result = model_instance
+        else:
+            result = None
     else:
-        result = await visit_fn(expr)
-        return result if return_data else None
+        result = result if return_data else None
+
+    return result
 
 
 def remove_nested_keys(keys_to_remove: List[Hashable], obj):

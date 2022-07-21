@@ -28,6 +28,7 @@ Whenever you run a flow, Prefect automatically logs events for flow runs and tas
 
 For example, say you created a simple flow in a file `flow.py`. If you create a local flow run with `python flow.py`, you'll see an example of the log messages created automatically by Prefect:
 
+<div class='terminal'>
 ```bash
 $ python flow.py
 16:45:44.534 | INFO    | prefect.engine - Created flow run 'gray-dingo' for flow 
@@ -41,6 +42,7 @@ Completed(None)
 16:45:44.672 | INFO    | Flow run 'gray-dingo' - Finished in state 
 Completed('All states completed.')
 ```
+</div>
 
 You can see logs for the flow run in the Orion UI by navigating to the flow run and selecting the **Logs** tab.
 
@@ -87,9 +89,11 @@ def logger_flow():
 
 Prefect automatically uses the flow run logger based on the flow context. If you run the above code, Prefect captures the following as a log event.
 
+<div class='terminal'>
 ```bash
 15:35:17.304 | INFO    | Flow run 'mottled-marten' - INFO level log message.
 ```
+</div>
 
 The default flow run log formatter uses the flow run name for log messages.
 
@@ -112,9 +116,11 @@ def logger_flow():
 
 Prefect automatically uses the task run logger based on the task context. The default task run log formatter uses the task run name for log messages. 
 
+<div class='terminal'>
 ```bash
 15:33:47.179 | INFO   | Task run 'logger_task-80a1ffd1-0' - INFO level log message from a task.
 ```
+</div>
 
 The underlying log model for task runs captures the task name, task run ID, and parent flow run ID, which are persisted to the database for reporting and may also be used in custom message formatting.
 
@@ -146,16 +152,20 @@ The task run logger has the following:
 
 You can specify custom formatting by setting an environment variable or by modifying the formatter in a `logging.yml` file as described earlier. For example, to change the formatting for the flow runs formatter:
 
+<div class='terminal'>
 ```bash
 PREFECT_LOGGING_FORMATTERS_FLOW_RUNS_FORMAT="%(asctime)s.%(msecs)03d | %(levelname)-7s | %(flow_run_id)s - %(message)s"
 ```
+</div>
 
 The resulting messages, using the flow run ID instead of name, would look like this:
 
+<div class='terminal'>
 ```bash
 10:40:01.211 | INFO    | e43a5a80-417a-41c4-a39e-2ef7421ee1fc - Created task run 
 'othertask-1c085beb-3' for task 'othertask'
 ```
+</div>
 
 ## Log database schema
 

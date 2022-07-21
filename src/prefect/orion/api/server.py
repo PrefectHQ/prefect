@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
 
 import prefect
 import prefect.orion.api as api
@@ -68,12 +69,10 @@ class SPAStaticFiles(StaticFiles):
     """
 
     async def get_response(self, path: str, scope):
-        response = await super().get_response(path, scope)
-
-        if response.status_code == status.HTTP_404_NOT_FOUND:
-            response = await super().get_response("./index.html", scope)
-
-        return response
+        try:
+            return await super().get_response(path, scope)
+        except HTTPException:
+            return await super().get_response("./index.html", scope)
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -222,7 +221,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     ):
         ui_app.mount(
             "/",
-            SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
+            SPAStaticFiles(directory=prefect.__ui_static_path__),
             name="ui_root",
         )
 
@@ -266,11 +265,12 @@ def create_app(
 
     async def add_block_types():
         """Add all registered blocks to the database"""
-        from prefect.blocks.core import BLOCK_REGISTRY
+        from prefect.blocks.core import Block
         from prefect.orion.database.dependencies import provide_database_interface
         from prefect.orion.models.block_schemas import create_block_schema
         from prefect.orion.models.block_types import create_block_type
         from prefect.orion.schemas.actions import BlockTypeCreate
+        from prefect.utilities.dispatch import get_registry_for_type
 
         db = provide_database_interface()
 
@@ -278,7 +278,7 @@ def create_app(
 
         session = await db.session()
         async with session:
-            for block_class in BLOCK_REGISTRY.values():
+            for block_class in get_registry_for_type(Block).values():
                 # each block schema gets its own transaction
                 async with session.begin():
                     try:

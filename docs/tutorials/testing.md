@@ -28,7 +28,7 @@ def my_favorite_flow():
 def test_my_favorite_flow():
   with prefect_test_harness():
       # run the flow against a temporary testing database
-      assert my_favorite_function().result() == 42
+      assert my_favorite_function() == 42 
 ```
 
 For more extensive testing, you can leverage `prefect_test_harness` as a fixture in your unit testing framework. For example, when using `pytest`:
@@ -53,25 +53,7 @@ def test_my_favorite_flow():
 
 ## Unit testing tasks
 
-To test an individual task, you can create a flow inside of your test:
-
-```python
-from prefect import flow, task
-
-@task
-def my_favorite_task():
-    return 42
-
-def test_my_favorite_task():
-    @flow
-    def my_flow():
-        return my_favorite_task()
-    
-    task_state = my_flow().result()
-    assert task_state.result() == 42
-```
-
-Alternatively, if your task doesn't use any Prefect behavior, you can test the underlying function using `.fn()`:
+To test an individual task, you can access the original function using `.fn`:
 
 ```python
 from my_tasks import my_favorite_task

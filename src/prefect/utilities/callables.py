@@ -3,9 +3,11 @@ Utilities for working with Python callables.
 """
 import inspect
 from functools import partial
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 import cloudpickle
+import pydantic
+from typing_extensions import Literal
 
 
 def get_call_parameters(
@@ -17,7 +19,10 @@ def get_call_parameters(
 
     Will throw an exception if the arguments/kwargs are not valid for the function
     """
-    bound_signature = inspect.signature(fn).bind(*call_args, **call_kwargs)
+    try:
+        bound_signature = inspect.signature(fn).bind(*call_args, **call_kwargs)
+    except TypeError as exc:
+        raise TypeError(f"Error binding parameters for {fn.__name__}: {str(exc)}")
     bound_signature.apply_defaults()
     # We cast from `OrderedDict` to `dict` because Dask will not convert futures in an
     # ordered dictionary to values during execution; this is the default behavior in
@@ -74,3 +79,68 @@ def _run_serialized_call(payload) -> bytes:
     fn, args, kwargs = cloudpickle.loads(payload)
     retval = fn(*args, **kwargs)
     return cloudpickle.dumps(retval)
+
+
+class ParameterSchema(pydantic.BaseModel):
+    """Simple data model corresponding to an OpenAPI `Schema`."""
+
+    title: Literal["Parameters"] = "Parameters"
+    type: Literal["object"] = "object"
+    properties: Dict[str, Any] = pydantic.Field(default_factory=dict)
+    required: List[str] = None
+    definitions: Dict[str, Any] = None
+
+    def dict(self, *args, **kwargs):
+        """Exclude `None` fields by default to comply with
+        the OpenAPI spec.
+        """
+        kwargs.setdefault("exclude_none", True)
+        return super().dict(*args, **kwargs)
+
+
+def parameter_schema(fn: Callable) -> ParameterSchema:
+    """Given a function, generates an OpenAPI-compatible description
+    of the function's arguments, including:
+        - name
+        - typing information
+        - whether it is required
+        - a default value
+        - additional constraints (like possible enum values)
+
+    Args:
+        fn (function): The function whose arguments will be serialized
+
+    Returns:
+        dict: the argument schema
+    """
+    signature = inspect.signature(fn)
+    model_fields = {}
+    aliases = {}
+    for param in signature.parameters.values():
+        # Pydantic model creation will fail if names collide with the BaseModel type
+        if hasattr(pydantic.BaseModel, param.name):
+            name = param.name + "__"
+            aliases[name] = param.name
+        else:
+            name = param.name
+
+        model_fields[name] = (
+            Any if param.annotation is inspect._empty else param.annotation,
+            pydantic.Field(
+                default=... if param.default is param.empty else param.default,
+                title=param.name,
+                description=None,
+            ),
+        )
+
+    # Generate the pydantic model and use it to build a schema
+    schema = pydantic.create_model("Parameters", **model_fields).schema()
+
+    # Restore aliased names
+    if "properties" in schema:
+        for alias, name in aliases.items():
+            schema["properties"][name] = schema["properties"].pop(alias)
+    if "required" in schema:
+        schema["required"] = [aliases.get(name) or name for name in schema["required"]]
+
+    return ParameterSchema(**schema)
