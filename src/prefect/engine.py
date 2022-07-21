@@ -843,7 +843,7 @@ async def submit_task_run(
     logger = get_run_logger(flow_run_context)
 
     if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
-        logger.info(f"Executing {task_run.name!r}...")
+        logger.info(f"Executing {task_run.name!r} immediately...")
 
     future = await task_runner.submit(
         task_run=task_run,
