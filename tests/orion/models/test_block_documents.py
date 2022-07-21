@@ -1,3 +1,4 @@
+import string
 from uuid import uuid4
 
 import pytest
@@ -7,7 +8,16 @@ from pydantic import SecretBytes, SecretStr
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockDocumentCreate
-from prefect.orion.utilities.schemas import OBFUSCATED_SECRET
+from prefect.orion.utilities.names import obfuscate_string
+
+
+def long_string(s: str):
+    return string.ascii_letters + s
+
+
+X = long_string("x")
+Y = long_string("y")
+Z = long_string("z")
 
 
 @pytest.fixture
@@ -916,127 +926,6 @@ class TestDeleteBlockDocument:
         )
 
 
-class TestDefaultStorage:
-    @pytest.fixture
-    async def storage_block_schema(self, session, block_type_x):
-        storage_block_schema = await models.block_schemas.create_block_schema(
-            session=session,
-            block_schema=schemas.actions.BlockSchemaCreate(
-                block_type_id=block_type_x.id, fields={}, capabilities=["storage"]
-            ),
-        )
-        await session.commit()
-        return storage_block_schema
-
-    @pytest.fixture
-    async def storage_block(self, session, storage_block_schema):
-        block = await models.block_documents.create_block_document(
-            session=session,
-            block_document=schemas.actions.BlockDocumentCreate(
-                name="storage",
-                data=dict(),
-                block_schema_id=storage_block_schema.id,
-                block_type_id=storage_block_schema.block_type_id,
-            ),
-        )
-        await session.commit()
-        return block
-
-    async def test_set_default_storage_block_document(self, session, storage_block):
-        assert not await models.block_documents.get_default_storage_block_document(
-            session=session
-        )
-
-        await models.block_documents.set_default_storage_block_document(
-            session=session, block_document_id=storage_block.id
-        )
-
-        result = await models.block_documents.get_default_storage_block_document(
-            session=session
-        )
-        assert result.id == storage_block.id
-
-    async def test_set_default_fails_if_not_storage_block(self, session, block_schemas):
-        non_storage_block = await models.block_documents.create_block_document(
-            session=session,
-            block_document=schemas.actions.BlockDocumentCreate(
-                name="non-storage",
-                data=dict(),
-                block_schema_id=block_schemas[0].id,
-                block_type_id=block_schemas[0].block_type_id,
-            ),
-        )
-        await session.commit()
-
-        with pytest.raises(
-            ValueError, match="Block schema must have the 'storage' capability"
-        ):
-            await models.block_documents.set_default_storage_block_document(
-                session=session, block_document_id=non_storage_block.id
-            )
-        assert not await models.block_documents.get_default_storage_block_document(
-            session=session
-        )
-
-    async def test_clear_default_storage_block_document(self, session, storage_block):
-
-        await models.block_documents.set_default_storage_block_document(
-            session=session, block_document_id=storage_block.id
-        )
-        result = await models.block_documents.get_default_storage_block_document(
-            session=session
-        )
-        assert result.id == storage_block.id
-
-        await models.block_documents.clear_default_storage_block_document(
-            session=session
-        )
-
-        assert not await models.block_documents.get_default_storage_block_document(
-            session=session
-        )
-
-    async def test_set_default_storage_block_clears_old_block(
-        self, session, storage_block, storage_block_schema, db
-    ):
-        storage_block_2 = await models.block_documents.create_block_document(
-            session=session,
-            block_document=schemas.actions.BlockDocumentCreate(
-                name="storage-2",
-                data=dict(),
-                block_schema_id=storage_block_schema.id,
-                block_type_id=storage_block_schema.block_type_id,
-            ),
-        )
-        await session.commit()
-
-        await models.block_documents.set_default_storage_block_document(
-            session=session, block_document_id=storage_block.id
-        )
-
-        result = await session.execute(
-            sa.select(db.BlockDocument).where(
-                db.BlockDocument.is_default_storage_block_document.is_(True)
-            )
-        )
-        default_blocks = result.scalars().unique().all()
-        assert len(default_blocks) == 1
-        assert default_blocks[0].id == storage_block.id
-
-        await models.block_documents.set_default_storage_block_document(
-            session=session, block_document_id=storage_block_2.id
-        )
-
-        result = await session.execute(
-            sa.select(db.BlockDocument).where(
-                db.BlockDocument.is_default_storage_block_document.is_(True)
-            )
-        )
-        default_blocks = result.scalars().unique().all()
-        assert len(default_blocks) == 1
-        assert default_blocks[0].id == storage_block_2.id
-
-
 class TestUpdateBlockDocument:
     async def test_update_block_document_name(
         self,
@@ -1586,7 +1475,7 @@ class TestSecretBlockDocuments:
             session=session,
             block_document=schemas.actions.BlockDocumentCreate(
                 name="secret block",
-                data=dict(x="x", y="y", z="z"),
+                data=dict(x=X, y=Y, z=Z),
                 block_type_id=secret_block_type.id,
                 block_schema_id=secret_block_schema.id,
             ),
@@ -1602,15 +1491,15 @@ class TestSecretBlockDocuments:
             session=session,
             block_document=schemas.actions.BlockDocumentCreate(
                 name="secret block",
-                data=dict(x="x", y="y", z="z"),
+                data=dict(x=X, y=Y, z=Z),
                 block_type_id=secret_block_type.id,
                 block_schema_id=secret_block_schema.id,
             ),
         )
 
-        assert block.data["x"] == OBFUSCATED_SECRET
-        assert block.data["y"] == OBFUSCATED_SECRET
-        assert block.data["z"] == "z"
+        assert block.data["x"] == obfuscate_string(X)
+        assert block.data["y"] == obfuscate_string(Y)
+        assert block.data["z"] == Z
 
     async def test_read_secret_block_document_by_id_obfuscates_results(
         self, session, secret_block_document
@@ -1620,9 +1509,9 @@ class TestSecretBlockDocuments:
             session=session, block_document_id=secret_block_document.id
         )
 
-        assert block.data["x"] == OBFUSCATED_SECRET
-        assert block.data["y"] == OBFUSCATED_SECRET
-        assert block.data["z"] == "z"
+        assert block.data["x"] == obfuscate_string(X)
+        assert block.data["y"] == obfuscate_string(Y)
+        assert block.data["z"] == Z
 
     async def test_read_secret_block_document_by_id_with_secrets(
         self, session, secret_block_document
@@ -1634,9 +1523,9 @@ class TestSecretBlockDocuments:
             include_secrets=True,
         )
 
-        assert block.data["x"] == "x"
-        assert block.data["y"] == "y"
-        assert block.data["z"] == "z"
+        assert block.data["x"] == X
+        assert block.data["y"] == Y
+        assert block.data["z"] == Z
 
     async def test_read_secret_block_document_by_name_obfuscates_results(
         self, session, secret_block_document
@@ -1648,9 +1537,9 @@ class TestSecretBlockDocuments:
             block_type_name=secret_block_document.block_type.name,
         )
 
-        assert block.data["x"] == OBFUSCATED_SECRET
-        assert block.data["y"] == OBFUSCATED_SECRET
-        assert block.data["z"] == "z"
+        assert block.data["x"] == obfuscate_string(X)
+        assert block.data["y"] == obfuscate_string(Y)
+        assert block.data["z"] == Z
 
     async def test_read_secret_block_document_by_name_with_secrets(
         self, session, secret_block_document
@@ -1663,9 +1552,9 @@ class TestSecretBlockDocuments:
             include_secrets=True,
         )
 
-        assert block.data["x"] == "x"
-        assert block.data["y"] == "y"
-        assert block.data["z"] == "z"
+        assert block.data["x"] == X
+        assert block.data["y"] == Y
+        assert block.data["z"] == Z
 
     async def test_read_secret_block_documents_obfuscates_results(
         self, session, secret_block_document
@@ -1678,9 +1567,9 @@ class TestSecretBlockDocuments:
             ),
         )
         assert len(blocks) == 1
-        assert blocks[0].data["x"] == OBFUSCATED_SECRET
-        assert blocks[0].data["y"] == OBFUSCATED_SECRET
-        assert blocks[0].data["z"] == "z"
+        assert blocks[0].data["x"] == obfuscate_string(X)
+        assert blocks[0].data["y"] == obfuscate_string(Y)
+        assert blocks[0].data["z"] == Z
 
     async def test_read_secret_block_documents_with_secrets(
         self, session, secret_block_document
@@ -1694,9 +1583,9 @@ class TestSecretBlockDocuments:
             include_secrets=True,
         )
         assert len(blocks) == 1
-        assert blocks[0].data["x"] == "x"
-        assert blocks[0].data["y"] == "y"
-        assert blocks[0].data["z"] == "z"
+        assert blocks[0].data["x"] == X
+        assert blocks[0].data["y"] == Y
+        assert blocks[0].data["z"] == Z
 
     async def test_updating_secret_block_document_with_obfuscated_result_is_ignored(
         self, session, secret_block_document
@@ -1708,14 +1597,14 @@ class TestSecretBlockDocuments:
             include_secrets=False,
         )
 
-        assert block.data["x"] == OBFUSCATED_SECRET
+        assert block.data["x"] == obfuscate_string(X)
 
         # set X to the secret value
         await models.block_documents.update_block_document(
             session=session,
             block_document_id=secret_block_document.id,
             block_document=schemas.actions.BlockDocumentUpdate(
-                data=dict(x=OBFUSCATED_SECRET)
+                data=dict(x=obfuscate_string(X))
             ),
         )
 
@@ -1726,4 +1615,4 @@ class TestSecretBlockDocuments:
         )
 
         # x was NOT overwritten
-        assert block2.data["x"] != OBFUSCATED_SECRET
+        assert block2.data["x"] != obfuscate_string(X)

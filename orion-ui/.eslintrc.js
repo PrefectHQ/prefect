@@ -15,12 +15,6 @@ module.exports = {
       }
     }
   },
-  rules: {
-    "@typescript-eslint/no-explicit-any": "off",
-    "vue/multi-word-component-names": "off",
-    "vue/no-static-inline-styles": "off",
-    "@typescript-eslint/no-unnecessary-condition": "off"
-  },
   globals: {
     defineProps: 'readonly',
     defineEmits: 'readonly'

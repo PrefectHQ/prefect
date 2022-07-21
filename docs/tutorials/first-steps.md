@@ -209,8 +209,9 @@ def call_api(url):
 
 @task
 def parse_fact(response):
-    print(response["fact"])
-    return 
+    fact = response["fact"]
+    print(fact)
+    return fact
 
 @flow
 def api_flow(url):
@@ -229,10 +230,10 @@ This flow should print an interesting fact about cats:
 15:12:40.912 | INFO    | Flow run 'funny-guillemot' - Created task run 'call_api-190c7484-0' for task 'call_api'
 15:12:40.968 | INFO    | Flow run 'funny-guillemot' - Created task run 'parse_fact-b0346046-0' for task 'parse_fact'
 200
-15:12:41.402 | INFO    | Task run 'call_api-190c7484-0' - Finished in state Completed(None)
+15:12:41.402 | INFO    | Task run 'call_api-190c7484-0' - Finished in state Completed()
 Abraham Lincoln loved cats. He had four of them while he lived in the White House.
-15:12:41.676 | INFO    | Task run 'parse_fact-b0346046-0' - Finished in state Completed(None)
-15:12:42.057 | INFO    | Flow run 'funny-guillemot' - Finished in state Completed('All states completed.')
+15:12:41.676 | INFO    | Task run 'parse_fact-b0346046-0' - Finished in state Completed()
+15:12:42.057 | INFO    | Flow run 'funny-guillemot' - Finished in state Completed()
 ```
 </div>
 

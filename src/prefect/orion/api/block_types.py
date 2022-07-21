@@ -197,6 +197,7 @@ async def install_system_block_types(
         prefect.blocks.system.String,
         prefect.blocks.system.DateTime,
         prefect.blocks.system.EnvironmentVariable,
+        prefect.blocks.system.Secret,
     ]:
         block_type = block._to_block_type()
         block_type.is_protected = True

@@ -1,3 +1,5 @@
+# isort: skip_file
+
 # Setup version and path constants
 
 from . import _version
@@ -29,8 +31,10 @@ import prefect.serializers
 import prefect.packaging
 import prefect.blocks.kubernetes
 import prefect.blocks.notifications
-import prefect.blocks.storage
 import prefect.blocks.system
+import prefect.infrastructure.process
+import prefect.infrastructure.kubernetes
+import prefect.infrastructure.docker
 
 # Initialize the process-wide profile and registry at import time
 import prefect.context

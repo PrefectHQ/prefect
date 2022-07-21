@@ -1,8 +1,10 @@
 ---
-description: Learn about the Prefect 2.0 and Prefect Cloud UI and dashboard.
+description: View your flow runs in the Prefect 2.0 and Prefect Cloud UI.
 tags:
     - Orion
     - UI
+    - flow runs
+    - observability
     - dashboard
     - Prefect Cloud
 ---

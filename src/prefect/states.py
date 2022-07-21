@@ -32,15 +32,15 @@ def exception_to_crashed_state(exc: BaseException) -> State:
     elif isinstance(exc, SystemExit):
         state_message = "Execution was aborted by Python system exit call."
 
-    elif isinstance(exc, httpx.TimeoutException):
+    elif isinstance(exc, (httpx.TimeoutException, httpx.ConnectError)):
         try:
             request: httpx.Request = exc.request
         except RuntimeError:
             # The request property is not set
-            state_message = "Request timed out while attempting to contact the server."
+            state_message = "Request failed while attempting to contact the server."
         else:
             # TODO: We can check if this is actually our API url
-            state_message = f"Request to {request.url} timed out."
+            state_message = f"Request to {request.url} failed."
 
     else:
         state_message = "Execution was interrupted by an unexpected exception."
