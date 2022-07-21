@@ -72,8 +72,6 @@ class DockerContainer(Infrastructure):
     necessary and the API is connectable while bound to localhost.
     """
 
-    type: Literal["docker-container"] = "docker-container"
-
     image: str = Field(default_factory=get_prefect_image_name)
     image_pull_policy: ImagePullPolicy = None
     networks: List[str] = Field(default_factory=list)
@@ -81,6 +79,9 @@ class DockerContainer(Infrastructure):
     auto_remove: bool = False
     volumes: List[str] = Field(default_factory=list)
     stream_output: bool = True
+
+    _block_type_name = "Docker Container"
+    type: Literal["docker-container"] = "docker-container"
 
     @validator("labels")
     def convert_labels_to_docker_format(cls, labels: Dict[str, str]):

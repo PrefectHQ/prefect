@@ -67,8 +67,6 @@ class KubernetesJob(Infrastructure):
         stream_output: If set, stream output from the job to local standard output.
     """
 
-    type: Literal["kubernetes-job"] = "kubernetes-job"
-
     # shortcuts for the most common user-serviceable settings
     image: str = Field(default_factory=get_prefect_image_name)
     namespace: str = "default"
@@ -91,6 +89,9 @@ class KubernetesJob(Infrastructure):
 
     # internal-use only right now
     _api_dns_name: Optional[str] = None  # Replaces 'localhost' in API URL
+
+    type: Literal["kubernetes-job"] = "kubernetes-job"
+    _block_type_name = "Kubernetes Job"
 
     @validator("job")
     def ensure_job_includes_all_required_components(cls, value: KubernetesManifest):
