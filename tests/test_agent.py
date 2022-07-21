@@ -8,6 +8,7 @@ from prefect import flow
 from prefect.agent import OrionAgent
 from prefect.exceptions import Abort
 from prefect.flow_runners import FlowRunner, SubprocessFlowRunner, UniversalFlowRunner
+from prefect.infrastructure import Process
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
@@ -164,305 +165,577 @@ async def test_agent_internal_submit_run_called(
     agent.submit_run.assert_awaited_once_with(flow_run)
 
 
-async def test_agent_submits_using_the_retrieved_flow_runner(
-    orion_client, deployment, work_queue_id
-):
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id,
-        state=Scheduled(scheduled_time=pendulum.now("utc")),
-        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
-    )
-
-    def mark_as_started(_, task_status):
-        task_status.started()
-
-    submit_flow_run = AsyncMock(side_effect=mark_as_started)
-
-    async with OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10) as agent:
-        agent.get_flow_runner = MagicMock()
-        agent.get_flow_runner().submit_flow_run = submit_flow_run
-        await agent.get_and_submit_flow_runs()
-
-    agent.get_flow_runner().submit_flow_run.assert_awaited_once_with(
-        flow_run, task_status=ANY
-    )
-
-
-async def test_agent_submit_run_sets_pending_state(
-    orion_client, deployment, work_queue_id
-):
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id,
-        state=Scheduled(scheduled_time=pendulum.now("utc")),
-        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
-    )
-
-    def mark_as_started(_, task_status):
-        task_status.started()
-
-    async with OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10) as agent:
-        # Create a mock flow runner
-        agent.get_flow_runner = MagicMock()
-        agent.get_flow_runner().submit_flow_run = AsyncMock(side_effect=mark_as_started)
-        agent.submitting_flow_run_ids.add(flow_run.id)
-
-        await agent.submit_run(flow_run)
-
-    assert (await orion_client.read_flow_run(flow_run.id)).state.is_pending()
-    agent.get_flow_runner().submit_flow_run.assert_awaited_once()
-
-
-async def test_agent_submit_run_waits_for_scheduled_time_before_submitting(
-    orion_client, deployment, monkeypatch, work_queue_id
-):
-    # TODO: We should abstract this now/sleep pattern into fixtures for resuse
-    #       as there are a few other locations we want to test sleeps without
-    #       actually sleeping
-    now = pendulum.now("utc")
-
-    def get_now(*args):
-        return now
-
-    def move_forward_in_time(seconds):
-        nonlocal now
-        now = now.add(seconds=seconds)
-
-    sleep = AsyncMock(side_effect=move_forward_in_time)
-    monkeypatch.setattr("pendulum.now", get_now)
-    monkeypatch.setattr("prefect.client.sleep", sleep)
-
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id,
-        state=Scheduled(scheduled_time=now.add(seconds=10)),
-        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
-    )
-
-    def mark_as_started(_, task_status):
-        task_status.started()
-
-    async with OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10) as agent:
-        # Create a mock flow runner
-        agent.get_flow_runner = MagicMock()
-        agent.get_flow_runner().submit_flow_run = AsyncMock(side_effect=mark_as_started)
-        agent.submitting_flow_run_ids.add(flow_run.id)
-
-        await agent.submit_run(flow_run)
-
-    sleep.assert_awaited_once_with(10)
-    state = (await orion_client.read_flow_run(flow_run.id)).state
-    assert state.timestamp >= flow_run.state.state_details.scheduled_time
-    assert state.is_pending()
-    agent.get_flow_runner().submit_flow_run.assert_called_once()
-
-
-@pytest.mark.parametrize("return_state", [Scheduled(), Running()])
-async def test_agent_submit_run_aborts_if_server_returns_non_pending_state(
-    orion_client, deployment, return_state, work_queue_id
-):
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id,
-        state=Scheduled(scheduled_time=pendulum.now("utc")),
-        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
-    )
-
-    def mark_as_started(_, task_status):
-        task_status.started()
-
-    async with OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10) as agent:
-        # Create a mock flow runner
-        agent.get_flow_runner = MagicMock()
-        agent.get_flow_runner.submit_flow_run = AsyncMock(side_effect=mark_as_started)
-        agent.submitting_flow_run_ids.add(flow_run.id)
-        agent.logger = MagicMock()
-
-        agent.client.propose_state = AsyncMock(return_value=return_state)
-        await agent.submit_run(flow_run)
-
-    agent.get_flow_runner().submit_flow_run.assert_not_called()
-    assert flow_run.id not in agent.submitting_flow_run_ids
-    agent.logger.info.assert_called_with(
-        f"Aborted submission of flow run '{flow_run.id}': "
-        f"Server returned a non-pending state '{return_state.type.value}'"
-    )
-
-
-async def test_agent_submit_run_aborts_if_flow_run_is_missing(
-    orion_client, deployment, work_queue_id
-):
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id,
-        state=Scheduled(scheduled_time=pendulum.now("utc")),
-        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
-    )
-
-    # TODO: The client cannot delete flow runs yet, change the id instead
-    flow_run.id = uuid4()
-
-    def mark_as_started(_, task_status):
-        task_status.started()
-
-    async with OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10) as agent:
-        # Create a mock flow runner
-        agent.get_flow_runner = MagicMock()
-        agent.get_flow_runner.submit_flow_run = AsyncMock(side_effect=mark_as_started)
-        agent.submitting_flow_run_ids.add(flow_run.id)
-        agent.logger = MagicMock()
-
-        await agent.submit_run(flow_run)
-
-    agent.get_flow_runner().submit_flow_run.assert_not_called()
-    assert flow_run.id not in agent.submitting_flow_run_ids
-    agent.logger.error.assert_called_with(
-        f"Failed to update state of flow run '{flow_run.id}'",
-        exc_info=True,
-    )
-
-
-async def test_agent_submit_run_aborts_without_raising_if_server_raises_abort(
-    orion_client, deployment, work_queue_id
-):
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id,
-        state=Scheduled(scheduled_time=pendulum.now("utc")),
-        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
-    )
-
-    def mark_as_started(_, task_status):
-        task_status.started()
-
-    async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
-        # Create a mock flow runner
-        agent.get_flow_runner = MagicMock()
-        agent.get_flow_runner.submit_flow_run = AsyncMock(side_effect=mark_as_started)
-        agent.submitting_flow_run_ids.add(flow_run.id)
-        agent.logger = MagicMock()
-
-        agent.client.propose_state = AsyncMock(side_effect=Abort("message"))
-        await agent.submit_run(flow_run)
-
-    agent.get_flow_runner().submit_flow_run.assert_not_called()
-    assert flow_run.id not in agent.submitting_flow_run_ids
-    agent.logger.info.assert_called_with(
-        f"Aborted submission of flow run '{flow_run.id}'. "
-        "Server sent an abort signal: message"
-    )
-
-
-async def test_agent_fails_flow_if_flow_runner_submission_fails(
-    orion_client, deployment, work_queue_id
-):
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id,
-        state=Scheduled(scheduled_time=pendulum.now("utc")),
-        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
-    )
-
-    submit_flow_run = AsyncMock(side_effect=ValueError("Hello!"))
-
-    async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
-        agent.get_flow_runner = MagicMock()
-        agent.get_flow_runner().submit_flow_run = submit_flow_run
-        agent.logger = MagicMock()
-        await agent.get_and_submit_flow_runs()
-
-    agent.get_flow_runner().submit_flow_run.assert_awaited_once_with(
-        flow_run, task_status=ANY
-    )
-    agent.logger.error.assert_called_once_with(
-        f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
-    )
-
-    state = (await orion_client.read_flow_run(flow_run.id)).state
-    assert state.is_failed()
-    with pytest.raises(ValueError, match="Hello!"):
-        state.result()
-
-
-async def test_agent_fails_flow_if_flow_runner_does_not_mark_as_started(
-    orion_client, deployment, work_queue_id
-):
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id,
-        state=Scheduled(scheduled_time=pendulum.now("utc")),
-        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
-    )
-
-    # This excludes calling `task_status.started()` which will throw an anyio error
-    # when submission finishes without calling `started()`. The agent will treat
-    # submission the same as if it had thrown an error.
-    submit_flow_run = AsyncMock()
-
-    async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
-        agent.get_flow_runner = MagicMock()
-        agent.get_flow_runner().submit_flow_run = submit_flow_run
-        agent.logger = MagicMock()
-        await agent.get_and_submit_flow_runs()
-
-    agent.get_flow_runner().submit_flow_run.assert_awaited_once_with(
-        flow_run, task_status=ANY
-    )
-    agent.logger.error.assert_called_once_with(
-        f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
-    )
-
-    state = (await orion_client.read_flow_run(flow_run.id)).state
-    assert state.is_failed()
-    with pytest.raises(
-        RuntimeError, match="Child exited without calling task_status.started"
+class TestFlowRunnerIntegration:
+    async def test_agent_submits_using_the_retrieved_flow_runner(
+        self, orion_client, deployment, work_queue_id
     ):
-        state.result()
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+        )
+
+        def mark_as_started(_, task_status):
+            task_status.started()
+
+        submit_flow_run = AsyncMock(side_effect=mark_as_started)
+
+        async with OrionAgent(
+            work_queue_id=work_queue_id, prefetch_seconds=10
+        ) as agent:
+            agent.get_flow_runner = MagicMock()
+            agent.get_flow_runner().submit_flow_run = submit_flow_run
+            await agent.get_and_submit_flow_runs()
+
+        agent.get_flow_runner().submit_flow_run.assert_awaited_once_with(
+            flow_run, task_status=ANY
+        )
+
+    async def test_agent_submit_run_sets_pending_state(
+        self, orion_client, deployment, work_queue_id
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+        )
+
+        def mark_as_started(_, task_status):
+            task_status.started()
+
+        async with OrionAgent(
+            work_queue_id=work_queue_id, prefetch_seconds=10
+        ) as agent:
+            # Create a mock flow runner
+            agent.get_flow_runner = MagicMock()
+            agent.get_flow_runner().submit_flow_run = AsyncMock(
+                side_effect=mark_as_started
+            )
+            agent.submitting_flow_run_ids.add(flow_run.id)
+
+            await agent.submit_run(flow_run)
+
+        assert (await orion_client.read_flow_run(flow_run.id)).state.is_pending()
+        agent.get_flow_runner().submit_flow_run.assert_awaited_once()
+
+    async def test_agent_submit_run_waits_for_scheduled_time_before_submitting(
+        self, orion_client, deployment, monkeypatch, work_queue_id
+    ):
+        # TODO: We should abstract this now/sleep pattern into fixtures for resuse
+        #       as there are a few other locations we want to test sleeps without
+        #       actually sleeping
+        now = pendulum.now("utc")
+
+        def get_now(*args):
+            return now
+
+        def move_forward_in_time(seconds):
+            nonlocal now
+            now = now.add(seconds=seconds)
+
+        sleep = AsyncMock(side_effect=move_forward_in_time)
+        monkeypatch.setattr("pendulum.now", get_now)
+        monkeypatch.setattr("prefect.client.sleep", sleep)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=now.add(seconds=10)),
+            flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+        )
+
+        def mark_as_started(_, task_status):
+            task_status.started()
+
+        async with OrionAgent(
+            work_queue_id=work_queue_id, prefetch_seconds=10
+        ) as agent:
+            # Create a mock flow runner
+            agent.get_flow_runner = MagicMock()
+            agent.get_flow_runner().submit_flow_run = AsyncMock(
+                side_effect=mark_as_started
+            )
+            agent.submitting_flow_run_ids.add(flow_run.id)
+
+            await agent.submit_run(flow_run)
+
+        sleep.assert_awaited_once_with(10)
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        assert state.timestamp >= flow_run.state.state_details.scheduled_time
+        assert state.is_pending()
+        agent.get_flow_runner().submit_flow_run.assert_called_once()
+
+    @pytest.mark.parametrize("return_state", [Scheduled(), Running()])
+    async def test_agent_submit_run_aborts_if_server_returns_non_pending_state(
+        self, orion_client, deployment, return_state, work_queue_id
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+        )
+
+        def mark_as_started(_, task_status):
+            task_status.started()
+
+        async with OrionAgent(
+            work_queue_id=work_queue_id, prefetch_seconds=10
+        ) as agent:
+            # Create a mock flow runner
+            agent.get_flow_runner = MagicMock()
+            agent.get_flow_runner.submit_flow_run = AsyncMock(
+                side_effect=mark_as_started
+            )
+            agent.submitting_flow_run_ids.add(flow_run.id)
+            agent.logger = MagicMock()
+
+            agent.client.propose_state = AsyncMock(return_value=return_state)
+            await agent.submit_run(flow_run)
+
+        agent.get_flow_runner().submit_flow_run.assert_not_called()
+        assert flow_run.id not in agent.submitting_flow_run_ids
+        agent.logger.info.assert_called_with(
+            f"Aborted submission of flow run '{flow_run.id}': "
+            f"Server returned a non-pending state '{return_state.type.value}'"
+        )
+
+    async def test_agent_submit_run_aborts_if_flow_run_is_missing(
+        self, orion_client, deployment, work_queue_id
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+        )
+
+        # TODO: The client cannot delete flow runs yet, change the id instead
+        flow_run.id = uuid4()
+
+        def mark_as_started(_, task_status):
+            task_status.started()
+
+        async with OrionAgent(
+            work_queue_id=work_queue_id, prefetch_seconds=10
+        ) as agent:
+            # Create a mock flow runner
+            agent.get_flow_runner = MagicMock()
+            agent.get_flow_runner.submit_flow_run = AsyncMock(
+                side_effect=mark_as_started
+            )
+            agent.submitting_flow_run_ids.add(flow_run.id)
+            agent.logger = MagicMock()
+
+            await agent.submit_run(flow_run)
+
+        agent.get_flow_runner().submit_flow_run.assert_not_called()
+        assert flow_run.id not in agent.submitting_flow_run_ids
+        agent.logger.error.assert_called_with(
+            f"Failed to update state of flow run '{flow_run.id}'",
+            exc_info=True,
+        )
+
+    async def test_agent_submit_run_aborts_without_raising_if_server_raises_abort(
+        self, orion_client, deployment, work_queue_id
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+        )
+
+        def mark_as_started(_, task_status):
+            task_status.started()
+
+        async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
+            # Create a mock flow runner
+            agent.get_flow_runner = MagicMock()
+            agent.get_flow_runner.submit_flow_run = AsyncMock(
+                side_effect=mark_as_started
+            )
+            agent.submitting_flow_run_ids.add(flow_run.id)
+            agent.logger = MagicMock()
+
+            agent.client.propose_state = AsyncMock(side_effect=Abort("message"))
+            await agent.submit_run(flow_run)
+
+        agent.get_flow_runner().submit_flow_run.assert_not_called()
+        assert flow_run.id not in agent.submitting_flow_run_ids
+        agent.logger.info.assert_called_with(
+            f"Aborted submission of flow run '{flow_run.id}'. "
+            "Server sent an abort signal: message"
+        )
+
+    async def test_agent_fails_flow_if_flow_runner_submission_fails(
+        self, orion_client, deployment, work_queue_id
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+        )
+
+        submit_flow_run = AsyncMock(side_effect=ValueError("Hello!"))
+
+        async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
+            agent.get_flow_runner = MagicMock()
+            agent.get_flow_runner().submit_flow_run = submit_flow_run
+            agent.logger = MagicMock()
+            await agent.get_and_submit_flow_runs()
+
+        agent.get_flow_runner().submit_flow_run.assert_awaited_once_with(
+            flow_run, task_status=ANY
+        )
+        agent.logger.error.assert_called_once_with(
+            f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
+        )
+
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        assert state.is_failed()
+        result = await orion_client.resolve_datadoc(state.data)
+        with pytest.raises(ValueError, match="Hello!"):
+            raise result
+
+    async def test_agent_fails_flow_if_flow_runner_does_not_mark_as_started(
+        self, orion_client, deployment, work_queue_id
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+        )
+
+        # This excludes calling `task_status.started()` which will throw an anyio error
+        # when submission finishes without calling `started()`. The agent will treat
+        # submission the same as if it had thrown an error.
+        submit_flow_run = AsyncMock()
+
+        async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
+            agent.get_flow_runner = MagicMock()
+            agent.get_flow_runner().submit_flow_run = submit_flow_run
+            agent.logger = MagicMock()
+            await agent.get_and_submit_flow_runs()
+
+        agent.get_flow_runner().submit_flow_run.assert_awaited_once_with(
+            flow_run, task_status=ANY
+        )
+        agent.logger.error.assert_called_once_with(
+            f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
+        )
+
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        assert state.is_failed()
+        result = await orion_client.resolve_datadoc(state.data)
+        with pytest.raises(
+            RuntimeError, match="Child exited without calling task_status.started"
+        ):
+            raise result
+
+    async def test_agent_dispatches_null_flow_runner_to_subprocess_runner(
+        self, orion_client, work_queue_id
+    ):
+        @flow
+        def foo():
+            pass
+
+        flow_id = await orion_client.create_flow(foo)
+        flow_data = DataDocument.encode("cloudpickle", foo)
+
+        deployment_id = await orion_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment",
+            flow_data=flow_data,
+            flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+        )
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+        )
+
+        agent = OrionAgent(work_queue_id, prefetch_seconds=10)
+        assert agent.get_flow_runner(flow_run) == SubprocessFlowRunner(
+            env={"foo": "bar"}
+        )
+
+    async def test_agent_dispatches_universal_flow_run_to_subproccess_runner(
+        self, orion_client, deployment, work_queue_id
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+        )
+
+        agent = OrionAgent(work_queue_id, prefetch_seconds=10)
+        assert agent.get_flow_runner(flow_run) == SubprocessFlowRunner(
+            env={"foo": "bar"}
+        )
+
+    async def test_agent_dispatches_to_given_runner(
+        self, orion_client, deployment, work_queue_id
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            flow_runner=SubprocessFlowRunner(env={"foo": "bar"}),
+        )
+
+        agent = OrionAgent(work_queue_id, prefetch_seconds=10)
+        assert agent.get_flow_runner(flow_run) == SubprocessFlowRunner(
+            env={"foo": "bar"}
+        )
 
 
-async def test_agent_dispatches_null_flow_runner_to_subprocess_runner(
-    orion_client, work_queue_id
-):
-    @flow
-    def foo():
-        pass
+class TestInfrastructureIntegration:
+    @pytest.fixture
+    def mock_submit(self, monkeypatch):
+        def mark_as_started(flow_run, infrastructure, task_status):
+            task_status.started()
 
-    flow_id = await orion_client.create_flow(foo)
-    flow_data = DataDocument.encode("cloudpickle", foo)
+        mock = AsyncMock(side_effect=mark_as_started)
+        monkeypatch.setattr("prefect.agent.submit_flow_run", mock)
 
-    deployment_id = await orion_client.create_deployment(
-        flow_id=flow_id,
-        name="test-deployment",
-        flow_data=flow_data,
-        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
-    )
+        yield mock
 
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment_id,
-        state=Scheduled(scheduled_time=pendulum.now("utc")),
-    )
+    async def test_agent_submits_using_the_retrieved_infrastructure(
+        self, orion_client, deployment, work_queue_id, mock_submit
+    ):
+        infrastructure = Process(env={"foo": "bar"})
+        infrastructure_document_id = await infrastructure._save(is_anonymous=True)
 
-    agent = OrionAgent(work_queue_id, prefetch_seconds=10)
-    assert agent.get_flow_runner(flow_run) == SubprocessFlowRunner(env={"foo": "bar"})
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            infrastructure_document_id=infrastructure_document_id,
+        )
 
+        async with OrionAgent(
+            work_queue_id=work_queue_id, prefetch_seconds=10
+        ) as agent:
+            await agent.get_and_submit_flow_runs()
 
-async def test_agent_dispatches_universal_flow_run_to_subproccess_runner(
-    orion_client, deployment, work_queue_id
-):
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id,
-        state=Scheduled(scheduled_time=pendulum.now("utc")),
-        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
-    )
+        mock_submit.assert_awaited_once_with(
+            flow_run, infrastructure=infrastructure, task_status=ANY
+        )
 
-    agent = OrionAgent(work_queue_id, prefetch_seconds=10)
-    assert agent.get_flow_runner(flow_run) == SubprocessFlowRunner(env={"foo": "bar"})
+    async def test_agent_submit_run_sets_pending_state(
+        self, orion_client, deployment, work_queue_id, mock_submit
+    ):
+        infrastructure = Process(env={"foo": "bar"})
+        infrastructure_document_id = await infrastructure._save(is_anonymous=True)
 
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            infrastructure_document_id=infrastructure_document_id,
+        )
 
-async def test_agent_dispatches_to_given_runner(
-    orion_client, deployment, work_queue_id
-):
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id,
-        state=Scheduled(scheduled_time=pendulum.now("utc")),
-        flow_runner=SubprocessFlowRunner(env={"foo": "bar"}),
-    )
+        async with OrionAgent(
+            work_queue_id=work_queue_id, prefetch_seconds=10
+        ) as agent:
+            await agent.get_and_submit_flow_runs()
 
-    agent = OrionAgent(work_queue_id, prefetch_seconds=10)
-    assert agent.get_flow_runner(flow_run) == SubprocessFlowRunner(env={"foo": "bar"})
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_pending()
+        mock_submit.assert_awaited_once()
+
+    async def test_agent_submit_run_waits_for_scheduled_time_before_submitting(
+        self, orion_client, deployment, monkeypatch, work_queue_id, mock_submit
+    ):
+        # TODO: We should abstract this now/sleep pattern into fixtures for resuse
+        #       as there are a few other locations we want to test sleeps without
+        #       actually sleeping
+        now = pendulum.now("utc")
+
+        def get_now(*args):
+            return now
+
+        def move_forward_in_time(seconds):
+            nonlocal now
+            now = now.add(seconds=seconds)
+
+        sleep = AsyncMock(side_effect=move_forward_in_time)
+        monkeypatch.setattr("pendulum.now", get_now)
+        monkeypatch.setattr("prefect.client.sleep", sleep)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=now.add(seconds=10)),
+            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
+                is_anonymous=True
+            ),
+        )
+
+        async with OrionAgent(
+            work_queue_id=work_queue_id, prefetch_seconds=10
+        ) as agent:
+            agent.submitting_flow_run_ids.add(flow_run.id)
+            await agent.submit_run(flow_run)
+
+        sleep.assert_awaited_once_with(10)
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        assert state.timestamp >= flow_run.state.state_details.scheduled_time
+        assert state.is_pending()
+        mock_submit.assert_awaited_once()
+
+    @pytest.mark.parametrize("return_state", [Scheduled(), Running()])
+    async def test_agent_submit_run_aborts_if_server_returns_non_pending_state(
+        self, orion_client, deployment, return_state, work_queue_id, mock_submit
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
+                is_anonymous=True
+            ),
+        )
+
+        async with OrionAgent(
+            work_queue_id=work_queue_id, prefetch_seconds=10
+        ) as agent:
+            agent.submitting_flow_run_ids.add(flow_run.id)
+            agent.logger = MagicMock()
+
+            agent.client.propose_state = AsyncMock(return_value=return_state)
+            await agent.submit_run(flow_run)
+
+        mock_submit.assert_not_called()
+        assert flow_run.id not in agent.submitting_flow_run_ids
+        agent.logger.info.assert_called_with(
+            f"Aborted submission of flow run '{flow_run.id}': "
+            f"Server returned a non-pending state '{return_state.type.value}'"
+        )
+
+    async def test_agent_submit_run_aborts_if_flow_run_is_missing(
+        self, orion_client, deployment, work_queue_id, mock_submit
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
+                is_anonymous=True
+            ),
+        )
+
+        await orion_client.delete_flow_run(flow_run.id)
+
+        async with OrionAgent(
+            work_queue_id=work_queue_id, prefetch_seconds=10
+        ) as agent:
+            agent.submitting_flow_run_ids.add(flow_run.id)
+            agent.logger = MagicMock()
+
+            await agent.submit_run(flow_run)
+
+        mock_submit.assert_not_called()
+        assert flow_run.id not in agent.submitting_flow_run_ids
+        agent.logger.error.assert_called_with(
+            f"Failed to update state of flow run '{flow_run.id}'",
+            exc_info=True,
+        )
+
+    async def test_agent_submit_run_aborts_without_raising_if_server_raises_abort(
+        self, orion_client, deployment, work_queue_id, mock_submit
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
+                is_anonymous=True
+            ),
+        )
+
+        async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
+            agent.submitting_flow_run_ids.add(flow_run.id)
+            agent.logger = MagicMock()
+            agent.client.propose_state = AsyncMock(side_effect=Abort("message"))
+
+            await agent.submit_run(flow_run)
+
+        mock_submit.assert_not_called()
+        assert flow_run.id not in agent.submitting_flow_run_ids
+        agent.logger.info.assert_called_with(
+            f"Aborted submission of flow run '{flow_run.id}'. "
+            "Server sent an abort signal: message"
+        )
+
+    async def test_agent_fails_flow_if_infrastructure_submission_fails(
+        self, orion_client, deployment, work_queue_id, mock_submit
+    ):
+        infrastructure = Process(env={"foo": "bar"})
+        infrastructure_document_id = await infrastructure._save(is_anonymous=True)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            infrastructure_document_id=infrastructure_document_id,
+        )
+
+        mock_submit.side_effect = ValueError("Hello!")
+
+        async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
+            agent.logger = MagicMock()
+            await agent.get_and_submit_flow_runs()
+
+        mock_submit.assert_awaited_once_with(
+            flow_run, infrastructure=infrastructure, task_status=ANY
+        )
+        agent.logger.error.assert_called_once_with(
+            f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
+        )
+
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        assert state.is_failed()
+        result = await orion_client.resolve_datadoc(state.data)
+        with pytest.raises(ValueError, match="Hello!"):
+            raise result
+
+    async def test_agent_fails_flow_if_infrastructure_does_not_mark_as_started(
+        self, orion_client, deployment, work_queue_id, mock_submit
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
+                is_anonymous=True
+            ),
+        )
+
+        # This excludes calling `task_status.started()` which will throw an anyio error
+        # when submission finishes without calling `started()`. The agent will treat
+        # submission the same as if it had thrown an error.
+        mock_submit.side_effect = None
+
+        async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
+            agent.logger = MagicMock()
+            await agent.get_and_submit_flow_runs()
+
+        agent.logger.error.assert_called_once_with(
+            f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
+        )
+
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        assert state.is_failed()
+        result = await orion_client.resolve_datadoc(state.data)
+        with pytest.raises(
+            RuntimeError, match="Child exited without calling task_status.started"
+        ):
+            raise result
+
+    async def test_agent_dispatches_to_given_infrastructure(
+        self, orion_client, deployment, work_queue_id
+    ):
+        infrastructure = Process(env={"foo": "bar"})
+        expected_id = await infrastructure.save("hello")
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+            infrastructure_document_id=expected_id,
+        )
+
+        async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
+            used_infrastructure = await agent.get_infrastructure(flow_run)
+            assert used_infrastructure._block_document_id == expected_id
 
 
 @pytest.fixture

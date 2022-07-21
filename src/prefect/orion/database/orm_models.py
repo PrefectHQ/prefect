@@ -368,6 +368,15 @@ class ORMFlowRun(ORMRun):
     flow_runner_config = sa.Column(JSON)
 
     @declared_attr
+    def infrastructure_document_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("block_document.id", ondelete="CASCADE"),
+            nullable=True,
+            index=False,
+        )
+
+    @declared_attr
     def flow_runner(cls):
         return sa.orm.composite(
             schemas.core.FlowRunnerSettings,
@@ -683,6 +692,15 @@ class ORMDeployment:
 
     flow_runner_type = sa.Column(sa.String)
     flow_runner_config = sa.Column(JSON)
+
+    @declared_attr
+    def infrastructure_document_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("block_document.id", ondelete="CASCADE"),
+            nullable=True,
+            index=False,
+        )
 
     @declared_attr
     def flow_runner(cls):
