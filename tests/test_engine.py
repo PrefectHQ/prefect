@@ -88,6 +88,7 @@ class TestOrchestrateTaskRun:
             parameters={},
             wait_for=None,
             result_filesystem=local_filesystem,
+            interruptible=False,
             client=orion_client,
         )
 
@@ -120,6 +121,7 @@ class TestOrchestrateTaskRun:
             parameters={},
             wait_for=None,
             result_filesystem=local_filesystem,
+            interruptible=False,
             client=orion_client,
         )
 
@@ -157,6 +159,7 @@ class TestOrchestrateTaskRun:
             parameters={},
             wait_for=None,
             result_filesystem=local_filesystem,
+            interruptible=False,
             client=orion_client,
         )
 
@@ -227,6 +230,7 @@ class TestOrchestrateTaskRun:
             parameters={"x": {"nested": [future]}},
             wait_for=None,
             result_filesystem=local_filesystem,
+            interruptible=False,
             client=orion_client,
         )
 
@@ -267,6 +271,7 @@ class TestOrchestrateTaskRun:
             parameters={"x": quote(1)},
             wait_for=None,
             result_filesystem=local_filesystem,
+            interruptible=False,
             client=orion_client,
         )
 
@@ -304,6 +309,7 @@ class TestOrchestrateTaskRun:
             parameters={"x": quote(upstream_task_state)},
             wait_for=None,
             result_filesystem=local_filesystem,
+            interruptible=False,
             client=orion_client,
         )
 
@@ -377,6 +383,7 @@ class TestOrchestrateFlowRun:
             flow_run=flow_run,
             parameters={},
             client=orion_client,
+            interruptible=False,
             partial_flow_run_context=partial_flow_run_context,
         )
 
@@ -406,6 +413,7 @@ class TestOrchestrateFlowRun:
                 flow_run=flow_run,
                 parameters={},
                 client=orion_client,
+                interruptible=False,
                 partial_flow_run_context=partial_flow_run_context,
             )
 
@@ -436,6 +444,7 @@ class TestOrchestrateFlowRun:
             flow_run=flow_run,
             parameters={},
             client=orion_client,
+            interruptible=False,
             partial_flow_run_context=partial_flow_run_context,
         )
 
