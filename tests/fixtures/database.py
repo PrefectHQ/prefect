@@ -181,12 +181,12 @@ async def task_run_states(session, task_run, task_run_state):
 
 
 @pytest.fixture
-async def infrastructure_document_id():
+async def infrastructure_document_id(db, block_document):
     return await Process(env={"MY_TEST_VARIABLE": 1})._save(is_anonymous=True)
 
 
 @pytest.fixture
-async def infrastructure_document_id_2():
+async def infrastructure_document_id_2(db, block_document):
     return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(is_anonymous=True)
 
 
