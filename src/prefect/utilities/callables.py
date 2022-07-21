@@ -139,17 +139,17 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
             ),
         )
 
-        model_fields[name] = (type_, field)
-
-        # Generate the pydantic model at each step so we can check that the added
-        # parameter does not break schema generation
+        # Generate a Pydantic model at each step so we can check if this parameter
+        # type is supported schema generation
         try:
             pydantic.create_model(
-                "CheckParameter", __config__=ModelConfig, **model_fields
+                "CheckParameter", __config__=ModelConfig, **{name: (type_, field)}
             ).schema(by_alias=True)
         except ValueError:
             # This field's type is not valid for schema creation, update it to `Any`
-            model_fields[name] = (Any, field)
+            type_ = Any
+
+        model_fields[name] = (type_, field)
 
     # Generate the final model and schema
     model = pydantic.create_model("Parameters", __config__=ModelConfig, **model_fields)
