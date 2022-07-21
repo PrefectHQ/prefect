@@ -88,6 +88,13 @@ class TaskConcurrencyType(AutoEnum):
     PARALLEL = AutoEnum.auto()
 
 
+CONCURRENCY_MESSAGES = {
+    TaskConcurrencyType.SEQUENTIAL: "sequentially",
+    TaskConcurrencyType.CONCURRENT: "concurrently",
+    TaskConcurrencyType.PARALLEL: "in parallel",
+}
+
+
 class BaseTaskRunner(metaclass=abc.ABCMeta):
     def __init__(self) -> None:
         self.logger = get_logger(f"task_runner.{self.name}")
