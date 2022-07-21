@@ -22,7 +22,7 @@ We recommend reading the documentation for the virtual environment of your choic
 In this example, we create an environment named `prefect-dev` with Python 3.8:
 
 ```bash
-conda create --name prefect-dev python=3.8   
+conda create --name prefect-dev python=3.10   
 ```
 
 Then, we activate the environment:
@@ -33,12 +33,12 @@ conda activate prefect-dev
 
 Now, [install Prefect](/getting-started/installation.md):
 ```bash
-pip install prefect>=2.0a
+pip install prefect>=2.0b
 ```
 
 ## Isolating settings per environment
 
-You may want each Python environment to have isolated Prefect settings. By default, Prefect settings are stored in your home directory and are shared across all versions of Python. To avoid this, you can change the `PREFECT_HOME` setting to a unique directory per environment. For example, with `conda` you may [configure the environment so the variable is set when your environment is activated](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#setting-environment-variables):
+You may want each Python environment to have isolated Prefect settings. By default, Prefect settings are stored in your home directory and are shared across all versions of Python. To avoid this, you can change the `PREFECT_HOME` setting to a unique directory per environment. For example, with `conda` you can [configure the environment so the variable is set when your environment is activated](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#setting-environment-variables):
 
 ```bash
 conda env config vars set PREFECT_HOME="~/.prefect/prefect-dev"
@@ -72,7 +72,7 @@ When doing ad hoc flow runs (by calling the flow function directly), the flow wi
 
 If you run your Orion API or agent in the virtual environment, all flow runs using the subprocess flow runner will use the same Python environment by default.
 
-This may be desirable for development or in simple cases where your flow does not have many dependencies.
+This behavior may be desirable for development or in simple cases where your flow does not have many dependencies.
 
 ## Specifying a virtual environment on a deployment
 
@@ -106,22 +106,29 @@ Deployment(
 Create the deployment:
 
 ```bash
-prefect deployment create ./example-deployment.py
+prefect deployment create example-deployment.py
 ```
 
-In a separate terminal, start an agent:
+Create a work queue named *my_first_work_queue* with the deployment ID returned when you created your deployment:
 
 ```bash
-prefect agent start
+ prefect work-queue create my_first_work_queue
 ```
 
-Then create a flow run for the deployment:
+Then start an agent:
+
+```bash
+prefect agent start my_first_work_queue
+```
+
+The agent will continue running in your terminal. 
+In a separate terminal window, create a flow run for your deployment:
 
 ```bash
 prefect deployment run my-flow/example
 ```
 
-You should see output from the agent as the flow run is submitted and run in your conda environment.
+You should see output from the agent in your terminal as the flow run is submitted and run.
 
 ## Specifying environment paths
 
@@ -140,3 +147,5 @@ SubprocessFlowRunner(virtualenv="./my-venv")
 Relative paths will be resolved relative to the agent's working directory.
 
 Note, the same field is used for both venv and virtualenv.
+
+Shut down your agent by pressing `control` + `c` in the terminal window.

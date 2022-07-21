@@ -126,7 +126,7 @@ Deployment(
 )
 ```
 
-Once the deployment has been created, you'll see it in the [Prefect UI](/ui/dashboard/) and can inspect it using the CLI.
+Once the deployment has been created, you'll see it in the [Prefect UI](/ui/flow-runs/) and can inspect it using the CLI.
 
 ![Viewing deployments in the Prefect UI](/img/ui/orion-deployments.png)
 
@@ -189,7 +189,7 @@ The [prefect.orion.api.deployments](/api-ref/orion/api/deployments/) API also pr
 
 ## Deployment specifications
 
-To create a deployment in Orion, you do not have to specify _all_ of the Deployment object properties. A _deployment specification_ lets you provide the details relevant to deploying your flow. When you create a deployment from a deployment specification, Orion uses the settings provided by your specification, defaults, and automatically constructed data such as timestamps and ids to create the underlying deployment object.
+To create a deployment in Orion, you do not have to specify _all_ of the [`Deployment`](#deployment-object) object properties. A _deployment specification_ lets you provide the details relevant to deploying your flow. When you create a deployment from a deployment specification, Prefect Orion uses the settings provided by your specification plus defaults and automatically constructed data such as timestamps and IDs to create the underlying deployment object.
 
 There are several ways to build a deployment specification and use it to create a deployment:
 
@@ -206,7 +206,7 @@ A `Deployment` object has the following parameters:
 | Parameter | Description |
 | --------- | ----------- |
 | `name` | String specifying the name of the deployment. |
-| `flow` | The flow object to associate with the deployment. May provide the flow object directly as `flow=my_flow` if available in the same file as the `Deployment`. Alternatively, may provide a `Path`, `FlowScript`, or `PackageManifest` allowing access to the flow. (Required) |
+| `flow` | The flow object to associate with the deployment. You may provide the flow object directly as `flow=my_flow` if available in the same file as the `Deployment`. Alternatively, you may provide a `Path`, `FlowScript`, or `PackageManifest` specifying how to access to the flow. (Required) |
 | <span class="no-wrap">`flow_runner`</span> | Specifies the [flow runner](/api-ref/prefect/flow-runners/) used for flow runs. Uses the `UniversalFlowRunner` if none is specified. |
 | `packager` | The [prefect.packaging](/api-ref/prefect/packaging/) packager to use for packaging the flow. |
 | `parameters` | Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects. |
@@ -221,6 +221,7 @@ When there is only one flow in a file, you may just provide the path to the file
 
 ```python
 from prefect.deployments import Deployment
+from pathlib import Path
 
 Deployment(
     flow=Path(__file__).parent / "examples" / "single_flow_in_file.py"
@@ -237,6 +238,8 @@ Deployment(
 )
 ```
 
+## FlowScript object
+
 When providing a path with multiple flows, we'll need the name of the flow to determine which one you would like to deploy. `FlowScript` is a simple Pydantic model with the following properties:
 
 | Parameter | Description |
@@ -247,6 +250,7 @@ When providing a path with multiple flows, we'll need the name of the flow to de
 ```python
 from prefect.deployments import Deployment
 from prefect.deployments import FlowScript
+from pathlib import Path
 
 Deployment(
     flow=FlowScript(
