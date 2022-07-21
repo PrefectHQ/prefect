@@ -454,7 +454,7 @@ class TestSystemBlockTypes:
         await client.post("/block_types/install_system_block_types")
 
         # create a datetime block
-        datetime_block_type = await client.get("/block_types/name/DateTime")
+        datetime_block_type = await client.get("/block_types/name/Date%20Time")
         datetime_block_schema = await client.post(
             "/block_schemas/filter",
             json=dict(
