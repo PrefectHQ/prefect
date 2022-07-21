@@ -12,7 +12,7 @@ tags:
 
 # Notifications
 
-At any time, you can visit the [Prefect UI](/ui/dashboard/) to get a comprehensive view of the state of all of your flows, but when something goes wrong with one of your flows, you need that information immediately. 
+At any time, you can visit the [Prefect UI](/ui/flow-runs/) to get a comprehensive view of the state of all of your flows, but when something goes wrong with one of your flows, you need that information immediately. 
 
 Notifications enable you to set up alerts that are sent when a flow enters any state you specify. When your flow and task runs changes [state](/concepts/states/), Prefect notes the state change and checks whether the new state matches any notification policies. If it does, a new notification is queued.
 

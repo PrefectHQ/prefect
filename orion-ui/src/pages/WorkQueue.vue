@@ -37,7 +37,7 @@
 
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value], subscriptionOptions)
   const workQueue = computed(() => workQueueSubscription.response)
-  const workQueueDeploymentIds = computed(() => workQueue?.value?.filter?.deploymentIds ?? [])
+  const workQueueDeploymentIds = computed(() => workQueue.value?.filter.deploymentIds ?? [])
 
   const workQueueDeploymentFilter = computed<UnionFilters>(() => ({
     deployments: {

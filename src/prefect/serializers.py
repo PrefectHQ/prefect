@@ -6,7 +6,6 @@ These serializers are registered for use with `DataDocument` types
 import base64
 import json
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 import cloudpickle
 
@@ -14,6 +13,7 @@ from prefect.orion.serializers import register_serializer
 
 if TYPE_CHECKING:
     from prefect.packaging.base import PackageManifest
+    from prefect.results import _Result
 
 
 @register_serializer("json")
@@ -69,37 +69,6 @@ class PickleSerializer:
         #       a document is deserialized by Python 3.7 and serialized by 3.8+
 
 
-@register_serializer(encoding="blockstorage")
-class BlockStorageSerializer:
-    @staticmethod
-    def dumps(block_document: dict) -> bytes:
-        # Handling for block_id is to account for deployments created pre-2.0b6
-        block_document_id = block_document.get(
-            "block_document_id"
-        ) or block_document.get("block_id")
-        if block_document_id is not None:
-            block_document_id = str(block_document_id)
-        block_document = {
-            "data": json.dumps(block_document["data"]),
-            "block_document_id": block_document_id,
-        }
-        return json.dumps(block_document).encode()
-
-    @staticmethod
-    def loads(blob: bytes) -> dict:
-        block_document = json.loads(blob.decode())
-        # Handling for block_id is to account for deployments created pre-2.0b6
-        block_document_id = block_document.get(
-            "block_document_id"
-        ) or block_document.get("block_id")
-        if block_document_id is not None:
-            block_document_id = UUID(block_document_id)
-        return {
-            "data": json.loads(block_document["data"]),
-            "block_document_id": block_document_id,
-        }
-
-
 @register_serializer("package-manifest")
 class PackageManifestSerializer:
     """
@@ -115,3 +84,20 @@ class PackageManifestSerializer:
         from prefect.packaging.base import PackageManifest
 
         return PackageManifest.parse_raw(blob)
+
+
+@register_serializer("result")
+class ResultSerializer:
+    """
+    Serializes a result object
+    """
+
+    @staticmethod
+    def dumps(data: "_Result") -> bytes:
+        return data.json().encode()
+
+    @staticmethod
+    def loads(blob: bytes) -> "_Result":
+        from prefect.results import _Result
+
+        return _Result.parse_raw(blob)
