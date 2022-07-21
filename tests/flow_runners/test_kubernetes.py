@@ -21,15 +21,12 @@ from urllib3.exceptions import MaxRetryError
 
 import prefect
 from prefect.client import get_client
-from prefect.flow_runners import (
-    KubernetesFlowRunner,
-    KubernetesImagePullPolicy,
-    KubernetesRestartPolicy,
-)
+from prefect.flow_runners import KubernetesFlowRunner, KubernetesImagePullPolicy
 from prefect.flow_runners.base import base_flow_run_environment
 from prefect.flow_runners.kubernetes import KubernetesManifest
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
+from prefect.results import _retrieve_result
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, temporary_settings
 from prefect.testing.utilities import kubernetes_environments_equal
 
@@ -38,10 +35,6 @@ class TestKubernetesFlowRunner:
     @pytest.fixture(autouse=True)
     def skip_if_kubernetes_is_not_installed(self):
         pytest.importorskip("kubernetes")
-
-    @pytest.fixture(autouse=True)
-    async def configure_remote_storage(self, set_up_kv_storage):
-        pass
 
     @pytest.fixture
     def mock_watch(self, monkeypatch):
@@ -103,6 +96,15 @@ class TestKubernetesFlowRunner:
 
         job = MagicMock(spec=kubernetes.client.V1Job)
         job.status.completion_time = pendulum.now("utc").timestamp()
+
+        return [{"object": job_pod}, {"object": job}]
+
+    @staticmethod
+    def _mock_pods_stream_that_returns_queued_pod(*args, **kwargs):
+        job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+        job_pod.status.phase = "Queued"
+
+        job = MagicMock(spec=kubernetes.client.V1Job)
 
         return [{"object": job_pod}, {"object": job}]
 
@@ -396,29 +398,6 @@ class TestKubernetesFlowRunner:
         ]["spec"]["template"]["spec"].get("imagePullPolicy")
         assert call_restart_policy is None
 
-    async def test_warns_and_replaces_user_supplied_restart_policy(
-        self,
-        mock_k8s_client,
-        mock_watch,
-        mock_k8s_batch_client,
-        flow_run,
-        use_hosted_orion,
-        hosted_orion_api,
-    ):
-        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
-
-        with pytest.warns(DeprecationWarning, match="restart_policy is deprecated"):
-            flow_runner = KubernetesFlowRunner(
-                restart_policy=KubernetesRestartPolicy.ON_FAILURE
-            )
-
-        await flow_runner.submit_flow_run(flow_run, MagicMock())
-        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
-        call_restart_policy = mock_k8s_batch_client.create_namespaced_job.call_args[0][
-            1
-        ]["spec"]["template"]["spec"].get("restartPolicy")
-        assert call_restart_policy == "Never"
-
     async def test_raises_on_submission_with_ephemeral_api(self, flow_run):
         with pytest.raises(
             RuntimeError,
@@ -426,7 +405,7 @@ class TestKubernetesFlowRunner:
         ):
             await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
 
-    async def test_no_raise_on_submission_with_hosted_api(
+    async def test_raise_pod_never_started(
         self,
         mock_cluster_config,
         mock_k8s_batch_client,
@@ -434,7 +413,8 @@ class TestKubernetesFlowRunner:
         flow_run,
         use_hosted_orion,
     ):
-        await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
+        with pytest.raises(RuntimeError, match="Pod for job"):
+            await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
 
     async def test_defaults_to_incluster_config(
         self,
@@ -450,7 +430,7 @@ class TestKubernetesFlowRunner:
 
         await KubernetesFlowRunner().submit_flow_run(flow_run, fake_status)
 
-        mock_cluster_config.incluster_config.load_incluster_config.assert_called_once()
+        mock_cluster_config.load_incluster_config.assert_called_once()
         assert not mock_cluster_config.load_kube_config.called
 
     async def test_uses_cluster_config_if_not_in_cluster(
@@ -465,9 +445,7 @@ class TestKubernetesFlowRunner:
         mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
         fake_status = MagicMock(spec=anyio.abc.TaskStatus)
 
-        mock_cluster_config.incluster_config.load_incluster_config.side_effect = (
-            ConfigException()
-        )
+        mock_cluster_config.load_incluster_config.side_effect = ConfigException()
 
         await KubernetesFlowRunner().submit_flow_run(flow_run, fake_status)
 
@@ -645,8 +623,7 @@ class TestIntegrationWithRealKubernetesCluster:
         # In order to receive results back from the flow, we need to share a filesystem
         # between the job and our host, which we'll do by mounting the /tmp/ directory
         # from the test host using a hostPath volumeMount to the directory that matches
-        # tempfile.gettempdir(), which is what prefect.blocks.storage.TempStorageBlock
-        # uses
+        # tempfile.gettempdir()
         assert await KubernetesFlowRunner(
             env={
                 "TEST_FOO": "foo",
@@ -680,7 +657,7 @@ class TestIntegrationWithRealKubernetesCluster:
             b"/tmp/prefect/", str(results_directory).encode() + b"/"
         )
 
-        flow_run_environ = await k8s_orion_client.resolve_datadoc(result)
+        flow_run_environ = await _retrieve_result(result)
         assert "TEST_FOO" in flow_run_environ
         assert flow_run_environ["TEST_FOO"] == "foo"
 

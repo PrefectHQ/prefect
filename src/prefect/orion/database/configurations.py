@@ -13,7 +13,7 @@ from prefect.settings import (
     PREFECT_ORION_DATABASE_ECHO,
     PREFECT_ORION_DATABASE_TIMEOUT,
 )
-from prefect.utilities.asyncio import add_event_loop_shutdown_callback
+from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
 
 
 class BaseDatabaseConfiguration(ABC):

@@ -14,6 +14,7 @@ import pytest
 import prefect
 from prefect.flow_runners import SubprocessFlowRunner
 from prefect.flow_runners.base import base_flow_run_environment
+from prefect.results import _retrieve_result
 from prefect.settings import SETTING_VARIABLES
 from prefect.testing.utilities import AsyncMock
 
@@ -123,8 +124,7 @@ def install_prefect_if_necessary(python: List[str]):
         # Attempt to import `prefect`, which should be there via site-packages on
         # CI and systems where folks have installed an editable prefect globally
         version = subprocess.check_output(
-            python + ["-c", "import prefect; print(prefect.__version__)"],
-            stderr=subprocess.STDOUT,
+            python + ["-c", "import prefect; print(prefect.__version__)"]
         )
         version = version.decode().strip()
         print(f"Found `prefect` version {version!r} in environment")
@@ -154,6 +154,10 @@ class TestSubprocessFlowRunner:
         self, monkeypatch, flow_run
     ):
         monkeypatch.setattr("anyio.open_process", AsyncMock())
+        anyio.open_process.return_value.terminate = (
+            MagicMock()
+        )  #  Not an async attribute
+
         fake_status = MagicMock(spec=anyio.abc.TaskStatus)
         # By raising an exception when started is called we can assert the process
         # is opened before this time
@@ -181,7 +185,8 @@ class TestSubprocessFlowRunner:
             command = " ".join(command)
         anyio.open_process.assert_awaited_once_with(
             command,
-            stderr=subprocess.STDOUT,
+            stderr=ANY,
+            stdout=ANY,
             env=ANY,
         )
 
@@ -210,7 +215,7 @@ class TestSubprocessFlowRunner:
             else ["--prefix", str(condaenv.expanduser().resolve())]
         )
 
-        command = [
+        expected_command = [
             "conda",
             "run",
             *name_or_prefix,
@@ -220,10 +225,12 @@ class TestSubprocessFlowRunner:
             flow_run.id.hex,
         ]
         if sys.platform == "win32":
-            command = " ".join(command)
+            expected_command = " ".join(expected_command)
+
         anyio.open_process.assert_awaited_once_with(
-            command,
-            stderr=subprocess.STDOUT,
+            expected_command,
+            stderr=ANY,
+            stdout=ANY,
             env=ANY,
         )
 
@@ -256,17 +263,19 @@ class TestSubprocessFlowRunner:
         expected_env.pop("PYTHONHOME")
         expected_env["VIRTUAL_ENV"] = str(virtualenv_path)
 
-        command = [
+        expected_command = [
             python_executable,
             "-m",
             "prefect.engine",
             flow_run.id.hex,
         ]
         if sys.platform == "win32":
-            command = " ".join(command)
+            expected_command = " ".join(expected_command)
+
         anyio.open_process.assert_awaited_once_with(
-            command,
-            stderr=subprocess.STDOUT,
+            expected_command,
+            stderr=ANY,
+            stdout=ANY,
             env=expected_env,
         )
 
@@ -286,7 +295,7 @@ class TestSubprocessFlowRunner:
         assert happy_exit
         fake_status.started.assert_called_once()
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        runtime_python = await orion_client.resolve_datadoc(state.data)
+        runtime_python = await _retrieve_result(state)
         assert runtime_python == sys.executable
 
     @pytest.mark.service("environment")
@@ -307,7 +316,7 @@ class TestSubprocessFlowRunner:
 
         assert happy_exit
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        runtime_python = await orion_client.resolve_datadoc(state.data)
+        runtime_python = await _retrieve_result(state)
         assert runtime_python == str(virtualenv_environment_path / "bin" / "python")
 
     @pytest.mark.service("environment")
@@ -328,7 +337,7 @@ class TestSubprocessFlowRunner:
 
         assert happy_exit
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        runtime_python = await orion_client.resolve_datadoc(state.data)
+        runtime_python = await _retrieve_result(state)
         assert runtime_python == str(venv_environment_path / "bin" / "python")
 
     @pytest.mark.service("environment")
@@ -350,7 +359,7 @@ class TestSubprocessFlowRunner:
 
         assert happy_exit
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        runtime_python = await orion_client.resolve_datadoc(state.data)
+        runtime_python = await _retrieve_result(state)
         assert runtime_python == str(conda_environment_path / "bin" / "python")
 
     @pytest.mark.parametrize("stream_output", [True, False])
@@ -363,11 +372,10 @@ class TestSubprocessFlowRunner:
             flow_run, MagicMock(spec=anyio.abc.TaskStatus)
         )
 
-        output = capsys.readouterr()
-        assert output.err == "", "stderr is never populated"
+        _, stderr = capsys.readouterr()
 
         if not stream_output:
-            assert output.out == ""
+            assert stderr == ""
         else:
-            assert "Finished in state" in output.out, "Log from the engine is present"
-            assert "\n\n" not in output.out, "Line endings are not double terminated"
+            assert "Finished in state" in stderr, "Log from the engine is present"
+            assert "\n\n" not in stderr, "Line endings are not double terminated"

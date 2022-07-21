@@ -1,5 +1,98 @@
 # Prefect Release Notes
 
+## 2.0b9
+
+Big things are in the works for Prefect 2! This release includes breaking changes and deprecations in preparation for Prefect 2 graduating from its beta period to General Availability. 
+
+**With next week's release on July 27th, Prefect 2 will become the default package installed with `pip install prefect`. Flows written with Prefect 1 will require modifications to run with Prefect 2**. Please ensure that your package management process enables you to make the transition when the time is right for you.
+
+### Code as workflows
+As Prefect 2 usage has grown, we've observed a pattern among users, especially folks that were not previously users of Prefect 1. Working with Prefect was so much like working in native Python, users were often surprised that their tasks returned futures and states, Prefect objects, rather than results, the data that their Python functions were handling. This led to unfamiliar, potentially intimidating, errors in some cases. With this release, Prefect moves one step closer to code as workflows - tasks now return the results of their functions, rather than their states, by default. This means that you can truly take most native Python scripts, add the relevant @flow and @task decorators, and start running that script as a flow, benefitting from the observability and resilience that Prefect provides.
+
+States and futures are still important concepts in dictating and understanding the behavior of flows. You will still be able to easily access and use them with the `.submit()` method. You will need to modify tasks in existing Prefect 2 flows to use this method to continue working as before.
+
+### Other improvements and bug fixes
+- A new `Secret` block can store a string that is encrypted at rest as well as obfuscated in logs and the UI
+- Date filters on the flow run page in the UI now support filtering by date _and_ time
+- Each work queue page in the UI now includes a command to start a corresponding agent
+- Tutorials have been updated for increased clarity and consistency
+- Cron schedule setting errors are now more informative
+- Prefect now still works even if the active profile is missing
+- Conda requirements regex now supports underscores and dots
+- The previously deprecated `DeploymentSpec` has been removed
+
+## 2.0b8
+
+This is our biggest release yet! It's full of exciting new features and refinements to existing concepts. Some of these features are the result of careful planning and execution over the past few months, while others are responses to your feedback, unplanned but carefully considered. None would be possible without your continued support. Take it for a spin and let us know what you think!
+
+This release removes the deprecated `DaskTaskRunner` and `RayTaskRunner` from the core library, breaking existing references to them. You can find them in their respective collections [prefect-ray](https://prefecthq.github.io/prefect-ray/) and [prefect-dask](https://prefecthq.github.io/prefect-dask). It also removes the previously deprecated restart policy for the `KubernetesFlowRunnner`. Most importantly, there are new **breaking changes** to the Deployments interface described below.
+
+### Flow Run Retries
+Flow run retries have been one of our most requested features, especially given how easy it is to run a flow as a "subflow" or "child flow" with Prefect 2.0. Flow run retries are configured just as task retries are - with the `retries` and `retry_delay_seconds` parameters.
+
+If both a task and its flow have retries configured, tasks within the flow will retry up to their specified task retry limit for each flow run. For example, if you have a **flow** configured with a limit of 2 retries (up to 3 total runs, including the initial attempt), and a **task** in the flow configured with 3 retries (up to 4 attempts per flow run, including the initial attempt). The task could run up to a total of 12 attempts, since task retry limits are reset after each flow run or flow run attempt.
+
+### Notifications
+At any time, you can visit the Prefect UI to get a comprehensive view of the state of all of your flows, but when something goes wrong with one of them, you need that information immediately. Prefect 2.0’s new notifications can alert you and your team when any flow enters any state you specify, with or without specific tags.
+
+To create a notification, go to the new Notifications page via the sidebar navigation and select “Create Notification.” Notifications are structured just as you would describe them to someone. For example, if I want to get a Slack message every time my daily-ETL flow fails, my notification will simply read:
+
+> If a run of any flow with **any** tag enters a **failed** state, send a notification to **my-slack-webhook**
+
+When the conditions of the notification are triggered, you’ll receive a simple message:
+
+> The **fuzzy-leopard** run of the **daily-etl** flow entered a **failed** state at **yy-MM-dd HH:mm:ss TMZ**.
+
+Currently, notifications can only be sent to a [Slack webhook](https://api.slack.com/messaging/webhooks) (or email addresses if you are using [Prefect Cloud 2.0](https://beta.prefect.io/auth/login)). Over time, notifications will support additional messaging services. Let us know which messaging services you’d like to send your notifications to!
+
+### Flow packaging and deployment
+We've revisited our flow packaging and deployment UX, making it both more powerful and easier to use. `DeploymentSpec`s are now just `Deployment`s. Most of the fields are unchanged, but there are a few differences:
+- The `flow_storage` field has been replaced with a `packager` field.
+- The `flow_location`, `flow_name`, and `flow` parameters are now just `flow`.
+
+We now support customization of the deployment of your flow. Previously, we just uploaded the source code of the flow to a file. Now, we've designed a packaging systems which allows you to control how and where your flow is deployed. We're including three packagers in this release:
+
+- `OrionPackager`: Serializes the flow and stores it in the Orion database, allowing you to get started without setting up remote storage.
+- `FilePackager`: Serializes the flow and stores it in a file. The core library supports local and remote filesystems. Additional remote file systems will be available in collections.
+- `DockerPackager`: Copies the flow into a new Docker image. You can take full control of the Docker image build or use Prefect to detect your current Python dependencies and install them in the image.
+
+For packagers that support it, three serializers are available as well:
+
+- `ImportSerializer`: Serializes to the import path of the flow. The flow will need to be importable at runtime.
+- `SourceSerializer`: Serializes to the source code of the flow's module.
+- `PickleSerializer`: Serializes the flow using cloudpickle with support for serialization full modules.
+
+Learn more in the [Deployment concept documentation](https://orion-docs.prefect.io/concepts/deployments/).
+
+You can continue to use your existing `DeploymentSpec`s, but they are deprecated and will be removed in the coming weeks.
+
+### Blocks
+We've been working on Blocks behind the scenes for a while. Whether you know it or not, if you've used the past few releases, you've used them. Blocks enable you to securely store configuration with the Prefect Orion server and access it from your code later with just a simple reference. Think of Blocks as secure, UI-editable, type-checked environment variables. We're starting with just a few Blocks - mostly storage, but over time we’ll expand this pattern to include every tool and service in the growing modern data stack. You'll be able to set up access to your entire stack once in just a few minutes, then manage access forever without editing your code. In particular, we've made the following enhancements:
+- Block document values can now be updated via the Python client with the `overwrite` flag.
+- Blocks now support secret fields. By default, fields identified as secret will be obfuscated when returned to the Prefect UI. The actual values can still be retrieved as necessary.
+-  `BlockSchema` objects have a new `secret_fields: List[str]` item in their schema's extra fields. This is a list of all fields that should be considered "secret". It also includes any secret fields from nested blocks referenced by the schema.
+- You can now browse your Blocks on the new "Blocks" page, create, and edit them right in the UI.
+
+### Other Improvements
+- Task keys, previously a concatenation of several pieces of metadata, are now only the qualified function name. While it is likely to be globally unique, the key can be used to easily identify every instance in which a function of the same name is utilized.
+- Tasks now have a `version` that you can set via the task decorator, like the flow version identifier on flow runs.
+- An Orion setting, `PREFECT_ORION_DATABASE_PASSWORD`, has been added to allow templating in the database connection URL
+- A link to API reference documentation has been added to the Orion startup message.
+- Where possible, Prefect 2.0 now exits processes earlier for synchronous flow or task runs that are cancelled. This reduces the range of conditions under which a task run would be marked failed, but continue to run.
+- All Prefect client models now allow extras, while the API continues to forbid them, such that older Prefect 2.0 clients can receive and load objects from the API that have additional fields, facilitating backwards compatibility.
+- The _all_ attribute has been added to __init__.py for all public modules, declaring the public API for export.
+- A new endpoint, `/deployments/{id}/work_queue_check`, enables you to to check which work queues the scheduled runs of a deployment will be eligible for.
+
+
+### Bug fixes
+- Attempting to create a schedule with a cron string that includes a "random" or "hashed" expression will now return an error.
+
+### Contributors
+- [Cole Murray](https://github.com/ColeMurray)
+- [Oliver Mannion](https://github.com/tekumara)
+- [Steve Flitcroft](https://github.com/redsquare)
+- [Laerte Pereira](https://github.com/Laerte)
+
 ## 2.0b7
 
 This release includes a number of important improvements and bug fixes in response to continued feedback from the community. Note that this release makes a **breaking change** to the Blocks API, making the `2.0b7` Orion server incompatible with previous Orion client versions.```
@@ -30,7 +123,7 @@ This release includes a number of important improvements and bug fixes in respon
 
 Note that the Dask and Ray task runners have been moved out of the Prefect core library to reduce the number of dependencies we require for most use cases. Install from the command line with `pip install prefect-dask` and import with `from prefect_dask.task_runners import DaskTaskRunner`.
 
-### Bug squashing
+### Bug fixes
 - [Allow Orion UI to run on Windows](https://github.com/PrefectHQ/prefect/pull/5802)
 - Fixed a bug in terminal state data handling that caused timeouts
 - Disabled flow execution during deployment creation to prevent accidental execution.

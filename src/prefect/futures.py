@@ -21,7 +21,7 @@ from typing import (
 from prefect.client import OrionClient, inject_client
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
-from prefect.utilities.asyncio import A, Async, Sync, sync
+from prefect.utilities.asyncutils import A, Async, Sync, sync
 from prefect.utilities.collections import visit_collection
 
 if TYPE_CHECKING:

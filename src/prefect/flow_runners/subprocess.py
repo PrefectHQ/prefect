@@ -1,16 +1,12 @@
 import asyncio
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, Optional, Sequence, Tuple, Union
 from uuid import UUID
 
-import anyio
-import anyio.abc
 import sniffio
 from anyio.abc import TaskStatus
-from anyio.streams.text import TextReceiveStream
 from pydantic import root_validator, validator
 from typing_extensions import Literal
 
@@ -21,6 +17,7 @@ from prefect.flow_runners.base import (
 )
 from prefect.orion.schemas.core import FlowRun
 from prefect.settings import SETTING_VARIABLES
+from prefect.utilities.processutils import run_process
 
 
 @register_flow_runner
@@ -86,28 +83,9 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 
         self.logger.debug(f"Using command: {' '.join(command)}")
 
-        # passing a string to open_process is equivalent to shell=True
-        # which is generally necessary for Unix-like commands on Windows
-        # but otherwise should be avoided
-        if isinstance(command, list) and sys.platform == "win32":
-            command = " ".join(command)
-        process_context = await anyio.open_process(
-            command,
-            stderr=subprocess.STDOUT,
-            env=env,
+        process = await run_process(
+            command, stream_output=self.stream_output, task_status=task_status, env=env
         )
-
-        # Mark this submission as successful
-        if task_status:
-            task_status.started()
-
-        # Wait for the process to exit
-        # - We must the output stream so the buffer does not fill
-        # - We can log the success/failure of the process
-        async with process_context as process:
-            async for text in TextReceiveStream(process.stdout):
-                if self.stream_output:
-                    print(text, end="")  # Output is already new-line terminated
 
         if process.returncode:
             self.logger.error(

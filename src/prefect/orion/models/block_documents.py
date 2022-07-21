@@ -2,46 +2,20 @@
 Functions for interacting with block document ORM objects.
 Intended for internal use by the Orion API.
 """
-import hashlib
 from typing import Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
-from pydantic import validate_arguments
 
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import ORMBlockDocument
 from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
-from prefect.orion.schemas.core import (
-    OBFUSCATED_SECRET,
-    BlockDocument,
-    BlockDocumentReference,
-)
+from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
 from prefect.orion.schemas.filters import BlockDocumentFilterIsAnonymous
-from prefect.utilities.hashing import hash_objects
-
-
-# ensure argument types are preservered because e.g. UUIDs as strings will have
-# different hashes than UUIDs as UUIDs
-@validate_arguments
-def generate_anonymous_name_from_fields(
-    data: dict, block_schema_id: UUID, block_type_id: UUID
-) -> str:
-    """
-    Generate a consistent name for anonymous blocks based on idempotent
-    properties
-    """
-    checksum = hash_objects(
-        dict(
-            data=data,
-            block_schema_id=block_schema_id,
-            block_type_id=block_type_id,
-        ),
-        hash_algo=hashlib.sha256,
-    )
-    return f"anonymous:{checksum}"
+from prefect.orion.utilities.names import obfuscate_string
+from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
 
 @inject_db
@@ -51,20 +25,14 @@ async def create_block_document(
     db: OrionDBInterface,
 ):
 
-    # anonymous blocks are automatically assigned names that act as idempotency keys
-    if block_document.is_anonymous:
-        document_name = generate_anonymous_name_from_fields(
-            data=block_document.data,
-            block_schema_id=block_document.block_schema_id,
-            block_type_id=block_document.block_type_id,
-        )
+    # anonymous block documents can be given a random name if none is provided
+    if block_document.is_anonymous and not block_document.name:
+        name = f"anonymous:{uuid4()}"
     else:
-        document_name = block_document.name
+        name = block_document.name
 
     orm_block = db.BlockDocument(
-        # set the id ourselves so we can check for anonymous block idempotency
-        id=uuid4(),
-        name=document_name,
+        name=name,
         block_schema_id=block_document.block_schema_id,
         block_type_id=block_document.block_type_id,
         is_anonymous=block_document.is_anonymous,
@@ -78,46 +46,8 @@ async def create_block_document(
     # encrypt the data and store in block document
     await orm_block.encrypt_data(session=session, data=block_document_data_without_refs)
 
-    if not orm_block.is_anonymous:
-        session.add(orm_block)
-        await session.flush()
-
-    else:
-        # Named blocks raise an error if the unique name constraint is violated,
-        # but anonymous blocks are idempotent and we return the existing one
-        # instead of erroring. We use SQLAlchemy ORM here to take advantage of
-        # methods such as `encrypt_data`, but ORM doesn't support "on conflict"
-        # statements. Therefore this line converts the ORM model to a SQLAlchemy
-        # Core model so we can do a graceful insert with conflict checks.
-        core_block_values = orm_block.__dict__.copy()
-        core_block_values.pop("_sa_instance_state")
-
-        insert_stmt = (
-            (await db.insert(db.BlockDocument))
-            .values(**core_block_values)
-            .on_conflict_do_nothing(
-                index_elements=db.block_document_unique_upsert_columns,
-            )
-        )
-        await session.execute(insert_stmt)
-
-        result = await session.execute(
-            # select using unique index on block type id / name
-            sa.select(db.BlockDocument.id).where(
-                db.BlockDocument.block_type_id == orm_block.block_type_id,
-                db.BlockDocument.name == document_name,
-            )
-        )
-        idempotent_id = result.scalar()
-
-        # if the idempotent ID is different from the ID we tried to insert,
-        # then the block already exists and we return that block
-        if idempotent_id != orm_block.id:
-            return await read_block_document_by_id(
-                session=session,
-                block_document_id=idempotent_id,
-                include_secrets=False,
-            )
+    session.add(orm_block)
+    await session.flush()
 
     # Create a block document reference for each reference in the block document data
     for key, reference_block_document_id in block_document_references:
@@ -508,25 +438,30 @@ async def update_block_document(
     update_values = block_document.dict(shallow=True, exclude_unset=True)
 
     if "name" in update_values:
-        # anonymous block names cannot be updated
-        if current_block_document.is_anonymous:
-            raise ValueError("Names cannot be provided for anonymous blocks.")
         current_block_document.name = update_values["name"]
 
     if "data" in update_values and update_values["data"] is not None:
+        current_data = await current_block_document.decrypt_data(session=session)
 
-        # if a block data contains Prefect's own OBFUSCATED SECRET value,
-        # it means someone is probably trying to update all of the documents
-        # fields without realizing they are positing back obfuscated data,
-        # so we disregard them
-        for key, value in list(update_values["data"].items()):
-            if value == OBFUSCATED_SECRET:
-                del update_values["data"][key]
+        # if a value for a secret field was provided that is identical to the
+        # obfuscated value of the current secret value, it means someone is
+        # probably trying to update all of the documents fields without
+        # realizing they are posting back obfuscated data, so we disregard the update
+        flat_update_data = dict_to_flatdict(update_values["data"])
+        flat_current_data = dict_to_flatdict(current_data)
+        for field in current_block_document.block_schema.fields.get(
+            "secret_fields", []
+        ):
+            key = tuple(field.split("."))
+            current_secret = flat_current_data.get(key)
+            if current_secret is not None:
+                if flat_update_data.get(key) == obfuscate_string(current_secret):
+                    del flat_update_data[key]
+        update_values["data"] = flatdict_to_dict(flat_update_data)
 
         # merge the existing data and the new data for partial updates
-        merged_data = await current_block_document.decrypt_data(session=session)
-        merged_data.update(update_values["data"])
-        update_values["data"] = merged_data
+        current_data.update(update_values["data"])
+        update_values["data"] = current_data
 
         current_block_document_references = (
             (
@@ -574,16 +509,6 @@ async def update_block_document(
                     session, block_document_reference_id=block_document_reference.id
                 )
 
-        # if the block is anonymous and the data is being updated, then we need to update
-        # its name as if it had just been created
-        if current_block_document.is_anonymous:
-            current_block_document.name = generate_anonymous_name_from_fields(
-                # note: use the unencrypted data values to generate name
-                data=update_values["data"],
-                block_schema_id=current_block_document.block_schema_id,
-                block_type_id=current_block_document.block_type_id,
-            )
-
     await session.flush()
 
     return True
@@ -604,59 +529,6 @@ def _find_block_document_reference(
         ),
         None,
     )
-
-
-@inject_db
-async def get_default_storage_block_document(
-    session: sa.orm.Session,
-    db: OrionDBInterface,
-    include_secrets: bool = True,
-):
-    query = (
-        sa.select(db.BlockDocument)
-        .where(db.BlockDocument.is_default_storage_block_document.is_(True))
-        .limit(1)
-        .execution_options(populate_existing=True)
-    )
-    result = await session.execute(query)
-    orm_block_document = result.scalar()
-    if orm_block_document is None:
-        return None
-    return await BlockDocument.from_orm_model(
-        session, orm_block_document, include_secrets=include_secrets
-    )
-
-
-@inject_db
-async def set_default_storage_block_document(
-    session: sa.orm.Session, block_document_id: UUID, db: OrionDBInterface
-):
-    block_document = await read_block_document_by_id(
-        session=session, block_document_id=block_document_id
-    )
-    if not block_document:
-        raise ValueError("Block document not found")
-    elif "storage" not in block_document.block_schema.capabilities:
-        raise ValueError("Block schema must have the 'storage' capability")
-
-    await clear_default_storage_block_document(session=session)
-    await session.execute(
-        sa.update(db.BlockDocument)
-        .where(db.BlockDocument.id == block_document_id)
-        .values(is_default_storage_block_document=True)
-    )
-
-
-@inject_db
-async def clear_default_storage_block_document(
-    session: sa.orm.Session, db: OrionDBInterface
-):
-    await session.execute(
-        sa.update(db.BlockDocument)
-        .where(db.BlockDocument.is_default_storage_block_document.is_(True))
-        .values(is_default_storage_block_document=False)
-    )
-    await session.flush()
 
 
 @inject_db

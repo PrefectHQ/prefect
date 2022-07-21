@@ -5,7 +5,7 @@ import os.path
 import warnings
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any
+from typing import Any, List
 
 import pydantic
 from typing_extensions import Literal
@@ -22,6 +22,11 @@ class PickleSerializer(Serializer):
     """
     Serializes objects using the pickle protocol.
 
+    If using cloudpickle, you may specify a list of 'pickle_modules'. These modules will
+    be serialized by value instead of by reference, which means they do not have to be
+    installed in the runtime location. This is especially useful for serializing objects
+    that rely on local packages.
+
     Wraps pickles in base64 for safe transmission.
     """
 
@@ -29,6 +34,7 @@ class PickleSerializer(Serializer):
 
     picklelib: str = "cloudpickle"
     picklelib_version: str = None
+    pickle_modules: List[str] = pydantic.Field(default_factory=list)
 
     @pydantic.validator("picklelib")
     def check_picklelib(cls, value):
@@ -82,9 +88,28 @@ class PickleSerializer(Serializer):
 
         return values
 
+    @pydantic.root_validator
+    def check_picklelib_and_modules(cls, values):
+        """
+        Prevents modules from being specified if picklelib is not cloudpickle
+        """
+        if values.get("picklelib") != "cloudpickle" and values.get("pickle_modules"):
+            raise ValueError(
+                f"`pickle_modules` cannot be used without 'cloudpickle'. Got {values.get('picklelib')!r}."
+            )
+        return values
+
     def dumps(self, obj: Any) -> bytes:
         pickler = from_qualified_name(self.picklelib)
+
+        for module in self.pickle_modules:
+            pickler.register_pickle_by_value(from_qualified_name(module))
+
         blob = pickler.dumps(obj)
+
+        for module in self.pickle_modules:
+            # Restore the pickler settings
+            pickler.unregister_pickle_by_value(from_qualified_name(module))
 
         return base64.encodebytes(blob)
 

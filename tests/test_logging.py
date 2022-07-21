@@ -33,6 +33,7 @@ from prefect.logging.loggers import (
 )
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.data import DataDocument
+from prefect.results import _retrieve_result
 from prefect.settings import (
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_BATCH_INTERVAL,
@@ -187,7 +188,7 @@ async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deploym
     ).submit_flow_run(flow_run, MagicMock(spec=anyio.abc.TaskStatus))
 
     state = (await orion_client.read_flow_run(flow_run.id)).state
-    settings = await orion_client.resolve_datadoc(state.data)
+    settings = await _retrieve_result(state)
     api_logs = await orion_client.read_logs()
     api_log_messages = [log.message for log in api_logs]
 
@@ -907,7 +908,7 @@ def test_run_logger_fails_outside_context():
 
 
 async def test_run_logger_with_explicit_context(
-    orion_client, flow_run, local_storage_block
+    orion_client, flow_run, local_filesystem
 ):
     @task
     def foo():
@@ -918,7 +919,7 @@ async def test_run_logger_with_explicit_context(
         task=foo,
         task_run=task_run,
         client=orion_client,
-        result_storage=local_storage_block,
+        result_filesystem=local_filesystem,
     )
 
     logger = get_run_logger(context)
@@ -935,7 +936,7 @@ async def test_run_logger_with_explicit_context(
 
 
 async def test_run_logger_with_explicit_context_overrides_existing(
-    orion_client, flow_run, local_storage_block
+    orion_client, flow_run, local_filesystem
 ):
     @task
     def foo():
@@ -951,7 +952,7 @@ async def test_run_logger_with_explicit_context_overrides_existing(
         task=bar,
         task_run=task_run,
         client=orion_client,
-        result_storage=local_storage_block,
+        result_filesystem=local_filesystem,
     )
 
     logger = get_run_logger(context)
@@ -963,7 +964,7 @@ async def test_run_logger_in_flow(orion_client):
     def test_flow():
         return get_run_logger()
 
-    state = test_flow()
+    state = test_flow._run()
     flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
     logger = state.result()
     assert logger.name == "prefect.flow_runs"
@@ -979,7 +980,7 @@ async def test_run_logger_extra_data(orion_client):
     def test_flow():
         return get_run_logger(foo="test", flow_name="bar")
 
-    state = test_flow()
+    state = test_flow._run()
     flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
     logger = state.result()
     assert logger.name == "prefect.flow_runs"
@@ -998,9 +999,9 @@ async def test_run_logger_in_nested_flow(orion_client):
 
     @flow
     def test_flow():
-        return child_flow()
+        return child_flow._run()
 
-    child_state = test_flow().result()
+    child_state = test_flow._run().result()
     flow_run = await orion_client.read_flow_run(child_state.state_details.flow_run_id)
     logger = child_state.result()
     assert logger.name == "prefect.flow_runs"
@@ -1018,9 +1019,9 @@ async def test_run_logger_in_task(orion_client):
 
     @flow
     def test_flow():
-        return test_task().wait()
+        return test_task._run()
 
-    flow_state = test_flow()
+    flow_state = test_flow._run()
     flow_run = await orion_client.read_flow_run(flow_state.state_details.flow_run_id)
     task_state = flow_state.result()
     task_run = await orion_client.read_task_run(task_state.state_details.task_run_id)

@@ -118,6 +118,22 @@ class TestCreateCronSchedule:
         clock = CronSchedule(cron="5 4 * * *")
         assert clock.cron == "5 4 * * *"
 
+    @pytest.mark.parametrize(
+        "cron_string",
+        [
+            "@yearly",
+            "@weekly",
+            "@daily",
+            "@hourly",
+            "* * * * MON",
+            "30 8 * * sat-sun",
+            "* * * * mon,wed,fri",
+        ],
+    )
+    def test_create_cron_schedule_with_keywords(self, cron_string):
+        clock = CronSchedule(cron=cron_string)
+        assert clock.cron == cron_string
+
     def test_create_cron_schedule_with_timezone(self):
         clock = CronSchedule(cron="5 4 * * *", timezone="EST")
         assert clock.timezone == "EST"
@@ -126,9 +142,16 @@ class TestCreateCronSchedule:
         with pytest.raises(ValidationError, match="(Invalid timezone)"):
             CronSchedule(cron="5 4 * * *", timezone="fake")
 
-    @pytest.mark.parametrize("cron_string", ["invalid cron", "5 4 R * *", "H H * * *"])
+    @pytest.mark.parametrize("cron_string", ["invalid cron"])
     def test_invalid_cron_string(self, cron_string):
         with pytest.raises(ValidationError, match="(Invalid cron)"):
+            CronSchedule(cron=cron_string)
+
+    @pytest.mark.parametrize("cron_string", ["5 4 R * *"])
+    def test_unsupported_cron_string(self, cron_string):
+        with pytest.raises(
+            ValidationError, match="(Random and Hashed expressions are unsupported)"
+        ):
             CronSchedule(cron=cron_string)
 
 

@@ -22,11 +22,9 @@ At a high level, you can think of a deployment as configuration for managing flo
 For detailed information about deployment objects, see the [prefect.deployments](/api-ref/prefect/deployments/) API documentation.
 
 !!! warning "Deployments are changing"
-    The objects and methods for creating deployments will be changing starting with the Prefect 2.0b8 release, in order to enable exciting new functionality for deployments. 
+    Deployments now use `Deployment` for defining deployment objects, along with [prefect.packaging](/api-ref/prefect/packaging/) packagers to package flows and create a manifest that describes how Prefect can access and use the flow package.
 
-    The Prefect 2.0b8 release introduces the use of `Deployment` for defining deployment objects, along with [prefect.packaging](/api-ref/prefect/packaging/) packagers to package flows and create a manifest that describes how Prefect can access and use the flow package.
-
-    Deployments based on `DeploymentSpec` are deprecated as of the Prefect 2.0b8 release. `DeploymentSpec` will continue to be supported alongside `Deployment` in the short term, and existing deployments that have been created on the server will continue to operate as expected. However, you should migrate ongoing work to `Deployment` as soon as possible. 
+    Deployments based on `DeploymentSpec` are no longer supported.
 
 ## Deployments overview
 
@@ -40,7 +38,7 @@ Deployments enable you to:
 - Assign tags for filtering flow runs on work queues and in the UI
 - Create ad-hoc flow runs from the API or UI
 
-Deployments can package your flow code and store the manifest in the API &mdash; either Prefect Cloud or a local Prefect API server run with `prefect orion start`. The manifest includes information about the location to which a flow has been persisted so the server can schedule and execute flow runs for you. This manifest can include details about the execution environment, parameters, and tags that should be used to create a flow run from the deployment. 
+Deployments can package your flow code and store the manifest in the API &mdash; either Prefect Cloud or a local Prefect Orion server run with `prefect orion start`. The manifest contains the parameter schema so the UI can display a rich interface for providing parameters for a run. 
 
 Deployments are uniquely identified by the combination of flow_name/deployment_name. 
 
@@ -48,8 +46,8 @@ The elements used to create deployments and run a flow from a deployment go toge
 
 ```mermaid
 graph LR
-    F(Flow Code):::yellow -.-> A(Deployment Specification):::gold
-    subgraph Server [<br>Prefect Server<br>Prefect Cloud]
+    F("Flow.py"):::yellow -.-> A("Deployment()"):::gold
+    subgraph Server [<br>Prefect Orion<br>Prefect Cloud]
     D(Deployment):::green
     end
     subgraph Storage
@@ -93,9 +91,9 @@ Each deployment is associated with a single flow, but any given flow can be refe
 
 ```mermaid
 graph LR
-    F(Flow Code):::yellow -.-> A(Deployment Specification A):::tan --> X(Deployment A):::fgreen
-    F -.-> B(Deployment Specification B):::gold  --> Y(Deployment B):::green
-    F -.-> C(Deployment Specification C):::dgold --> Z(Deployment C):::dgreen
+    F("Flow.py"):::yellow -.-> A("Deployment(name='A')"):::tan --> X(Deployment A):::fgreen
+    F -.-> B("Deployment(name='B')"):::gold  --> Y(Deployment B):::green
+    F -.-> C("Deployment(name='C')"):::dgold --> Z(Deployment C):::dgreen
 
     classDef gold fill:goldenrod,stroke:goldenrod,stroke-width:4px,color:white
     classDef yellow fill:gold,stroke:gold,stroke-width:4px
@@ -115,15 +113,20 @@ Deployments include the ability to indicate where your flow code can be found, a
 A simple example of a deployment specification for a flow looks like this:
 
 ```python
-from prefect.deployments import DeploymentSpec
+from prefect import flow
+from prefect.deployments import Deployment
 
-DeploymentSpec(
-    flow_location="flow.py",
-    name="flow-deployment", 
+@flow(name="Kiki's Delivery Flow")
+def kikis_delivery_flow(name="world"):
+    print(f"Hello {name}!")
+
+Deployment(
+    flow=kikis_delivery_flow,
+    name="kikis-adhoc-deployment",
 )
 ```
 
-Once the deployment has been created, you'll see it in the [Prefect UI](/ui/dashboard/) and can inspect it using the CLI.
+Once the deployment has been created, you'll see it in the [Prefect UI](/ui/flow-runs/) and can inspect it using the CLI.
 
 ![Viewing deployments in the Prefect UI](/img/ui/orion-deployments.png)
 
@@ -186,7 +189,7 @@ The [prefect.orion.api.deployments](/api-ref/orion/api/deployments/) API also pr
 
 ## Deployment specifications
 
-To create a deployment in Orion, you do not have to specify _all_ of the Deployment object properties. A _deployment specification_ lets you provide the details relevant to deploying your flow. When you create a deployment from a deployment specification, Orion uses the settings provided by your specification, defaults, and automatically constructed data such as timestamps and ids to create the underlying deployment object.
+To create a deployment in Orion, you do not have to specify _all_ of the [`Deployment`](#deployment-object) object properties. A _deployment specification_ lets you provide the details relevant to deploying your flow. When you create a deployment from a deployment specification, Prefect Orion uses the settings provided by your specification plus defaults and automatically constructed data such as timestamps and IDs to create the underlying deployment object.
 
 There are several ways to build a deployment specification and use it to create a deployment:
 
@@ -194,124 +197,16 @@ There are several ways to build a deployment specification and use it to create 
 - If using the `OrionClient`, the request will be constructed for you. See [`OrionClient.create_deployment`](/api-ref/prefect/client/#prefect.client.OrionClient.create_deployment) for the required fields.
 - You can also write your deployment specification as Python or YAML and use the CLI to create the deployment. The CLI will generate the `DeploymentCreate` object to pass to the API.
 
-## DeploymentSpec object
-
-You can create a [`DeploymentSpec`](/api-ref/prefect/deployments/#prefect.deployments.DeploymentSpec) object in your application and pass that to Prefect Cloud or a Prefect API server instance to create a deployment.
-
-!!! warning "`DeploymentSpec` is deprecated"
-    Deployments based on `DeploymentSpec` are deprecated as of the Prefect 2.0b8 release. `DeploymentSpec` will continue to be supported alongside [`Deployment`](#deployment-object) in the short term, and existing deployments that have been created on the server will continue to operate as expected. However, you should migrate ongoing work to `Deployment` as soon as possible.
-
-A `DeploymentSpec` object has the following required parameters:
-
-| Parameter | Description |
-| --------- | ----------- |
-| `name` | String specifying the name of the deployment. |
-| `flow` | The flow object to associate with the deployment. |
-| <span class="no-wrap">`flow_location`</span> | String specifying the path to a script containing the flow to deploy. Inferred from `flow` if provided. |
-| `flow_name` | String specifying the name of the flow to deploy. |
-| `flow_runner` | Specifies the [flow runner](/api-ref/prefect/flow-runners/) used for flow runs. |
-| `flow_storage` | A [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance specifying the [storage](/concepts/storage/) to be used for the flow definition and results. |
-| `parameters` | Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects. |
-| `schedule` | [Schedule](/concepts/schedules/) instance specifying a schedule for running the deployment. |
-| `tags` | List containing tags to assign to the deployment. |
-
-Either the flow object or location must be provided.
-
-If a flow location is provided, the script at the given location will be run when the deployment is created to load metadata about the flow. 
-
-The flow definition for the deployment is stored in the default [storage](/concepts/storage/) configured for the Prefect API server or Prefect Cloud workspace, unless you specify a different storage with `flow_storage`. If you have no default storage set on the API, local file storage will be used by default.
-
-!!! note "Defining flow storage on the deployment"
-    At this time, while it is supported to specify the configuration of a storage block on a deployment, Prefect creates a new storage configuration for that storage each time you create or update the deployment. This does not affect the storage itself, but multiple storage IDs for duplicate storage records may be confusing. 
-    
-    Prefect does not currently provide the tools to manage duplicate storage block entries, so we recommend as a best practice creating storage directly on the Prefect Cloud workspace or Prefect API server and referencing the storage by ID.
-
-    For more information and examples, see [Configuring storage](#configuring-storage).
-
-You can define a [`DeploymentSpec`](/api-ref/prefect/deployments/#prefect.deployments.DeploymentSpec) object as either Python or YAML code. You can create deployment specifications of this type in two ways:
-
-- In a Python script, setting `flow` to the flow object. The flow object can be from the same file or imported.
-- In a Python or YAML file, setting `flow_location` to the path of the Python script containing the flow object.
-
-In the second case, if there are multiple flows in the `flow_location`, you will need to also pass a `flow_name` to disambiguate.
-
-If you define the `DeploymentSpec` within the file that contains the flow, you only need to specify the flow function and the deployment name. Other parameters are optional and are inferred or constructed by Orion utilities when you create a deployment.
-
-```Python
-from prefect import flow
-
-@flow
-def hello_world(name="world"):
-    print(f"Hello {name}!")
-
-# Note: a deployed flow does not need a command to 
-# explicitly run the flow. The API handles this for you.
-# hello_world()
-
-from prefect.deployments import DeploymentSpec
-
-DeploymentSpec(
-    flow=hello_world,
-    name="hello-world-daily",
-)
-```
-
-If you define the `DeploymentSpec` in a separate Python deployment file, specify the path and filename of the file containing the flow definition, along with the deployment name. Other parameters are optional in the deployment specification.
-
-```Python
-from prefect.deployments import DeploymentSpec
-
-DeploymentSpec(
-    flow_location="/path/to/flow.py",
-    name="hello-world-daily", 
-)
-```
-
-Deployment specifications can also be written in YAML and refer to the flow's location instead of the flow object:
-
-```yaml
-name: hello-world-daily
-flow_location: ./path/to/flow.py
-flow_name: hello-world
-tags:
-- foo
-- bar
-parameters:
-    name: "Earth"
-schedule:
-    interval: 3600
-```
-
-A deployment specification file or flow definition may include multiple deployment specifications, each representing settings for a different deployment for a flow. Each deployment specification for a given flow must have a unique name &mdash; Orion does not support duplicate instances of flow_name/deployment_name. You can, however, include deployment specifications for multiple different flows in a single deployment file.
-
-!!! note "Writing multiple specifications in a single file"
-    Multiple deployment specifications can be defined in a single file by using the `---` YAML document separator.
-
-    For example:
-
-    ```yaml
-    name: first-deployment
-    flow_location: ./path/to/first/flow.py
-    ---
-    name: second-deployment
-    flow_location: ./path/to/second/flow.py
-    ```
-
 ## Deployment object
 
-You can create a [`Deployment`](/api-ref/prefect/deployments/#prefect.deployments.Deployment) object in your code and pass that to Prefect Cloud or a Prefect API server instance to create a deployment.
-
-!!! tip "Use `Deployment` for new deployments"
-    The Prefect 2.0b8 release introduces the use of [`Deployment`](#deployment-object) for defining deployment objects, along with [prefect.packaging](/api-ref/prefect/packaging/) packagers to package flows and create a manifest that describes how to access and use the flow package. 
-    
-    Existing deployments that have been created on the server will continue to operate as expected. However, you should migrate ongoing work to `Deployment` as soon as possible.
+You can create a [`Deployment`](/api-ref/prefect/deployments/#prefect.deployments.Deployment) object in your code and pass it to Prefect Cloud or a Prefect Orion server instance to create a deployment.
 
 A `Deployment` object has the following parameters:
 
 | Parameter | Description |
 | --------- | ----------- |
 | `name` | String specifying the name of the deployment. |
-| `flow` | The flow object to associate with the deployment. May provide the flow function name as `flow="flow_name"` if defined in the same file as the `Deployment` specification, or may provide additional information to define the flow code via a `FlowScript` or `PackageManifest` object. (Required) |
+| `flow` | The flow object to associate with the deployment. You may provide the flow object directly as `flow=my_flow` if available in the same file as the `Deployment`. Alternatively, you may provide a `Path`, `FlowScript`, or `PackageManifest` specifying how to access to the flow. (Required) |
 | <span class="no-wrap">`flow_runner`</span> | Specifies the [flow runner](/api-ref/prefect/flow-runners/) used for flow runs. Uses the `UniversalFlowRunner` if none is specified. |
 | `packager` | The [prefect.packaging](/api-ref/prefect/packaging/) packager to use for packaging the flow. |
 | `parameters` | Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects. |
@@ -320,9 +215,32 @@ A `Deployment` object has the following parameters:
 
 The `Deployment` specification must clearly indicate the flow function and the location of the file in which the function is defined on the `flow` parameter. If you define the `Deployment` within the file that contains the flow, you only need to specify the flow function and the deployment name.
 
-If you are defining the `Deployment` specification in a different file from the flow code, you'll need to provide a flow location so the script at the given location will be run when the deployment is created to load metadata about the flow. You can provide that on the `flow` parameter using either a `FlowScript` or `PackageManifest` object.
+If you are defining the `Deployment` specification in a different file from the flow code, you'll need to either import the flow or provide a flow location so the script at the given location will be run when the deployment is created to load metadata about the flow. You can provide that on the `flow` parameter using a `Path`, `FlowScript`, or `PackageManifest`.
 
-`FlowScript` is a simple Pydantic model with the following properties:
+When there is only one flow in a file, you may just provide the path to the file.
+
+```python
+from prefect.deployments import Deployment
+from pathlib import Path
+
+Deployment(
+    flow=Path(__file__).parent / "examples" / "single_flow_in_file.py"
+)
+```
+
+If you provide a string, we will cast it to a `Path` object for you.
+
+```python
+from prefect.deployments import Deployment
+
+Deployment(
+    flow="~/flows/my_flow.py"
+)
+```
+
+## FlowScript object
+
+When providing a path with multiple flows, we'll need the name of the flow to determine which one you would like to deploy. `FlowScript` is a simple Pydantic model with the following properties:
 
 | Parameter | Description |
 | --------- | ----------- |
@@ -331,6 +249,8 @@ If you are defining the `Deployment` specification in a different file from the 
 
 ```python
 from prefect.deployments import Deployment
+from prefect.deployments import FlowScript
+from pathlib import Path
 
 Deployment(
     flow=FlowScript(
@@ -591,54 +511,3 @@ Deployment(
     tags=["test","docker"],
 )
 ```
-
-### Configuring storage
-
-!!! warning "`DeploymentSpec` is deprecated"
-    Deployments based on `DeploymentSpec` are deprecated as of the Prefect 2.0b8 release. This method of configuring storage on a deployment will be deprecated along with `DeploymentSpec`.
-
-You can specify or configure a [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance, providing the [storage](/concepts/storage/) to be used for the flow definition and results. 
-
-You can provide the specification of a storage block or the ID of storage already configured for a Prefect API server instance or Prefect Cloud (as configured for your execution environment).
-
-```Python
-from prefect import flow, get_run_logger
-
-@flow
-def hello_storage():
-    logger = get_run_logger()
-    logger.info(f"Uses a storage block on the flow runner!")
-
-from prefect.deployments import DeploymentSpec
-from prefect.blocks.storage import S3StorageBlock
-
-# configure an S3StorageBlock instance 
-DeploymentSpec(
-    flow=hello_storage,
-    name="storage instance test",
-    flow_storage=S3StorageBlock(
-        bucket="bucket-full-of-sunshine",
-        aws_access_key_id="XXXXXXXXXXXXXXXXXXXX",
-        aws_secret_access_key="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-    ),
-    tags=["storage","tutorial"],
-)
-
-# specify an existing storage configuration by ID
-DeploymentSpec(
-    flow=hello_storage,
-    name="storage id test",
-    flow_storage="8cc24b10-0a4e-4b71-acc6-0ed0b923b5c2",
-    tags=["storage","tutorial"],
-)
-```
-
-If `flow_storage` is not specified, the default storage will be pulled from the server. If the server does not have a default, the deployment will attempt to use local storage.
-
-If creating a deployment that specifies the configuration for a [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance without an ID of existing storage, it will be registered as a new storage configuration with the server.
-
-!!! note "Storage definitions create new storage blocks"
-
-    If you specify the ID of an existing storage block configuration, Prefect uses that block and does not create a new one.
-
-    Currently, if you specify the configuration for a storage block instance on the deployment, Prefect creates a new storage block for that storage configuration each time you create or update the deployment, even if an identical configuration already exists. Note that, if the storage configuration is the same, this does not create a new storage location, it simply creates a new pointer to the same storage location.

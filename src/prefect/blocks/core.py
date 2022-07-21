@@ -1,11 +1,12 @@
 import hashlib
 import inspect
+import logging
 from abc import ABC
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Dict, FrozenSet, List, Optional, Type, Union
 from uuid import UUID, uuid4
 
-from griffe.dataclasses import Docstring
+from griffe.dataclasses import Docstring, DocstringSection
 from griffe.docstrings.dataclasses import DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
@@ -13,7 +14,7 @@ from typing_extensions import Self, get_args, get_origin
 
 import prefect
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
-from prefect.utilities.asyncio import asyncnullcontext, sync_compatible
+from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
@@ -234,7 +235,7 @@ class Block(BaseModel, ABC):
 
         return BlockDocument(
             id=self._block_document_id or uuid4(),
-            name=name or self._block_document_name,
+            name=(name or self._block_document_name) if not is_anonymous else None,
             block_schema_id=block_schema_id or self._block_schema_id,
             block_type_id=block_type_id or self._block_type_id,
             data=block_document_data,
@@ -269,6 +270,21 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
+    def _parse_docstring(cls) -> List[DocstringSection]:
+        """
+        Parses the docstring into list of DocstringSection objects.
+        Helper method used primarily to suppress irrelevant logs, e.g.
+        `<module>:11: No type or annotation for parameter 'write_json'`
+        because griffe is unable to parse the types from pydantic.BaseModel.
+        """
+        griffe_logger = logging.getLogger("griffe.docstrings.google")
+        griffe_logger.disabled = True
+        docstring = Docstring(cls.__doc__)
+        parsed = parse(docstring, Parser.google)
+        griffe_logger.disabled = False
+        return parsed
+
+    @classmethod
     def get_description(cls) -> Optional[str]:
         """
         Returns the description for the current block. Attempts to parse
@@ -278,8 +294,7 @@ class Block(BaseModel, ABC):
         # If no description override has been provided, find the first text section
         # and use that as the description
         if description is None and cls.__doc__ is not None:
-            docstring = Docstring(cls.__doc__)
-            parsed = parse(docstring, Parser.google)
+            parsed = cls._parse_docstring()
             parsed_description = next(
                 (
                     section.as_dict().get("value")
@@ -305,8 +320,7 @@ class Block(BaseModel, ABC):
         # section or an admonition with the annotation "example" and use that as the
         # code example
         if code_example is None and cls.__doc__ is not None:
-            docstring = Docstring(cls.__doc__)
-            parsed = parse(docstring, Parser.google)
+            parsed = cls._parse_docstring()
             for section in parsed:
                 # Section kind will be "examples" if Examples section heading is used.
                 if section.kind == DocstringSectionKind.examples:
@@ -520,8 +534,9 @@ class Block(BaseModel, ABC):
         Args:
             name: User specified name to give saved block document which can later be used to load the
                 block document.
-            is_anonymous: Boolean value specifying if the block document should or should
-                not be stored without a user specified name.
+            is_anonymous: Boolean value specifying whether the block document is anonymous. Anonymous
+                blocks are intended for system use and are not shown in the UI. Anonymous blocks do not
+                require a user-supplied name.
             overwrite: Boolean value specifying if values should be overwritten if a block document with
                 the specified name already exists.
 
@@ -536,18 +551,12 @@ class Block(BaseModel, ABC):
                 "is_anonymous to True."
             )
 
-        if name is not None and is_anonymous:
-            raise ValueError(
-                "You're attempting to save an anonymous block document with a name. "
-                "Please either save a block document without a name or set "
-                "is_anonymous to False."
-            )
-
-        # Ensure block type and schema are registered before saving block document.
-        await self.register_type_and_schema()
-
         self._is_anonymous = is_anonymous
         async with prefect.client.get_client() as client:
+
+            # Ensure block type and schema are registered before saving block document.
+            await self.register_type_and_schema(client=client)
+
             try:
                 block_document = await client.create_block_document(
                     block_document=self._to_block_document(name=name)

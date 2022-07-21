@@ -31,9 +31,9 @@ from pydantic import BaseModel, Field, PrivateAttr
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
-from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient
 from prefect.exceptions import MissingContextError
+from prefect.filesystems import WritableFileSystem
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.states import State
@@ -192,9 +192,11 @@ class FlowRunContext(RunContext):
         flow: The flow instance associated with the run
         flow_run: The API metadata for the flow run
         task_runner: The task runner instance being used for the flow run
-        result_storage: A block to used to persist run state data
-        task_run_futures: A list of futures for task runs created within this flow run
-        subflow_states: A list of states for flow runs created within this flow run
+        result_filesystem: A block to used to persist run state data
+        task_run_futures: A list of futures for task runs submitted within this flow run
+        task_run_states: A list of states for task runs created within this flow run
+        task_run_results: A mapping of result ids to task run states for this flow run
+        flow_run_states: A list of states for flow runs created within this flow run
         sync_portal: A blocking portal for sync task/flow runs in an async flow
         timeout_scope: The cancellation scope for flow level timeouts
     """
@@ -202,12 +204,16 @@ class FlowRunContext(RunContext):
     flow: "Flow"
     flow_run: FlowRun
     task_runner: BaseTaskRunner
-    result_storage: StorageBlock
+    result_filesystem: WritableFileSystem
 
-    # Tracking created objects
+    # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
+
+    # Tracking for objects created by this flow run
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
-    subflow_states: List[State] = Field(default_factory=list)
+    task_run_states: List[State] = Field(default_factory=list)
+    task_run_results: Dict[int, State] = Field(default_factory=dict)
+    flow_run_states: List[State] = Field(default_factory=list)
 
     # The synchronous portal is only created for async flows for creating engine calls
     # from synchronous task and subflow calls
@@ -225,12 +231,12 @@ class TaskRunContext(RunContext):
     Attributes:
         task: The task instance associated with the task run
         task_run: The API metadata for this task run
-        result_storage: A block to used to persist run state data
+        result_filesystem: A block to used to persist run state data
     """
 
     task: "Task"
     task_run: TaskRun
-    result_storage: StorageBlock
+    result_filesystem: WritableFileSystem
 
     __var__ = ContextVar("task_run")
 
@@ -479,11 +485,11 @@ def enter_root_settings_context():
 
     profiles = prefect.settings.load_profiles()
     active_name = profiles.active_name
-    profile_source = "the profiles file"
+    profile_source = "in the profiles file"
 
     if "PREFECT_PROFILE" in os.environ:
         active_name = os.environ["PREFECT_PROFILE"]
-        profile_source = "environment variable"
+        profile_source = "by environment variable"
 
     if (
         sys.argv[0].endswith("/prefect")
@@ -491,17 +497,20 @@ def enter_root_settings_context():
         and sys.argv[1] == "--profile"
     ):
         active_name = sys.argv[2]
-        profile_source = "command line argument"
+        profile_source = "by command line argument"
 
     if active_name not in profiles.names:
-        raise ValueError(
-            f"Prefect profile {active_name!r} set by {profile_source} not found."
+        print(
+            f"WARNING: Active profile {active_name!r} set {profile_source} not "
+            "found. The default profile will be used instead. ",
+            file=sys.stderr,
         )
+        active_name = "default"
 
     GLOBAL_SETTINGS_CM = use_profile(
         profiles[active_name],
         # Override environment variables if the profile was set by the CLI
-        override_environment_variables=profile_source == "command line argument",
+        override_environment_variables=profile_source == "by command line argument",
     )
 
     GLOBAL_SETTINGS_CM.__enter__()

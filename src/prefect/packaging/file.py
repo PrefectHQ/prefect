@@ -55,8 +55,7 @@ class FilePackager(Packager):
             or await self.filesystem._save(is_anonymous=True)
         )
 
-        return FilePackageManifest(
-            flow_name=flow.name,
+        return self.base_manifest(flow).finalize(
             serializer=self.serializer,
             filesystem_id=filesystem_id,
             key=key,

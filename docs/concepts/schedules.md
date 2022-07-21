@@ -49,6 +49,8 @@ To remove all scheduled runs for a flow deployment, update the deployment with n
 
 A `CronSchedule` creates new flow runs according to a provided [`cron`](https://en.wikipedia.org/wiki/Cron) string. Users may also provide a timezone to enforce DST behaviors.
 
+`CronSchedule` uses [`croniter`](https://github.com/kiorky/croniter) to specify datetime iteration with a `cron`-like format.
+
 ```python
 from prefect.deployments import DeploymentSpec
 from prefect.orion.schemas.schedules import CronSchedule
@@ -71,6 +73,9 @@ DeploymentSpec(
 | timezone | String name of a time zone. (See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones.) |
 
 The `day_or` property defaults to `True`, matching `cron`, which connects those values using `OR`. If `False`, the values are connected using `AND`. This behaves like `fcron` and enables you to, for example, define a job that executes each 2nd Friday of a month by setting the days of month and the weekday.
+
+!!! tip "Supported `croniter` features"
+    While Prefect supports most features of `croniter` for creating `cron`-like schedules, we do not currently support "R" random or "H" hashed keyword expressions or the schedule jittering possible with those expressions.
 
 !!! info "Daylight saving time considerations"
     If the `timezone` is a DST-observing one, then the schedule will adjust itself appropriately. 
@@ -222,10 +227,14 @@ For more detail, please see the [`RRuleSchedule` API reference][prefect.orion.sc
 
 The `Scheduler` service is started automatically when `prefect orion start` is run and is a built-in service of Prefect Cloud. 
 
-By default, the `Scheduler` service visits deployments on a [60-second loop][prefect.settings.Settings.PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS] and attempts to create up to [100][prefect.settings.Settings.PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS] scheduled flow runs up to [100 days][prefect.settings.Settings.PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME] in the future. 
+By default, the `Scheduler` service visits deployments on a 60-second loop and attempts to create up to 100 scheduled flow runs up to 100 days in the future. These defaults may be configured via the following Prefect settings:
+
+- `PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS`
+- `PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS`
+- `PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME`
 
 This means that if a deployment has an hourly schedule, the default settings will create runs for the next 4 days (or 100 hours). If it has a weekly schedule, the default settings will maintain the next 14 runs (up to 100 days in the future).
 
-!!! info "The `Scheduler` does not affect execution"
-    The Orion `Scheduler` service only creates new flow runs and places them in `Scheduled` states. It is not at all involved in flow or task execution. Making the `Scheduler` loop faster will not make flows start or run faster.
+!!! tip "The `Scheduler` does not affect execution"
+    The Prefect Orion `Scheduler` service only creates new flow runs and places them in `Scheduled` states. It is not involved in flow or task execution. Making the `Scheduler` loop faster will not make flows start or run faster.
 
