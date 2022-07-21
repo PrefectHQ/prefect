@@ -104,7 +104,7 @@ The built-in SQLite database automatically tracks all your locally executed flow
 
 To compare that user experience to Prefect 1.0:
 
-- Instead of starting an agent (`prefect agent local start`), you can start building and running flows, and then (optionally) start Orion to see the run history in the UI.
+- Instead of starting an agent (`prefect agent local start`), you can start building and running flows, and then (optionally) start Prefect Orion to see the run history in the UI.
 - Additionally, you can create a deployment to schedule and execute your flow on remote infrastructure, with the infrastructure being defined by a `flow_runner` configuration.
 
 ### 3.4 No ambiguities
@@ -113,7 +113,7 @@ Prefect 2.0 eliminates ambiguities in many ways. On the one hand, there is no mo
 
 In Prefect 1.0, there were many ways you could implement `caching`, which was confusing to many users. Prefect 2.0 resolves those ambiguities by providing a single `cache_key_fn` function paired with `cache_expiration`, allowing you to define arbitrary caching mechanisms &mdash; no more confusion about whether you need to use `cache_for`, `cache_validator`, or file-based caching using `targets`.
 
-In the future, we anticipate many cache key functions being included directly in the Prefect 2.0 library. For more details on how to configure caching, check out the following resources:
+In the future, we anticipate many cache key functions will be included directly in the Prefect 2.0 library. For more details on how to configure caching, check out the following resources:
 
 - [Time-based caching](https://discourse.prefect.io/t/how-can-i-cache-a-task-result-for-two-hours-to-prevent-re-computation/67)
 - [Input-based caching](https://discourse.prefect.io/t/how-can-i-cache-a-task-result-based-on-task-input-arguments/68)
