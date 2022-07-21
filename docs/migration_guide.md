@@ -93,11 +93,11 @@ Apart from new features, Prefect 2.0 simplifies many usage patterns and provides
 
 Every time you run a flow, it is tracked by the API even if you don’t know it; this brings both local and backend-triggered execution on the exact same page for better debugging and observability. This also allows you to use alternate schedulers (for example, a CRON job) when migrating to Prefect.
 
-Similarly, since the API tracks every flow run behind the scenes, agentless deployments are working out-of-the-box &mdash; if you want to manage your own flow execution, you can!
+Similarly, because the API tracks every flow run behind the scenes, agentless deployments work out-of-the-box &mdash; if you want to manage your own flow execution, you can!
 
 ### 3.2 Code as Workflows
 
-With Prefect 2.0, your functions *are* your flows. Prefect 2.0 automatically detects your flows and tasks without the need to define a rigid DAG structure. While tasks are encouraged to provide you the maximum visibility into your workflows, they are no longer required. You can add a single `@flow` decorator to your main function to transform any Python script into a Prefect workflow.
+With Prefect 2.0, your functions *are* your flows. Prefect 2.0 automatically detects your flows and tasks without the need to define a rigid DAG structure. While use of tasks is encouraged to provide you the maximum visibility into your workflows, they are no longer required. You can add a single `@flow` decorator to your main function to transform any Python script into a Prefect workflow.
 
 ### 3.3 Incremental adoption
 The built-in SQLite database automatically tracks all your locally executed flow runs. As soon as you start Prefect Orion and open the Prefect UI in your browser (or [authenticate your CLI with your Prefect Cloud workspace](https://orion-docs.prefect.io/ui/cloud-getting-started/)), you can see all your locally executed flow runs in the UI without having to spin up any additional components such as agents.
