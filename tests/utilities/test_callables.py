@@ -225,7 +225,7 @@ class TestFunctionToSchema:
 
     def test_function_with_user_defined_type(self):
         class Foo:
-            x: int
+            y: int
 
         def f(x: Foo):
             pass
@@ -240,8 +240,8 @@ class TestFunctionToSchema:
 
     def test_function_with_user_defined_pydantic_model(self):
         class Foo(pydantic.BaseModel):
-            x: int
-            y: str
+            y: int
+            z: str
 
         def f(x: Foo):
             pass
@@ -251,10 +251,10 @@ class TestFunctionToSchema:
             "definitions": {
                 "Foo": {
                     "properties": {
-                        "x": {"title": "X", "type": "integer"},
-                        "y": {"title": "Y", "type": "string"},
+                        "y": {"title": "Y", "type": "integer"},
+                        "z": {"title": "Z", "type": "string"},
                     },
-                    "required": ["x", "y"],
+                    "required": ["y", "z"],
                     "title": "Foo",
                     "type": "object",
                 }
