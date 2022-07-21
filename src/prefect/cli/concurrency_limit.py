@@ -97,7 +97,6 @@ async def inspect(tag: str):
         trid_table,
     )
     app.console.print(Panel(group, expand=False))
-    # placeholder
 
 
 @concurrency_limit_app.command()

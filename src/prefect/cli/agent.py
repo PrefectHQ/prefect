@@ -59,7 +59,6 @@ async def start(
             app.console.print(
                 f"Agent started! Looking for work from queue '{work_queue}'..."
             )
-            # placeholder leave your comments here
 
         while True:
             try:
