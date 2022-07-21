@@ -1,7 +1,7 @@
 """Remove flow runners
 
 Revision ID: 2fe8ef6a6514
-Revises: 56be24fdb383
+Revises: 628a873f0d1a
 Create Date: 2022-07-20 11:34:51.903172
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import sqlite
 
 # revision identifiers, used by Alembic.
 revision = "2fe8ef6a6514"
-down_revision = "56be24fdb383"
+down_revision = "628a873f0d1a"
 branch_labels = None
 depends_on = None
 
