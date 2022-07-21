@@ -5,6 +5,7 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.blocks.core import Block
 from prefect.blocks.notifications import NotificationBlock
 from prefect.infrastructure import DockerContainer, Process
 from prefect.orion import models, schemas
@@ -244,22 +245,29 @@ async def block_type_z(session):
 
 @pytest.fixture
 async def block_schema(session, block_type_x):
-    block_schema = await models.block_schemas.create_block_schema(
-        session=session,
-        block_schema=schemas.actions.BlockSchemaCreate(
-            fields={
-                "title": "x",
-                "type": "object",
-                "properties": {"foo": {"title": "Foo", "type": "string"}},
-                "required": ["foo"],
-                "block_schema_references": {},
-                "block_type_name": block_type_x.name,
-            },
-            block_type_id=block_type_x.id,
-        ),
-    )
-    await session.commit()
-    return block_schema
+    # TODO: See `block_type_x` for integrity error description
+    fields = {
+        "title": "x",
+        "type": "object",
+        "properties": {"foo": {"title": "Foo", "type": "string"}},
+        "required": ["foo"],
+        "block_schema_references": {},
+        "block_type_name": block_type_x.name,
+    }
+    try:
+        block_schema = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                fields=fields,
+                block_type_id=block_type_x.id,
+            ),
+        )
+        await session.commit()
+        return block_schema
+    except sa.exc.IntegrityError:
+        return await models.block_schemas.read_block_schema_by_checksum(
+            Block._calculate_schema_checksum(fields)
+        )
 
 
 @pytest.fixture
