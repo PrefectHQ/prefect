@@ -125,7 +125,7 @@ This is the same flow as above, with a few minor changes to use `DaskTaskRunner`
 
 ```python hl_lines="2 12 18"
 from prefect import flow, task
-from prefect.task_runners import DaskTaskRunner
+from prefect_dask.task_runners import DaskTaskRunner
 
 @task
 def say_hello(name):
