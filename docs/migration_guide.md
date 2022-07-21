@@ -62,9 +62,9 @@ Let’s look at the differences in how Prefect 2.0 transitions your flow and tas
 ### 2.4 What changed in flow deployment patterns?
 
 In order to deploy your Prefect 1.0 flows, you have to send flow metadata to the backend in a step called registration. To make this even easier for you, Prefect 2.0 no longer requires flow pre-registration. Instead, you can create a deployment that points to your flow object or flow’s code location and additionally provides details with respect to:
-    - where to deploy your flow (your `flow_runner`, such as a `KubernetesFlowRunner`)
-    - when to run your flow (your schedule or an ad-hoc run triggered via an API call or from the UI)
-    - how to run your flow (execution and bookkeeping details such as `parameters`, `tags` used by work queues, flow deployment `name`, and [more](https://discourse.prefect.io/tag/deployment)).
+    - Where to deploy your flow (your `flow_runner`, such as a `KubernetesFlowRunner`)
+    - When to run your flow (your schedule or an ad-hoc run triggered via an API call or from the UI)
+    - How to run your flow (execution and bookkeeping details such as `parameters`, `tags` used by work queues, flow deployment `name`, and [more](https://discourse.prefect.io/tag/deployment)).
 - The API is now implemented as a REST API rather than GraphQL. [This page](https://discourse.prefect.io/t/how-can-i-interact-with-the-backend-api-using-a-python-client/80) illustrates how you can interact with the API.
 In Prefect 1.0, the logical grouping of flows was based on [projects](https://docs.prefect.io/orchestration/concepts/projects.html). Prefect 2.0 provides a much more flexible way of organizing your flows, tasks, and deployments through customizable filters and tags. [This page](https://discourse.prefect.io/t/how-can-i-organize-my-flows-based-on-my-business-logic-or-team-structure/66) provides more details on how to assign tags to various Prefect 2.0 objects.
 The role of agents has changed between Prefect 1.0 and Prefect 2.0:
