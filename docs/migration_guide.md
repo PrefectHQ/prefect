@@ -69,14 +69,14 @@ In order to deploy your Prefect 1.0 flows, you have to send flow metadata to the
 In Prefect 1.0, the logical grouping of flows was based on [projects](https://docs.prefect.io/orchestration/concepts/projects.html). Prefect 2.0 provides a much more flexible way of organizing your flows, tasks, and deployments through customizable filters and tags. [This page](https://discourse.prefect.io/t/how-can-i-organize-my-flows-based-on-my-business-logic-or-team-structure/66) provides more details on how to assign tags to various Prefect 2.0 objects.
 The role of agents has changed between Prefect 1.0 and Prefect 2.0:
     - In Prefect 1.0, agents are required to see the flow run history in the UI.
-    - In Prefect 2.0, agents and work queues are only required if you want to trigger flows via UI or API.
+    - In Prefect 2.0, agents and work queues are only required if you want to trigger flows via the Prefect UI or API.
     - See [this Discourse page](https://discourse.prefect.io/t/whats-the-role-of-agents-and-work-queues-and-how-the-concept-of-agents-differ-between-prefect-1-0-and-2-0/689) for a more detailed description.
 
 ---
 
 ## 3. New features introduced in Prefect 2.0
 
-The bullet points below present a list of new components and capabilities enabled by Prefect 2.0.
+The following new components and capabilities are enabled by Prefect 2.0.
 
 - More flexibility thanks to the elimination of flow pre-registration
 - More flexibility with respect to flow deployments and how you can promote a flow between environments (development, staging, production)
