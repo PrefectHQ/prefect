@@ -45,16 +45,16 @@ async def create(
 
     output_msg = dedent(
         f"""
-        [green]Created work-queue with properties:[/green]
+        Created work queue with properties:
             name - {name!r}
             uuid - {result}
             tags - {tags or None}
             deployment_ids - {deployment_ids or None}
 
-        Start an agent to pick up flows from the created work-queue:
+        Start an agent to pick up flows from the created work queue:
             prefect agent start '{result}'
 
-        Inspect the created work-queue:
+        Inspect the created work queue:
             prefect work-queue inspect '{result}'
         """
     )
