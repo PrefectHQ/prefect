@@ -620,6 +620,24 @@ class TestGetRunsInWorkQueue:
         )
         assert {run.id for run in runs} == {flow_run_2_id}
 
+    async def test_get_runs_in_work_queue_respects_concurrency_limit_of_0(
+        self,
+        session,
+        work_queue,
+    ):
+        # set concurrency limit to 0
+        await models.work_queues.update_work_queue(
+            session=session,
+            work_queue_id=work_queue.id,
+            work_queue=schemas.actions.WorkQueueUpdate(concurrency_limit=2),
+        )
+
+        await models.work_queues.get_runs_in_work_queue(
+            session=session,
+            work_queue_id=work_queue.id,
+            scheduled_before=pendulum.now("UTC"),
+        ) == []
+
     async def test_get_runs_in_work_queue_raises_object_not_found_error(self, session):
         with pytest.raises(ObjectNotFoundError):
             await models.work_queues.get_runs_in_work_queue(
