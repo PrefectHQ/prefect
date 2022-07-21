@@ -91,7 +91,8 @@ def dict_to_flatdict(
 
     for k, v in dct.items():
         k_parent = tuple(parent + (k,))
-        if isinstance(v, dict):
+        # if v is a non-empty dict, recurse
+        if isinstance(v, dict) and v:
             items.extend(dict_to_flatdict(v, _parent=k_parent).items())
         else:
             items.append((k_parent, v))

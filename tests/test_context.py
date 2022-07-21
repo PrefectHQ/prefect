@@ -80,7 +80,7 @@ def test_context_exit_restores_previous_context():
     assert ExampleContext.get() is None
 
 
-async def test_flow_run_context(orion_client, local_storage_block):
+async def test_flow_run_context(orion_client, local_filesystem):
     @flow
     def foo():
         pass
@@ -93,18 +93,18 @@ async def test_flow_run_context(orion_client, local_storage_block):
         flow_run=flow_run,
         client=orion_client,
         task_runner=test_task_runner,
-        result_storage=local_storage_block,
+        result_filesystem=local_filesystem,
     ):
         ctx = FlowRunContext.get()
         assert ctx.flow is foo
         assert ctx.flow_run == flow_run
         assert ctx.client is orion_client
         assert ctx.task_runner is test_task_runner
-        assert ctx.result_storage == local_storage_block
+        assert ctx.result_filesystem == local_filesystem
         assert isinstance(ctx.start_time, DateTime)
 
 
-async def test_task_run_context(orion_client, flow_run, local_storage_block):
+async def test_task_run_context(orion_client, flow_run, local_filesystem):
     @task
     def foo():
         pass
@@ -115,16 +115,16 @@ async def test_task_run_context(orion_client, flow_run, local_storage_block):
         task=foo,
         task_run=task_run,
         client=orion_client,
-        result_storage=local_storage_block,
+        result_filesystem=local_filesystem,
     ):
         ctx = TaskRunContext.get()
         assert ctx.task is foo
         assert ctx.task_run == task_run
-        assert ctx.result_storage == local_storage_block
+        assert ctx.result_filesystem == local_filesystem
         assert isinstance(ctx.start_time, DateTime)
 
 
-async def test_get_run_context(orion_client, local_storage_block):
+async def test_get_run_context(orion_client, local_filesystem):
     @flow
     def foo():
         pass
@@ -148,7 +148,7 @@ async def test_get_run_context(orion_client, local_storage_block):
         flow_run=flow_run,
         client=orion_client,
         task_runner=test_task_runner,
-        result_storage=local_storage_block,
+        result_filesystem=local_filesystem,
     ) as flow_ctx:
         assert get_run_context() is flow_ctx
 
@@ -156,7 +156,7 @@ async def test_get_run_context(orion_client, local_storage_block):
             task=bar,
             task_run=task_run,
             client=orion_client,
-            result_storage=local_storage_block,
+            result_filesystem=local_filesystem,
         ) as task_ctx:
             assert get_run_context() is task_ctx, "Task context takes precendence"
 

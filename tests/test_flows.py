@@ -9,16 +9,19 @@ import pydantic
 import pytest
 
 from prefect import flow, get_run_logger, tags, task
-from prefect.blocks.storage import TempStorageBlock
+from prefect.blocks.core import Block
 from prefect.client import OrionClient
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import InvalidNameError, ParameterTypeError
+from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import State, StateType
+from prefect.results import _retrieve_result
+from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
 from prefect.states import StateType, raise_failed_state
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
@@ -1164,7 +1167,7 @@ class TestSubflowRunLogs:
 
 
 class TestFlowResults:
-    async def test_flow_results_default_to_temporary_directory(self, orion_client):
+    async def test_flow_results_default_to_local_directory(self, orion_client):
         @flow
         def foo():
             return 6
@@ -1174,49 +1177,22 @@ class TestFlowResults:
         flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
 
         server_state = flow_run.state
-        assert isinstance(server_state.data, DataDocument)
-        document = server_state.data.decode()
-        assert document["block_document_id"] is None
-        assert document["data"].startswith(str(TempStorageBlock().basepath()))
-
-        retrieved_result = await orion_client.resolve_datadoc(flow_run.state.data)
-        assert retrieved_result == state.result()
-
-    async def test_flow_results_use_server_default(
-        self, local_storage_block, orion_client
-    ):
-        @flow
-        def foo():
-            return 6
-
-        await orion_client.set_default_storage_block_document(
-            local_storage_block._block_document_id
+        document = await orion_client.read_block_document(
+            server_state.data.decode().filesystem_document_id
         )
-
-        state = foo._run()
-        assert state.result() == 6
-
-        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
-
-        server_state = flow_run.state
-        assert isinstance(server_state.data, DataDocument)
-        document = server_state.data.decode()
-        assert document["block_document_id"] == local_storage_block._block_document_id
-        assert document["data"].startswith(str(local_storage_block.basepath()))
-
-        retrieved_result = await orion_client.resolve_datadoc(flow_run.state.data)
-        assert retrieved_result == state.result()
+        filesystem = Block._from_block_document(document)
+        assert isinstance(filesystem, LocalFileSystem)
+        assert filesystem.basepath == str(PREFECT_LOCAL_STORAGE_PATH.value())
+        result = await _retrieve_result(server_state)
+        assert result == state.result()
 
     async def test_subflow_results_use_parent_flow_run_value_by_default(
-        self, local_storage_block, orion_client
+        self, orion_client, tmp_path
     ):
         @flow
         async def foo():
-            # Change the default storage on the server, bar() will not use it
-            await orion_client.set_default_storage_block_document(
-                local_storage_block._block_document_id
-            )
-            return bar._run()
+            with temporary_settings({PREFECT_LOCAL_STORAGE_PATH: tmp_path / "foo"}):
+                return bar._run()
 
         @flow
         def bar():
@@ -1232,18 +1208,14 @@ class TestFlowResults:
             child_state.state_details.flow_run_id
         )
 
-        parent_document = parent_flow_run.state.data.decode()
-        child_document = child_flow_run.state.data.decode()
+        parent_result = parent_flow_run.state.data.decode()
+        child_result = child_flow_run.state.data.decode()
         assert (
-            parent_document["block_document_id"] == child_document["block_document_id"]
-        ), "Parent and child used the same block"
-        assert (
-            child_document["block_document_id"]
-            != local_storage_block._block_document_id
-        ), "Storage block to use is determined at flow start time"
+            parent_result.filesystem_document_id == child_result.filesystem_document_id
+        )
 
-        retrieved_result = await orion_client.resolve_datadoc(child_flow_run.state.data)
-        assert retrieved_result == child_state.result()
+        result = await _retrieve_result(child_flow_run.state)
+        assert result == child_state.result()
 
 
 class TestFlowRetries:
