@@ -88,7 +88,7 @@ For example, you can configure the deployment to run in the `prefect-dev` enviro
 ```python
 import sys
 from prefect import flow
-from prefect.deployments import DeploymentSpec
+from prefect.deployments import Deployment
 from prefect.flow_runners import SubprocessFlowRunner
 
 @flow
@@ -96,7 +96,7 @@ def my_flow():
     print(f"Hello! Running with {sys.executable}")
 
 
-DeploymentSpec(
+Deployment(
     name="example",
     flow=my_flow,
     flow_runner=SubprocessFlowRunner(condaenv="prefect-dev", stream_output=True)
