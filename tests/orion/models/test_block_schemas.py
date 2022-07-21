@@ -572,6 +572,48 @@ class TestReadBlockSchemas:
         assert db_block_schema.fields == block_schema.fields
         assert db_block_schema.block_type_id == block_schema.block_type_id
 
+    async def test_read_block_schema_does_not_hardcode_references(
+        self, session, db, block_type_x
+    ):
+        block_schema = await models.block_schemas.create_block_schema(
+            override=True,
+            session=session,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                fields={
+                    "title": "JSON",
+                    "description": "A block that represents JSON",
+                    "type": "object",
+                    "properties": {
+                        "value": {
+                            "title": "Value",
+                            "description": "A JSON-compatible value",
+                        }
+                    },
+                    "required": ["value"],
+                    "block_type_name": "JSON",
+                    "secret_fields": [],
+                    "block_schema_references": {},
+                },
+                block_type_id=block_type_x.id,
+            ),
+        )
+        before_read = (
+            await session.execute(
+                sa.select(db.BlockSchema).where(db.BlockSchema.id == block_schema.id)
+            )
+        ).scalar()
+        assert before_read.fields.get("block_schema_references") is None
+        read_result = await models.block_schemas.read_block_schema(
+            session=session, block_schema_id=block_schema.id
+        )
+        await session.commit()
+        after_read = (
+            await session.execute(
+                sa.select(db.BlockSchema).where(db.BlockSchema.id == block_schema.id)
+            )
+        ).scalar()
+        assert after_read.fields.get("block_schema_references") is None
+
     @pytest.fixture
     async def nested_schemas(self, session):
         class A(Block):
@@ -693,7 +735,9 @@ class TestReadBlockSchemas:
             ),
         )
         assert len(fly_and_swim_block_schemas) == 1
-        assert fly_and_swim_block_schemas == [block_schemas_with_capabilities[0]]
+        assert [b.id for b in fly_and_swim_block_schemas] == [
+            block_schemas_with_capabilities[0].id
+        ]
 
         fly_block_schemas = await models.block_schemas.read_block_schemas(
             session=session,
@@ -702,9 +746,9 @@ class TestReadBlockSchemas:
             ),
         )
         assert len(fly_block_schemas) == 2
-        assert fly_block_schemas == [
-            block_schemas_with_capabilities[1],
-            block_schemas_with_capabilities[0],
+        assert [b.id for b in fly_block_schemas] == [
+            block_schemas_with_capabilities[1].id,
+            block_schemas_with_capabilities[0].id,
         ]
 
         swim_block_schemas = await models.block_schemas.read_block_schemas(
@@ -714,8 +758,11 @@ class TestReadBlockSchemas:
             ),
         )
         assert len(swim_block_schemas) == 1
-        assert swim_block_schemas == [block_schemas_with_capabilities[0]]
+        assert [b.id for b in swim_block_schemas] == [
+            block_schemas_with_capabilities[0].id
+        ]
 
+    @pytest.mark.flaky  # Order of block schema references sometimes doesn't match
     async def test_read_block_schema_with_union(
         self, session, block_type_x, block_type_y, block_type_z
     ):
@@ -747,6 +794,28 @@ class TestReadBlockSchemas:
         )
 
         assert block_schema.fields == X.schema()
+
+    async def test_read_block_schemas_with_id_list(self, session, nested_schemas):
+        A, X, Y, Z, block_type_x, block_type_y = nested_schemas
+
+        a_id = (
+            await read_block_schema_by_checksum(
+                session=session, checksum=A._calculate_schema_checksum()
+            )
+        ).id
+        y_id = (
+            await read_block_schema_by_checksum(
+                session=session, checksum=Y._calculate_schema_checksum()
+            )
+        ).id
+
+        result = await models.block_schemas.read_block_schemas(
+            session=session,
+            block_schema_filter=BlockSchemaFilter(id=dict(any_=[a_id, y_id])),
+        )
+
+        assert len(result) == 2
+        assert [a_id, y_id] == [b.id for b in result]
 
 
 class TestDeleteBlockSchema:
