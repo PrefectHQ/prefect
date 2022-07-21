@@ -39,7 +39,7 @@ Save the following script to the file `docker-deployment.py`:
 
 ```python
 from prefect import flow, get_run_logger
-from prefect.deployments import DeploymentSpec
+from prefect.deployments import Deployment
 from prefect.flow_runners import DockerFlowRunner
 
 @flow
@@ -47,7 +47,7 @@ def my_docker_flow():
     logger = get_run_logger()
     logger.info("Hello from Docker!")
 
-DeploymentSpec(
+Deployment(
     name="docker-example",
     flow=my_docker_flow,
     flow_runner=DockerFlowRunner()
