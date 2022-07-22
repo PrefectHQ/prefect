@@ -809,7 +809,9 @@ class TestReadBlockDocuments:
         }
 
         # sorted by block type name, block document name
-        assert read_blocks == [b for b in block_documents if not b.is_anonymous]
+        assert [rb.id for rb in read_blocks] == [
+            b.id for b in block_documents if not b.is_anonymous
+        ]
 
     async def test_read_block_documents_with_is_anonymous_filter(
         self, session, block_documents
@@ -874,7 +876,7 @@ class TestReadBlockDocuments:
             )
         )
         assert len(fly_and_swim_block_documents) == 1
-        assert fly_and_swim_block_documents == [block_documents[5]]
+        assert [b.id for b in fly_and_swim_block_documents] == [block_documents[5].id]
 
         fly_block_documents = await models.block_documents.read_block_documents(
             session=session,
@@ -883,10 +885,10 @@ class TestReadBlockDocuments:
             ),
         )
         assert len(fly_block_documents) == 3
-        assert fly_block_documents == [
-            block_documents[1],
-            block_documents[3],
-            block_documents[5],
+        assert [b.id for b in fly_block_documents] == [
+            block_documents[1].id,
+            block_documents[3].id,
+            block_documents[5].id,
         ]
 
         swim_block_documents = await models.block_documents.read_block_documents(
@@ -896,7 +898,7 @@ class TestReadBlockDocuments:
             ),
         )
         assert len(swim_block_documents) == 1
-        assert swim_block_documents == [block_documents[5]]
+        assert [b.id for b in swim_block_documents] == [block_documents[5].id]
 
 
 class TestDeleteBlockDocument:

@@ -7,13 +7,17 @@ from uuid import UUID, uuid4
 
 import sqlalchemy as sa
 
+import prefect.orion.models as models
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import ORMBlockDocument
 from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
 from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
-from prefect.orion.schemas.filters import BlockDocumentFilterIsAnonymous
+from prefect.orion.schemas.filters import (
+    BlockDocumentFilterIsAnonymous,
+    BlockSchemaFilter,
+)
 from prefect.orion.utilities.names import obfuscate_string
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
@@ -151,9 +155,18 @@ async def read_block_document_by_id(
     )
 
     result = await session.execute(nested_block_documents_query)
-    return await _construct_full_block_document(
+    fully_constructed_block_document = await _construct_full_block_document(
         session, result.all(), include_secrets=include_secrets
     )
+    if fully_constructed_block_document is None:
+        return fully_constructed_block_document
+    fully_constructed_block_document.block_schema = (
+        await models.block_schemas.read_block_schema(
+            session=session,
+            block_schema_id=fully_constructed_block_document.block_schema_id,
+        )
+    )
+    return fully_constructed_block_document
 
 
 async def _construct_full_block_document(
@@ -291,9 +304,19 @@ async def read_block_document_by_name(
     )
 
     result = await session.execute(nested_block_documents_query)
-    return await _construct_full_block_document(
+    fully_constructed_block_document = await _construct_full_block_document(
         session, result.all(), include_secrets=include_secrets
     )
+    if fully_constructed_block_document is None:
+        return fully_constructed_block_document
+
+    fully_constructed_block_document.block_schema = (
+        await models.block_schemas.read_block_schema(
+            session=session,
+            block_schema_id=fully_constructed_block_document.block_schema_id,
+        )
+    )
+    return fully_constructed_block_document
 
 
 @inject_db
@@ -408,6 +431,21 @@ async def read_block_documents(
                 )
             )
             visited_block_document_ids.append(root_orm_block_document.id)
+    block_schema_ids = [
+        block_document.block_schema_id
+        for block_document in fully_constructed_block_documents
+    ]
+    block_schemas = await models.block_schemas.read_block_schemas(
+        session=session,
+        block_schema_filter=BlockSchemaFilter(id=dict(any_=block_schema_ids)),
+    )
+    for block_document in fully_constructed_block_documents:
+        corresponding_block_schema = next(
+            block_schema
+            for block_schema in block_schemas
+            if block_schema.id == block_document.block_schema_id
+        )
+        block_document.block_schema = corresponding_block_schema
     return fully_constructed_block_documents
 
 

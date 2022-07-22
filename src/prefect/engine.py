@@ -66,7 +66,11 @@ from prefect.states import (
     return_value_to_state,
     safe_encode_exception,
 )
-from prefect.task_runners import BaseTaskRunner
+from prefect.task_runners import (
+    CONCURRENCY_MESSAGES,
+    BaseTaskRunner,
+    TaskConcurrencyType,
+)
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import (
     gather,
@@ -312,7 +316,10 @@ async def begin_flow_run(
             stack.enter_context(start_blocking_portal()) if flow.isasync else None
         )
 
-        logger.info(f"Using task runner {type(flow.task_runner).__name__!r}")
+        logger.info(
+            f"Starting {type(flow.task_runner).__name__!r}; submitted tasks "
+            f"will be run {CONCURRENCY_MESSAGES[flow.task_runner.concurrency_type]}..."
+        )
         flow_run_context.task_runner = await stack.enter_async_context(
             flow.task_runner.start()
         )
@@ -835,6 +842,9 @@ async def submit_task_run(
     """
     logger = get_run_logger(flow_run_context)
 
+    if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
+        logger.info(f"Executing {task_run.name!r} immediately...")
+
     future = await task_runner.submit(
         task_run=task_run,
         run_key=f"{task_run.name}-{task_run.id.hex}-{flow_run_context.flow_run.run_count}",
@@ -850,7 +860,8 @@ async def submit_task_run(
         asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
 
-    logger.debug(f"Submitted task run {task_run.name!r} to task runner")
+    if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
+        logger.info(f"Submitted task run {task_run.name!r} for execution.")
 
     # Track the task run future in the flow run context
     flow_run_context.task_run_futures.append(future)
