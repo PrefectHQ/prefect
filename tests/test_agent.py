@@ -14,8 +14,9 @@ from prefect.testing.utilities import AsyncMock
 
 @pytest.fixture
 async def work_queue_id(deployment, orion_client):
+    assert deployment.tags, "Tests are only useful if deployment has non-trivial tags"
     work_queue_id = await orion_client.create_work_queue(
-        name="testing", deployment_ids=[str(deployment.id)]
+        name="testing", tags=deployment.tags
     )
     return work_queue_id
 

@@ -788,7 +788,6 @@ class OrionClient:
         self,
         name: str,
         tags: List[str] = None,
-        deployment_ids: List[UUID] = None,
     ) -> UUID:
         """
         Create a work queue.
@@ -796,8 +795,6 @@ class OrionClient:
         Args:
             name: a unique name for the work queue
             tags: an optional list of tags to filter on; only work scheduled with these tags
-                will be included in the queue
-            deployment_ids: an optional list of deployment IDs to filter on; only work scheduled from these deployments
                 will be included in the queue
 
         Raises:
@@ -811,7 +808,6 @@ class OrionClient:
             name=name,
             filter=QueueFilter(
                 tags=tags or None,
-                deployment_ids=deployment_ids or None,
             ),
         ).dict(json_compatible=True)
         try:

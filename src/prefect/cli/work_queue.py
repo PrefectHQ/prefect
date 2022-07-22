@@ -26,9 +26,6 @@ async def create(
     tags: List[str] = typer.Option(
         None, "-t", "--tag", help="One or more optional tags"
     ),
-    deployment_ids: List[UUID] = typer.Option(
-        None, "-d", "--deployment", help="One or more optional deployment IDs"
-    ),
 ):
     """
     Create a work queue.
@@ -38,7 +35,6 @@ async def create(
             result = await client.create_work_queue(
                 name=name,
                 tags=tags or None,
-                deployment_ids=deployment_ids or None,
             )
         except ObjectAlreadyExists:
             exit_with_error(f"Work queue with name: {name!r} already exists.")

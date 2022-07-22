@@ -196,6 +196,7 @@ async def deployment(session, flow, flow_function, infrastructure_document_id):
         session=session,
         deployment=schemas.core.Deployment(
             name="My Deployment",
+            tags=["test"],
             flow_id=flow.id,
             flow_data=DataDocument.encode("cloudpickle", flow_function),
             schedule=schemas.schedules.IntervalSchedule(

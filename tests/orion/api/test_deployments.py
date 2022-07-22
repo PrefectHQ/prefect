@@ -845,7 +845,7 @@ class TestCreateFlowRunFromDeployment:
                 json_compatible=True
             ),
         )
-        assert sorted(response.json()["tags"]) == ["nope"]
+        assert sorted(response.json()["tags"]) == sorted(["nope"] + deployment.tags)
 
     async def test_create_flow_run_from_deployment_override_infrastructure_document_id(
         self, deployment, client
