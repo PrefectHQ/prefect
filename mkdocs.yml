@@ -138,6 +138,9 @@ nav:
             - 'prefect.tasks': api-ref/prefect/tasks.md
             - 'Blocks':
                 - 'prefect.blocks.core': api-ref/prefect/blocks/core.md
+                - 'prefect.blocks.kubernetes': api-ref/prefect/blocks/kubernetes.md
+                - 'prefect.blocks.notifications': api-ref/prefect/blocks/notifications.md
+                - 'prefect.blocks.system': api-ref/prefect/blocks/system.md
             - 'Command Line Interface':
                 - 'prefect.cli.agent': api-ref/prefect/cli/agent.md
                 - 'prefect.cli.cloud': api-ref/prefect/cli/cloud.md
