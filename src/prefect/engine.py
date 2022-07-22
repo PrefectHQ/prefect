@@ -54,7 +54,14 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import Failed, Pending, Running, State, StateDetails
+from prefect.orion.schemas.states import (
+    Failed,
+    Pending,
+    Running,
+    State,
+    StateDetails,
+    StateType,
+)
 from prefect.results import (
     _persist_serialized_result,
     _retrieve_result,
@@ -1123,7 +1130,7 @@ async def wait_for_task_runs_and_report_crashes(
     for future, state in zip(task_run_futures, states):
         logger = task_run_logger(future.task_run)
 
-        if not state.name == "Crashed":
+        if not state.type == StateType.CRASHED:
             continue
 
         exception = state.result(raise_on_failure=False)
