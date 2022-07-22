@@ -1191,11 +1191,6 @@ class TestClientWorkQueues:
         )
         assert isinstance(tagged_queue_id, UUID)
 
-        deploy_queue_id = await orion_client.create_work_queue(
-            name="deploy", deployment_ids=[deployment]
-        )
-        assert isinstance(deploy_queue_id, UUID)
-
         run = await orion_client.create_flow_run_from_deployment(deployment)
         assert run.id
 
@@ -1204,9 +1199,6 @@ class TestClientWorkQueues:
 
         tagged_output = await orion_client.get_runs_in_work_queue(tagged_queue_id)
         assert tagged_output == [run]
-
-        deploy_output = await orion_client.get_runs_in_work_queue(deploy_queue_id)
-        assert deploy_output == [run]
 
     async def test_get_runs_from_queue_excludes(self, orion_client, deployment):
         blank_queue_id = await orion_client.create_work_queue(name="blank")
@@ -1218,7 +1210,7 @@ class TestClientWorkQueues:
         assert isinstance(tagged_queue_id, UUID)
 
         deploy_queue_id = await orion_client.create_work_queue(
-            name="deploy", deployment_ids=[tagged_queue_id]  # nonsensical
+            name="deploy", tags=["nonsensical"]
         )
         assert isinstance(deploy_queue_id, UUID)
 
@@ -1236,7 +1228,7 @@ class TestClientWorkQueues:
 
     async def test_get_runs_from_queue_respects_limit(self, orion_client, deployment):
         queue_id = await orion_client.create_work_queue(
-            name="deploy", deployment_ids=[deployment]
+            name="deploy", tags=["bing", "bang"]
         )
 
         runs = []
