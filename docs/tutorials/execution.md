@@ -58,6 +58,7 @@ When you run this flow you should see the terminal output randomly switching bet
 
 If you have the [bokeh](https://docs.bokeh.org/en/latest/) Python package installed you can follow the link to the Dask dashaboard in the terminal output and watch the Dask workers in action!
 
+<div class="terminal">
 ```bash
 22:49:06.969 | INFO    | prefect.engine - Created flow run 'bulky-unicorn' for flow 'parallel-flow'
 22:49:06.969 | INFO    | Flow run 'bulky-unicorn' - Using task runner 'DaskTaskRunner'
@@ -65,6 +66,7 @@ If you have the [bokeh](https://docs.bokeh.org/en/latest/) Python package instal
 22:49:09.182 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at http://127.0.0.1:8787/status
 ...
 ```
+</div>
 
 Please note that because the `DaskTaskRunner` uses multiprocessing, it can be used interactively or must be protected by an `if __name__ == "__main__":` guard when used in a script.
 
@@ -104,9 +106,11 @@ asyncio.run(async_flow())
 
 When we run this flow, we find that the coroutines that were gathered yield control to one another and are run concurrently:
 
+<div class="terminal">
 ```bash
 1 2 a 6 b 7 c 8 d 9
 ```
+</div>
 
 Asynchronous task execution is currently supported with all task runners.
 
