@@ -6,24 +6,23 @@
 
     <CodeBanner :command="workQueueCliCommand" title="Work queue is ready to go!" subtitle="Work queues define the work to be done and agents poll a specific work queue for new work." />
 
-    <p-tabs :tabs="['Details', 'Deployments']">
+    <p-tabs :tabs="['Details', 'Upcoming runs']">
       <template #details>
         <WorkQueueDetails v-if="workQueue" :work-queue="workQueue" />
       </template>
-      <template #deployments>
-        <DeploymentsTable :deployments="workQueueDeployments" @update="workQueueDeploymentSubscription.refresh()" @delete="workQueueDeploymentSubscription.refresh()" />
+      <template #upcoming-runs>
+        <WorkQueueFlowRunsList v-if="workQueue" :work-queue="workQueue" />
       </template>
     </p-tabs>
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { UnionFilters, WorkQueueDetails, PageHeadingWorkQueue, DeploymentsTable, CodeBanner } from '@prefecthq/orion-design'
+  import { WorkQueueDetails, PageHeadingWorkQueue, WorkQueueFlowRunsList, CodeBanner } from '@prefecthq/orion-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { routes } from '@/router'
-  import { deploymentsApi } from '@/services/deploymentsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
 
   const router = useRouter()
@@ -37,17 +36,6 @@
 
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value], subscriptionOptions)
   const workQueue = computed(() => workQueueSubscription.response)
-  const workQueueDeploymentIds = computed(() => workQueue.value?.filter.deploymentIds ?? [])
-
-  const workQueueDeploymentFilter = computed<UnionFilters>(() => ({
-    deployments: {
-      id: {
-        any_: workQueueDeploymentIds.value,
-      },
-    },
-  }))
-  const workQueueDeploymentSubscription = useSubscription(deploymentsApi.getDeployments, [workQueueDeploymentFilter], subscriptionOptions)
-  const workQueueDeployments = computed(() => workQueueDeploymentSubscription.response ?? [])
 
   const routeToQueues = (): void => {
     router.push(routes.workQueues())
