@@ -475,9 +475,6 @@ async def update_block_document(
 
     update_values = block_document.dict(shallow=True, exclude_unset=True)
 
-    if "name" in update_values:
-        current_block_document.name = update_values["name"]
-
     if "data" in update_values and update_values["data"] is not None:
         current_data = await current_block_document.decrypt_data(session=session)
 

@@ -1509,7 +1509,7 @@ class TestGetCodeExample:
 
             a_block.send_message()
             ```
-            
+
             Here's something extra:
             ```python
             print(42)
