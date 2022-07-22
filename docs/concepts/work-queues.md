@@ -54,7 +54,7 @@ You can configure work queues by using:
 
 ![Creating a new work queue in the Orion UI](/img/ui/work-queue-create.png)
 
-To configure a work queue to handle specific work, you can specify filters by providing a list of tags. Only scheduled work that meets the specified criteria will route through the worker queue to available agents.
+To configure a work queue to handle specific work, you can specify filters by providing a list of tags. Only scheduled work that meets the specified criteria will route through the work queue to available agents.
 
 !!! tip "Filters limit what work queues accept"
     Work queue filters are a powerful tool for routing flow runs to the agents most appropriate to execute them. To get the most out of work queues, it's important to understand that filters _limit_ the work queue to service only flow runs for deployments that meet _all_ of the filters you've set.
