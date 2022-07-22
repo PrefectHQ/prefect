@@ -58,6 +58,8 @@ async def start(
             ),
             style="dark_orange",
         )
+    if work_queue and tags:
+        exit_with_error("Only one of work_queue or tags can be provided.")
     if work_queue is not None:
         try:
             work_queue_id = UUID(work_queue)
