@@ -19,7 +19,7 @@ def test_create_deployment_from_script(path: Path):
         ["deployment", "create", str(path)],
         expected_output_contains=[
             "deployments from python script",
-            "Created 1 deployment!",
+            "Created 1 deployment:",
         ],
     )
 
@@ -76,6 +76,6 @@ def test_create_deployment_from_yaml(path: Path):
         expected_output_contains=[
             "deployments from yaml file",
             "flow from script",
-            "Created 1 deployment!",
+            "Created 1 deployment:",
         ],
     )
