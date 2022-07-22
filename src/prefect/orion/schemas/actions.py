@@ -245,7 +245,6 @@ class BlockDocumentUpdate(PrefectBaseModel):
     class Config:
         extra = "forbid"
 
-    name: Optional[str] = None
     data: Optional[dict] = None
 
 

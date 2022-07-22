@@ -1034,16 +1034,14 @@ class TestClientAPIVersionRequests:
     async def test_major_version(
         self, app, major_version, minor_version, patch_version
     ):
-        # higher client major version fails
+        # higher client major version works
         api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(
-                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
-            ):
-                await client.hello()
+            res = await client.hello()
+            assert res.status_code == status.HTTP_200_OK
 
         # lower client major version fails
-        api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
+        api_version = f"{major_version - 1}.{minor_version}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
@@ -1053,13 +1051,11 @@ class TestClientAPIVersionRequests:
     async def test_minor_version(
         self, app, major_version, minor_version, patch_version
     ):
-        # higher client minor version fails
+        # higher client minor version succeeds
         api_version = f"{major_version}.{minor_version + 1}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(
-                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
-            ):
-                await client.hello()
+            res = await client.hello()
+            assert res.status_code == status.HTTP_200_OK
 
         # lower client minor version fails
         api_version = f"{major_version}.{minor_version - 1}.{patch_version}"
@@ -1072,19 +1068,19 @@ class TestClientAPIVersionRequests:
     async def test_patch_version(
         self, app, major_version, minor_version, patch_version
     ):
-        # higher client patch version fails
+        # higher client patch version succeeds
         api_version = f"{major_version}.{minor_version}.{patch_version + 1}"
+        async with OrionClient(app, api_version=api_version) as client:
+            res = await client.hello()
+            assert res.status_code == status.HTTP_200_OK
+
+        # lower client patch version fails
+        api_version = f"{major_version}.{minor_version}.{patch_version - 1}"
         async with OrionClient(app, api_version=api_version) as client:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
             ):
                 await client.hello()
-
-        # lower client minor version succeeds
-        api_version = f"{major_version}.{minor_version}.{patch_version - 1}"
-        async with OrionClient(app, api_version=api_version) as client:
-            res = await client.hello()
-            assert res.status_code == status.HTTP_200_OK
 
     async def test_invalid_header(self, app):
         # Invalid header is rejected

@@ -23,7 +23,7 @@ import prefect.orion.api as api
 import prefect.orion.services as services
 import prefect.settings
 from prefect.logging import get_logger
-from prefect.orion.api.dependencies import CheckVersionCompatibility
+from prefect.orion.api.dependencies import EnforceMinimumAPIVersion
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.models.block_schemas import read_block_schema_by_checksum
 from prefect.orion.models.block_types import read_block_type_by_name, update_block_type
@@ -37,7 +37,12 @@ ORION_API_VERSION = "0.7.0"
 
 logger = get_logger("orion")
 
-version_checker = CheckVersionCompatibility(ORION_API_VERSION, logger)
+enforce_minimum_version = EnforceMinimumAPIVersion(
+    # this should be <= ORION_API_VERSION; clients that send
+    # a version header under this value will be rejected
+    minimum_api_version="0.7.0",
+    logger=logger,
+)
 
 
 API_ROUTERS = (
@@ -155,9 +160,9 @@ def create_orion_api(
 
     # always include version checking
     if dependencies is None:
-        dependencies = [Depends(version_checker)]
+        dependencies = [Depends(enforce_minimum_version)]
     else:
-        dependencies.append(Depends(version_checker))
+        dependencies.append(Depends(enforce_minimum_version))
 
     routers = {router.prefix: router for router in API_ROUTERS}
 
