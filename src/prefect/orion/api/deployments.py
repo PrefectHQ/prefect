@@ -261,26 +261,12 @@ async def create_flow_run_from_deployment(
     parameters = deployment.parameters
     parameters.update(flow_run.parameters or {})
 
-    # Do not allow both infrastructure and flow runner to be set
-    if flow_run.infrastructure_document_id:
-        infrastructure = flow_run.infrastructure_document_id
-        flow_runner = None
-    elif flow_run.flow_runner:
-        infrastructure = None
-        flow_runner = flow_run.flow_runner
-    else:
-        infrastructure = deployment.infrastructure_document_id
-        flow_runner = deployment.flow_runner
-
     # hydrate the input model into a full flow run / state model
     flow_run = schemas.core.FlowRun(
         **flow_run.dict(
             exclude={
                 "parameters",
                 "tags",
-                "runner_type",
-                "runner_config",
-                "flow_runner",
                 "infrastructure_document_id",
             }
         ),
@@ -288,8 +274,9 @@ async def create_flow_run_from_deployment(
         deployment_id=deployment.id,
         parameters=parameters,
         tags=set(deployment.tags).union(flow_run.tags),
-        flow_runner=flow_runner,
-        infrastructure_document_id=infrastructure,
+        infrastructure_document_id=(
+            flow_run.infrastructure_document_id or deployment.infrastructure_document_id
+        ),
     )
 
     if not flow_run.state:

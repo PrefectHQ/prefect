@@ -16,8 +16,6 @@ import prefect.context
 import prefect.exceptions
 from prefect import flow
 from prefect.client import OrionClient, PrefectHttpxClient, get_client
-from prefect.flow_runners import UniversalFlowRunner
-from prefect.flow_runners.base import FlowRunnerSettings
 from prefect.infrastructure import Process
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
@@ -584,7 +582,7 @@ async def test_create_then_read_flow(orion_client):
     assert lookup.name == foo.name
 
 
-async def test_create_then_read_deployment(orion_client):
+async def test_create_then_read_deployment(orion_client, infrastructure_document_id):
     @flow
     def foo():
         pass
@@ -600,7 +598,7 @@ async def test_create_then_read_deployment(orion_client):
         schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
-        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+        infrastructure_document_id=infrastructure_document_id,
     )
 
     lookup = await orion_client.read_deployment(deployment_id)
@@ -610,7 +608,7 @@ async def test_create_then_read_deployment(orion_client):
     assert lookup.schedule == schedule
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
-    assert lookup.flow_runner == UniversalFlowRunner(env={"foo": "bar"}).to_settings()
+    assert lookup.infrastructure_document_id == infrastructure_document_id
 
 
 async def test_read_deployment_by_name(orion_client):
@@ -689,13 +687,15 @@ async def test_deleting_concurrency_limits(orion_client):
         await orion_client.read_concurrency_limit_by_tag("dead-limit-walking")
 
 
-async def test_create_then_read_flow_run(orion_client):
+async def test_create_then_read_flow_run(orion_client, infrastructure_document_id):
     @flow
     def foo():
         pass
 
     flow_run = await orion_client.create_flow_run(
-        foo, name="zachs-flow-run", flow_runner=UniversalFlowRunner(env={"foo": "bar"})
+        foo,
+        name="zachs-flow-run",
+        infrastructure_document_id=infrastructure_document_id,
     )
     assert isinstance(flow_run, schemas.core.FlowRun)
 
@@ -848,7 +848,7 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
     assert flow_run.deployment_id == deployment.id
     assert flow_run.flow_id == deployment.flow_id
     # Includes flow runner
-    assert flow_run.flow_runner.dict() == deployment.flow_runner.dict()
+    assert flow_run.infrastructure_document_id == deployment.infrastructure_document_id
     # Flow version is not populated yet
     assert flow_run.flow_version is None
     # State is scheduled for now
@@ -872,9 +872,6 @@ async def test_create_flow_run_from_deployment_with_anonymous_infrastructure(
     )
     assert flow_run.infrastructure_document_id == infrastructure_document_id
 
-    # Flow runner is empty
-    assert flow_run.flow_runner == FlowRunnerSettings(type=None, config=None)
-
 
 async def test_create_flow_run_from_deployment_with_saved_infrastructure(
     orion_client, deployment
@@ -882,13 +879,9 @@ async def test_create_flow_run_from_deployment_with_saved_infrastructure(
     infrastructure = Process(env={"foo": "bar"})
     infrastructure_document_id = await infrastructure.save("hello")
     flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id,
-        infrastructure_document_id=infrastructure_document_id,
+        deployment.id, infrastructure_document_id=infrastructure_document_id
     )
     assert flow_run.infrastructure_document_id == infrastructure_document_id
-
-    # Flow runner is empty
-    assert flow_run.flow_runner == FlowRunnerSettings(type=None, config=None)
 
 
 async def test_update_flow_run(orion_client):
@@ -1140,7 +1133,7 @@ class TestClientAPIKey:
 
 class TestClientWorkQueues:
     @pytest.fixture
-    async def deployment(self, orion_client):
+    async def deployment(self, orion_client, infrastructure_document_id):
         foo = flow(lambda: None, name="foo")
         flow_id = await orion_client.create_flow(foo)
         schedule = IntervalSchedule(interval=timedelta(days=1))
@@ -1153,7 +1146,7 @@ class TestClientWorkQueues:
             schedule=schedule,
             parameters={"foo": "bar"},
             tags=["bing", "bang"],
-            flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+            infrastructure_document_id=infrastructure_document_id,
         )
         return deployment_id
 

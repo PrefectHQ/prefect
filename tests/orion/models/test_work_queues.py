@@ -249,6 +249,7 @@ class TestGetRunsInWorkQueue:
         self,
         session,
         deployment,
+        infrastructure_document_id,
         flow_run_1_id,
         flow_run_2_id,
         flow_run_3_id,
@@ -266,9 +267,7 @@ class TestGetRunsInWorkQueue:
                 flow_id=deployment.flow_id,
                 deployment_id=deployment.id,
                 flow_version="0.1",
-                flow_runner=schemas.core.FlowRunnerSettings(
-                    type="test", config={"foo": "bar"}
-                ),
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         await models.flow_runs.set_flow_run_state(

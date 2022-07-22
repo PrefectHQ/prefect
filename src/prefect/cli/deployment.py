@@ -24,6 +24,7 @@ from prefect.deployments import (
     load_flow_from_deployment,
 )
 from prefect.exceptions import ObjectNotFound, ScriptError
+from prefect.infrastructure.submission import _prepare_infrastructure
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowFilter
 
@@ -423,5 +424,4 @@ async def preview(path: Path):
     for deployment in deployments:
         name = repr(deployment.name) if deployment.name else "<unnamed deployment>"
         app.console.print(f"[green]Preview for {name}[/]:\n")
-        print(await deployment.flow_runner.preview(flow_run))
-        print()
+        print(_prepare_infrastructure(flow_run, deployment.infrastructure).preview())

@@ -58,7 +58,6 @@ from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 from prefect.client import OrionClient, inject_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
-from prefect.flow_runners.base import FlowRunner, FlowRunnerSettings
 from prefect.flows import Flow, load_flow_from_script, load_flow_from_text
 from prefect.infrastructure import Infrastructure, Process
 from prefect.infrastructure.submission import FLOW_RUN_ENTRYPOINT
@@ -120,17 +119,10 @@ class Deployment(BaseModel):
     parameters: Dict[str, Any] = Field(default_factory=dict)
     schedule: schemas.schedules.SCHEDULE_TYPES = None
 
-    flow_runner: Optional[Union[FlowRunner, FlowRunnerSettings]] = None
     infrastructure: Infrastructure = Field(default_factory=Process)
 
     def __init__(__pydantic_self__, **data: Any) -> None:
         super().__init__(**data)
-
-    @validator("flow_runner")
-    def cast_flow_runner_settings(cls, value):
-        if isinstance(value, FlowRunnerSettings):
-            return FlowRunner.from_settings(value)
-        return value
 
     @root_validator(pre=True)
     def packager_cannot_be_provided_with_manifest(cls, values):
@@ -143,8 +135,8 @@ class Deployment(BaseModel):
         return values
 
     @root_validator
-    def flow_runner_packager_compatibility(cls, values):
-        runner = values.get("flow_runner") or values.get("infrastructure")
+    def infrastructure_packager_compatibility(cls, values):
+        infrastructure = values.get("infrastructure")
         flow = values.get("flow")
         packager = values.get("packager")
 
@@ -157,15 +149,15 @@ class Deployment(BaseModel):
             return values
 
         if "image" in manifest_cls.__fields__:
-            if "image" not in runner.__fields__:
+            if "image" not in infrastructure.__fields__:
                 raise ValueError(
-                    f"Packaged flow requires an image but {runner.__class__.__name__!r} "
+                    f"Packaged flow requires an image but {infrastructure.__class__.__name__!r} "
                     "does not have an image field."
                 )
-            elif "image" in runner.__fields_set__:
+            elif "image" in infrastructure.__fields_set__:
                 raise ValueError(
                     f"Packaged flow requires an image but the infrastructure already has "
-                    f"image {runner.image!r} configured. Exclude the image "
+                    f"image {infrastructure.image!r} configured. Exclude the image "
                     "from your infrastucture to allow Prefect to set it to the package "
                     "image tag."
                 )
@@ -198,34 +190,25 @@ class Deployment(BaseModel):
 
         flow_id = await client.create_flow_from_name(flow_name)
 
-        if self.flow_runner:
-            if "image" in manifest.__fields__:
-                self.flow_runner = self.flow_runner.copy(
-                    update={"image": manifest.image}
-                )
+        updates = {}
+        if "image" in manifest.__fields__:
+            stream_progress_to.write(
+                f"Updating infrastructure image to {manifest.image!r}..."
+            )
+            updates["image"] = manifest.image
 
-        if self.infrastructure:
-            updates = {}
-            if "image" in manifest.__fields__:
-                stream_progress_to.write(
-                    f"Updating infrastructure image to {manifest.image!r}..."
-                )
-                updates["image"] = manifest.image
+        if not self.infrastructure.command:
+            stream_progress_to.write(
+                f"Updating infrastructure command to {' '.join(FLOW_RUN_ENTRYPOINT)!r}..."
+            )
+            updates["command"] = FLOW_RUN_ENTRYPOINT
 
-            if not self.infrastructure.command:
-                stream_progress_to.write(
-                    f"Updating infrastructure command to {' '.join(FLOW_RUN_ENTRYPOINT)!r}..."
-                )
-                updates["command"] = FLOW_RUN_ENTRYPOINT
+        infrastructure = self.infrastructure.copy(update=updates)
 
-            infrastructure = self.infrastructure.copy(update=updates)
-
-            # Always save as an anonymous block even if we are given a block that is
-            # already registered. This will make behavior consistent when we need to
-            # update values on the infrastucture.
-            infrastructure_document_id = await infrastructure._save(is_anonymous=True)
-        else:
-            infrastructure_document_id = None
+        # Always save as an anonymous block even if we are given a block that is
+        # already registered. This will make behavior consistent when we need to
+        # update values on the infrastucture.
+        infrastructure_document_id = await infrastructure._save(is_anonymous=True)
 
         flow_data = DataDocument.encode("package-manifest", manifest)
 
@@ -237,7 +220,6 @@ class Deployment(BaseModel):
             schedule=self.schedule,
             parameters=self.parameters,
             tags=self.tags,
-            flow_runner=self.flow_runner,
             infrastructure_document_id=infrastructure_document_id,
         )
 
