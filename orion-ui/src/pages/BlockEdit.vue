@@ -4,14 +4,14 @@
       <PageHeadingBlockEdit :block-document="blockDocument" />
     </template>
 
-    <template v-if="blockSchema">
-      <BlockSchemaFormCard v-model:data="data" v-bind="{ name, blockSchema }" edit v-on="{ submit, cancel }" />
-    </template>
+    <BlockTypeCardLayout :block-type="blockType">
+      <BlockSchemaEditForm v-model:data="data" v-bind="{ name, blockSchema }" edit v-on="{ submit, cancel }" />
+    </BlockTypeCardLayout>
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { BlockSchemaFormCard, BlockDocumentData, PageHeadingBlockEdit } from '@prefecthq/orion-design'
+  import { BlockTypeCardLayout, BlockSchemaEditForm, BlockDocumentData, PageHeadingBlockEdit } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'
@@ -22,7 +22,7 @@
   const router = useRouter()
   const blockDocumentId = useRouteParam('blockDocumentId')
   const blockDocument = await blockDocumentsApi.getBlockDocument(blockDocumentId.value)
-  const { blockSchema } = blockDocument
+  const { blockType, blockSchema } = blockDocument
   const data = ref<BlockDocumentData>(blockDocument.data)
   const name = ref(blockDocument.name)
 
