@@ -1,5 +1,5 @@
 from prefect import Deployment, flow
-from prefect.flow_runners import KubernetesFlowRunner, SubprocessFlowRunner
+from prefect.infrastructure import KubernetesJob, Process
 
 
 @flow
@@ -7,13 +7,13 @@ def foo():
     pass
 
 
-Deployment(name="hello-world-daily", flow=foo, flow_runner=KubernetesFlowRunner())
-Deployment(name="hello-world-weekly", flow=foo, flow_runner=KubernetesFlowRunner())
+Deployment(name="hello-world-daily", flow=foo, infrastructure=KubernetesJob())
+Deployment(name="hello-world-weekly", flow=foo, infrastructure=KubernetesJob())
 
 Deployment(
     name="custom-boi",
     flow=foo,
-    flow_runner=KubernetesFlowRunner(
+    infrastructure=KubernetesJob(
         customizations=[
             {
                 "op": "add",
@@ -32,5 +32,5 @@ Deployment(
 Deployment(
     name="not-a-k8s",
     flow=foo,
-    flow_runner=SubprocessFlowRunner(),
+    infrastructure=Process(),
 )

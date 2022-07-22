@@ -1,6 +1,6 @@
 import yaml
 
-from prefect.flow_runners.kubernetes import KubernetesFlowRunner
+from prefect.infrastructure import KubernetesJob
 from prefect.testing.cli import invoke_and_assert
 
 
@@ -27,7 +27,7 @@ def test_printing_the_orion_manifest():
 
 def test_printing_the_job_base_manifest():
     """`prefect kubernetes manifest flow-run-job` should print a valid YAML file
-    representing the minimum starting point for a KubernetesFlowRunner Job"""
+    representing the minimum starting point for a KubernetesJob"""
     result = invoke_and_assert(
         ["kubernetes", "manifest", "flow-run-job"],
         expected_output_contains="kind: Job",
@@ -38,4 +38,4 @@ def test_printing_the_job_base_manifest():
 
     parsed = yaml.load(result.stdout, yaml.SafeLoader)
 
-    assert parsed == KubernetesFlowRunner.base_job_manifest()
+    assert parsed == KubernetesJob.base_job_manifest()

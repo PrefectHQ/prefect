@@ -64,9 +64,7 @@ class Process(Infrastructure):
             self.command,
             stream_output=self.stream_output,
             task_status=task_status,
-            # The base environment must override the current environment or
-            # the Prefect settings context may not be respected
-            env={**os.environ, **self._base_environment(), **self.env},
+            env=self._get_environment_variables(),
         )
 
         # Use the pid for display if no name was given
@@ -83,6 +81,19 @@ class Process(Infrastructure):
         return ProcessResult(
             status_code=process.returncode, identifier=str(process.pid)
         )
+
+    def preview(self):
+        environment = self._get_environment_variables(include_os_environ=False)
+        return " \\\n".join(
+            [f"{key}={value}" for key, value in environment.items()]
+            + [" ".join(self.command)]
+        )
+
+    def _get_environment_variables(self, include_os_environ: bool = True):
+        os_environ = os.environ if include_os_environ else {}
+        # The base environment must override the current environment or
+        # the Prefect settings context may not be respected
+        return {**os_environ, **self._base_environment(), **self.env}
 
 
 class ProcessResult(InfrastructureResult):
