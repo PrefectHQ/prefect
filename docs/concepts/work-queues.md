@@ -197,7 +197,7 @@ It is possible for multiple agent processes to be started for a single work queu
 
 ### Agent configuration
 
-When work queues are configured, you can start an agent that corresponds to a specific work queue. Prefect also provides the ability to auto-create work queues on your behalf based on a set of tags passed to your agent start command.
+When work queues are configured, you can start an agent that corresponds to a specific work queue. Prefect also provides the ability to auto-create work queues on your behalf based on a set of tags passed to the `prefect agent start` command.
 
 You must start an agent within an environment that can access or create the infrastructure needed to execute flow runs. Your agent will deploy flow runs to the infrastructure specified by a flow runner configuration.
 
