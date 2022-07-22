@@ -929,60 +929,6 @@ class TestDeleteBlockDocument:
 
 
 class TestUpdateBlockDocument:
-    async def test_update_block_document_name(
-        self,
-        session,
-        block_schemas,
-    ):
-        block_document = await models.block_documents.create_block_document(
-            session,
-            block_document=schemas.actions.BlockDocumentCreate(
-                name="test-update-name",
-                data=dict(x=1),
-                block_schema_id=block_schemas[1].id,
-                block_type_id=block_schemas[1].block_type_id,
-            ),
-        )
-
-        await models.block_documents.update_block_document(
-            session,
-            block_document_id=block_document.id,
-            block_document=schemas.actions.BlockDocumentUpdate(name="updated"),
-        )
-
-        updated_block_document = await models.block_documents.read_block_document_by_id(
-            session, block_document_id=block_document.id
-        )
-        assert updated_block_document.name == "updated"
-
-    async def test_update_anonymous_block_document_name(
-        self,
-        session,
-        block_schemas,
-    ):
-        block_document = await models.block_documents.create_block_document(
-            session,
-            block_document=schemas.actions.BlockDocumentCreate(
-                data=dict(x=1),
-                block_schema_id=block_schemas[1].id,
-                block_type_id=block_schemas[1].block_type_id,
-                is_anonymous=True,
-            ),
-        )
-
-        assert block_document.name.startswith("anonymous:")
-
-        await models.block_documents.update_block_document(
-            session,
-            block_document_id=block_document.id,
-            block_document=schemas.actions.BlockDocumentUpdate(name="updated"),
-        )
-
-        updated_block_document = await models.block_documents.read_block_document_by_id(
-            session, block_document_id=block_document.id
-        )
-        assert updated_block_document.name == "updated"
-
     async def test_update_block_document_data(self, session, block_schemas):
         block_document = await models.block_documents.create_block_document(
             session,
