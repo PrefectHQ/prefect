@@ -40,7 +40,7 @@ To configure a work queue and agent for orchestrated deployments:
 
 Work queues organize work that [agents](#agent-overview) can pick up to execute. Work queue configuration determines what work will be picked up.
 
-Work queues contain scheduled runs from any deployments that match the queue criteria. Criteria is based on _tags_ - all runs that have the tags defined on the queue will be picked up.
+Work queues contain scheduled runs from any deployments that match the queue criteria. Criteria is based on _tags_ &mdash; all runs that have the tags defined on the queue will be picked up.
 
 These criteria can be modified at any time, and agent processes requesting work for a specific queue will only see matching runs.
 
