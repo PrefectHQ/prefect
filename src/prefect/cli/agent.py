@@ -1,19 +1,19 @@
 """
 Command line interface for working with agent services
 """
-from rich.pretty import Pretty
 from typing import List
 from uuid import UUID
 
 import anyio
 import typer
+from rich.pretty import Pretty
 
 from prefect.agent import OrionAgent
-from prefect.client import get_client
-from prefect.exceptions import ObjectAlreadyExists
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
+from prefect.client import get_client
+from prefect.exceptions import ObjectAlreadyExists
 from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL, PREFECT_API_URL
 
 agent_app = PrefectTyper(
