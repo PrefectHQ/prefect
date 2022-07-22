@@ -16,7 +16,7 @@ tags:
 
 ## Prefect coordinates dataflows
 
-Prefect is Air Traffic Control for your dataflows. It's the coordination plane that provides you with everything from dataflow observability to dataflow orchestration. 
+Prefect is the coordination plane that provides you with everything from dataflow observability to dataflow orchestration. 
 
 ## Why Prefect?
 
