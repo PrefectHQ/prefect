@@ -1,13 +1,18 @@
 """
 Command line interface for working with agent services
 """
+from rich.pretty import Pretty
+from typing import List
 from uuid import UUID
 
 import anyio
 import typer
 
 from prefect.agent import OrionAgent
+from prefect.client import get_client
+from prefect.exceptions import ObjectAlreadyExists
 from prefect.cli._types import PrefectTyper, SettingsOption
+from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL, PREFECT_API_URL
 
@@ -29,7 +34,15 @@ ascii_name = r"""
 @agent_app.command()
 async def start(
     work_queue: str = typer.Argument(
-        ..., help="A work queue name or ID for the agent to pull from."
+        None,
+        help="A work queue name or ID for the agent to pull from.",
+        show_default=False,
+    ),
+    tags: List[str] = typer.Option(
+        None,
+        "-t",
+        "--tag",
+        help="One or more optional tags that will be used to create a work queue",
     ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     api: str = SettingsOption(PREFECT_API_URL),
@@ -37,12 +50,38 @@ async def start(
     """
     Start an agent process.
     """
-    try:
-        work_queue_id = UUID(work_queue)
-        work_queue_name = None
-    except:
-        work_queue_id = None
-        work_queue_name = work_queue
+    if work_queue is None and not tags:
+        exit_with_error(
+            (
+                "[red]No work queue provided![/red]\n\n"
+                "Create one using `prefect work-queue create` or "
+                "pass one or more tags to `prefect agent start` and we'll create one for you!"
+            ),
+            style="dark_orange",
+        )
+    if work_queue is not None:
+        try:
+            work_queue_id = UUID(work_queue)
+            work_queue_name = None
+        except:
+            work_queue_id = None
+            work_queue_name = work_queue
+    elif tags:
+        async with get_client() as client:
+            try:
+                work_queue_name = f"Agent queue {'-'.join(sorted(tags))}"
+                work_queue_id = None
+                result = await client.create_work_queue(
+                    name=work_queue_name,
+                    tags=tags,
+                )
+                app.console.print(
+                    f"Created work queue '{work_queue_name}'", style="green"
+                )
+            except ObjectAlreadyExists:
+                app.console.print(
+                    f"Using work queue '{work_queue_name}'", style="green"
+                )
 
     if not hide_welcome:
         if api:
@@ -57,7 +96,7 @@ async def start(
         if not hide_welcome:
             app.console.print(ascii_name)
             app.console.print(
-                f"Agent started! Looking for work from queue '{work_queue}'..."
+                f"Agent started! Looking for work from queue '{work_queue_name or work_queue_id}'..."
             )
 
         while True:
