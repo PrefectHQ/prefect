@@ -54,7 +54,7 @@ async def start(
             (
                 "[red]No work queue provided![/red]\n\n"
                 "Create one using `prefect work-queue create` or "
-                "pass one or more tags to `prefect agent start` and we'll create one for you!"
+                "Pass one or more tags to `prefect agent start` and we'll create one for you!"
             ),
             style="dark_orange",
         )
