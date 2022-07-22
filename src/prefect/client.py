@@ -266,7 +266,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
             if retry_after:
                 retry_seconds = float(retry_after)
             else:
-                retry_seconds = 2**retry_count
+                retry_seconds = 2 ** retry_count
 
             await sleep(retry_seconds)
             response = await super().send(*args, **kwargs)
@@ -1071,7 +1071,7 @@ class OrionClient:
                 json=block_document.dict(
                     json_compatible=True,
                     exclude_unset=True,
-                    include={"name", "data"},
+                    include={"data"},
                     include_secrets=True,
                 ),
             )
