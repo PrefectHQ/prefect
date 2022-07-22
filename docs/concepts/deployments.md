@@ -558,7 +558,7 @@ Deployment(
 
 Most of the previous examples assume the flow script will exist in the execution environment when you create a flow run for the deployment. Packaging a flow enables you to persist your flow script to a location from which flow runners can retrieve and run your code in the runtime execution environment. Packaging a flow also enables you to optionally serialize the flow code, create a Docker image containing your flow code, and specify requiements to be installed in the execution environment.
 
-This example uses the `OrionPackager` and the `ImportSerializer`, which serializes a reference to the import path of the object to the Prefect Orion database.
+This example uses the `OrionPackager` and the `PickleSerializer`, which serializes the object to the Prefect Orion database using cloudpickle.
 
 ```Python
 # filename: hello_deployment.py
@@ -569,7 +569,7 @@ from prefect.packaging.serializers import PickleSerializer
 
 Deployment(
     flow=FlowScript(path="/path/to/hello_flow.py", name="hello_world"),
-    packager=OrionPackager(serializer=ImportSerializer()),
+    packager=OrionPackager(serializer=PickleSerializer()),
     name="Hello World",
     tags=["test"],
 )
