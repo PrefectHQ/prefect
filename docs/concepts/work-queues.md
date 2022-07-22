@@ -79,7 +79,7 @@ Optional configuration parameters you can specify to filter work on the queue in
 | --- | --- |
 | -t, --tag          | One or more tags. |
 
-For example, to create a work queue called `test_queue` for a specific tag `'demo'`, you would run this command: 
+For example, to create a work queue called `test_queue` for a specific tag `demo`, you would run this command: 
 
 ```bash
 $ prefect work-queue create -t 'demo' test_queue
