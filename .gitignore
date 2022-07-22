@@ -146,8 +146,6 @@ docs/changelog.md
 docs/deploy/dist
 docs/.vuepress/public/prefect-coverage
 
-# docs temp build
-site
 
 # credentials and key material
 config
