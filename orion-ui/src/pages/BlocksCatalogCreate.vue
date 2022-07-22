@@ -5,7 +5,7 @@
     </template>
 
     <template v-if="blockSchema">
-      <BlockSchemaFormCard v-model:data="data" v-model:name="name" :block-schema="blockSchema" v-on="{ submit, cancel }" />
+      <BlockSchemaFormCard v-model:data="data" v-model:name="name" :block-schema="blockSchema" label="Add" v-on="{ submit, cancel }" />
     </template>
   </p-layout-default>
 </template>
