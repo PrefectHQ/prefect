@@ -7,6 +7,10 @@ Each time a database migration is written, an entry is included here with:
 - Revision numbers for sqlite/postgres
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
+## Add CRASHED canonical state
+
+SQLite: None
+Postgres: `0cf7311d6ea6`
 
 ## Renames existing block types and deletes removed block types
 

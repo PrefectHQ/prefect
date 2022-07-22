@@ -8,7 +8,7 @@ from typing_extensions import TypeGuard
 from prefect.client import OrionClient, inject_client
 from prefect.futures import resolve_futures_to_states
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.states import Completed, Failed, StateType
+from prefect.orion.schemas.states import Completed, Crashed, StateType
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import ensure_iterable
 
@@ -16,7 +16,7 @@ from prefect.utilities.collections import ensure_iterable
 from .orion.schemas.states import State
 
 
-def exception_to_crashed_state(exc: BaseException) -> State:
+def exception_to_crashed_state(exc: BaseException) -> Crashed:
     """
     Takes an exception that occurs _outside_ of user code and converts it to a
     'Crash' exception with a 'Crashed' state.
@@ -45,8 +45,7 @@ def exception_to_crashed_state(exc: BaseException) -> State:
     else:
         state_message = "Execution was interrupted by an unexpected exception."
 
-    return Failed(
-        name="Crashed",
+    return Crashed(
         message=state_message,
         data=safe_encode_exception(exc),
     )
@@ -204,13 +203,16 @@ class StateGroup:
 
     @property
     def fail_count(self):
-        return self.type_counts[StateType.FAILED]
+        return self.type_counts[StateType.FAILED] + self.type_counts[StateType.CRASHED]
 
     def all_completed(self) -> bool:
         return self.type_counts[StateType.COMPLETED] == self.total_count
 
     def any_failed(self) -> bool:
-        return self.type_counts[StateType.FAILED] > 0
+        return (
+            self.type_counts[StateType.FAILED] > 0
+            or self.type_counts[StateType.CRASHED] > 0
+        )
 
     def all_final(self) -> bool:
         return self.not_final_count == self.total_count
