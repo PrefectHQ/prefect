@@ -18,6 +18,9 @@ depends_on = None
 
 
 def upgrade():
+
+    op.execute("PRAGMA foreign_keys=OFF")
+
     with op.batch_alter_table("deployment", schema=None) as batch_op:
         batch_op.add_column(
             sa.Column(
@@ -33,6 +36,8 @@ def upgrade():
             ["id"],
             ondelete="CASCADE",
         )
+
+    op.execute("PRAGMA foreign_keys=ON")
 
     with op.batch_alter_table("flow_run", schema=None) as batch_op:
         batch_op.add_column(

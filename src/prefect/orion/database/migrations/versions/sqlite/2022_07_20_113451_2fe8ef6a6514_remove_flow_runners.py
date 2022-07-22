@@ -17,6 +17,8 @@ depends_on = None
 
 
 def upgrade():
+    op.execute("PRAGMA foreign_keys=OFF")
+
     with op.batch_alter_table("deployment", schema=None) as batch_op:
         batch_op.drop_column("flow_runner_type")
         batch_op.drop_column("flow_runner_config")
@@ -26,6 +28,8 @@ def upgrade():
         batch_op.drop_column("flow_runner_type")
         batch_op.drop_column("empirical_config")
         batch_op.drop_column("flow_runner_config")
+
+    op.execute("PRAGMA foreign_keys=ON")
 
     # ### end Alembic commands ###
 
