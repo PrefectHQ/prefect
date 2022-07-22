@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "e085c9cbf8ce"
-down_revision = "bb4dc90d3e29"
+down_revision = "0cf7311d6ea6"
 branch_labels = None
 depends_on = None
 
