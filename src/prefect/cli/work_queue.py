@@ -1,6 +1,7 @@
 """
 Command line interface for working with work queues.
 """
+from textwrap import dedent
 from typing import List
 from uuid import UUID
 
@@ -42,7 +43,22 @@ async def create(
         except ObjectAlreadyExists:
             exit_with_error(f"Work queue with name: {name!r} already exists.")
 
-    app.console.print(Pretty(result))
+    output_msg = dedent(
+        f"""
+        Created work queue with properties:
+            name - {name!r}
+            uuid - {result}
+            tags - {tags or None}
+            deployment_ids - {deployment_ids or None}
+
+        Start an agent to pick up flows from the created work queue:
+            prefect agent start '{result}'
+
+        Inspect the created work queue:
+            prefect work-queue inspect '{result}'
+        """
+    )
+    app.console.print(output_msg)
 
 
 @work_app.command()
