@@ -26,6 +26,9 @@ async def create(
     tags: List[str] = typer.Option(
         None, "-t", "--tag", help="One or more optional tags"
     ),
+    limit: int = typer.Option(
+        None, "-l", "--limit", help="The concurrency limit to set on the queue."
+    ),
 ):
     """
     Create a work queue.
@@ -36,6 +39,11 @@ async def create(
                 name=name,
                 tags=tags or None,
             )
+            if limit is not None:
+                await client.update_work_queue(
+                    id=result,
+                    concurrency_limit=limit,
+                )
         except ObjectAlreadyExists:
             exit_with_error(f"Work queue with name: {name!r} already exists.")
 
@@ -45,7 +53,7 @@ async def create(
             name - {name!r}
             uuid - {result}
             tags - {tags or None}
-            deployment_ids - {deployment_ids or None}
+            concurrency limit - {limit}
 
         Start an agent to pick up flows from the created work queue:
             prefect agent start '{result}'
