@@ -31,6 +31,13 @@
 
 </p>
 
+{% note %}
+
+**Warning:** Prefect 2, currently on the `orion` branch, will soon become the default package installed with `pip install prefect`. Flows written with Prefect 1 will require modifications to run with Prefect 2. Please ensure that your package management process enables you to make the transition when the time is right for you.
+
+{% endnote %}
+
+
 ## Hello, world! 👋
 
 We've rebuilt data engineering for the data science era.
