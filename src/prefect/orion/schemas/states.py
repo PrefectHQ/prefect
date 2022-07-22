@@ -27,12 +27,14 @@ class StateType(AutoEnum):
     COMPLETED = AutoEnum.auto()
     FAILED = AutoEnum.auto()
     CANCELLED = AutoEnum.auto()
+    CRASHED = AutoEnum.auto()
 
 
 TERMINAL_STATES = {
     StateType.COMPLETED,
     StateType.CANCELLED,
     StateType.FAILED,
+    StateType.CRASHED,
 }
 
 
@@ -138,7 +140,7 @@ class State(IDBaseModel, Generic[R]):
 
         link_state_to_result(self, data)
 
-        if self.is_failed() and raise_on_failure:
+        if (self.is_failed() or self.is_crashed()) and raise_on_failure:
             if isinstance(data, Exception):
                 raise data
             elif isinstance(data, BaseException):
@@ -203,6 +205,9 @@ class State(IDBaseModel, Generic[R]):
 
     def is_failed(self):
         return self.type == StateType.FAILED
+
+    def is_crashed(self):
+        return self.type == StateType.CRASHED
 
     def is_cancelled(self):
         return self.type == StateType.CANCELLED
@@ -304,6 +309,15 @@ def Failed(**kwargs) -> State:
         State: a Failed state
     """
     return State(type=StateType.FAILED, **kwargs)
+
+
+def Crashed(**kwargs) -> State:
+    """Convenience function for creating `Crashed` states.
+
+    Returns:
+        State: a Crashed state
+    """
+    return State(type=StateType.CRASHED, **kwargs)
 
 
 def Cancelled(**kwargs) -> State:
