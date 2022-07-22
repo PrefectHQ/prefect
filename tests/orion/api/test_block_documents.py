@@ -578,32 +578,6 @@ class TestDeleteBlockDocument:
 
 
 class TestUpdateBlockDocument:
-    async def test_update_block_document_name(self, session, client, block_schemas):
-        block_document = await models.block_documents.create_block_document(
-            session,
-            block_document=schemas.actions.BlockDocumentCreate(
-                name="test-update-name",
-                data=dict(x=1),
-                block_schema_id=block_schemas[1].id,
-                block_type_id=block_schemas[1].block_type_id,
-            ),
-        )
-        await session.commit()
-
-        response = await client.patch(
-            f"/block_documents/{block_document.id}",
-            json=BlockDocumentUpdate(
-                name="updated",
-            ).dict(json_compatible=True, exclude_unset=True),
-        )
-
-        assert response.status_code == status.HTTP_204_NO_CONTENT
-
-        updated_block_document = await models.block_documents.read_block_document_by_id(
-            session, block_document_id=block_document.id
-        )
-        assert updated_block_document.name == "updated"
-
     async def test_update_block_document_data(self, session, client, block_schemas):
         block_document = await models.block_documents.create_block_document(
             session,

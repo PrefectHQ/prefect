@@ -309,18 +309,40 @@ async def create(path: Path):
                 app.console.print(f"Created deployment {name!r}.")
             except Exception as exc:
                 app.console.print(exception_traceback(exc))
-                app.console.print("Failed to create deployment!", style="red")
+                app.console.print(
+                    "Failed to create deployment {deployment.name}", style="red"
+                )
                 failed += 1
             else:
                 created += 1
 
-    if failed:
+    if failed or created == 0:
         exit_with_error(
             f"Failed to create {failed} out of {len(valid_deployments)} deployments."
         )
     else:
         s = "s" if created > 1 else ""
-        exit_with_success(f"Created {created} deployment{s}!")
+        deployments_listing = "\n".join(
+            f"'{deployment.flow.name}/{deployment.name or deployment.flow.name}'"
+            for deployment in valid_deployments
+        )
+        last_deployment = (
+            f"{deployment.flow.name}/{deployment.name or deployment.flow.name}"
+        )
+        app.console.print(
+            textwrap.dedent(
+                f"""
+                Created {created} deployment{s}:
+                    {deployments_listing}
+
+                Run the last created deployment:
+                    prefect deployment run {last_deployment!r}
+                
+                Inspect the last created deployment:
+                    prefect deployment inspect {last_deployment!r}
+            """
+            )
+        )
 
 
 def _deployment_name(deployment: Deployment):
