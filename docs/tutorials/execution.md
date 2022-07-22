@@ -27,11 +27,11 @@ If, however, we want our tasks to run in parallel (or sequentially) then we need
 
 ## Parallel Execution
 
-
 Achieving parallelism within a flow run is as simple as:
 
-1. Switching your task runner to Prefect's `DaskTaskRunner`; however please note that because the `DaskTaskRunner` uses multiprocessing, it can only be used when running interactively or when protected by an `if __name__ == "__main__":` guard when used in a script.
-2. Calling `.submit` on the task instead of calling the task directly. This submits the task to the runner rather than running the task in-process.
+1. Installing the [prefect-dask collection](https://prefecthq.github.io/prefect-dask/) with `pip install prefect-dask`
+1. Switching your task runner to Prefect's `DaskTaskRunner`. 
+1. Calling `.submit` on the task instead of calling the task directly. This submits the task to the runner rather than running the task in-process.
 
 ```python
 import time
@@ -55,6 +55,21 @@ if __name__ == "__main__":
 ```
 
 When you run this flow you should see the terminal output randomly switching between `AAAA` and `BBBB` showing that these two tasks are indeed running in parallel.
+
+If you have the [bokeh](https://docs.bokeh.org/en/latest/) Python package installed you can follow the link to the Dask dashaboard in the terminal output and watch the Dask workers in action!
+
+<div class="terminal">
+```bash
+22:49:06.969 | INFO    | prefect.engine - Created flow run 'bulky-unicorn' for flow 'parallel-flow'
+22:49:06.969 | INFO    | Flow run 'bulky-unicorn' - Using task runner 'DaskTaskRunner'
+22:49:06.970 | INFO    | prefect.task_runner.dask - Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
+22:49:09.182 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at http://127.0.0.1:8787/status
+...
+```
+</div>
+
+Please note that because the `DaskTaskRunner` uses multiprocessing, it can be used interactively or must be protected by an `if __name__ == "__main__":` guard when used in a script.
+
 
 !!! warning "The dask scheduler can be hard to predict"
     When using the `DaskTaskRunner`, Prefect is submitting each task run to a dask cluster object.  [The dask scheduler then determines when and how each individual run should be executed](https://distributed.dask.org/en/latest/scheduling-policies.html) (with the constraint that the order matches the execution graph that Prefect provided).  
@@ -85,13 +100,14 @@ async def async_flow():
 
     # asynchronously gather the tasks
     await asyncio.gather(*coros)
+
+asyncio.run(async_flow())
 ```
 
 When we run this flow, we find that the coroutines that were gathered yield control to one another and are run concurrently:
 
-<div class="termy">
-```
->>> asyncio.run(async_flow())
+<div class="terminal">
+```bash
 1 2 a 6 b 7 c 8 d 9
 ```
 </div>
