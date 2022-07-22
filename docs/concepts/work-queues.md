@@ -40,10 +40,7 @@ To configure a work queue and agent for orchestrated deployments:
 
 Work queues organize work that [agents](#agent-overview) can pick up to execute. Work queue configuration determines what work will be picked up.
 
-Work queues contain scheduled runs from any deployments that match the queue criteria. Criteria can include:
-
-- Deployments
-- Tags
+Work queues contain scheduled runs from any deployments that match the queue criteria. Criteria is based on _tags_ &mdash; all runs that have the tags defined on the queue will be picked up.
 
 These criteria can be modified at any time, and agent processes requesting work for a specific queue will only see matching runs.
 
@@ -57,12 +54,7 @@ You can configure work queues by using:
 
 ![Creating a new work queue in the Orion UI](/img/ui/work-queue-create.png)
 
-To configure a work queue to handle specific work, you can specify filters such as:
-
-- One or more deployment tags
-- One or more deployments
-
-Only scheduled work that meets the specified criteria will route through the worker queue to available agents.
+To configure a work queue to handle specific work, you can specify filters by providing a list of tags. Only scheduled work that meets the specified criteria will route through the work queue to available agents.
 
 !!! tip "Filters limit what work queues accept"
     Work queue filters are a powerful tool for routing flow runs to the agents most appropriate to execute them. To get the most out of work queues, it's important to understand that filters _limit_ the work queue to service only flow runs for deployments that meet _all_ of the filters you've set.
@@ -70,10 +62,8 @@ Only scheduled work that meets the specified criteria will route through the wor
     If you set no filters at all on a work queue, the queue will service any flow run for any deployment. 
     
     If you set a filter for the tag `test`, it will service any flow for any deployment that has a `test` tag. 
-    
-    If you set a filter for a specific deployment, it will only service flows for that particular deployment.
 
-    When setting filters on a work queue, we recommend setting the miniumum filters that achieve the flow run distribution you need. The flexibility of work queue filters means it's possible to create filters that accept no work at all. If you filter on deployment `X` and tag `y`, but deployment `X` does not have a tag `y`, then the queue won't route any flow runs.
+    When setting filters on a work queue, we recommend setting the miniumum filters that achieve the flow run distribution you need. The flexibility of work queue filters means it's possible to create filters that accept no work at all. If you filter on tag `X` and tag `y`, but no runs have both tag `X` and `y`, then the queue won't route any flow runs.
 
 To configure a work queue via the Prefect CLI, use the `prefect work-queue create` command:
 
@@ -88,12 +78,11 @@ Optional configuration parameters you can specify to filter work on the queue in
 | Option | Description |
 | --- | --- |
 | -t, --tag          | One or more tags. |
-| -d, --deployment   | One or more deployment IDs. |
 
-For example, to create a work queue called `test_queue` for a specific deployment with ID `'156edead-fe6a-4783-a618-21d3a63e95c4'`, you would run this command: 
+For example, to create a work queue called `test_queue` for a specific tag `demo`, you would run this command: 
 
 ```bash
-$ prefect work-queue create -d '156edead-fe6a-4783-a618-21d3a63e95c4' test_queue
+$ prefect work-queue create -t 'demo' test_queue
 UUID('acffbcc8-ae65-4c83-a38a-96e2e5e5b441')
 ```
 
@@ -135,7 +124,7 @@ $ prefect work-queue ls
 ┏━━━━━━━━━━━━━━━━━━━━┳┳┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃                 ID ┃┃┃ Filter                                                             ┃
 ┡━━━━━━━━━━━━━━━━━━━━╇╇╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ acffbcc8-ae65-4c8… │││ {"tags": null, "deployment_ids": ["156edead-fe6a-4783-a618-21d3a6… │
+│ acffbcc8-ae65-4c8… │││ {"tags": "blue", "deployment_ids": null}                           │
 └────────────────────┴┴┴────────────────────────────────────────────────────────────────────┘
                                  (**) denotes a paused queue
 ```
@@ -148,7 +137,7 @@ WorkQueue(
     id='acffbcc8-ae65-4c83-a38a-96e2e5e5b441',
     created='1 hour ago',
     updated='1 hour ago',
-    filter=QueueFilter(deployment_ids="[UUID('156edead-fe6a-4783-a618-21d3a63e95c4')]"),
+    filter=QueueFilter(tags="['blue']"),
     name='danny_queue'
 )
 ```
@@ -208,12 +197,13 @@ It is possible for multiple agent processes to be started for a single work queu
 
 ### Agent configuration
 
-When work queues are configured, you can start an agent that corresponds to a specific work queue. 
+When work queues are configured, you can start an agent that corresponds to a specific work queue. Prefect also provides the ability to auto-create work queues on your behalf based on a set of tags passed to the `prefect agent start` command.
 
 You must start an agent within an environment that can access or create the infrastructure needed to execute flow runs. Your agent will deploy flow runs to the infrastructure specified by a flow runner configuration.
 
 1. Install Prefect in the environment.
-2. Using the [work queue ID](#work-queue-configuration) for the work queue the agent should poll for work, run the following CLI command to start an agent:
+2. Using the [work queue ID](#work-queue-configuration) for the work queue the agent should poll for work, run the following CLI command to start an agent.
+3. Alternatively, start your agent with a set of tags and Prefect will create a work queue for you.
 
 ```bash
 $ prefect agent start [OPTIONS] WORK_QUEUE_ID
@@ -232,6 +222,22 @@ Starting agent with ephemeral API...
 
 
 Agent started!
+```
+
+Alternatively:
+
+```bash
+$ prefect agent start -t demo
+Created work queue 'Agent queue demo'
+Starting agent with ephemeral API...
+
+  ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
+ | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
+ |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |
+ |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
+
+
+Agent started! Looking for work from queue 'Agent queue demo'...
 ```
 
 By default, the agent polls its work queue API specified by the `PREFECT_API_URL` environment variable. To configure the agent to poll from a different server location, use the `--api` flag, specifying the URL of the server.
