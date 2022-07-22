@@ -5,7 +5,7 @@
     </template>
 
     <BlockTypeCardLayout :block-type="blockType">
-      <BlockSchemaEditForm v-model:data="data" v-bind="{ name, blockSchema }" edit v-on="{ submit, cancel }" />
+      <BlockSchemaEditForm v-model:data="data" v-bind="{ name, blockSchema }" v-on="{ submit, cancel }" />
     </BlockTypeCardLayout>
   </p-layout-default>
 </template>
