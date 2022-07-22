@@ -22,19 +22,15 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
     </div>
 </div>
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/v2/">Prefect 2.0</a> release? Prefect 2.0 and <a href="https://app.prefect.cloud">Prefect Cloud 2.0</a> have been released for General Availability. See <a href="https://docs.prefect.io/v2/">https://docs.prefect.io/v2</a> for details.
+</div>
 
-Prefect Core is now Prefect 1.0! Check [this blog post](https://www.prefect.io/blog/prefect-core-is-now-prefect-1-0/) to learn more.
+Prefect 1.0 Core, Server, and Cloud are our first-generation workflow and orchestration tools. You can continue to use them and we'll continue to support them while migrating users to Prefect 2.0.
 
-When we say Prefect 1.0, we mean it as a generation of a product, not as a specific release. This distinction is important since we are actively working on a new generation of Prefect based on [the Orion engine](https://www.prefect.io/blog/announcing-prefect-orion) &mdash; [Prefect 2.0](https://www.prefect.io/blog/introducing-prefect-2-0/)! The documentation for Prefect 2.0 is available on [orion-docs.prefect.io](https://orion-docs.prefect.io). 
-
-If you use a previous version of Prefect (before the 1.0 release), you may either:
-
-- Transition your flows to the latest 1.0 release &mdash; for more details, check out our [Upgrading to Prefect 1.0](/orchestration/faq/upgrading_1.0) guide and [Changelog](/api/latest/changelog/).
-- Start using Prefect 2.0 already! You can even sign up for a free [Cloud 2.0](https://orion-docs.prefect.io/ui/cloud/) account on [beta.prefect.io](https://beta.prefect.io/).
-
+If you're ready to start migrating your workflows to Prefect 2.0, see our [migration guide](https://docs.prefect.io/v2/getting-started/migration-guide/).
 
 If you are unsure which Prefect version to choose for your specific use case, [this Prefect Discourse page](https://discourse.prefect.io/t/should-i-start-with-prefect-2-0-orion-skipping-prefect-1-0/544) may help you decide.
-
 
 
 <div class="features">
