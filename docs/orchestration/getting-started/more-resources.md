@@ -32,7 +32,7 @@ examples, run the following:
 $ prefect create project "Prefect Examples"
 
 # Register all the examples into the "Prefect Examples" project
-$ prefect register --json https://docs.prefect.io/examples.json --project "Prefect Examples"
+$ prefect register --json https://docs.prefect.io/v2examples.json --project "Prefect Examples"
 ```
 
 See the [examples](/core/examples/overview.md) page for more information.

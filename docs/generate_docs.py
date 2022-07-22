@@ -450,7 +450,7 @@ def build_example(path):
     )
     output = res.stdout.decode("utf-8").strip()
 
-    register_lines = [f"prefect register --json https://docs.prefect.io/examples.json"]
+    register_lines = [f"prefect register --json https://docs.prefect.io/v2examples.json"]
     for name in sorted(flows):
         register_lines.append(f"    --name {name!r}")
     register_lines.append(f"    --project 'Prefect Examples'")

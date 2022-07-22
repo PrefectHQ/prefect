@@ -107,7 +107,7 @@ DEPRECATED. Please use API keys instead.
 Create a Prefect Cloud API token.
 
 For more info on API tokens visit
-https://docs.prefect.io/orchestration/concepts/api.html
+https://docs.prefect.io/v2/orchestration/concepts/api.html
 
 Options:
     --name, -n      TEXT    A name to give the generated token

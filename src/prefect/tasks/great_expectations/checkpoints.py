@@ -97,7 +97,7 @@ class RunGreatExpectationsValidation(Task):
             validation. Defaults to `action_list_operator`
         - evaluation_parameters (Optional[dict], optional): the evaluation parameters to use when
             running validation. For more information, see
-            [example](https://docs.prefect.io/api/latest/tasks/great_expectations.html#rungreatexpectationsvalidation)
+            [example](https://docs.prefect.io/v2/api/latest/tasks/great_expectations.html#rungreatexpectationsvalidation)
             and
             [docs](https://docs.greatexpectations.io/en/latest/reference/core_concepts/evaluation_parameters.html).
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
@@ -205,7 +205,7 @@ class RunGreatExpectationsValidation(Task):
                 this tasks. Defaults to `False`.
             - evaluation_parameters (Optional[dict], optional): the evaluation parameters to use when
                 running validation. For more information, see
-                [example](https://docs.prefect.io/api/latest/tasks/great_expectations.html#rungreatexpectationsvalidation)
+                [example](https://docs.prefect.io/v2/api/latest/tasks/great_expectations.html#rungreatexpectationsvalidation)
                 and
                 [docs](https://docs.greatexpectations.io/en/latest/reference/core_concepts/evaluation_parameters.html).
             - validation_operator (str, optional): configure the actions to be executed after running

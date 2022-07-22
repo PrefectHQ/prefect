@@ -45,7 +45,7 @@ def cloudpickle_deserialization_check(flow_file_paths: list):
                 warnings.warn(
                     "Flow uses module which is not importable. Refer to documentation "
                     "on how to import custom modules "
-                    "https://docs.prefect.io/api/latest/storage.html#docker",
+                    "https://docs.prefect.io/v2/api/latest/storage.html#docker",
                     stacklevel=2,
                 )
                 raise
@@ -83,7 +83,7 @@ def result_check(flows: list, quiet=False):
             ):
                 warnings.warn(
                     f"Task {task} has retry settings but some upstream dependencies do not "
-                    f"have result types. See https://docs.prefect.io/core/concepts/results.html "
+                    f"have result types. See docs.prefect.io/v2/core/concepts/results.html "
                     f"for more details.",
                     stacklevel=2,
                 )
@@ -94,7 +94,7 @@ def result_check(flows: list, quiet=False):
             if task.result is None:
                 warnings.warn(
                     f"Task {task} has cache settings but does not have a result type. "
-                    f"See https://docs.prefect.io/core/concepts/results.html for more "
+                    f"See docs.prefect.io/v2/core/concepts/results.html for more "
                     f"details.",
                     stacklevel=2,
                 )
@@ -107,7 +107,7 @@ def result_check(flows: list, quiet=False):
             ):
                 warnings.warn(
                     f"Task {task} has cache settings but some upstream dependencies do not have "
-                    f"result types. See https://docs.prefect.io/core/concepts/results.html for "
+                    f"result types. See docs.prefect.io/v2/core/concepts/results.html for "
                     f"more details.",
                     stacklevel=2,
                 )

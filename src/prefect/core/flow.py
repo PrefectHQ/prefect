@@ -364,7 +364,7 @@ class Flow:
                 "when `Task` classes, including `Parameters`, are instantiated "
                 "inside a `with flow:` block but not added to the flow either "
                 "explicitly or as the input to another task. For more information, see "
-                "https://docs.prefect.io/core/advanced_tutorials/"
+                "docs.prefect.io/v2/core/advanced_tutorials/"
                 "task-guide.html#adding-tasks-to-flows.",
                 stacklevel=2,
             )
@@ -1666,7 +1666,7 @@ class Flow:
                 prior to serialization; defaults to `True`
             - labels (List[str], optional): a list of labels to add to this Flow;
                 useful for associating Flows with individual Agents; see
-                http://docs.prefect.io/orchestration/agents/overview.html#labels
+                http://docs.prefect.io/v2orchestration/agents/overview.html#labels
             - set_schedule_active (bool, optional): if `False`, will set the schedule to
                 inactive in the database to prevent auto-scheduling runs (if the Flow has a
                 schedule).  Defaults to `True`. This can be changed later.

@@ -21,7 +21,7 @@ class DbtShellTask(ShellTask):
     Task for running dbt commands. It will create a profiles.yml file prior to running dbt commands.
 
     This task inherits all configuration options from the
-    [ShellTask](https://docs.prefect.io/api/latest/tasks/shell.html#shelltask).
+    [ShellTask](https://docs.prefect.io/v2/api/latest/tasks/shell.html#shelltask).
 
     Args:
         - command (string, optional): dbt command to be executed; can also be

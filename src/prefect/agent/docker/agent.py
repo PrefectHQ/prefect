@@ -38,7 +38,7 @@ def _stream_container_logs(base_url: str, timeout: int, container_id: str) -> No
 class DockerAgent(Agent):
     """
     Agent which deploys flow runs locally as Docker containers. Information on using the
-    Docker Agent can be found at https://docs.prefect.io/orchestration/agents/docker.html
+    Docker Agent can be found at https://docs.prefect.io/v2/orchestration/agents/docker.html
 
     This agent requires Docker v20.10.0+
 

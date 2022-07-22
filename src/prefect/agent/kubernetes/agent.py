@@ -45,7 +45,7 @@ class KubernetesAgent(Agent):
     Agent which deploys flow runs as Kubernetes jobs. Currently this is required to either
     run on a k8s cluster or on a local machine where the kube_config is pointing at the
     desired cluster. Information on using the Kubernetes Agent can be found at
-    https://docs.prefect.io/orchestration/agents/kubernetes.html
+    https://docs.prefect.io/v2/orchestration/agents/kubernetes.html
 
     Args:
         - agent_config_id (str, optional): An optional agent configuration ID that can be used to set

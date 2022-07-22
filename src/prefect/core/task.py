@@ -62,7 +62,7 @@ def _validate_run_signature(run: Callable) -> None:
                 "with `builtin` and `numpy` functions). In order to "
                 "use it as a task, please wrap it in a standard "
                 "Python function. For more detail, see "
-                "https://docs.prefect.io/core/advanced_tutorials/task-guide.html#the-task-decorator"
+                "docs.prefect.io/v2/core/advanced_tutorials/task-guide.html#the-task-decorator"
             ) from exc
         raise
 
@@ -156,7 +156,7 @@ class TaskMetaclass(type):
                         "For example:\n\n"
                         f"  my_task = {cls_name}(...)  # static (non-Task) args go here\n"
                         f"  res = my_task(...)  # dynamic (Task) args go here\n\n"
-                        "see https://docs.prefect.io/core/concepts/flows.html#apis for more info.",
+                        "see docs.prefect.io/v2/core/concepts/flows.html#apis for more info.",
                         stacklevel=2,
                     )
                 old_init(self, *args, **kwargs)

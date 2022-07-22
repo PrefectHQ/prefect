@@ -344,7 +344,7 @@ class StartFlowRun(Task):
                         "task instead. For example:\n\n"
                         "  start_flow_run = StartFlowRun(...)  # static (non-Task) args go here\n"
                         "  res = start_flow_run(parameters=...)  # dynamic (Task) args go here\n\n"
-                        "see https://docs.prefect.io/core/concepts/flows.html#apis for more info."
+                        "see docs.prefect.io/v2/core/concepts/flows.html#apis for more info."
                     )
         self.parameters = parameters
         self.run_config = run_config

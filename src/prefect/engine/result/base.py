@@ -153,7 +153,7 @@ class Result:
         raise ResultNotImplementedError(
             "Not implemented on the base Result class - if you are seeing this error you "
             "might be trying to use features that require choosing a Result subclass; "
-            "see https://docs.prefect.io/core/concepts/results.html"
+            "see docs.prefect.io/v2/core/concepts/results.html"
         )
 
     def read(self, location: str) -> "Result":
@@ -169,7 +169,7 @@ class Result:
         raise ResultNotImplementedError(
             "Not implemented on the base Result class - if you are seeing this error you "
             "might be trying to use features that require choosing a Result subclass; "
-            "see https://docs.prefect.io/core/concepts/results.html"
+            "see docs.prefect.io/v2/core/concepts/results.html"
         )
 
     def write(self, value_: Any, **kwargs: Any) -> "Result":
@@ -188,7 +188,7 @@ class Result:
         raise ResultNotImplementedError(
             "Not implemented on the base Result class - if you are seeing this error you "
             "might be trying to use features that require choosing a Result subclass; "
-            "see https://docs.prefect.io/core/concepts/results.html"
+            "see docs.prefect.io/v2/core/concepts/results.html"
         )
 
 

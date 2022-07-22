@@ -157,7 +157,7 @@ class Secret:
                     if "No value found for the requested key" in str(exc):
                         raise KeyError(
                             f"The secret {self.name} was not found.  Please ensure that it "
-                            f"was set correctly in your tenant: https://docs.prefect.io/"
+                            f"was set correctly in your tenant: https://docs.prefect.io/v2"
                             f"orchestration/concepts/secrets.html"
                         ) from exc
                     else:

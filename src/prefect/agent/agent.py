@@ -79,7 +79,7 @@ class PokeHandler(web.RequestHandler):
 class Agent:
     """
     Base class for Agents. Information on using the Prefect agents can be found at
-    https://docs.prefect.io/orchestration/agents/overview.html
+    https://docs.prefect.io/v2/orchestration/agents/overview.html
 
     This Agent class is a standard point for executing Flows through the Prefect API. It is meant to
     have subclasses which inherit functionality from this class. The only piece that the
@@ -886,7 +886,7 @@ class Agent:
         self.logger.info(f"Starting {type(self).__name__} with labels {self.labels}")
         self.logger.info(
             "Agent documentation can be found at "
-            "https://docs.prefect.io/orchestration/"
+            "https://docs.prefect.io/v2/orchestration/"
         )
         self.logger.info("Waiting for flow runs...")
 
