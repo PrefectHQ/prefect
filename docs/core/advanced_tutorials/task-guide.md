@@ -75,7 +75,7 @@ add_task # <Task: Add>
 Here we have created an equivalent Task to the one above - the `@task` decorator essentially assigns this function as the `run` method of the underlying Task class for us. A few observations are in order:
 
 - the `@task` decorator _instantiates_ a Prefect Task automatically
-- all [Task initialization keywords](https://docs.prefect.io/api/latest/core/task.html#task-2) can be provided to the decorator
+- all [Task initialization keywords](/api/latest/core/task.html#task-2) can be provided to the decorator
 - if you choose not to provide a name, the function name will be used as the Task name
 
 ::: warning Call signatures cannot be arbitrary
@@ -165,7 +165,7 @@ assert state.is_successful()
 assert state.result == 42
 ```
 
-In this case, the `TaskRunner` doesn't actually return the value of the Task's `run` method, but instead returns a [Prefect `Success` state](https://docs.prefect.io/api/latest/engine/state.html#success) which has the return value stored in its `result` attribute.
+In this case, the `TaskRunner` doesn't actually return the value of the Task's `run` method, but instead returns a [Prefect `Success` state](/api/latest/engine/state.html#success) which has the return value stored in its `result` attribute.
 
 We can now begin to do more interesting things, such as provide upstream states to test our trigger logic:
 
@@ -288,7 +288,7 @@ This can be useful for overriding Task triggers, tags, names, etc.
 
 :::
 
-To see some of these subtleties in action, let's work out a more complicated example using our `add_task` Task created above. First, let's use the [`set_dependencies` method](https://docs.prefect.io/api/latest/core/flow.html#prefect-core-flow-flow-set-dependencies) of the imperative API:
+To see some of these subtleties in action, let's work out a more complicated example using our `add_task` Task created above. First, let's use the [`set_dependencies` method](/api/latest/core/flow.html#prefect-core-flow-flow-set-dependencies) of the imperative API:
 
 ```python
 f = Flow("add-example")
@@ -567,7 +567,7 @@ with Flow("add-with-default") as f:
     result_two = add_task(x=0, y=10)
 ```
 
-We've found this pattern of setting defaults which are optionally overwritten at runtime to be so common, we created a [utility function to minimize boilerplate](https://docs.prefect.io/api/latest/utilities/tasks.html#prefect-utilities-tasks-defaults-from-attrs). In addition, subclassing allows you to write custom class methods that are organized in one place.
+We've found this pattern of setting defaults which are optionally overwritten at runtime to be so common, we created a [utility function to minimize boilerplate](/api/latest/utilities/tasks.html#prefect-utilities-tasks-defaults-from-attrs). In addition, subclassing allows you to write custom class methods that are organized in one place.
 
 ::: warning Always call the parent Task initialization method
 Anytime you subclass `Task`, _make sure to call the parent initialization method_! This ensures Prefect will recognize your custom Task as an actual Task. In addition, we highly recommend always allowing for arbitrary keyword arguments (i.e., `**kwargs`) which are passed to the Task `__init__` method. This ensures that you can still set things such as Task tags, custom names, results, etc.

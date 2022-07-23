@@ -40,7 +40,7 @@ Suppose our internet connection goes bad for a short instant and this task fails
 
 The goal is to elevate each individual iteration of the above while loop to its own Prefect Task, which can be retried and handled on its own. A priori we don't know how many iterations will be required. Lucky for us, Prefect supports such _dynamic_ patterns in a first-class way.
 
-There are two pieces of information that need to be conveyed from one iteration to the next: the loop count, as well as the loop payload (which can accumulate or change across iterations). To communicate this information, we will use the Prefect [`LOOP` signal](https://docs.prefect.io/api/latest/engine/signals.html#loop) as follows:
+There are two pieces of information that need to be conveyed from one iteration to the next: the loop count, as well as the loop payload (which can accumulate or change across iterations). To communicate this information, we will use the Prefect [`LOOP` signal](/api/latest/engine/signals.html#loop) as follows:
 
 ```python
 import requests
