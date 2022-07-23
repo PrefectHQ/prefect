@@ -530,6 +530,23 @@ class TestRRuleSchedule:
         dates = await s.get_dates(5, start=pendulum.now("UTC"))
         assert dates == [pendulum.datetime(2030, 1, 1).add(days=i) for i in range(5)]
 
+    async def test_rrule_validates_rrule_str(self):
+        # generic validation error
+        with pytest.raises(ValidationError, match="(Invalid RRule string)"):
+            RRuleSchedule(rrule="bad rrule string")
+
+        # generic validation error
+        with pytest.raises(ValidationError, match="(Invalid RRule string)"):
+            RRuleSchedule(rrule="FREQ=DAILYBAD")
+
+        # informative error when possible
+        with pytest.raises(ValidationError, match="(invalid 'FREQ': DAILYBAD)"):
+            RRuleSchedule(rrule="FREQ=DAILYBAD")
+
+    async def test_rrule_validates_rrule_obj(self):
+        with pytest.raises(ValueError, match="(Invalid RRule object)"):
+            RRuleSchedule.from_rrule("bad rrule")
+
     @pytest.mark.parametrize(
         "rrule_obj,rrule_str,expected_dts",
         [
