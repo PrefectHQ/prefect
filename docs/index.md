@@ -12,7 +12,7 @@ tags:
 !!! help "Looking for Prefect 1.0 Core and Server?"
     Prefect 2.0 is now available for general use. See our [Migration Guide](/getting-started/migration-guide/) if you're ready to move your Prefect 1.0 flows to Prefect 2.0.
 
-    If you're looking for the [Prefect 1.0 Core and Server documentation](http://docs.prefect.io/v1/), they're still available at [http://docs.prefect.io/v1/](http://docs.prefect.io/v1/).
+    If you're looking for the [Prefect 1.0 Core and Server documentation](http://docs-v1.prefect.io/), they're available at [http://docs-v1.prefect.io/](http://docs-v1.prefect.io/).
 
 ## Prefect coordinates dataflows
 
