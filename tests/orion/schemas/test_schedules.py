@@ -543,6 +543,26 @@ class TestRRuleSchedule:
         with pytest.raises(ValidationError, match="(invalid 'FREQ': DAILYBAD)"):
             RRuleSchedule(rrule="FREQ=DAILYBAD")
 
+    async def test_rrule_from_str(self):
+        # create a schedule from an RRule object
+        s1 = RRuleSchedule.from_rrule(
+            rrule.rrule(
+                freq=rrule.DAILY,
+                count=5,
+                dtstart=pendulum.now("UTC").add(hours=1),
+            )
+        )
+        assert isinstance(s1.rrule, str)
+        assert s1.rrule.endswith("RRULE:FREQ=DAILY;COUNT=5")
+
+        # create a schedule from the equivalent RRule string
+        s2 = RRuleSchedule(rrule=s1.rrule)
+
+        dts1 = await s1.get_dates(n=10)
+        dts2 = await s2.get_dates(n=10)
+        assert dts1 == dts2
+        assert len(dts1) == 5
+
     async def test_rrule_validates_rrule_obj(self):
         with pytest.raises(ValueError, match="(Invalid RRule object)"):
             RRuleSchedule.from_rrule("bad rrule")
