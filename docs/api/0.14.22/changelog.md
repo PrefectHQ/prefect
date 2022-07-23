@@ -1746,7 +1746,7 @@ Released on May 14, 2020.
 
 ### Features
 
-- Introducing new [Results](https://docs.prefect.io/core/concepts/results.html) interface for working with task results - [#2507](https://github.com/PrefectHQ/prefect/pull/2507)
+- Introducing new [Results](/core/concepts/results.html) interface for working with task results - [#2507](https://github.com/PrefectHQ/prefect/pull/2507)
 
 ### Enhancements
 

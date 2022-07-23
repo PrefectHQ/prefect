@@ -27,7 +27,7 @@ You can also use `smtp_type="INSECURE"` and `smtp_port=25` to use an insecure, i
  ## SlackTask
  <div class='class-sig' id='prefect-tasks-notifications-slack-task-slacktask'><p class="prefect-sig">class </p><p class="prefect-class">prefect.tasks.notifications.slack_task.SlackTask</p>(message=None, webhook_secret=&quot;SLACK_WEBHOOK_URL&quot;, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/tasks/notifications/slack_task.py#L8">[source]</a></span></div>
 
-Task for sending a message via Slack.  For this task to function properly, you must have a Prefect Secret set which stores your Slack webhook URL.  For installing the Prefect App, please see these [installation instructions](https://docs.prefect.io/core/advanced_tutorials/slack-notifications.html#installation-instructions).
+Task for sending a message via Slack.  For this task to function properly, you must have a Prefect Secret set which stores your Slack webhook URL.  For installing the Prefect App, please see these [installation instructions](/core/advanced_tutorials/slack-notifications.html#installation-instructions).
 
 **Args**:     <ul class="args"><li class="args">`message (str, optional)`: the message to send as either a dictionary or a plain         string; can also be provided at runtime     </li><li class="args">`webhook_secret (str, optional)`: the name of the Prefect Secret which stores your         slack webhook URL; defaults to `"SLACK_WEBHOOK_URL"`     </li><li class="args">`**kwargs (Any, optional)`: additional keyword arguments to pass to the base Task         initialization</li></ul>
 

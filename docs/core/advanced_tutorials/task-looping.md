@@ -5,7 +5,7 @@ sidebarDepth: 0
 
 Prefect's rich state system allows for unique forms of workflow dynamicism that alter the underlying DAG structure at runtime, while still providing all of the underlying workflow guarantees: individual tasks can have custom retry settings, exchange data, activate notifications, etc.
 
-Previously, [task mapping](https://docs.prefect.io/core/concepts/mapping.html) allowed users to elevate parallelizable for-loops into first class parallel pipelines at runtime. Task looping offers much the same benefit, but for situations that require a while-loop pattern.
+Previously, [task mapping](/core/concepts/mapping.html) allowed users to elevate parallelizable for-loops into first class parallel pipelines at runtime. Task looping offers much the same benefit, but for situations that require a while-loop pattern.
 
 ## An example: large Fibonacci numbers
 
@@ -83,7 +83,7 @@ with Flow("fibonacci") as flow:
     fib_num = compute_large_fibonacci(M)
 ```
 
-As a matter of best practice, we opted to elevate `M` to a [Prefect Parameter](https://docs.prefect.io/core/concepts/parameters.html) instead of hardcoding its value.  This way we can experiment with small values and eventually increase the value without recompiling our Flow.
+As a matter of best practice, we opted to elevate `M` to a [Prefect Parameter](/core/concepts/parameters.html) instead of hardcoding its value.  This way we can experiment with small values and eventually increase the value without recompiling our Flow.
 
 With our Flow built, let's compute the largest Fibonacci number less than 100 and then 1000!
 
