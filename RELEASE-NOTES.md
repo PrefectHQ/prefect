@@ -62,7 +62,7 @@ For packagers that support it, three serializers are available as well:
 - `SourceSerializer`: Serializes to the source code of the flow's module.
 - `PickleSerializer`: Serializes the flow using cloudpickle with support for serialization full modules.
 
-Learn more in the [Deployment concept documentation](https://orion-docs.prefect.io/concepts/deployments/).
+Learn more in the [Deployment concept documentation](https://docs.prefect.io/v2/concepts/deployments/).
 
 You can continue to use your existing `DeploymentSpec`s, but they are deprecated and will be removed in the coming weeks.
 
@@ -197,7 +197,7 @@ The following collections have also been recently released:
 - [`prefect-twitter`](https://github.com/PrefectHQ/prefect-twitter)
 - [`prefect-github`](https://github.com/PrefectHQ/prefect-github)
 
-You can see a list of all available collections in the [Prefect Collections Catalog](https://orion-docs.prefect.io/collections/catalog/).
+You can see a list of all available collections in the [Prefect Collections Catalog](https://docs.prefect.io/v2/collections/catalog/).
 
 ### Windows compatibility
 
@@ -295,7 +295,7 @@ We are excited to introduce this branch as [Prefect 2.0](https://www.prefect.io/
 This is the first release that's compatible with Prefect Cloud 2.0's beta API - more exciting news to come on that soon!
 
 ### Expanded UI
-Through our technical preview phase, our focus has been on establishing the right [concepts](https://orion-docs.prefect.io/concepts/overview/) and making them accessible through the CLI and API. Now that some of those concepts have matured, we've made them more accessible and tangible through UI representations. This release adds some very important concepts to the UI:
+Through our technical preview phase, our focus has been on establishing the right [concepts](https://docs.prefect.io/v2/concepts/overview/) and making them accessible through the CLI and API. Now that some of those concepts have matured, we've made them more accessible and tangible through UI representations. This release adds some very important concepts to the UI:
 
 **Flows and deployments**
 
@@ -303,14 +303,14 @@ If you've ever created a deployment without a schedule, you know it can be diffi
 
 **Work queues**
 
-With the [2.0a13 release](https://github.com/PrefectHQ/prefect/blob/orion/RELEASE-NOTES.md#work-queues), we introduced [work queues](https://orion-docs.prefect.io/concepts/work-queues/), which could only be created through the CLI. Now, you can create and edit work queues directly from the UI, then copy, paste, and run a command that starts an agent that pulls work from that queue.
+With the [2.0a13 release](https://github.com/PrefectHQ/prefect/blob/orion/RELEASE-NOTES.md#work-queues), we introduced [work queues](https://docs.prefect.io/v2/concepts/work-queues/), which could only be created through the CLI. Now, you can create and edit work queues directly from the UI, then copy, paste, and run a command that starts an agent that pulls work from that queue.
 
 ### Collections
 Prefect Collections are groupings of pre-built tasks and flows used to quickly build data flows with Prefect.
 
 Collections are grouped around the services with which they interact. For example, to download data from an S3 bucket, you could use the `s3_download` task from the [prefect-aws collection](https://github.com/PrefectHQ/prefect-aws), or if you want to send a Slack message as part of your flow you could use the `send_message` task from the [prefect-slack collection](https://github.com/PrefectHQ/prefect-slack).
 
-By using Prefect Collections, you can reduce the amount of boilerplate code that you need to write for interacting with common services, and focus on the outcome you're seeking to achieve. Learn more about them in [the docs](https://orion-docs.prefect.io/collections/overview.md).
+By using Prefect Collections, you can reduce the amount of boilerplate code that you need to write for interacting with common services, and focus on the outcome you're seeking to achieve. Learn more about them in [the docs](https://docs.prefect.io/v2/collections/overview.md).
 
 ### Profile switching
 
@@ -352,7 +352,7 @@ Work queues enable some exiting new features:
 - Concurrency limits: Each work queue can limit the number of flows that run at the same time.
 - Pausing: Each work queue can be paused independently. This prevents agents from submitting additional work.
 
-Check out the [work queue documentation](https://orion-docs.prefect.io/concepts/work-queues/) for more details.
+Check out the [work queue documentation](https://docs.prefect.io/v2/concepts/work-queues/) for more details.
 
 Note, `prefect agent start` now requires you to pass a work queue identifier and `prefect orion start` no longer starts an agent by default.
 
@@ -368,15 +368,15 @@ Note that you will no longer be able to use the Kubernetes or Docker flow runner
 
 We're excited to announce a new task runner with support for [Ray](https://www.ray.io/). You can run your tasks on an existing Ray cluster, or dynamically create one with each flow run. Ray has powerful support for customizing runtime environments, parallelizing tasks to make use of your full compute power, and dynamically creating distributed task infrastructure.
 
-An [overview of using Ray](https://orion-docs.prefect.io/concepts/task-runners/#running-tasks-on-ray) can be found in our documentation.
+An [overview of using Ray](https://docs.prefect.io/v2/concepts/task-runners/#running-tasks-on-ray) can be found in our documentation.
 
 ### Profiles
 
 Prefect now supports profiles for configuration. You can store settings in profiles and switch between them. For example, this allows you to quickly switch between using a local and hosted API.
 
-View all of the available commands with `prefect config --help` and check out our [settings documentation](https://orion-docs.prefect.io/concepts/settings/) for a full description of how to use profiles.
+View all of the available commands with `prefect config --help` and check out our [settings documentation](https://docs.prefect.io/v2/concepts/settings/) for a full description of how to use profiles.
 
-We've also rehauled our [settings reference](https://orion-docs.prefect.io/api-ref/prefect/settings/#prefect.settings.Settings) to make it easier to see all the available settings. You can override any setting with an environment variable or `prefect config set`.
+We've also rehauled our [settings reference](https://docs.prefect.io/v2/api-ref/prefect/settings/#prefect.settings.Settings) to make it easier to see all the available settings. You can override any setting with an environment variable or `prefect config set`.
 
 ## 2.0a12
 
@@ -391,21 +391,21 @@ You can now can run the Orion API, UI, and agent on Kubernetes. We've included a
 Note: Prefect 2.0 beta versions prior to 2.0b6 used the CLI command `prefect orion kubernetes-manifest`.
 
 ### Run flows on Kubernetes
-With the Kubernetes [flow runner](https://orion-docs.prefect.io/concepts/flow-runners/), you can now run flows as Kubernetes Jobs. You may specify the Kubernetes flow runner when creating a deployment. If you're running Orion in Kubernetes, you don't need to configure any networking. When the agent runs your deployment, it will create a job, which will start a pod, which creates a container, which runs your flow. You can use standard Kubernetes tooling to display flow run jobs, e.g. `kubectl get jobs -l app=orion`.
+With the Kubernetes [flow runner](https://docs.prefect.io/v2/concepts/flow-runners/), you can now run flows as Kubernetes Jobs. You may specify the Kubernetes flow runner when creating a deployment. If you're running Orion in Kubernetes, you don't need to configure any networking. When the agent runs your deployment, it will create a job, which will start a pod, which creates a container, which runs your flow. You can use standard Kubernetes tooling to display flow run jobs, e.g. `kubectl get jobs -l app=orion`.
 
-Learn more about running Orion and flows on Kubernetes in the [Running flows in Kubernetes](https://orion-docs.prefect.io/tutorials/kubernetes-flow-runner/) tutorial.
+Learn more about running Orion and flows on Kubernetes in the [Running flows in Kubernetes](https://docs.prefect.io/v2/tutorials/kubernetes-flow-runner/) tutorial.
 
 ## 2.0a10
 
 ### Concurrent task runner
 
-Speed up your flow runs with the new Concurrent Task Runner. Whether your code is synchronous or asynchronous, this [task runner](https://orion-docs.prefect.io/concepts/task-runners/) will enable tasks that are blocked on input/output to yield to other tasks. To enable this behavior, this task runner always runs synchronous tasks in a worker thread, whereas previously they would run in the main thread.
+Speed up your flow runs with the new Concurrent Task Runner. Whether your code is synchronous or asynchronous, this [task runner](https://docs.prefect.io/v2/concepts/task-runners/) will enable tasks that are blocked on input/output to yield to other tasks. To enable this behavior, this task runner always runs synchronous tasks in a worker thread, whereas previously they would run in the main thread.
 
 ### Task run concurrency limits
 
 When running a flow using a task runner that enables concurrent execution, or running many flows across multiple execution environments, you may want to limit the number of certain tasks that can run at the same time.
 
-Concurrency limits are set and enforced with task run tags. For example, perhaps you want to ensure that, across all of your flows, there are no more than three open connections to your production database at once. You can do so by creating a “prod-db” tag and applying it to all of the tasks that open a connection to that database. Then, you can create a concurrency limit with `prefect concurrency-limit create prod-db 3`. Now, Orion will ensure that no more than 3 task runs with the “prod-db” tag will run at the same time. Check out [the documentation](https://orion-docs.prefect.io/concepts/tasks/) for more information about task run concurrency limits and other task level concepts.
+Concurrency limits are set and enforced with task run tags. For example, perhaps you want to ensure that, across all of your flows, there are no more than three open connections to your production database at once. You can do so by creating a “prod-db” tag and applying it to all of the tasks that open a connection to that database. Then, you can create a concurrency limit with `prefect concurrency-limit create prod-db 3`. Now, Orion will ensure that no more than 3 task runs with the “prod-db” tag will run at the same time. Check out [the documentation](https://docs.prefect.io/v2/concepts/tasks/) for more information about task run concurrency limits and other task level concepts.
 
 This feature was previously only available in a paid tier of Prefect Cloud, our hosted commercial offering. We’re very happy to move it to the open source domain, furthering our goal of making Orion the most capable workflow orchestration tool ever.
 
@@ -416,7 +416,7 @@ Previously, when calling a flow, we required passed arguments to be serializable
 - The flow decorator can be added to a wider range of existing Python functions
 - Results from tasks can be passed directly into subflows without worrying about types
 
-Setting flow parameters via the API still requires serializable data so we can store your new value for the parameter. However, we support automatic deserialization of those parameters via type hints. See the [parameters documentation](https://orion-docs.prefect.io/concepts/flows/#parameters) for more details.
+Setting flow parameters via the API still requires serializable data so we can store your new value for the parameter. However, we support automatic deserialization of those parameters via type hints. See the [parameters documentation](https://docs.prefect.io/v2/concepts/flows/#parameters) for more details.
 
 ### Database migrations
 
@@ -427,7 +427,7 @@ The run metadata that Orion stores in its database is a valuable record of what 
 - `prefect orion database downgrade` runs downgrade migrations
 
 **Breaking Change**
-Because these migrations were not in place initially, if you have installed any previous version of Orion, you must first delete or stamp the existing database with `rm ~/.prefect/orion.db` or `prefect orion database stamp`, respectively. Learn more about database migrations in [the documentation](https://orion-docs.prefect.io/tutorials/orion/#the-database).
+Because these migrations were not in place initially, if you have installed any previous version of Orion, you must first delete or stamp the existing database with `rm ~/.prefect/orion.db` or `prefect orion database stamp`, respectively. Learn more about database migrations in [the documentation](https://docs.prefect.io/v2/tutorials/orion/#the-database).
 
 ### CLI refinements
 
@@ -456,7 +456,7 @@ The CLI has gotten some love with miscellaneous additions and refinements:
 This release marks another major milestone on Orion's continued evolution into a production ready tool. Logs are fundamental output of any orchestrator. Orion's logs are designed to work exactly the way that you'd expect them to work. Our logger is built entirely on Python's [standard library logging configuration hooks](https://docs.python.org/3/library/logging.config.html), so you can easily output to JSON, write to files, set levels, and more - without Orion getting in the way. All logs are associated with a flow run ID. Where relevant, they are also associated with a task run ID.
 
 Once you've run your flow, you can find the logs in a dedicated tab on the flow run page, where you can copy them all or one line at a time. You can even watch them come in as your flow run executes. Future releases will enable further filter options and log downloads.
-Learn more about logging in [the docs](https://orion-docs.prefect.io/concepts/logs/).
+Learn more about logging in [the docs](https://docs.prefect.io/v2/concepts/logs/).
 
 ### Other Enhancements
 
@@ -530,7 +530,7 @@ In Orion, you can write a flow that contains no tasks.
 It can call many functions and execute arbitrary Python, but it will all happen sequentially and on a single machine.
 Tasks allow you to track and orchestrate discrete chunks of your workflow while enabling powerful execution patterns.
 
-[Executors](https://orion-docs.prefect.io/concepts/executors/) are the key building blocks that enable you to execute code in parallel, on other machines, or with other engines.
+[Executors](https://docs.prefect.io/v2/concepts/executors/) are the key building blocks that enable you to execute code in parallel, on other machines, or with other engines.
 
 ### Dask integration
 
@@ -538,19 +538,19 @@ Those of you already familiar with Prefect have likely used our Dask executor.
 The first release of Orion came with a Dask executor that could run simple local clusters.
 This allowed tasks to run in parallel, but did not expose the full power of Dask.
 In this release of Orion, we've reached feature parity with the existing Dask executor.
-You can [create customizable temporary clusters](https://orion-docs.prefect.io/tutorials/dask-task-runner/#using-a-temporary-cluster) and [connect to existing Dask clusters](https://orion-docs.prefect.io/tutorials/dask-task-runner/#connecting-to-an-existing-cluster).
-Additionally, because flows are not statically registered, we're able to easily expose Dask annotations, which allow you to [specify fine-grained controls over the scheduling of your tasks](https://orion-docs.prefect.io/tutorials/dask-task-runner/#annotations) within Dask.
+You can [create customizable temporary clusters](https://docs.prefect.io/v2/tutorials/dask-task-runner/) and [connect to existing Dask clusters](https://docs.prefect.io/v2/tutorials/dask-task-runner/).
+Additionally, because flows are not statically registered, we're able to easily expose Dask annotations, which allow you to [specify fine-grained controls over the scheduling of your tasks](https://docs.prefect.io/v2/tutorials/dask-task-runner/) within Dask.
 
 
 ### Subflow executors
 
-[Subflow runs](https://orion-docs.prefect.io/concepts/flows/#subflows) are a first-class concept in Orion and this enables new execution patterns.
+[Subflow runs](https://docs.prefect.io/v2/concepts/flows/#subflows) are a first-class concept in Orion and this enables new execution patterns.
 For example, consider a flow where most of the tasks can run locally, but for some subset of computationally intensive tasks you need more resources.
 You can move your computationally intensive tasks into their own flow, which uses a `DaskExecutor` to spin up a temporary Dask cluster in the cloud provider of your choice.
 Next, you simply call the flow that uses a `DaskExecutor` from your other, parent flow.
 This pattern can be nested or reused multiple times, enabling groups of tasks to use the executor that makes sense for their workload.
 
-Check out our [multiple executor documentation](https://orion-docs.prefect.io/concepts/executors/#using-multiple-task-runners) for an example.
+Check out our [multiple executor documentation](https://docs.prefect.io/v2/concepts/executors/#using-multiple-task-runners) for an example.
 
 
 ### Other enhancements
