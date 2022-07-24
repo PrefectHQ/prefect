@@ -51,7 +51,7 @@ async def ls(
 @flow_app.command()
 async def generate_manifest(path: str):
     """
-    Generate a flow manifest from a path.
+    Generate a basic flow manifest from a path.
     """
     base_path, name = path.split(":", 1)
 
