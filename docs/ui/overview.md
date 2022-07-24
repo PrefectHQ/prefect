@@ -32,7 +32,7 @@ You can filter the information displayed in the UI by time, flow state, and tags
 
 ## Using the Prefect UI
 
-The Prefect UI is available via [Prefect Cloud](/ui/cloud/) by logging into your account at [https://beta.prefect.io/](https://beta.prefect.io/).
+The Prefect UI is available via [Prefect Cloud](/ui/cloud/) by logging into your account at [https://app.prefect.cloud/](https://app.prefect.cloud/).
 
 The Prefect UI is also available in any environment where a Prefect Orion server is running with `prefect orion start`.
 
@@ -85,7 +85,7 @@ In Prefect Cloud, the Prefect icon returns you to the workspaces list. Currently
 
 ## Prefect Cloud
 
-[Prefect Cloud](https://beta.prefect.io) provides a hosted server and UI instance for running and monitoring deployed flows. Prefect Cloud includes:
+[Prefect Cloud](https://app.prefect.cloud) provides a hosted server and UI instance for running and monitoring deployed flows. Prefect Cloud includes:
 
 - All of the features of the local Prefect UI.
 - A personal account and workspace.
