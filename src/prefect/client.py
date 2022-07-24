@@ -265,7 +265,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
             if retry_after:
                 retry_seconds = float(retry_after)
             else:
-                retry_seconds = 2**retry_count
+                retry_seconds = 2 ** retry_count
 
             await sleep(retry_seconds)
             response = await super().send(*args, **kwargs)
@@ -441,6 +441,7 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
+        sort: schemas.sorting.FlowSort = None,
         limit: int = None,
         offset: int = 0,
     ) -> List[schemas.core.Flow]:
@@ -453,6 +454,7 @@ class OrionClient:
             flow_run_filter: filter criteria for flow runs
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
+            sort: sort criteria for the flows
             limit: limit for the flow query
             offset: offset for the flow query
 
@@ -473,6 +475,7 @@ class OrionClient:
                 if deployment_filter
                 else None
             ),
+            "sort": sort,
             "limit": limit,
             "offset": offset,
         }

@@ -9,6 +9,7 @@ import prefect.cli.concurrency_limit
 import prefect.cli.config
 import prefect.cli.deployment
 import prefect.cli.dev
+import prefect.cli.flow
 import prefect.cli.flow_run
 import prefect.cli.kubernetes
 import prefect.cli.orion
