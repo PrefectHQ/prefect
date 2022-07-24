@@ -5,6 +5,7 @@ import json
 import textwrap
 import traceback
 import yaml
+from inspect import getdoc
 from pathlib import Path
 from typing import List
 from uuid import UUID
@@ -35,6 +36,20 @@ from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.importtools import load_script_as_module
+
+
+def str_presenter(dumper, data):
+    """
+    configures yaml for dumping multiline strings
+    Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data
+    """
+    if len(data.splitlines()) > 1:  # check for multiline string
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+
+yaml.add_representer(str, str_presenter)
+yaml.representer.SafeRepresenter.add_representer(str, str_presenter)
 
 deployment_app = PrefectTyper(
     name="deployment", help="Commands for working with deployments."
@@ -438,31 +453,39 @@ async def preview(path: Path):
 @deployment_app.command()
 async def prepare(
     path: str,
+    name: str = typer.Option(
+        None, "--name", "-n", help="The name to give this deployment."
+    ),
     manifest_only: bool = typer.Option(
         False, "--manifest-only", help="Generate the manifest file only."
     ),
 ):
-    base_path, name = path.split(":", 1)
+    if not name and not manifest_only:
+        exit_with_error(
+            "A name for this deployment must be provided with the '--name' flag."
+        )
+    base_path, flow_obj_name = path.split(":", 1)
 
     mod = load_script_as_module(base_path)
 
     try:
-        flow = getattr(mod, name)
+        flow = getattr(mod, flow_obj_name)
         app.console.print(f"Found flow {flow.name!r}", style="green")
     except AttributeError:
-        exit_with_error(f"{name!r} not found in file {base_path!r}")
+        exit_with_error(f"{flow_obj_name!r} not found in file {base_path!r}")
 
-    flow_parameter_schema = parameter_schema(getattr(mod, name))
+    flow_parameter_schema = parameter_schema(flow)
     manifest = Manifest(
-        flow_name=name,
+        flow_name=flow.name,
         import_path=base_path,
         parameter_openapi_schema=flow_parameter_schema,
     )
-    with open("prefect-manifest.json", "w") as f:
+    manifest_loc = f"{flow_obj_name}-manifest.json"
+    with open(manifest_loc, "w") as f:
         json.dump(manifest.dict(), f, indent=4)
 
     app.console.print(
-        f"Manifest created at '{Path('prefect-manifest.json').absolute()!s}'.",
+        f"Manifest created at '{Path(manifest_loc).absolute()!s}'.",
         style="green",
     )
 
@@ -470,10 +493,11 @@ async def prepare(
         typer.Exit(0)
 
     deployment = DeploymentYAML(
-        name="test",
+        name=name,
+        description=getdoc(flow),
         flow_name=flow.name,
         parameter_openapi_schema=manifest.parameter_openapi_schema,
-        manifest_path=str(Path("prefect-manifest.json").absolute()),
+        manifest_path=manifest_loc,
         storage=LocalFileSystem(basepath="."),
     )
 
