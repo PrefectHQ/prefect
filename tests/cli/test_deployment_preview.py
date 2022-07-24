@@ -123,6 +123,7 @@ def test_previewing_multiple_kubernetes_deployments_from_python(example_deployme
     assert "MY_ENV_VAR" in [variable["name"] for variable in container["env"]]
 
 
+@pytest.mark.service("docker")
 def test_previewing_docker_deployment(example_deployments):
     """`prefect deployment preview my-flow-file.py` should render the
     Docker API values for the container it will create"""
