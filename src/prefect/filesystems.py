@@ -1,4 +1,5 @@
 import abc
+import shutil
 import urllib.parse
 from pathlib import Path
 from typing import Optional
@@ -72,6 +73,22 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
                 )
 
         return path
+
+    async def copy_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> bytes:
+        """
+        Copies a directory from a given path to a local direcotry.
+
+        Defaults to copying the entire contents of the block's basepath to the current working directory.
+        """
+        if from_path is None:
+            from_path = Path(self.basepath).expanduser()
+
+        if local_path is None:
+            local_path = Path(".").expanduser()
+
+        shutil.copytree(from_path, local_path, dirs_exist_ok=True)
 
     async def read_path(self, path: str) -> bytes:
         path: Path = self._resolve_path(path)
@@ -167,6 +184,22 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
                 )
 
         return f"{self.basepath.rstrip('/')}/{urlpath.lstrip('/')}"
+
+    async def copy_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> bytes:
+        """
+        Copies a directory from a given remote path to a local direcotry.
+
+        Defaults to copying the entire contents of the block's basepath to the current working directory.
+        """
+        if from_path is None:
+            from_path = Path(self.basepath)
+
+        if local_path is None:
+            local_path = Path(".").expanduser()
+
+        self.filesystem.get(from_path, local_path, recursive=True)
 
     async def read_path(self, path: str) -> bytes:
         path = self._resolve_path(path)
