@@ -4,12 +4,11 @@ Manifests are portable descriptions of one or more workflows within a given dire
 They are the foundational building blocks for defining Flow Deployments.
 """
 
-import json
 from typing import List
 
-from pydantic import BaseModel, Field, SecretBytes, SecretStr
+from pydantic import BaseModel, Field
 
-from prefect.utilities.callables import ParameterSchema, parameter_schema
+from prefect.utilities.callables import ParameterSchema
 
 
 class Manifest(BaseModel):
@@ -17,7 +16,7 @@ class Manifest(BaseModel):
 
     flow_name: str = Field(..., description="The name of the flow.")
     import_path: str = Field(..., description="The relative import path for the flow.")
-    initialize: List[str] = Field(
+    init_commands: List[str] = Field(
         None,
         description="A set of initialization commands to be called prior to running the flow.",
     )

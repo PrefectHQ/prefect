@@ -2,19 +2,18 @@
 Command line interface for working with flows.
 """
 import json
-from uuid import UUID
+from pathlib import Path
 
 from rich.table import Table
 
 from prefect import Manifest
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli._utilities import exit_with_success
 from prefect.cli.root import app
 from prefect.client import get_client
-from prefect.exceptions import ObjectNotFound
 from prefect.orion.schemas.sorting import FlowSort
-from prefect.utilities.importtools import load_script_as_module
 from prefect.utilities.callables import parameter_schema
+from prefect.utilities.importtools import load_script_as_module
 
 flow_app = PrefectTyper(name="flow", help="Commands for interacting with flows.")
 app.add_typer(flow_app)
@@ -52,6 +51,12 @@ async def ls(
 async def generate_manifest(path: str):
     """
     Generate a basic flow manifest from a path.
+
+    Example usage:
+
+        prefect flow generate-manifest ./path/to/flow/file.py:flow_object_name
+
+    Note that the flow object name may be different than the name of the flow.
     """
     base_path, name = path.split(":", 1)
 
@@ -65,16 +70,6 @@ async def generate_manifest(path: str):
     with open("prefect-manifest.json", "w") as f:
         json.dump(manifest.dict(), f, indent=4)
 
-
-@flow_app.command()
-async def delete(id: UUID):
-    """
-    Delete a flow by ID.
-    """
-    async with get_client() as client:
-        try:
-            await client.delete_flow(id)
-        except ObjectNotFound as exc:
-            exit_with_error(f"Flow '{id}' not found!")
-
-    exit_with_success(f"Successfully deleted flow '{id}'.")
+    exit_with_success(
+        f"Manifest created at '{Path('prefect-manifest.json').absolute()!s}'."
+    )
