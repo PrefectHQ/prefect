@@ -69,7 +69,7 @@ A commonly used example is setting the `PREFECT_API_URL`, which you may need to 
 prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
 
 # use Prefect Cloud
-prefect config set PREFECT_API_URL=http://beta.prefect.io/api
+prefect config set PREFECT_API_URL=http://app.prefect.cloud/api
 ```
 
 If you want to configure a setting to use its default value, use the `prefect config unset` command.
