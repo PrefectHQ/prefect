@@ -8,11 +8,11 @@ Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable
 
 _**You should love your workflows again.**_
 
-[Read the docs](https://docs.prefect.io/v2/), run the code, or host the UI. Join thousands of community members in [our Slack community](https://www.prefect.io/slack) to share your thoughts and feedback. Thanks for being part of the mission to build a new kind of workflow system and, of course, **happy engineering!**
+[Read the docs](https://docs.prefect.io/), run the code, or host the UI. Join thousands of community members in [our Slack community](https://www.prefect.io/slack) to share your thoughts and feedback. Thanks for being part of the mission to build a new kind of workflow system and, of course, **happy engineering!**
 
 **"Don't Panic"**
 
-Still using Prefect 1.0 Core and Server? Find the [legacy Prefect 1.0 docs](https://docs.prefect.io/v1/) at [https://docs.prefect.io/v1/](https://docs.prefect.io/v1/).
+Still using Prefect 1.0 Core and Server? Find the [legacy Prefect 1.0 docs](https://docs-v1.prefect.io/) at [https://docs-v1.prefect.io/](https://docs.prefect.io/).
 
 ---
 
@@ -53,7 +53,7 @@ prefect orion start
 
 ![](/docs/img/ui/orion-dashboard.png)
 
-From here, you can continue to use Prefect interactively or set up automated [deployments](https://docs.prefect.io/v2/concepts/deployments).
+From here, you can continue to use Prefect interactively or set up automated [deployments](https://docs.prefect.io/concepts/deployments).
 
 ## Next steps
 
@@ -61,24 +61,24 @@ Prefect 2.0 was designed to be incrementally adopted into your workflows, and ou
 
 ### Getting started
 
-Begin by [installing Prefect](https://docs.prefect.io/v2/getting-started/installation) on your machine, then follow one of our [friendly tutorials](https://docs.prefect.io/v2/tutorials/first-steps) to learn by example. See the [Getting Started overview](https://docs.prefect.io/v2/getting-started/overview) for more.
+Begin by [installing Prefect](https://docs.prefect.io/getting-started/installation) on your machine, then follow one of our [friendly tutorials](https://docs.prefect.io/tutorials/first-steps) to learn by example. See the [Getting Started overview](https://docs.prefect.io/getting-started/overview) for more.
 
 
 ### Concepts
 
-Learn more about Prefect's features and design by reading our in-depth [concept docs](https://docs.prefect.io/v2/concepts/overview). These are intended to introduce the building blocks of Prefect, build up to orchestration and deployment, and finally cover some of the advanced use cases that Prefect makes possible.
+Learn more about Prefect's features and design by reading our in-depth [concept docs](https://docs.prefect.io/concepts/overview). These are intended to introduce the building blocks of Prefect, build up to orchestration and deployment, and finally cover some of the advanced use cases that Prefect makes possible.
 
 ### Frequently asked questions
 
-Prefect 2.0 represents a fundamentally new way of building and orchestrating data workflows. Learn more about the project by reading our [FAQ](https://docs.prefect.io/v2/faq).
+Prefect 2.0 represents a fundamentally new way of building and orchestrating data workflows. Learn more about the project by reading our [FAQ](https://docs.prefect.io/faq).
 
 ### API reference
 
-Prefect provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](https://docs.prefect.io/v2/api-ref/overview). This is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
+Prefect provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](https://docs.prefect.io/api-ref/overview). This is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
 
 ### Contributing
 
-See our [documentation on contributing to Prefect 2.0](https://docs.prefect.io/v2/contributing/overview/).
+See our [documentation on contributing to Prefect 2.0](https://docs.prefect.io/contributing/overview/).
 
 
 ## Join the community
