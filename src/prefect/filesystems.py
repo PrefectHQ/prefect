@@ -194,10 +194,10 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         Defaults to copying the entire contents of the block's basepath to the current working directory.
         """
         if from_path is None:
-            from_path = Path(self.basepath)
+            from_path = str(self.basepath)
 
         if local_path is None:
-            local_path = Path(".").expanduser()
+            local_path = "."
 
         self.filesystem.get(from_path, local_path, recursive=True)
 
