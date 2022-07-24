@@ -1,23 +1,20 @@
 """
 Command line interface for working with flows.
 """
-from typing import List
+import json
 from uuid import UUID
 
-import httpx
-import pendulum
-from fastapi import status
-from rich.pretty import Pretty
 from rich.table import Table
 
+from prefect import Manifest
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import ObjectNotFound
-from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowSort
-from prefect.orion.schemas.states import StateType
+from prefect.utilities.importtools import load_script_as_module
+from prefect.utilities.callables import parameter_schema
 
 flow_app = PrefectTyper(name="flow", help="Commands for interacting with flows.")
 app.add_typer(flow_app)
@@ -49,6 +46,24 @@ async def ls(
         )
 
     app.console.print(table)
+
+
+@flow_app.command()
+async def generate_manifest(path: str):
+    """
+    Generate a flow manifest from a path.
+    """
+    base_path, name = path.split(":", 1)
+
+    mod = load_script_as_module(base_path)
+    flow_parameter_schema = parameter_schema(getattr(mod, name))
+    manifest = Manifest(
+        flow_name=name,
+        import_path=base_path,
+        flow_parameter_schema=flow_parameter_schema,
+    )
+    with open("prefect-manifest.json", "w") as f:
+        json.dump(manifest.dict(), f, indent=4)
 
 
 @flow_app.command()
