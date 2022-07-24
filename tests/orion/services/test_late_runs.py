@@ -70,7 +70,7 @@ async def test_marks_late_run(session, late_run):
         late_run.next_scheduled_start_time == st
     ), "Next scheduled time is set by orchestration rules correctly"
 
-    await MarkLateRuns().start(loops=1)
+    await MarkLateRuns(handle_signals=False).start(loops=1)
 
     await session.refresh(late_run)
     assert late_run.state.name == "Late"
@@ -88,7 +88,7 @@ async def test_marks_late_run_at_buffer(session, late_run):
     with temporary_settings(
         updates={PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS: 60}
     ):
-        await MarkLateRuns().start(loops=1)
+        await MarkLateRuns(handle_signals=False).start(loops=1)
 
     await session.refresh(late_run)
     assert late_run.state.name == "Late"
@@ -106,7 +106,7 @@ async def test_does_not_mark_run_late_if_within_buffer(session, late_run):
     with temporary_settings(
         updates={PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS: 61}
     ):
-        await MarkLateRuns().start(loops=1)
+        await MarkLateRuns(handle_signals=False).start(loops=1)
 
     await session.refresh(late_run)
     assert late_run.state.name == "Scheduled"
@@ -121,7 +121,7 @@ async def test_does_not_mark_run_late_if_in_future(session, future_run):
         future_run.next_scheduled_start_time == st
     ), "Next scheduled time is set by orchestration rules correctly"
 
-    await MarkLateRuns().start(loops=1)
+    await MarkLateRuns(handle_signals=False).start(loops=1)
 
     await session.refresh(future_run)
     assert future_run.state.name == "Scheduled"
@@ -138,7 +138,7 @@ async def test_does_not_mark_run_late_if_now(session, now_run):
         now_run.next_scheduled_start_time == st
     ), "Next scheduled time is set by orchestration rules correctly"
 
-    await MarkLateRuns().start(loops=1)
+    await MarkLateRuns(handle_signals=False).start(loops=1)
 
     await session.refresh(now_run)
     assert now_run.state.name == "Scheduled"
@@ -151,7 +151,7 @@ async def test_mark_late_runs_doesnt_visit_runs_twice(session, late_run):
     si = late_run.state.id
     st = late_run.state.timestamp
 
-    await MarkLateRuns().start(loops=1)
+    await MarkLateRuns(handle_signals=False).start(loops=1)
 
     await session.refresh(late_run)
     si2 = late_run.state.id
@@ -159,7 +159,7 @@ async def test_mark_late_runs_doesnt_visit_runs_twice(session, late_run):
     assert si != si2
     assert st != st2
 
-    await MarkLateRuns().start(loops=1)
+    await MarkLateRuns(handle_signals=False).start(loops=1)
 
     await session.refresh(late_run)
     si3 = late_run.state.id
@@ -175,7 +175,7 @@ async def test_mark_late_runs_marks_multiple_runs_as_late(
     assert late_run.state.name == "Scheduled"
     assert late_run_2.state.name == "Scheduled"
 
-    await MarkLateRuns().start(loops=1)
+    await MarkLateRuns(handle_signals=False).start(loops=1)
 
     await session.refresh(late_run)
     await session.refresh(late_run_2)

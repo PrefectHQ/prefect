@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import queue
 import sys
@@ -730,6 +731,7 @@ class TestOrionLogWorker:
             worker.enqueue(log_json)
 
         # We want to ensure logs are written without the thread being joined
+        await asyncio.sleep(0.01)
         event.wait()
         logs = await orion_client.read_logs()
         assert len(logs) == 2
