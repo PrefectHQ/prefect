@@ -16,10 +16,6 @@ class Manifest(BaseModel):
 
     flow_name: str = Field(..., description="The name of the flow.")
     import_path: str = Field(..., description="The relative import path for the flow.")
-    init_commands: List[str] = Field(
-        None,
-        description="A set of initialization commands to be called prior to running the flow.",
-    )
-    flow_parameter_schema: ParameterSchema = Field(
-        ..., description="The parameter schema of the flow, including defaults."
+    parameter_openapi_schema: ParameterSchema = Field(
+        ..., description="The OpenAPI schema of the flow's parameters."
     )

@@ -4,6 +4,7 @@ Command line interface for working with deployments.
 import json
 import textwrap
 import traceback
+import yaml
 from pathlib import Path
 from typing import List
 from uuid import UUID
@@ -22,11 +23,13 @@ from prefect.client import get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import (
     Deployment,
+    DeploymentYAML,
     PackageManifest,
     load_deployments_from_yaml,
     load_flow_from_deployment,
 )
 from prefect.exceptions import ObjectNotFound, ScriptError
+from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure.submission import _prepare_infrastructure
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowFilter
@@ -439,19 +442,44 @@ async def prepare(
         False, "--manifest-only", help="Generate the manifest file only."
     ),
 ):
+    base_path, name = path.split(":", 1)
+
+    mod = load_script_as_module(base_path)
+
+    try:
+        flow = getattr(mod, name)
+        app.console.print(f"Found flow {flow.name!r}", style="green")
+    except AttributeError:
+        exit_with_error(f"{name!r} not found in file {base_path!r}")
+
+    flow_parameter_schema = parameter_schema(getattr(mod, name))
+    manifest = Manifest(
+        flow_name=name,
+        import_path=base_path,
+        parameter_openapi_schema=flow_parameter_schema,
+    )
+    with open("prefect-manifest.json", "w") as f:
+        json.dump(manifest.dict(), f, indent=4)
+
+    app.console.print(
+        f"Manifest created at '{Path('prefect-manifest.json').absolute()!s}'.",
+        style="green",
+    )
+
     if manifest_only:
-        base_path, name = path.split(":", 1)
+        typer.Exit(0)
 
-        mod = load_script_as_module(base_path)
-        flow_parameter_schema = parameter_schema(getattr(mod, name))
-        manifest = Manifest(
-            flow_name=name,
-            import_path=base_path,
-            flow_parameter_schema=flow_parameter_schema,
-        )
-        with open("prefect-manifest.json", "w") as f:
-            json.dump(manifest.dict(), f, indent=4)
+    deployment = DeploymentYAML(
+        name="test",
+        flow_name=flow.name,
+        parameter_openapi_schema=manifest.parameter_openapi_schema,
+        manifest_path=str(Path("prefect-manifest.json").absolute()),
+        storage=LocalFileSystem(basepath="."),
+    )
 
-        exit_with_success(
-            f"Manifest created at '{Path('prefect-manifest.json').absolute()!s}'."
-        )
+    with open("deployment.yaml", "w") as f:
+        yaml.dump(deployment.dict(), f, sort_keys=False)
+
+    exit_with_success(
+        f"Deployment YAML created at '{Path('deployment.yaml').absolute()!s}'."
+    )
