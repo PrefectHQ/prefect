@@ -16,3 +16,19 @@ pip install --upgrade pip \
 && mkdocs build --config-file mkdocs.insiders.yml
 """
 publish = "site"
+
+# redirect v1 traffic to docs-v1.prefect.io
+[[redirects]]
+  from = "/core/*"
+  to = "https://docs-v1.prefect.io/core/:splat"
+  status = 301
+
+[[redirects]]
+  from = "/orchestration/*"
+  to = "https://docs-v1.prefect.io/orchestration/:splat"
+  status = 301
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://docs-v1.prefect.io/api/:splat"
+  status = 301
