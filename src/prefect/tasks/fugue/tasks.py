@@ -35,9 +35,9 @@ def fsql(
         - **kwargs (Any, optional): additional kwargs to pass to Fugue's `fsql` function
 
     References:
-        - See: [Fugue SQL 
+        - See: [Fugue SQL
             Tutorial](https://fugue-tutorials.readthedocs.io/tutorials/fugue_sql/index.html)
-    
+
     Example:
         ```python
         from prefect import Flow, task
@@ -87,7 +87,7 @@ def fsql(
             res1 = fsql('''
                 CREATE [[1],[2]] SCHEMA a:int YIELD DATAFRAME AS y
             ''', engine=spark, checkpoint=False)
-            
+
             # res2 doesn't need to turn off checkpoint because it yields
             # a local DataFrame (most likely Pandas DataFrame)
             res2 = fsql('''
@@ -99,7 +99,7 @@ def fsql(
             res3 = fsql('''
                 CREATE [[-1],[3]] SCHEMA a:int YIELD FILE AS z
             ''', engine=spark)
-            
+
             # this step doesn't need to turn off checkpoint because it
             # doesn't have any output
             fsql('''
@@ -158,7 +158,7 @@ def transform(df: Any, transformer: Any, checkpoint: bool = False, **kwargs) -> 
     References:
         - See: [Fugue
             Transform](https://fugue-tutorials.readthedocs.io/tutorials/extensions/transformer.html)
-    
+
     Example:
         ```python
         from prefect import Flow, task
@@ -208,7 +208,7 @@ def transform(df: Any, transformer: Any, checkpoint: bool = False, **kwargs) -> 
             res1 = fsql('''
                 CREATE [[1],[2]] SCHEMA a:int YIELD DATAFRAME AS y
             ''', engine=spark, checkpoint=False)
-            
+
             # res2 doesn't need to turn off checkpoint because it yields
             # a local DataFrame (most likely Pandas DataFrame)
             res2 = fsql('''
@@ -220,7 +220,7 @@ def transform(df: Any, transformer: Any, checkpoint: bool = False, **kwargs) -> 
             res3 = fsql('''
                 CREATE [[-1],[3]] SCHEMA a:int YIELD FILE AS z
             ''', engine=spark)
-            
+
             # this step doesn't need to turn off checkpoint because it
             # doesn't have any output
             fsql('''
