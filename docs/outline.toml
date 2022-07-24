@@ -581,7 +581,6 @@ verified_task = true
 [pages.tasks.fugue]
 title = "Fugue Tasks"
 module = "prefect.tasks.fugue"
-classes = ["FugueExecutionEngine"]
 functions = ["fsql", "transform"]
 
 [pages.tasks.spacy]
