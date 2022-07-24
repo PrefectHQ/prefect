@@ -1,4 +1,4 @@
-from prefect.tasks.fugue import FugueExecutionEngine, fsql, transform
+from prefect.tasks.fugue import fsql, transform
 from prefect.tasks.fugue.tasks import _normalize_yields, _truncate_name
 from pytest import raises
 from prefect import Flow, task, Parameter
@@ -82,46 +82,6 @@ def test_transform():
         wf_assert(result, lambda df: df.as_array() == [[0]])
 
     assert flow.run().is_successful()
-
-
-def _test_resource_manager():
-    make_called = [0]
-    stop_called = [0]
-
-    class MockEngine(NativeExecutionEngine):
-        def stop_engine(self) -> None:
-            assert self.conf["test"]
-            stop_called[0] += 1
-
-    @parse_execution_engine.candidate(
-        matcher=lambda engine, conf, **kwargs: isinstance(engine, str)
-        and engine == "__mock__"
-    )
-    def _make_engine(engine, conf, **kwargs):
-        make_called[0] += 1
-        return MockEngine(conf=conf)
-
-    with Flow("test") as flow:
-        with FugueExecutionEngine("__mock__", {"test": True}) as engine:
-            result = fsql(
-                """CREATE [[0]] SCHEMA a:int YIELD DATAFRAME AS x""", engine=engine
-            )
-            wf_assert(result, lambda dfs: dfs["x"].as_array() == [[0]])
-
-            # have multiple ref of the engine, but it should be stopped only once
-            result2 = fsql(
-                """CREATE [[1]] SCHEMA a:int YIELD DATAFRAME AS x""", engine=engine
-            )
-            wf_assert(result2, lambda dfs: dfs["x"].as_array() == [[1]])
-
-            result3 = fsql(
-                """CREATE [[1]] SCHEMA a:int YIELD DATAFRAME AS x""", engine=engine
-            )
-            wf_assert(result3, lambda dfs: dfs["x"].as_array() == [[1]])
-    assert flow.run().is_successful()
-
-    assert make_called[0] == 1
-    assert stop_called[0] == 1
 
 
 def test_truncate_name():

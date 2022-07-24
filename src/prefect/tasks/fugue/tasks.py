@@ -19,6 +19,102 @@ def fsql(
     checkpoint: bool = True,
     **kwargs: Any
 ) -> dict:
+    """
+    Function for running Fugue SQL.
+
+    This function generates the Prefect task that runs Fugue SQL.
+
+    Args:
+        - query (str): the Fugue SQL query
+        - yields (Any): the yielded dataframes from the previous tasks, defaults to None. It
+            can be a single yielded result or an array of yielded results (see example)
+        - engine (Any): execution engine expression that can be recognized by Fugue, default
+            to None (the default ExecutionEngine of Fugue)
+        - engine_conf (Any): extra execution engine configs, defaults to None
+        - checkpoint (bool): whether to checkpoint this task in Prefect, defaults to True
+        - **kwargs (Any, optional): additional kwargs to pass to Fugue's `fsql` function
+
+    References:
+        - See: [Fugue SQL 
+            Tutorial](https://fugue-tutorials.readthedocs.io/tutorials/fugue_sql/index.html)
+    
+    Example:
+        ```python
+        from prefect import Flow, task
+        from prefect.tasks.fugue import fsql
+        import pandas as pd
+
+        # Basic usage
+        with Flow() as f:
+            res1 = fsql("CREATE [[0]] SCHEMA a:int YIELD DATAFRAME AS x")
+            res2 = fsql("CREATE [[1],[2]] SCHEMA a:int YIELD DATAFRAME AS y")
+            fsql('''
+            SELECT * FROM x UNION SELECT * FROM y
+            SELECT * WHERE a<2
+            PRINT
+            ''', [res1, res2]) # SQL union using pandas
+            fsql('''
+            SELECT * FROM x UNION SELECT * FROM y
+            SELECT * WHERE a<2
+            PRINT
+            ''', [res1, res2], engine="duckdb") # SQL union using duckdb (if installed)
+
+        # Pass in other parameters and dataframes
+        @task
+        def gen_df():
+            return pd.DataFrame(dict(a=[1]))
+
+        @task
+        def gen_path():
+            return "/tmp/t.parquet"
+
+        with Flow() as f:
+            df = gen_df()
+            path = gen_path()
+            fsql('''
+            SELECT a+1 AS a FROM df
+            SAVE OVERWRITE {{path}}
+            ''', df=df, path=path)
+
+        # Disable checkpoint for distributed dataframes
+        from pyspark.sql import SparkSession
+
+        spark = SparkSession.builder.getOrCreate()
+
+        with Flow() as f:
+            # res1 needs to turn off checkpoint because it yields
+            # a Spark DataFrame
+            res1 = fsql('''
+                CREATE [[1],[2]] SCHEMA a:int YIELD DATAFRAME AS y
+            ''', engine=spark, checkpoint=False)
+            
+            # res2 doesn't need to turn off checkpoint because it yields
+            # a local DataFrame (most likely Pandas DataFrame)
+            res2 = fsql('''
+                CREATE [[1],[2]] SCHEMA a:int YIELD LOCAL DATAFRAME AS y
+            ''', engine=spark)
+
+            # res3 doesn't need to turn off checkpoint because it yields
+            # a file (the dataframe is cached in the file)
+            res3 = fsql('''
+                CREATE [[-1],[3]] SCHEMA a:int YIELD FILE AS z
+            ''', engine=spark)
+            
+            # this step doesn't need to turn off checkpoint because it
+            # doesn't have any output
+            fsql('''
+            SELECT * FROM x UNION SELECT * FROM y UNION SELECT * FROM z
+            SELECT * WHERE a<2
+            PRINT
+            ''', [res1, res2, res3], engine=spark)
+        ```
+
+    Note: The best practice is always yielding files or local dataframes. If
+    you want to yield a distributed dataframe such as Spark or Dask, think it twice.
+    `YIELD FILE` is always preferred when Fugue SQL is running as a Prefect task.
+    If you feel `YIELD FILE` is too heavy, that means your
+    SQL logic may not be heavy enough to be broken into multiple tasks.
+    """
     if not isinstance(query, Task):
         tn = _truncate_name(query)
     else:
@@ -44,6 +140,102 @@ def fsql(
 
 
 def transform(df: Any, transformer: Any, checkpoint: bool = False, **kwargs) -> Any:
+    """
+    Function for running Fugue transform function.
+
+    This function generates the Prefect task that runs Fugue transform.
+
+    Args:
+        - query (str): the Fugue SQL query
+        - yields (Any): the yielded dataframes from the previous tasks, defaults to None. It
+            can be a single yielded result or an array of yielded results (see example)
+        - engine (Any): execution engine expression that can be recognized by Fugue, default
+            to None (the default ExecutionEngine of Fugue)
+        - engine_conf (Any): extra execution engine configs, defaults to None
+        - checkpoint (bool): whether to checkpoint this task in Prefect, defaults to True
+        - **kwargs (Any, optional): additional kwargs to pass to Fugue's `fsql` function
+
+    References:
+        - See: [Fugue
+            Transform](https://fugue-tutorials.readthedocs.io/tutorials/extensions/transformer.html)
+    
+    Example:
+        ```python
+        from prefect import Flow, task
+        from prefect.tasks.fugue import fsql
+        import pandas as pd
+
+        # Basic usage
+        with Flow() as f:
+            res1 = fsql("CREATE [[0]] SCHEMA a:int YIELD DATAFRAME AS x")
+            res2 = fsql("CREATE [[1],[2]] SCHEMA a:int YIELD DATAFRAME AS y")
+            fsql('''
+            SELECT * FROM x UNION SELECT * FROM y
+            SELECT * WHERE a<2
+            PRINT
+            ''', [res1, res2]) # SQL union using pandas
+            fsql('''
+            SELECT * FROM x UNION SELECT * FROM y
+            SELECT * WHERE a<2
+            PRINT
+            ''', [res1, res2], engine="duckdb") # SQL union using duckdb (if installed)
+
+        # Pass in other parameters and dataframes
+        @task
+        def gen_df():
+            return pd.DataFrame(dict(a=[1]))
+
+        @task
+        def gen_path():
+            return "/tmp/t.parquet"
+
+        with Flow() as f:
+            df = gen_df()
+            path = gen_path()
+            fsql('''
+            SELECT a+1 AS a FROM df
+            SAVE OVERWRITE {{path}}
+            ''', df=df, path=path)
+
+        # Disable checkpoint for distributed dataframes
+        from pyspark.sql import SparkSession
+
+        spark = SparkSession.builder.getOrCreate()
+
+        with Flow() as f:
+            # res1 needs to turn off checkpoint because it yields
+            # a Spark DataFrame
+            res1 = fsql('''
+                CREATE [[1],[2]] SCHEMA a:int YIELD DATAFRAME AS y
+            ''', engine=spark, checkpoint=False)
+            
+            # res2 doesn't need to turn off checkpoint because it yields
+            # a local DataFrame (most likely Pandas DataFrame)
+            res2 = fsql('''
+                CREATE [[1],[2]] SCHEMA a:int YIELD LOCAL DATAFRAME AS y
+            ''', engine=spark)
+
+            # res3 doesn't need to turn off checkpoint because it yields
+            # a file (the dataframe is cached in the file)
+            res3 = fsql('''
+                CREATE [[-1],[3]] SCHEMA a:int YIELD FILE AS z
+            ''', engine=spark)
+            
+            # this step doesn't need to turn off checkpoint because it
+            # doesn't have any output
+            fsql('''
+            SELECT * FROM x UNION SELECT * FROM y UNION SELECT * FROM z
+            SELECT * WHERE a<2
+            PRINT
+            ''', [res1, res2, res3], engine=spark)
+        ```
+
+    Note: The best practice is always yielding files or local dataframes. If
+    you want to yield a distributed dataframe such as Spark or Dask, think it twice.
+    `YIELD FILE` is always preferred when Fugue SQL is running as a Prefect task.
+    If you feel `YIELD FILE` is too heavy, that means your
+    SQL logic may not be heavy enough to be broken into multiple tasks.
+    """
     if not isinstance(transformer, Task):
         tn = transformer.__name__ + " (transfomer)"
     else:
