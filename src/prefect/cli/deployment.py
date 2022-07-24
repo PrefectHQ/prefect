@@ -4,12 +4,12 @@ Command line interface for working with deployments.
 import json
 import textwrap
 import traceback
-import typer
 from pathlib import Path
 from typing import List
 from uuid import UUID
 
 import pendulum
+import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
