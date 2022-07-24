@@ -29,9 +29,10 @@ class Scheduler(LoopService):
     A loop service that schedules flow runs from deployments.
     """
 
-    def __init__(self, loop_seconds: float = None):
+    def __init__(self, loop_seconds: float = None, **kwargs):
         super().__init__(
-            loop_seconds or PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS.value()
+            loop_seconds or PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS.value(),
+            **kwargs,
         )
         self.deployment_batch_size: int = (
             PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE.value()
