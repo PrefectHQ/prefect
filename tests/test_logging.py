@@ -709,6 +709,7 @@ class TestOrionLogWorker:
 
         assert mock_create_logs.call_count == 3
 
+    @pytest.mark.flaky(max_runs=3)
     async def test_logs_are_sent_when_started(
         self, log_json, orion_client, get_worker, monkeypatch
     ):
@@ -734,6 +735,7 @@ class TestOrionLogWorker:
         await asyncio.sleep(0.01)
         event.wait()
         logs = await orion_client.read_logs()
+        # TODO: CI failures sometimes find one log here instead of two.
         assert len(logs) == 2
 
     def test_batch_interval_is_respected(self, get_worker):
