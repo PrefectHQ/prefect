@@ -6,11 +6,11 @@ import asyncio
 import datetime
 from typing import List, Union
 
+import dateutil
+import dateutil.rrule
 import pendulum
 import pytz
 from croniter import croniter
-from dateutil import rrule
-from dateutil import tz as dateutil_tz
 from pydantic import Field, validator
 
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -288,27 +288,41 @@ class RRuleSchedule(PrefectBaseModel):
     rrule: str
     timezone: str = Field(None, example="America/New_York")
 
+    @validator("rrule")
+    def validate_rrule_str(cls, v):
+        # attempt to parse the rrule string as an rrule object
+        # this will error if the string is invalid
+        try:
+            dateutil.rrule.rrulestr(v, cache=True)
+        except ValueError as exc:
+            # rrules errors are a mix of cryptic and informative
+            # so reraise to be clear that the string was invalid
+            raise ValueError(f'Invalid RRule string "{v}": {exc}')
+        return v
+
     @classmethod
-    def from_rrule(cls, rrule: rrule.rrule):
+    def from_rrule(cls, rrule: dateutil.rrule.rrule):
+        if not isinstance(rrule, dateutil.rrule.rrule):
+            raise ValueError(f"Invalid RRule object: {rrule}")
         if rrule._dtstart.tzinfo is not None:
             timezone = rrule._dtstart.tzinfo.name
         else:
             timezone = "UTC"
         return RRuleSchedule(rrule=str(rrule), timezone=timezone)
 
-    def to_rrule(self) -> rrule.rrule:
+    def to_rrule(self) -> dateutil.rrule.rrule:
         """
         Since rrule doesn't properly serialize/deserialize timezones, we localize dates here
         """
-        rrule_obj = rrule.rrulestr(self.rrule, cache=True)
+        rrule = dateutil.rrule.rrulestr(self.rrule, cache=True)
         kwargs = dict(
-            dtstart=rrule_obj._dtstart.replace(tzinfo=dateutil_tz.gettz(self.timezone))
+            dtstart=rrule._dtstart.replace(tzinfo=dateutil.tz.gettz(self.timezone))
         )
-        if rrule_obj._until:
+        if rrule._until:
             kwargs.update(
-                until=rrule_obj._until.replace(tzinfo=dateutil_tz.gettz(self.timezone)),
+                until=rrule._until.replace(tzinfo=dateutil.tz.gettz(self.timezone)),
             )
-        return rrule_obj.replace(**kwargs)
+        return rrule.replace(**kwargs)
 
     @validator("timezone", always=True)
     def valid_timezone(cls, v):

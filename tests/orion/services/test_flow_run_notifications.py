@@ -72,7 +72,7 @@ async def test_service_clears_queue(
     assert len(queued_notifications_query.scalars().fetchall()) == 2
     await session.commit()
 
-    await FlowRunNotifications().start(loops=1)
+    await FlowRunNotifications(handle_signals=False).start(loops=1)
 
     # no notifications in queue
     queued_notifications_query = await session.execute(
@@ -90,7 +90,7 @@ async def test_service_sends_notifications(
     )
     await session.commit()
 
-    await FlowRunNotifications().start(loops=1)
+    await FlowRunNotifications(handle_signals=False).start(loops=1)
 
     captured = capsys.readouterr()
     assert (
@@ -117,7 +117,7 @@ async def test_service_uses_message_template(
     )
     await session.commit()
 
-    await FlowRunNotifications().start(loops=1)
+    await FlowRunNotifications(handle_signals=False).start(loops=1)
 
     captured = capsys.readouterr()
     assert f"Hi there {flow_run.name}" in captured.out
@@ -136,7 +136,7 @@ async def test_service_sends_multiple_notifications(
     )
     await session.commit()
 
-    await FlowRunNotifications().start(loops=1)
+    await FlowRunNotifications(handle_signals=False).start(loops=1)
 
     captured = capsys.readouterr()
     assert (
