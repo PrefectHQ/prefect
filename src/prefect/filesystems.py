@@ -44,6 +44,7 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
     _block_type_name = "Local File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/EVKjxM7fNyi4NGUSkeTEE/95c958c5dd5a56c59ea5033e919c1a63/image1.png?h=250"
 
+    type: str = "local"
     basepath: Optional[str] = None
 
     @validator("basepath", pre=True)
@@ -139,6 +140,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
     _block_type_name = "Remote File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CxjycqILlT9S9YchI7o1q/ee62e2089dfceb19072245c62f0c69d2/image12.png?h=250"
 
+    type: str = "remote"
     basepath: str
     settings: dict = Field(default_factory=dict)
 

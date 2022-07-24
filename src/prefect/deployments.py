@@ -58,6 +58,7 @@ from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 from prefect.client import OrionClient, inject_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
+from prefect.filesystems import RemoteFileSystem, LocalFileSystem
 from prefect.flows import Flow, load_flow_from_script, load_flow_from_text
 from prefect.infrastructure import Infrastructure, Process
 from prefect.infrastructure.submission import FLOW_RUN_ENTRYPOINT
@@ -66,6 +67,7 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.orion import OrionPackager
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.callables import ParameterSchema
 from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type
 from prefect.utilities.filesystem import tmpchdir, to_display_path
@@ -100,7 +102,6 @@ class Deployment(BaseModel):
     Args:
         name: String specifying the name of the deployment.
         flow: The flow object to associate with the deployment. You may provide the flow object directly as `flow=my_flow` if available in the same file as the `Deployment`. Alternatively, you may provide a `Path`, `FlowScript`, or `PackageManifest` specifying how to access to the flow.
-        flow_runner: Specifies the [flow runner](/api-ref/prefect/flow-runners/) used for flow runs. Uses the `UniversalFlowRunner` if none is specified.
         packager: The [prefect.packaging](/api-ref/prefect/packaging/) packager to use for packaging the flow.
         parameters: Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects.
         schedule: [Schedule](/concepts/schedules/) instance specifying a schedule for running the deployment.
@@ -364,3 +365,28 @@ def load_deployments_from_yaml(
                 parse_obj_as(Deployment, deployment_dict)
 
     return registry
+
+
+class DeploymentYAML(BaseModel):
+    # top level metadata
+    name: str = Field(..., description="The name of the deployment.")
+    description: str = Field(
+        None, description="An optional description of the deployment."
+    )
+    tags: List[str] = Field(default_factory=list)
+    schedule: schemas.schedules.SCHEDULE_TYPES = None
+    flow_name: str = Field(..., description="The name of the flow.")
+
+    # flow data
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    manifest_path: str = Field(
+        ...,
+        description="The path to the flow's manifest file, relative to the chosen storage.",
+    )
+    infrastructure: Infrastructure = Field(default_factory=Process)
+    storage: Union[LocalFileSystem, RemoteFileSystem] = Field(
+        default_factory=LocalFileSystem
+    )
+    parameter_openapi_schema: ParameterSchema = Field(
+        ..., description="The parameter schema of the flow, including defaults."
+    )

@@ -34,12 +34,12 @@ class Infrastructure(Block, abc.ABC):
     ) -> InfrastructureResult:
         """
         Run the infrastructure.
-        
+
         If provided a `task_status`, the status will be reported as started when the
         infrastructure is successfully created. The status return value will be an
         identifier for the infrastructure.
-        
-        The call will then monitor the created infrastructure, returning a result at 
+
+        The call will then monitor the created infrastructure, returning a result at
         the end containing a status code indicating if the infrastructure exited cleanly\
         or encountered an error.
         """
