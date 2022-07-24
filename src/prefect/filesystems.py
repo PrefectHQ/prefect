@@ -54,12 +54,14 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
     def _resolve_path(self, path: str) -> Path:
         # Only resolve the base path at runtime, default to the current directory
         basepath = (
-            Path(self.basepath).resolve() if self.basepath else Path(".").resolve()
+            Path(self.basepath).expanduser().resolve()
+            if self.basepath
+            else Path(".").resolve()
         )
 
         # Determine the path to access relative to the base path, ensuring that paths
         # outside of the base path are off limits
-        path: Path = Path(path)
+        path: Path = Path(path).expanduser()
         if not path.is_absolute():
             path = basepath / path
         else:
