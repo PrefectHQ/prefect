@@ -1,8 +1,10 @@
 """
 Command line interface for working with deployments.
 """
+import json
 import textwrap
 import traceback
+import typer
 from pathlib import Path
 from typing import List
 from uuid import UUID
@@ -11,6 +13,7 @@ import pendulum
 from rich.pretty import Pretty
 from rich.table import Table
 
+from prefect import Manifest
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
@@ -27,6 +30,8 @@ from prefect.exceptions import ObjectNotFound, ScriptError
 from prefect.infrastructure.submission import _prepare_infrastructure
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowFilter
+from prefect.utilities.callables import parameter_schema
+from prefect.utilities.importtools import load_script_as_module
 
 deployment_app = PrefectTyper(
     name="deployment", help="Commands for working with deployments."
@@ -337,7 +342,7 @@ async def create(path: Path):
 
                 Run the last created deployment:
                     prefect deployment run {last_deployment!r}
-                
+
                 Inspect the last created deployment:
                     prefect deployment inspect {last_deployment!r}
             """
@@ -425,3 +430,28 @@ async def preview(path: Path):
         name = repr(deployment.name) if deployment.name else "<unnamed deployment>"
         app.console.print(f"[green]Preview for {name}[/]:\n")
         print(_prepare_infrastructure(flow_run, deployment.infrastructure).preview())
+
+
+@deployment_app.command()
+async def prepare(
+    path: str,
+    manifest_only: bool = typer.Option(
+        False, "--manifest-only", help="Generate the manifest file only."
+    ),
+):
+    if manifest_only:
+        base_path, name = path.split(":", 1)
+
+        mod = load_script_as_module(base_path)
+        flow_parameter_schema = parameter_schema(getattr(mod, name))
+        manifest = Manifest(
+            flow_name=name,
+            import_path=base_path,
+            flow_parameter_schema=flow_parameter_schema,
+        )
+        with open("prefect-manifest.json", "w") as f:
+            json.dump(manifest.dict(), f, indent=4)
+
+        exit_with_success(
+            f"Manifest created at '{Path('prefect-manifest.json').absolute()!s}'."
+        )

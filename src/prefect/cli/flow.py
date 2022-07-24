@@ -45,31 +45,3 @@ async def ls(
         )
 
     app.console.print(table)
-
-
-@flow_app.command()
-async def generate_manifest(path: str):
-    """
-    Generate a basic flow manifest from a path.
-
-    Example usage:
-
-        prefect flow generate-manifest ./path/to/flow/file.py:flow_object_name
-
-    Note that the flow object name may be different than the name of the flow.
-    """
-    base_path, name = path.split(":", 1)
-
-    mod = load_script_as_module(base_path)
-    flow_parameter_schema = parameter_schema(getattr(mod, name))
-    manifest = Manifest(
-        flow_name=name,
-        import_path=base_path,
-        flow_parameter_schema=flow_parameter_schema,
-    )
-    with open("prefect-manifest.json", "w") as f:
-        json.dump(manifest.dict(), f, indent=4)
-
-    exit_with_success(
-        f"Manifest created at '{Path('prefect-manifest.json').absolute()!s}'."
-    )
