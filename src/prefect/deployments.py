@@ -390,16 +390,19 @@ class DeploymentYAML(BaseModel):
     def header(self) -> str:
         return f"###\n### A complete description of a Prefect Deployment for flow {self.flow_name!r}\n###\n"
 
+    def yaml_dict(self) -> dict:
+        # avoids issues with UUIDs showing up in YAML
+        all_fields = json.loads(self.json(exclude={"storage": {"_filesystem"}}))
+        return all_fields
+
     def editable_fields_dict(self):
         "Returns YAML compatible dictionary of editable fields, in the correct order"
-        # avoids issues with UUIDs showing up in YAML
-        all_fields = json.loads(self.json())
+        all_fields = self.yaml_dict()
         return {field: all_fields[field] for field in self.editable_fields}
 
     def immutable_fields_dict(self):
         "Returns YAML compatible dictionary of immutable fields, in the correct order"
-        # avoids issues with UUIDs showing up in YAML
-        all_fields = json.loads(self.json())
+        all_fields = self.yaml_dict()
         return {k: v for k, v in all_fields.items() if k not in self.editable_fields}
 
     # top level metadata

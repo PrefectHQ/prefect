@@ -552,11 +552,11 @@ async def prepare(
                 f"Infrastructure Block must be prefixed with one of 'process', 'docker' or 'k8s', {infra_block} was provided"
             )
         if prefix == "k8s":
-            infrastructure = KubernetesJob.load(block_name)
+            infrastructure = await KubernetesJob.load(block_name)
         elif prefix == "docker":
-            infrastructure = DockerContainer.load(block_name)
+            infrastructure = await DockerContainer.load(block_name)
         elif prefix == "process":
-            infrastructure = Process.load(block_name)
+            infrastructure = await Process.load(block_name)
 
     else:
         if infra_type == "k8s":
