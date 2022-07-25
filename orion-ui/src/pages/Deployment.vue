@@ -13,8 +13,6 @@
       <template #overview>
         <p-content secondary>
           <p-key-value label="Schedule" :value="schedule" />
-          <p-key-value label="Location" :value="deployment.flowData.blob" />
-          <p-key-value label="Flow Runner" :value="deployment.flowRunner?.type" />
           <template v-if="!media.xl">
             <DeploymentDetails :deployment="deployment" />
           </template>
