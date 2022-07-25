@@ -27,13 +27,19 @@ All workflows are defined within the context of a flow. Flows can include calls 
 
 A _flow run_ is the execution of the flow and task functions in a flow script.
 
-You can run a flow by executing the flow's Python script, or by creating a [deployment](/concepts/deployments/) on Prefect Cloud or a locally run Prefect Orion server, then running the deployment flow via a schedule, the Prefect UI, or the Prefect API. 
+You can create a flow run by executing the flow's Python script
+
+You can also create a flow run by: 
+
+- Creating a [deployment](/concepts/deployments/) on Prefect Cloud or a locally run Prefect Orion server
+- Creating a flow run for the deployment via a schedule, the Prefect UI, or the Prefect API. 
 
 However you run the flow, the Prefect API monitors the flow run, capturing flow run state for observability.
 
 ![Prefect UI](/img/ui/orion-dashboard.png)
 
 ## Writing flows
+
 For most use cases, we recommend using the [`@flow`][prefect.flows.flow] decorator to designate a flow:
 
 ```python hl_lines="3"
@@ -250,7 +256,9 @@ Subflow says: Hello Marvin!
 </div>
 
 !!! tip "Subflows or tasks?"
-    In Prefect 2.0 you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question we hear is "When should I use a subflow instead of a task?"
+    In Prefect 2.0 you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question we hear is: 
+    
+    "When should I use a subflow instead of a task?"
 
     We recommend writing tasks that do a discrete, specific piece of work in your workflow: calling an API, performing a database operation, analyzing or transforming a data point. Prefect tasks have built-in retries and are well suited to parallel or distributed execution using distributed computation frameworks such as Dask or Ray. For troubleshooting, the more granular you create your tasks, the easier it is to find and fix issues should a task fail.
 
@@ -305,13 +313,12 @@ what_day_is_it("2021-01-01T02:00:19.180906")
 
 Parameters are validated before a flow is run. If a flow call receives invalid parameters, a flow run is created in a `Failed` state. If a flow run for a deployment receives invalid parameters, it will move from a `Pending` state to a `Failed` without entering a `Running` state.
 
-<!-- ## Final state determination
+## Final state determination
 
 The final state of the flow is determined by its return value.  The following rules apply:
 
 - If an exception is raised directly in the flow function, the flow run is marked as failed.
 - If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and subflows within it. In particular, if _any_ task run or subflow run failed, then the final flow run state is marked as failed.
-- If a flow returns one or more [task run futures](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) or states, these runs are used as the _reference tasks_ for determining the final state of the run. If _any_ of the returned task runs fail, the flow run is marked as failed.
 - If a flow returns a manually created state, it is used as the state of the final flow run. This allows for manual determination of final state.
 - If the flow run returns _any other object_, then it is marked as successfully completed.
 
@@ -325,21 +332,21 @@ If an exception is raised within the flow function, the flow is immediately mark
 from prefect import flow
 
 @flow
-def always_fail_flow():
+def always_fails_flow():
     raise ValueError("This flow immediately fails")
+
+always_fails_flow()
 ```
 
 Running this flow produces the following result:
 
 <div class="terminal">
 ```bash
-20:49:07.776 | INFO    | prefect.engine - Created flow run 'mustard-shrimp' for flow 'always-fail-flow'
-20:49:07.776 | INFO    | Flow run 'mustard-shrimp' - Using task runner 'ConcurrentTaskRunner'
-20:49:08.046 | ERROR   | Flow run 'mustard-shrimp' - Encountered exception during execution:
+22:22:36.864 | INFO    | prefect.engine - Created flow run 'acrid-tuatara' for flow 'always-fails-flow'
+22:22:36.864 | INFO    | Flow run 'acrid-tuatara' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
+22:22:37.060 | ERROR   | Flow run 'acrid-tuatara' - Encountered exception during execution:
 Traceback (most recent call last):...
 ValueError: This flow immediately fails
-20:49:08.683 | ERROR   | Flow run 'mustard-shrimp' - Finished in state Failed('Flow run encountered an exception.')
-Failed(message='Flow run encountered an exception.', type=FAILED, result=ValueError('This flow immediately fails'), flow_run_id=c1a4af77-e273-4a5b-8676-bfe1852f4612)
 ```
 </div>
 
@@ -362,23 +369,31 @@ def always_succeeds_task():
 def always_fails_flow():
     always_fails_task()
     always_succeeds_task()
+
+always_fails_flow()
 ```
 
 Running this flow produces the following result:
 
 <div class="terminal">
 ```bash
-20:52:06.982 | INFO    | prefect.engine - Created flow run 'affable-monkey' for flow 'always-fails-flow'
-20:52:06.983 | INFO    | Flow run 'affable-monkey' - Using task runner 'ConcurrentTaskRunner'
-20:52:07.087 | INFO    | Flow run 'affable-monkey' - Created task run 'always_fails_task-58ea43a6-0' for task 'always_fails_task'
-20:52:07.131 | INFO    | Flow run 'affable-monkey' - Created task run 'always_succeeds_task-c9014725-0' for task 'always_succeeds_task'
-20:52:07.154 | ERROR   | Task run 'always_fails_task-58ea43a6-0' - Encountered exception during execution:
-Traceback (most recent call last):...
+22:27:44.840 | INFO    | prefect.engine - Created flow run 'impressive-puma' for flow 'always-fails-flow'
+22:27:44.841 | INFO    | Flow run 'impressive-puma' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
+22:27:45.087 | INFO    | Flow run 'impressive-puma' - Created task run 'always_fails_task-96e4be14-0' for task 'always_fails_task'
+22:27:45.087 | INFO    | Flow run 'impressive-puma' - Executing 'always_fails_task-96e4be14-0' immediately...
+22:27:45.119 | ERROR   | Task run 'always_fails_task-96e4be14-0' - Encountered exception during execution:
+Traceback (most recent call last):
+...
 ValueError: I am bad task
-20:52:07.192 | ERROR   | Task run 'always_fails_task-58ea43a6-0' - Finished in state Failed('Task run encountered an exception.')
-20:52:07.205 | INFO    | Task run 'always_succeeds_task-c9014725-0' - Finished in state Completed()
-20:52:07.782 | ERROR   | Flow run 'affable-monkey' - Finished in state Failed('1/2 states failed.')
-Failed(message='1/2 states failed.', type=FAILED, result=[Failed(message='Task run encountered an exception.', type=FAILED, result=ValueError('I am bad task'), task_run_id=52b562be-c605-4688-941b-26409ba43700), Completed(message=None, type=COMPLETED, result='foo', task_run_id=cc0b6837-e9fc-4231-9de6-3557d74d9f0d)], flow_run_id=786549ae-2ad1-409f-bfde-64a3e0e0b823)
+22:27:45.155 | ERROR   | Task run 'always_fails_task-96e4be14-0' - Finished in state Failed('Task run encountered an exception.')
+22:27:45.155 | ERROR   | Flow run 'impressive-puma' - Encountered exception during execution:
+Traceback (most recent call last):
+...
+ValueError: I am bad task
+22:27:45.189 | ERROR   | Flow run 'impressive-puma' - Finished in state Failed('Flow run encountered an exception.')
+Traceback (most recent call last):
+...
+ValueError: I am bad task
 ```
 </div>
 
@@ -515,7 +530,7 @@ Completed(message='I am happy with this result', type=COMPLETED, result=None, fl
 
 ### Return an object
 
-    When returning multiple states, they must be contained in a `set`, `list`, or `tuple`. If other collection types are used, the result of the contained states will not be checked. -->
+    When returning multiple states, they must be contained in a `set`, `list`, or `tuple`. If other collection types are used, the result of the contained states will not be checked. 
 
 ```python hl_lines="10"
 from prefect import task, flow
