@@ -225,7 +225,7 @@ async def login(
     """
     Log in to Prefect Cloud.
     Creates a new profile configured to use the specified PREFECT_API_KEY.
-    Uses a previous configured profile if it exists.
+    Uses a previously configured profile if it exists.
     """
     profiles = load_profiles()
 
@@ -261,14 +261,19 @@ async def login(
         exit_with_error(f"Profile {cloud_profile_name!r} already exists.")
 
     profiles.add_profile(
-        profiles[profiles.active_name].copy(update={"name": cloud_profile_name})
+        profiles[profiles.active_name].copy(
+            update={
+                "name": cloud_profile_name,
+            }
+        )
     )
 
-    profile = update_current_profile(
+    profiles.update_profile(
+        cloud_profile_name,
         {
             PREFECT_API_URL: build_url_from_workspace(workspaces[workspace_handle]),
             PREFECT_API_KEY: key,
-        }
+        },
     )
 
     profiles.set_active(cloud_profile_name)
@@ -276,7 +281,7 @@ async def login(
 
     exit_with_success(
         "Successfully logged in and set workspace to "
-        f"{workspace_handle!r} in profile {profile.name!r}."
+        f"{workspace_handle!r} in profile {cloud_profile_name}."
     )
 
 
