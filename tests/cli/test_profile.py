@@ -289,14 +289,14 @@ def test_create_profile():
         ["profile", "create", "foo"],
         expected_output=(
             f"""
-            Created profile 'foo'.
+            Created profile with properties:
+                name - 'foo'
+                from name - None
 
-            Switch to your new profile with:
-
+            Use created profile for future, subsequent commands:
                 prefect profile use 'foo'
 
-            Or, to use it for a single command, include the `-p` option:
-
+            Use created profile temporarily for a single command:
                 prefect -p 'foo' config view
             """
         ),
@@ -322,14 +322,14 @@ def test_create_profile_from_existing():
         ["profile", "create", "bar", "--from", "foo"],
         expected_output=(
             f"""
-            Created profile 'bar' matching 'foo'.
+            Created profile with properties:
+                name - 'bar'
+                from name - foo
 
-            Switch to your new profile with:
-
+            Use created profile for future, subsequent commands:
                 prefect profile use 'bar'
 
-            Or, to use it for a single command, include the `-p` option:
-
+            Use created profile temporarily for a single command:
                 prefect -p 'bar' config view
             """
         ),

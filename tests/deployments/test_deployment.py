@@ -8,15 +8,12 @@ import pydantic
 import pytest
 
 from prefect import flow
+from prefect.blocks.core import Block
 from prefect.client import OrionClient
 from prefect.context import PrefectObjectRegistry
 from prefect.deployments import Deployment, FlowScript
-from prefect.flow_runners import (
-    DockerFlowRunner,
-    SubprocessFlowRunner,
-    UniversalFlowRunner,
-)
 from prefect.flows import Flow
+from prefect.infrastructure import DockerContainer, Process
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.packaging import DockerPackager, FilePackager, OrionPackager
 from prefect.packaging.base import PackageManifest
@@ -56,9 +53,16 @@ async def test_deployment_defaults(orion_client: OrionClient):
     # Default values for fields
     assert deployment.name == foo.name
     assert deployment.parameters == {}
-    assert deployment.flow_runner == UniversalFlowRunner().to_settings()
     assert deployment.schedule is None
     assert deployment.tags == []
+
+    # Check the infrastructure block, should be saved
+    infrastructure_document = await orion_client.read_block_document(
+        deployment.infrastructure_document_id
+    )
+    infrastructure = Block._from_block_document(infrastructure_document)
+    assert isinstance(infrastructure, Process)
+    assert infrastructure._is_anonymous
 
     # The flow was registered
     assert deployment.flow_id == await orion_client.create_flow(foo)
@@ -108,24 +112,6 @@ async def test_deployment_schedule(orion_client: OrionClient, schedule):
 
     deployment = await orion_client.read_deployment(deployment_id)
     assert deployment.schedule == IntervalSchedule(interval=10)
-
-
-@pytest.mark.parametrize(
-    "flow_runner",
-    [
-        {"type": "subprocess", "config": {"env": {"FOO": "BAR"}}},
-        SubprocessFlowRunner(env={"FOO": "BAR"}),
-    ],
-)
-async def test_deployment_flow_runner(orion_client: OrionClient, flow_runner):
-    dpl = Deployment(flow=foo, flow_runner=flow_runner)
-
-    deployment_id = await dpl.create()
-
-    deployment = await orion_client.read_deployment(deployment_id)
-    assert (
-        deployment.flow_runner == SubprocessFlowRunner(env={"FOO": "BAR"}).to_settings()
-    )
 
 
 @pytest.mark.parametrize(
@@ -205,20 +191,20 @@ async def test_deployment_by_packager_type(orion_client: OrionClient, packager):
     assert flow.name == "foo"
 
 
-async def test_deployment_validates_flow_runner_for_docker_packager():
+async def test_deployment_validates_infrastructure_for_docker_packager():
     with pytest.raises(
         ValueError,
-        match="flow requires an image but the 'universal' flow runner does not have an image field",
+        match="flow requires an image but 'Process' does not have an image field",
     ):
         Deployment(
             flow=foo, packager=DockerPackager(python_environment=PythonEnvironment())
         )
 
 
-async def test_deployment_validates_flow_runner_for_docker_manifest():
+async def test_deployment_validates_infrastructure_for_docker_manifest():
     with pytest.raises(
         ValueError,
-        match="flow requires an image but the 'universal' flow runner does not have an image field",
+        match="flow requires an image but 'Process' does not have an image field",
     ):
         Deployment(
             flow=(
@@ -230,9 +216,11 @@ async def test_deployment_validates_flow_runner_for_docker_manifest():
         )
 
 
-async def test_deployment_sets_flow_runner_image_to_match_manifest_image(orion_client):
-    flow_runner = DockerFlowRunner()
-    original_flow_runner = flow_runner.copy()
+async def test_deployment_sets_infrastructure_image_to_match_manifest_image(
+    orion_client,
+):
+    infrastructure = DockerContainer()
+    original_infrastructure = infrastructure.copy()
     deployment = Deployment(
         flow=(
             # Generate a manifest
@@ -240,21 +228,27 @@ async def test_deployment_sets_flow_runner_image_to_match_manifest_image(orion_c
             .base_manifest(foo)
             .finalize(image="test-tag", image_flow_location="test")
         ),
-        flow_runner=flow_runner,
+        infrastructure=infrastructure,
     )
 
     deployment_id = await deployment.create(client=orion_client)
-    assert flow_runner == original_flow_runner, "Flow runner is not mutated"
+    assert (
+        infrastructure == original_infrastructure
+    ), "Input configuration is not mutated"
 
     # Image is updated on in registered runner
     api_deployment = await orion_client.read_deployment(deployment_id)
-    assert api_deployment.flow_runner.config["image"] == "test-tag"
+    block_document = await orion_client.read_block_document(
+        api_deployment.infrastructure_document_id
+    )
+    block = Block._from_block_document(block_document)
+    assert block.image == "test-tag"
 
 
-async def test_deployment_errors_if_flow_runner_image_set_with_image_manifest():
+async def test_deployment_errors_if_infrastructure_image_set_with_image_manifest():
     with pytest.raises(
         pydantic.ValidationError,
-        match="Packaged flow requires an image but the flow runner already has image 'diff-tag'",
+        match="Packaged flow requires an image but the infrastructure already has image 'diff-tag'",
     ):
         Deployment(
             flow=(
@@ -263,5 +257,5 @@ async def test_deployment_errors_if_flow_runner_image_set_with_image_manifest():
                 .base_manifest(foo)
                 .finalize(image="test-tag", image_flow_location="test")
             ),
-            flow_runner=DockerFlowRunner(image="diff-tag"),
+            infrastructure=DockerContainer(image="diff-tag"),
         )

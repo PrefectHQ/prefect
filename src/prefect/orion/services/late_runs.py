@@ -29,9 +29,11 @@ class MarkLateRuns(LoopService):
     Orion Settings.
     """
 
-    def __init__(self, loop_seconds: float = None):
+    def __init__(self, loop_seconds: float = None, **kwargs):
         super().__init__(
-            loop_seconds or PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS.value()
+            loop_seconds=loop_seconds
+            or PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS.value(),
+            **kwargs,
         )
 
         # mark runs late if they are this far past their expected start time

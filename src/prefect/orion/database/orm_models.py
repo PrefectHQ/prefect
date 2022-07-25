@@ -364,22 +364,14 @@ class ORMFlowRun(ORMRun):
     )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
-    flow_runner_type = sa.Column(sa.String, index=True)
-    flow_runner_config = sa.Column(JSON)
-
     @declared_attr
-    def flow_runner(cls):
-        return sa.orm.composite(
-            schemas.core.FlowRunnerSettings,
-            cls.flow_runner_type,
-            cls.flow_runner_config,
+    def infrastructure_document_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("block_document.id", ondelete="CASCADE"),
+            nullable=True,
+            index=False,
         )
-
-    # TODO: This field is unused and should be replaced with `empirical_flow_runner_type`
-    #       and `empirical_flow_runner_config` to capture final settings used by agents
-    empirical_config = sa.Column(
-        JSON, server_default="{}", default=dict, nullable=False
-    )
 
     @declared_attr
     def parent_task_run_id(cls):
@@ -681,15 +673,13 @@ class ORMDeployment:
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     flow_data = sa.Column(Pydantic(schemas.data.DataDocument))
 
-    flow_runner_type = sa.Column(sa.String)
-    flow_runner_config = sa.Column(JSON)
-
     @declared_attr
-    def flow_runner(cls):
-        return sa.orm.composite(
-            schemas.core.FlowRunnerSettings,
-            cls.flow_runner_type,
-            cls.flow_runner_config,
+    def infrastructure_document_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("block_document.id", ondelete="CASCADE"),
+            nullable=True,
+            index=False,
         )
 
     @declared_attr
@@ -813,9 +803,6 @@ class ORMBlockDocument:
     name = sa.Column(sa.String, nullable=False, index=True)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     is_anonymous = sa.Column(sa.Boolean, server_default="0", index=True, nullable=False)
-    is_default_storage_block_document = sa.Column(
-        sa.Boolean, server_default="0", index=True
-    )
 
     @declared_attr
     def block_type_id(cls):

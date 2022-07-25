@@ -14,10 +14,10 @@ from prefect.docker import (
     ImageNotFound,
     NotFound,
     docker_client,
+    get_prefect_image_name,
     silence_docker_warnings,
 )
-from prefect.flow_runners.base import get_prefect_image_name
-from prefect.flow_runners.docker import CONTAINER_LABELS
+from prefect.infrastructure.docker import CONTAINER_LABELS
 
 
 @pytest.fixture(scope="session")

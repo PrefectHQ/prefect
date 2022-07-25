@@ -1,7 +1,7 @@
 import datetime
-import time
 from uuid import uuid4
 
+import anyio
 import pendulum
 import pytest
 import sqlalchemy as sa
@@ -15,7 +15,9 @@ from prefect.orion.schemas.states import StateType
 
 
 class TestCreateDeployment:
-    async def test_create_deployment_succeeds(self, session, flow, flow_function):
+    async def test_create_deployment_succeeds(
+        self, session, flow, flow_function, infrastructure_document_id
+    ):
 
         flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
@@ -26,9 +28,7 @@ class TestCreateDeployment:
                 flow_id=flow.id,
                 parameters={"foo": "bar"},
                 tags=["foo", "bar"],
-                flow_runner=schemas.core.FlowRunnerSettings(
-                    type="test", config={"foo": "bar"}
-                ),
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         assert deployment.name == "My Deployment"
@@ -36,12 +36,15 @@ class TestCreateDeployment:
         assert deployment.flow_data == flow_data
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
-        assert deployment.flow_runner == schemas.core.FlowRunnerSettings(
-            type="test", config={"foo": "bar"}
-        )
+        assert deployment.infrastructure_document_id == infrastructure_document_id
 
     async def test_create_deployment_updates_existing_deployment(
-        self, session, flow, flow_function
+        self,
+        session,
+        flow,
+        flow_function,
+        infrastructure_document_id,
+        infrastructure_document_id_2,
     ):
 
         flow_data = DataDocument.encode("cloudpickle", flow_function)
@@ -51,6 +54,7 @@ class TestCreateDeployment:
                 name="My Deployment",
                 flow_data=flow_data,
                 flow_id=flow.id,
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         original_update_time = deployment.updated
@@ -60,11 +64,9 @@ class TestCreateDeployment:
         assert deployment.flow_data == flow_data
         assert deployment.parameters == {}
         assert deployment.tags == []
-        assert deployment.flow_runner == schemas.core.FlowRunnerSettings(
-            type=None, config=None
-        )
+        assert deployment.infrastructure_document_id == infrastructure_document_id
 
-        time.sleep(1)
+        await anyio.sleep(1)  # Sleep so update time is easy to differentiate
 
         schedule = schemas.schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
@@ -81,11 +83,10 @@ class TestCreateDeployment:
                 is_schedule_active=False,
                 parameters={"foo": "bar"},
                 tags=["foo", "bar"],
-                flow_runner=schemas.core.FlowRunnerSettings(
-                    type="test", config={"foo": "bar"}
-                ),
+                infrastructure_document_id=infrastructure_document_id_2,
             ),
         )
+
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
         assert deployment.flow_data == flow_data
@@ -94,11 +95,11 @@ class TestCreateDeployment:
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
         assert deployment.updated > original_update_time
-        assert deployment.flow_runner == schemas.core.FlowRunnerSettings(
-            type="test", config={"foo": "bar"}
-        )
+        assert deployment.infrastructure_document_id == infrastructure_document_id_2
 
-    async def test_create_deployment_with_schedule(self, session, flow, flow_function):
+    async def test_create_deployment_with_schedule(
+        self, session, flow, flow_function, infrastructure_document_id
+    ):
         schedule = schemas.schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
         )
@@ -112,16 +113,20 @@ class TestCreateDeployment:
                 flow_id=flow.id,
                 flow_data=flow_data,
                 schedule=schedule,
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
         assert deployment.flow_data == flow_data
         assert deployment.schedule == schedule
+        assert deployment.infrastructure_document_id == infrastructure_document_id
 
 
 class TestReadDeployment:
-    async def test_read_deployment(self, session, flow, flow_function):
+    async def test_read_deployment(
+        self, session, flow, flow_function, infrastructure_document_id
+    ):
         # create a deployment to read
         flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
@@ -130,6 +135,7 @@ class TestReadDeployment:
                 name="My Deployment",
                 flow_data=flow_data,
                 flow_id=flow.id,
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         assert deployment.name == "My Deployment"
@@ -146,7 +152,9 @@ class TestReadDeployment:
         )
         assert result is None
 
-    async def test_read_deployment_by_name(self, session, flow, flow_function):
+    async def test_read_deployment_by_name(
+        self, session, flow, flow_function, infrastructure_document_id
+    ):
         # create a deployment to read
         flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
@@ -155,6 +163,7 @@ class TestReadDeployment:
                 name="My Deployment",
                 flow_data=flow_data,
                 flow_id=flow.id,
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         assert deployment.name == "My Deployment"
@@ -168,7 +177,7 @@ class TestReadDeployment:
         assert deployment.name == read_deployment.name
 
     async def test_read_deployment_by_name_does_not_return_deployments_from_other_flows(
-        self, session, flow_function
+        self, session, flow_function, infrastructure_document_id
     ):
         flow_1, flow_2 = [
             await models.flows.create_flow(
@@ -184,6 +193,7 @@ class TestReadDeployment:
                 name="My Deployment",
                 flow_data=flow_data,
                 flow_id=flow_1.id,
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         deployment_2 = await models.deployments.create_deployment(
@@ -192,6 +202,7 @@ class TestReadDeployment:
                 name="My Deployment",
                 flow_data=flow_data,
                 flow_id=flow_2.id,
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
 
@@ -235,6 +246,7 @@ class TestReadDeployments:
         deployment_id_1,
         deployment_id_2,
         deployment_id_3,
+        infrastructure_document_id,
     ):
         flow_data = DataDocument.encode("cloudpickle", flow_function)
         await models.deployments.create_deployment(
@@ -245,6 +257,7 @@ class TestReadDeployments:
                 flow_data=flow_data,
                 flow_id=flow.id,
                 is_schedule_active=True,
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         await models.deployments.create_deployment(
@@ -256,6 +269,7 @@ class TestReadDeployments:
                 flow_id=flow.id,
                 tags=["tb12"],
                 is_schedule_active=True,
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         await models.deployments.create_deployment(
@@ -521,8 +535,8 @@ class TestScheduledRuns:
         )
         assert scheduled_runs == []
 
-    async def test_schedule_runs_respects_flow_runner(
-        self, flow, flow_function, session
+    async def test_schedule_runs_respects_infrastructure(
+        self, flow, flow_function, session, infrastructure_document_id
     ):
         deployment = await models.deployments.create_deployment(
             session=session,
@@ -533,9 +547,7 @@ class TestScheduledRuns:
                     interval=datetime.timedelta(days=1)
                 ),
                 flow_id=flow.id,
-                flow_runner=schemas.core.FlowRunnerSettings(
-                    type="test", config={"foo": "bar"}
-                ),
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         scheduled_runs = await models.deployments.schedule_runs(
@@ -545,8 +557,7 @@ class TestScheduledRuns:
         scheduled_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=scheduled_runs[0]
         )
-        assert scheduled_run.flow_runner_type == "test"
-        assert scheduled_run.flow_runner_config == {"foo": "bar"}
+        assert scheduled_run.infrastructure_document_id == infrastructure_document_id
 
     @pytest.mark.parametrize("tags", [[], ["foo"]])
     async def test_schedule_runs_applies_tags(self, tags, flow, flow_function, session):
@@ -747,7 +758,6 @@ class TestCheckWorkQueuesForDeployment:
                     flow_data=flow_data,
                     flow_id=flow.id,
                     tags=tags,
-                    flow_runner=schemas.core.FlowRunnerSettings(type="subprocess"),
                 ),
             ),
         )

@@ -128,7 +128,6 @@ class FlowRun(ORMBaseModel):
     empirical_policy: FlowRunPolicy = Field(
         default_factory=FlowRunPolicy,
     )
-    empirical_config: dict = Field(default_factory=dict)
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags on the flow run",
@@ -173,9 +172,9 @@ class FlowRun(ORMBaseModel):
     auto_scheduled: bool = Field(
         False, description="Whether or not the flow run was automatically scheduled."
     )
-    flow_runner: FlowRunnerSettings = Field(
+    infrastructure_document_id: Optional[UUID] = Field(
         None,
-        description="The flow runner to use to create infrastructure to execute this flow run",
+        description="The block document defining infrastructure to use this flow run.",
     )
 
     # relationships
@@ -349,9 +348,9 @@ class Deployment(ORMBaseModel):
         example=["tag-1", "tag-2"],
     )
 
-    flow_runner: FlowRunnerSettings = Field(
+    infrastructure_document_id: Optional[UUID] = Field(
         None,
-        description="The flow runner to assign to flow runs associated with this deployment.",
+        description="The block document defining infrastructure to use for flow runs.",
     )
 
     @validator("name", check_fields=False)

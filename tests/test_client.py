@@ -1,6 +1,5 @@
 import random
 import threading
-from dataclasses import dataclass
 from datetime import timedelta
 from unittest.mock import MagicMock, call
 from uuid import UUID
@@ -12,13 +11,12 @@ import pytest
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBearer
 from httpx import AsyncClient, HTTPStatusError, Request, Response
-from pydantic import BaseModel
 
 import prefect.context
 import prefect.exceptions
 from prefect import flow
 from prefect.client import OrionClient, PrefectHttpxClient, get_client
-from prefect.flow_runners import UniversalFlowRunner
+from prefect.infrastructure import Process
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -584,7 +582,7 @@ async def test_create_then_read_flow(orion_client):
     assert lookup.name == foo.name
 
 
-async def test_create_then_read_deployment(orion_client):
+async def test_create_then_read_deployment(orion_client, infrastructure_document_id):
     @flow
     def foo():
         pass
@@ -600,7 +598,7 @@ async def test_create_then_read_deployment(orion_client):
         schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
-        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+        infrastructure_document_id=infrastructure_document_id,
     )
 
     lookup = await orion_client.read_deployment(deployment_id)
@@ -610,7 +608,7 @@ async def test_create_then_read_deployment(orion_client):
     assert lookup.schedule == schedule
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
-    assert lookup.flow_runner == UniversalFlowRunner(env={"foo": "bar"}).to_settings()
+    assert lookup.infrastructure_document_id == infrastructure_document_id
 
 
 async def test_read_deployment_by_name(orion_client):
@@ -689,13 +687,15 @@ async def test_deleting_concurrency_limits(orion_client):
         await orion_client.read_concurrency_limit_by_tag("dead-limit-walking")
 
 
-async def test_create_then_read_flow_run(orion_client):
+async def test_create_then_read_flow_run(orion_client, infrastructure_document_id):
     @flow
     def foo():
         pass
 
     flow_run = await orion_client.create_flow_run(
-        foo, name="zachs-flow-run", flow_runner=UniversalFlowRunner(env={"foo": "bar"})
+        foo,
+        name="zachs-flow-run",
+        infrastructure_document_id=infrastructure_document_id,
     )
     assert isinstance(flow_run, schemas.core.FlowRun)
 
@@ -848,7 +848,7 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
     assert flow_run.deployment_id == deployment.id
     assert flow_run.flow_id == deployment.flow_id
     # Includes flow runner
-    assert flow_run.flow_runner.dict() == deployment.flow_runner.dict()
+    assert flow_run.infrastructure_document_id == deployment.infrastructure_document_id
     # Flow version is not populated yet
     assert flow_run.flow_version is None
     # State is scheduled for now
@@ -859,6 +859,29 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
         .in_seconds()
         < 1
     )
+
+
+async def test_create_flow_run_from_deployment_with_anonymous_infrastructure(
+    orion_client, deployment
+):
+    infrastructure_document_id = await Process(env={"foo": "bar"})._save(
+        is_anonymous=True
+    )
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        deployment.id, infrastructure_document_id=infrastructure_document_id
+    )
+    assert flow_run.infrastructure_document_id == infrastructure_document_id
+
+
+async def test_create_flow_run_from_deployment_with_saved_infrastructure(
+    orion_client, deployment
+):
+    infrastructure = Process(env={"foo": "bar"})
+    infrastructure_document_id = await infrastructure.save("hello")
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        deployment.id, infrastructure_document_id=infrastructure_document_id
+    )
+    assert flow_run.infrastructure_document_id == infrastructure_document_id
 
 
 async def test_update_flow_run(orion_client):
@@ -951,33 +974,6 @@ async def test_set_then_read_task_run_state(orion_client):
     assert run.state.message == "Test!"
 
 
-@dataclass
-class ExDataClass:
-    x: int
-
-
-class ExPydanticModel(BaseModel):
-    x: int
-
-
-@pytest.mark.parametrize(
-    "put_obj",
-    [
-        "hello",
-        7,
-        ExDataClass(x=1),
-        ExPydanticModel(x=0),
-    ],
-)
-async def test_put_then_retrieve_object(put_obj, orion_client, local_storage_block):
-    data_document = await orion_client.persist_object(
-        put_obj, storage_block=local_storage_block
-    )
-    assert isinstance(data_document, DataDocument)
-    retrieved_obj = await orion_client.retrieve_object(data_document)
-    assert retrieved_obj == put_obj
-
-
 class TestResolveDataDoc:
     async def test_does_not_allow_other_types(self, orion_client):
         with pytest.raises(TypeError, match="invalid type str"):
@@ -1002,19 +998,6 @@ class TestResolveDataDoc:
             DataDocument.encode(
                 "cloudpickle", DataDocument.encode("json", "hello").json().encode()
             )
-        )
-        assert innermost == "hello"
-
-    async def test_resolves_persisted_data_documents(
-        self, orion_client, local_storage_block
-    ):
-        innermost = await orion_client.resolve_datadoc(
-            (
-                await orion_client.persist_data(
-                    DataDocument.encode("json", "hello").json().encode(),
-                    block=local_storage_block,
-                )
-            ),
         )
         assert innermost == "hello"
 
@@ -1051,16 +1034,14 @@ class TestClientAPIVersionRequests:
     async def test_major_version(
         self, app, major_version, minor_version, patch_version
     ):
-        # higher client major version fails
+        # higher client major version works
         api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(
-                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
-            ):
-                await client.hello()
+            res = await client.hello()
+            assert res.status_code == status.HTTP_200_OK
 
         # lower client major version fails
-        api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
+        api_version = f"{major_version - 1}.{minor_version}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
@@ -1070,13 +1051,11 @@ class TestClientAPIVersionRequests:
     async def test_minor_version(
         self, app, major_version, minor_version, patch_version
     ):
-        # higher client minor version fails
+        # higher client minor version succeeds
         api_version = f"{major_version}.{minor_version + 1}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(
-                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
-            ):
-                await client.hello()
+            res = await client.hello()
+            assert res.status_code == status.HTTP_200_OK
 
         # lower client minor version fails
         api_version = f"{major_version}.{minor_version - 1}.{patch_version}"
@@ -1089,19 +1068,19 @@ class TestClientAPIVersionRequests:
     async def test_patch_version(
         self, app, major_version, minor_version, patch_version
     ):
-        # higher client patch version fails
+        # higher client patch version succeeds
         api_version = f"{major_version}.{minor_version}.{patch_version + 1}"
+        async with OrionClient(app, api_version=api_version) as client:
+            res = await client.hello()
+            assert res.status_code == status.HTTP_200_OK
+
+        # lower client patch version fails
+        api_version = f"{major_version}.{minor_version}.{patch_version - 1}"
         async with OrionClient(app, api_version=api_version) as client:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
             ):
                 await client.hello()
-
-        # lower client minor version succeeds
-        api_version = f"{major_version}.{minor_version}.{patch_version - 1}"
-        async with OrionClient(app, api_version=api_version) as client:
-            res = await client.hello()
-            assert res.status_code == status.HTTP_200_OK
 
     async def test_invalid_header(self, app):
         # Invalid header is rejected
@@ -1154,7 +1133,7 @@ class TestClientAPIKey:
 
 class TestClientWorkQueues:
     @pytest.fixture
-    async def deployment(self, orion_client):
+    async def deployment(self, orion_client, infrastructure_document_id):
         foo = flow(lambda: None, name="foo")
         flow_id = await orion_client.create_flow(foo)
         schedule = IntervalSchedule(interval=timedelta(days=1))
@@ -1167,7 +1146,7 @@ class TestClientWorkQueues:
             schedule=schedule,
             parameters={"foo": "bar"},
             tags=["bing", "bang"],
-            flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+            infrastructure_document_id=infrastructure_document_id,
         )
         return deployment_id
 
@@ -1201,11 +1180,6 @@ class TestClientWorkQueues:
         )
         assert isinstance(tagged_queue_id, UUID)
 
-        deploy_queue_id = await orion_client.create_work_queue(
-            name="deploy", deployment_ids=[deployment]
-        )
-        assert isinstance(deploy_queue_id, UUID)
-
         run = await orion_client.create_flow_run_from_deployment(deployment)
         assert run.id
 
@@ -1214,9 +1188,6 @@ class TestClientWorkQueues:
 
         tagged_output = await orion_client.get_runs_in_work_queue(tagged_queue_id)
         assert tagged_output == [run]
-
-        deploy_output = await orion_client.get_runs_in_work_queue(deploy_queue_id)
-        assert deploy_output == [run]
 
     async def test_get_runs_from_queue_excludes(self, orion_client, deployment):
         blank_queue_id = await orion_client.create_work_queue(name="blank")
@@ -1228,7 +1199,7 @@ class TestClientWorkQueues:
         assert isinstance(tagged_queue_id, UUID)
 
         deploy_queue_id = await orion_client.create_work_queue(
-            name="deploy", deployment_ids=[tagged_queue_id]  # nonsensical
+            name="deploy", tags=["nonsensical"]
         )
         assert isinstance(deploy_queue_id, UUID)
 
@@ -1246,7 +1217,7 @@ class TestClientWorkQueues:
 
     async def test_get_runs_from_queue_respects_limit(self, orion_client, deployment):
         queue_id = await orion_client.create_work_queue(
-            name="deploy", deployment_ids=[deployment]
+            name="deploy", tags=["bing", "bang"]
         )
 
         runs = []

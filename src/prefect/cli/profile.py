@@ -69,10 +69,7 @@ def create(
 
         # Create a copy of the profile with a new name and add to the collection
         profiles.add_profile(profiles[from_name].copy(update={"name": name}))
-
-        from_blurb = f" matching {from_name!r}"
     else:
-        from_blurb = ""
         profiles.add_profile(prefect.settings.Profile(name=name, settings={}))
 
     prefect.settings.save_profiles(profiles)
@@ -80,17 +77,17 @@ def create(
     app.console.print(
         textwrap.dedent(
             f"""
-            [green]Created profile {name!r}{from_blurb}.[/green]
+            Created profile with properties:
+                name - {name!r}
+                from name - {from_name or None}
 
-            Switch to your new profile with:
-
+            Use created profile for future, subsequent commands:
                 prefect profile use {name!r}
 
-            Or, to use it for a single command, include the `-p` option:
-
+            Use created profile temporarily for a single command:
                 prefect -p {name!r} config view
             """
-        ).strip()
+        )
     )
 
 

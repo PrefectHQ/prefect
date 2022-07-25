@@ -7,8 +7,13 @@ from pydantic import AnyHttpUrl, root_validator, validator
 from slugify import slugify
 from typing_extensions import Literal
 
-from prefect.docker import ImageBuilder, build_image, push_image, to_run_command
-from prefect.flow_runners.docker import get_prefect_image_name
+from prefect.docker import (
+    ImageBuilder,
+    build_image,
+    get_prefect_image_name,
+    push_image,
+    to_run_command,
+)
 from prefect.flows import Flow, load_flow_from_script
 from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.serializers import SourceSerializer
@@ -42,6 +47,7 @@ class DockerPackager(Packager):
     base_image: Optional[str] = None
     python_environment: Optional[Union[PythonEnvironment, CondaEnvironment]] = None
     dockerfile: Optional[Path] = None
+    platform: Optional[str] = (None,)
     image_flow_location: str = "/flow.py"
     registry_url: Optional[AnyHttpUrl] = None
 
@@ -101,11 +107,16 @@ class DockerPackager(Packager):
         context = self.dockerfile.resolve().parent
         dockerfile = self.dockerfile.relative_to(context)
         return await run_sync_in_worker_thread(
-            build_image, context=context, dockerfile=str(dockerfile)
+            build_image,
+            platform=self.platform,
+            context=context,
+            dockerfile=str(dockerfile),
         )
 
     async def _build_from_base_image(self, flow: Flow) -> str:
-        with ImageBuilder(base_image=self.base_image) as builder:
+        with ImageBuilder(
+            base_image=self.base_image, platform=self.platform
+        ) as builder:
             for command in self.python_environment.install_commands():
                 builder.add_line(to_run_command(command))
 

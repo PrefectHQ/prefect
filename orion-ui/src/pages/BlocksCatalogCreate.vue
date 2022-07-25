@@ -4,14 +4,18 @@
       <PageHeadingBlocksCatalogCreate :block-type="blockType" />
     </template>
 
-    <template v-if="blockSchema">
-      <BlockSchemaFormCard v-model:data="data" v-model:name="name" :block-schema="blockSchema" v-on="{ submit, cancel }" />
+    <template v-if="blockType">
+      <BlockTypeCardLayout :block-type="blockType">
+        <template v-if="blockSchema">
+          <BlockSchemaCreateForm v-model:data="data" v-model:name="name" :block-schema="blockSchema" v-on="{ submit, cancel }" />
+        </template>
+      </BlockTypeCardLayout>
     </template>
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocksCatalogCreate, titleCase, BlockSchemaFormCard, BlockDocumentData } from '@prefecthq/orion-design'
+  import { PageHeadingBlocksCatalogCreate, BlockTypeCardLayout, BlockSchemaCreateForm, BlockDocumentData } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'

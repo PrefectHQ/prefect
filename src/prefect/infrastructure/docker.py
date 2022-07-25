@@ -3,33 +3,30 @@ import re
 import sys
 import urllib.parse
 import warnings
-from types import ModuleType
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
+import docker
+import docker.errors
+import docker.models.containers
 import packaging.version
 from anyio.abc import TaskStatus
+from docker import DockerClient
+from docker.models.containers import Container
 from pydantic import Field, validator
 from slugify import slugify
 from typing_extensions import Literal
 
 import prefect
-from prefect.flow_runners.base import (
-    UniversalFlowRunner,
-    base_flow_run_environment,
-    get_prefect_image_name,
-    register_flow_runner,
-)
-from prefect.orion.schemas.core import FlowRun
+from prefect.docker import get_prefect_image_name
+from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import AutoEnum
 
-if TYPE_CHECKING:
-    import docker
-    from docker import DockerClient
-    from docker.models.containers import Container
-else:
-    docker = None
+# Labels to apply to all containers started by Prefect
+CONTAINER_LABELS = {
+    "io.prefect.version": prefect.__version__,
+}
 
 
 class ImagePullPolicy(AutoEnum):
@@ -38,35 +35,37 @@ class ImagePullPolicy(AutoEnum):
     NEVER = AutoEnum.auto()
 
 
-# Labels to apply to all containers started by Prefect
-CONTAINER_LABELS = {
-    "io.prefect.version": prefect.__version__,
-}
+class DockerContainerResult(InfrastructureResult):
+    """Contains information about a completed Docker container"""
 
 
-@register_flow_runner
-class DockerFlowRunner(UniversalFlowRunner):
+class DockerContainer(Infrastructure):
     """
-    Executes flow runs in a container.
+    Runs a command in a container.
 
-    Requires a Docker Engine to be connectable.
-
+    Requires a Docker Engine to be connectable. Docker settings will be retrieved from
+    the environment.
 
     Attributes:
+        command: A list of strings specifying the command to run in the container.
         image: An optional string specifying the tag of a Docker image to use.
+            Defaults to the Prefect image.
+        image_pull_policy: Specifies if the image should be pulled. One of 'ALWAYS',
+            'NEVER', 'IF_NOT_PRESENT'.
         network_mode: Set the network mode for the created container. Defaults to 'host'
             if a local API url is detected, otherwise the Docker default of 'bridge' is
             used. If 'networks' is set, this cannot be set.
         networks: An optional list of strings specifying Docker networks to connect the
             container to.
         labels: An optional dictionary of labels, mapping name to value.
+        name: An optional name for the container.
         auto_remove: If set, the container will be removed on completion. Otherwise,
             the container will remain after exit for inspection.
         volumes: An optional list of volume mount strings in the format of
             "local_path:container_path".
         stream_output: If set, stream output from the container to local standard output.
 
-    ## Connecting to a locally hosted API
+    ## Connecting to a locally hosted Prefect API
 
     If using a local API URL on Linux, we will update the network mode default to 'host'
     to enable connectivity. If using another OS or an alternative network mode is used,
@@ -79,16 +78,29 @@ class DockerFlowRunner(UniversalFlowRunner):
     necessary and the API is connectable while bound to localhost.
     """
 
-    typename: Literal["docker"] = "docker"
-
     image: str = Field(default_factory=get_prefect_image_name)
     image_pull_policy: ImagePullPolicy = None
     networks: List[str] = Field(default_factory=list)
     network_mode: str = None
-    labels: Dict[str, str] = None
     auto_remove: bool = False
     volumes: List[str] = Field(default_factory=list)
     stream_output: bool = True
+
+    _block_type_name = "Docker Container"
+    type: Literal["docker-container"] = "docker-container"
+
+    @validator("labels")
+    def convert_labels_to_docker_format(cls, labels: Dict[str, str]):
+        labels = labels or {}
+        new_labels = {}
+        for name, value in labels.items():
+            if "/" in name:
+                namespace, key = name.split("/", maxsplit=1)
+                new_namespace = ".".join(reversed(namespace.split(".")))
+                new_labels[f"{new_namespace}.{key}"] = value
+            else:
+                new_labels[name] = value
+        return new_labels
 
     @validator("volumes")
     def check_volume_format(cls, volumes):
@@ -101,52 +113,32 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         return volumes
 
-    async def submit_flow_run(
+    async def run(
         self,
-        flow_run: FlowRun,
-        task_status: TaskStatus,
+        task_status: Optional[TaskStatus] = None,
     ) -> Optional[bool]:
-        # Throw an error immediately if the flow run won't be able to contact the API
-        self._assert_orion_settings_are_compatible()
 
         # The `docker` library uses requests instead of an async http library so it must
         # be run in a thread to avoid blocking the event loop.
-        container_id = await run_sync_in_worker_thread(
-            self._create_and_start_container, flow_run
-        )
+        container_id = await run_sync_in_worker_thread(self._create_and_start_container)
 
-        # Mark as started
-        task_status.started()
+        # Mark as started and return the container id
+        if task_status:
+            task_status.started(container_id)
 
         # Monitor the container
         return await run_sync_in_worker_thread(self._watch_container, container_id)
 
-    def _assert_orion_settings_are_compatible(self):
-        """
-        If using the ephemeral server and sqlite, the flow run in the container will
-        spin up an ephemeral server that uses a container-local database instead of
-        the one the user expects. This will result in failure as the flow run will not
-        exist.
-
-        If the local sqlite database is mounted into the container, it will work,
-        but concurrent access will cause database corruption as the WAL mode requires
-        shared memory file locks, which are not available across the boundary of the
-        Docker virtual machine.
-
-        We could support an ephemeral server with postgresql, but then we would need to
-        sync all of the server settings to the container's ephemeral server.
-        """
-        api_url = self.env.get("PREFECT_API_URL", PREFECT_API_URL.value())
-
-        if not api_url:
-            raise RuntimeError(
-                "The docker flow runner cannot be used with an ephemeral server. "
-                "Provide `PREFECT_API_URL` to connect to an Orion server."
-            )
+    def preview(self):
+        # TODO: build and document a more sophisticated preview
+        docker_client = self._get_client()
+        try:
+            return json.dumps(self._build_container_settings(docker_client))
+        finally:
+            docker_client.close()
 
     def _build_container_settings(
         self,
-        flow_run: FlowRun,
         docker_client: "DockerClient",
     ) -> Dict:
         network_mode = self._get_network_mode()
@@ -154,30 +146,19 @@ class DockerFlowRunner(UniversalFlowRunner):
             image=self.image,
             network=self.networks[0] if self.networks else None,
             network_mode=network_mode,
-            command=self._get_start_command(flow_run),
+            command=self.command,
             environment=self._get_environment_variables(network_mode),
             auto_remove=self.auto_remove,
-            labels=self._get_labels(flow_run),
+            labels={**CONTAINER_LABELS, **self.labels},
             extra_hosts=self._get_extra_hosts(docker_client),
-            name=self._get_container_name(flow_run),
+            name=self._get_container_name(),
             volumes=self.volumes,
         )
 
-    async def preview(self, flow_run: FlowRun) -> str:
-        # TODO: build and document a more sophisticated preview
-        docker_client = self._get_client()
-        try:
-            return json.dumps(self._build_container_settings(flow_run, docker_client))
-        finally:
-            docker_client.close()
-
-    def _create_and_start_container(self, flow_run: FlowRun) -> str:
+    def _create_and_start_container(self) -> str:
         docker_client = self._get_client()
 
-        container_settings = self._build_container_settings(flow_run, docker_client)
-        self.logger.info(
-            f"Flow run {flow_run.name!r} has container settings = {container_settings}"
-        )
+        container_settings = self._build_container_settings(docker_client)
 
         if self._should_pull_image(docker_client):
             self.logger.info(f"Pulling image {self.image!r}...")
@@ -224,7 +205,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         See:https://kubernetes.io/docs/concepts/containers/images/#imagepullpolicy-defaulting
         """
         if not self.image_pull_policy:
-            image, tag = self._get_image_and_tag()
+            _, tag = self._get_image_and_tag()
             if tag == "latest" or not tag:
                 return ImagePullPolicy.ALWAYS
             return ImagePullPolicy.IF_NOT_PRESENT
@@ -283,7 +264,7 @@ class DockerFlowRunner(UniversalFlowRunner):
                 # NOTE: images.get() wants the tag included with the image
                 # name, while images.pull() wants them split.
                 docker_client.images.get(self.image)
-            except self._docker.errors.ImageNotFound:
+            except docker.errors.ImageNotFound:
                 self.logger.debug(f"Could not find Docker image locally: {self.image}")
                 return True
         return False
@@ -305,13 +286,20 @@ class DockerFlowRunner(UniversalFlowRunner):
         # Create the container with retries on name conflicts (with an incremented idx)
         index = 0
         container = None
-        name = original_name = kwargs.pop("name", "prefect-flow-run")
+        name = original_name = kwargs.pop("name")
 
         while not container:
+            from docker.errors import APIError
+
             try:
+                display_name = repr(name) if name else "with auto-generated name"
+                self.logger.info(f"Creating Docker container {display_name}...")
                 container = docker_client.containers.create(name=name, **kwargs)
-            except self._docker.errors.APIError as exc:
+            except APIError as exc:
                 if "Conflict" in str(exc) and "container name" in str(exc):
+                    self.logger.debug(
+                        f"Docker container name already exists; adding identifier..."
+                    )
                     index += 1
                     name = f"{original_name}-{index}"
                 else:
@@ -323,14 +311,14 @@ class DockerFlowRunner(UniversalFlowRunner):
         docker_client = self._get_client()
 
         try:
-            container = docker_client.containers.get(container_id)
-        except self._docker.errors.NotFound:
-            self.logger.error(f"Flow run container {container_id!r} was removed.")
+            container: "Container" = docker_client.containers.get(container_id)
+        except docker.errors.NotFound:
+            self.logger.error(f"Docker container {container_id!r} was removed.")
             return
 
         status = container.status
         self.logger.info(
-            f"Flow run container {container.name!r} has status {container.status!r}"
+            f"Docker container {container.name!r} has status {container.status!r}"
         )
 
         for log in container.logs(stream=True):
@@ -341,30 +329,16 @@ class DockerFlowRunner(UniversalFlowRunner):
         container.reload()
         if container.status != status:
             self.logger.info(
-                f"Flow run container {container.name!r} has status {container.status!r}"
+                f"Docker container {container.name!r} has status {container.status!r}"
             )
 
         result = container.wait()
         docker_client.close()
-        return result.get("StatusCode") == 0
 
-    @property
-    def _docker(self) -> ModuleType("docker"):
-        """
-        Delayed import of `docker` allowing configuration of the flow runner without
-        the extra installed and improves `prefect` import times.
-        """
-        global docker
-
-        if docker is None:
-            try:
-                import docker
-            except ImportError as exc:
-                raise RuntimeError(
-                    "Using the `DockerFlowRunner` requires `docker-py` to be installed."
-                ) from exc
-
-        return docker
+        return DockerContainerResult(
+            status_code=result.get("StatusCode", -1),
+            identifier=container.id,
+        )
 
     def _get_client(self):
         try:
@@ -378,23 +352,25 @@ class DockerFlowRunner(UniversalFlowRunner):
                     category=DeprecationWarning,
                 )
 
-                docker_client = self._docker.from_env()
+                docker_client = docker.from_env()
 
-        except self._docker.errors.DockerException as exc:
+        except docker.errors.DockerException as exc:
             raise RuntimeError(f"Could not connect to Docker.") from exc
 
         return docker_client
 
-    def _get_container_name(self, flow_run: FlowRun) -> str:
+    def _get_container_name(self) -> Optional[str]:
         """
-        Generates a container name to match the flow run name, ensuring it is Docker
-        compatible and unique.
+        Generates a container name to match the configured name, ensuring it is Docker
+        compatible.
         """
         # Must match `/?[a-zA-Z0-9][a-zA-Z0-9_.-]+` in the end
+        if not self.name:
+            return None
 
         return (
             slugify(
-                flow_run.name,
+                self.name,
                 lowercase=False,
                 # Docker does not limit length but URL limits apply eventually so
                 # limit the length for safety
@@ -405,18 +381,10 @@ class DockerFlowRunner(UniversalFlowRunner):
                 # Docker does not allow leading underscore, dash, or period
                 "_-."
             )
-            # Docker does not allow 0 character names so use the flow run id if name
-            # would be empty after cleaning
-            or flow_run.id
+            # Docker does not allow 0 character names so cast to null if the name is
+            # empty after slufification
+            or None
         )
-
-    def _get_start_command(self, flow_run: FlowRun) -> List[str]:
-        return [
-            "python",
-            "-m",
-            "prefect.engine",
-            f"{flow_run.id}",
-        ]
 
     def _get_extra_hosts(self, docker_client) -> Dict[str, str]:
         """
@@ -450,14 +418,17 @@ class DockerFlowRunner(UniversalFlowRunner):
                 return {"host.docker.internal": "host-gateway"}
 
     def _get_environment_variables(self, network_mode):
-        env = {**base_flow_run_environment(), **self.env}
-
-        # If the API URL has been set by the base environment rather than the flow
-        # runner config, update the value to ensure connectivity when using a bridge
-        # network by update local connections to use the docker internal host unless the
+        # If the API URL has been set by the base environment rather than the by the
+        # user, update the value to ensure connectivity when using a bridge network by
+        # updating local connections to use the docker internal host unless the
         # network mode is "host" where localhost is available already.
+        env = {**self._base_environment(), **self.env}
 
-        if "PREFECT_API_URL" not in self.env and network_mode != "host":
+        if (
+            "PREFECT_API_URL" in env
+            and "PREFECT_API_URL" not in self.env
+            and network_mode != "host"
+        ):
             env["PREFECT_API_URL"] = (
                 env["PREFECT_API_URL"]
                 .replace("localhost", "host.docker.internal")
@@ -465,10 +436,3 @@ class DockerFlowRunner(UniversalFlowRunner):
             )
 
         return env
-
-    def _get_labels(self, flow_run: FlowRun):
-        return {
-            **CONTAINER_LABELS,
-            **(self.labels or {}),
-            "io.prefect.flow-run-id": str(flow_run.id),
-        }

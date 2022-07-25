@@ -28,7 +28,7 @@ async def test_create_schedules_from_deployment(flow, session, flow_function):
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
 
-    service = Scheduler()
+    service = Scheduler(handle_signals=False)
     await service.start(loops=1)
     runs = await models.flow_runs.read_flow_runs(session)
     assert len(runs) == 100 == service.max_runs
@@ -57,7 +57,7 @@ async def test_create_schedule_respects_max_future_time(flow, session, flow_func
 
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
-    service = Scheduler()
+    service = Scheduler(handle_signals=False)
     await service.start(loops=1)
     runs = await models.flow_runs.read_flow_runs(session)
 
@@ -111,7 +111,7 @@ async def test_create_schedules_from_multiple_deployments(flow, session, flow_fu
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
 
-    service = Scheduler()
+    service = Scheduler(handle_signals=False)
     await service.start(loops=1)
     runs = await models.flow_runs.read_flow_runs(session)
     assert len(runs) == 130
@@ -160,7 +160,7 @@ async def test_create_schedules_from_multiple_deployments_in_batches(
     assert n_runs == 0
 
     # should insert more than the batch size successfully
-    await Scheduler().start(loops=1)
+    await Scheduler(handle_signals=False).start(loops=1)
     runs = await models.flow_runs.read_flow_runs(session)
     assert (
         len(runs)
@@ -187,6 +187,6 @@ async def test_scheduler_respects_schedule_is_active(flow, session, flow_functio
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
 
-    await Scheduler().start(loops=1)
+    await Scheduler(handle_signals=False).start(loops=1)
     n_runs_2 = await models.flow_runs.count_flow_runs(session)
     assert n_runs_2 == 0
