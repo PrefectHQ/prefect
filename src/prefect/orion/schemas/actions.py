@@ -39,9 +39,12 @@ class DeploymentCreate(
             "flow_id",
             "schedule",
             "is_schedule_active",
+            "description",
             "tags",
             "parameters",
-            "flow_data",
+            "manifest_path",
+            "parameter_openapi_schema",
+            "storage_document_id",
             "infrastructure_document_id",
         ],
     )
