@@ -14,12 +14,12 @@ tags:
 
 # Work Queues and Agents
 
-Work queues and agents bridge the Prefect Orion server’s _orchestration environment_ with a user’s _execution environment_. Work queues define the work to be done and agents poll a specific work queue for new work.
+Work queues and agents bridge the Prefect Orion _orchestration environment_ with a user’s _execution environment_. Work queues define the work to be done and agents poll a specific work queue for new work.
 
 More specifically:
 
 - You create a work queue on the server. Work queues collect scheduled runs for deployments that match their filter criteria. 
-- You run an agent in the execution environment. Agents poll a specific work queue for new work, take scheduled work from the server, and deploy it for execution.
+- You run an agent in the execution environment. Agents poll a specific work queue for new flow runs, take scheduled flow runs from the server, and deploy them for execution.
 
 To run orchestrated deployments, you must configure at least one work queue and agent.
 
@@ -28,7 +28,7 @@ To configure a work queue and agent for orchestrated deployments:
 1. [Create a work queue](#work-queue-configuration)
 2. [Start an agent](#agent-configuration)
 
-!!! note "Agent role has changed from Prefect 1.0"
+!!! tip "Agent role has changed from Prefect 1.0"
     Work queues are a new concept. The role of agents has changed from their implementation in Prefect 1.0. If you're familiar with that model, please take some time to understand the new work queue/agent model. It requires a little more setup, but offers much greater control and flexibility with how deployments are executed.
 
     Key changes: 
@@ -40,9 +40,9 @@ To configure a work queue and agent for orchestrated deployments:
 
 Work queues organize work that [agents](#agent-overview) can pick up to execute. Work queue configuration determines what work will be picked up.
 
-Work queues contain scheduled runs from any deployments that match the queue criteria. Criteria is based on _tags_ &mdash; all runs that have the tags defined on the queue will be picked up.
+Work queues contain scheduled runs from any deployments that match the queue criteria. Criteria is based on deployment _tags_ &mdash; all runs for deployments that have the tags defined on the queue will be picked up.
 
-These criteria can be modified at any time, and agent processes requesting work for a specific queue will only see matching runs.
+These criteria can be modified at any time, and agent processes requesting work for a specific queue will only see matching flow runs.
 
 ### Work queue configuration
 
@@ -50,7 +50,7 @@ You can configure work queues by using:
 
 - Prefect UI [**Work Queues**](/ui/work-queues/) page
 - Prefect CLI commands
-- Prefect Orion API
+- Prefect Python API
 
 ![Creating a new work queue in the Orion UI](/img/ui/work-queue-create.png)
 
@@ -67,9 +67,11 @@ To configure a work queue to handle specific work, you can specify filters by pr
 
 To configure a work queue via the Prefect CLI, use the `prefect work-queue create` command:
 
+<div class="terminal">
 ```bash
 prefect work-queue create [OPTIONS] NAME
 ```
+</div>
 
 `NAME` is a required, unique name for the work queue.
 
@@ -77,32 +79,30 @@ Optional configuration parameters you can specify to filter work on the queue in
 
 | Option | Description |
 | --- | --- |
-| -t, --tag          | One or more tags. |
+| -l, --limit | The [concurrency limit](#work-queue-concurrency) to set on the queue. |
+| -t, --tag   | One or more tags. |
 
-For example, to create a work queue called `test_queue` for a specific tag `demo`, you would run this command: 
+For example, to create a work queue called `test_queue` for a specific tag `test`, you would run this command: 
 
+<div class="terminal">
 ```bash
-$ prefect work-queue create -t 'demo' test_queue
-UUID('acffbcc8-ae65-4c83-a38a-96e2e5e5b441')
+$ prefect work-queue create -t 'test' test_queue
+
+Created work queue with properties:
+    name - 'test_queue'
+    uuid - 90e4f0fe-420b-4e4f-884c-ca0b105be2b8
+    tags - ('test',)
+    concurrency limit - None
+
+Start an agent to pick up flows from the created work queue:
+    prefect agent start '90e4f0fe-420b-4e4f-884c-ca0b105be2b8'
+
+Inspect the created work queue:
+    prefect work-queue inspect '90e4f0fe-420b-4e4f-884c-ca0b105be2b8'
 ```
+</div>
 
-On success, the command returns the ID of the newly created work queue, which can then be used to start agents that poll this queue for work or perform additional configuration of the queue
-
-Tags and IDs can be found in the UI or through the CLI. For example, if you wanted to find the ID and tags on a specific deployment, you could do the following:
-
-```bash
-$ prefect deployment inspect danny-trejflow/danny_trejflow_deployment
-Deployment(
-    id='156edead-fe6a-4783-a618-21d3a63e95c4',
-    created='5 hours ago',
-    updated='21 seconds ago',
-    name='danny_trejflow_deployment',
-    flow_id='2881404b-f111-425c-bc5a-e400b3b3761e',
-    flow_data=DataDocument(encoding='blockstorage'),
-    tags=['test'],
-    flow_runner=FlowRunnerSettings()
-)
-```
+On success, the command returns the details of the newly created work queue, which can then be used to start agents that poll this queue for work or perform additional configuration of the queue.
 
 ### Viewing work queues
 
@@ -118,32 +118,39 @@ To view work queues with the Prefect CLI, you can:
 
 `prefect work-queue ls` lists all configured work queues for the server.
 
+<div class="terminal">
 ```bash
 $ prefect work-queue ls
-                                         Work Queues
-┏━━━━━━━━━━━━━━━━━━━━┳┳┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃                 ID ┃┃┃ Filter                                                             ┃
-┡━━━━━━━━━━━━━━━━━━━━╇╇╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ acffbcc8-ae65-4c8… │││ {"tags": "blue", "deployment_ids": null}                           │
-└────────────────────┴┴┴────────────────────────────────────────────────────────────────────┘
-                                 (**) denotes a paused queue
+                               Work Queues
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
+┃                                   ID ┃ Name       ┃ Concurrency Limit ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
+│ 90e4f0fe-420b-4e4f-884c-ca0b105be2b8 │ test_queue │ None              │
+│ 6202e5b1-8391-4856-a6dc-d480b92d4a6a │ k8s-queue  │ None              │
+│ cda84217-f82b-4179-ad6c-bbafc1edc363 │ barbequeue │ None              │
+└──────────────────────────────────────┴────────────┴───────────────────┘
+                       (**) denotes a paused queue
 ```
+</div>
 
 `prefect work-queue inspect` provides all configuration metadata for a specific work queue by ID.
 
+<div class="terminal">
 ```bash
-$ prefect work-queue inspect 'acffbcc8-ae65-4c83-a38a-96e2e5e5b441'
+$ prefect work-queue inspect '90e4f0fe-420b-4e4f-884c-ca0b105be2b8'
 WorkQueue(
-    id='acffbcc8-ae65-4c83-a38a-96e2e5e5b441',
-    created='1 hour ago',
-    updated='1 hour ago',
-    filter=QueueFilter(tags="['blue']"),
-    name='danny_queue'
+    id='90e4f0fe-420b-4e4f-884c-ca0b105be2b8',
+    created='2 minutes ago',
+    updated='2 minutes ago',
+    filter=QueueFilter(tags=['test']),
+    name='test_queue'
 )
 ```
+</div>
 
 `prefect work-queue preview` displays scheduled flow runs for a specific work queue by ID for the upcoming hour. The optional `--hours` flag lets you specify the number of hours to look ahead. 
 
+<div class="terminal">
 ```bash
 $ prefect work-queue preview --hours 12 'acffbcc8-ae65-4c83-a38a-96e2e5e5b441'
 ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -162,6 +169,7 @@ $ prefect work-queue preview --hours 12 'acffbcc8-ae65-4c83-a38a-96e2e5e5b441'
 └─────────────────┴────────────────────────────┴──────────────┴─────────────────────────────┘
                                    (**) denotes a late run
 ```
+</div>
 
 ### Pausing and deleting work queues
 
@@ -169,10 +177,12 @@ A work queue can be paused at any time to stop the delivery of work to agents. P
 
 To pause a work queue through the Prefect CLI, use the `prefect work-queue pause` command with the work queue ID:
 
+<div class="terminal">
 ```bash
 $ prefect work-queue pause 'acffbcc8-ae65-4c83-a38a-96e2e5e5b441'
 Paused work queue acffbcc8-ae65-4c83-a38a-96e2e5e5b441
 ```
+</div>
 
 To resume a work queue through the Prefect CLI, use the `prefect work-queue resume` command with the work queue ID.
 
@@ -199,18 +209,30 @@ It is possible for multiple agent processes to be started for a single work queu
 
 When work queues are configured, you can start an agent that corresponds to a specific work queue. Prefect also provides the ability to auto-create work queues on your behalf based on a set of tags passed to the `prefect agent start` command.
 
-You must start an agent within an environment that can access or create the infrastructure needed to execute flow runs. Your agent will deploy flow runs to the infrastructure specified by a flow runner configuration.
+Configuration parameters you can specify when starting an agent include:
 
-1. Install Prefect in the environment.
-2. Using the [work queue ID](#work-queue-configuration) for the work queue the agent should poll for work, run the following CLI command to start an agent.
-3. Alternatively, start your agent with a set of tags and Prefect will create a work queue for you.
+| Option | Description |
+| --- | --- |
+| --api TEXT     | The API URL for the Prefect Orion server. Default is the value of `PREFECT_API_URL`. |
+| --hide-welcome | Do not display the startup ASCII art for the agent process. |
+| -t, --tag      | One or more optional tags that will be used to create a work queue. |
 
+You must start an agent within an environment that can access or create the infrastructure needed to execute flow runs. Your agent will deploy flow runs to the infrastructure specified by the deployment.
+
+!!! tip "Prefect must be installed in execution environments"
+    Prefect must be installed in any environment in which you intend to run the agent or execute a flow run.
+
+Run the following `prefect agent start` CLI command to start an agent. You must pass the [work queue ID](#work-queue-configuration) for the queue the agent should poll for work.
+
+<div class="terminal">
 ```bash
 $ prefect agent start [OPTIONS] WORK_QUEUE_ID
 ```
+</div>
 
 For example:
 
+<div class="terminal">
 ```bash
 $ prefect agent start 'acffbcc8-ae65-4c83-a38a-96e2e5e5b441'
 Starting agent with ephemeral API...
@@ -223,9 +245,11 @@ Starting agent with ephemeral API...
 
 Agent started!
 ```
+</div>
 
-Alternatively:
+Alternatively, start your agent with a set of tags and Prefect will create a work queue for you.
 
+<div class="terminal">
 ```bash
 $ prefect agent start -t demo
 Created work queue 'Agent queue demo'
@@ -239,6 +263,9 @@ Starting agent with ephemeral API...
 
 Agent started! Looking for work from queue 'Agent queue demo'...
 ```
+</div>
+
+In this case, Prefect automatically created a new `Agent queue demo` work queue that filters on a `demo` tag. Note that, if a work queue with equivalent settings already exists, Prefect uses that work queue rather than creating a new one.
 
 By default, the agent polls its work queue API specified by the `PREFECT_API_URL` environment variable. To configure the agent to poll from a different server location, use the `--api` flag, specifying the URL of the server.
 
