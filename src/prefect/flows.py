@@ -357,8 +357,8 @@ class Flow(Generic[P, R]):
 
         Returns:
             If `return_state` is False, returns the result of the flow run.
-            If `return_state` is True, returns a Prefect State containing the
-            result of the flow run.
+            If `return_state` is True, returns the result of the flow run
+                wrapped in a Prefect State which provides error handling.
 
         Examples:
 
