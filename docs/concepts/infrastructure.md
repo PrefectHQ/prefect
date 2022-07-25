@@ -3,48 +3,46 @@ description: Prefect flow runners are responsible for creating and monitoring th
 tags:
     - orchestration
     - flow runners
-    - KubernetesFlowRunner
-    - DockerFlowRunner
-    - SubprocessFlowRunner
+    - infrastructure
+    - flow run infrastructure
+    - deployments
     - Kubernetes
     - Docker
 ---
 
-# Flow runners
+# Infrastructure
 
-[Flow runners](/api-ref/prefect/flow-runners/) are responsible for creating and monitoring infrastructure for flow runs associated with deployments.
+[Infrastructure](/api-ref/prefect/flow-runners/) are responsible for creating and monitoring infrastructure for flow runs associated with deployments.
 
-A flow runner can only be used with a [deployment](/concepts/deployments/). When you run a flow directly by calling the flow yourself, you are responsible for the environment in which the flow executes.
+Infrastructure can only be used with a [deployment](/concepts/deployments/). When you run a flow directly by calling the flow yourself, you are responsible for the environment in which the flow executes.
 
-## Flow runners overview
+## Infrastructure overview
 
-Orion uses flow runners to create the infrastructure for a user's flow to execute.
+Prefect uses infrastructure to create the environment for a user's flow to execute.
 
-The flow runner is attached to a deployment and is propagated to flow runs created for that deployment. The flow runner is deserialized by the agent and it has two jobs:
+Infrastructure is attached to a deployment and is propagated to flow runs created for that deployment. Infrastructure is deserialized by the agent and it has two jobs:
 
-- Create infrastructure for the flow run
-- Run a Python command to start the `prefect.engine` in the infrastructure, which executes the flow
+- Create execution environment infrastructure for the flow run.
+- Run a Python command to start the `prefect.engine` in the infrastructure, which executes the flow.
 
-The engine acquires and calls the flow. The flow runner doesn't know anything about how the flow is stored, it's just passing a flow run id to the engine.
+The engine acquires and calls the flow. Infrastructure doesn't know anything about how the flow is stored, it's just passing a flow run ID to the engine.
 
-Flow runners are specific to the environments in which flows will run. Prefect currently provides the following flow runners:
+Infrastructure is specific to the environments in which flows will run. Prefect currently provides the following infrastructure types:
 
-- [`UniversalFlowRunner`](/api-ref/prefect/flow-runners/#prefect.flow_runners.UniversalFlowRunner) contains configuration options used by other flow runners. You should not use this flow runner directly.
-- [`SubprocessFlowRunner`](/api-ref/prefect/flow-runners/#prefect.flow_runners.SubprocessFlowRunner) runs flows in a local subprocess.
-- [`DockerFlowRunner`](/api-ref/prefect/flow-runners/#prefect.flow_runners.DockerFlowRunner) runs flows in a Docker container.
-- [`KubernetesFlowRunner`](/api-ref/prefect/flow-runners/#prefect.flow_runners.KubernetesFlowRunner) runs flows in a Kubernetes Job.
+- [`Process`](/api-ref/prefect/infrastructure/#prefect.infrastructure.process.Process) runs flows in a local subprocess.
+- [`DockerContainer`](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerContainer) runs flows in a Docker container.
+- [`KubernetesJob`](/api-ref/prefect/infrastructure/#prefect.infrastructure.kubernetes.KubernetesJob) runs flows in a Kubernetes Job.
 
-Check out the [virtual environments](/tutorials/virtual-environments/) for getting started running a flow in a Python virtual environment.
+!!! question "What about tasks?"
+    Flows and tasks can both use configuration objects to manage the environment in which code runs. 
+    
+    Flows use infrastructure.
+    
+    Tasks use task runners. For more on how task runners work, see [Task Runners](/concepts/task-runners/).
 
+## Using infrastructure
 
-!!! note "What about tasks?"
-
-    Flows and tasks can both use runners to manage the environment in which code runs. While flows use flow runners, tasks use task runners. For more on how task runners work, see [Task Runners](/concepts/task-runners/).
-
-
-## Using a flow runner
-
-To use a flow runner, pass an instance of the desired flow runner type into a deployment specification.
+To use infrastructure in a deployment, pass an instance of the desired infrastructure type into a deployment specification.
 
 For example, when using a `DeploymentSpec`, you can attach a `SubprocessFlowRunner` to indicate that this flow should be run in a local subprocess:
 
@@ -72,7 +70,7 @@ prefect deployment create ./deployment.py
 
 Once the deployment exists, any flow runs that this deployment starts will use `SubprocessFlowRunner`.
 
-## Configuring a flow runner
+## Configuring infrastructure
 
 All flow runners have the configuration fields at [`UniversalFlowRunner`](/api-ref/prefect/flow-runners/#prefect.flow_runners.UniversalFlowRunner) available. Additionally, every flow runner has type-specific options.
 
