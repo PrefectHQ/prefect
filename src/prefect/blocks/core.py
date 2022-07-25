@@ -30,6 +30,13 @@ def block_schema_to_key(schema: BlockSchema) -> str:
     return f"{schema.block_type.name}:{schema.checksum}"
 
 
+class InvalidBlockRegistration(Exception):
+    """
+    Raised on attempted registration of the base Block
+    class or a Block interface class
+    """
+
+
 @register_base_type
 class Block(BaseModel, ABC):
     class Config:
@@ -467,6 +474,7 @@ class Block(BaseModel, ABC):
         return inspect.isclass(block) and issubclass(block, Block)
 
     @classmethod
+    @sync_compatible
     async def register_type_and_schema(cls, client: Optional["OrionClient"] = None):
         """
         Makes block available for configuration with current Orion server.
@@ -477,9 +485,14 @@ class Block(BaseModel, ABC):
                 Orion. A new client will be created and used if one is not provided.
         """
         if cls.__name__ == "Block":
-            raise ValueError(
+            raise InvalidBlockRegistration(
                 "`register_type_and_schema` should be called on a Block "
-                "class and not on the Block class directly."
+                "subclass and not on the Block class directly."
+            )
+        if ABC in getattr(cls, "__bases__", []):
+            raise InvalidBlockRegistration(
+                "`register_type_and_schema` should be called on a Block "
+                "subclass and not on a Block interface class directly."
             )
 
         # Open a new client if one hasn't been provided. Otherwise,
@@ -502,6 +515,9 @@ class Block(BaseModel, ABC):
             try:
                 block_type = await client.read_block_type_by_name(
                     name=cls.get_block_type_name()
+                )
+                await client.update_block_type(
+                    block_type_id=block_type.id, block_type=cls._to_block_type()
                 )
             except prefect.exceptions.ObjectNotFound:
                 block_type = await client.create_block_type(
