@@ -20,7 +20,7 @@ Select the **Blocks** page to see all blocks currently defined on your Prefect O
 
 ![Viewing configured blocks in the Prefect UI](/img/ui/orion-blocks.png)
 
-You can get the ID for any storage block, edit the block, or delete the block by selecting the button to the right of the block.
+You can get the identifier for any storage block, edit the block, or delete the block by selecting the button to the right of the block.
 
 To create a new block, select the **+** button. Prefect displays a library of block types you can configure to create blocks to be used by your flows.
 
