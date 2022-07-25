@@ -4,7 +4,7 @@ Schedule schemas
 
 import asyncio
 import datetime
-from typing import List, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import dateutil
 import dateutil.rrule
@@ -18,10 +18,35 @@ from prefect.orion.utilities.schemas import PrefectBaseModel
 MAX_ITERATIONS = 10000
 
 
+def _is_naive_datetime(value: Any) -> bool:
+    return isinstance(value, datetime.datetime) and not value.tzinfo
+
+
+def _prepare_scheduling_start_and_end(
+    start: Any, end: Any, timezone: str
+) -> Tuple[pendulum.datetime, Optional[pendulum.datetime]]:
+    """Uniformly prepares the start and end dates for any Schedule's get_dates call,
+    coercing the arguments into timezone-aware datetimes."""
+    timezone = timezone or "UTC"
+
+    if start is None:
+        start = pendulum.now(timezone)
+
+    if _is_naive_datetime(start):
+        start = pendulum.instance(start, timezone)
+
+    if _is_naive_datetime(end):
+        end = pendulum.instance(end, timezone)
+
+    return start, end
+
+
 class IntervalSchedule(PrefectBaseModel):
     """
     A schedule formed by adding `interval` increments to an `anchor_date`. If no
-    `anchor_date` is supplied, January 1, 2020 at midnight UTC is used.
+    `anchor_date` is supplied, January 1, 2020 at midnight UTC is used.  If a
+    timezone-naive datetime is provided for `anchor_date`, it is assumed to be in the
+    schedule's timezone (or UTC).
 
     NOTE: If the `IntervalSchedule` `anchor_date` or `timezone` is provided in a
     DST-observing timezone, then the schedule will adjust itself appropriately.
@@ -60,7 +85,14 @@ class IntervalSchedule(PrefectBaseModel):
     def default_anchor_with_timezone(cls, v, *, values, **kwargs):
         if v and values["timezone"]:
             raise ValueError("Specify an anchor date or a timezone, but not both.")
+
         return v or pendulum.datetime(2020, 1, 1, tz=values.get("timezone") or "UTC")
+
+    @validator("anchor_date")
+    def anchor_date_is_timezone_aware(cls, v):
+        if _is_naive_datetime(v):
+            return pendulum.instance(v, tz="UTC")
+        return v
 
     async def get_dates(
         self,
@@ -73,23 +105,28 @@ class IntervalSchedule(PrefectBaseModel):
 
         Args:
             n (int): The number of dates to generate
-            start (datetime.datetime, optional): The first returned date will be on or after
-                this date. Defaults to None.
-            end (datetime.datetime, optional): The maximum scheduled date to return
+            start (datetime.datetime, optional): The first returned date will be on or
+                after this date. Defaults to None.  If a timezone-naive datetime is
+                provided, it is assumed to be in the schedule's timezone.
+            end (datetime.datetime, optional): The maximum scheduled date to return. If
+                a timezone-naive datetime is provided, it is assumed to be in the
+                schedule's timezone.
 
         Returns:
             List[pendulum.DateTime]: a list of dates
         """
-        if start is None:
-            start = pendulum.now(self.timezone or "UTC")
         if n is None:
-            # if an end was supplied, we do our best to supply all matching dates (up to MAX_ITERATIONS)
+            # if an end was supplied, we do our best to supply all matching dates (up to
+            # MAX_ITERATIONS)
             if end is not None:
                 n = MAX_ITERATIONS
             else:
                 n = 1
 
-        # compute the offset between the anchor date and the start date to jump to the next date
+        start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
+
+        # compute the offset between the anchor date and the start date to jump to the
+        # next date
         offset = (
             start - self.anchor_date
         ).total_seconds() / self.interval.total_seconds()
@@ -106,8 +143,8 @@ class IntervalSchedule(PrefectBaseModel):
             interval_days * 24 * 60 * 60
         )
 
-        # daylight saving time boundaries can create a situation where the next date is before
-        # the start date, so we advance it if necessary
+        # daylight saving time boundaries can create a situation where the next date is
+        # before the start date, so we advance it if necessary
         while next_date < start:
             next_date = next_date.add(days=interval_days, seconds=interval_seconds)
 
@@ -153,11 +190,11 @@ class CronSchedule(PrefectBaseModel):
     Args:
         cron (str): a valid cron string
         timezone (str): a valid timezone string
-        day_or (bool, optional): Control how croniter handles `day` and `day_of_week` entries.
-            Defaults to True, matching cron which connects those values using OR.
-            If the switch is set to False, the values are connected using AND. This behaves like
-            fcron and enables you to e.g. define a job that executes each 2nd friday of a month
-            by setting the days of month and the weekday.
+        day_or (bool, optional): Control how croniter handles `day` and `day_of_week`
+            entries. Defaults to True, matching cron which connects those values using
+            OR. If the switch is set to False, the values are connected using AND. This
+            behaves like fcron and enables you to e.g. define a job that executes each
+            2nd friday of a month by setting the days of month and the weekday.
 
     """
 
@@ -168,7 +205,9 @@ class CronSchedule(PrefectBaseModel):
     timezone: str = Field(None, example="America/New_York")
     day_or: bool = Field(
         True,
-        description="Control croniter behavior for handling day and day_of_week entries.",
+        description=(
+            "Control croniter behavior for handling day and day_of_week entries."
+        ),
     )
 
     @validator("timezone")
@@ -200,18 +239,21 @@ class CronSchedule(PrefectBaseModel):
 
         Args:
             n (int): The number of dates to generate
-            start (datetime.datetime, optional): The first returned date will be on or after
-                this date. Defaults to the current date.
+            start (datetime.datetime, optional): The first returned date will be on or
+                after this date. Defaults to the current date. If a timezone-naive
+                datetime is provided, it is assumed to be in the schedule's timezone.
             end (datetime.datetime, optional): No returned date will exceed this date.
+                If a timezone-naive datetime is provided, it is assumed to be in the
+                schedule's timezone.
 
         Returns:
             List[pendulum.DateTime]: a list of dates
         """
-        if start is None:
-            start = pendulum.now(self.timezone or "UTC")
+        start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
 
         if n is None:
-            # if an end was supplied, we do our best to supply all matching dates (up to MAX_ITERATIONS)
+            # if an end was supplied, we do our best to supply all matching dates (up to
+            # MAX_ITERATIONS)
             if end is not None:
                 n = MAX_ITERATIONS
             else:
@@ -312,7 +354,8 @@ class RRuleSchedule(PrefectBaseModel):
 
     def to_rrule(self) -> dateutil.rrule.rrule:
         """
-        Since rrule doesn't properly serialize/deserialize timezones, we localize dates here
+        Since rrule doesn't properly serialize/deserialize timezones, we localize dates
+        here
         """
         rrule = dateutil.rrule.rrulestr(self.rrule, cache=True)
         kwargs = dict(
@@ -343,20 +386,21 @@ class RRuleSchedule(PrefectBaseModel):
 
         Args:
             n (int): The number of dates to generate
-            start (datetime.datetime, optional): The first returned date will be on or after
-                this date. Defaults to the current date.
+            start (datetime.datetime, optional): The first returned date will be on or
+                after this date. Defaults to the current date. If a timezone-naive
+                datetime is provided, it is assumed to be in the schedule's timezone.
             end (datetime.datetime, optional): No returned date will exceed this date.
+                If a timezone-naive datetime is provided, it is assumed to be in the
+                schedule's timezone.
 
         Returns:
             List[pendulum.DateTime]: a list of dates
         """
-        if start is None:
-            start = pendulum.now(self.timezone or "UTC")
-        else:
-            start = start.in_tz(self.timezone)
+        start, end = _prepare_scheduling_start_and_end(start, end, self.timezone)
 
         if n is None:
-            # if an end was supplied, we do our best to supply all matching dates (up to MAX_ITERATIONS)
+            # if an end was supplied, we do our best to supply all matching dates (up
+            # to MAX_ITERATIONS)
             if end is not None:
                 n = MAX_ITERATIONS
             else:
@@ -365,7 +409,8 @@ class RRuleSchedule(PrefectBaseModel):
         dates = set()
         counter = 0
 
-        # pass count = None to account for discrepancies with duplicates around DST boundaries
+        # pass count = None to account for discrepancies with duplicates around DST
+        # boundaries
         for next_date in self.to_rrule().xafter(start, count=None, inc=True):
 
             next_date = pendulum.instance(next_date).in_tz(self.timezone)
