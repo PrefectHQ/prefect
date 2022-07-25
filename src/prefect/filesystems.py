@@ -75,11 +75,11 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
 
         return path
 
-    async def copy_directory(
+    async def get_directory(
         self, from_path: str = None, local_path: str = None
     ) -> bytes:
         """
-        Copies a directory from a given path to a local direcotry.
+        Copies a directory from one place to another on the local filesystem.
 
         Defaults to copying the entire contents of the block's basepath to the current working directory.
         """
@@ -87,9 +87,23 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
             from_path = Path(self.basepath).expanduser()
 
         if local_path is None:
-            local_path = Path(".").expanduser()
+            local_path = Path(".").absolute()
 
         shutil.copytree(from_path, local_path, dirs_exist_ok=True)
+
+    async def put_directory(self, local_path: str = None, to_path: str = None) -> bytes:
+        """
+        Copies a directory from one place to another on the local filesystem.
+
+        Defaults to copying the entire contents of the current working directory to the block's basepath.
+        """
+        if to_path is None:
+            to_path = Path(self.basepath).expanduser()
+
+        if local_path is None:
+            local_path = Path(".").absolute()
+
+        shutil.copytree(local_path, to_path, dirs_exist_ok=True)
 
     async def read_path(self, path: str) -> bytes:
         path: Path = self._resolve_path(path)
@@ -187,21 +201,35 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
 
         return f"{self.basepath.rstrip('/')}/{urlpath.lstrip('/')}"
 
-    async def copy_directory(
+    async def get_directory(
         self, from_path: str = None, local_path: str = None
     ) -> bytes:
         """
-        Copies a directory from a given remote path to a local direcotry.
+        Downloads a directory from a given remote path to a local direcotry.
 
-        Defaults to copying the entire contents of the block's basepath to the current working directory.
+        Defaults to downloading the entire contents of the block's basepath to the current working directory.
         """
         if from_path is None:
             from_path = str(self.basepath)
 
         if local_path is None:
-            local_path = "."
+            local_path = Path(".").absolute()
 
         self.filesystem.get(from_path, local_path, recursive=True)
+
+    async def put_directory(self, local_path: str = None, to_path: str = None) -> bytes:
+        """
+        Uploads a directory from a given local path to a remote direcotry.
+
+        Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        """
+        if to_path is None:
+            to_path = str(self.basepath)
+
+        if local_path is None:
+            local_path = "**"
+
+        self.filesystem.put(local_path, to_path, recursive=True)
 
     async def read_path(self, path: str) -> bytes:
         path = self._resolve_path(path)

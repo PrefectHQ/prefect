@@ -4,7 +4,6 @@ Manifests are portable descriptions of one or more workflows within a given dire
 They are the foundational building blocks for defining Flow Deployments.
 """
 
-from typing import List
 
 from pydantic import BaseModel, Field
 

@@ -4,7 +4,6 @@ Command line interface for working with deployments.
 import json
 import textwrap
 import traceback
-import yaml
 from enum import Enum
 from inspect import getdoc
 from pathlib import Path
@@ -13,6 +12,7 @@ from uuid import UUID
 
 import pendulum
 import typer
+import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
@@ -31,7 +31,7 @@ from prefect.deployments import (
     load_flow_from_deployment,
 )
 from prefect.exceptions import ObjectNotFound, ScriptError
-from prefect.filesystems import LocalFileSystem
+from prefect.filesystems import LocalFileSystem, RemoteFileSystem
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.infrastructure.submission import _prepare_infrastructure
 from prefect.orion.schemas.core import FlowRun
@@ -477,6 +477,12 @@ async def prepare(
         "-i",
         help="The infrastructure type to use.",
     ),
+    storage_block: str = typer.Option(
+        None,
+        "--storage-block",
+        "-sb",
+        help="The type/name of the storage block to use.",
+    ),
 ):
     # validate inputs
     if not name and not manifest_only:
@@ -512,6 +518,27 @@ async def prepare(
     if manifest_only:
         typer.Exit(0)
 
+    ## process storage and move files around
+    if storage_block:
+        prefix, block_name = storage_block.split("/")
+        if prefix not in ["local", "s3"]:
+            raise ValueError(
+                f"Storage Block must be prefixed with one of 'local' or 's3', {prefix} was provided"
+            )
+        if prefix == "local":
+            storage = await LocalFileSystem.load(block_name)
+        elif prefix == "s3":
+            storage = await RemoteFileSystem.load(block_name)
+        else:
+            raise ValueError(f"Unknown storage block provided: {storage_block}")
+
+        # upload current directory to storage location
+        await storage.put_directory()
+        app.console.print(f"Successfully uploaded to {storage.basepath}", style="green")
+    else:
+        # default storage, no need to move anything around
+        storage = LocalFileSystem(basepath=Path(".").absolute())
+
     infrastructure = Process
     if infra_type == "k8s":
         infrastructure = KubernetesJob
@@ -525,7 +552,7 @@ async def prepare(
         flow_name=flow.name,
         parameter_openapi_schema=manifest.parameter_openapi_schema,
         manifest_path=manifest_loc,
-        storage=LocalFileSystem(basepath=Path(".").absolute()),
+        storage=storage,
         infrastructure=infrastructure(),
     )
 

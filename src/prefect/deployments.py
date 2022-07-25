@@ -58,7 +58,7 @@ from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 from prefect.client import OrionClient, inject_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
-from prefect.filesystems import RemoteFileSystem, LocalFileSystem
+from prefect.filesystems import LocalFileSystem, RemoteFileSystem
 from prefect.flows import Flow, load_flow_from_script, load_flow_from_text
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.infrastructure.submission import FLOW_RUN_ENTRYPOINT
