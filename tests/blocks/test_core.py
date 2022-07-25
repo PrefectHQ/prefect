@@ -1,3 +1,4 @@
+import abc
 import json
 import warnings
 from textwrap import dedent
@@ -7,7 +8,7 @@ from uuid import UUID, uuid4
 import pytest
 from pydantic import Field, SecretBytes, SecretStr
 
-from prefect.blocks.core import Block
+from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.client import OrionClient
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
@@ -312,7 +313,7 @@ class TestAPICompatibility:
             name="block", block_schema_id=uuid4(), block_type_id=block_type_x.id
         )
 
-    def test_to_block_document_anonymous(self, block_type_x):
+    def test_to_block_document_anonymous_no_name(self, block_type_x):
         anon_block = self.MyRegisteredBlock(x="x")._to_block_document(
             block_schema_id=uuid4(),
             block_type_id=block_type_x.id,
@@ -861,19 +862,47 @@ class TestRegisterBlockTypeAndSchema:
 
     async def test_register_raises_block_base_class(self):
         with pytest.raises(
-            ValueError,
+            InvalidBlockRegistration,
             match="`register_type_and_schema` should be called on a Block "
-            "class and not on the Block class directly.",
+            "subclass and not on the Block class directly.",
         ):
             await Block.register_type_and_schema()
 
-    def test_save_and_load_sync_compatible(self):
-        class CoolBlock(Block):
-            cool_factor: int
+    async def test_register_updates_block_type(self, orion_client: OrionClient):
+        class Before(Block):
+            _block_type_name = "Test Block"
+            _description = "Before"
+            message: str
 
-        CoolBlock(cool_factor=1000000).save("my-rad-block")
-        loaded_block = CoolBlock.load("my-rad-block")
-        assert loaded_block.cool_factor == 1000000
+        class After(Block):
+            _block_type_name = "Test Block"
+            _description = "After"
+            message: str
+
+        await Before.register_type_and_schema()
+
+        block_type = await orion_client.read_block_type_by_name(name="Test Block")
+        assert block_type.description == "Before"
+
+        await After.register_type_and_schema()
+
+        block_type = await orion_client.read_block_type_by_name(name="Test Block")
+        assert block_type.description == "After"
+
+    async def test_register_fails_on_abc(self, orion_client):
+        class Interface(Block, abc.ABC):
+            _block_schema_capabilities = ["do-stuff"]
+
+            @abc.abstractmethod
+            def do_stuff(self, thing: str):
+                pass
+
+        with pytest.raises(
+            InvalidBlockRegistration,
+            match="`register_type_and_schema` should be called on a Block "
+            "subclass and not on a Block interface class directly.",
+        ):
+            await Interface.register_type_and_schema(client=orion_client)
 
 
 class TestSaveBlock:
@@ -919,6 +948,14 @@ class TestSaveBlock:
         assert loaded_new_block._block_type_id == new_block._block_type_id
 
         assert loaded_new_block == new_block
+
+    def test_save_and_load_sync_compatible(self):
+        class CoolBlock(Block):
+            cool_factor: int
+
+        CoolBlock(cool_factor=1000000).save("my-rad-block")
+        loaded_block = CoolBlock.load("my-rad-block")
+        assert loaded_block.cool_factor == 1000000
 
     async def test_save_anonymous_block(self, NewBlock):
         new_anon_block = NewBlock(a="foo", b="bar")
