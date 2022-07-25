@@ -528,8 +528,8 @@ async def prepare(
     if storage_block:
         prefix, block_name = storage_block.split("/")
         if prefix not in ["local", "s3"]:
-            raise ValueError(
-                f"Storage Block must be prefixed with one of 'local' or 's3', {prefix} was provided"
+            exit_with_error(
+                f"Storage Block must be prefixed with one of 'local' or 's3', {storage_block} was provided"
             )
         if prefix == "local":
             storage = await LocalFileSystem.load(block_name)
@@ -546,7 +546,18 @@ async def prepare(
         storage = LocalFileSystem(basepath=Path(".").absolute())
 
     if infra_block:
-        infrastructure = None
+        prefix, block_name = infra_block.split("/")
+        if prefix not in ["process", "docker", "k8s"]:
+            exit_with_error(
+                f"Infrastructure Block must be prefixed with one of 'process', 'docker' or 'k8s', {infra_block} was provided"
+            )
+        if prefix == "k8s":
+            infrastructure = KubernetesJob.load(block_name)
+        elif prefix == "docker":
+            infrastructure = DockerContainer.load(block_name)
+        elif prefix == "process":
+            infrastructure = Process.load(block_name)
+
     else:
         if infra_type == "k8s":
             infrastructure = KubernetesJob()
