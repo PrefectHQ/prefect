@@ -266,7 +266,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
             if retry_after:
                 retry_seconds = float(retry_after)
             else:
-                retry_seconds = 2**retry_count
+                retry_seconds = 2 ** retry_count
 
             await sleep(retry_seconds)
             response = await super().send(*args, **kwargs)
@@ -1260,11 +1260,14 @@ class OrionClient:
         self,
         flow_id: UUID,
         name: str,
-        flow_data: DataDocument,
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         parameters: Dict[str, Any] = None,
+        description: str = None,
         tags: List[str] = None,
+        manifest_path: str = None,
+        storage_document_id: UUID = None,
         infrastructure_document_id: UUID = None,
+        parameter_openapi_schema: dict = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1272,10 +1275,11 @@ class OrionClient:
         Args:
             flow_id: the flow ID to create a deployment for
             name: the name of the deployment
-            flow_data: a data document that can be resolved into a flow object or script
             schedule: an optional schedule to apply to the deployment
             tags: an optional list of tags to apply to the deployment
-            infrastructure_document_id: an reference to an infrastructure block document
+            storage_document_id: an reference to the storage block document
+                used for the deployed flow
+            infrastructure_document_id: an reference to the infrastructure block document
                 to use for this deployment
 
         Raises:
@@ -1288,10 +1292,13 @@ class OrionClient:
             flow_id=flow_id,
             name=name,
             schedule=schedule,
-            flow_data=flow_data,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
+            description=description,
+            manifest_path=manifest_path,
+            storage_document_id=storage_document_id,
             infrastructure_document_id=infrastructure_document_id,
+            parameter_openapi_schema=parameter_openapi_schema,
         )
 
         response = await self._client.post(
