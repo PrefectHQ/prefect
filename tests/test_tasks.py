@@ -218,6 +218,19 @@ class TestTaskRun:
 
         assert bar() == "bar"
 
+    def test_task_with_return_state_true(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1, return_state=True)
+
+        task_state = bar()
+        assert isinstance(task_state, State)
+        assert task_state.result() == 1
+
 
 class TestTaskSubmit:
     def test_task_submitted_outside_flow_raises(self):
