@@ -27,14 +27,16 @@ from typing import (
     overload,
 )
 
-from typing_extensions import ParamSpec
+from typing_extensions import Literal, ParamSpec
 
 from prefect.context import PrefectObjectRegistry
-from prefect.exceptions import ReservedArgumentError
 from prefect.futures import PrefectFuture
 from prefect.states import State
 from prefect.utilities.asyncutils import Async, Sync
-from prefect.utilities.callables import get_call_parameters
+from prefect.utilities.callables import (
+    get_call_parameters,
+    raise_for_reserved_arguments,
+)
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
 
@@ -133,10 +135,7 @@ class Task(Generic[P, R]):
         self.name = name or self.fn.__name__
         self.version = version
 
-        if "wait_for" in inspect.signature(self.fn).parameters:
-            raise ReservedArgumentError(
-                "'wait_for' is a reserved argument name and cannot be used in task functions."
-            )
+        raise_for_reserved_arguments(self.fn, ["return_state", "wait_for"])
 
         self.tags = set(tags if tags else [])
         self.task_key = to_qualified_name(self.fn)
@@ -264,14 +263,25 @@ class Task(Generic[P, R]):
     ) -> T:
         ...
 
+    @overload
+    def __call__(
+        self: "Task[P, T]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> State[T]:
+        ...
+
     def __call__(
         self,
         *args: P.args,
+        return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: P.kwargs,
     ):
         """
-        Run the task and return the result.
+        Run the task and return the result. If `return_state` is True returns
+        a Prefect State containing the result.
         """
         from prefect.engine import enter_task_run_engine
         from prefect.task_runners import SequentialTaskRunner
@@ -279,12 +289,14 @@ class Task(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
+        return_type = "state" if return_state else "result"
+
         return enter_task_run_engine(
             self,
             parameters=parameters,
             wait_for=wait_for,
             task_runner=SequentialTaskRunner(),
-            return_type="result",
+            return_type=return_type,
             mapped=False,
         )
 
