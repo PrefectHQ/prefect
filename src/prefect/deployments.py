@@ -48,11 +48,11 @@ Examples:
     ```
 """
 
+import json
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, TextIO, Union
 
-import json
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
