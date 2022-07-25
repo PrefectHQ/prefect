@@ -1,6 +1,7 @@
 import hashlib
 import os
 import shutil
+import sys
 import warnings
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
@@ -14,6 +15,42 @@ from slugify import slugify
 from typing_extensions import Self
 
 import prefect
+
+
+def python_version_minor() -> str:
+    return f"{sys.version_info.major}.{sys.version_info.minor}"
+
+
+def python_version_micro() -> str:
+    return f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
+
+def get_prefect_image_name(
+    prefect_version: str = None, python_version: str = None, flavor: str = None
+) -> str:
+    """
+    Get the Prefect image name matching the current Prefect and Python versions.
+
+    Args:
+        prefect_version: An optional override for the Prefect version.
+        python_version: An optional override for the Python version; must be at the
+            minor level e.g. '3.9'.
+        flavor: An optional alternative image flavor to build, like 'conda'
+    """
+    parsed_version = (prefect_version or prefect.__version__).split("+")
+    prefect_version = parsed_version[0] if len(parsed_version) == 1 else "dev"
+
+    python_version = python_version or python_version_minor()
+
+    tag = slugify(
+        f"{prefect_version}-python{python_version}" + (f"-{flavor}" if flavor else ""),
+        lowercase=False,
+        max_length=128,
+        # Docker allows these characters for tag names
+        regex_pattern=r"[^a-zA-Z0-9_.-]+",
+    )
+
+    return f"prefecthq/prefect:{tag}"
 
 
 @contextmanager
@@ -73,6 +110,7 @@ def build_image(
     context: Path,
     dockerfile: str = "Dockerfile",
     pull: bool = False,
+    platform: str = None,
     stream_progress_to: Optional[TextIO] = None,
 ) -> str:
     """Builds a Docker image, returning the image ID
@@ -101,6 +139,7 @@ def build_image(
             pull=pull,
             decode=True,
             labels=IMAGE_LABELS,
+            platform=platform,
         )
 
         try:
@@ -128,12 +167,14 @@ class ImageBuilder:
 
     base_directory: Path
     context: Optional[Path]
+    platform: Optional[str]
     dockerfile_lines: List[str]
 
     def __init__(
         self,
         base_image: str,
         base_directory: Path = None,
+        platform: str = None,
         context: Path = None,
     ):
         """Create an ImageBuilder
@@ -151,6 +192,7 @@ class ImageBuilder:
         self.base_directory = base_directory or context or Path().absolute()
         self.temporary_directory = None
         self.context = context
+        self.platform = platform
         self.dockerfile_lines = []
 
         if self.context:
@@ -241,7 +283,10 @@ class ImageBuilder:
 
         try:
             return build_image(
-                self.context, pull=pull, stream_progress_to=stream_progress_to
+                self.context,
+                platform=self.platform,
+                pull=pull,
+                stream_progress_to=stream_progress_to,
             )
         finally:
             os.unlink(dockerfile_path)

@@ -6,6 +6,7 @@ import pytest
 import sqlalchemy as sa
 from fastapi import status
 
+from prefect.infrastructure import DockerContainer
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import DeploymentCreate
 from prefect.orion.schemas.data import DataDocument
@@ -16,7 +17,9 @@ from prefect.settings import (
 
 
 class TestCreateDeployment:
-    async def test_create_deployment(self, session, client, flow, flow_function):
+    async def test_create_deployment(
+        self, session, client, flow, flow_function, infrastructure_document_id
+    ):
         flow_data = DataDocument.encode("cloudpickle", flow_function)
 
         data = DeploymentCreate(
@@ -25,12 +28,15 @@ class TestCreateDeployment:
             flow_id=flow.id,
             tags=["foo"],
             parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "My Deployment"
         assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
-        assert response.json()["flow_runner"] == {"config": None, "type": None}
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
+        )
         deployment_id = response.json()["id"]
 
         deployment = await models.deployments.read_deployment(
@@ -41,41 +47,10 @@ class TestCreateDeployment:
         assert deployment.tags == ["foo"]
         assert deployment.flow_id == flow.id
         assert deployment.parameters == {"foo": "bar"}
-        assert deployment.flow_runner == schemas.core.FlowRunnerSettings(
-            config=None, type=None
-        )
-
-    @pytest.mark.parametrize("with_config", [True, False])
-    async def test_create_deployment_with_flow_runner(
-        self, session, client, flow, flow_function, with_config
-    ):
-        flow_data = DataDocument.encode("cloudpickle", flow_function)
-
-        data = DeploymentCreate(
-            name="My Deployment",
-            flow_data=flow_data,
-            flow_id=flow.id,
-            flow_runner=schemas.core.FlowRunnerSettings(
-                type="test", config={"foo": "bar"} if with_config else None
-            ),
-        ).dict(json_compatible=True)
-
-        response = await client.post("/deployments/", json=data)
-        assert response.status_code == status.HTTP_201_CREATED
-
-        assert response.json()["flow_runner"] == schemas.core.FlowRunnerSettings(
-            type="test", config={"foo": "bar"} if with_config else None
-        ).dict(json_compatible=True)
-
-        deployment = await models.deployments.read_deployment(
-            session=session, deployment_id=response.json()["id"]
-        )
-        assert deployment.flow_runner == schemas.core.FlowRunnerSettings(
-            type="test", config={"foo": "bar"} if with_config else None
-        )
+        assert deployment.infrastructure_document_id == infrastructure_document_id
 
     async def test_create_deployment_respects_flow_id_name_uniqueness(
-        self, session, client, flow, flow_function
+        self, session, client, flow, flow_function, infrastructure_document_id
     ):
         flow_data = DataDocument.encode("cloudpickle", flow_function)
 
@@ -84,6 +59,7 @@ class TestCreateDeployment:
             flow_id=flow.id,
             flow_data=flow_data,
             is_schedule_active=False,
+            infrastructure_document_id=infrastructure_document_id,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
@@ -97,13 +73,16 @@ class TestCreateDeployment:
             flow_id=flow.id,
             flow_data=DataDocument.encode("cloudpickle", flow_function),
             is_schedule_active=False,
+            infrastructure_document_id=infrastructure_document_id,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
         assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
-        assert response.json()["flow_runner"] == {"config": None, "type": None}
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
+        )
         assert not response.json()["is_schedule_active"]
 
         # post different data, upsert should be respected
@@ -112,9 +91,7 @@ class TestCreateDeployment:
             flow_id=flow.id,
             flow_data=DataDocument.encode("json", "test"),
             is_schedule_active=True,
-            flow_runner=schemas.core.FlowRunnerSettings(
-                type="test", config={"foo": "bar"}
-            ),
+            infrastructure_document_id=infrastructure_document_id,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_200_OK
@@ -124,12 +101,12 @@ class TestCreateDeployment:
         assert response.json()["flow_data"] == DataDocument.encode("json", "test").dict(
             json_compatible=True
         )
-        assert response.json()["flow_runner"] == schemas.core.FlowRunnerSettings(
-            type="test", config={"foo": "bar"}
-        ).dict(json_compatible=True)
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
+        )
 
     async def test_create_deployment_populates_and_returned_created(
-        self, client, flow, flow_function
+        self, client, flow, flow_function, infrastructure_document_id
     ):
         now = pendulum.now(tz="UTC")
 
@@ -137,6 +114,7 @@ class TestCreateDeployment:
             name="My Deployment",
             flow_data=DataDocument.encode("cloudpickle", flow_function),
             flow_id=flow.id,
+            infrastructure_document_id=infrastructure_document_id,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
@@ -145,7 +123,7 @@ class TestCreateDeployment:
         assert pendulum.parse(response.json()["updated"]) >= now
 
     async def test_creating_deployment_with_active_schedule_doesnt_create_runs(
-        self, session, client, flow, flow_function
+        self, session, client, flow, flow_function, infrastructure_document_id
     ):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
@@ -159,6 +137,7 @@ class TestCreateDeployment:
                 schedule=schemas.schedules.IntervalSchedule(
                     interval=datetime.timedelta(days=1)
                 ),
+                infrastructure_document_id=infrastructure_document_id,
             ).dict(json_compatible=True),
         )
 
@@ -168,7 +147,7 @@ class TestCreateDeployment:
         assert n_runs == 0
 
     async def test_creating_deployment_with_inactive_schedule_creates_no_runs(
-        self, session, client, flow, flow_function
+        self, session, client, flow, flow_function, infrastructure_document_id
     ):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
@@ -183,6 +162,7 @@ class TestCreateDeployment:
                     interval=datetime.timedelta(days=1)
                 ),
                 is_schedule_active=False,
+                infrastructure_document_id=infrastructure_document_id,
             ).dict(json_compatible=True),
         )
 
@@ -192,7 +172,7 @@ class TestCreateDeployment:
         assert n_runs == 0
 
     async def test_creating_deployment_with_no_schedule_creates_no_runs(
-        self, session, client, flow, flow_function
+        self, session, client, flow, flow_function, infrastructure_document_id
     ):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
@@ -204,6 +184,7 @@ class TestCreateDeployment:
                 flow_id=flow.id,
                 flow_data=DataDocument.encode("cloudpickle", flow_function),
                 is_schedule_active=True,
+                infrastructure_document_id=infrastructure_document_id,
             ).dict(json_compatible=True),
         )
 
@@ -213,7 +194,7 @@ class TestCreateDeployment:
         assert n_runs == 0
 
     async def test_upserting_deployment_with_inactive_schedule_deletes_existing_auto_scheduled_runs(
-        self, client, deployment, session, flow_function
+        self, client, deployment, session, flow_function, infrastructure_document_id
     ):
 
         # schedule runs
@@ -232,6 +213,7 @@ class TestCreateDeployment:
                 state=schemas.states.Scheduled(
                     scheduled_time=pendulum.now().add(days=1)
                 ),
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         await session.commit()
@@ -245,6 +227,7 @@ class TestCreateDeployment:
                 flow_data=DataDocument.encode("cloudpickle", flow_function),
                 schedule=deployment.schedule,
                 is_schedule_active=False,
+                infrastructure_document_id=infrastructure_document_id,
             ).dict(json_compatible=True),
         )
 
@@ -257,6 +240,7 @@ class TestCreateDeployment:
         deployment,
         session,
         flow_function,
+        infrastructure_document_id,
         db,
     ):
 
@@ -305,7 +289,9 @@ class TestCreateDeployment:
 
 
 class TestReadDeployment:
-    async def test_read_deployment(self, client, flow, flow_function):
+    async def test_read_deployment(
+        self, client, flow, flow_function, infrastructure_document_id
+    ):
 
         flow_data = DataDocument.encode("cloudpickle", flow_function)
 
@@ -314,6 +300,7 @@ class TestReadDeployment:
             name="My Deployment",
             flow_data=flow_data,
             flow_id=flow.id,
+            infrastructure_document_id=infrastructure_document_id,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         deployment_id = response.json()["id"]
@@ -325,6 +312,9 @@ class TestReadDeployment:
         assert response.json()["name"] == "My Deployment"
         assert response.json()["flow_id"] == str(flow.id)
         assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
+        )
 
     async def test_read_deployment_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/deployments/{uuid4()}")
@@ -332,13 +322,16 @@ class TestReadDeployment:
 
 
 class TestReadDeploymentByName:
-    async def test_read_deployment_by_name(self, client, flow, flow_function):
+    async def test_read_deployment_by_name(
+        self, client, flow, flow_function, infrastructure_document_id
+    ):
         # first create a deployment to read
         flow_data = DataDocument.encode("cloudpickle", flow_function)
         data = DeploymentCreate(
             name="My Deployment",
             flow_data=flow_data,
             flow_id=flow.id,
+            infrastructure_document_id=infrastructure_document_id,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         deployment_id = response.json()["id"]
@@ -350,6 +343,9 @@ class TestReadDeploymentByName:
         assert response.json()["name"] == "My Deployment"
         assert response.json()["flow_id"] == str(flow.id)
         assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
+        )
 
     async def test_read_deployment_by_name_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/deployments/name/{uuid4()}")
@@ -362,7 +358,7 @@ class TestReadDeploymentByName:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_read_deployment_by_name_returns_404_if_just_given_deployment_name(
-        self, client, flow, flow_function
+        self, client, flow, flow_function, infrastructure_document_id
     ):
         # create a deployment to read
         response = await client.post(
@@ -371,6 +367,7 @@ class TestReadDeploymentByName:
                 name="My Deployment",
                 flow_data=DataDocument.encode("cloudpickle", flow_function),
                 flow_id=flow.id,
+                infrastructure_document_id=infrastructure_document_id,
             ).dict(json_compatible=True),
         )
 
@@ -388,7 +385,7 @@ class TestReadDeploymentByName:
         ],
     )
     async def test_read_deployment_by_name_with_nonstandard_characters(
-        self, client, name, flow
+        self, client, name, flow, infrastructure_document_id
     ):
         response = await client.post(
             "/deployments/",
@@ -398,6 +395,7 @@ class TestReadDeploymentByName:
                 flow_data=schemas.data.DataDocument(encoding="x", blob=b"y").dict(
                     json_compatible=True
                 ),
+                infrastructure_document_id=str(infrastructure_document_id),
             ),
         )
         deployment_id = response.json()["id"]
@@ -431,7 +429,13 @@ class TestReadDeployments:
 
     @pytest.fixture
     async def deployments(
-        self, session, deployment_id_1, deployment_id_2, flow, flow_function
+        self,
+        session,
+        deployment_id_1,
+        deployment_id_2,
+        flow,
+        flow_function,
+        infrastructure_document_id,
     ):
         await models.deployments.create_deployment(
             session=session,
@@ -441,6 +445,7 @@ class TestReadDeployments:
                 flow_data=DataDocument.encode("cloudpickle", flow_function),
                 flow_id=flow.id,
                 is_schedule_active=True,
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
 
@@ -452,6 +457,7 @@ class TestReadDeployments:
                 flow_data=DataDocument.encode("cloudpickle", flow_function),
                 flow_id=flow.id,
                 is_schedule_active=False,
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         await session.commit()
@@ -815,8 +821,8 @@ class TestCreateFlowRunFromDeployment:
         assert response.json()["parameters"] == deployment.parameters
         assert response.json()["flow_id"] == str(deployment.flow_id)
         assert response.json()["deployment_id"] == str(deployment.id)
-        assert response.json()["flow_runner"] == deployment.flow_runner.dict(
-            json_compatible=True
+        assert response.json()["infrastructure_document_id"] == str(
+            deployment.infrastructure_document_id
         )
 
     async def test_create_flow_run_from_deployment_override_params(
@@ -839,22 +845,22 @@ class TestCreateFlowRunFromDeployment:
                 json_compatible=True
             ),
         )
-        assert sorted(response.json()["tags"]) == ["nope"]
+        assert sorted(response.json()["tags"]) == sorted(["nope"] + deployment.tags)
 
-    async def test_create_flow_run_from_deployment_override_flow_runner(
+    async def test_create_flow_run_from_deployment_override_infrastructure_document_id(
         self, deployment, client
     ):
+        infrastructure_document_id = await DockerContainer()._save(is_anonymous=True)
+
         response = await client.post(
             f"deployments/{deployment.id}/create_flow_run",
             json=schemas.actions.DeploymentFlowRunCreate(
-                flow_runner=schemas.core.FlowRunnerSettings(
-                    type="override", config={"apple": "berry"}
-                )
+                infrastructure_document_id=infrastructure_document_id
             ).dict(json_compatible=True),
         )
-        assert response.json()["flow_runner"] == schemas.core.FlowRunnerSettings(
-            type="override", config={"apple": "berry"}
-        ).dict(json_compatible=True)
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
+        )
 
 
 class TestGetDeploymentWorkQueueCheck:
@@ -862,7 +868,9 @@ class TestGetDeploymentWorkQueueCheck:
         response = await client.get(f"deployments/{uuid4()}/work_queue_check")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_well_formed_response(self, session, client, flow, flow_function):
+    async def test_well_formed_response(
+        self, session, client, flow, flow_function, infrastructure_document_id
+    ):
         await models.work_queues.create_work_queue(
             session=session,
             work_queue=schemas.core.WorkQueue(
@@ -886,7 +894,7 @@ class TestGetDeploymentWorkQueueCheck:
                 flow_data=flow_data,
                 flow_id=flow.id,
                 tags=["a", "b", "c"],
-                flow_runner=schemas.core.FlowRunnerSettings(type="subprocess"),
+                infrastructure_document_id=infrastructure_document_id,
             ),
         )
         await session.commit()

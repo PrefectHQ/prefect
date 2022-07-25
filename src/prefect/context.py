@@ -31,9 +31,9 @@ from pydantic import BaseModel, Field, PrivateAttr
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
-from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient
 from prefect.exceptions import MissingContextError
+from prefect.filesystems import WritableFileSystem
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.states import State
@@ -192,7 +192,7 @@ class FlowRunContext(RunContext):
         flow: The flow instance associated with the run
         flow_run: The API metadata for the flow run
         task_runner: The task runner instance being used for the flow run
-        result_storage: A block to used to persist run state data
+        result_filesystem: A block to used to persist run state data
         task_run_futures: A list of futures for task runs submitted within this flow run
         task_run_states: A list of states for task runs created within this flow run
         task_run_results: A mapping of result ids to task run states for this flow run
@@ -204,7 +204,7 @@ class FlowRunContext(RunContext):
     flow: "Flow"
     flow_run: FlowRun
     task_runner: BaseTaskRunner
-    result_storage: StorageBlock
+    result_filesystem: WritableFileSystem
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
@@ -231,12 +231,12 @@ class TaskRunContext(RunContext):
     Attributes:
         task: The task instance associated with the task run
         task_run: The API metadata for this task run
-        result_storage: A block to used to persist run state data
+        result_filesystem: A block to used to persist run state data
     """
 
     task: "Task"
     task_run: TaskRun
-    result_storage: StorageBlock
+    result_filesystem: WritableFileSystem
 
     __var__ = ContextVar("task_run")
 

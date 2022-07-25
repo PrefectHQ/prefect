@@ -809,7 +809,9 @@ class TestReadBlockDocuments:
         }
 
         # sorted by block type name, block document name
-        assert read_blocks == [b for b in block_documents if not b.is_anonymous]
+        assert [rb.id for rb in read_blocks] == [
+            b.id for b in block_documents if not b.is_anonymous
+        ]
 
     async def test_read_block_documents_with_is_anonymous_filter(
         self, session, block_documents
@@ -874,7 +876,7 @@ class TestReadBlockDocuments:
             )
         )
         assert len(fly_and_swim_block_documents) == 1
-        assert fly_and_swim_block_documents == [block_documents[5]]
+        assert [b.id for b in fly_and_swim_block_documents] == [block_documents[5].id]
 
         fly_block_documents = await models.block_documents.read_block_documents(
             session=session,
@@ -883,10 +885,10 @@ class TestReadBlockDocuments:
             ),
         )
         assert len(fly_block_documents) == 3
-        assert fly_block_documents == [
-            block_documents[1],
-            block_documents[3],
-            block_documents[5],
+        assert [b.id for b in fly_block_documents] == [
+            block_documents[1].id,
+            block_documents[3].id,
+            block_documents[5].id,
         ]
 
         swim_block_documents = await models.block_documents.read_block_documents(
@@ -896,7 +898,7 @@ class TestReadBlockDocuments:
             ),
         )
         assert len(swim_block_documents) == 1
-        assert swim_block_documents == [block_documents[5]]
+        assert [b.id for b in swim_block_documents] == [block_documents[5].id]
 
 
 class TestDeleteBlockDocument:
@@ -926,182 +928,7 @@ class TestDeleteBlockDocument:
         )
 
 
-class TestDefaultStorage:
-    @pytest.fixture
-    async def storage_block_schema(self, session, block_type_x):
-        storage_block_schema = await models.block_schemas.create_block_schema(
-            session=session,
-            block_schema=schemas.actions.BlockSchemaCreate(
-                block_type_id=block_type_x.id, fields={}, capabilities=["storage"]
-            ),
-        )
-        await session.commit()
-        return storage_block_schema
-
-    @pytest.fixture
-    async def storage_block(self, session, storage_block_schema):
-        block = await models.block_documents.create_block_document(
-            session=session,
-            block_document=schemas.actions.BlockDocumentCreate(
-                name="storage",
-                data=dict(),
-                block_schema_id=storage_block_schema.id,
-                block_type_id=storage_block_schema.block_type_id,
-            ),
-        )
-        await session.commit()
-        return block
-
-    async def test_set_default_storage_block_document(self, session, storage_block):
-        assert not await models.block_documents.get_default_storage_block_document(
-            session=session
-        )
-
-        await models.block_documents.set_default_storage_block_document(
-            session=session, block_document_id=storage_block.id
-        )
-
-        result = await models.block_documents.get_default_storage_block_document(
-            session=session
-        )
-        assert result.id == storage_block.id
-
-    async def test_set_default_fails_if_not_storage_block(self, session, block_schemas):
-        non_storage_block = await models.block_documents.create_block_document(
-            session=session,
-            block_document=schemas.actions.BlockDocumentCreate(
-                name="non-storage",
-                data=dict(),
-                block_schema_id=block_schemas[0].id,
-                block_type_id=block_schemas[0].block_type_id,
-            ),
-        )
-        await session.commit()
-
-        with pytest.raises(
-            ValueError, match="Block schema must have the 'storage' capability"
-        ):
-            await models.block_documents.set_default_storage_block_document(
-                session=session, block_document_id=non_storage_block.id
-            )
-        assert not await models.block_documents.get_default_storage_block_document(
-            session=session
-        )
-
-    async def test_clear_default_storage_block_document(self, session, storage_block):
-
-        await models.block_documents.set_default_storage_block_document(
-            session=session, block_document_id=storage_block.id
-        )
-        result = await models.block_documents.get_default_storage_block_document(
-            session=session
-        )
-        assert result.id == storage_block.id
-
-        await models.block_documents.clear_default_storage_block_document(
-            session=session
-        )
-
-        assert not await models.block_documents.get_default_storage_block_document(
-            session=session
-        )
-
-    async def test_set_default_storage_block_clears_old_block(
-        self, session, storage_block, storage_block_schema, db
-    ):
-        storage_block_2 = await models.block_documents.create_block_document(
-            session=session,
-            block_document=schemas.actions.BlockDocumentCreate(
-                name="storage-2",
-                data=dict(),
-                block_schema_id=storage_block_schema.id,
-                block_type_id=storage_block_schema.block_type_id,
-            ),
-        )
-        await session.commit()
-
-        await models.block_documents.set_default_storage_block_document(
-            session=session, block_document_id=storage_block.id
-        )
-
-        result = await session.execute(
-            sa.select(db.BlockDocument).where(
-                db.BlockDocument.is_default_storage_block_document.is_(True)
-            )
-        )
-        default_blocks = result.scalars().unique().all()
-        assert len(default_blocks) == 1
-        assert default_blocks[0].id == storage_block.id
-
-        await models.block_documents.set_default_storage_block_document(
-            session=session, block_document_id=storage_block_2.id
-        )
-
-        result = await session.execute(
-            sa.select(db.BlockDocument).where(
-                db.BlockDocument.is_default_storage_block_document.is_(True)
-            )
-        )
-        default_blocks = result.scalars().unique().all()
-        assert len(default_blocks) == 1
-        assert default_blocks[0].id == storage_block_2.id
-
-
 class TestUpdateBlockDocument:
-    async def test_update_block_document_name(
-        self,
-        session,
-        block_schemas,
-    ):
-        block_document = await models.block_documents.create_block_document(
-            session,
-            block_document=schemas.actions.BlockDocumentCreate(
-                name="test-update-name",
-                data=dict(x=1),
-                block_schema_id=block_schemas[1].id,
-                block_type_id=block_schemas[1].block_type_id,
-            ),
-        )
-
-        await models.block_documents.update_block_document(
-            session,
-            block_document_id=block_document.id,
-            block_document=schemas.actions.BlockDocumentUpdate(name="updated"),
-        )
-
-        updated_block_document = await models.block_documents.read_block_document_by_id(
-            session, block_document_id=block_document.id
-        )
-        assert updated_block_document.name == "updated"
-
-    async def test_update_anonymous_block_document_name(
-        self,
-        session,
-        block_schemas,
-    ):
-        block_document = await models.block_documents.create_block_document(
-            session,
-            block_document=schemas.actions.BlockDocumentCreate(
-                data=dict(x=1),
-                block_schema_id=block_schemas[1].id,
-                block_type_id=block_schemas[1].block_type_id,
-                is_anonymous=True,
-            ),
-        )
-
-        assert block_document.name.startswith("anonymous:")
-
-        await models.block_documents.update_block_document(
-            session,
-            block_document_id=block_document.id,
-            block_document=schemas.actions.BlockDocumentUpdate(name="updated"),
-        )
-
-        updated_block_document = await models.block_documents.read_block_document_by_id(
-            session, block_document_id=block_document.id
-        )
-        assert updated_block_document.name == "updated"
-
     async def test_update_block_document_data(self, session, block_schemas):
         block_document = await models.block_documents.create_block_document(
             session,

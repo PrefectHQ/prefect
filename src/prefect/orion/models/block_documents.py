@@ -7,13 +7,17 @@ from uuid import UUID, uuid4
 
 import sqlalchemy as sa
 
+import prefect.orion.models as models
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import ORMBlockDocument
 from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
 from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
-from prefect.orion.schemas.filters import BlockDocumentFilterIsAnonymous
+from prefect.orion.schemas.filters import (
+    BlockDocumentFilterIsAnonymous,
+    BlockSchemaFilter,
+)
 from prefect.orion.utilities.names import obfuscate_string
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
@@ -151,9 +155,18 @@ async def read_block_document_by_id(
     )
 
     result = await session.execute(nested_block_documents_query)
-    return await _construct_full_block_document(
+    fully_constructed_block_document = await _construct_full_block_document(
         session, result.all(), include_secrets=include_secrets
     )
+    if fully_constructed_block_document is None:
+        return fully_constructed_block_document
+    fully_constructed_block_document.block_schema = (
+        await models.block_schemas.read_block_schema(
+            session=session,
+            block_schema_id=fully_constructed_block_document.block_schema_id,
+        )
+    )
+    return fully_constructed_block_document
 
 
 async def _construct_full_block_document(
@@ -291,9 +304,19 @@ async def read_block_document_by_name(
     )
 
     result = await session.execute(nested_block_documents_query)
-    return await _construct_full_block_document(
+    fully_constructed_block_document = await _construct_full_block_document(
         session, result.all(), include_secrets=include_secrets
     )
+    if fully_constructed_block_document is None:
+        return fully_constructed_block_document
+
+    fully_constructed_block_document.block_schema = (
+        await models.block_schemas.read_block_schema(
+            session=session,
+            block_schema_id=fully_constructed_block_document.block_schema_id,
+        )
+    )
+    return fully_constructed_block_document
 
 
 @inject_db
@@ -408,6 +431,21 @@ async def read_block_documents(
                 )
             )
             visited_block_document_ids.append(root_orm_block_document.id)
+    block_schema_ids = [
+        block_document.block_schema_id
+        for block_document in fully_constructed_block_documents
+    ]
+    block_schemas = await models.block_schemas.read_block_schemas(
+        session=session,
+        block_schema_filter=BlockSchemaFilter(id=dict(any_=block_schema_ids)),
+    )
+    for block_document in fully_constructed_block_documents:
+        corresponding_block_schema = next(
+            block_schema
+            for block_schema in block_schemas
+            if block_schema.id == block_document.block_schema_id
+        )
+        block_document.block_schema = corresponding_block_schema
     return fully_constructed_block_documents
 
 
@@ -436,9 +474,6 @@ async def update_block_document(
         return False
 
     update_values = block_document.dict(shallow=True, exclude_unset=True)
-
-    if "name" in update_values:
-        current_block_document.name = update_values["name"]
 
     if "data" in update_values and update_values["data"] is not None:
         current_data = await current_block_document.decrypt_data(session=session)
@@ -529,59 +564,6 @@ def _find_block_document_reference(
         ),
         None,
     )
-
-
-@inject_db
-async def get_default_storage_block_document(
-    session: sa.orm.Session,
-    db: OrionDBInterface,
-    include_secrets: bool = True,
-):
-    query = (
-        sa.select(db.BlockDocument)
-        .where(db.BlockDocument.is_default_storage_block_document.is_(True))
-        .limit(1)
-        .execution_options(populate_existing=True)
-    )
-    result = await session.execute(query)
-    orm_block_document = result.scalar()
-    if orm_block_document is None:
-        return None
-    return await BlockDocument.from_orm_model(
-        session, orm_block_document, include_secrets=include_secrets
-    )
-
-
-@inject_db
-async def set_default_storage_block_document(
-    session: sa.orm.Session, block_document_id: UUID, db: OrionDBInterface
-):
-    block_document = await read_block_document_by_id(
-        session=session, block_document_id=block_document_id
-    )
-    if not block_document:
-        raise ValueError("Block document not found")
-    elif "storage" not in block_document.block_schema.capabilities:
-        raise ValueError("Block schema must have the 'storage' capability")
-
-    await clear_default_storage_block_document(session=session)
-    await session.execute(
-        sa.update(db.BlockDocument)
-        .where(db.BlockDocument.id == block_document_id)
-        .values(is_default_storage_block_document=True)
-    )
-
-
-@inject_db
-async def clear_default_storage_block_document(
-    session: sa.orm.Session, db: OrionDBInterface
-):
-    await session.execute(
-        sa.update(db.BlockDocument)
-        .where(db.BlockDocument.is_default_storage_block_document.is_(True))
-        .values(is_default_storage_block_document=False)
-    )
-    await session.flush()
 
 
 @inject_db

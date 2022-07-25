@@ -63,7 +63,7 @@ class TestOrchestrateTaskRun:
         orion_client,
         flow_run,
         mock_client_sleep,
-        local_storage_block,
+        local_filesystem,
         monkeypatch,
     ):
         @task
@@ -87,7 +87,8 @@ class TestOrchestrateTaskRun:
             task_run=task_run,
             parameters={},
             wait_for=None,
-            result_storage=local_storage_block,
+            result_filesystem=local_filesystem,
+            interruptible=False,
             client=orion_client,
         )
 
@@ -96,7 +97,7 @@ class TestOrchestrateTaskRun:
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
-        self, orion_client, flow_run, mock_client_sleep, local_storage_block
+        self, orion_client, flow_run, mock_client_sleep, local_filesystem
     ):
         @task
         def foo():
@@ -119,7 +120,8 @@ class TestOrchestrateTaskRun:
             task_run=task_run,
             parameters={},
             wait_for=None,
-            result_storage=local_storage_block,
+            result_filesystem=local_filesystem,
+            interruptible=False,
             client=orion_client,
         )
 
@@ -128,7 +130,7 @@ class TestOrchestrateTaskRun:
         assert state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
-        self, mock_client_sleep, orion_client, flow_run, local_storage_block
+        self, mock_client_sleep, orion_client, flow_run, local_filesystem
     ):
         # Define a task that fails once and then succeeds
         mock = MagicMock()
@@ -156,7 +158,8 @@ class TestOrchestrateTaskRun:
             task_run=task_run,
             parameters={},
             wait_for=None,
-            result_storage=local_storage_block,
+            result_filesystem=local_filesystem,
+            interruptible=False,
             client=orion_client,
         )
 
@@ -184,7 +187,7 @@ class TestOrchestrateTaskRun:
         "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
     )
     async def test_returns_not_ready_when_any_upstream_futures_resolve_to_incomplete(
-        self, orion_client, flow_run, upstream_task_state, local_storage_block
+        self, orion_client, flow_run, upstream_task_state, local_filesystem
     ):
         # Define a mock to ensure the task was not run
         mock = MagicMock()
@@ -226,7 +229,8 @@ class TestOrchestrateTaskRun:
             # Nest the future in a collection to ensure that it is found
             parameters={"x": {"nested": [future]}},
             wait_for=None,
-            result_storage=local_storage_block,
+            result_filesystem=local_filesystem,
+            interruptible=False,
             client=orion_client,
         )
 
@@ -242,7 +246,7 @@ class TestOrchestrateTaskRun:
         )
 
     async def test_quoted_parameters_are_resolved(
-        self, orion_client, flow_run, local_storage_block
+        self, orion_client, flow_run, local_filesystem
     ):
         # Define a mock to ensure the task was not run
         mock = MagicMock()
@@ -266,7 +270,8 @@ class TestOrchestrateTaskRun:
             # Quote some data
             parameters={"x": quote(1)},
             wait_for=None,
-            result_storage=local_storage_block,
+            result_filesystem=local_filesystem,
+            interruptible=False,
             client=orion_client,
         )
 
@@ -280,7 +285,7 @@ class TestOrchestrateTaskRun:
         "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
     )
     async def test_states_in_parameters_can_be_incomplete_if_quoted(
-        self, orion_client, flow_run, upstream_task_state, local_storage_block
+        self, orion_client, flow_run, upstream_task_state, local_filesystem
     ):
         # Define a mock to ensure the task was not run
         mock = MagicMock()
@@ -303,7 +308,8 @@ class TestOrchestrateTaskRun:
             task_run=task_run,
             parameters={"x": quote(upstream_task_state)},
             wait_for=None,
-            result_storage=local_storage_block,
+            result_filesystem=local_filesystem,
+            interruptible=False,
             client=orion_client,
         )
 
@@ -347,12 +353,12 @@ class TestOrchestrateTaskRun:
 
 class TestOrchestrateFlowRun:
     @pytest.fixture
-    def partial_flow_run_context(self, local_storage_block):
+    def partial_flow_run_context(self, local_filesystem):
         return PartialModel(
             FlowRunContext,
             task_runner=SequentialTaskRunner(),
             sync_portal=None,
-            result_storage=local_storage_block,
+            result_filesystem=local_filesystem,
         )
 
     async def test_waits_until_scheduled_start_time(
@@ -377,6 +383,7 @@ class TestOrchestrateFlowRun:
             flow_run=flow_run,
             parameters={},
             client=orion_client,
+            interruptible=False,
             partial_flow_run_context=partial_flow_run_context,
         )
 
@@ -406,6 +413,7 @@ class TestOrchestrateFlowRun:
                 flow_run=flow_run,
                 parameters={},
                 client=orion_client,
+                interruptible=False,
                 partial_flow_run_context=partial_flow_run_context,
             )
 
@@ -436,6 +444,7 @@ class TestOrchestrateFlowRun:
             flow_run=flow_run,
             parameters={},
             client=orion_client,
+            interruptible=False,
             partial_flow_run_context=partial_flow_run_context,
         )
 
@@ -499,8 +508,8 @@ class TestFlowRunCrashes:
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
 
-        assert flow_run.state.is_failed()
-        assert flow_run.state.name == "Crashed"
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.type == StateType.CRASHED
         assert (
             "Execution was cancelled by the runtime environment"
             in flow_run.state.message
@@ -537,8 +546,8 @@ class TestFlowRunCrashes:
                 tg.cancel_scope.cancel()
 
         parent_flow_run = await orion_client.read_flow_run(flow_run.id)
-        assert parent_flow_run.state.is_failed()
-        assert parent_flow_run.state.name == "Crashed"
+        assert parent_flow_run.state.is_crashed()
+        assert parent_flow_run.state.type == StateType.CRASHED
         assert exceptions_equal(
             parent_flow_run.state.result(raise_on_failure=False),
             anyio.get_cancelled_exc_class()(),
@@ -549,8 +558,8 @@ class TestFlowRunCrashes:
         )
         assert len(child_runs) == 1
         child_run = child_runs[0]
-        assert child_run.state.is_failed()
-        assert child_run.state.name == "Crashed"
+        assert child_run.state.is_crashed()
+        assert child_run.state.type == StateType.CRASHED
         assert (
             "Execution was cancelled by the runtime environment"
             in child_run.state.message
@@ -570,8 +579,8 @@ class TestFlowRunCrashes:
             )
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
-        assert flow_run.state.is_failed()
-        assert flow_run.state.name == "Crashed"
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
         assert exceptions_equal(
             flow_run.state.result(raise_on_failure=False), interrupt_type()
@@ -596,8 +605,8 @@ class TestFlowRunCrashes:
             )
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
-        assert flow_run.state.is_failed()
-        assert flow_run.state.name == "Crashed"
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
         with pytest.warns(UserWarning, match="not safe to re-raise"):
             assert exceptions_equal(flow_run.state.result(), interrupt_type())
@@ -620,8 +629,8 @@ class TestFlowRunCrashes:
             )
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
-        assert flow_run.state.is_failed()
-        assert flow_run.state.name == "Crashed"
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
         assert exceptions_equal(
             flow_run.state.result(raise_on_failure=False), interrupt_type()
@@ -633,8 +642,8 @@ class TestFlowRunCrashes:
         assert len(child_runs) == 1
         child_run = child_runs[0]
         assert child_run.id != flow_run.id
-        assert child_run.state.is_failed()
-        assert child_run.state.name == "Crashed"
+        assert child_run.state.is_crashed()
+        assert child_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in child_run.state.message
 
     async def test_flow_timeouts_are_not_crashes(self, flow_run, orion_client):
@@ -656,7 +665,7 @@ class TestFlowRunCrashes:
         flow_run = await orion_client.read_flow_run(flow_run.id)
 
         assert flow_run.state.is_failed()
-        assert flow_run.state.name != "Crashed"
+        assert flow_run.state.type != StateType.CRASHED
         assert "exceeded timeout" in flow_run.state.message
 
     async def test_timeouts_do_not_hide_crashes(self, flow_run, orion_client):
@@ -688,8 +697,8 @@ class TestFlowRunCrashes:
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
 
-        assert flow_run.state.is_failed()
-        assert flow_run.state.name == "Crashed"
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.type == StateType.CRASHED
         assert (
             "Execution was cancelled by the runtime environment"
             in flow_run.state.message
@@ -746,8 +755,8 @@ class TestTaskRunCrashes:
             )
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
-        assert flow_run.state.is_failed()
-        assert flow_run.state.name == "Crashed"
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
         with pytest.warns(UserWarning, match="not safe to re-raise"):
             assert exceptions_equal(flow_run.state.result(), interrupt_type())
@@ -755,8 +764,8 @@ class TestTaskRunCrashes:
         task_runs = await orion_client.read_task_runs()
         assert len(task_runs) == 1
         task_run = task_runs[0]
-        assert task_run.state.is_failed()
-        assert task_run.state.name == "Crashed"
+        assert task_run.state.is_crashed()
+        assert task_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in task_run.state.message
         with pytest.warns(UserWarning, match="not safe to re-raise"):
             assert exceptions_equal(task_run.state.result(), interrupt_type())
@@ -784,8 +793,8 @@ class TestTaskRunCrashes:
             )
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
-        assert flow_run.state.is_failed()
-        assert flow_run.state.name == "Crashed"
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
         with pytest.warns(UserWarning, match="not safe to re-raise"):
             assert exceptions_equal(flow_run.state.result(), interrupt_type())
@@ -793,8 +802,8 @@ class TestTaskRunCrashes:
         task_runs = await orion_client.read_task_runs()
         assert len(task_runs) == 1
         task_run = task_runs[0]
-        assert task_run.state.is_failed()
-        assert task_run.state.name == "Crashed"
+        assert task_run.state.is_crashed()
+        assert task_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in task_run.state.message
         with pytest.warns(UserWarning, match="not safe to re-raise"):
             assert exceptions_equal(task_run.state.result(), interrupt_type())
@@ -829,8 +838,8 @@ class TestTaskRunCrashes:
         task_run_states = state.result(raise_on_failure=False)
         assert len(task_run_states) == 1
         task_run_state = task_run_states[0]
-        assert task_run_state.is_failed()
-        assert task_run_state.name == "Crashed"
+        assert task_run_state.is_crashed()
+        assert task_run_state.type == StateType.CRASHED
         assert (
             "Execution was interrupted by an unexpected exception"
             in task_run_state.message

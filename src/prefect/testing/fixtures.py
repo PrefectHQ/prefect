@@ -53,7 +53,7 @@ async def hosted_orion_api():
         ],
         stdout=sys.stdout,
         stderr=sys.stderr,
-        env={**get_current_settings().to_environment_variables(), **os.environ},
+        env={**os.environ, **get_current_settings().to_environment_variables()},
     ) as process:
 
         api_url = f"http://localhost:{port}/api"
@@ -82,7 +82,10 @@ async def hosted_orion_api():
         yield api_url
 
         # Then shutdown the process
-        process.terminate()
+        try:
+            process.terminate()
+        except ProcessLookupError:
+            pass
 
 
 @pytest.fixture

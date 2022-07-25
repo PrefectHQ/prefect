@@ -37,7 +37,7 @@ To show you how it works, let's start small.
 
 You may have seen this briefly in a previous tutorial, but let's look a bit more closely at how you can configure a specific task runner for a flow.
 
-Let's start with this simple flow. We import the `SequentialTaskRunner` and specify a `task_runner` on the flow.
+Let's start with this simple flow. We import the `SequentialTaskRunner`, specify a `task_runner` on the flow, and call the tasks with `.submit()`.
 
 ```python hl_lines="2 12"
 from prefect import flow, task
@@ -54,8 +54,8 @@ def say_goodbye(name):
 @flow(task_runner=SequentialTaskRunner())
 def greetings(names):
     for name in names:
-        say_hello(name)
-        say_goodbye(name)
+        say_hello.submit(name)
+        say_goodbye.submit(name)
 
 greetings(["arthur", "trillian", "ford", "marvin"])
 ```
@@ -125,7 +125,7 @@ This is the same flow as above, with a few minor changes to use `DaskTaskRunner`
 
 ```python hl_lines="2 12 18"
 from prefect import flow, task
-from prefect.task_runners import DaskTaskRunner
+from prefect_dask.task_runners import DaskTaskRunner
 
 @task
 def say_hello(name):
@@ -138,8 +138,8 @@ def say_goodbye(name):
 @flow(task_runner=DaskTaskRunner())
 def greetings(names):
     for name in names:
-        say_hello(name)
-        say_goodbye(name)
+        say_hello.submit(name)
+        say_goodbye.submit(name)
 
 if __name__ == "__main__":
     greetings(["arthur", "trillian", "ford", "marvin"])
@@ -202,7 +202,7 @@ Save this as `ray_flow.py`.
 
 ```python hl_lines="2 12"
 from prefect import flow, task
-from prefect.task_runners import RayTaskRunner
+from prefect_ray.task_runners import RayTaskRunner
 
 @task
 def say_hello(name):
@@ -215,8 +215,8 @@ def say_goodbye(name):
 @flow(task_runner=RayTaskRunner())
 def greetings(names):
     for name in names:
-        say_hello(name)
-        say_goodbye(name)
+        say_hello.submit(name)
+        say_goodbye.submit(name)
 
 if __name__ == "__main__":
     greetings(["arthur", "trillian", "ford", "marvin"])
@@ -272,7 +272,7 @@ This example uses the same tasks as the previous examples, but on the parent flo
 
 ```python
 from prefect import flow, task
-from prefect.task_runners import RayTaskRunner
+from prefect_ray.task_runners import RayTaskRunner
 
 @task
 def say_hello(name):
@@ -285,14 +285,14 @@ def say_goodbye(name):
 @flow(task_runner=RayTaskRunner())
 def ray_greetings(names):
     for name in names:
-        say_hello(name)
-        say_goodbye(name)
+        say_hello.submit(name)
+        say_goodbye.submit(name)
 
 @flow()
 def greetings(names):
     for name in names:
-        say_hello(name)
-        say_goodbye(name)
+        say_hello.submit(name)
+        say_goodbye.submit(name)
     ray_greetings(names)
 
 if __name__ == "__main__":

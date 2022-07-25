@@ -25,7 +25,18 @@ class KubernetesClusterConfig(Block):
     Args:
         config (dict): The entire loaded YAML contents of a kubectl config file
         context_name (str): The name of the context to use
+
+    Example:
+        Load a saved Kubernetes cluster config:
+        ```python
+        from prefect.blocks.kubernetes import KubernetesClusterConfig
+
+        cluster_config_block = KubernetesClusterConfig.load("BLOCK_NAME")
+        ```
     """
+
+    _block_type_name = "Kubernetes Cluster Config"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/8e4792f00a0c808ad1ad5126126fa5f8/Kubernetes_logo_without_workmark.svg.png?h=250"
 
     config: Dict
     context_name: str
