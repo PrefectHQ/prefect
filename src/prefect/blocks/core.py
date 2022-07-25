@@ -1,6 +1,8 @@
 import hashlib
 import inspect
 import logging
+import re
+import warnings
 from abc import ABC
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Dict, FrozenSet, List, Optional, Type, Union
@@ -27,7 +29,7 @@ def block_schema_to_key(schema: BlockSchema) -> str:
     """
     Defines the unique key used to lookup the Block class for a given schema.
     """
-    return f"{schema.block_type.name}:{schema.checksum}"
+    return f"{schema.block_type.slug}"
 
 
 class InvalidBlockRegistration(Exception):
@@ -35,6 +37,22 @@ class InvalidBlockRegistration(Exception):
     Raised on attempted registration of the base Block
     class or a Block interface class
     """
+
+
+REMOVE_NON_ALPHA_NUMBER = re.compile(r"[^\w\s-]")
+CONVERT_TO_DASHES = re.compile(r"[\s_-]+")
+REMOVE_LEAD_TRAILING_DASHES = re.compile(r"^-+|-+$")
+
+
+def slugify(string: str):
+    string = string.lower().strip()
+    # Remove any non alphanumeric characters
+    string = re.sub(REMOVE_NON_ALPHA_NUMBER, "", string)
+    # Convert spaces and underscores to dashes
+    string = re.sub(CONVERT_TO_DASHES, "-", string)
+    # Remove leading and trailing dashes
+    string = re.sub(REMOVE_LEAD_TRAILING_DASHES, "", string)
+    return string
 
 
 @register_base_type
@@ -47,7 +65,7 @@ class Block(BaseModel, ABC):
             """
             Customizes Pydantic's schema generation feature to add blocks related information.
             """
-            schema["block_type_name"] = model.get_block_type_name()
+            schema["block_type_slug"] = model.get_block_type_slug()
             # Ensures args and code examples aren't included in the schema
             description = model.get_description()
             if description:
@@ -111,6 +129,7 @@ class Block(BaseModel, ABC):
     # when the block is registered with Orion. If not set, block
     # type name will default to the class name.
     _block_type_name: Optional[str] = None
+    _block_type_slug: Optional[str] = None
     # Attributes used to set properties on a block type when registered
     # with Orion.
     _logo_url: Optional[HttpUrl] = None
@@ -138,6 +157,10 @@ class Block(BaseModel, ABC):
         return cls._block_type_name or cls.__name__
 
     @classmethod
+    def get_block_type_slug(cls):
+        return slugify(cls._block_type_slug or cls.get_block_type_name())
+
+    @classmethod
     def get_block_capabilities(cls) -> FrozenSet[str]:
         """
         Returns the block capabilities for this Block. Recursively collects all block
@@ -154,7 +177,7 @@ class Block(BaseModel, ABC):
     @classmethod
     def _to_block_schema_reference_dict(cls):
         return dict(
-            block_type_name=cls.get_block_type_name(),
+            block_type_slug=cls.get_block_type_slug(),
             block_schema_checksum=cls._calculate_schema_checksum(),
         )
 
@@ -357,6 +380,7 @@ class Block(BaseModel, ABC):
         """
         return BlockType(
             id=cls._block_type_id or uuid4(),
+            slug=cls.get_block_type_slug(),
             name=cls.get_block_type_name(),
             logo_url=cls._logo_url,
             documentation_url=cls._documentation_url,
@@ -392,6 +416,17 @@ class Block(BaseModel, ABC):
             # Look up the block class by dispatch
             else cls.get_block_class_from_schema(block_document.block_schema)
         )
+
+        if (
+            block_document.block_schema.checksum
+            != block_cls._calculate_schema_checksum()
+        ):
+            warnings.warn(
+                f"Block document has schema checksum {block_document.block_schema.checksum} "
+                f"which does not match the schema checksum for class {block_cls.__name__!r}. "
+                "This indicates the schema has changed and this block may not load.",
+                stacklevel=2,
+            )
 
         block = block_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
@@ -461,7 +496,7 @@ class Block(BaseModel, ABC):
         async with prefect.client.get_client() as client:
             try:
                 block_document = await client.read_block_document_by_name(
-                    name=name, block_type_name=cls.get_block_type_name()
+                    name=name, block_type_slug=cls.get_block_type_slug()
                 )
             except prefect.exceptions.ObjectNotFound as e:
                 raise ValueError(
@@ -513,8 +548,8 @@ class Block(BaseModel, ABC):
                             await type_.register_type_and_schema(client=client)
 
             try:
-                block_type = await client.read_block_type_by_name(
-                    name=cls.get_block_type_name()
+                block_type = await client.read_block_type_by_slug(
+                    slug=cls.get_block_type_slug()
                 )
                 await client.update_block_type(
                     block_type_id=block_type.id, block_type=cls._to_block_type()
@@ -583,7 +618,7 @@ class Block(BaseModel, ABC):
                     if block_document_id is None:
                         existing_block_document = (
                             await client.read_block_document_by_name(
-                                name=name, block_type_name=self.get_block_type_name()
+                                name=name, block_type_slug=self.get_block_type_slug()
                             )
                         )
                         block_document_id = existing_block_document.id

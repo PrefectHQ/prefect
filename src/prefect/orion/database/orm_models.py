@@ -728,6 +728,7 @@ class ORMConcurrencyLimit:
 @declarative_mixin
 class ORMBlockType:
     name = sa.Column(sa.String, nullable=False)
+    slug = sa.Column(sa.String, nullable=False)
     logo_url = sa.Column(sa.String, nullable=True)
     documentation_url = sa.Column(sa.String, nullable=True)
     description = sa.Column(sa.String, nullable=True)
@@ -740,8 +741,8 @@ class ORMBlockType:
     def __table_args__(cls):
         return (
             sa.Index(
-                "uq_block_type__name",
-                "name",
+                "uq_block_type__slug",
+                "slug",
                 unique=True,
             ),
         )
@@ -1240,7 +1241,7 @@ class BaseORMConfiguration(ABC):
     @property
     def block_type_unique_upsert_columns(self):
         """Unique columns for upserting a BlockType"""
-        return [self.BlockType.name]
+        return [self.BlockType.slug]
 
     @property
     def block_schema_unique_upsert_columns(self):

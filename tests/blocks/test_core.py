@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 import pytest
 from pydantic import Field, SecretBytes, SecretStr
 
-from prefect.blocks.core import Block, InvalidBlockRegistration
+from prefect.blocks.core import Block, InvalidBlockRegistration, slugify
 from prefect.client import OrionClient
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
@@ -51,7 +51,7 @@ class TestAPICompatibility:
         )
         assert (
             block_schema.checksum
-            == "sha256:295c039674c2d9e8c697063e0a5c188a21cf5f564b94ed71b13ebfabdbb27ac3"
+            == "sha256:876ee010b459f79fe6a31f00442a2ba47ee36202968830efda4378544051da64"
         )
         assert block_schema.fields == {
             "title": "MyRegisteredBlock",
@@ -61,7 +61,7 @@ class TestAPICompatibility:
                 "y": {"title": "Y", "default": 1, "type": "integer"},
             },
             "block_schema_references": {},
-            "block_type_name": "MyRegisteredBlock",
+            "block_type_slug": "myregisteredblock",
             "required": ["x"],
             "secret_fields": [],
         }
@@ -78,7 +78,7 @@ class TestAPICompatibility:
         assert schema.fields["secret_fields"] == ["x", "y"]
         assert schema.fields == {
             "block_schema_references": {},
-            "block_type_name": "SecretBlock",
+            "block_type_slug": "secretblock",
             "properties": {
                 "x": {
                     "format": "password",
@@ -117,15 +117,15 @@ class TestAPICompatibility:
         assert schema.fields == {
             "block_schema_references": {
                 "child": {
-                    "block_schema_checksum": "sha256:c6b7886dfd347159cbf5160d88310978b5b75b5f481aed6dca64c45b1b011284",
-                    "block_type_name": "Child",
+                    "block_schema_checksum": "sha256:95a2b74a0d1d31fcaaef6561ee1249bba3de2445baa60dd6b5f9e0bdad8da60b",
+                    "block_type_slug": "child",
                 }
             },
-            "block_type_name": "Parent",
+            "block_type_slug": "parent",
             "definitions": {
                 "Child": {
                     "block_schema_references": {},
-                    "block_type_name": "Child",
+                    "block_type_slug": "child",
                     "properties": {
                         "a": {
                             "format": "password",
@@ -251,13 +251,13 @@ class TestAPICompatibility:
         assert "authentic_field" in block_schema.fields["properties"].keys()
         assert "evil_fake_field" not in block_schema.fields["properties"].keys()
 
-    def test_create_api_block_schema_with_different_registered_name(self, block_type_x):
+    def test_create_api_block_schema_with_different_registered_slug(self, block_type_x):
         block_schema = self.MyOtherRegisteredBlock._to_block_schema(
             block_type_id=block_type_x.id
         )
         assert (
             block_schema.checksum
-            == "sha256:0ee40e3d110beef563d12af1e5b234d042237cffa3b344917f574b653d2a3b89"
+            == "sha256:5f8577df3c90cfe24ebcb553323d54736cd90b9a155f8e724653fe39de9ada6a"
         )
         assert block_schema.fields == {
             "title": "MyOtherRegisteredBlock",
@@ -267,7 +267,7 @@ class TestAPICompatibility:
                 "y": {"title": "Y", "default": 1, "type": "integer"},
                 "z": {"default": 2, "title": "Z", "type": "integer"},
             },
-            "block_type_name": "MyOtherRegisteredBlock",
+            "block_type_slug": "myotherregisteredblock",
             "block_schema_references": {},
             "required": ["x"],
             "secret_fields": [],
@@ -561,18 +561,18 @@ class TestAPICompatibility:
                 "z": {"$ref": "#/definitions/NestedBlock"},
             },
             "required": ["y", "z"],
-            "block_type_name": "ParentBlock",
+            "block_type_slug": "parentblock",
             "block_schema_references": {
                 "z": {
-                    "block_schema_checksum": "sha256:1cb4f9a642f5f230f9ad221f0bbade2496aea3effd607bae27210fa056c96fc5",
-                    "block_type_name": "Nested Block",
+                    "block_schema_checksum": "sha256:85dbfce0d5cfb3b77266422b96c5560f4b9de4ad2ecd74946512e954fb54d650",
+                    "block_type_slug": "nested-block",
                 }
             },
             "secret_fields": [],
             "definitions": {
                 "NestedBlock": {
                     "block_schema_references": {},
-                    "block_type_name": "Nested Block",
+                    "block_type_slug": "nested-block",
                     "properties": {"x": {"title": "X", "type": "string"}},
                     "required": ["x"],
                     "secret_fields": [],
@@ -730,7 +730,7 @@ class TestRegisterBlockTypeAndSchema:
     async def test_register_type_and_schema(self, orion_client: OrionClient):
         await self.NewBlock.register_type_and_schema()
 
-        block_type = await orion_client.read_block_type_by_name(name="NewBlock")
+        block_type = await orion_client.read_block_type_by_slug(slug="newblock")
         assert block_type is not None
         assert block_type.name == "NewBlock"
 
@@ -747,7 +747,7 @@ class TestRegisterBlockTypeAndSchema:
         await self.NewBlock.register_type_and_schema()
         await self.NewBlock.register_type_and_schema()
 
-        block_type = await orion_client.read_block_type_by_name(name="NewBlock")
+        block_type = await orion_client.read_block_type_by_slug(slug="newblock")
         assert block_type is not None
         assert block_type.name == "NewBlock"
 
@@ -768,7 +768,7 @@ class TestRegisterBlockTypeAndSchema:
 
         await ImpostorBlock.register_type_and_schema()
 
-        block_type = await orion_client.read_block_type_by_name(name="NewBlock")
+        block_type = await orion_client.read_block_type_by_slug(slug="newblock")
         assert block_type is not None
         assert block_type.name == "NewBlock"
 
@@ -796,21 +796,21 @@ class TestRegisterBlockTypeAndSchema:
 
         await Biggest.register_type_and_schema()
 
-        big_block_type = await orion_client.read_block_type_by_name(name="Big")
+        big_block_type = await orion_client.read_block_type_by_slug(slug="big")
         assert big_block_type is not None
         big_block_schema = await orion_client.read_block_schema_by_checksum(
             checksum=Big._calculate_schema_checksum()
         )
         assert big_block_schema is not None
 
-        bigger_block_type = await orion_client.read_block_type_by_name(name="Bigger")
+        bigger_block_type = await orion_client.read_block_type_by_slug(slug="bigger")
         assert bigger_block_type is not None
         bigger_block_schema = await orion_client.read_block_schema_by_checksum(
             checksum=Bigger._calculate_schema_checksum()
         )
         assert bigger_block_schema is not None
 
-        biggest_block_type = await orion_client.read_block_type_by_name(name="Biggest")
+        biggest_block_type = await orion_client.read_block_type_by_slug(slug="biggest")
         assert biggest_block_type is not None
         biggest_block_schema = await orion_client.read_block_schema_by_checksum(
             checksum=Biggest._calculate_schema_checksum()
@@ -832,14 +832,14 @@ class TestRegisterBlockTypeAndSchema:
 
         await Umbrella.register_type_and_schema()
 
-        a_block_type = await orion_client.read_block_type_by_name(name="A")
+        a_block_type = await orion_client.read_block_type_by_slug(slug="a")
         assert a_block_type is not None
-        b_block_type = await orion_client.read_block_type_by_name(name="B")
+        b_block_type = await orion_client.read_block_type_by_slug(slug="b")
         assert b_block_type is not None
-        c_block_type = await orion_client.read_block_type_by_name(name="C")
+        c_block_type = await orion_client.read_block_type_by_slug(slug="c")
         assert c_block_type is not None
-        umbrella_block_type = await orion_client.read_block_type_by_name(
-            name="Umbrella"
+        umbrella_block_type = await orion_client.read_block_type_by_slug(
+            slug="umbrella"
         )
         assert umbrella_block_type is not None
 
@@ -881,12 +881,12 @@ class TestRegisterBlockTypeAndSchema:
 
         await Before.register_type_and_schema()
 
-        block_type = await orion_client.read_block_type_by_name(name="Test Block")
+        block_type = await orion_client.read_block_type_by_slug(slug="test-block")
         assert block_type.description == "Before"
 
         await After.register_type_and_schema()
 
-        block_type = await orion_client.read_block_type_by_name(name="Test Block")
+        block_type = await orion_client.read_block_type_by_slug(slug="test-block")
         assert block_type.description == "After"
 
     async def test_register_fails_on_abc(self, orion_client):
@@ -1436,6 +1436,13 @@ class TestToBlockType:
             """
         )
 
+    def test_to_block_type_with_slug_override(self):
+        class TwentySidedDie(Block):
+            _block_type_slug = "20-sided-die"
+            color: str
+
+        assert TwentySidedDie._to_block_type().slug == "20-sided-die"
+
 
 class TestGetDescription:
     def test_no_description_configured(self):
@@ -1584,3 +1591,21 @@ class TestGetCodeExample:
                 print("I am overriding the example in the docstring")
                 ```"""
         )
+
+
+@pytest.mark.parametrize(
+    "input,expected",
+    [
+        (
+            "Hello Block!",
+            "hello-block",
+        ),
+        (
+            "i'M a BlOcK",
+            "im-a-block",
+        ),
+        ("slugify this! &@#%*(@_!*🐌", "slugify-this"),
+    ],
+)
+def test_slugify(input, expected):
+    assert slugify(input) == expected

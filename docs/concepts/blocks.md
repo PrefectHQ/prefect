@@ -93,6 +93,24 @@ def calculate_cube_surface_area(cube_name):
 calculate_cube_surface_area("rubiks-cube") # 30.375
 ```
 
+### Registering Blocks
+
+To register a custom block for configuration via the UI, run the CLI command:
+
+```bash
+$ prefect block register -f cube.py
+```
+
+This will register any blocks that are declared in the specified file.
+
+The same command can be used to register blocks in a Python module:
+
+```bash
+$ prefect block register -m prefect_aws.credentials
+```
+
+This method of registration is useful when the block you want to register is part of a Prefect Collection 
+
 ### Secret fields
 
 All block values are encrypted before being stored, but if you have values that you would not like visible in the UI or in logs, then you can use the `SecretStr` field type provided by Pydantic to automatically obfuscate those values. This can be useful for fields that are used to store credentials like passwords and API tokens.
