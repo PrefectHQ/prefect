@@ -60,7 +60,7 @@ from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
 from prefect.filesystems import RemoteFileSystem, LocalFileSystem
 from prefect.flows import Flow, load_flow_from_script, load_flow_from_text
-from prefect.infrastructure import Infrastructure, Process
+from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.infrastructure.submission import FLOW_RUN_ENTRYPOINT
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
@@ -120,7 +120,9 @@ class Deployment(BaseModel):
     parameters: Dict[str, Any] = Field(default_factory=dict)
     schedule: schemas.schedules.SCHEDULE_TYPES = None
 
-    infrastructure: Infrastructure = Field(default_factory=Process)
+    infrastructure: Union[DockerContainer, KubernetesJob, Process] = Field(
+        default_factory=Process
+    )
 
     def __init__(__pydantic_self__, **data: Any) -> None:
         super().__init__(**data)
@@ -368,6 +370,29 @@ def load_deployments_from_yaml(
 
 
 class DeploymentYAML(BaseModel):
+    editable_fields = [
+        "name",
+        "description",
+        "tags",
+        "schedule",
+        "parameters",
+        "infrastructure",
+    ]
+
+    @property
+    def header(self) -> str:
+        return f"###\n### A complete description of a Prefect Deployment for flow {self.flow_name!r}\n###\n"
+
+    def editable_fields_dict(self):
+        "Returns YAML compatible dictionary of editable fields, in the correct order"
+        all_fields = self.dict()
+        return {field: all_fields[field] for field in self.editable_fields}
+
+    def immutable_fields_dict(self):
+        "Returns YAML compatible dictionary of immutable fields, in the correct order"
+        all_fields = self.dict()
+        return {k: v for k, v in all_fields.items() if k not in self.editable_fields}
+
     # top level metadata
     name: str = Field(..., description="The name of the deployment.")
     description: str = Field(
@@ -383,7 +408,9 @@ class DeploymentYAML(BaseModel):
         ...,
         description="The path to the flow's manifest file, relative to the chosen storage.",
     )
-    infrastructure: Infrastructure = Field(default_factory=Process)
+    infrastructure: Union[DockerContainer, KubernetesJob, Process] = Field(
+        default_factory=Process
+    )
     storage: Union[LocalFileSystem, RemoteFileSystem] = Field(
         default_factory=LocalFileSystem
     )
