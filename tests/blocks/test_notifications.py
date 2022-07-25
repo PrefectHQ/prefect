@@ -13,7 +13,7 @@ class TestSlackWebhook:
             return_value=async_webhook_client_mock
         )
         monkeypatch.setattr(
-            "prefect.blocks.notifications.AsyncWebhookClient",
+            "slack_sdk.webhook.async_client.AsyncWebhookClient",
             async_webhook_client_constructor_mock,
         )
 

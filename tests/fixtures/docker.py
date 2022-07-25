@@ -9,15 +9,16 @@ import prefect
 from prefect.cli.dev import dev_app
 from prefect.docker import (
     IMAGE_LABELS,
-    Container,
-    DockerClient,
-    ImageNotFound,
-    NotFound,
     docker_client,
     get_prefect_image_name,
     silence_docker_warnings,
 )
 from prefect.infrastructure.docker import CONTAINER_LABELS
+
+with silence_docker_warnings():
+    from docker import DockerClient
+    from docker.errors import ImageNotFound, NotFound
+    from docker.models.containers import Container
 
 
 def _safe_remove_container(container: Container):
