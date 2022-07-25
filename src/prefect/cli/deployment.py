@@ -240,7 +240,13 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
 
 
 @deployment_app.command()
-async def create(path: Path = None):
+async def create(
+    path: Path = typer.Argument(
+        None,
+        help="The path a deployment YAML file.",
+        show_default=False,
+    )
+):
     """
     Create or update a deployment from a YAML file.
     """

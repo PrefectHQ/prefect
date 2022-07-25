@@ -44,6 +44,7 @@ def _prepare_infrastructure(
 async def submit_flow_run(
     flow_run: FlowRun,
     infrastructure: Infrastructure,
+    storage,
     task_status: Optional[TaskStatus] = None,
 ):
     infrastructure = _prepare_infrastructure(flow_run, infrastructure)
