@@ -240,10 +240,13 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
 
 
 @deployment_app.command()
-async def create(path: Path):
+async def create(path: Path = None):
     """
     Create or update a deployment from a YAML file.
     """
+    if path is None:
+        path = "deployment.yaml"
+
     # load the file
     with open(str(path), "r") as f:
         data = yaml.safe_load(f)
