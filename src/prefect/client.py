@@ -106,11 +106,12 @@ def inject_client(fn):
     return with_injected_client
 
 
-def get_client() -> "OrionClient":
+def get_client(httpx_settings: dict = None) -> "OrionClient":
     ctx = prefect.context.get_settings_context()
     return OrionClient(
         PREFECT_API_URL.value() or create_app(ctx.settings, ephemeral=True),
         api_key=PREFECT_API_KEY.value(),
+        httpx_settings=httpx_settings,
     )
 
 
@@ -380,6 +381,9 @@ class OrionClient:
         Send a GET request to /hello for testing purposes.
         """
         return await self._client.get("/hello")
+
+    async def using_ephemeral_app(self) -> bool:
+        return self._ephemeral_app is not None
 
     async def create_flow(self, flow: "Flow") -> UUID:
         """
