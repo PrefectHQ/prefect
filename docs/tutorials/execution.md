@@ -10,32 +10,121 @@ tags:
     - async
 ---
 
-# Flow execution
+# Flow and task execution
 
-Prefect allows you to configure many aspects of how your flows and tasks run - here we review execution configuration _within a single flow run_.  For topics such as scheduling and flow deployment configuration see the tutorial on [Deployments](/tutorials/deployments/).
+So far you've seen that flows are the fundamental component of Prefect workflows, and tasks are components that enable you to encapsulate discrete, repeatable units of work within flows. You've also seen some of the configuration options for flows and tasks.
 
-## TaskRunners
+One of the configuration options demonstrated in the [Flow and task configuration](/tutorials/flow-task-config/) tutorial was setting a task runner that enables different execution capabilities for tasks _within a single flow run_. 
 
-Oftentimes we want our tasks to run in parallel or even on different machines for efficiency.  Prefect exposes this functionality via the concept of a _task runner_.
+## Task runners
 
-!!! note "Running flows in parallel requires no configuration"
-    Note that task runners only manage _task runs_ within a single flow run - the ability to run multiple flow runs in parallel is default behavior in Prefect.  
+Task runners are responsible for running Prefect tasks within a flow. Each flow has a task runner associated with it. Depending on the task runner you use, the tasks within your flow can run sequentially, concurrently, or in parallel. You can even configure task runners to use distributed execution infrastructure such as a Dask cluster.
 
-Every time you call a task function, it is submitted to the flow's task runner for execution.  By default, Prefect uses a [`ConcurrentTaskRunner`][prefect.task_runners.ConcurrentTaskRunner], which will run your tasks concurrently.
+The default task runner is the `ConcurrentTaskRunner`, which will run submitted tasks concurrently. If you don't specify a task runner, Prefect uses the `ConcurrentTaskRunner`.
 
-If, however, we want our tasks to run in parallel (or sequentially) then we need to consider alternative approaches. 
+All Prefect task runners support asynchronous task execution.
 
-## Parallel Execution
+## Concurrent execution
 
-Achieving parallelism within a flow run is as simple as:
+As mentioned, by default Prefect flows use the `ConcurrentTaskRunner` for non-blocking, concurrent execution of tasks.
 
-1. Installing the [prefect-dask collection](https://prefecthq.github.io/prefect-dask/) with `pip install prefect-dask`
-1. Switching your task runner to Prefect's `DaskTaskRunner`. 
-1. Calling `.submit` on the task instead of calling the task directly. This submits the task to the runner rather than running the task in-process.
+Here's a basic flow and task using the default task runner.
 
 ```python
 import time
+from prefect import task, flow
 
+@task
+def print_values(values):
+    for value in values:
+        time.sleep(0.5)
+        print(value, end="\r")
+
+@flow
+def my_flow():
+    print_values.submit(["AAAA"] * 15)
+    print_values.submit(["BBBB"] * 10)
+
+if __name__ == "__main__":
+    my_flow()
+```
+
+When you run this flow you should see the terminal output randomly switching between `AAAA` and `BBBB` showing that these two tasks are indeed not blocking.
+
+Also notice that `Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...` indicates Prefect is, in fact, using concurrent execution by default for the tasks in this flow.
+
+<div class="terminal">
+```bash
+15:07:10.015 | INFO    | prefect.engine - Created flow run 'mindful-tortoise' for flow 'parallel-flow'
+15:07:10.015 | INFO    | Flow run 'mindful-tortoise' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
+15:07:10.255 | INFO    | Flow run 'mindful-tortoise' - Created task run 'print_values-0bb9a2c3-0' for task 'print_values'
+15:07:10.255 | INFO    | Flow run 'mindful-tortoise' - Submitted task run 'print_values-0bb9a2c3-0' for execution.
+15:07:10.291 | INFO    | Flow run 'mindful-tortoise' - Created task run 'print_values-0bb9a2c3-1' for task 'print_values'
+15:07:10.292 | INFO    | Flow run 'mindful-tortoise' - Submitted task run 'print_values-0bb9a2c3-1' for execution.
+15:07:15.364 | INFO    | Task run 'print_values-0bb9a2c3-1' - Finished in state Completed()
+15:07:17.849 | INFO    | Task run 'print_values-0bb9a2c3-0' - Finished in state Completed()
+15:07:17.876 | INFO    | Flow run 'mindful-tortoise' - Finished in state Completed('All states completed.')
+```
+</div>
+
+## Sequential execution
+
+Sometimes you may want to intentionally run tasks sequentially. The built-in Prefect `SequentialTaskRunner` lets you do this.
+
+When using non-default task runner, you must import the task runner into your flow script.
+
+```python hl_lines="3 11"
+import time
+from prefect import task, flow
+from prefect.task_runners import SequentialTaskRunner
+
+@task
+def print_values(values):
+    for value in values:
+        time.sleep(0.5)
+        print(value, end="\r")
+
+@flow(task_runner=SequentialTaskRunner())
+def my_flow():
+    print_values.submit(["AAAA"] * 15)
+    print_values.submit(["BBBB"] * 10)
+
+if __name__ == "__main__":
+    my_flow()
+```
+
+When you run this flow you should see the terminal output first display `AAAA`, then `BBBB` showing that these two task runs execute sequentially, one completing before the second starts.
+
+Also notice that `Starting 'SequentialTaskRunner'; submitted tasks will be run sequentially...` indicates Prefect is, in fact, using sequential execution.
+
+<div class="terminal">
+```bash
+15:15:28.226 | INFO    | prefect.engine - Created flow run 'thundering-camel' for flow 'my-flow'
+15:15:28.227 | INFO    | Flow run 'thundering-camel' - Starting 'SequentialTaskRunner'; submitted tasks will be run sequentially...
+15:15:28.460 | INFO    | Flow run 'thundering-camel' - Created task run 'print_values-0bb9a2c3-0' for task 'print_values'
+15:15:28.461 | INFO    | Flow run 'thundering-camel' - Executing 'print_values-0bb9a2c3-0' immediately...
+15:15:36.087 | INFO    | Task run 'print_values-0bb9a2c3-0' - Finished in state Completed()
+15:15:36.110 | INFO    | Flow run 'thundering-camel' - Created task run 'print_values-0bb9a2c3-1' for task 'print_values'
+15:15:36.111 | INFO    | Flow run 'thundering-camel' - Executing 'print_values-0bb9a2c3-1' immediately...
+15:15:41.207 | INFO    | Task run 'print_values-0bb9a2c3-1' - Finished in state Completed()
+15:15:41.237 | INFO    | Flow run 'thundering-camel' - Finished in state Completed('All states completed.')
+```
+</div>
+
+## Parallel execution
+
+You can also run tasks using parallel or distributed execution by using the Dask or Ray task runners available through [Prefect Collections](/collections/overview/). 
+
+For example, you can achieve parallel task execution, even on in a local execution environment, but using the `DaskTaskRunner`.
+
+1. Install the [prefect-dask collection](https://prefecthq.github.io/prefect-dask/) with `pip install prefect-dask`.
+1. Switch your task runner to the `DaskTaskRunner`. 
+1. Call `.submit` on the task instead of calling the task directly. This submits the task to the task runner rather than running the task in-process.
+
+<!-- To do: add brief explanation of `.submit()` -->
+
+```python
+import time
 from prefect import task, flow
 from prefect_dask.task_runners import DaskTaskRunner
 
@@ -46,13 +135,16 @@ def print_values(values):
         print(value, end="\r")
 
 @flow(task_runner=DaskTaskRunner())
-def parallel_flow():
+def my_flow():
     print_values.submit(["AAAA"] * 15)
     print_values.submit(["BBBB"] * 10)
 
 if __name__ == "__main__":
-    parallel_flow()
+    my_flow()
 ```
+
+!!! tip "Multiprocessing task runners"
+    Because the `DaskTaskRunner` uses multiprocessing, it must be protected by an `if __name__ == "__main__":` guard when used in a script.
 
 When you run this flow you should see the terminal output randomly switching between `AAAA` and `BBBB` showing that these two tasks are indeed running in parallel.
 
@@ -68,19 +160,16 @@ If you have the [bokeh](https://docs.bokeh.org/en/latest/) Python package instal
 ```
 </div>
 
-Please note that because the `DaskTaskRunner` uses multiprocessing, it can be used interactively or must be protected by an `if __name__ == "__main__":` guard when used in a script.
+!!! warning "The Dask scheduler can be hard to predict"
+    When using the `DaskTaskRunner`, Prefect is submitting each task run to a Dask cluster object.  The Dask scheduler then [determines when and how each individual run should be executed](https://distributed.dask.org/en/latest/scheduling-policies.html) (with the constraint that the order matches the execution graph that Prefect provided).  
 
+    This means the only way to _force_ Dask to walk the task graph in a particular order is to configure Prefect dependencies between your tasks.
 
-!!! warning "The dask scheduler can be hard to predict"
-    When using the `DaskTaskRunner`, Prefect is submitting each task run to a dask cluster object.  [The dask scheduler then determines when and how each individual run should be executed](https://distributed.dask.org/en/latest/scheduling-policies.html) (with the constraint that the order matches the execution graph that Prefect provided).  
+Read more about using Dask in the [Dask task runner tutorial](/tutorials/dask-ray-task-runners/#running-parallel-tasks-with-dask).
 
-    This means that the only way to _force_ dask to walk the task graph in a particular order is to configure Prefect dependencies between your tasks.
+## Asynchronous execution
 
-Read more about customizing Dask in our [Dask task runner tutorial](/tutorials/dask-ray-task-runners/#running-parallel-tasks-with-dask).
-
-## Asynchronous Execution
-
-Prefect supports asynchronous task and flow definitions.  All of [the standard rules of async](https://docs.python.org/3/library/asyncio-task.html) apply:
+Prefect also supports asynchronous task and flow definitions by default. All of [the standard rules of async](https://docs.python.org/3/library/asyncio-task.html) apply:
 
 ```python
 import asyncio
@@ -104,7 +193,7 @@ async def async_flow():
 asyncio.run(async_flow())
 ```
 
-When we run this flow, we find that the coroutines that were gathered yield control to one another and are run concurrently:
+When you run this flow, the coroutines that were gathered yield control to one another and are run concurrently:
 
 <div class="terminal">
 ```bash
@@ -112,9 +201,15 @@ When we run this flow, we find that the coroutines that were gathered yield cont
 ```
 </div>
 
-Asynchronous task execution is currently supported with all task runners.
+## Flow execution
 
-!!! tip "Additional Reading"
-    To learn more about the concepts presented here, check out the following resources:
+Task runners only manage _task runs_ within a flow run. But what about flows?
 
-    - [Task runners](/concepts/task_runners/)
+Any given flow run &mdash; meaning in this case your workflow including any subflows and tasks &mdash; executes in its own environment using the infrastructure configured for that environment. In these examples, that infrastructure is probably your local computing environment. But for flow runs based on [deployments](/concepts/deployments/), that infrastructure might be a server in a datacenter, a VM, a Docker container, or a Kubernetes cluster.
+
+The ability to execute flow runs in a non-blocking or parallel manner is subject to execution infrastructure and the configuration of [work queues and agents](/concepts/work-queues/) &mdash; advanced topics that are covered in other tutorials.
+
+Within a flow, subflow runs behave like normal flow runs, except subflows will block execution of the parent flow until completion. However, asynchronous subflows are supported using AnyIO task groups or `asyncio.gather`.
+
+!!! tip "Next steps: Flow orchestration with Prefect"
+    The next step is learning about [the components of Prefect](/tutorials/orion/) that enable coordination and orchestration of your flow and task runs.
