@@ -13,7 +13,6 @@ import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.names import generate_slug, obfuscate_string
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
-from prefect.utilities.callables import ParameterSchema
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
@@ -347,8 +346,9 @@ class Deployment(ORMBaseModel):
         example=["tag-1", "tag-2"],
     )
 
-    parameter_openapi_schema: ParameterSchema = Field(
-        None, description="The parameter schema of the flow, including defaults."
+    parameter_openapi_schema: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="The parameter schema of the flow, including defaults.",
     )
     manifest_path: str = Field(
         ...,

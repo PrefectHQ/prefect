@@ -2,7 +2,6 @@
 Command line interface for working with deployments.
 """
 import json
-import textwrap
 import traceback
 from enum import Enum
 from inspect import getdoc
@@ -243,131 +242,51 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
 @deployment_app.command()
 async def create(path: Path):
     """
-    Create or update a deployment from a file.
-
-    File must contain one or more deployments in either Python or YAML
-
-        \b
-        ```python
-        from prefect.deployments import Deployment
-        \b
-        Deployment(
-            name="my-first-deploy", flow=my_flow,
-        )
-        ```
-
-        \b
-        ```yaml
-        name: "my-first-deploy"
-        flow:
-            path: "./my_flow.py"
-        ```
-
-    Multiple deployments can be declared in each file
-
-        \b
-        ```python
-        from prefect.deployments import Deployment
-        \b
-        Deployment(
-            name="my-first-deploy", flow=my_flow,
-        )
-        \b
-        Deployment(
-            name="my-second-deploy", flow=my_other_flow,
-        )
-        ```
-
-        \b
-        ```yaml
-        - name: "my-first-deploy"
-            path: "./my_flows.py"
-            name: "my-flow"
-        - name: "my-second-deploy"
-            path: "./my_flows.py"
-            name: "my-other-flow"
-        ```
+    Create or update a deployment from a YAML file.
     """
-    # Load the deployments into a registry
-    registry = _load_deployments(path)
+    # load the file
+    with open(str(path), "r") as f:
+        data = yaml.safe_load(f)
 
-    valid_deployments = registry.get_instances(Deployment)
-    invalid_deployments = registry.get_instance_failures(Deployment)
-
-    if invalid_deployments:
-        app.console.print(f"[red]Found {len(invalid_deployments)} invalid deployments:")
-        # Display all invalid deployments
-        for exc, inst, args, kwargs in invalid_deployments:
-            # Reconstruct the deployment as much as possible
-            deployment = type(inst).construct(*args, **kwargs)
-
-            # Attempt to recover a helpful name
-            identifier = ""
-            if deployment.name:
-                identifier += f" for deployment with name {deployment.name!r}"
-            if deployment.flow and hasattr(deployment.flow, "name"):
-                identifier += f" for flow {deployment.flow.name!r}"
-            identifier = identifier or ""
-
-            app.console.print(
-                textwrap.indent(
-                    str(exc).replace(" for Deployment", identifier), prefix=" " * 4
-                )
-            )
-
-            # Add a newline if we're displaying multiple
-            if len(invalid_deployments) > 1:
-                app.console.print()
-
-        exit_with_error(
-            "Invalid deployments must be removed or fixed before creation can continue."
-        )
-
-    failed, created = 0, 0
+    # create deployment object
+    try:
+        deployment = DeploymentYAML(**data)
+        app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
+    except Exception as exc:
+        exit_with_error(f"Provided file did not conform to deployment spec: {exc!r}")
 
     async with get_client() as client:
-        for deployment in valid_deployments:
-            name = _deployment_name(deployment)
-            progress_sink = RichTextIO(app.console, prefix=f"Deployment {name!r}: ")
-            try:
-                await deployment.create(client=client, stream_progress_to=progress_sink)
-                app.console.print(f"Created deployment {name!r}.")
-            except Exception as exc:
-                app.console.print(exception_traceback(exc))
-                app.console.print(
-                    "Failed to create deployment {deployment.name}", style="red"
-                )
-                failed += 1
-            else:
-                created += 1
+        # prep IDs
+        flow_id = await client.create_flow_from_name(deployment.flow_name)
 
-    if failed or created == 0:
-        exit_with_error(
-            f"Failed to create {failed} out of {len(valid_deployments)} deployments."
-        )
-    else:
-        s = "s" if created > 1 else ""
-        deployments_listing = "\n".join(
-            f"'{deployment.flow.name}/{deployment.name or deployment.flow.name}'"
-            for deployment in valid_deployments
-        )
-        last_deployment = (
-            f"{deployment.flow.name}/{deployment.name or deployment.flow.name}"
-        )
-        app.console.print(
-            textwrap.dedent(
-                f"""
-                Created {created} deployment{s}:
-                    {deployments_listing}
-
-                Run the last created deployment:
-                    prefect deployment run {last_deployment!r}
-
-                Inspect the last created deployment:
-                    prefect deployment inspect {last_deployment!r}
-            """
+        if not deployment.infrastructure._block_document_id:
+            infrastructure_document_id = await deployment.infrastructure._save(
+                is_anonymous=True
             )
+        else:
+            infrastructure_document_id = deployment.infrastructure._block_document_id
+
+        if not deployment.storage._block_document_id:
+            storage_document_id = await deployment.storage._save(is_anonymous=True)
+        else:
+            storage_document_id = deployment.storage._block_document_id
+
+        deployment_id = await client.create_deployment(
+            flow_id=flow_id,
+            name=deployment.name,
+            schedule=deployment.schedule,
+            parameters=deployment.parameters,
+            description=deployment.description,
+            tags=deployment.tags,
+            manifest_path=deployment.manifest_path,
+            storage_document_id=storage_document_id,
+            infrastructure_document_id=infrastructure_document_id,
+            parameter_openapi_schema=deployment.parameter_openapi_schema.dict(),
         )
+
+    app.console.print(
+        f"Deployment '{deployment_id}' successfully created.", style="green"
+    )
 
 
 def _deployment_name(deployment: Deployment):
@@ -459,7 +378,7 @@ class Infra(str, Enum):
 
 
 @deployment_app.command()
-async def prepare(
+async def build(
     path: str,
     manifest_only: bool = typer.Option(
         False, "--manifest-only", help="Generate the manifest file only."
