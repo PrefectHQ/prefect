@@ -301,6 +301,11 @@ async def ls():
     """List available workspaces."""
 
     confirm_logged_in()
+    print(PREFECT_API_URL.value())
+    current_workspace_id = re.match(
+        r".*accounts/.{36}/workspaces/(.{36})\Z", PREFECT_API_URL.value()
+    ).groups()[0]
+
     async with get_cloud_client() as client:
         try:
             workspaces = await client.read_workspaces()
@@ -309,18 +314,30 @@ async def ls():
                 "Unable to authenticate. Please ensure your credentials are correct."
             )
 
-    workspaces = {
+    workspace_handles = {
         f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
         for workspace in workspaces
     }
+
+    workspace_ids = {
+        workspace[
+            "workspace_id"
+        ]: f"{workspace['account_handle']}/{workspace['workspace_handle']}"
+        for workspace in workspaces
+    }
+
+    current_workspace = workspace_ids[current_workspace_id]
 
     table = Table()
     table.add_column(
         "[#024dfd]Available Workspaces:", justify="right", style="#8ea0ae", no_wrap=True
     )
 
-    for i, workspace in enumerate(sorted(workspaces)):
-        table.add_row("  " + workspace)
+    for i, workspace in enumerate(sorted(workspace_handles)):
+        if workspace == current_workspace:
+            table.add_row(f"[green]  * {workspace}[/green]")
+        else:
+            table.add_row("  " + workspace)
     app.console.print(table)
 
 
