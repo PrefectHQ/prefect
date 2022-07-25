@@ -477,6 +477,12 @@ async def prepare(
         "-i",
         help="The infrastructure type to use.",
     ),
+    infra_block: str = typer.Option(
+        None,
+        "--infra-block",
+        "-ib",
+        help="The type/name of the infrastructure block to use.",
+    ),
     storage_block: str = typer.Option(
         None,
         "--storage-block",
@@ -539,11 +545,15 @@ async def prepare(
         # default storage, no need to move anything around
         storage = LocalFileSystem(basepath=Path(".").absolute())
 
-    infrastructure = Process
-    if infra_type == "k8s":
-        infrastructure = KubernetesJob
-    elif infra_type == "docker":
-        infrastructure = DockerContainer
+    if infra_block:
+        infrastructure = None
+    else:
+        if infra_type == "k8s":
+            infrastructure = KubernetesJob()
+        elif infra_type == "docker":
+            infrastructure = DockerContainer()
+        else:
+            infrastructure = Process()
 
     deployment = DeploymentYAML(
         name=name,
@@ -553,7 +563,7 @@ async def prepare(
         parameter_openapi_schema=manifest.parameter_openapi_schema,
         manifest_path=manifest_loc,
         storage=storage,
-        infrastructure=infrastructure(),
+        infrastructure=infrastructure,
     )
 
     with open("deployment.yaml", "w") as f:

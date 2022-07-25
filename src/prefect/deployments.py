@@ -52,6 +52,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, TextIO, Union
 
+import json
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
@@ -370,14 +371,20 @@ def load_deployments_from_yaml(
 
 
 class DeploymentYAML(BaseModel):
-    editable_fields = [
-        "name",
-        "description",
-        "tags",
-        "schedule",
-        "parameters",
-        "infrastructure",
-    ]
+    @property
+    def editable_fields(self) -> List[str]:
+        editable_fields = [
+            "name",
+            "description",
+            "tags",
+            "schedule",
+            "parameters",
+        ]
+
+        # allow infra to be edited if not based on a block document
+        if not self.infrastructure._block_document_id:
+            editable_fields.append("infrastructure")
+        return editable_fields
 
     @property
     def header(self) -> str:
@@ -385,12 +392,14 @@ class DeploymentYAML(BaseModel):
 
     def editable_fields_dict(self):
         "Returns YAML compatible dictionary of editable fields, in the correct order"
-        all_fields = self.dict()
+        # avoids issues with UUIDs showing up in YAML
+        all_fields = json.loads(self.json())
         return {field: all_fields[field] for field in self.editable_fields}
 
     def immutable_fields_dict(self):
         "Returns YAML compatible dictionary of immutable fields, in the correct order"
-        all_fields = self.dict()
+        # avoids issues with UUIDs showing up in YAML
+        all_fields = json.loads(self.json())
         return {k: v for k, v in all_fields.items() if k not in self.editable_fields}
 
     # top level metadata
