@@ -320,7 +320,7 @@ The final state of the flow is determined by its return value.  The following ru
 - If an exception is raised directly in the flow function, the flow run is marked as failed.
 - If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and subflows within it. In particular, if _any_ task run or subflow run failed, then the final flow run state is marked as failed.
 - If a flow returns a manually created state, it is used as the state of the final flow run. This allows for manual determination of final state.
-- If the flow run returns _any other object_, then it is marked as successfully completed.
+- If the flow run returns _any other object_, then it is marked as completed.
 
 The following examples illustrate each of these cases:
 
@@ -359,41 +359,43 @@ from prefect import flow, task
 
 @task
 def always_fails_task():
-    raise ValueError("I am bad task")
+    raise ValueError("I fail successfully")
 
 @task
 def always_succeeds_task():
-    return "foo"
+    print("I'm fail safe!")
+    return "success"
 
 @flow
 def always_fails_flow():
-    always_fails_task()
+    always_fails_task.submit().result(raise_on_failure=False)
     always_succeeds_task()
 
-always_fails_flow()
+if __name__ == "__main__":
+    always_fails_flow()
 ```
 
 Running this flow produces the following result:
 
 <div class="terminal">
 ```bash
-22:27:44.840 | INFO    | prefect.engine - Created flow run 'impressive-puma' for flow 'always-fails-flow'
-22:27:44.841 | INFO    | Flow run 'impressive-puma' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
-22:27:45.087 | INFO    | Flow run 'impressive-puma' - Created task run 'always_fails_task-96e4be14-0' for task 'always_fails_task'
-22:27:45.087 | INFO    | Flow run 'impressive-puma' - Executing 'always_fails_task-96e4be14-0' immediately...
-22:27:45.119 | ERROR   | Task run 'always_fails_task-96e4be14-0' - Encountered exception during execution:
+18:32:05.345 | INFO    | prefect.engine - Created flow run 'auburn-lionfish' for flow 'always-fails-flow'
+18:32:05.346 | INFO    | Flow run 'auburn-lionfish' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
+18:32:05.582 | INFO    | Flow run 'auburn-lionfish' - Created task run 'always_fails_task-96e4be14-0' for task 'always_fails_task'
+18:32:05.582 | INFO    | Flow run 'auburn-lionfish' - Submitted task run 'always_fails_task-96e4be14-0' for execution.
+18:32:05.610 | ERROR   | Task run 'always_fails_task-96e4be14-0' - Encountered exception during execution:
 Traceback (most recent call last):
-...
-ValueError: I am bad task
-22:27:45.155 | ERROR   | Task run 'always_fails_task-96e4be14-0' - Finished in state Failed('Task run encountered an exception.')
-22:27:45.155 | ERROR   | Flow run 'impressive-puma' - Encountered exception during execution:
+  ...
+ValueError: I fail successfully
+18:32:05.638 | ERROR   | Task run 'always_fails_task-96e4be14-0' - Finished in state Failed('Task run encountered an exception.')
+18:32:05.658 | INFO    | Flow run 'auburn-lionfish' - Created task run 'always_succeeds_task-9c27db32-0' for task 'always_succeeds_task'
+18:32:05.659 | INFO    | Flow run 'auburn-lionfish' - Executing 'always_succeeds_task-9c27db32-0' immediately...
+I'm fail safe!
+18:32:05.703 | INFO    | Task run 'always_succeeds_task-9c27db32-0' - Finished in state Completed()
+18:32:05.730 | ERROR   | Flow run 'auburn-lionfish' - Finished in state Failed('1/2 states failed.')
 Traceback (most recent call last):
-...
-ValueError: I am bad task
-22:27:45.189 | ERROR   | Flow run 'impressive-puma' - Finished in state Failed('Flow run encountered an exception.')
-Traceback (most recent call last):
-...
-ValueError: I am bad task
+  ...
+ValueError: I fail successfully
 ```
 </div>
 
@@ -402,38 +404,45 @@ ValueError: I am bad task
 If a flow returns one or more futures, the final state is determined based on the underlying states.
 
 ```python hl_lines="15"
-from prefect import task, flow
+from prefect import flow, task
 
 @task
 def always_fails_task():
-    raise ValueError("I am bad task")
+    raise ValueError("I fail successfully")
 
 @task
 def always_succeeds_task():
-    return "foo"
+    print("I'm fail safe!")
+    return "success"
 
 @flow
 def always_succeeds_flow():
-    x = always_fails_task()
-    y = always_succeeds_task()
+    x = always_fails_task.submit().result(raise_on_failure=False)
+    y = always_succeeds_task.submit(wait_for=[x])
     return y
+
+if __name__ == "__main__":
+    always_succeeds_flow()
 ```
 
 Running this flow produces the following result &mdash; it succeeds because it returns the future of the task that succeeds:
 
 <div class="terminal">
 ```bash
-20:55:29.886 | INFO    | prefect.engine - Created flow run 'obedient-pheasant' for flow 'always-succeeds-flow'
-20:55:29.886 | INFO    | Flow run 'obedient-pheasant' - Using task runner 'ConcurrentTaskRunner'
-20:55:29.981 | INFO    | Flow run 'obedient-pheasant' - Created task run 'always_fails_task-58ea43a6-0' for task 'always_fails_task'
-20:55:30.020 | INFO    | Flow run 'obedient-pheasant' - Created task run 'always_succeeds_task-c9014725-0' for task 'always_succeeds_task'
-20:55:30.043 | ERROR   | Task run 'always_fails_task-58ea43a6-0' - Encountered exception during execution:
-Traceback (most recent call last):...
-ValueError: I am bad task
-20:55:30.098 | ERROR   | Task run 'always_fails_task-58ea43a6-0' - Finished in state Failed('Task run encountered an exception.')
-20:55:30.117 | INFO    | Task run 'always_succeeds_task-c9014725-0' - Finished in state Completed()
-20:55:30.726 | INFO    | Flow run 'obedient-pheasant' - Finished in state Completed('All states completed.')
-Completed(message='All states completed.', type=COMPLETED, result=Completed(message=None, type=COMPLETED, result='foo', task_run_id=b48cbd0d-ebf0-460b-88bd-5bc18202d368), flow_run_id=42f8251e-2e13-4bbb-a70d-55275a2e2f5e)
+18:35:24.965 | INFO    | prefect.engine - Created flow run 'whispering-guan' for flow 'always-succeeds-flow'
+18:35:24.965 | INFO    | Flow run 'whispering-guan' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
+18:35:25.204 | INFO    | Flow run 'whispering-guan' - Created task run 'always_fails_task-96e4be14-0' for task 'always_fails_task'
+18:35:25.205 | INFO    | Flow run 'whispering-guan' - Submitted task run 'always_fails_task-96e4be14-0' for execution.
+18:35:25.232 | ERROR   | Task run 'always_fails_task-96e4be14-0' - Encountered exception during execution:
+Traceback (most recent call last):
+  ...
+ValueError: I fail successfully
+18:35:25.265 | ERROR   | Task run 'always_fails_task-96e4be14-0' - Finished in state Failed('Task run encountered an exception.')
+18:35:25.289 | INFO    | Flow run 'whispering-guan' - Created task run 'always_succeeds_task-9c27db32-0' for task 'always_succeeds_task'
+18:35:25.289 | INFO    | Flow run 'whispering-guan' - Submitted task run 'always_succeeds_task-9c27db32-0' for execution.
+I'm fail safe!
+18:35:25.335 | INFO    | Task run 'always_succeeds_task-9c27db32-0' - Finished in state Completed()
+18:35:25.362 | INFO    | Flow run 'whispering-guan' - Finished in state Completed('All states completed.')
 ```
 </div>
 
@@ -484,6 +493,9 @@ Failed(message='1/3 states failed.', type=FAILED, result=(Failed(message='Task r
 ```
 </div>
 
+!!! note "Returning multiple states"
+    When returning multiple states, they must be contained in a `set`, `list`, or `tuple`. If other collection types are used, the result of the contained states will not be checked.
+
 ### Return a manual state
 
 If a flow returns a manually created state, the final state is determined based on the return value.
@@ -494,55 +506,65 @@ from prefect.orion.schemas.states import Completed, Failed
 
 @task
 def always_fails_task():
-    raise ValueError("I am bad task")
+    raise ValueError("I fail successfully")
 
 @task
 def always_succeeds_task():
-    return "foo"
+    print("I'm fail safe!")
+    return "success"
 
 @flow
 def always_succeeds_flow():
-    x = always_fails_task()
-    y = always_succeeds_task()
-    if y.result() == "foo":
+    x = always_fails_task.submit()
+    y = always_succeeds_task.submit()
+    if y.result() == "success":
         return Completed(message="I am happy with this result")
     else:
         return Failed(message="How did this happen!?")
+
+if __name__ == "__main__":
+    always_succeeds_flow()
 ```
 
 Running this flow produces the following result.
 
 <div class="terminal">
 ```bash
-21:01:25.332 | INFO    | prefect.engine - Created flow run 'vivid-chachalaca' for flow 'always-succeeds-flow'
-21:01:25.332 | INFO    | Flow run 'vivid-chachalaca' - Using task runner 'ConcurrentTaskRunner'
-21:01:25.436 | INFO    | Flow run 'vivid-chachalaca' - Created task run 'always_fails_task-58ea43a6-0' for task 'always_fails_task'
-21:01:25.477 | INFO    | Flow run 'vivid-chachalaca' - Created task run 'always_succeeds_task-c9014725-0' for task 'always_succeeds_task'
-21:01:25.503 | ERROR   | Task run 'always_fails_task-58ea43a6-0' - Encountered exception during execution:
-Traceback (most recent call last):...
-ValueError: I am bad task
-21:01:25.539 | ERROR   | Task run 'always_fails_task-58ea43a6-0' - Finished in state Failed('Task run encountered an exception.')
-21:01:25.553 | INFO    | Task run 'always_succeeds_task-c9014725-0' - Finished in state Completed()
-21:01:25.577 | INFO    | Flow run 'vivid-chachalaca' - Finished in state Completed('I am happy with this result')
-Completed(message='I am happy with this result', type=COMPLETED, result=None, flow_run_id=aa393122-66a6-4353-915e-1c4d2c2cdcbd)
+18:37:42.844 | INFO    | prefect.engine - Created flow run 'lavender-elk' for flow 'always-succeeds-flow'
+18:37:42.845 | INFO    | Flow run 'lavender-elk' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
+18:37:43.125 | INFO    | Flow run 'lavender-elk' - Created task run 'always_fails_task-96e4be14-0' for task 'always_fails_task'
+18:37:43.126 | INFO    | Flow run 'lavender-elk' - Submitted task run 'always_fails_task-96e4be14-0' for execution.
+18:37:43.162 | INFO    | Flow run 'lavender-elk' - Created task run 'always_succeeds_task-9c27db32-0' for task 'always_succeeds_task'
+18:37:43.163 | INFO    | Flow run 'lavender-elk' - Submitted task run 'always_succeeds_task-9c27db32-0' for execution.
+18:37:43.175 | ERROR   | Task run 'always_fails_task-96e4be14-0' - Encountered exception during execution:
+Traceback (most recent call last):
+  ...
+ValueError: I fail successfully
+I'm fail safe!
+18:37:43.217 | ERROR   | Task run 'always_fails_task-96e4be14-0' - Finished in state Failed('Task run encountered an exception.')
+18:37:43.236 | INFO    | Task run 'always_succeeds_task-9c27db32-0' - Finished in state Completed()
+18:37:43.264 | INFO    | Flow run 'lavender-elk' - Finished in state Completed('I am happy with this result')
 ```
 </div>
 
 ### Return an object
 
-    When returning multiple states, they must be contained in a `set`, `list`, or `tuple`. If other collection types are used, the result of the contained states will not be checked. 
+If the flow run returns _any other object_, then it is marked as completed.
 
 ```python hl_lines="10"
 from prefect import task, flow
 
 @task
 def always_fails_task():
-    raise ValueError("I am bad task")
+    raise ValueError("I fail successfully")
 
 @flow
 def always_succeeds_flow():
-    always_fails_task()
+    always_fails_task().submit()
     return "foo"
+
+if __name__ == "__main__":
+    always_succeeds_flow()
 ```
 
 Running this flow produces the following result.
@@ -561,7 +583,6 @@ Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-
 ```
 </div>
 
-!!! note "Returning multiple states"
-    When returning multiple states, they must be contained in a `set`, `list`, or `tuple`. If other collection types are used, the result of the contained states will not be checked.
+
 
 
