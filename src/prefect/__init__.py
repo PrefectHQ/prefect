@@ -63,7 +63,7 @@ PREFECT_1_ATTRIBUTES = [
 
 
 class Prefect1ImportInterceptor(importlib.abc.Loader):
-    def find_module(self, fullname, path=None):
+    def find_spec(self, fullname, path, target=None):
         if fullname in PREFECT_1_ATTRIBUTES:
             warnings.warn(
                 f"Attempted import of {fullname!r}, which is part of Prefect 1.x, "
