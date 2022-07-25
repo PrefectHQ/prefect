@@ -5,6 +5,7 @@ import json
 import textwrap
 import traceback
 import yaml
+from enum import Enum
 from inspect import getdoc
 from pathlib import Path
 from typing import List
@@ -31,6 +32,7 @@ from prefect.deployments import (
 )
 from prefect.exceptions import ObjectNotFound, ScriptError
 from prefect.filesystems import LocalFileSystem
+from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.infrastructure.submission import _prepare_infrastructure
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowFilter
@@ -450,22 +452,40 @@ async def preview(path: Path):
         print(_prepare_infrastructure(flow_run, deployment.infrastructure).preview())
 
 
+class Infra(str, Enum):
+    kubernetes = "k8s"
+    process = "process"
+    docker = "docker"
+
+
 @deployment_app.command()
 async def prepare(
     path: str,
-    name: str = typer.Option(
-        None, "--name", "-n", help="The name to give this deployment."
-    ),
     manifest_only: bool = typer.Option(
         False, "--manifest-only", help="Generate the manifest file only."
     ),
+    name: str = typer.Option(None, "--name", "-n", help="The name of the deployment."),
+    tags: List[str] = typer.Option(
+        None,
+        "-t",
+        "--tag",
+        help="One or more optional tags to apply to the deployment.",
+    ),
+    infra_type: Infra = typer.Option(
+        "process",
+        "--infra",
+        "-i",
+        help="The infrastructure type to use.",
+    ),
 ):
+    # validate inputs
     if not name and not manifest_only:
         exit_with_error(
             "A name for this deployment must be provided with the '--name' flag."
         )
-    base_path, flow_obj_name = path.split(":", 1)
 
+    # validate flow
+    base_path, flow_obj_name = path.split(":", 1)
     mod = load_script_as_module(base_path)
 
     try:
@@ -492,17 +512,28 @@ async def prepare(
     if manifest_only:
         typer.Exit(0)
 
+    infrastructure = Process
+    if infra_type == "k8s":
+        infrastructure = KubernetesJob
+    elif infra_type == "docker":
+        infrastructure = DockerContainer
+
     deployment = DeploymentYAML(
         name=name,
         description=getdoc(flow),
+        tags=tags or [],
         flow_name=flow.name,
         parameter_openapi_schema=manifest.parameter_openapi_schema,
         manifest_path=manifest_loc,
-        storage=LocalFileSystem(basepath="."),
+        storage=LocalFileSystem(basepath=Path(".").absolute()),
+        infrastructure=infrastructure(),
     )
 
     with open("deployment.yaml", "w") as f:
-        yaml.dump(deployment.dict(), f, sort_keys=False)
+        f.write(deployment.header)
+        yaml.dump(deployment.editable_fields_dict(), f, sort_keys=False)
+        f.write("###\n### DO NOT EDIT BELOW THIS LINE\n###\n")
+        yaml.dump(deployment.immutable_fields_dict(), f, sort_keys=False)
 
     exit_with_success(
         f"Deployment YAML created at '{Path('deployment.yaml').absolute()!s}'."
