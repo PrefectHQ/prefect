@@ -20,6 +20,13 @@ from prefect.docker import (
 from prefect.infrastructure.docker import CONTAINER_LABELS
 
 
+def _safe_remove_container(container: Container):
+    try:
+        container.remove(force=True)
+    except NotFound:
+        pass
+
+
 @pytest.fixture(scope="session")
 def docker(worker_id: str) -> Generator[DockerClient, None, None]:
     context = docker_client()
@@ -47,9 +54,9 @@ def cleanup_all_new_docker_objects(docker: DockerClient, worker_id: str):
     finally:
         for container in docker.containers.list(all=True):
             if container.labels.get("io.prefect.test-worker") == worker_id:
-                container.remove(force=True)
+                _safe_remove_container(container)
             elif container.labels.get("io.prefect.delete-me"):
-                container.remove(force=True)
+                _safe_remove_container(container)
 
         filters = {"label": f"io.prefect.test-worker={worker_id}"}
         for image in docker.images.list(filters=filters):
@@ -103,7 +110,7 @@ def registry(docker: DockerClient) -> Generator[str, None, None]:
         # Clean up any previously-created registry:
         try:
             preexisting: Container = docker.containers.get("orion-test-registry")
-            preexisting.remove(force=True)  # pragma: no cover
+            _safe_remove_container(preexisting)  # pragma: no cover
         except NotFound:
             pass
 
