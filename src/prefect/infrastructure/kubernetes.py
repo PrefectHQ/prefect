@@ -24,9 +24,6 @@ if TYPE_CHECKING:
     from kubernetes.client import BatchV1Api, CoreV1Api, V1Job, V1Pod
 else:
     kubernetes = lazy_import("kubernetes")
-    kubernetes.config = lazy_import("kubernetes.config")
-    kubernetes.client = lazy_import("kubernetes.client")
-    kubernetes.watch = lazy_import("kubernetes.watch")
 
 
 class KubernetesImagePullPolicy(enum.Enum):
