@@ -58,15 +58,19 @@ def get_cloud_client(
     httpx_settings: dict = None,
     infer_cloud_url: bool = False,
 ) -> "CloudClient":
+    if httpx_settings is not None:
+        httpx_settings = httpx_settings.copy()
+
     if infer_cloud_url is False:
-        host = (host or PREFECT_CLOUD_URL.value(),)
+        host = host or PREFECT_CLOUD_URL.value()
     else:
         configured_url = prefect.settings.PREFECT_API_URL.value()
         host = re.sub(r"accounts/.{36}/workspaces/.{36}\Z", "", configured_url)
+
     return CloudClient(
         host=host,
         api_key=api_key or PREFECT_API_KEY.value(),
-        httpx_settings=httpx_settings.copy(),
+        httpx_settings=httpx_settings,
     )
 
 
