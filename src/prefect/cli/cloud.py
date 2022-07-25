@@ -22,6 +22,8 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_URL,
+    load_profiles,
+    save_profiles,
     update_current_profile,
 )
 
@@ -222,9 +224,18 @@ async def login(
 ):
     """
     Log in to Prefect Cloud.
-    Sets PREFECT_API_URL and PREFECT_API_KEY for profile.
-    If those values are already set they will be overwritten.
+    Creates a new profile configured to use the specified PREFECT_API_KEY.
+    Uses a previous configured profile if it exists.
     """
+    profiles = load_profiles()
+
+    for profile_name in profiles:
+        if key == profiles[profile_name].settings.get(PREFECT_API_KEY):
+            profiles.set_active(profile_name)
+            save_profiles(profiles)
+            exit_with_success(
+                f"Logged in to Prefect Cloud using profile {profile_name!r}"
+            )
 
     async with get_cloud_client(api_key=key) as client:
         try:
@@ -242,11 +253,16 @@ async def login(
     if not workspace_handle:
         workspace_handle = select_workspace(workspaces.keys())
 
-    if workspace_handle not in workspaces:
-        exit_with_error(
-            f"Workspace {workspace_handle!r} not found. "
-            "Leave `--workspace` blank to select a workspace."
-        )
+    cloud_profile_name = app.console.input(
+        "Creating a profile for this Prefect Cloud login. Please specify a profile name: "
+    )
+
+    if cloud_profile_name in profiles:
+        exit_with_error(f"Profile {cloud_profile_name!r} already exists.")
+
+    profiles.add_profile(
+        profiles[profiles.active_name].copy(update={"name": cloud_profile_name})
+    )
 
     profile = update_current_profile(
         {
@@ -254,6 +270,9 @@ async def login(
             PREFECT_API_KEY: key,
         }
     )
+
+    profiles.set_active(cloud_profile_name)
+    save_profiles(profiles)
 
     exit_with_success(
         "Successfully logged in and set workspace to "
@@ -273,6 +292,34 @@ async def logout():
 
 
 @workspace_app.command()
+async def ls():
+    """List available workspaces."""
+
+    confirm_logged_in()
+    async with get_cloud_client() as client:
+        try:
+            workspaces = await client.read_workspaces()
+        except CloudUnauthorizedError:
+            exit_with_error(
+                "Unable to authenticate. Please ensure your credentials are correct."
+            )
+
+    workspaces = {
+        f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
+        for workspace in workspaces
+    }
+
+    table = Table()
+    table.add_column(
+        "[#024dfd]Available Workspaces:", justify="right", style="#8ea0ae", no_wrap=True
+    )
+
+    for i, workspace in enumerate(sorted(workspaces)):
+        table.add_row("  " + workspace)
+    app.console.print(table)
+
+
+@workspace_app.command()
 async def set(
     workspace_handle: str = typer.Option(
         None,
@@ -281,7 +328,7 @@ async def set(
         help="Full handle of workspace, in format '<account_handle>/<workspace_handle>'",
     ),
 ):
-    """Set current workspace."""
+    """Set current workspace. Shows a workspace picker if no workspace is specified."""
     confirm_logged_in()
 
     async with get_cloud_client() as client:
