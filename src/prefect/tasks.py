@@ -281,7 +281,7 @@ class Task(Generic[P, R]):
     ):
         """
         Run the task and return the result. If `return_state` is True returns
-        a Prefect State containing the result.
+        the result wrapped in a Prefect State which provides error handling.
         """
         from prefect.engine import enter_task_run_engine
         from prefect.task_runners import SequentialTaskRunner
