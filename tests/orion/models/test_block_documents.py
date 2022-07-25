@@ -638,7 +638,7 @@ class TestReadBlockDocument:
         result = await models.block_documents.read_block_document_by_name(
             session=session,
             name=block.name,
-            block_type_name=block_schemas[0].block_type.name,
+            block_type_slug=block_schemas[0].block_type.name,
         )
         assert result.id == block.id
         assert result.name == block.name
@@ -670,7 +670,7 @@ class TestReadBlockDocument:
 
         result = await models.block_documents.read_block_document_by_name(
             session,
-            block_type_name=block_schemas[3].block_type.name,
+            block_type_slug=block_schemas[3].block_type.name,
             name=outer_block_document.name,
         )
         assert result.id == outer_block_document.id
@@ -695,7 +695,7 @@ class TestReadBlockDocument:
 
     async def test_read_block_by_name_doesnt_exist(self, session):
         assert not await models.block_documents.read_block_document_by_name(
-            session=session, name="x", block_type_name="not-here"
+            session=session, name="x", block_type_slug="not-here"
         )
 
 
@@ -1482,7 +1482,7 @@ class TestSecretBlockDocuments:
         block = await models.block_documents.read_block_document_by_name(
             session=session,
             name=secret_block_document.name,
-            block_type_name=secret_block_document.block_type.name,
+            block_type_slug=secret_block_document.block_type.name,
         )
 
         assert block.data["x"] == obfuscate_string(X)
@@ -1496,7 +1496,7 @@ class TestSecretBlockDocuments:
         block = await models.block_documents.read_block_document_by_name(
             session=session,
             name=secret_block_document.name,
-            block_type_name=secret_block_document.block_type.name,
+            block_type_slug=secret_block_document.block_type.name,
             include_secrets=True,
         )
 

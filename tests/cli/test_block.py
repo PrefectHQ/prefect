@@ -60,7 +60,7 @@ def test_register_blocks_from_file(tmp_path, orion_client: OrionClient):
     )
 
     block_type = asyncio.run(
-        orion_client.read_block_type_by_name(name="TestForFileRegister")
+        orion_client.read_block_type_by_slug(slug="TestForFileRegister")
     )
     assert block_type is not None
 

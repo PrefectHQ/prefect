@@ -14,7 +14,7 @@ from prefect.blocks.core import Block
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.models.block_types import read_block_type_by_name
+from prefect.orion.models.block_types import read_block_type_by_slug
 from prefect.orion.schemas.actions import BlockSchemaCreate
 from prefect.orion.schemas.core import BlockSchema, BlockSchemaReference
 
@@ -125,13 +125,13 @@ async def _register_nested_block_schemas(
         )
         for reference_values_entry in reference_values:
             # Check to make sure that associated block type exists
-            reference_block_type = await read_block_type_by_name(
+            reference_block_type = await read_block_type_by_slug(
                 session=session,
-                block_type_name=reference_values_entry["block_type_name"],
+                block_type_slug=reference_values_entry["block_type_slug"],
             )
             if reference_block_type is None:
                 raise MissingBlockTypeException(
-                    f"Cannot create block schema because block type {reference_values_entry['block_type_name']!r} was not found."
+                    f"Cannot create block schema because block type {reference_values_entry['block_type_slug']!r} was not found."
                     "Did you forget to register the block type?"
                 )
             # Checks to see if the visited block schema has been previously created
@@ -194,8 +194,8 @@ def _get_fields_for_child_schema(
             # the definition matches the name of the block type that we're
             # currently trying to register a block schema for.
             if (
-                definitions[definition_key]["block_type_name"]
-                == reference_block_type.name
+                definitions[definition_key]["block_type_slug"]
+                == reference_block_type.slug
             ):
                 # Once we've found the matching definition, we not longer
                 # need to iterate

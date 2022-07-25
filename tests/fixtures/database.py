@@ -216,20 +216,21 @@ async def block_type_x(session):
     #       the existing block
     try:
         block_type = await models.block_types.create_block_type(
-            session=session, block_type=schemas.actions.BlockTypeCreate(name="x")
+            session=session,
+            block_type=schemas.actions.BlockTypeCreate(name="x", slug="x"),
         )
         await session.commit()
         return block_type
     except sa.exc.IntegrityError:
-        return await models.block_types.read_block_type_by_name(
-            session=session, block_type_name="x"
+        return await models.block_types.read_block_type_by_slug(
+            session=session, block_type_slug="x"
         )
 
 
 @pytest.fixture
 async def block_type_y(session):
     block_type = await models.block_types.create_block_type(
-        session=session, block_type=schemas.actions.BlockTypeCreate(name="y")
+        session=session, block_type=schemas.actions.BlockTypeCreate(name="y", slug="y")
     )
     await session.commit()
     return block_type
@@ -238,7 +239,7 @@ async def block_type_y(session):
 @pytest.fixture
 async def block_type_z(session):
     block_type = await models.block_types.create_block_type(
-        session=session, block_type=schemas.actions.BlockTypeCreate(name="z")
+        session=session, block_type=schemas.actions.BlockTypeCreate(name="z", slug="z")
     )
     await session.commit()
     return block_type
