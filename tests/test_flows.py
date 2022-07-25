@@ -12,7 +12,11 @@ from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.core import Block
 from prefect.client import OrionClient
 from prefect.context import PrefectObjectRegistry
-from prefect.exceptions import InvalidNameError, ParameterTypeError
+from prefect.exceptions import (
+    InvalidNameError,
+    ParameterTypeError,
+    ReservedArgumentError,
+)
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
@@ -110,6 +114,14 @@ class TestFlow:
     def test_invalid_name(self, name):
         with pytest.raises(InvalidNameError, match="contains an invalid character"):
             Flow(fn=lambda: 1, name=name)
+
+    def test_using_return_state_in_flow_definition_raises_reserved(self):
+        with pytest.raises(
+            ReservedArgumentError, match="'return_state' is a reserved argument name"
+        ):
+            f = Flow(
+                name="test", fn=lambda return_state: 42, version="A", description="B"
+            )
 
 
 class TestDecorator:
@@ -219,6 +231,16 @@ class TestFlowCall:
         flow_run = await get_most_recent_flow_run()
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
+
+    async def test_call_with_return_state_true(self):
+        @flow()
+        def foo(x, y=3, z=3):
+            return x + y + z
+
+        state = foo(1, 2, return_state=True)
+
+        assert isinstance(state, State)
+        assert state.result() == 6
 
     def test_call_coerces_parameter_types(self):
         class CustomType(pydantic.BaseModel):
