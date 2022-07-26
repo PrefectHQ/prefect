@@ -4,11 +4,12 @@ import json
 import shutil
 import urllib.parse
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Optional
 
 import anyio
 import fsspec
 from pydantic import Field, SecretStr, validator
+from typing_extensions import Literal
 
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
