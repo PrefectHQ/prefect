@@ -50,11 +50,12 @@ You may also include default values with `--show-defaults`:
 
 ```bash
 $ prefect config view --show-defaults
-PREFECT_PROFILE="default"
-PREFECT_LOGGING_LEVEL='DEBUG'
-PREFECT_AGENT_PREFETCH_SECONDS='10'
-PREFECT_AGENT_QUERY_INTERVAL='5.0'
-PREFECT_DEBUG_MODE='False'
+PREFECT_PROFILE='default'
+PREFECT_AGENT_PREFETCH_SECONDS='10' (from defaults)
+PREFECT_AGENT_QUERY_INTERVAL='5.0' (from defaults)
+PREFECT_API_KEY='None' (from defaults)
+PREFECT_API_REQUEST_TIMEOUT='30.0' (from defaults)
+PREFECT_API_URL='None' (from defaults)
 ...
 ```
 
@@ -115,11 +116,11 @@ The `prefect profile` CLI commands enable you to create, review, and manage prof
 | Command | Description |
 | --- | --- |
 | create | Create a new profile. |
-| use | Switch the active profile. |
 | delete | Delete the given profile. |
 | inspect | Display settings from a given profile; defaults to active. |
 | ls | List profile names. |
 | rename | Change the name of a profile. |
+| use | Switch the active profile. |
 
 The default profile starts out empty:
 
@@ -257,48 +258,13 @@ VAR=X
 VAR=Y
 ```
 
-View all settings for a profile, including defaults:
+View all settings for a profile:
 
 ```bash
-$ prefect profile inspect --show-defaults
-PREFECT_PROFILE='default'
-PREFECT_API_URL=''
-PREFECT_AGENT_PREFETCH_SECONDS='10'
-PREFECT_AGENT_QUERY_INTERVAL='5.0'
-PREFECT_API_KEY='None'
-PREFECT_API_REQUEST_TIMEOUT='30.0'
-PREFECT_API_URL='None'
-PREFECT_DEBUG_MODE='False'
-PREFECT_HOME='/Users/terry/.prefect'
-PREFECT_LOGGING_EXTRA_LOGGERS=''
-PREFECT_LOGGING_LEVEL='INFO'
-PREFECT_LOGGING_ORION_BATCH_INTERVAL='2.0'
-PREFECT_LOGGING_ORION_BATCH_SIZE='4000000'
-PREFECT_LOGGING_ORION_ENABLED='True'
-PREFECT_LOGGING_ORION_MAX_LOG_SIZE='1000000'
-PREFECT_LOGGING_SERVER_LEVEL='WARNING'
-PREFECT_LOGGING_SETTINGS_PATH='${PREFECT_HOME}/logging.yml'
-PREFECT_ORION_ANALYTICS_ENABLED='True'
-PREFECT_ORION_API_DEFAULT_LIMIT='200'
-PREFECT_ORION_API_HOST='127.0.0.1'
-PREFECT_ORION_API_PORT='4200'
-PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT='5.0'
-PREFECT_ORION_DATABASE_CONNECTION_URL='sqlite+aiosqlite:////${PREFECT_HOME}/orion.db'
-PREFECT_ORION_DATABASE_ECHO='False'
-PREFECT_ORION_DATABASE_MIGRATE_ON_START='True'
-PREFECT_ORION_DATABASE_TIMEOUT='1.0'
-PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS='0:00:05'
-PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED='True'
-PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS='5.0'
-PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE='100'
-PREFECT_ORION_SERVICES_SCHEDULER_ENABLED='True'
-PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE='500'
-PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS='60.0'
-PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS='100'
-PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME='100 days, 0:00:00'
-PREFECT_ORION_UI_ENABLED='True'
-PREFECT_PROFILES_PATH='${PREFECT_HOME}/profiles.toml'
-PREFECT_TEST_MODE='False'
+$ prefect profile inspect cloud
+PREFECT_API_URL='https://app.prefect.cloud/api/accounts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx
+x/workspaces/xxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+PREFECT_API_KEY='xxx_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'          
 ```
 
 ### Using profiles

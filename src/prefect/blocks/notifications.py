@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from pydantic import Field, SecretStr
-from slack_sdk.webhook.async_client import AsyncWebhookClient
 
 from prefect.blocks.core import Block
 
@@ -47,6 +46,8 @@ class SlackWebhook(NotificationBlock):
     url: SecretStr = Field(..., title="Webhook URL")
 
     def block_initialization(self) -> None:
+        from slack_sdk.webhook.async_client import AsyncWebhookClient
+
         self._async_webhook_client = AsyncWebhookClient(url=self.url.get_secret_value())
 
     async def notify(self, body: str, subject: Optional[str] = None):
