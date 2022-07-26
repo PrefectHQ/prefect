@@ -1,4 +1,6 @@
 import abc
+import glob
+import os
 import shutil
 import urllib.parse
 from pathlib import Path
@@ -217,7 +219,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
 
         self.filesystem.get(from_path, local_path, recursive=True)
 
-    async def put_directory(self, local_path: str = None, to_path: str = None) -> bytes:
+    async def put_directory(self, local_path: str = None, to_path: str = None) -> int:
         """
         Uploads a directory from a given local path to a remote direcotry.
 
@@ -227,9 +229,17 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
             to_path = str(self.basepath)
 
         if local_path is None:
-            local_path = "**"
+            local_path = "."
 
-        self.filesystem.put(local_path, to_path, recursive=True)
+        counter = 0
+        for f in glob.glob("**", recursive=True):
+            if to_path.endswith("/"):
+                fpath = to_path + f
+            else:
+                fpath = to_path + "/" + f
+            self.filesystem.put_file(f, fpath)
+            counter += 1
+        return counter
 
     async def read_path(self, path: str) -> bytes:
         path = self._resolve_path(path)
