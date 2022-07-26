@@ -143,9 +143,7 @@ async def update_deployment(
 
     query = (
         sa.select(db.Deployment)
-        .where(
-            db.Deployment.id = deployment_id
-        )
+        .where(db.Deployment.id == deployment_id)
         .execution_options(populate_existing=True)
     )
     result = await session.execute(query)
