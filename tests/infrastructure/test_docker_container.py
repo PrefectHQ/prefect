@@ -556,10 +556,10 @@ async def test_container_name_collision(docker: "DockerClient"):
     container = DockerContainer(
         command=["echo", "hello"], name=base_name, auto_remove=False
     )
-    result = await container.run()
+    result = await container.run(None, None)
     created_container: "Container" = docker.containers.get(result.identifier)
     assert created_container.name == base_name
 
-    result = await container.run()
+    result = await container.run(None, None)
     created_container: "Container" = docker.containers.get(result.identifier)
     assert created_container.name == base_name + "-1"
