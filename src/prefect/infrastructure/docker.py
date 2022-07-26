@@ -3,15 +3,10 @@ import re
 import sys
 import urllib.parse
 import warnings
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
-import docker
-import docker.errors
-import docker.models.containers
 import packaging.version
 from anyio.abc import TaskStatus
-from docker import DockerClient
-from docker.models.containers import Container
 from pydantic import Field, validator
 from slugify import slugify
 from typing_extensions import Literal
@@ -22,6 +17,15 @@ from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import AutoEnum
+from prefect.utilities.importtools import lazy_import
+
+if TYPE_CHECKING:
+    import docker
+    from docker import DockerClient
+    from docker.models.containers import Container
+else:
+    docker = lazy_import("docker")
+
 
 # Labels to apply to all containers started by Prefect
 CONTAINER_LABELS = {

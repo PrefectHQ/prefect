@@ -144,46 +144,6 @@ When using Prefect Cloud, we recommend configuring remote storage for persisting
 
 By default, Prefect uses local file system storage to persist flow code and flow and task results. For local development and testing this may be adequate. Be aware, however, that local storage is not guaranteed to persist data reliably between flow or task runs, particularly when using container-based environments such as Docker or Kubernetes, or running tasks with distributed computing tools like Dask and Ray.
 
-Before doing this next step, make sure you have the information needed to connect to and authenticate with a remote data store. In this example we're connecting to an AWS S3 bucket, but you could also Google Cloud Storage or Azure Blob Storage.
-
-In the same terminal you just used to log into Prefect Cloud, run the `prefect storage create` command. In this case we choose the `S3 Storage` option and supply the bucket name and AWS IAM access key ID and secret access key. You should use the details of a service and authentication method that you have previously configured.
-
-<div class='terminal'>
-```bash
-$ prefect storage create
-Found the following storage types:
-0) Azure Blob Storage
-    Store data in an Azure blob storage container.
-1) File Storage
-    Store data as a file on local or remote file systems.
-2) Google Cloud Storage
-    Store data in a GCS bucket.
-3) Local Storage
-    Store data in a run's local file system.
-4) S3 Storage
-    Store data in an AWS S3 bucket.
-5) Temporary Local Storage
-    Store data in a temporary directory in a run's local file system.
-Select a storage type to create: 4
-
-You've selected S3 Storage. It has 6 option(s).
-BUCKET: the-curious-case-of-benjamin-bucket
-AWS ACCESS KEY ID (optional): XXXXXXXXXXXXXXXXXXXX
-AWS SECRET ACCESS KEY (optional): XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-AWS SESSION TOKEN (optional):
-PROFILE NAME (optional):
-REGION NAME (optional):
-Choose a name for this storage configuration: benjamin-bucket
-Validating configuration...
-Registering storage with server...
-Registered storage 'benjamin-bucket' with identifier '0f536aaa-216f-4c72-9c31-f3272bcdf977'.
-You do not have a default storage configuration. Would you like to set this as your default storage? [Y/n]: y
-Set default storage to 'benjamin-bucket'.
-```
-</div>
-
-Note that the storage parameters differ between storage types. See the [Storage](/concepts/storage/) documentation for details on parameters for storage types.
-
 ## Run a flow with Prefect Cloud
 
 Okay, you're all set to run a local flow with Prefect Cloud. Notice that everything works just like running local flows with the Prefect API server, but because you configured `PREFECT_API_URL` and `PREFECT_API_KEY`, your flow runs show up in Prefect Cloud!
