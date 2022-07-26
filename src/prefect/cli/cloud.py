@@ -54,6 +54,19 @@ def confirm_logged_in():
         )
 
 
+def get_current_workspace(workspaces):
+    workspace_handles_by_id = {
+        workspace[
+            "workspace_id"
+        ]: f"{workspace['account_handle']}/{workspace['workspace_handle']}"
+        for workspace in workspaces
+    }
+    current_workspace_id = re.match(
+        r".*accounts/.{36}/workspaces/(.{36})\Z", PREFECT_API_URL.value()
+    ).groups()[0]
+    return workspace_handles_by_id[current_workspace_id]
+
+
 def get_cloud_client(
     host: str = None,
     api_key: str = None,
@@ -229,14 +242,6 @@ async def login(
     """
     profiles = load_profiles()
 
-    for profile_name in profiles:
-        if key == profiles[profile_name].settings.get(PREFECT_API_KEY):
-            profiles.set_active(profile_name)
-            save_profiles(profiles)
-            exit_with_success(
-                f"Logged in to Prefect Cloud using profile {profile_name!r}"
-            )
-
     async with get_cloud_client(api_key=key) as client:
         try:
             workspaces = await client.read_workspaces()
@@ -245,13 +250,25 @@ async def login(
                 "Unable to authenticate. Please ensure your credentials are correct."
             )
 
-    workspaces = {
+    for profile_name in profiles:
+        if key == profiles[profile_name].settings.get(PREFECT_API_KEY):
+            profiles.set_active(profile_name)
+            save_profiles(profiles)
+            with prefect.context.use_profile(profile_name):
+                current_workspace = get_current_workspace(workspaces)
+                exit_with_success(
+                    f"Logged in to Prefect Cloud using profile {profile_name!r}.\n"
+                    f"Workspace is currently set to {current_workspace!r}. "
+                    f"The workspace can be changed using `prefect workspace set`."
+                )
+
+    workspace_handles = {
         f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
         for workspace in workspaces
     }
 
     if not workspace_handle:
-        workspace_handle = select_workspace(workspaces.keys())
+        workspace_handle = select_workspace(workspace_handles.keys())
 
     cloud_profile_name = app.console.input(
         "Creating a profile for this Prefect Cloud login. Please specify a profile name: "
@@ -271,7 +288,9 @@ async def login(
     profiles.update_profile(
         cloud_profile_name,
         {
-            PREFECT_API_URL: build_url_from_workspace(workspaces[workspace_handle]),
+            PREFECT_API_URL: build_url_from_workspace(
+                workspace_handles[workspace_handle]
+            ),
             PREFECT_API_KEY: key,
         },
     )
@@ -280,8 +299,9 @@ async def login(
     save_profiles(profiles)
 
     exit_with_success(
-        "Successfully logged in and set workspace to "
-        f"{workspace_handle!r} in profile {cloud_profile_name}."
+        f"Logged in to Prefect Cloud using profile {cloud_profile_name!r}.\n"
+        f"Workspace is currently set to {workspace_handle!r}. "
+        f"The workspace can be changed using `prefect workspace set`."
     )
 
 
@@ -301,10 +321,6 @@ async def ls():
     """List available workspaces."""
 
     confirm_logged_in()
-    print(PREFECT_API_URL.value())
-    current_workspace_id = re.match(
-        r".*accounts/.{36}/workspaces/(.{36})\Z", PREFECT_API_URL.value()
-    ).groups()[0]
 
     async with get_cloud_client() as client:
         try:
@@ -314,30 +330,23 @@ async def ls():
                 "Unable to authenticate. Please ensure your credentials are correct."
             )
 
-    workspace_handles = {
+    workspace_handle_details = {
         f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
         for workspace in workspaces
     }
 
-    workspace_ids = {
-        workspace[
-            "workspace_id"
-        ]: f"{workspace['account_handle']}/{workspace['workspace_handle']}"
-        for workspace in workspaces
-    }
-
-    current_workspace = workspace_ids[current_workspace_id]
+    current_workspace = get_current_workspace(workspaces)
 
     table = Table()
     table.add_column(
         "[#024dfd]Available Workspaces:", justify="right", style="#8ea0ae", no_wrap=True
     )
 
-    for i, workspace in enumerate(sorted(workspace_handles)):
-        if workspace == current_workspace:
-            table.add_row(f"[green]  * {workspace}[/green]")
+    for i, workspace_handle in enumerate(sorted(workspace_handle_details)):
+        if workspace_handle == current_workspace:
+            table.add_row(f"[green]  * {workspace_handle}[/green]")
         else:
-            table.add_row("  " + workspace)
+            table.add_row(f"  {workspace_handle}")
     app.console.print(table)
 
 
