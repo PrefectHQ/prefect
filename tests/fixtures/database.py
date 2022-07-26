@@ -201,7 +201,8 @@ async def deployment(session, flow, flow_function, infrastructure_document_id):
             flow_id=flow.id,
             flow_data=DataDocument.encode("cloudpickle", flow_function),
             schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=1)
+                interval=datetime.timedelta(days=1),
+                anchor_date=pendulum.datetime(2020, 1, 1),
             ),
             infrastructure_document_id=infrastructure_document_id,
         ),
