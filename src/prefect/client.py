@@ -1081,12 +1081,12 @@ class OrionClient:
             else:
                 raise
 
-    async def read_block_type_by_name(self, name: str) -> BlockType:
+    async def read_block_type_by_slug(self, slug: str) -> BlockType:
         """
-        Read a block type by its name.
+        Read a block type by its slug.
         """
         try:
-            response = await self._client.get(f"/block_types/name/{name}")
+            response = await self._client.get(f"/block_types/slug/{slug}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -1186,7 +1186,7 @@ class OrionClient:
     async def read_block_document_by_name(
         self,
         name: str,
-        block_type_name: str,
+        block_type_slug: str,
         include_secrets: bool = True,
     ):
         """
@@ -1195,7 +1195,7 @@ class OrionClient:
 
         Args:
             name: The block document name.
-            block_type_name: The block type name
+            block_type_slug: The block type slug.
             include_secrets (bool): whether to include secret values
                 on the Block, corresponding to Pydantic's `SecretStr` and
                 `SecretBytes` fields. These fields are automatically obfuscated
@@ -1211,7 +1211,7 @@ class OrionClient:
         """
         try:
             response = await self._client.get(
-                f"/block_types/name/{block_type_name}/block_documents/name/{name}",
+                f"/block_types/slug/{block_type_slug}/block_documents/name/{name}",
                 params=dict(include_secrets=include_secrets),
             )
         except httpx.HTTPStatusError as e:

@@ -1,13 +1,34 @@
 """
 Reduced schemas for accepting API actions.
 """
+import re
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, validator
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
+
+LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
+
+
+def validate_block_type_slug(value):
+    if not bool(re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)):
+        raise ValueError(
+            "slug must only contain lowercase letters, numbers, and dashes"
+        )
+    return value
+
+
+def validate_block_document_name(value):
+    if value is not None and not bool(
+        re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)
+    ):
+        raise ValueError(
+            "name must only contain lowercase letters, numbers, and dashes"
+        )
+    return value
 
 
 class FlowCreate(
@@ -208,6 +229,7 @@ class BlockTypeCreate(
         name="BlockTypeCreate",
         include_fields=[
             "name",
+            "slug",
             "logo_url",
             "documentation_url",
             "description",
@@ -219,6 +241,11 @@ class BlockTypeCreate(
 
     class Config:
         extra = "forbid"
+
+    # validators
+    _validate_slug_format = validator("slug", allow_reuse=True)(
+        validate_block_type_slug
+    )
 
 
 class BlockTypeUpdate(PrefectBaseModel):
@@ -261,6 +288,11 @@ class BlockDocumentCreate(
 
     class Config:
         extra = "forbid"
+
+    # validators
+    _validate_name_format = validator("name", allow_reuse=True)(
+        validate_block_document_name
+    )
 
 
 class BlockDocumentUpdate(PrefectBaseModel):

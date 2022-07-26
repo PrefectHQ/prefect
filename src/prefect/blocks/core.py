@@ -1,6 +1,7 @@
 import hashlib
 import inspect
 import logging
+import warnings
 from abc import ABC
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Dict, FrozenSet, List, Optional, Type, Union
@@ -10,6 +11,7 @@ from griffe.dataclasses import Docstring, DocstringSection
 from griffe.docstrings.dataclasses import DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
+from slugify import slugify
 from typing_extensions import Self, get_args, get_origin
 
 import prefect
@@ -27,7 +29,7 @@ def block_schema_to_key(schema: BlockSchema) -> str:
     """
     Defines the unique key used to lookup the Block class for a given schema.
     """
-    return f"{schema.block_type.name}:{schema.checksum}"
+    return f"{schema.block_type.slug}"
 
 
 class InvalidBlockRegistration(Exception):
@@ -47,7 +49,7 @@ class Block(BaseModel, ABC):
             """
             Customizes Pydantic's schema generation feature to add blocks related information.
             """
-            schema["block_type_name"] = model.get_block_type_name()
+            schema["block_type_slug"] = model.get_block_type_slug()
             # Ensures args and code examples aren't included in the schema
             description = model.get_description()
             if description:
@@ -111,6 +113,7 @@ class Block(BaseModel, ABC):
     # when the block is registered with Orion. If not set, block
     # type name will default to the class name.
     _block_type_name: Optional[str] = None
+    _block_type_slug: Optional[str] = None
     # Attributes used to set properties on a block type when registered
     # with Orion.
     _logo_url: Optional[HttpUrl] = None
@@ -138,6 +141,10 @@ class Block(BaseModel, ABC):
         return cls._block_type_name or cls.__name__
 
     @classmethod
+    def get_block_type_slug(cls):
+        return slugify(cls._block_type_slug or cls.get_block_type_name())
+
+    @classmethod
     def get_block_capabilities(cls) -> FrozenSet[str]:
         """
         Returns the block capabilities for this Block. Recursively collects all block
@@ -154,7 +161,7 @@ class Block(BaseModel, ABC):
     @classmethod
     def _to_block_schema_reference_dict(cls):
         return dict(
-            block_type_name=cls.get_block_type_name(),
+            block_type_slug=cls.get_block_type_slug(),
             block_schema_checksum=cls._calculate_schema_checksum(),
         )
 
@@ -357,6 +364,7 @@ class Block(BaseModel, ABC):
         """
         return BlockType(
             id=cls._block_type_id or uuid4(),
+            slug=cls.get_block_type_slug(),
             name=cls.get_block_type_name(),
             logo_url=cls._logo_url,
             documentation_url=cls._documentation_url,
@@ -392,6 +400,17 @@ class Block(BaseModel, ABC):
             # Look up the block class by dispatch
             else cls.get_block_class_from_schema(block_document.block_schema)
         )
+
+        if (
+            block_document.block_schema.checksum
+            != block_cls._calculate_schema_checksum()
+        ):
+            warnings.warn(
+                f"Block document has schema checksum {block_document.block_schema.checksum} "
+                f"which does not match the schema checksum for class {block_cls.__name__!r}. "
+                "This indicates the schema has changed and this block may not load.",
+                stacklevel=2,
+            )
 
         block = block_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
@@ -449,7 +468,8 @@ class Block(BaseModel, ABC):
         the current class with the data stored in the block document.
 
         Args:
-            name: The name of the block document.
+            name: The name or slug of the block document. A block document slug is a
+                string with the format <block_type_slug>/<block_document_name>
 
         Raises:
             ValueError: If the requested block document is not found.
@@ -457,15 +477,39 @@ class Block(BaseModel, ABC):
         Returns:
             An instance of the current class hydrated with the data stored in the
             block document with the specified name.
+
+        Examples:
+            Load from a Block subclass with a block document name:
+            ```python
+            class Custom(Block):
+                message: str
+
+            Custom(message="Hello!").save("my-custom-message")
+
+            loaded_block = Custom.load("my-custom-message")
+            ```
+
+            Load from Block with a block document slug:
+            class Custom(Block):
+                message: str
+
+            Custom(message="Hello!").save("my-custom-message")
+
+            loaded_block = Block.load("custom/my-custom-message")
         """
+        if cls.__name__ == "Block":
+            block_type_slug, block_document_name = name.split("/", 1)
+        else:
+            block_type_slug = cls.get_block_type_slug()
+            block_document_name = name
         async with prefect.client.get_client() as client:
             try:
                 block_document = await client.read_block_document_by_name(
-                    name=name, block_type_name=cls.get_block_type_name()
+                    name=block_document_name, block_type_slug=block_type_slug
                 )
             except prefect.exceptions.ObjectNotFound as e:
                 raise ValueError(
-                    f"Unable to find block document named {name} for block type {cls.get_block_type_name()}"
+                    f"Unable to find block document named {block_document_name} for block type {block_type_slug}"
                 ) from e
         return cls._from_block_document(block_document)
 
@@ -513,8 +557,8 @@ class Block(BaseModel, ABC):
                             await type_.register_type_and_schema(client=client)
 
             try:
-                block_type = await client.read_block_type_by_name(
-                    name=cls.get_block_type_name()
+                block_type = await client.read_block_type_by_slug(
+                    slug=cls.get_block_type_slug()
                 )
                 await client.update_block_type(
                     block_type_id=block_type.id, block_type=cls._to_block_type()
@@ -583,7 +627,7 @@ class Block(BaseModel, ABC):
                     if block_document_id is None:
                         existing_block_document = (
                             await client.read_block_document_by_name(
-                                name=name, block_type_name=self.get_block_type_name()
+                                name=name, block_type_slug=self.get_block_type_slug()
                             )
                         )
                         block_document_id = existing_block_document.id
