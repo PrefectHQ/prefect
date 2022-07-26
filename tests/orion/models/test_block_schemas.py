@@ -619,6 +619,9 @@ class TestReadBlockSchemas:
 
     @pytest.fixture
     async def nested_schemas(self, session):
+        # Ignore warnings caused by Block reuse in fixture
+        warnings.filterwarnings("ignore", category=UserWarning)
+
         class A(Block):
             d: str
             e: str
