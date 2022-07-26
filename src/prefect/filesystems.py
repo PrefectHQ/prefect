@@ -52,8 +52,6 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
 
     @validator("basepath", pre=True)
     def cast_pathlib(cls, value):
-        if value == "foo":
-            raise ValueError("custom")
         if isinstance(value, Path):
             return str(value)
         return value
