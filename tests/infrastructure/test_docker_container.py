@@ -523,7 +523,7 @@ async def test_does_not_warn_about_gateway_if_not_using_linux(
 
 @pytest.mark.service("docker")
 async def test_container_result(docker: "DockerClient"):
-    result = await DockerContainer(command=["echo", "hello"]).run()
+    result = await DockerContainer(command=["echo", "hello"]).run(None, None)
     assert bool(result)
     assert result.status_code == 0
     assert result.identifier
@@ -537,7 +537,7 @@ async def test_container_metadata(docker: "DockerClient"):
         command=["echo", "hello"],
         name="test-name",
         labels={"test.foo": "a", "test.bar": "b"},
-    ).run()
+    ).run(None, None)
     container: "Container" = docker.containers.get(result.identifier)
     assert container.name == "test-name"
     assert container.labels["test.foo"] == "a"
