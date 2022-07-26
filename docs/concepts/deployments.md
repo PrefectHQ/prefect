@@ -46,7 +46,7 @@ A deployment additionally enables you to:
 - Assign custom parameter values for flow runs based on the deployment
 - Create ad-hoc flow runs from the API or Prefect UI
 
-Deployments can package your flow code and store the manifest in the API &mdash; either Prefect Cloud or a local Prefect Orion server run with `prefect orion start`. The manifest contains the parameter schema so the UI can display a rich interface for providing parameters for a run. 
+Deployments can package your flow code and pass the manifest to the API &mdash; either Prefect Cloud or a local Prefect Orion server run with `prefect orion start`. The manifest contains the parameter schema so the UI can display a rich interface for providing parameters for a run. 
 
 Deployments are uniquely identified by the combination of: `flow_name/deployment_name`. 
 
@@ -56,7 +56,7 @@ To create a deployment you need:
 - A JSON manifest file
 - A `deployment.yaml` file
 
-Optionally, you may reference storage and infrastructure blocks that define where flow code and results are stored and how your flow execution environment is configured.
+Optionally, you may reference pre-configured storage and infrastructure blocks that define where flow code and results are stored and how your flow execution environment is configured.
 
 ### Deployments and flows
 
@@ -83,7 +83,7 @@ This enables you to run a single flow with different parameters, on multiple sch
 
 Manifests are JSON descriptions of a workflow. The manifest lives alongside your workflow code and contains workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters. 
 
-The default name format for manifests is `[deployment-name]-manifest.json`, but you may rename the file as long as it is referenced correctly in the `deployment.yaml` file.
+The default name format for manifests is `[flow-function-name]-manifest.json`, but you may rename the file as long as it is referenced correctly in the `deployment.yaml` file.
 
 ```json
 {
@@ -166,7 +166,7 @@ $ prefect deployment build [OPTIONS] PATH
 ```
 </div>
 
-Path to the flow is specified in the format `path:flow-name` &mdash; The path and filename, a colon, then the name of the entrypoint flow function.
+Path to the flow is specified in the format `path:flow-function-name` &mdash; The path and filename, a colon, then the name of the entrypoint flow function.
 
 For example:
 
@@ -204,7 +204,7 @@ For example:
 
 <div class="terminal">
 ```bash
-$ prefect deployment create ./catfact-deployment.yaml
+$ prefect deployment apply ./catfact-deployment.yaml
 Successfully loaded 'catfact'
 Deployment '76a9f1ac-4d8c-4a92-8869-615bec502685' successfully created.
 ```
@@ -227,10 +227,10 @@ $ prefect deployment ls
 
 ![Viewing deployments in the Prefect UI](/img/ui/orion-deployments.png)
 
-When you run a deployed flow in Prefect Orion, the following happens:
+When you run a deployed flow with Prefect Orion, the following happens:
 
 - The user runs the deployment, which creates a flow run. (The API creates flow runs automatically for deployments with schedules.)
-- An agent picks up the flow run from a work queue and uses a flow runner to create infrastructure for the run.
+- An agent picks up the flow run from a work queue and uses an infrastructure block to create infrastructure for the run.
 - The flow run executes within the infrastructure.
 
 [Work queues and agents](/concepts/work-queues/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. There is no default global work queue or agent, so to execute deployment flow runs you need to configure at least one work queue and agent. 
@@ -262,7 +262,6 @@ Deployment properties include:
 | `manifest_path` | Path to the flow manifest. |
 | `storage_document_id` | Storage block configured for the deployment. |
 | `infrastructure_document_id` | Infrastructure block configured for the deployment. |
-| `infrastructure` | Infrastructure configuration details for the deployment. |
 
 
 You can inspect a deployment using the CLI with the `prefect deployment inspect` command, referencing the deployment with `<flow_name>/<deployment_name>`.
