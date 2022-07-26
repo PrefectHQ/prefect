@@ -33,6 +33,8 @@ def replace_name_with_slug(fields):
 
 
 def upgrade():
+    op.execute("PRAGMA foreign_keys=OFF")
+
     with op.batch_alter_table("block_type", schema=None) as batch_op:
         batch_op.add_column(sa.Column("slug", sa.String(), nullable=True))
         batch_op.drop_index("uq_block_type__name")
@@ -73,6 +75,8 @@ def upgrade():
 
     with op.batch_alter_table("block_type", schema=None) as batch_op:
         batch_op.alter_column("slug", existing_type=sa.VARCHAR(), nullable=False)
+
+    op.execute("PRAGMA foreign_keys=ON")
 
 
 def downgrade():
