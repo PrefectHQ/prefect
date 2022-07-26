@@ -65,7 +65,6 @@ async def update_deployment(
     deployment_id: str = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
-    now = pendulum.now()
     try:
         model = await models.deployments.update_deployment(
             session=session, deployment_id=deployment_id, deployment=deployment
