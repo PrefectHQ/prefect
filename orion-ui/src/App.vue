@@ -25,6 +25,7 @@
 
 <script lang="ts" setup>
   import {
+    blockCapabilitiesApiKey,
     blockCatalogCreateRouteKey,
     blockCatalogRouteKey,
     blockDocumentsApiKey,
@@ -64,6 +65,7 @@
   import { notificationsApi } from './services/notificationsApi'
   import ContextSidebar from '@/components/ContextSidebar.vue'
   import { routes } from '@/router/routes'
+  import { blockCapabilitiesApi } from '@/services/blockCapabilitiesApi'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { flowsApi } from '@/services/flowsApi'
@@ -72,6 +74,7 @@
   import { workQueuesApi } from '@/services/workQueuesApi'
   import { can } from '@/utilities/permissions'
 
+  provide(blockCapabilitiesApiKey, blockCapabilitiesApi)
   provide(blockDocumentsApiKey, blockDocumentsApi)
   provide(blockSchemasApiKey, blockSchemasApi)
   provide(blockTypesApiKey, blockTypesApi)
