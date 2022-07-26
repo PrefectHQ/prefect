@@ -368,7 +368,13 @@ class DeploymentYAML(BaseModel):
 
     def yaml_dict(self) -> dict:
         # avoids issues with UUIDs showing up in YAML
-        all_fields = json.loads(self.json(exclude={"storage": {"_filesystem"}}))
+        all_fields = json.loads(
+            self.json(
+                exclude={
+                    "storage": {"_filesystem", "filesystem", "_remote_file_system"}
+                }
+            )
+        )
         return all_fields
 
     def editable_fields_dict(self):
