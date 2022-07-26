@@ -250,7 +250,7 @@ async def login(
                 "Unable to authenticate with Prefect Cloud. Please ensure your credentials are correct."
             )
         except httpx.HTTPStatusError as exc:
-            exit_with_error("Error connecting to Prefect Cloud")
+            exit_with_error(f"Error connecting to Prefect Cloud: {exc!r}")
 
     for profile_name in profiles:
         if key == profiles[profile_name].settings.get(PREFECT_API_KEY):
