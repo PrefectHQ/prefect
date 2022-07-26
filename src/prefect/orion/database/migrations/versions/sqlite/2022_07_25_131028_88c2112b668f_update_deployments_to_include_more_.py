@@ -56,10 +56,3 @@ def downgrade():
             type_="foreignkey",
         )
         batch_op.drop_column("storage_document_id")
-
-    with op.batch_alter_table("flow_run", schema=None) as batch_op:
-        batch_op.drop_constraint(
-            batch_op.f("fk_flow_run__storage_document_id__block_document"),
-            type_="foreignkey",
-        )
-        batch_op.drop_column("storage_document_id")
