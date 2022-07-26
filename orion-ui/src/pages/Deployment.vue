@@ -16,7 +16,7 @@
             <DeploymentDescription :description="deployment.description" />
           </template>
           <template v-else>
-            <DeploymentDescriptionEmptyState />
+            <DeploymentDescriptionEmptyState :deployment="deployment" />
           </template>
 
           <template v-if="!media.xl">
