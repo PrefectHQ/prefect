@@ -56,10 +56,11 @@ from typing import Any, Dict, Iterable, List, Optional, TextIO, Union
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
+from prefect.blocks.core import Block
 from prefect.client import OrionClient, inject_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
-from prefect.filesystems import LocalFileSystem, RemoteFileSystem
+from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_script
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.orion import schemas
@@ -375,6 +376,7 @@ class DeploymentYAML(BaseModel):
                 }
             )
         )
+        all_fields["storage"]["_block_type_slug"] = self.storage.get_block_type_slug()
         return all_fields
 
     def editable_fields_dict(self):
@@ -405,9 +407,14 @@ class DeploymentYAML(BaseModel):
     infrastructure: Union[DockerContainer, KubernetesJob, Process] = Field(
         default_factory=Process
     )
-    storage: Union[LocalFileSystem, RemoteFileSystem] = Field(
-        default_factory=LocalFileSystem
-    )
+    storage: Block = Field(default_factory=LocalFileSystem)
     parameter_openapi_schema: ParameterSchema = Field(
         ..., description="The parameter schema of the flow, including defaults."
     )
+
+    @validator("storage", pre=True)
+    def cast_storage_to_block_type(cls, value):
+        if isinstance(value, dict):
+            block = lookup_type(Block, value.pop("_block_type_slug"))
+            return block(**value)
+        return value
