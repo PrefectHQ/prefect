@@ -414,7 +414,7 @@ async def build(
         None,
         "--infra-block",
         "-ib",
-        help="The type/name of the infrastructure block to use.",
+        help="The slug of the infrastructure block to use.",
     ),
     storage_block: str = typer.Option(
         None,
@@ -469,17 +469,7 @@ async def build(
         storage = LocalFileSystem(basepath=Path(".").absolute())
 
     if infra_block:
-        prefix, block_name = infra_block.split("/")
-        if prefix not in ["process", "docker", "k8s"]:
-            exit_with_error(
-                f"Infrastructure Block must be prefixed with one of 'process', 'docker' or 'k8s', {infra_block} was provided"
-            )
-        if prefix == "k8s":
-            infrastructure = await KubernetesJob.load(block_name)
-        elif prefix == "docker":
-            infrastructure = await DockerContainer.load(block_name)
-        elif prefix == "process":
-            infrastructure = await Process.load(block_name)
+        infrastructure = await Block.load(infra_block)
 
     else:
         if infra_type == "k8s":
