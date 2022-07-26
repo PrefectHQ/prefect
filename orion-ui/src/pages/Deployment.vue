@@ -12,7 +12,10 @@
     <p-tabs v-if="deployment" :tabs="['Overview', 'Parameters']">
       <template #overview>
         <p-content secondary>
-          <p-key-value label="Schedule" :value="schedule" />
+          <p>
+            {{ deployment.description ?? 'If there is no description, I show up!' }}
+          </p>
+
           <template v-if="!media.xl">
             <DeploymentDetails :deployment="deployment" />
           </template>
@@ -48,8 +51,6 @@
 
   const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
   const deployment = computed(() => deploymentSubscription.response)
-
-  const schedule = computed(() => deployment.value?.schedule ?? '')
 
   function routeToDeployments(): void {
     router.push(routes.deployments())
