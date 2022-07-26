@@ -140,7 +140,7 @@ class TestCreateBlockDocument:
         )
         await session.commit()
 
-        assert result.name.startswith("anonymous:")
+        assert result.name.startswith("anonymous-")
         assert result.data == dict(y=1)
         assert result.block_schema_id == block_schemas[0].id
         assert result.block_schema.checksum == block_schemas[0].checksum
@@ -150,7 +150,7 @@ class TestCreateBlockDocument:
             session=session, block_document_id=result.id
         )
         assert db_block_document.id == result.id
-        assert db_block_document.name.startswith("anonymous:")
+        assert db_block_document.name.startswith("anonymous-")
 
     async def test_create_anonymous_block_document_with_name(
         self, session, block_schemas
@@ -305,7 +305,7 @@ class TestCreateBlockDocument:
         inner_block_document = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="inner_block_document",
+                name="inner-block-document",
                 data=dict(x=1),
                 block_schema_id=block_schemas[1].id,
                 block_type_id=block_schemas[1].block_type_id,
@@ -315,7 +315,7 @@ class TestCreateBlockDocument:
         middle_block_document_1 = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="middle_block_document_1",
+                name="middle-block-document-1",
                 data=dict(y=2),
                 block_schema_id=block_schemas[2].id,
                 block_type_id=block_schemas[2].block_type_id,
@@ -324,7 +324,7 @@ class TestCreateBlockDocument:
         middle_block_document_2 = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="middle_block_document_2",
+                name="middle-block-document-2",
                 data={
                     "b": {"$ref": {"block_document_id": inner_block_document.id}},
                     "z": "ztop",
@@ -336,7 +336,7 @@ class TestCreateBlockDocument:
         outer_block_document = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="outer_block_document",
+                name="outer-block-document",
                 data={
                     "c": {"$ref": {"block_document_id": middle_block_document_1.id}},
                     "d": {"$ref": {"block_document_id": middle_block_document_2.id}},
@@ -576,7 +576,7 @@ class TestReadBlockDocument:
         inner_block_document = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="inner_block_document",
+                name="inner-block-document",
                 data=dict(x=1),
                 block_schema_id=block_schemas[1].id,
                 block_type_id=block_schemas[1].block_type_id,
@@ -586,7 +586,7 @@ class TestReadBlockDocument:
         outer_block_document = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="outer_block_document",
+                name="outer-block-document",
                 data={
                     "b": {"$ref": {"block_document_id": inner_block_document.id}},
                     "z": "ztop",
@@ -638,7 +638,7 @@ class TestReadBlockDocument:
         result = await models.block_documents.read_block_document_by_name(
             session=session,
             name=block.name,
-            block_type_slug=block_schemas[0].block_type.name,
+            block_type_slug=block_schemas[0].block_type.slug,
         )
         assert result.id == block.id
         assert result.name == block.name
@@ -648,7 +648,7 @@ class TestReadBlockDocument:
         inner_block_document = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="inner_block_document",
+                name="inner-block-document",
                 data=dict(x=1),
                 block_schema_id=block_schemas[1].id,
                 block_type_id=block_schemas[1].block_type_id,
@@ -658,7 +658,7 @@ class TestReadBlockDocument:
         outer_block_document = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="outer_block_document",
+                name="outer-block-document",
                 data={
                     "b": {"$ref": {"block_document_id": inner_block_document.id}},
                     "z": "ztop",
@@ -670,7 +670,7 @@ class TestReadBlockDocument:
 
         result = await models.block_documents.read_block_document_by_name(
             session,
-            block_type_slug=block_schemas[3].block_type.name,
+            block_type_slug=block_schemas[3].block_type.slug,
             name=outer_block_document.name,
         )
         assert result.id == outer_block_document.id
@@ -693,7 +693,7 @@ class TestReadBlockDocument:
             }
         }
 
-    async def test_read_block_by_name_doesnt_exist(self, session):
+    async def test_read_block_by_slug_doesnt_exist(self, session):
         assert not await models.block_documents.read_block_document_by_name(
             session=session, name="x", block_type_slug="not-here"
         )
@@ -709,7 +709,7 @@ class TestReadBlockDocuments:
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
                     block_schema_id=block_schemas[0].id,
-                    name="Block 1",
+                    name="block-1",
                     block_type_id=block_schemas[0].block_type_id,
                 ),
             )
@@ -719,7 +719,7 @@ class TestReadBlockDocuments:
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
                     block_schema_id=block_schemas[1].id,
-                    name="Block 2",
+                    name="block-2",
                     block_type_id=block_schemas[1].block_type_id,
                     data={"x": 1},
                 ),
@@ -730,7 +730,7 @@ class TestReadBlockDocuments:
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
                     block_schema_id=block_schemas[2].id,
-                    name="Block 3",
+                    name="block-3",
                     block_type_id=block_schemas[2].block_type_id,
                     data={"y": 2},
                 ),
@@ -741,7 +741,7 @@ class TestReadBlockDocuments:
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
                     block_schema_id=block_schemas[1].id,
-                    name="Block 4",
+                    name="block-4",
                     block_type_id=block_schemas[1].block_type_id,
                 ),
             )
@@ -751,7 +751,7 @@ class TestReadBlockDocuments:
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
                     block_schema_id=block_schemas[2].id,
-                    name="Block 5",
+                    name="block-5",
                     block_type_id=block_schemas[2].block_type_id,
                 ),
             )
@@ -771,7 +771,7 @@ class TestReadBlockDocuments:
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
-                    name="Nested Block 1",
+                    name="nested-block-1",
                     block_schema_id=block_schemas[3].id,
                     block_type_id=block_schemas[3].block_type_id,
                     data={
@@ -786,7 +786,7 @@ class TestReadBlockDocuments:
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
-                    name="Nested Block 2",
+                    name="nested-block-2",
                     block_schema_id=block_schemas[4].id,
                     block_type_id=block_schemas[4].block_type_id,
                     data={
@@ -853,15 +853,15 @@ class TestReadBlockDocuments:
             session=session, limit=2
         )
         assert [b.id for b in read_block_documents] == [
-            block_documents[0].id,
             block_documents[1].id,
+            block_documents[2].id,
         ]
         read_block_documents = await models.block_documents.read_block_documents(
             session=session, limit=2, offset=2
         )
         assert [b.id for b in read_block_documents] == [
-            block_documents[2].id,
             block_documents[3].id,
+            block_documents[4].id,
         ]
 
     async def test_read_block_documents_filter_capabilities(
@@ -876,7 +876,7 @@ class TestReadBlockDocuments:
             )
         )
         assert len(fly_and_swim_block_documents) == 1
-        assert [b.id for b in fly_and_swim_block_documents] == [block_documents[5].id]
+        assert [b.id for b in fly_and_swim_block_documents] == [block_documents[6].id]
 
         fly_block_documents = await models.block_documents.read_block_documents(
             session=session,
@@ -886,9 +886,9 @@ class TestReadBlockDocuments:
         )
         assert len(fly_block_documents) == 3
         assert [b.id for b in fly_block_documents] == [
-            block_documents[1].id,
-            block_documents[3].id,
-            block_documents[5].id,
+            block_documents[2].id,
+            block_documents[4].id,
+            block_documents[6].id,
         ]
 
         swim_block_documents = await models.block_documents.read_block_documents(
@@ -898,7 +898,7 @@ class TestReadBlockDocuments:
             ),
         )
         assert len(swim_block_documents) == 1
-        assert [b.id for b in swim_block_documents] == [block_documents[5].id]
+        assert [b.id for b in swim_block_documents] == [block_documents[6].id]
 
 
 class TestDeleteBlockDocument:
@@ -1240,7 +1240,7 @@ class TestUpdateBlockDocument:
         inner_block_document = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="inner_block_document",
+                name="inner-block-document",
                 data=dict(x=1),
                 block_schema_id=block_schemas[1].id,
                 block_type_id=block_schemas[1].block_type_id,
@@ -1250,7 +1250,7 @@ class TestUpdateBlockDocument:
         middle_block_document_1 = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="middle_block_document_1",
+                name="middle-block-document-1",
                 data=dict(y=2),
                 block_schema_id=block_schemas[2].id,
                 block_type_id=block_schemas[2].block_type_id,
@@ -1259,7 +1259,7 @@ class TestUpdateBlockDocument:
         middle_block_document_2 = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="middle_block_document_2",
+                name="middle-block-document-2",
                 data={
                     "b": {"$ref": {"block_document_id": inner_block_document.id}},
                     "z": "ztop",
@@ -1271,7 +1271,7 @@ class TestUpdateBlockDocument:
         outer_block_document = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="outer_block_document",
+                name="outer-block-document",
                 data={
                     "c": {"$ref": {"block_document_id": middle_block_document_1.id}},
                     "d": {"$ref": {"block_document_id": middle_block_document_2.id}},
@@ -1328,7 +1328,7 @@ class TestUpdateBlockDocument:
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=BlockDocumentCreate(
-                    name="new_middle_block_document_1",
+                    name="new-middle-block-document-1",
                     data=dict(y=2000),
                     block_schema_id=block_schemas[2].id,
                     block_type_id=block_schemas[2].block_type_id,
@@ -1422,7 +1422,7 @@ class TestSecretBlockDocuments:
         block = await models.block_documents.create_block_document(
             session=session,
             block_document=schemas.actions.BlockDocumentCreate(
-                name="secret block",
+                name="secret-block",
                 data=dict(x=X, y=Y, z=Z),
                 block_type_id=secret_block_type.id,
                 block_schema_id=secret_block_schema.id,
@@ -1438,7 +1438,7 @@ class TestSecretBlockDocuments:
         block = await models.block_documents.create_block_document(
             session=session,
             block_document=schemas.actions.BlockDocumentCreate(
-                name="secret block",
+                name="secret-block",
                 data=dict(x=X, y=Y, z=Z),
                 block_type_id=secret_block_type.id,
                 block_schema_id=secret_block_schema.id,
@@ -1482,7 +1482,7 @@ class TestSecretBlockDocuments:
         block = await models.block_documents.read_block_document_by_name(
             session=session,
             name=secret_block_document.name,
-            block_type_slug=secret_block_document.block_type.name,
+            block_type_slug=secret_block_document.block_type.slug,
         )
 
         assert block.data["x"] == obfuscate_string(X)
@@ -1496,7 +1496,7 @@ class TestSecretBlockDocuments:
         block = await models.block_documents.read_block_document_by_name(
             session=session,
             name=secret_block_document.name,
-            block_type_slug=secret_block_document.block_type.name,
+            block_type_slug=secret_block_document.block_type.slug,
             include_secrets=True,
         )
 
