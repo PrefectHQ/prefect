@@ -9,6 +9,8 @@ import sqlalchemy as sa
 from alembic import op
 from slugify import slugify
 
+from prefect.blocks.core import Block
+
 # revision identifiers, used by Alembic.
 revision = "f335f9633eec"
 down_revision = "2fe8ef6a6514"
@@ -59,10 +61,14 @@ def upgrade():
             )
         ).all()
         for block_schema_id, block_schema_fields in block_schemas_result:
+            new_fields = replace_name_with_slug(block_schema_fields)
             connection.execute(
                 sa.update(BLOCK_SCHEMA)
                 .where(BLOCK_SCHEMA.c.id == block_schema_id)
-                .values(fields=replace_name_with_slug(block_schema_fields))
+                .values(
+                    fields=replace_name_with_slug(block_schema_fields),
+                    checksum=Block._calculate_schema_checksum(new_fields),
+                )
             )
 
     with op.batch_alter_table("block_type", schema=None) as batch_op:
