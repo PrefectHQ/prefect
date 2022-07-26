@@ -3,7 +3,7 @@
 ## 2.0b15
 
 ### Uniquely refer to blocks with slugs
-Blocks are a convienient way to secure store and retreive configuration. Now, retreiving configuration stored with blocks is even easier with slugs, both human and machine readable unique identifiers. By deafult, slugs are a concatination of [block-type-name]/[block-document-name], but they are editable. Slugs and Block document names may only include alphanumeric characters and dashes.
+Blocks are a convenient way to secure store and retrieve configuration. Now, retrieving configuration stored with blocks is even easier with slugs, both human and machine readable unique identifiers. By default, slugs are a concatenation of [block-type-name]/[block-document-name], but they are editable. Slugs and block document names may only include alphanumeric characters and dashes.
 
 **Warning**: This breaking change makes this release incompatible with previous versions of the Orion server and Prefect Cloud 2.0
 
