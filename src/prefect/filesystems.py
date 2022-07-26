@@ -1,6 +1,5 @@
 import abc
 import glob
-import os
 import shutil
 import urllib.parse
 from pathlib import Path
@@ -8,7 +7,7 @@ from typing import Optional
 
 import anyio
 import fsspec
-from pydantic import Field, validator, SecretStr
+from pydantic import Field, SecretStr, validator
 
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
