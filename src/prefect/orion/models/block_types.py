@@ -84,22 +84,22 @@ async def read_block_type(
 
 
 @inject_db
-async def read_block_type_by_name(
-    session: sa.orm.Session, block_type_name: str, db: OrionDBInterface
+async def read_block_type_by_slug(
+    session: sa.orm.Session, block_type_slug: str, db: OrionDBInterface
 ):
     """
-    Reads a block type by name.
+    Reads a block type by slug.
 
     Args:
         session: A database session
-        block_type_name: a block type name
+        block_type_slug: a block type slug
 
     Returns:
         db.BlockType: an ORM block type model
 
     """
     result = await session.execute(
-        sa.select(db.BlockType).where(db.BlockType.name == block_type_name)
+        sa.select(db.BlockType).where(db.BlockType.slug == block_type_slug)
     )
     return result.scalar()
 

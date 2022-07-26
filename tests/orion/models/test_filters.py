@@ -352,6 +352,16 @@ class TestCountFlowsModels:
             ),
             1,
         ],
+        # empty filter
+        [dict(flow_filter=filters.FlowFilter()), 4],
+        # multiple empty filters
+        [
+            dict(
+                flow_filter=filters.FlowFilter(),
+                flow_run_filter=filters.FlowRunFilter(),
+            ),
+            4,
+        ],
     ]
 
     @pytest.mark.parametrize("kwargs,expected", params)
@@ -549,6 +559,16 @@ class TestCountFlowRunModels:
             ),
             1,
         ],
+        # empty filter
+        [dict(flow_filter=filters.FlowFilter()), 12],
+        # multiple empty filters
+        [
+            dict(
+                flow_filter=filters.FlowFilter(),
+                flow_run_filter=filters.FlowRunFilter(),
+            ),
+            12,
+        ],
     ]
 
     @pytest.mark.parametrize("kwargs,expected", params)
@@ -724,6 +744,16 @@ class TestCountTaskRunsModels:
             ),
             0,
         ],
+        # empty filter
+        [dict(flow_filter=filters.FlowFilter()), 10],
+        # multiple empty filters
+        [
+            dict(
+                flow_filter=filters.FlowFilter(),
+                flow_run_filter=filters.FlowRunFilter(),
+            ),
+            10,
+        ],
     ]
 
     @pytest.mark.parametrize("kwargs,expected", params)
@@ -874,6 +904,16 @@ class TestCountDeploymentModels:
                 flow_filter=filters.FlowFilter(name=dict(any_=["f-2"])),
             ),
             0,
+        ],
+        # empty filter
+        [dict(flow_filter=filters.FlowFilter()), 3],
+        # multiple empty filters
+        [
+            dict(
+                flow_filter=filters.FlowFilter(),
+                flow_run_filter=filters.FlowRunFilter(),
+            ),
+            3,
         ],
     ]
 
