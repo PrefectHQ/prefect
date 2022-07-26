@@ -307,7 +307,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
 
     @property
     def basepath(self) -> str:
-        return f"s3://{self.bucket}"
+        return f"s3://{self.bucket_path}"
 
     @property
     def filesystem(self) -> RemoteFileSystem:
@@ -317,7 +317,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
         if self.aws_secret_access_key:
             settings["secret"] = self.aws_secret_access_key.get_secret_value()
         self._remote_file_system = RemoteFileSystem(
-            basepath=f"s3://{self.bucket}", settings=settings
+            basepath=f"s3://{self.bucket_path}", settings=settings
         )
         return self._remote_file_system
 
@@ -381,7 +381,7 @@ class GCS(ReadableFileSystem, WritableFileSystem):
 
     @property
     def basepath(self) -> str:
-        return f"gcs://{self.bucket}"
+        return f"gcs://{self.bucket_path}"
 
     @property
     def filesystem(self) -> RemoteFileSystem:
@@ -396,7 +396,7 @@ class GCS(ReadableFileSystem, WritableFileSystem):
                     "Unable to load provided service_account_info. Please make sure that the provided value is a valid JSON string."
                 )
         remote_file_system = RemoteFileSystem(
-            basepath=f"gcs://{self.bucket}", settings=settings
+            basepath=f"gcs://{self.bucket_path}", settings=settings
         )
         return remote_file_system
 
