@@ -469,8 +469,11 @@ async def build(
             raise ValueError(f"Unknown storage block provided: {storage_block}")
 
         # upload current directory to storage location
-        await storage.put_directory()
-        app.console.print(f"Successfully uploaded to {storage.basepath}", style="green")
+        file_count = await storage.put_directory()
+        app.console.print(
+            f"Successfully uploaded {file_count} files to {storage.basepath}",
+            style="green",
+        )
     else:
         # default storage, no need to move anything around
         storage = LocalFileSystem(basepath=Path(".").absolute())
