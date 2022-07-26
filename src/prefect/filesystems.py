@@ -1,9 +1,10 @@
 import abc
 import glob
+import json
 import shutil
 import urllib.parse
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 import anyio
 import fsspec
@@ -205,7 +206,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         return f"{self.basepath.rstrip('/')}/{urlpath.lstrip('/')}"
 
     async def get_directory(
-        self, from_path: str = None, local_path: str = None
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
         """
         Downloads a directory from a given remote path to a local direcotry.
@@ -220,7 +221,9 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
 
         self.filesystem.get(from_path, local_path, recursive=True)
 
-    async def put_directory(self, local_path: str = None, to_path: str = None) -> int:
+    async def put_directory(
+        self, local_path: Optional[str] = None, to_path: Optional[str] = None
+    ) -> int:
         """
         Uploads a directory from a given local path to a remote direcotry.
 
@@ -281,6 +284,14 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
 class S3(ReadableFileSystem, WritableFileSystem):
     """
     Store data as a file on AWS S3.
+
+    Example:
+        Load stored S3 config:
+        ```python
+        from prefect.filesystems import S3
+
+        s3_block = S3.load("BLOCK_NAME")
+        ```
     """
 
     _block_type_name = "S3"
@@ -308,7 +319,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
         return self._remote_file_system
 
     async def get_directory(
-        self, from_path: str = None, local_path: str = None
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
         """
         Downloads a directory from a given remote path to a local direcotry.
@@ -319,9 +330,86 @@ class S3(ReadableFileSystem, WritableFileSystem):
             from_path=from_path, local_path=local_path
         )
 
-    async def put_directory(self, local_path: str = None, to_path: str = None) -> int:
+    async def put_directory(
+        self, local_path: Optional[str] = None, to_path: Optional[str] = None
+    ) -> int:
         """
         Uploads a directory from a given local path to a remote direcotry.
+
+        Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        """
+        return await self.filesystem.put_directory(
+            local_path=local_path, to_path=to_path
+        )
+
+    async def read_path(self, path: str) -> bytes:
+        return await self.filesystem.read_path(path)
+
+    async def write_path(self, path: str, content: bytes) -> str:
+        return await self.filesystem.write_path(path=path, content=content)
+
+
+class GCS(ReadableFileSystem, WritableFileSystem):
+    """
+    Store data as a file on Google Cloud Storage.
+
+    Example:
+        Load stored GCS config:
+        ```python
+        from prefect.filesystems import GCS
+
+        gcs_block = GCS.load("BLOCK_NAME")
+        ```
+    """
+
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CD4wwbiIKPkZDt4U3TEuW/c112fe85653da054b6d5334ef662bec4/gcp.png?h=250"
+
+    type: Literal["gcs"] = "gcs"
+    bucket: str = Field(
+        ..., description="A GCS bucket path", example="my-gcs-bucket/a-directory-within"
+    )
+    service_account_info: Optional[SecretStr] = Field(
+        None, description="The contents of a service account keyfile as a JSON string."
+    )
+    project: Optional[str] = Field(
+        None,
+        description="The project the GCS bucket resides in. If not provided, the project will be inferred from the credentials or environment.",
+    )
+
+    @property
+    def filesystem(self) -> RemoteFileSystem:
+        settings = {}
+        if self.service_account_info:
+            try:
+                settings["token"] = json.loads(
+                    self.service_account_info.get_secret_value()
+                )
+            except json.JSONDecodeError:
+                raise ValueError(
+                    "Unable to load provided service_account_info. Please make sure that the provided value is a valid JSON string."
+                )
+        remote_file_system = RemoteFileSystem(
+            basepath=f"gcs://{self.bucket}", settings=settings
+        )
+        return remote_file_system
+
+    async def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> bytes:
+        """
+        Downloads a directory from a given remote path to a local directory.
+
+        Defaults to downloading the entire contents of the block's basepath to the current working directory.
+        """
+        return await self.filesystem.get_directory(
+            from_path=from_path, local_path=local_path
+        )
+
+    async def put_directory(
+        self, local_path: Optional[str] = None, to_path: Optional[str] = None
+    ) -> int:
+        """
+        Uploads a directory from a given local path to a remote directory.
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
