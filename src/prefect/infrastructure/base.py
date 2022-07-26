@@ -25,7 +25,7 @@ class Infrastructure(Block, abc.ABC):
     env: Dict[str, str] = pydantic.Field(default_factory=dict)
     labels: Dict[str, str] = pydantic.Field(default_factory=dict)
     name: Optional[str] = None
-    command: List[str] = None
+    command: List[str] = ["python", "-m", "prefect.engine"]
 
     @abc.abstractmethod
     async def run(
