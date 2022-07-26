@@ -55,10 +55,11 @@ async def create_deployment(
                     include={
                         "schedule",
                         "is_schedule_active",
+                        "description",
                         "tags",
                         "parameters",
-                        "flow_data",
                         "updated",
+                        "storage_document_id",
                         "infrastructure_document_id",
                     },
                 ),
