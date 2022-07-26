@@ -17,29 +17,29 @@ Task runners provide an execution environment for tasks. In a flow decorator, yo
 
 The default task runner is the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner). 
 
-!!! note "You must use .submit for non-sequential code"
+!!! note "Use `.submit` to run your tasks asynchronously"
 
-To run tasks asynchronously, you must use the `.submit` method when you call them. If you just call the task as you would normally in Python code it will run synchronously, even though you are using the ConcurrentTaskRunner.
+To run tasks asynchronously use the `.submit` method when you call them. If you call a task as you would normally in Python code it will run synchronously, even if you are calling the task within a flow that uses the    `ConcurrentTaskRunner`, `DaskTaskRunner` or `RayTaskRunner`.
 
-Many real-world data workflows benefit from true parallel, distributed task execution. For these use cases, the following Prefect-developed task runners for parallel or distributed task execution may be installed as [Prefect Collections](/collections/overview/). 
+Many real-world data workflows benefit from true parallel, distributed task execution. For these use cases, the following Prefect-developed task runners for parallel task execution may be installed as [Prefect Collections](/collections/overview/). 
 
 - [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) runs tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
 - [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) runs tasks requiring parallel execution using [Ray](https://www.ray.io/).
 
-These task runners can spin up a local Dask cluster or Ray instance on the fly, or let you connect with a Dask or Ray environment you've set up separately, potentially taking advantage of massively parallel computing environments.
+These task runners can spin up a local Dask cluster or Ray instance on the fly, or let you connect with a Dask or Ray environment you've set up separately. Then you can take advantage of massively parallel computing environments.
 
-As you'll see, using Dask or Ray in your flows is straightforward, enabling you to choose the execution environment that fits your particular needs. 
+Use Dask or Ray in your flows to choose the execution environment that fits your particular needs. 
 
-To show you how it works, let's start small.
+To show you how they work, let's start small.
 
 !!! note "Remote storage"
-    We recommend configuring [remote file storage](/concepts/storage/) for task execution with the `DaskTaskRunner` and `RayTaskRunner`. This ensures tasks executing in Dask or Ray have access to task result storage, particularly when accessing a Dask or Ray instance outside of your execution environment.
+    We recommend configuring [remote file storage](/concepts/storage/) for task execution with `DaskTaskRunner` or `RayTaskRunner`. This ensures tasks executing in Dask or Ray have access to task result storage, particularly when accessing a Dask or Ray instance outside of your execution environment.
 
 ## Configuring a task runner
 
 You may have seen this briefly in a previous tutorial, but let's look a bit more closely at how you can configure a specific task runner for a flow.
 
-[`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner). This task runner runs all tasks synchronously and may be useful when used as a debugging tool in conjunction with async code.
+Let's start with the [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner). This task runner runs all tasks synchronously and may be useful when used as a debugging tool in conjunction with async code.
 
 Let's start with this simple flow. We import the `SequentialTaskRunner`, specify a `task_runner` on the flow, and call the tasks with `.submit()`.
 
@@ -152,7 +152,7 @@ if __name__ == "__main__":
 
 Note that, because you're using `DaskTaskRunner` in a script, you must use `if __name__ == "__main__":` or you'll see warnings and errors. 
 
-Now run `dask_flow.py`. 
+Now run `dask_flow.py`. If you get warning about accepting incoming network connections, that's okay. Everythign is local in this example.
 
 <div class="terminal">
 ```
@@ -191,9 +191,81 @@ goodbye trillian
 ```
 </div>
 
-Notice that `DaskTaskRunner` automatically creates a local Dask cluster, then immediately starts executing all of the tasks in parallel. The number of workers used is based on the number of cores on your machine. 
+`DaskTaskRunner` automatically creates a local Dask cluster, then starts executing all of the tasks in parallel. The results do not return in the same order as the sequential code above.
 
-You can specify the mix of processes and threads explicitly by passing parameters to `DaskTaskRunner`. See [Running tasks on Dask](/concepts/task-runners/#running_tasks_on_dask) for details.
+Notice what happens if you do not use the `submit` method when calling tasks:
+
+```python
+from prefect import flow, task
+from prefect_dask.task_runners import DaskTaskRunner
+
+
+@task
+def say_hello(name):
+    print(f"hello {name}")
+
+
+@task
+def say_goodbye(name):
+    print(f"goodbye {name}")
+
+
+@flow(task_runner=DaskTaskRunner())
+def greetings(names):
+    for name in names:
+        say_hello(name)
+        say_goodbye(name)
+
+
+if __name__ == "__main__":
+    greetings(["arthur", "trillian", "ford", "marvin"])
+```
+
+<div class="terminal">
+```bash
+$ python dask_flow.py
+00:15:01.061 | INFO    | prefect.engine - Created flow run 'wooden-bug' for flow 'greetings'
+00:15:01.061 | INFO    | Flow run 'wooden-bug' - Starting 'DaskTaskRunner'; submitted tasks will be run concurrently...
+00:15:01.062 | INFO    | prefect.task_runner.dask - Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
+00:15:03.605 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at http://127.0.0.1:8787/status
+00:15:03.711 | INFO    | Flow run 'wooden-bug' - Created task run 'say_hello-811087cd-0' for task 'say_hello'
+00:15:03.711 | INFO    | Flow run 'wooden-bug' - Executing 'say_hello-811087cd-0' immediately...
+hello arthur
+00:15:03.732 | INFO    | Task run 'say_hello-811087cd-0' - Finished in state Completed()
+00:15:03.742 | INFO    | Flow run 'wooden-bug' - Created task run 'say_goodbye-261e56a8-0' for task 'say_goodbye'
+00:15:03.742 | INFO    | Flow run 'wooden-bug' - Executing 'say_goodbye-261e56a8-0' immediately...
+goodbye arthur
+00:15:03.762 | INFO    | Task run 'say_goodbye-261e56a8-0' - Finished in state Completed()
+00:15:03.771 | INFO    | Flow run 'wooden-bug' - Created task run 'say_hello-811087cd-1' for task 'say_hello'
+00:15:03.771 | INFO    | Flow run 'wooden-bug' - Executing 'say_hello-811087cd-1' immediately...
+hello trillian
+00:15:03.789 | INFO    | Task run 'say_hello-811087cd-1' - Finished in state Completed()
+00:15:03.800 | INFO    | Flow run 'wooden-bug' - Created task run 'say_goodbye-261e56a8-1' for task 'say_goodbye'
+00:15:03.800 | INFO    | Flow run 'wooden-bug' - Executing 'say_goodbye-261e56a8-1' immediately...
+goodbye trillian
+00:15:03.820 | INFO    | Task run 'say_goodbye-261e56a8-1' - Finished in state Completed()
+00:15:03.828 | INFO    | Flow run 'wooden-bug' - Created task run 'say_hello-811087cd-2' for task 'say_hello'
+00:15:03.828 | INFO    | Flow run 'wooden-bug' - Executing 'say_hello-811087cd-2' immediately...
+hello ford
+00:15:03.847 | INFO    | Task run 'say_hello-811087cd-2' - Finished in state Completed()
+00:15:03.857 | INFO    | Flow run 'wooden-bug' - Created task run 'say_goodbye-261e56a8-2' for task 'say_goodbye'
+00:15:03.858 | INFO    | Flow run 'wooden-bug' - Executing 'say_goodbye-261e56a8-2' immediately...
+goodbye ford
+00:15:03.875 | INFO    | Task run 'say_goodbye-261e56a8-2' - Finished in state Completed()
+00:15:03.885 | INFO    | Flow run 'wooden-bug' - Created task run 'say_hello-811087cd-3' for task 'say_hello'
+00:15:03.886 | INFO    | Flow run 'wooden-bug' - Executing 'say_hello-811087cd-3' immediately...
+hello marvin
+00:15:03.905 | INFO    | Task run 'say_hello-811087cd-3' - Finished in state Completed()
+00:15:03.915 | INFO    | Flow run 'wooden-bug' - Created task run 'say_goodbye-261e56a8-3' for task 'say_goodbye'
+00:15:03.915 | INFO    | Flow run 'wooden-bug' - Executing 'say_goodbye-261e56a8-3' immediately...
+goodbye marvin
+00:15:03.933 | INFO    | Task run 'say_goodbye-261e56a8-3' - Finished in state Completed()
+00:15:04.202 | INFO    | Flow run 'wooden-bug' - Finished in state Completed('All states completed.')
+```
+</div>
+
+The tasks are not submitted to the `DaskTaskRunner` and are run sequentially.
+
 
 ## Running parallel tasks with Ray
 
@@ -235,7 +307,7 @@ Now run `ray_flow.py`.
 ```
 $ python ray_flow.py
 19:55:53.579 | INFO    | prefect.engine - Created flow run 'vegan-mouflon' for flow 'greetings'
-19:55:53.580 | INFO    | Flow run 'vegan-mouflon' - Using task runner 'RayTaskRunner'
+19:55:53.580 | INFO    | Flow run 'vegan-mouflon' - Using task runner 'RayTaskRunner' TK************
 19:55:53.580 | INFO    | prefect.task_runner.ray - Creating a local Ray instance
 2022-02-22 19:55:58,179	INFO services.py:1374 -- View the Ray dashboard at http://127.0.0.1:8265
 19:56:03.471 | INFO    | prefect.task_runner.ray - Using Ray cluster with 1 nodes.
