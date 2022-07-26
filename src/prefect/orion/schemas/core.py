@@ -384,6 +384,7 @@ class BlockType(ORMBaseModel):
     """An ORM representation of a block type"""
 
     name: str = Field(..., description="A block type's name")
+    slug: str = Field(..., description="A block type's slug")
     logo_url: Optional[HttpUrl] = Field(
         None, description="Web URL for the block type's logo"
     )
