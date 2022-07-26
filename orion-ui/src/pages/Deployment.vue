@@ -59,13 +59,3 @@
     router.push(routes.deployments())
   }
 </script>
-
-<style>
-.deployment__description {
-  @apply
-  italic
-  text-sm
-  leading-6
-  text-slate-500
-}
-</style>
