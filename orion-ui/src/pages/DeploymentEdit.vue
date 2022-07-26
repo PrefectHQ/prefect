@@ -27,15 +27,15 @@
   async function submit(deployment: IDeploymentRequest): Promise<void> {
     try {
       await deploymentsApi.updateDeployment(deploymentId.value, deployment)
-      router.go(-1)
+      router.back()
     } catch (error) {
-      showToast('Error updating notification', 'error')
+      showToast('Error updating deployment', 'error')
       console.warn(error)
     }
   }
 
   function cancel(): void {
-    router.go(-1)
+    router.back()
   }
 </script>
 
