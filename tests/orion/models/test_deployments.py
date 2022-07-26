@@ -10,21 +10,19 @@ from prefect.orion import models, schemas
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.models.deployments import check_work_queues_for_deployment
 from prefect.orion.schemas import filters
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import StateType
 
 
 class TestCreateDeployment:
     async def test_create_deployment_succeeds(
-        self, session, flow, flow_function, infrastructure_document_id
+        self, session, flow, infrastructure_document_id
     ):
 
-        flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                flow_data=flow_data,
+                manifest_path="file.json",
                 flow_id=flow.id,
                 parameters={"foo": "bar"},
                 tags=["foo", "bar"],
@@ -33,7 +31,7 @@ class TestCreateDeployment:
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert deployment.flow_data == flow_data
+        assert deployment.manifest_path == "file.json"
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
         assert deployment.infrastructure_document_id == infrastructure_document_id
@@ -42,17 +40,15 @@ class TestCreateDeployment:
         self,
         session,
         flow,
-        flow_function,
         infrastructure_document_id,
         infrastructure_document_id_2,
     ):
 
-        flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                flow_data=flow_data,
+                manifest_path="file.json",
                 flow_id=flow.id,
                 infrastructure_document_id=infrastructure_document_id,
             ),
@@ -61,7 +57,7 @@ class TestCreateDeployment:
 
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert deployment.flow_data == flow_data
+        assert deployment.manifest_path == "file.json"
         assert deployment.parameters == {}
         assert deployment.tags == []
         assert deployment.infrastructure_document_id == infrastructure_document_id
@@ -72,13 +68,12 @@ class TestCreateDeployment:
             interval=datetime.timedelta(days=1)
         )
 
-        flow_data = DataDocument.encode("json", "test-override")
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 flow_id=flow.id,
-                flow_data=flow_data,
+                manifest_path="file.json",
                 schedule=schedule,
                 is_schedule_active=False,
                 parameters={"foo": "bar"},
@@ -89,7 +84,7 @@ class TestCreateDeployment:
 
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert deployment.flow_data == flow_data
+        assert deployment.manifest_path == "file.json"
         assert not deployment.is_schedule_active
         assert deployment.schedule == schedule
         assert deployment.parameters == {"foo": "bar"}
@@ -103,22 +98,19 @@ class TestCreateDeployment:
         schedule = schemas.schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
         )
-        flow_data = DataDocument.encode("cloudpickle", flow_function)
-
-        flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 flow_id=flow.id,
-                flow_data=flow_data,
+                manifest_path="file.json",
                 schedule=schedule,
                 infrastructure_document_id=infrastructure_document_id,
             ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert deployment.flow_data == flow_data
+        assert deployment.manifest_path == "file.json"
         assert deployment.schedule == schedule
         assert deployment.infrastructure_document_id == infrastructure_document_id
 
@@ -128,12 +120,11 @@ class TestReadDeployment:
         self, session, flow, flow_function, infrastructure_document_id
     ):
         # create a deployment to read
-        flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                flow_data=flow_data,
+                manifest_path="file.json",
                 flow_id=flow.id,
                 infrastructure_document_id=infrastructure_document_id,
             ),
@@ -156,12 +147,11 @@ class TestReadDeployment:
         self, session, flow, flow_function, infrastructure_document_id
     ):
         # create a deployment to read
-        flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                flow_data=flow_data,
+                manifest_path="file.json",
                 flow_id=flow.id,
                 infrastructure_document_id=infrastructure_document_id,
             ),
@@ -186,12 +176,11 @@ class TestReadDeployment:
             for i in range(2)
         ]
 
-        flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment_1 = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                flow_data=flow_data,
+                manifest_path="file.json",
                 flow_id=flow_1.id,
                 infrastructure_document_id=infrastructure_document_id,
             ),
@@ -200,7 +189,7 @@ class TestReadDeployment:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                flow_data=flow_data,
+                manifest_path="file.json",
                 flow_id=flow_2.id,
                 infrastructure_document_id=infrastructure_document_id,
             ),
@@ -248,13 +237,12 @@ class TestReadDeployments:
         deployment_id_3,
         infrastructure_document_id,
     ):
-        flow_data = DataDocument.encode("cloudpickle", flow_function)
         await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 id=deployment_id_1,
                 name="My Deployment",
-                flow_data=flow_data,
+                manifest_path="file.json",
                 flow_id=flow.id,
                 is_schedule_active=True,
                 infrastructure_document_id=infrastructure_document_id,
@@ -265,7 +253,7 @@ class TestReadDeployments:
             deployment=schemas.core.Deployment(
                 id=deployment_id_2,
                 name="Another Deployment",
-                flow_data=flow_data,
+                manifest_path="file.json",
                 flow_id=flow.id,
                 tags=["tb12"],
                 is_schedule_active=True,
@@ -277,7 +265,7 @@ class TestReadDeployments:
             deployment=schemas.core.Deployment(
                 id=deployment_id_3,
                 name="Yet Another Deployment",
-                flow_data=flow_data,
+                manifest_path="file.json",
                 flow_id=flow.id,
                 tags=["tb12", "goat"],
                 is_schedule_active=False,
@@ -435,12 +423,11 @@ class TestDeleteDeployment:
     async def test_delete_deployment(self, session, flow, flow_function):
         # create a deployment to delete
 
-        flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                flow_data=flow_data,
+                manifest_path="file.json",
                 flow_id=flow.id,
             ),
         )
@@ -526,7 +513,7 @@ class TestScheduledRuns:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                flow_data=DataDocument.encode("cloudpickle", flow_function),
+                manifest_path="file.json",
                 flow_id=flow.id,
             ),
         )
@@ -542,7 +529,7 @@ class TestScheduledRuns:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                flow_data=DataDocument.encode("cloudpickle", flow_function),
+                manifest_path="file.json",
                 schedule=schemas.schedules.IntervalSchedule(
                     interval=datetime.timedelta(days=1)
                 ),
@@ -565,7 +552,7 @@ class TestScheduledRuns:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                flow_data=DataDocument.encode("cloudpickle", flow_function),
+                manifest_path="file.json",
                 schedule=schemas.schedules.IntervalSchedule(
                     interval=datetime.timedelta(days=1)
                 ),
@@ -591,7 +578,7 @@ class TestScheduledRuns:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                flow_data=DataDocument.encode("cloudpickle", flow_function),
+                manifest_path="file.json",
                 schedule=schemas.schedules.IntervalSchedule(
                     interval=datetime.timedelta(days=1)
                 ),
@@ -705,7 +692,7 @@ class TestScheduledRuns:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My second deployment",
-                flow_data=DataDocument.encode("cloudpickle", flow_function),
+                manifest_path="file.json",
                 flow_id=flow.id,
                 schedule=schemas.schedules.IntervalSchedule(
                     interval=datetime.timedelta(days=1)
@@ -749,13 +736,12 @@ class TestCheckWorkQueuesForDeployment:
         Returns the ID of the deployment that was created and a random ID that was provided to work queues
         for testing purposes.
         """
-        flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = (
             await models.deployments.create_deployment(
                 session=session,
                 deployment=schemas.core.Deployment(
                     name="My Deployment",
-                    flow_data=flow_data,
+                    manifest_path="file.json",
                     flow_id=flow.id,
                     tags=tags,
                 ),
