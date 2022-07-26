@@ -9,7 +9,7 @@ import pytest
 
 from prefect.client import OrionClient
 from prefect.deployments import Deployment
-from prefect.docker import Container, DockerClient, get_prefect_image_name
+from prefect.docker import get_prefect_image_name, silence_docker_warnings
 from prefect.infrastructure.docker import DockerContainer
 from prefect.packaging.docker import DockerPackageManifest, DockerPackager
 from prefect.software.conda import CondaEnvironment
@@ -17,6 +17,10 @@ from prefect.software.python import PythonEnvironment
 from prefect.utilities.callables import parameter_schema
 
 from . import howdy
+
+with silence_docker_warnings():
+    from docker import DockerClient
+    from docker.models.containers import Container
 
 IMAGE_ID_PATTERN = re.compile("^sha256:[a-fA-F0-9]{64}$")
 

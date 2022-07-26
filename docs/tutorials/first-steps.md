@@ -215,6 +215,8 @@ def main_flow():
     # then call another flow function
     data = common_flow(config={})
     # do more things
+
+main_flow()
 ```
 
 Whenever we run `main_flow` as above, a new run will be generated for `common_flow` as well.  Not only is this run tracked as a subflow run of `main_flow`, but you can also inspect it independently in the UI!
@@ -259,7 +261,6 @@ For clarity in future tutorial examples, the Prefect log messages in the results
 
 <div class="terminal">
 ```bash
->>> 
 Received a <class 'int'> with value 42
 Received a <class 'str'> with value 100
 ```

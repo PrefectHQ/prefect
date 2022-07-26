@@ -106,11 +106,12 @@ def inject_client(fn):
     return with_injected_client
 
 
-def get_client() -> "OrionClient":
+def get_client(httpx_settings: dict = None) -> "OrionClient":
     ctx = prefect.context.get_settings_context()
     return OrionClient(
         PREFECT_API_URL.value() or create_app(ctx.settings, ephemeral=True),
         api_key=PREFECT_API_KEY.value(),
+        httpx_settings=httpx_settings,
     )
 
 
@@ -380,6 +381,9 @@ class OrionClient:
         Send a GET request to /hello for testing purposes.
         """
         return await self._client.get("/hello")
+
+    async def using_ephemeral_app(self) -> bool:
+        return self._ephemeral_app is not None
 
     async def create_flow(self, flow: "Flow") -> UUID:
         """
@@ -1101,6 +1105,33 @@ class OrionClient:
             else:
                 raise
         return schemas.core.BlockSchema.parse_obj(response.json())
+
+    async def update_block_type(
+        self, block_type_id: UUID, block_type: schemas.actions.BlockTypeUpdate
+    ):
+        """
+        Update a block document in Orion.
+        """
+        try:
+            await self._client.patch(
+                f"/block_types/{block_type_id}",
+                json=block_type.dict(
+                    json_compatible=True,
+                    exclude_unset=True,
+                    include={
+                        "logo_url",
+                        "documentation_url",
+                        "description",
+                        "code_example",
+                    },
+                    include_secrets=True,
+                ),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def read_block_schemas(self) -> List[schemas.core.BlockSchema]:
         """
