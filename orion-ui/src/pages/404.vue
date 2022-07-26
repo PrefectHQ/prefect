@@ -1,11 +1,8 @@
 <template>
-  <div class="four-oh-four">
-    404
-  </div>
+  <FourZeroFour />
 </template>
 
-<style>
-.four-oh-four { @apply
-  text-3xl;
-}
-</style>
+<script lang="ts" setup>
+  import { FourZeroFour } from '@prefecthq/orion-design'
+
+</script>

@@ -1,3 +1,4 @@
+import warnings
 from typing import Union
 
 import pytest
@@ -27,7 +28,7 @@ class TestCreateBlockSchema:
                         },
                         "session_token": {"title": "Session Token", "type": "string"},
                     },
-                    "block_type_name": "x",
+                    "block_type_slug": "x",
                     "block_schema_references": {},
                 },
                 block_type_id=block_type_x.id,
@@ -42,12 +43,12 @@ class TestCreateBlockSchema:
                 "secret_access_key": {"title": "Secret Access Key", "type": "string"},
                 "session_token": {"title": "Session Token", "type": "string"},
             },
-            "block_type_name": "x",
+            "block_type_slug": "x",
             "block_schema_references": {},
         }
         assert (
             block_schema.checksum
-            == "sha256:370cd74ce1fba0a96cf820775c744a32ab58f1f7c851f270c2040485878b8449"
+            == "sha256:4448d5cf2ddb989f7fde8b2c36ec89527ca30e0e8ef041eed8bd15c11fe6cfee"
         )
         assert block_schema.block_type_id == block_type_x.id
 
@@ -87,7 +88,7 @@ class TestCreateBlockSchema:
         assert nested_block_schema is not None
         assert nested_block_schema.fields == {
             "block_schema_references": {},
-            "block_type_name": "Y",
+            "block_type_slug": "y",
             "properties": {
                 "a": {"title": "A", "type": "string"},
                 "b": {"title": "B", "type": "string"},
@@ -142,7 +143,7 @@ class TestCreateBlockSchema:
         assert nested_block_schema is not None
         assert nested_block_schema.fields == {
             "block_schema_references": {},
-            "block_type_name": "A",
+            "block_type_slug": "a",
             "properties": {
                 "d": {"title": "D", "type": "string"},
                 "e": {"title": "E", "type": "string"},
@@ -199,7 +200,7 @@ class TestCreateBlockSchema:
         assert nested_block_schema_a is not None
         assert nested_block_schema_a.fields == {
             "block_schema_references": {},
-            "block_type_name": "A",
+            "block_type_slug": "a",
             "properties": {
                 "d": {"title": "D", "type": "string"},
                 "e": {"title": "E", "type": "string"},
@@ -290,7 +291,7 @@ class TestCreateBlockSchema:
         assert nested_block_schema is not None
         assert nested_block_schema.fields == {
             "block_schema_references": {},
-            "block_type_name": "Y",
+            "block_type_slug": "y",
             "properties": {
                 "a": {"title": "A", "type": "string"},
                 "b": {"title": "B", "type": "string"},
@@ -346,7 +347,7 @@ class TestCreateBlockSchema:
         assert nested_block_schema is not None
         assert nested_block_schema.fields == {
             "block_schema_references": {},
-            "block_type_name": "A",
+            "block_type_slug": "a",
             "properties": {
                 "d": {"title": "D", "type": "string"},
                 "e": {"title": "E", "type": "string"},
@@ -359,6 +360,8 @@ class TestCreateBlockSchema:
         assert nested_block_schema.fields == A.schema()
 
     async def test_create_nested_block_schema_with_multiply_used_blocks(self, session):
+        warnings.filterwarnings("ignore", category=UserWarning)
+
         class A(Block):
             d: str
             e: str
@@ -404,7 +407,7 @@ class TestCreateBlockSchema:
         assert nested_block_schema_a is not None
         assert nested_block_schema_a.fields == {
             "block_schema_references": {},
-            "block_type_name": "A",
+            "block_type_slug": "a",
             "properties": {
                 "d": {"title": "D", "type": "string"},
                 "e": {"title": "E", "type": "string"},
@@ -590,7 +593,7 @@ class TestReadBlockSchemas:
                         }
                     },
                     "required": ["value"],
-                    "block_type_name": "JSON",
+                    "block_type_slug": "json",
                     "secret_fields": [],
                     "block_schema_references": {},
                 },
@@ -616,6 +619,9 @@ class TestReadBlockSchemas:
 
     @pytest.fixture
     async def nested_schemas(self, session):
+        # Ignore warnings caused by Block reuse in fixture
+        warnings.filterwarnings("ignore", category=UserWarning)
+
         class A(Block):
             d: str
             e: str
