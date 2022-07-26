@@ -7,7 +7,15 @@ import pytest
 from _pytest.capture import CaptureFixture
 
 import prefect
-from prefect.docker import BuildError, DockerClient, ImageBuilder, build_image
+from prefect.docker import (
+    BuildError,
+    ImageBuilder,
+    build_image,
+    silence_docker_warnings,
+)
+
+with silence_docker_warnings():
+    from docker import DockerClient
 
 IMAGE_ID_PATTERN = re.compile("^sha256:[a-fA-F0-9]{64}$")
 

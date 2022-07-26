@@ -1,3 +1,4 @@
+from datetime import datetime as pydatetime
 from datetime import timedelta
 
 import pendulum
@@ -110,6 +111,51 @@ class TestIntervalSchedule:
         dates = await clock.get_dates(n=5, start=datetime(2021, 7, 1))
         assert dates == [
             datetime(2021, 7, 1, 7, 24).add(hours=i * 17) for i in range(5)
+        ]
+
+    async def test_get_dates_from_offset_naive_anchor(self):
+        # Regression test for https://github.com/PrefectHQ/orion/issues/2466
+        clock = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=pydatetime(2022, 1, 1),
+        )
+        dates = await clock.get_dates(start=datetime(2022, 1, 1), n=3)
+        assert dates == [
+            datetime(2022, 1, 1),
+            datetime(2022, 1, 2),
+            datetime(2022, 1, 3),
+        ]
+
+    async def test_get_dates_from_offset_naive_start(self):
+        # Regression test for https://github.com/PrefectHQ/orion/issues/2466
+        clock = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=datetime(2022, 1, 1),
+        )
+        dates = await clock.get_dates(
+            start=pydatetime(2022, 1, 1),
+            end=datetime(2022, 1, 3),
+        )
+        assert dates == [
+            datetime(2022, 1, 1),
+            datetime(2022, 1, 2),
+            datetime(2022, 1, 3),
+        ]
+
+    async def test_get_dates_from_offset_naive_end(self):
+        # Regression test for https://github.com/PrefectHQ/orion/issues/2466
+        clock = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=datetime(2022, 1, 1),
+        )
+        dates = await clock.get_dates(
+            start=datetime(2022, 1, 1),
+            end=pydatetime(2022, 1, 3),
+        )
+        assert dates == [
+            datetime(2022, 1, 1),
+            datetime(2022, 1, 2),
+            datetime(2022, 1, 3),
         ]
 
 
