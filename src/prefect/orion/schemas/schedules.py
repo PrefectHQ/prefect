@@ -86,7 +86,7 @@ class IntervalSchedule(PrefectBaseModel):
         if v and values["timezone"]:
             raise ValueError("Specify an anchor date or a timezone, but not both.")
 
-        return v or pendulum.datetime(2020, 1, 1, tz=values.get("timezone") or "UTC")
+        return v or pendulum.now(tz=values.get("timezone") or "UTC")
 
     @validator("anchor_date")
     def anchor_date_is_timezone_aware(cls, v):

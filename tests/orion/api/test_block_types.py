@@ -6,6 +6,7 @@ import pendulum
 import pydantic
 import pytest
 from fastapi import status
+from slugify import slugify
 
 import prefect
 from prefect.blocks.core import Block
@@ -30,7 +31,9 @@ CODE_EXAMPLE = dedent(
 async def system_block_type(session):
     block_type = await models.block_types.create_block_type(
         session=session,
-        block_type=schemas.core.BlockType(name="system_block", is_protected=True),
+        block_type=schemas.core.BlockType(
+            name="system_block", slug="system-block", is_protected=True
+        ),
     )
     await session.commit()
     return block_type
@@ -42,6 +45,7 @@ class TestCreateBlockType:
             "/block_types/",
             json=BlockTypeCreate(
                 name="x",
+                slug="x",
                 logo_url="http://example.com/logo.png",
                 documentation_url="http://example.com/docs.html",
                 description="A block, verily",
@@ -52,6 +56,7 @@ class TestCreateBlockType:
         result = BlockType.parse_obj(response.json())
 
         assert result.name == "x"
+        assert result.slug == "x"
         assert result.logo_url == "http://example.com/logo.png"
         assert result.documentation_url == "http://example.com/docs.html"
         assert result.description == "A block, verily"
@@ -60,16 +65,18 @@ class TestCreateBlockType:
         response = await client.get(f"/block_types/{result.id}")
         api_block_type = BlockType.parse_obj(response.json())
         assert api_block_type.name == "x"
+        assert api_block_type.slug == "x"
         assert api_block_type.logo_url == "http://example.com/logo.png"
         assert api_block_type.documentation_url == "http://example.com/docs.html"
         assert api_block_type.description == "A block, verily"
         assert api_block_type.code_example == CODE_EXAMPLE
 
-    async def test_create_block_type_with_existing_name(self, client):
+    async def test_create_block_type_with_existing_slug(self, client):
         response = await client.post(
             "/block_types/",
             json=BlockTypeCreate(
                 name="x",
+                slug="x",
                 logo_url="http://example.com/logo.png",
                 documentation_url="http://example.com/docs.html",
             ).dict(),
@@ -80,6 +87,7 @@ class TestCreateBlockType:
             "/block_types/",
             json=BlockTypeCreate(
                 name="x",
+                slug="x",
                 logo_url="http://example.com/logo.png",
                 documentation_url="http://example.com/docs.html",
             ).dict(),
@@ -99,9 +107,7 @@ class TestCreateBlockType:
     async def test_create_block_type_with_nonstandard_characters(self, client, name):
         response = await client.post(
             "/block_types/",
-            json=dict(
-                name=name,
-            ),
+            json=dict(name=name, slug=slugify(name)),
         )
         assert response.status_code == status.HTTP_201_CREATED
 
@@ -115,9 +121,7 @@ class TestCreateBlockType:
     async def test_create_block_type_with_invalid_characters(self, client, name):
         response = await client.post(
             "/block_types/",
-            json=dict(
-                name=name,
-            ),
+            json=dict(name=name, slug=slugify(name)),
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
@@ -127,15 +131,20 @@ class TestCreateBlockType:
     async def test_create_block_type_with_reserved_name_fails(self, client, name):
         response = await client.post(
             "/block_types/",
-            json=dict(
-                name=name,
-            ),
+            json=dict(name=name, slug=slugify(name)),
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert (
             response.json()["detail"]
             == "Block type names beginning with 'Prefect' are reserved."
         )
+
+    async def test_create_block_type_with_invalid_slug_fails(self, client):
+        response = await client.post(
+            "/block_types/",
+            json=dict(name="bad slug", slug="bad slug"),
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
 class TestReadBlockType:
@@ -146,15 +155,15 @@ class TestReadBlockType:
         assert result.name == block_type_x.name
         assert result.id == block_type_x.id
 
-    async def test_read_block_type_by_name(self, client, block_type_x):
-        response = await client.get(f"/block_types/name/{block_type_x.name}")
+    async def test_read_block_type_by_slug(self, client, block_type_x):
+        response = await client.get(f"/block_types/slug/{block_type_x.slug}")
         assert response.status_code == status.HTTP_200_OK
         result = BlockType.parse_obj(response.json())
         assert result.name == block_type_x.name
         assert result.id == block_type_x.id
 
     async def test_read_missing_block_type_by_name(self, client):
-        response = await client.get("/block_types/name/not a real block")
+        response = await client.get("/block_types/slug/not-a-real-block")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
@@ -379,7 +388,7 @@ class TestReadBlockDocumentsForBlockType:
         self, client, block_type_x, block_document
     ):
         response = await client.get(
-            f"/block_types/name/{block_type_x.name}/block_documents"
+            f"/block_types/slug/{block_type_x.slug}/block_documents"
         )
         assert response.status_code == status.HTTP_200_OK
 
@@ -390,8 +399,8 @@ class TestReadBlockDocumentsForBlockType:
             block_document.id
         ]
 
-    async def test_read_block_documents_for_nonexistant_block_type(self, client):
-        response = await client.get(f"/block_types/name/nonsense/block_documents")
+    async def test_read_block_documents_for_nonexistent_block_type(self, client):
+        response = await client.get(f"/block_types/slug/nonsense/block_documents")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
@@ -400,7 +409,7 @@ class TestReadBlockDocumentByNameForBlockType:
         self, client, block_type_x, block_document
     ):
         response = await client.get(
-            f"/block_types/name/{block_type_x.name}/block_documents/name/{block_document.name}"
+            f"/block_types/slug/{block_type_x.slug}/block_documents/name/{block_document.name}"
         )
         assert response.status_code == status.HTTP_200_OK
 
@@ -408,19 +417,19 @@ class TestReadBlockDocumentByNameForBlockType:
         assert read_block_document.id == block_document.id
         assert read_block_document.name == block_document.name
 
-    async def test_read_block_document_for_nonexistant_block_type(
+    async def test_read_block_document_for_nonexistent_block_type(
         self, client, block_document
     ):
         response = await client.get(
-            f"/block_types/name/nonsense/block_documents/name/{block_document.name}"
+            f"/block_types/slug/nonsense/block_documents/name/{block_document.name}"
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_read_block_document_for_nonexistant_block_document(
+    async def test_read_block_document_for_nonexistent_block_document(
         self, client, block_type_x
     ):
         response = await client.get(
-            f"/block_types/name/{block_type_x.name}/block_documents/name/nonsense"
+            f"/block_types/slug/{block_type_x.slug}/block_documents/name/nonsense"
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
@@ -454,11 +463,11 @@ class TestSystemBlockTypes:
         await client.post("/block_types/install_system_block_types")
 
         # create a datetime block
-        datetime_block_type = await client.get("/block_types/name/Date%20Time")
+        datetime_block_type = await client.get("/block_types/slug/date-time")
         datetime_block_schema = await client.post(
             "/block_schemas/filter",
             json=dict(
-                block_schema_filter=dict(
+                block_schemas=dict(
                     block_type_id=dict(any_=[datetime_block_type.json()["id"]])
                 ),
                 limit=1,
@@ -468,7 +477,7 @@ class TestSystemBlockTypes:
         response = await client.post(
             "/block_documents/",
             json=block._to_block_document(
-                name="MyTestDateTime",
+                name="my-test-date-time",
                 block_type_id=datetime_block_type.json()["id"],
                 block_schema_id=datetime_block_schema.json()[0]["id"],
             ).dict(
@@ -480,5 +489,5 @@ class TestSystemBlockTypes:
         assert response.status_code == status.HTTP_201_CREATED
 
         # load the datetime block
-        api_block = await prefect.blocks.system.DateTime.load("MyTestDateTime")
+        api_block = await prefect.blocks.system.DateTime.load("my-test-date-time")
         assert api_block.value == pendulum.datetime(2022, 1, 1, tz="UTC")

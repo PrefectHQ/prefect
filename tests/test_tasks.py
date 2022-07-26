@@ -255,6 +255,20 @@ class TestTaskSubmit:
         task_state = bar()
         assert task_state.result() == 1
 
+    def test_sync_task_with_return_state_true(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            state = foo.submit(1, return_state=True)
+            assert isinstance(state, State)
+            return state
+
+        task_state = bar()
+        assert task_state.result() == 1
+
     async def test_async_task_submitted_inside_async_flow(self):
         @task
         async def foo(x):
@@ -1738,6 +1752,16 @@ class TestTaskMap:
 
         futures = my_flow()
         assert [future.result() for future in futures] == [2, 3, 4]
+
+    def test_simple_map_return_state_true(self):
+        @flow
+        def my_flow():
+            states = TestTaskMap.add_one.map([1, 2, 3], return_state=True)
+            assert all(isinstance(s, State) for s in states)
+            return states
+
+        states = my_flow()
+        assert [state.result() for state in states] == [2, 3, 4]
 
     def test_map_can_take_tuple_as_input(self):
         @flow

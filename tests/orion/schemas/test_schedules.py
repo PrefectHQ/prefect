@@ -1,5 +1,6 @@
 from datetime import datetime as pydatetime
 from datetime import timedelta
+from unittest import mock
 
 import pendulum
 import pytest
@@ -28,12 +29,20 @@ class TestCreateIntervalSchedule:
             IntervalSchedule(interval=timedelta(minutes=minutes))
 
     def test_default_anchor(self):
-        clock = IntervalSchedule(interval=timedelta(days=1))
-        assert clock.anchor_date == datetime(2020, 1, 1, tz="UTC")
+        mock_now = pendulum.datetime(
+            year=2022,
+            month=1,
+            day=1,
+            hour=1,
+            minute=1,
+        )
+        with mock.patch("pendulum.now", return_value=mock_now):
+            clock = IntervalSchedule(interval=timedelta(days=1))
+        assert clock.anchor_date == mock_now
 
     def test_default_anchor_respects_timezone(self):
         clock = IntervalSchedule(interval=timedelta(days=1), timezone="EST")
-        assert clock.anchor_date == datetime(2020, 1, 1, tz="EST")
+        assert clock.anchor_date.tz.name == "EST"
 
     def test_anchor(self):
         dt = now()
@@ -90,7 +99,13 @@ class TestIntervalSchedule:
     async def test_get_dates_from_start_date_with_timezone(self, start_date):
         clock = IntervalSchedule(interval=timedelta(days=1), timezone="EST")
         dates = await clock.get_dates(n=5, start=start_date)
-        assert dates == [start_date.add(days=i).set(tz="EST") for i in range(5)]
+        anchor_date_offset = clock.anchor_date - clock.anchor_date.start_of("day")
+        assert dates == [
+            start_date.add(days=i, seconds=anchor_date_offset.total_seconds()).set(
+                tz="EST"
+            )
+            for i in range(5)
+        ]
 
     @pytest.mark.parametrize("n", [1, 2, 5])
     async def test_get_n_dates(self, n):
