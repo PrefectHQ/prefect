@@ -300,9 +300,9 @@ class S3(ReadableFileSystem, WritableFileSystem):
     def filesystem(self) -> RemoteFileSystem:
         settings = {}
         if self.aws_access_key_id:
-            settings["key"] = self.aws_access_key_id
+            settings["key"] = self.aws_access_key_id.get_secret_value()
         if self.aws_secret_access_key:
-            settings["secret"] = self.aws_secret_access_key
+            settings["secret"] = self.aws_secret_access_key.get_secret_value()
         self._remote_file_system = RemoteFileSystem(
             basepath=f"s3://{self.bucket}", settings=settings
         )
