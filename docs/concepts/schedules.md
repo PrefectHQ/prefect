@@ -16,14 +16,20 @@ Schedules tell the Prefect API how to create new flow runs for you automatically
 
 You can add a schedule to any flow [deployment](/concepts/deployments/). The Prefect `Scheduler` service periodically reviews every deployment and creates new flow runs according to the schedule configured for the deployment.
 
+You can view schedules from the Deployments tab of the [Prefect Orion UI](ui/overview.md).
+
+!!! Note "How to specify a schedule is changing"
+    Deployments are changing, and along with them the way you specify a schedule on a deployment. Stay tuned for updated guidance.
+
 ## Schedule types
 
-Prefect supports several types of schedule that cover a wide range of use cases and offer a large degree of customization:
+Prefect supports several types of schedules that cover a wide range of use cases and offer a large degree of customization:
 
 - [`CronSchedule`](#cronschedule) is most appropriate for users who are already familiar with `cron` from use in other systems.
 - [`IntervalSchedule`](#intervalschedule) is best suited for deployments that need to run at some consistent cadence that isn't related to absolute time.
 - [`RRuleSchedule`](#rruleschedule) is best suited for deployments that rely on calendar logic for simple recurring schedules, irregular intervals, exclusions, or day-of-month adjustments.
 
+<!--
 ## Creating schedules
 
 You create a schedule by including a `schedule` parameter as part of the [deployment specification](/concepts/deployments/#deployment-specifications) for a deployment.
@@ -31,10 +37,10 @@ You create a schedule by including a `schedule` parameter as part of the [deploy
 First, import the schedule class that you want to use, then set the `schedule` parameter using an instance of that class.
 
 ```python
-from prefect.deployments import DeploymentSpec
+from prefect.deployments import Deployment
 from prefect.orion.schemas.schedules import CronSchedule
 
-DeploymentSpec(
+Deployment(
     name="scheduled-deployment",
     flow_location="/path/to/flow.py",
     schedule=CronSchedule(cron="0 0 * * *"),
@@ -51,11 +57,12 @@ A `CronSchedule` creates new flow runs according to a provided [`cron`](https://
 
 `CronSchedule` uses [`croniter`](https://github.com/kiorky/croniter) to specify datetime iteration with a `cron`-like format.
 
+
 ```python
-from prefect.deployments import DeploymentSpec
+from prefect.deployments import Deployment
 from prefect.orion.schemas.schedules import CronSchedule
 
-DeploymentSpec(
+Deployment(
     name="cron-schedule-deployment",
     flow_location="/path/to/flow.py",
     schedule=CronSchedule(
@@ -63,6 +70,7 @@ DeploymentSpec(
         timezone="America/New_York"),
 )
 ```
+
 
 `CronSchedule` properties include:
 
@@ -91,11 +99,11 @@ For more detail, please see the [`CronSchedule` API reference][prefect.orion.sch
 An `IntervalSchedule` creates new flow runs on a regular interval measured in seconds. Intervals are computed from an optional `anchor_date`.
 
 ```python
-from prefect.deployments import DeploymentSpec
+from prefect.deployments import Deployment
 from prefect.orion.schemas.schedules import IntervalSchedule
 from datetime import timedelta
 
-DeploymentSpec(
+Deployment(
     name="interval-schedule-deployment",
     flow_location="/path/to/flow.py",
     schedule=IntervalSchedule(interval=timedelta(hours=1)),
@@ -114,11 +122,11 @@ An example of specifying an `anchor_date` might be to start a regular flow run o
 
 ```python
 from prefect.orion.schemas.schedules import IntervalSchedule
-from prefect.deployments import DeploymentSpec
+from prefect.deployments import Deployment
 from datetime import timedelta
 import pendulum
 
-DeploymentSpec(
+Deployment(
     name="daily-interval-deployment",
     flow=base_flow,
     tags=['interval','test', 'daily'],
@@ -152,10 +160,10 @@ RRules are appropriate for any kind of calendar-date manipulation, including sim
 You can specify an `RRuleSchedule` as either an RRule string or an `rrule` object. The following example expresses a simple `DAILY` schedule using an RRule string.
 
 ```python
-from prefect.deployments import DeploymentSpec
+from prefect.deployments import Deployment
 from prefect.orion.schemas.schedules import RRuleSchedule
 
-DeploymentSpec(
+Deployment(
     name="rrule-schedule-deployment",
     flow_location="/path/to/flow.py",
     schedule=RRuleSchedule(
@@ -176,7 +184,7 @@ You may find it useful to use an RRule string generator such as the [iCalendar.o
 For example, the following deployment RRule schedule creates flow runs on Monday, Wednesday, and Friday, until June 30.
 
 ```python
-from prefect.deployments import DeploymentSpec
+from prefect.deployments import Deployment
 from prefect.orion.schemas.schedules import RRuleSchedule
 
 r_rule_str = """
@@ -184,7 +192,7 @@ r_rule_str = """
     RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR;UNTIL=20220630T000000Z
     """
 
-DeploymentSpec(
+Deployment(
     name="rrule-schedule-deployment",
     flow_location="/path/to/flow.py",
     schedule=RRuleSchedule(
@@ -196,7 +204,7 @@ DeploymentSpec(
 You can also pass an `rrule` object as the schedule by using `RRuleSchedule.from_rrule`.
 
 ```python
-from prefect.deployments import DeploymentSpec
+from prefect.deployments import Deployment
 from prefect.orion.schemas.schedules import RRuleSchedule
 from dateutil.rrule import rrule, DAILY, MO, TU, WE, TH, FR
 import pendulum
@@ -211,7 +219,7 @@ r_rule = rrule(
             byweekday=(MO, TU, WE, TH, FR),
             count=8,)
 
-DeploymentSpec(
+Deployment(
     name="rrule-schedule-deployment",
     flow_location="/path/to/flow.py",
     schedule=RRuleSchedule.from_rrule(r_rule),
@@ -222,7 +230,7 @@ DeploymentSpec(
     Note that as a calendar-oriented standard, `RRuleSchedules` are sensitive to the initial timezone provided. A 9am daily schedule with a DST-aware start date will maintain a local 9am time through DST boundaries. A 9am daily schedule with a UTC start date will maintain a 9am UTC time.
 
 For more detail, please see the [`RRuleSchedule` API reference][prefect.orion.schemas.schedules.RRuleSchedule].
-
+-->
 ## The `Scheduler` service
 
 The `Scheduler` service is started automatically when `prefect orion start` is run and is a built-in service of Prefect Cloud. 
