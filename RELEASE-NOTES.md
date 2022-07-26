@@ -1,5 +1,14 @@
 # Prefect Release Notes
 
+## 2.0b15
+
+### Uniquely refer to blocks with slugs
+Blocks are a convenient way to secure store and retrieve configuration. Now, retrieving configuration stored with blocks is even easier with slugs, both human and machine readable unique identifiers. By default, block type slugs are a lowercase, dash delimited version of the block type name, but can be customized via the `_block_type_slug` field on a custom Block subclass. Block document slugs are a concatenation of [block-type-slug]/[block-document-name] and can be used as an argument to the `Block.load` method. Slugs and block document names may only include alphanumeric characters and dashes.
+
+**Warning**: This breaking change makes this release incompatible with previous versions of the Orion server and Prefect Cloud 2.0
+
+### Other improvements and bug fixes
+
 ## 2.0b14
 
 ### Retreive the state of your tasks or flows with the `return_state` kwarg
@@ -43,7 +52,7 @@ This release builds upon the collection of small enhancements made in the previo
 For convenience, earlier versions of Prefect 2.0 allowed for a global storage setting. With forthcoming enhancements to blocks, this will no longer be necessary.
 
 ### Other improvements and bug fixes
-- We have published a [guide for migrating workflows from Prefect 1.0 (and lower) to Prefect 2.0]](https://orion-docs.prefect.io/migration_guide/) 
+- We have published a [guide for migrating workflows from Prefect 1.0 (and lower) to Prefect 2.0](https://orion-docs.prefect.io/migration_guide/) 
 - The Flow run page now has a clearer empty state that is more consistent with other pages
 - Tutorial documentation has been further updated to reflect new result behavior
 - Tasks and flows now run in interruptible threads when timeouts are used
