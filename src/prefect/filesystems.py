@@ -308,6 +308,10 @@ class S3(ReadableFileSystem, WritableFileSystem):
     _remote_file_system: RemoteFileSystem = None
 
     @property
+    def basepath(self) -> str:
+        return self.filesystem.basepath
+
+    @property
     def filesystem(self) -> RemoteFileSystem:
         settings = {}
         if self.aws_access_key_id:
@@ -376,6 +380,10 @@ class GCS(ReadableFileSystem, WritableFileSystem):
         None,
         description="The project the GCS bucket resides in. If not provided, the project will be inferred from the credentials or environment.",
     )
+
+    @property
+    def basepath(self) -> str:
+        return self.filesystem.basepath
 
     @property
     def filesystem(self) -> RemoteFileSystem:
