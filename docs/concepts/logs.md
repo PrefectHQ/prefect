@@ -16,9 +16,9 @@ tags:
 
 Prefect enables you to log a variety of useful information about your flow and task runs, capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing.
 
-Prefect captures logs for your flow and task runs by default, even if you have not started an Orion API server with `prefect orion start`.
+Prefect captures logs for your flow and task runs by default, even if you have not started a Prefect Orion API server with `prefect orion start`.
 
-You can view and filter logs in the Orion UI, or access log records via the API or CLI.
+You can view and filter logs in the [Prefect UI](/ui/flow-runs/#inspect-a-flow-run) or Prefect Cloud, or access log records via the API or CLI.
 
 Prefect enables fine-grained customization of log levels for flows and tasks, including configuration for default levels and log message formatting.
 
@@ -44,9 +44,9 @@ Completed('All states completed.')
 ```
 </div>
 
-You can see logs for the flow run in the Orion UI by navigating to the flow run and selecting the **Logs** tab.
+You can see logs for the flow run in the Prefect UI by navigating to the [**Flow Runs**](/ui/flow-runs/#inspect-a-flow-run) page and selecting a specific flow run to inspect.
 
-![Viewing logs for a flow run in the Orion UI](/img/concepts/flow_run_logs.png)
+![Viewing logs for a flow run in the Prefect UI](/img/ui/orion-flow-run-details.png)
 
 These log messages reflect the logging configuration for log levels and message formatters. You may customize the log levels captured and the default message format through configuration, and you can capture custom logging events by explicitly emitting log messages during flow and task runs.
 
@@ -54,7 +54,7 @@ Prefect supports the standard Python logging levels `CRITICAL`, `ERROR`, `WARNIN
 
 ## Logging Configuration
 
-As mentioned earlier, by default, Prefect displays `INFO`-level and above logging records. You may change this level to `DEBUG` and `DEBUG`-level logs created by Prefect will be shown as well. You may need to change the log level used by loggers from other libraries to see their log records.
+By default, Prefect displays `INFO`-level and above logging records. You may change this level to `DEBUG` and `DEBUG`-level logs created by Prefect will be shown as well. You may need to change the log level used by loggers from other libraries to see their log records.
 
 You can override any logging configuration by setting an environment variable using the syntax `PREFECT_LOGGING_[PATH]_[TO]_[KEY]`, with `[PATH]_[TO]_[KEY]` corresponding to the nested address of any setting. 
 

@@ -1136,7 +1136,9 @@ class TestClientWorkQueues:
     async def deployment(self, orion_client, infrastructure_document_id):
         foo = flow(lambda: None, name="foo")
         flow_id = await orion_client.create_flow(foo)
-        schedule = IntervalSchedule(interval=timedelta(days=1))
+        schedule = IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+        )
         flow_data = DataDocument.encode("cloudpickle", foo)
 
         deployment_id = await orion_client.create_deployment(
