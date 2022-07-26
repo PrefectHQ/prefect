@@ -64,27 +64,23 @@ async def update_deployment(
     deployment: schemas.actions.DeploymentUpdate,
     deployment_id: str = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ):
-    try:
-        model = await models.deployments.update_deployment(
-            session=session, deployment_id=deployment_id, deployment=deployment
-        )
-    except ValueError:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST)
-
-    if not model:
+    result = await models.deployments.update_deployment(
+        session=session, deployment_id=deployment_id, deployment=deployment
+    )
+    if not result:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Deployment not found.")
 
-    # this deployment might have already scheduled runs (if it's being upserted)
-    # so we delete them all here; if the upserted deployment has an active schedule
-    # then its runs will be rescheduled.
+    # this deployment might have already-scheduled runs
+    # so we delete them all here; if it has an active schedule
+    # then its runs will be rescheduled with the new schedule
     delete_query = sa.delete(db.FlowRun).where(
         db.FlowRun.deployment_id == deployment_id,
         db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
         db.FlowRun.auto_scheduled.is_(True),
     )
     await session.execute(delete_query)
-    return model
 
 
 @router.get("/name/{flow_name}/{deployment_name}")
