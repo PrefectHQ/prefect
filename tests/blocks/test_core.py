@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 import pytest
 from pydantic import Field, SecretBytes, SecretStr
 
-from prefect.blocks.core import Block, InvalidBlockRegistration, slugify
+from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.client import OrionClient
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
@@ -1600,21 +1600,3 @@ class TestGetCodeExample:
                 print("I am overriding the example in the docstring")
                 ```"""
         )
-
-
-@pytest.mark.parametrize(
-    "input,expected",
-    [
-        (
-            "Hello Block!",
-            "hello-block",
-        ),
-        (
-            "i'M a BlOcK",
-            "im-a-block",
-        ),
-        ("slugify this! &@#%*(@_!*🐌", "slugify-this"),
-    ],
-)
-def test_slugify(input, expected):
-    assert slugify(input) == expected

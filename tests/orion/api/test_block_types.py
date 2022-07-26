@@ -6,9 +6,10 @@ import pendulum
 import pydantic
 import pytest
 from fastapi import status
+from slugify import slugify
 
 import prefect
-from prefect.blocks.core import Block, slugify
+from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockTypeCreate, BlockTypeUpdate
 from prefect.orion.schemas.core import BlockDocument, BlockType
