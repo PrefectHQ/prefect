@@ -1,7 +1,6 @@
 import hashlib
 import inspect
 import logging
-import re
 import warnings
 from abc import ABC
 from textwrap import dedent
@@ -12,6 +11,7 @@ from griffe.dataclasses import Docstring, DocstringSection
 from griffe.docstrings.dataclasses import DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
+from slugify import slugify
 from typing_extensions import Self, get_args, get_origin
 
 import prefect
@@ -37,22 +37,6 @@ class InvalidBlockRegistration(Exception):
     Raised on attempted registration of the base Block
     class or a Block interface class
     """
-
-
-REMOVE_NON_ALPHA_NUMBER = re.compile(r"[^\w\s-]")
-CONVERT_TO_DASHES = re.compile(r"[\s_-]+")
-REMOVE_LEAD_TRAILING_DASHES = re.compile(r"^-+|-+$")
-
-
-def slugify(string: str):
-    string = string.lower().strip()
-    # Remove any non alphanumeric characters
-    string = re.sub(REMOVE_NON_ALPHA_NUMBER, "", string)
-    # Convert spaces and underscores to dashes
-    string = re.sub(CONVERT_TO_DASHES, "-", string)
-    # Remove leading and trailing dashes
-    string = re.sub(REMOVE_LEAD_TRAILING_DASHES, "", string)
-    return string
 
 
 @register_base_type

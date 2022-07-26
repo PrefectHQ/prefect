@@ -5,10 +5,9 @@ Revises: 2fe8ef6a6514
 Create Date: 2022-07-25 14:25:15.809720
 
 """
-import re
-
 import sqlalchemy as sa
 from alembic import op
+from slugify import slugify
 
 # revision identifiers, used by Alembic.
 revision = "f335f9633eec"
@@ -17,20 +16,18 @@ branch_labels = None
 depends_on = None
 
 
-REMOVE_NON_ALPHA_NUMBER = re.compile(r"[^\w\s-]")
-CONVERT_TO_DASHES = re.compile(r"[\s_-]+")
-REMOVE_LEAD_TRAILING_DASHES = re.compile(r"^-+|-+$")
-
-
-def slugify(string: str):
-    string = string.lower().strip()
-    # Remove any non alphanumeric characters
-    string = re.sub(REMOVE_NON_ALPHA_NUMBER, "", string)
-    # Convert spaces and underscores to dashes
-    string = re.sub(CONVERT_TO_DASHES, "-", string)
-    # Remove leading and trailing dashes
-    string = re.sub(REMOVE_LEAD_TRAILING_DASHES, "", string)
-    return string
+def replace_name_with_slug(fields):
+    if isinstance(fields, list):
+        return [replace_name_with_slug(x) for x in fields]
+    if isinstance(fields, dict):
+        new_dict = {}
+        for k, v in fields.items():
+            if k == "block_type_name":
+                new_dict["block_type_slug"] = slugify(v)
+            else:
+                new_dict[k] = v
+        return new_dict
+    return fields
 
 
 def upgrade():
@@ -44,16 +41,29 @@ def upgrade():
     meta_data = sa.MetaData(bind=connection)
     meta_data.reflect()
     BLOCK_TYPE = meta_data.tables["block_type"]
+    BLOCK_SCHEMA = meta_data.tables["block_schema"]
 
     block_types_result = connection.execute(
         sa.select([BLOCK_TYPE.c.id, BLOCK_TYPE.c.name])
     ).all()
-    for id, name in block_types_result:
+    for block_type_id, block_type_name in block_types_result:
         connection.execute(
             sa.update(BLOCK_TYPE)
-            .where(BLOCK_TYPE.c.id == id)
-            .values(slug=slugify(name))
+            .where(BLOCK_TYPE.c.id == block_type_id)
+            .values(slug=slugify(block_type_name))
         )
+
+        block_schemas_result = connection.execute(
+            sa.select([BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.fields]).where(
+                BLOCK_SCHEMA.c.block_type_id == block_type_id
+            )
+        ).all()
+        for block_schema_id, block_schema_fields in block_schemas_result:
+            connection.execute(
+                sa.update(BLOCK_SCHEMA)
+                .where(BLOCK_SCHEMA.c.id == block_schema_id)
+                .values(fields=replace_name_with_slug(block_schema_fields))
+            )
 
     with op.batch_alter_table("block_type", schema=None) as batch_op:
         batch_op.alter_column("slug", existing_type=sa.VARCHAR(), nullable=False)
