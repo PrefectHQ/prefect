@@ -110,6 +110,7 @@ nav:
         - Prefect Cloud:
             - Prefect Cloud Overview: ui/cloud.md
             - Prefect Cloud Quickstart: ui/cloud-getting-started.md
+            - Organizations: ui/organizations.md
     - Collections:
         - Overview: collections/overview.md
         - Collections Catalog: collections/catalog.md
