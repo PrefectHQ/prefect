@@ -1,0 +1,41 @@
+<template>
+  <p-layout-default class="deployment-edit">
+    <template #header>
+      <PageHeadingDeploymentEdit v-if="deployment" :deployment="deployment" />
+    </template>
+
+    <DeploymentForm v-if="deployment" :deployment="deployment" @submit="submit" @cancel="cancel" />
+  </p-layout-default>
+</template>
+
+<script lang="ts" setup>
+  import { PageHeadingDeploymentEdit, DeploymentForm, IDeploymentRequest } from '@prefecthq/orion-design'
+  import { showToast } from '@prefecthq/prefect-design'
+  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
+  import { computed } from 'vue'
+  import router, { routes } from '@/router'
+  import { deploymentsApi } from '@/services/deploymentsApi'
+
+  const deploymentId = useRouteParam('id')
+  const subscriptionOptions = {
+    interval: 300000,
+  }
+
+  const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
+  const deployment = computed(() => deploymentSubscription.response)
+
+  async function submit(deployment: IDeploymentRequest): Promise<void> {
+    try {
+      await deploymentsApi.updateDeployment(deploymentId.value, deployment)
+      router.go(-1)
+    } catch (error) {
+      showToast('Error updating notification', 'error')
+      console.warn(error)
+    }
+  }
+
+  function cancel(): void {
+    router.go(-1)
+  }
+</script>
+
