@@ -82,7 +82,7 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
 
     async def get_directory(
         self, from_path: str = None, local_path: str = None
-    ) -> bytes:
+    ) -> None:
         """
         Copies a directory from one place to another on the local filesystem.
 
@@ -96,7 +96,7 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
 
         shutil.copytree(from_path, local_path, dirs_exist_ok=True)
 
-    async def put_directory(self, local_path: str = None, to_path: str = None) -> bytes:
+    async def put_directory(self, local_path: str = None, to_path: str = None) -> None:
         """
         Copies a directory from one place to another on the local filesystem.
 
@@ -208,7 +208,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
 
     async def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
-    ) -> bytes:
+    ) -> None:
         """
         Downloads a directory from a given remote path to a local direcotry.
 
@@ -220,7 +220,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         if local_path is None:
             local_path = Path(".").absolute()
 
-        self.filesystem.get(from_path, local_path, recursive=True)
+        return self.filesystem.get(from_path, local_path, recursive=True)
 
     async def put_directory(
         self, local_path: Optional[str] = None, to_path: Optional[str] = None

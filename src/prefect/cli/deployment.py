@@ -382,11 +382,6 @@ class Infra(str, Enum):
 
 
 @deployment_app.command()
-async def manifest(path: str, flow_name: str, save: str):
-    breakpoint()
-
-
-@deployment_app.command()
 async def build(
     path: str,
     manifest_only: bool = typer.Option(
@@ -472,9 +467,9 @@ async def build(
             exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
         )
     else:
-        if infra_type == "k8s":
+        if infra_type == Infra.kubernetes:
             infrastructure = KubernetesJob()
-        elif infra_type == "docker":
+        elif infra_type == Infra.docker:
             infrastructure = DockerContainer()
         else:
             infrastructure = Process()
