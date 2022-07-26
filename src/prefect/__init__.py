@@ -98,6 +98,7 @@ __all__ = [
     "Flow",
     "get_client",
     "get_run_logger",
+    "Manifest",
     "State",
     "tags",
     "task",
