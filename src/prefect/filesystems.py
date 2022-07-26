@@ -6,7 +6,7 @@ from typing import Optional
 
 import anyio
 import fsspec
-from pydantic import Field, validator
+from pydantic import Field, validator, SecretStr
 
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -265,3 +265,26 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
                 ) from exc
 
         return self._filesystem
+
+
+class S3(RemoteFileSystem):
+    """
+    Store data as a file on AWS S3.
+    """
+
+    _block_type_name = "S3"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1jbV4lceHOjGgunX15lUwT/db88e184d727f721575aeb054a37e277/aws.png?h=250"
+
+    type: str = "s3"
+    bucket: str = Field(
+        ..., description="An S3 bucket path", example="my-s3-bucket/a-directory-within"
+    )
+    key: SecretStr = Field(None, description="An AWS Access Key ID")
+    secret: SecretStr = Field(None, description="An AWS Secret Access Key")
+    settings: dict = Field(default_factory=dict, description="Additional settings.")
+
+    @validator("basepath", pre=True)
+    def cast_pathlib(cls, value):
+        if isinstance(value, Path):
+            return str(value)
+        return value
