@@ -16,7 +16,7 @@ For larger teams, and companies with more complex needs around user and access m
 
 - Organizational Accounts and membership management
 - Role Based Access Control to set permissions at the organization and workspace level
-- Service Accounts to generate credentials for specific workloads
+- Service accounts to generate credentials for specific workloads
 
 ![Organization member page in Cloud 2.](/img/ui/org-members.png)
 
