@@ -12,7 +12,7 @@ tags:
 
 # Organizations in Prefect Cloud
 
-![Organization member page in Cloud 2.](/img/ui/organization-members.png)
+![Organization member page in Cloud 2.](/img/ui/org-members.png)
 
 For larger teams, and companies with more complex needs around user and access management, annual plans include organizations in prefect Cloud 2. Organizations provide a host of ways to collaborate securely at scale, including:
 
