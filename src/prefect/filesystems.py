@@ -298,7 +298,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
 
     type: str = "s3"
     bucket: str = Field(
-        ..., description="An S3 bucket path", example="my-s3-bucket/a-directory-within"
+        ..., description="An S3 bucket name", example="my-s3-bucket"
     )
     aws_access_key_id: SecretStr = Field(None, title="AWS Access Key ID")
     aws_secret_access_key: SecretStr = Field(None, title="AWS Secret Access Key")
@@ -369,7 +369,7 @@ class GCS(ReadableFileSystem, WritableFileSystem):
 
     type: Literal["gcs"] = "gcs"
     bucket: str = Field(
-        ..., description="A GCS bucket path", example="my-gcs-bucket/a-directory-within"
+        ..., description="A GCS bucket name", example="my-gcs-bucket"
     )
     service_account_info: Optional[SecretStr] = Field(
         None, description="The contents of a service account keyfile as a JSON string."
