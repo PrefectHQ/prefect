@@ -51,6 +51,8 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
 
     @validator("basepath", pre=True)
     def cast_pathlib(cls, value):
+        if value == "foo":
+            raise ValueError("custom")
         if isinstance(value, Path):
             return str(value)
         return value
@@ -277,7 +279,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         return self._filesystem
 
 
-class S3(RemoteFileSystem):
+class S3(ReadableFileSystem, WritableFileSystem):
     """
     Store data as a file on AWS S3.
     """
@@ -289,12 +291,47 @@ class S3(RemoteFileSystem):
     bucket: str = Field(
         ..., description="An S3 bucket path", example="my-s3-bucket/a-directory-within"
     )
-    key: SecretStr = Field(None, description="An AWS Access Key ID")
-    secret: SecretStr = Field(None, description="An AWS Secret Access Key")
-    settings: dict = Field(default_factory=dict, description="Additional settings.")
+    aws_access_key_id: SecretStr = Field(None, description="AWS Access Key ID")
+    aws_secret_access_key: SecretStr = Field(None, description="AWS Secret Access Key")
 
-    @validator("basepath", pre=True)
-    def cast_pathlib(cls, value):
-        if isinstance(value, Path):
-            return str(value)
-        return value
+    _remote_file_system: RemoteFileSystem = None
+
+    @property
+    def filesystem(self) -> RemoteFileSystem:
+        settings = {}
+        if self.aws_access_key_id:
+            settings["key"] = self.aws_access_key_id
+        if self.aws_secret_access_key:
+            settings["secret"] = self.aws_secret_access_key
+        self._remote_file_system = RemoteFileSystem(
+            basepath=f"s3://{self.bucket}", settings=settings
+        )
+        return self._remote_file_system
+
+    async def get_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> bytes:
+        """
+        Downloads a directory from a given remote path to a local direcotry.
+
+        Defaults to downloading the entire contents of the block's basepath to the current working directory.
+        """
+        return await self.filesystem.get_directory(
+            from_path=from_path, local_path=local_path
+        )
+
+    async def put_directory(self, local_path: str = None, to_path: str = None) -> int:
+        """
+        Uploads a directory from a given local path to a remote direcotry.
+
+        Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        """
+        return await self.filesystem.put_directory(
+            local_path=local_path, to_path=to_path
+        )
+
+    async def read_path(self, path: str) -> bytes:
+        return await self.filesystem.read_path(path)
+
+    async def write_path(self, path: str, content: bytes) -> str:
+        return await self.filesystem.write_path(path=path, content=content)
