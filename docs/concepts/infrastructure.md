@@ -12,7 +12,7 @@ tags:
 
 # Infrastructure
 
-[Infrastructure](/api-ref/prefect/flow-runners/) are responsible for creating and monitoring infrastructure for flow runs associated with deployments.
+Users may specify an [infrastructure](/api-ref/prefect/flow-runners/) block when creating a deployment. This block will be used to allocate infrastructure for the flow run at runtime.
 
 Infrastructure can only be used with a [deployment](/concepts/deployments/). When you run a flow directly by calling the flow yourself, you are responsible for the environment in which the flow executes.
 
