@@ -24,4 +24,4 @@ Control granular access to workspaces by setting default access for all organiza
 
 ![Organization workspace sharing in Cloud 2.](/img/ui/org-workspace-sharing.png)
 
-[Contact sales](https://www.prefect.io/pricing) to learn more about annuals plans and organizations
+[Contact sales](https://www.prefect.io/pricing) to learn more about annuals plans and organizations.
