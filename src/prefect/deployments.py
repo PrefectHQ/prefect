@@ -358,11 +358,8 @@ class DeploymentYAML(BaseModel):
             "tags",
             "schedule",
             "parameters",
+            "infrastructure",
         ]
-
-        # allow infra to be edited if not based on a block document
-        if not self.infrastructure._block_document_id:
-            editable_fields.append("infrastructure")
         return editable_fields
 
     @property

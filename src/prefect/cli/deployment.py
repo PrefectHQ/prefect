@@ -268,17 +268,13 @@ async def apply(
         # prep IDs
         flow_id = await client.create_flow_from_name(deployment.flow_name)
 
-        if not deployment.infrastructure._block_document_id:
-            infrastructure_document_id = await deployment.infrastructure._save(
-                is_anonymous=True
-            )
-        else:
-            infrastructure_document_id = deployment.infrastructure._block_document_id
+        deployment.infrastructure = deployment.infrastructure.copy()
+        infrastructure_document_id = await deployment.infrastructure._save(
+            is_anonymous=True,
+        )
 
-        if not deployment.storage._block_document_id:
-            storage_document_id = await deployment.storage._save(is_anonymous=True)
-        else:
-            storage_document_id = deployment.storage._block_document_id
+        deployment.storage = deployment.storage.copy()
+        storage_document_id = await deployment.storage._save(is_anonymous=True)
 
         deployment_id = await client.create_deployment(
             flow_id=flow_id,
@@ -456,7 +452,10 @@ async def build(
 
     ## process storage and move files around
     if storage_block:
-        storage = await Block.load(storage_block)
+        template = await Block.load(storage_block)
+        storage = template.copy(
+            exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
+        )
 
         # upload current directory to storage location
         file_count = await storage.put_directory()
@@ -469,8 +468,10 @@ async def build(
         storage = LocalFileSystem(basepath=Path(".").absolute())
 
     if infra_block:
-        infrastructure = await Block.load(infra_block)
-
+        template = await Block.load(infra_block)
+        infrastructure = template.copy(
+            exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
+        )
     else:
         if infra_type == "k8s":
             infrastructure = KubernetesJob()
