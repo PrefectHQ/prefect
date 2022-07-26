@@ -12,9 +12,12 @@
     <p-tabs v-if="deployment" :tabs="['Overview', 'Parameters']">
       <template #overview>
         <p-content secondary>
-          <p>
-            {{ deployment.description ?? 'If there is no description, I show up!' }}
-          </p>
+          <template v-if="deployment.description">
+            <DeploymentDescription :description="deployment.description" />
+          </template>
+          <template v-else>
+            <DeploymentDescriptionEmptyState />
+          </template>
 
           <template v-if="!media.xl">
             <DeploymentDetails :deployment="deployment" />
@@ -34,7 +37,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingDeployment, DeploymentDetails, ParametersTable } from '@prefecthq/orion-design'
+  import { DeploymentDescription, DeploymentDescriptionEmptyState, PageHeadingDeployment, DeploymentDetails, ParametersTable } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -57,3 +60,12 @@
   }
 </script>
 
+<style>
+.deployment__description {
+  @apply
+  italic
+  text-sm
+  leading-6
+  text-slate-500
+}
+</style>
