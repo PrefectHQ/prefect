@@ -18,6 +18,7 @@ depends_on = None
 
 
 def upgrade():
+    op.add_column("deployment", sa.Column("description", sa.TEXT(), nullable=True))
     op.add_column("deployment", sa.Column("manifest_path", sa.String(), nullable=True))
     op.add_column(
         "deployment",
@@ -48,6 +49,7 @@ def upgrade():
 def downgrade():
     with op.batch_alter_table("deployment", schema=None) as batch_op:
         batch_op.drop_column("manifest_path")
+        batch_op.drop_column("description")
         batch_op.drop_column("parameter_openapi_schema")
         batch_op.drop_constraint(
             batch_op.f("fk_deployment__storage_document_id__block_document"),
