@@ -645,7 +645,7 @@ class TestAPICompatibility:
         inner_block_document = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="inner_block_document",
+                name="inner-block-document",
                 data=dict(x=1),
                 block_schema_id=block_schema_b.id,
                 block_type_id=block_schema_b.block_type_id,
@@ -655,7 +655,7 @@ class TestAPICompatibility:
         middle_block_document_1 = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="middle_block_document_1",
+                name="middle-block-document-1",
                 data=dict(y=2),
                 block_schema_id=block_schema_c.id,
                 block_type_id=block_schema_c.block_type_id,
@@ -664,7 +664,7 @@ class TestAPICompatibility:
         middle_block_document_2 = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="middle_block_document_2",
+                name="middle-block-document-2",
                 data={
                     "b": {"$ref": {"block_document_id": inner_block_document.id}},
                     "z": "ztop",
@@ -676,7 +676,7 @@ class TestAPICompatibility:
         outer_block_document = await models.block_documents.create_block_document(
             session=session,
             block_document=BlockDocumentCreate(
-                name="outer_block_document",
+                name="outer-block-document",
                 data={
                     "c": {"$ref": {"block_document_id": middle_block_document_1.id}},
                     "d": {"$ref": {"block_document_id": middle_block_document_2.id}},
@@ -688,7 +688,7 @@ class TestAPICompatibility:
 
         await session.commit()
 
-        block_instance = await E.load("outer_block_document")
+        block_instance = await E.load("outer-block-document")
 
         assert block_instance._block_document_name == outer_block_document.name
         assert block_instance._block_document_id == outer_block_document.id
@@ -697,19 +697,19 @@ class TestAPICompatibility:
         assert block_instance.c.dict() == {
             "y": 2,
             "_block_document_id": middle_block_document_1.id,
-            "_block_document_name": "middle_block_document_1",
+            "_block_document_name": "middle-block-document-1",
             "_is_anonymous": False,
         }
         assert block_instance.d.dict() == {
             "b": {
                 "x": 1,
                 "_block_document_id": inner_block_document.id,
-                "_block_document_name": "inner_block_document",
+                "_block_document_name": "inner-block-document",
                 "_is_anonymous": False,
             },
             "z": "ztop",
             "_block_document_id": middle_block_document_2.id,
-            "_block_document_name": "middle_block_document_2",
+            "_block_document_name": "middle-block-document-2",
             "_is_anonymous": False,
         }
 
@@ -760,6 +760,9 @@ class TestRegisterBlockTypeAndSchema:
     async def test_register_existing_block_type_new_block_schema(
         self, orion_client: OrionClient
     ):
+        # Ignore warning caused by matching key in registry
+        warnings.filterwarnings("ignore", category=UserWarning)
+
         class ImpostorBlock(Block):
             _block_type_name = "NewBlock"
             x: str
@@ -869,6 +872,9 @@ class TestRegisterBlockTypeAndSchema:
             await Block.register_type_and_schema()
 
     async def test_register_updates_block_type(self, orion_client: OrionClient):
+        # Ignore warning caused by matching key in registry
+        warnings.filterwarnings("ignore", category=UserWarning)
+
         class Before(Block):
             _block_type_name = "Test Block"
             _description = "Before"
@@ -908,6 +914,9 @@ class TestRegisterBlockTypeAndSchema:
 class TestSaveBlock:
     @pytest.fixture
     def NewBlock(self):
+        # Ignore warning caused by matching key in registry due to block fixture
+        warnings.filterwarnings("ignore", category=UserWarning)
+
         class NewBlock(Block):
             a: str
             b: str
@@ -1089,7 +1098,7 @@ class TestSaveBlock:
             z: str
 
         block = SecretBlock(x="x", y=b"y", z="z")
-        await block.save("secret block")
+        await block.save("secret-block")
 
         # read from DB without secrets
         db_block_without_secrets = (
@@ -1113,7 +1122,7 @@ class TestSaveBlock:
         assert db_block.data == {"x": "x", "y": "y", "z": "z"}
 
         # load block with secrets
-        api_block = await SecretBlock.load("secret block")
+        api_block = await SecretBlock.load("secret-block")
         assert api_block.x.get_secret_value() == "x"
         assert api_block.y.get_secret_value() == b"y"
         assert api_block.z == "z"
@@ -1131,7 +1140,7 @@ class TestSaveBlock:
             child: Child
 
         block = Parent(a="a", b="b", child=dict(a="a", b="b"))
-        await block.save("secret block")
+        await block.save("secret-block")
 
         # read from DB without secrets
         db_block_without_secrets = (
@@ -1155,7 +1164,7 @@ class TestSaveBlock:
         assert db_block.data == {"a": "a", "b": "b", "child": {"a": "a", "b": "b"}}
 
         # load block with secrets
-        api_block = await Parent.load("secret block")
+        api_block = await Parent.load("secret-block")
         assert api_block.a.get_secret_value() == "a"
         assert api_block.b == "b"
         assert api_block.child.a.get_secret_value() == "a"
@@ -1172,9 +1181,9 @@ class TestSaveBlock:
             child: Child
 
         child = Child(a="a", b="b")
-        await child.save("child block")
+        await child.save("child-block")
         block = Parent(a="a", b="b", child=child)
-        await block.save("parent block")
+        await block.save("parent-block")
 
         # read from DB without secrets
         db_block_without_secrets = (
@@ -1198,7 +1207,7 @@ class TestSaveBlock:
         assert db_block.data == {"a": "a", "b": "b", "child": {"a": "a", "b": "b"}}
 
         # load block with secrets
-        api_block = await Parent.load("parent block")
+        api_block = await Parent.load("parent-block")
         assert api_block.a.get_secret_value() == "a"
         assert api_block.b == "b"
         assert api_block.child.a.get_secret_value() == "a"

@@ -466,7 +466,7 @@ class TestSystemBlockTypes:
         datetime_block_schema = await client.post(
             "/block_schemas/filter",
             json=dict(
-                block_schema_filter=dict(
+                block_schemas=dict(
                     block_type_id=dict(any_=[datetime_block_type.json()["id"]])
                 ),
                 limit=1,

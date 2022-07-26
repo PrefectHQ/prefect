@@ -492,8 +492,8 @@ class TestReadBlockDocuments:
             List[schemas.core.BlockDocument], response.json()
         )
         assert [b.id for b in read_block_documents] == [
-            block_documents[0].id,
             block_documents[1].id,
+            block_documents[2].id,
         ]
 
         response = await client.post(
@@ -503,8 +503,8 @@ class TestReadBlockDocuments:
             List[schemas.core.BlockDocument], response.json()
         )
         assert [b.id for b in read_block_documents] == [
-            block_documents[2].id,
             block_documents[3].id,
+            block_documents[4].id,
         ]
 
     async def test_read_block_documents_filter_capabilities(
@@ -522,7 +522,7 @@ class TestReadBlockDocuments:
         )
 
         assert len(fly_and_swim_block_documents) == 1
-        assert fly_and_swim_block_documents[0].id == block_documents[5].id
+        assert fly_and_swim_block_documents[0].id == block_documents[6].id
 
         response = await client.post(
             "/block_documents/filter",
@@ -534,9 +534,9 @@ class TestReadBlockDocuments:
         )
         assert len(fly_block_documents) == 3
         assert [b.id for b in fly_block_documents] == [
-            block_documents[1].id,
-            block_documents[3].id,
-            block_documents[5].id,
+            block_documents[2].id,
+            block_documents[4].id,
+            block_documents[6].id,
         ]
 
         response = await client.post(
@@ -548,7 +548,7 @@ class TestReadBlockDocuments:
             List[schemas.core.BlockDocument], response.json()
         )
         assert len(swim_block_documents) == 1
-        assert swim_block_documents[0].id == block_documents[5].id
+        assert swim_block_documents[0].id == block_documents[6].id
 
 
 class TestDeleteBlockDocument:
@@ -1006,7 +1006,7 @@ class TestSecretBlockDocuments:
         self, client, secret_block_document
     ):
         response = await client.get(
-            f"/block_types/name/{secret_block_document.block_type.name}/block_documents",
+            f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents",
             params=dict(),
         )
         blocks = pydantic.parse_obj_as(
@@ -1023,7 +1023,7 @@ class TestSecretBlockDocuments:
     ):
 
         response = await client.get(
-            f"/block_types/name/{secret_block_document.block_type.name}/block_documents",
+            f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents",
             params=dict(include_secrets=True),
         )
         blocks = pydantic.parse_obj_as(
@@ -1039,7 +1039,7 @@ class TestSecretBlockDocuments:
         self, client, secret_block_document
     ):
         response = await client.get(
-            f"/block_types/name/{secret_block_document.block_type.name}/block_documents/name/{secret_block_document.name}",
+            f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents/name/{secret_block_document.name}",
             params=dict(),
         )
         block = pydantic.parse_obj_as(schemas.core.BlockDocument, response.json())
@@ -1053,7 +1053,7 @@ class TestSecretBlockDocuments:
     ):
 
         response = await client.get(
-            f"/block_types/name/{secret_block_document.block_type.name}/block_documents/name/{secret_block_document.name}",
+            f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents/name/{secret_block_document.name}",
             params=dict(include_secrets=True),
         )
         block = pydantic.parse_obj_as(schemas.core.BlockDocument, response.json())
@@ -1113,7 +1113,7 @@ class TestSecretBlockDocuments:
         await child.save("child")
         # save the parent block
         block = ParentBlock(a=3, b="b", child=child)
-        await block.save("nested test")
+        await block.save("nested-test")
         await session.commit()
         response = await client.get(f"/block_documents/{block._block_document_id}")
         block = schemas.core.BlockDocument.parse_obj(response.json())
@@ -1138,7 +1138,7 @@ class TestSecretBlockDocuments:
         child = ChildBlock(x=X, y=Y)
         # save the parent block
         block = ParentBlock(a=3, b="b", child=child)
-        await block.save("nested test")
+        await block.save("nested-test")
         await session.commit()
         response = await client.get(f"/block_documents/{block._block_document_id}")
         block = schemas.core.BlockDocument.parse_obj(response.json())

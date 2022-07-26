@@ -460,7 +460,7 @@ def _construct_block_schema_fields_with_block_references(
         if parent_block_schema_id == parent_block_schema.id:
             new_block_schema_reference = {
                 "block_schema_checksum": nested_block_schema.checksum,
-                "block_type_name": nested_block_schema.block_type.name,
+                "block_type_slug": nested_block_schema.block_type.slug,
             }
             # A block reference for this key does not yet exist
             if name not in block_schema_fields_copy["block_schema_references"]:
