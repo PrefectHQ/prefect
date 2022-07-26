@@ -1,5 +1,15 @@
 # Prefect Release Notes
 
+## 2.0b15
+
+### Uniquely refer to blocks with slugs
+Blocks are a convienient way to secure store and retreive configuration. Now, retreiving configuration stored with blocks is even easier with slugs, both human and machine readable unique identifiers. By deafult, slugs are a concatination of [block-type-name]/[block-document-name], but they are editable. Slugs and Block document names may only include alphanumeric characters and dashes.
+
+**Warning**: This breaking change makes this release incompatible with previous versions of the Orion server and Prefect Cloud 2.0
+
+### Other improvements and bug fixes
+- The new GCS FileSystem Block enables you to read and write data as a file on Google Cloud Storage
+
 ## 2.0b14
 
 ### Retreive the state of your tasks or flows with the `return_state` kwarg
