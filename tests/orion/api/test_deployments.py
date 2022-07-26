@@ -278,7 +278,7 @@ class TestReadDeployment:
     ):
         response = await client.get(f"/deployments/{deployment.id}")
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["id"] == deployment.id
+        assert response.json()["id"] == str(deployment.id)
         assert response.json()["name"] == deployment.name
         assert response.json()["flow_id"] == str(deployment.flow_id)
 
@@ -291,7 +291,7 @@ class TestReadDeploymentByName:
     async def test_read_deployment_by_name(self, client, flow, deployment):
         response = await client.get(f"/deployments/name/{flow.name}/{deployment.name}")
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["id"] == deployment.id
+        assert response.json()["id"] == str(deployment.id)
         assert response.json()["name"] == deployment.name
         assert response.json()["flow_id"] == str(deployment.flow_id)
         assert response.json()["infrastructure_document_id"] == str(
