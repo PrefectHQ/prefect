@@ -247,8 +247,10 @@ async def login(
             workspaces = await client.read_workspaces()
         except CloudUnauthorizedError:
             exit_with_error(
-                "Unable to authenticate. Please ensure your credentials are correct."
+                "Unable to authenticate with Prefect Cloud. Please ensure your credentials are correct."
             )
+        except httpx.HTTPStatusError as exc:
+            exit_with_error("Error connecting to Prefect Cloud")
 
     for profile_name in profiles:
         if key == profiles[profile_name].settings.get(PREFECT_API_KEY):

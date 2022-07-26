@@ -71,7 +71,7 @@ def test_invalid_login(monkeypatch):
         ["cloud", "login", "--key", "invalid_API_key"],
         expected_code=1,
         expected_output=(
-            "Unable to authenticate. Please ensure your credentials are correct."
+            "Unable to authenticate with Prefect Cloud. Please ensure your credentials are correct."
         ),
     )
 
