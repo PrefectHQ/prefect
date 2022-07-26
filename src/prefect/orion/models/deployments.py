@@ -86,6 +86,75 @@ async def create_deployment(
 
 
 @inject_db
+async def update_deployment(
+    session: sa.orm.Session,
+    deployment_id: UUID,
+    deployment: schemas.actions.DeploymentUpdate,
+    db: OrionDBInterface,
+):
+    """Updates a deployment.
+
+    Args:
+        session: a database session
+        deployment_id: the ID of the deployment to modify
+        deployment: changes to a deployment model
+
+    Returns:
+        db.Deployment: the newly-created or updated deployment
+
+    """
+
+    current_deployment = await session.get(db.Deployment, deployment_id)
+    if not current_deployment:
+        return False
+
+    # set `updated` manually
+    # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
+    # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
+    deployment.updated = pendulum.now("UTC")
+
+    update_values = deployment.dict(shallow=True, exclude_unset=True)
+
+    insert_stmt = (
+        (await db.insert(db.Deployment))
+        .values(**update_values)
+        .on_conflict_do_update(
+            index_elements=db.deployment_unique_upsert_columns,
+            set_={
+                **deployment.dict(
+                    shallow=True,
+                    include={
+                        "name",
+                        "schedule",
+                        "is_schedule_active",
+                        "description",
+                        "tags",
+                        "parameters",
+                        "updated",
+                        "storage_document_id",
+                        "infrastructure_document_id",
+                    },
+                ),
+            },
+        )
+    )
+
+    await session.execute(insert_stmt)
+
+    query = (
+        sa.select(db.Deployment)
+        .where(
+            db.Deployment.id = deployment_id
+        )
+        .execution_options(populate_existing=True)
+    )
+    result = await session.execute(query)
+    model = result.scalar()
+
+    return model
+
+
+@inject_db
 async def read_deployment(
     session: sa.orm.Session, deployment_id: UUID, db: OrionDBInterface
 ):

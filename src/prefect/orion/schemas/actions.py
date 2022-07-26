@@ -55,6 +55,27 @@ class DeploymentCreate(
         extra = "forbid"
 
 
+class DeploymentUpdate(
+    schemas.core.Deployment.subclass(
+        name="DeploymentUpdate",
+        include_fields=[
+            "name",
+            "schedule",
+            "is_schedule_active",
+            "description",
+            "tags",
+            "parameters",
+            "storage_document_id",
+            "infrastructure_document_id",
+        ],
+    )
+):
+    """Data used by the Orion API to update a deployment."""
+
+    class Config:
+        extra = "forbid"
+
+
 class FlowRunUpdate(
     schemas.core.FlowRun.subclass(
         name="FlowRunUpdate",
