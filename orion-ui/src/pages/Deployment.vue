@@ -9,7 +9,7 @@
       />
     </template>
 
-    <p-tabs v-if="deployment" :tabs="['Overview', 'Parameters']">
+    <p-tabs v-if="deployment" :tabs="tabs">
       <template #overview>
         <p-content secondary>
           <template v-if="deployment.description">
@@ -18,15 +18,15 @@
           <template v-else>
             <DeploymentDescriptionEmptyState :deployment="deployment" />
           </template>
-
-          <template v-if="!media.xl">
-            <DeploymentDetails :deployment="deployment" />
-          </template>
         </p-content>
       </template>
 
       <template #parameters>
         <ParametersTable :parameters="deployment.parameters" />
+      </template>
+
+      <template #details>
+        <DeploymentDetails :deployment="deployment" />
       </template>
     </p-tabs>
 
@@ -51,6 +51,17 @@
   const subscriptionOptions = {
     interval: 300000,
   }
+
+  const tabs = computed(() => {
+    const values = ['Overview', 'Parameters']
+
+    if (!media.xl) {
+      values.push('Details')
+    }
+
+    return values
+  })
+
 
   const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
   const deployment = computed(() => deploymentSubscription.response)
