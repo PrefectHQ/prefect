@@ -510,7 +510,6 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         context: dict = None,
         state: schemas.states.State = None,
-        infrastructure_document_id: UUID = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a deployment.
@@ -522,8 +521,6 @@ class OrionClient:
             context: Optional run context data
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
-            infrastructure: An optional infrastructure object to use to for this flow
-                run.
 
         Raises:
             httpx.RequestError: if Orion does not successfully create a run for any reason
@@ -539,7 +536,6 @@ class OrionClient:
             parameters=parameters,
             context=context,
             state=state,
-            infrastructure_document_id=infrastructure_document_id,
         )
 
         response = await self._client.post(
@@ -557,7 +553,6 @@ class OrionClient:
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: schemas.states.State = None,
-        infrastructure_document_id: UUID = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a flow.
@@ -601,7 +596,6 @@ class OrionClient:
                 max_retries=flow.retries,
                 retry_delay_seconds=flow.retry_delay_seconds,
             ),
-            infrastructure_document_id=infrastructure_document_id,
         )
 
         flow_run_create_json = flow_run_create.dict(json_compatible=True)

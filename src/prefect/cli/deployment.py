@@ -99,7 +99,6 @@ async def inspect(name: str):
             updated='39 minutes ago',
             name='inline-deployment',
             flow_id='fe50cfa6-fd54-42e3-8930-6d9192678f89',
-            flow_data=DataDocument(encoding='file'),
             parameters={'name': 'Marvin'},
             tags=['foo', 'bar']
         )
