@@ -337,7 +337,7 @@ async def ls():
 
     current_workspace = get_current_workspace(workspaces)
 
-    table = Table()
+    table = Table(caption="* active workspace")
     table.add_column(
         "[#024dfd]Available Workspaces:", justify="right", style="#8ea0ae", no_wrap=True
     )
