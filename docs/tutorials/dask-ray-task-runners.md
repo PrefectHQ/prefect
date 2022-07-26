@@ -13,29 +13,33 @@ tags:
 
 # Dask and Ray task runners
 
-Task runners provide the execution environment for tasks, and each flow specifies a task runner to run any tasks on that flow.
+Task runners provide an execution environment for tasks. In a flow decorator, you can specify a task runner to run the tasks called in that flow.
 
-The default task runner is the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) runs tasks concurrently, whether they are synchronous or asynchronous functions. Concurrent means that, if any tasks block on IO, they can yield to other tasks and mixed sync and async tasks can run concurrently. This is context switching rather than parallel processing &mdash; it increases the amount of work finished at a time on a given CPU.
+The default task runner is the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner). 
 
-If you need to dictate strict sequential task execution, you can use the [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner). This may be useful as a debugging tool for async code.
+!!! note "You must use .submit for non-sequential code"
+
+To run tasks asynchronously, you must use the `.submit` method when you call them. If you just call the task as you would normally in Python code it will run synchronously, even though you are using the ConcurrentTaskRunner.
 
 Many real-world data workflows benefit from true parallel, distributed task execution. For these use cases, the following Prefect-developed task runners for parallel or distributed task execution may be installed as [Prefect Collections](/collections/overview/). 
 
 - [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) runs tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
 - [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) runs tasks requiring parallel execution using [Ray](https://www.ray.io/).
 
-These task runners can spin up a local Dask cluster or Ray instance on the fly, or let you connect with Dask or Ray environment you've set up separately, potentially taking advantage of massively parallel computing environments.
+These task runners can spin up a local Dask cluster or Ray instance on the fly, or let you connect with a Dask or Ray environment you've set up separately, potentially taking advantage of massively parallel computing environments.
 
 As you'll see, using Dask or Ray in your flows is straightforward, enabling you to choose the execution environment that fits your particular needs. 
 
 To show you how it works, let's start small.
 
 !!! note "Remote storage"
-    We recommend configuring [remote storage](/concepts/storage/) for task execution with the `DaskTaskRunner` and `RayTaskRunner`. This ensures tasks executing in Dask or Ray have access to task result storage, particularly when accessing a Dask or Ray instance outside of your execution environment.
+    We recommend configuring [remote file storage](/concepts/storage/) for task execution with the `DaskTaskRunner` and `RayTaskRunner`. This ensures tasks executing in Dask or Ray have access to task result storage, particularly when accessing a Dask or Ray instance outside of your execution environment.
 
 ## Configuring a task runner
 
 You may have seen this briefly in a previous tutorial, but let's look a bit more closely at how you can configure a specific task runner for a flow.
+
+[`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner). This task runner runs all tasks synchronously and may be useful when used as a debugging tool in conjunction with async code.
 
 Let's start with this simple flow. We import the `SequentialTaskRunner`, specify a `task_runner` on the flow, and call the tasks with `.submit()`.
 
@@ -120,6 +124,7 @@ To configure your flow to use the `DaskTaskRunner`:
 1. Make sure the `prefect-dask` collection is installed by running `pip install prefect-dask`.
 2. In your flow code, import `DaskTaskRunner` from `prefect_dask.task_runners`.
 3. Assign it as the task runner when the flow is defined using the `task_runner=DaskTaskRunner` argument.
+4. Use the `.submit` method when calling functions.
 
 This is the same flow as above, with a few minor changes to use `DaskTaskRunner` where we previously configured `SequentialTaskRunner`. Install `prefect-dask`, made these changes, then save the updated code as `dask_flow.py`.
 
@@ -153,7 +158,9 @@ Now run `dask_flow.py`.
 ```
 $ python dask_flow.py
 19:29:03.798 | INFO    | prefect.engine - Created flow run 'fine-bison' for flow 'greetings'
-19:29:03.798 | INFO    | Flow run 'fine-bison' - Using task runner 'DaskTaskRunner'
+
+19:29:03.798 | INFO    | Flow run 'fine-bison' - Using task runner 'DaskTaskRunner' *********TK being removed - maybe take out now*** 
+
 19:29:04.080 | INFO    | prefect.task_runner.dask - Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
 19:29:10.141 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at http://127.0.0.1:8787/status
 19:29:10.263 | INFO    | Flow run 'fine-bison' - Created task run 'say_hello-d71d0552-0' for task 'say_hello'
