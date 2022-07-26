@@ -262,13 +262,13 @@ async def login(
                     f"The workspace can be changed using `prefect workspace set`."
                 )
 
-    workspace_handles = {
+    workspace_handle_details = {
         f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
         for workspace in workspaces
     }
 
     if not workspace_handle:
-        workspace_handle = select_workspace(workspace_handles.keys())
+        workspace_handle = select_workspace(workspace_handle_details.keys())
 
     cloud_profile_name = app.console.input(
         "Creating a profile for this Prefect Cloud login. Please specify a profile name: "
@@ -289,7 +289,7 @@ async def login(
         cloud_profile_name,
         {
             PREFECT_API_URL: build_url_from_workspace(
-                workspace_handles[workspace_handle]
+                workspace_handle_details[workspace_handle]
             ),
             PREFECT_API_KEY: key,
         },
