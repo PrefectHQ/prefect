@@ -59,7 +59,6 @@ class DeploymentUpdate(
     schemas.core.Deployment.subclass(
         name="DeploymentUpdate",
         include_fields=[
-            "name",
             "schedule",
             "is_schedule_active",
             "description",
