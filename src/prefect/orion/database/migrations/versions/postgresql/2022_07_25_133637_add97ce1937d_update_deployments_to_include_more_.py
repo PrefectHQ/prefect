@@ -1,7 +1,7 @@
 """Update deployments to include more information
 
 Revision ID: add97ce1937d
-Revises: e085c9cbf8ce
+Revises: 4ff2f2bf81f4
 Create Date: 2022-07-25 13:36:37.811822
 
 """
@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "add97ce1937d"
-down_revision = "e085c9cbf8ce"
+down_revision = "4ff2f2bf81f4"
 branch_labels = None
 depends_on = None
 

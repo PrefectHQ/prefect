@@ -1,7 +1,7 @@
 """Update deployments to include more information
 
 Revision ID: 88c2112b668f
-Revises: 2fe8ef6a6514
+Revises: f335f9633eec
 Create Date: 2022-07-25 13:10:28.849740
 
 """
@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "88c2112b668f"
-down_revision = "2fe8ef6a6514"
+down_revision = "f335f9633eec"
 branch_labels = None
 depends_on = None
 
