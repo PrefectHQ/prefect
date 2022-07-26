@@ -1,3 +1,4 @@
+import warnings
 from typing import Union
 
 import pytest
@@ -359,6 +360,8 @@ class TestCreateBlockSchema:
         assert nested_block_schema.fields == A.schema()
 
     async def test_create_nested_block_schema_with_multiply_used_blocks(self, session):
+        warnings.filterwarnings("ignore", category=UserWarning)
+
         class A(Block):
             d: str
             e: str
