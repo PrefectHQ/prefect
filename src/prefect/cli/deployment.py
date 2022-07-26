@@ -30,7 +30,7 @@ from prefect.deployments import (
     load_flow_from_deployment,
 )
 from prefect.exceptions import ObjectNotFound, ScriptError
-from prefect.filesystems import LocalFileSystem, RemoteFileSystem
+from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.infrastructure.submission import _prepare_infrastructure
 from prefect.orion.schemas.core import FlowRun
@@ -420,7 +420,7 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The type/name of the storage block to use.",
+        help="The slug of the storage block to use.",
     ),
 ):
     # validate inputs
@@ -456,17 +456,7 @@ async def build(
 
     ## process storage and move files around
     if storage_block:
-        prefix, block_name = storage_block.split("/")
-        if prefix not in ["local", "s3", "gcs", "abfs", "az"]:
-            exit_with_error(
-                f"Storage Block must be prefixed with one of 'abfs', 'az', 'local', 'gcs' or 's3', {storage_block} was provided"
-            )
-        if prefix == "local":
-            storage = await LocalFileSystem.load(block_name)
-        elif prefix in ["s3", "abfs", "az", "gcs"]:
-            storage = await RemoteFileSystem.load(block_name)
-        else:
-            raise ValueError(f"Unknown storage block provided: {storage_block}")
+        storage = await Block.load(storage_block)
 
         # upload current directory to storage location
         file_count = await storage.put_directory()
