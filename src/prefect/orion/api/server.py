@@ -33,7 +33,7 @@ TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.7.0"
+ORION_API_VERSION = "0.8.0"
 
 logger = get_logger("orion")
 
