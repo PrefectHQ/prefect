@@ -302,8 +302,8 @@ class S3(ReadableFileSystem, WritableFileSystem):
     bucket: str = Field(
         ..., description="An S3 bucket path", example="my-s3-bucket/a-directory-within"
     )
-    aws_access_key_id: SecretStr = Field(None, description="AWS Access Key ID")
-    aws_secret_access_key: SecretStr = Field(None, description="AWS Secret Access Key")
+    aws_access_key_id: SecretStr = Field(None, title="AWS Access Key ID")
+    aws_secret_access_key: SecretStr = Field(None, title="AWS Secret Access Key")
 
     _remote_file_system: RemoteFileSystem = None
 
