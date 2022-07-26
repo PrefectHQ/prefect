@@ -29,7 +29,7 @@ from prefect.orion.schemas.states import (
     StateType,
 )
 from prefect.task_runners import SequentialTaskRunner
-from prefect.testing.utilities import AsyncMock, exceptions_equal
+from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
 from prefect.utilities.collections import quote
 from prefect.utilities.pydantic import PartialModel
 
@@ -319,6 +319,7 @@ class TestOrchestrateTaskRun:
         # Check that the task completed happily
         assert state.is_completed()
 
+    @flaky_on_windows
     async def test_interrupt_task(self):
         i = 0
 

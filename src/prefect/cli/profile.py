@@ -8,6 +8,7 @@ import httpx
 import typer
 from fastapi import status
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.table import Table
 
 import prefect.context
 import prefect.settings
@@ -33,11 +34,17 @@ def ls():
     current_profile = prefect.context.get_settings_context().profile
     current_name = current_profile.name if current_profile is not None else None
 
+    table = Table(caption="* active profile")
+    table.add_column(
+        "[#024dfd]Available Profiles:", justify="right", style="#8ea0ae", no_wrap=True
+    )
+
     for name in profiles:
         if name == current_name:
-            app.console.print(f"* {name}")
+            table.add_row(f"[green]  * {name}[/green]")
         else:
-            app.console.print(name)
+            table.add_row(f"  {name}")
+    app.console.print(table)
 
 
 @profile_app.command()
