@@ -52,7 +52,7 @@ This release builds upon the collection of small enhancements made in the previo
 For convenience, earlier versions of Prefect 2.0 allowed for a global storage setting. With forthcoming enhancements to blocks, this will no longer be necessary.
 
 ### Other improvements and bug fixes
-- We have published a [guide for migrating workflows from Prefect 1.0 (and lower) to Prefect 2.0]](https://orion-docs.prefect.io/migration_guide/) 
+- We have published a [guide for migrating workflows from Prefect 1.0 (and lower) to Prefect 2.0](https://orion-docs.prefect.io/migration_guide/) 
 - The Flow run page now has a clearer empty state that is more consistent with other pages
 - Tutorial documentation has been further updated to reflect new result behavior
 - Tasks and flows now run in interruptible threads when timeouts are used
