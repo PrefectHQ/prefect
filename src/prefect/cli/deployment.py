@@ -463,7 +463,7 @@ async def build(
             )
         if prefix == "local":
             storage = await LocalFileSystem.load(block_name)
-        elif prefix == "s3":
+        elif prefix in ["s3", "abfs", "az", "gcs"]:
             storage = await RemoteFileSystem.load(block_name)
         else:
             raise ValueError(f"Unknown storage block provided: {storage_block}")
