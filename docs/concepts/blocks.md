@@ -99,7 +99,7 @@ All block values are encrypted before being stored, but if you have values that 
 
 Here's an example of an `AwsCredentials` block that uses `SecretStr`:
 
-```python hl_lines="7"
+```python hl_lines="8"
 from typing import Optional
 
 from prefect.blocks.core import Block
