@@ -8,7 +8,6 @@ Blocks are a convenient way to secure store and retrieve configuration. Now, ret
 **Warning**: This breaking change makes this release incompatible with previous versions of the Orion server and Prefect Cloud 2.0
 
 ### Other improvements and bug fixes
-- The new GCS FileSystem Block enables you to read and write data as a file on Google Cloud Storage
 
 ## 2.0b14
 
