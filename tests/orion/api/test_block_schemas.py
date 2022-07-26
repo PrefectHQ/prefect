@@ -15,7 +15,9 @@ EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 async def system_block_type(session):
     block_type = await models.block_types.create_block_type(
         session=session,
-        block_type=schemas.core.BlockType(name="system_block", is_protected=True),
+        block_type=schemas.core.BlockType(
+            name="System Block", slug="system-block", is_protected=True
+        ),
     )
     await session.commit()
     return block_type
