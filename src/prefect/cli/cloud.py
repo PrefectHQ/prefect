@@ -259,7 +259,7 @@ async def login(
                 exit_with_success(
                     f"Logged in to Prefect Cloud using profile {profile_name!r}.\n"
                     f"Workspace is currently set to {current_workspace!r}. "
-                    f"The workspace can be changed using `prefect workspace set`."
+                    f"The workspace can be changed using `prefect cloud workspace set`."
                 )
 
     workspace_handle_details = {
@@ -301,7 +301,7 @@ async def login(
     exit_with_success(
         f"Logged in to Prefect Cloud using profile {cloud_profile_name!r}.\n"
         f"Workspace is currently set to {workspace_handle!r}. "
-        f"The workspace can be changed using `prefect workspace set`."
+        f"The workspace can be changed using `prefect cloud workspace set`."
     )
 
 
