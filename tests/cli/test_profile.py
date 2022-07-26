@@ -210,7 +210,7 @@ def test_ls_default_profiles():
     # 'default' is not the current profile because we have a temporary profile in-use
     # during tests
 
-    invoke_and_assert(["profile", "ls"], expected_output="default")
+    invoke_and_assert(["profile", "ls"], expected_output_contains="default")
 
 
 def test_ls_additional_profiles():
@@ -229,12 +229,10 @@ def test_ls_additional_profiles():
 
     invoke_and_assert(
         ["profile", "ls"],
-        expected_output=(
-            """
-            default
-            foo
-            bar
-            """
+        expected_output_contains=(
+            "default",
+            "foo",
+            "bar",
         ),
     )
 
@@ -251,11 +249,9 @@ def test_ls_respects_current_from_profile_flag():
 
     invoke_and_assert(
         ["--profile", "foo", "profile", "ls"],
-        expected_output=(
-            """
-            default
-            * foo
-            """
+        expected_output_contains=(
+            "default",
+            "* foo",
         ),
     )
 
@@ -274,12 +270,10 @@ def test_ls_respects_current_from_context():
     with use_profile("bar"):
         invoke_and_assert(
             ["profile", "ls"],
-            expected_output=(
-                """
-                default
-                foo
-                * bar
-                """
+            expected_output_contains=(
+                "default",
+                "foo",
+                "* bar",
             ),
         )
 

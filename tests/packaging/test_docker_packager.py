@@ -226,6 +226,7 @@ async def test_unpackaging_inside_container(
 
 
 @pytest.mark.service("docker")
+@pytest.mark.flaky(max_runs=3)
 async def test_custom_dockerfile_unpackaging(howdy_context: Path, docker: DockerClient):
     packager = DockerPackager(
         dockerfile=howdy_context / "Dockerfile",

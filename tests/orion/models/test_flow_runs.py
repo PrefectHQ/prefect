@@ -897,6 +897,17 @@ class TestReadFlowRuns:
         )
         assert len(result) == 0
 
+        # filter using OR
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                operator="or_",
+                id=schemas.filters.FlowRunFilterId(any_=[flow_run_2.id]),
+                tags=schemas.filters.FlowRunFilterTags(all_=["blue"]),
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id, flow_run_2.id}
+
     async def test_read_flow_runs_filters_by_flow_criteria(self, flow, session):
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
