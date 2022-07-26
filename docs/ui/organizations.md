@@ -15,7 +15,7 @@ tags:
 For larger teams, and companies with more complex needs around user and access management, annual plans include organizations in Prefect Cloud 2. Organizations provide a host of ways to collaborate securely at scale, including:
 
 - Organizational accounts and membership management
-- Role Based Access Control to set permissions at the organization and workspace level
+- Role Based Access Controls (RBAC) to set permissions at the organization and workspace level
 - Service accounts to generate credentials for specific workloads
 
 ![Organization member page in Cloud 2.](/img/ui/org-members.png)
