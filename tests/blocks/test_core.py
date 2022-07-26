@@ -591,6 +591,16 @@ class TestAPICompatibility:
         assert my_block._block_schema_id == block_document.block_schema_id
         assert my_block.foo == "bar"
 
+    async def test_load_from_block_base_class(self):
+        class Custom(Block):
+            message: str
+
+        my_custom_block = Custom(message="hello")
+        await my_custom_block.save("my-custom-block")
+
+        loaded_block = await Block.load("custom/my-custom-block")
+        assert loaded_block.message == "hello"
+
     async def test_load_nested_block(self, session):
         class B(Block):
             _block_schema_type = "abc"

@@ -468,7 +468,8 @@ class Block(BaseModel, ABC):
         the current class with the data stored in the block document.
 
         Args:
-            name: The name of the block document.
+            name: The name or slug of the block document. A block document slug is a
+                string with the format <block_type_slug>/<block_document_name>
 
         Raises:
             ValueError: If the requested block document is not found.
@@ -476,15 +477,41 @@ class Block(BaseModel, ABC):
         Returns:
             An instance of the current class hydrated with the data stored in the
             block document with the specified name.
+
+        Examples:
+            Load from a Block subclass with a block document name:
+            ```python
+            class Custom(Block):
+                message: str
+
+            Custom(message="Hello!").save("my-custom-message")
+
+            loaded_block = Custom.load("my-custom-message")
+            ```
+
+            Load from Block with a block document slug:
+            class Custom(Block):
+                message: str
+
+            Custom(message="Hello!").save("my-custom-message")
+
+            loaded_block = Block.load("custom/my-custom-message")
         """
+        if cls.__name__ == "Block":
+            parts = name.split("/", 1)
+            block_type_slug = parts[0]
+            block_document_name = parts[1]
+        else:
+            block_type_slug = cls.get_block_type_slug()
+            block_document_name = name
         async with prefect.client.get_client() as client:
             try:
                 block_document = await client.read_block_document_by_name(
-                    name=name, block_type_slug=cls.get_block_type_slug()
+                    name=block_document_name, block_type_slug=block_type_slug
                 )
             except prefect.exceptions.ObjectNotFound as e:
                 raise ValueError(
-                    f"Unable to find block document named {name} for block type {cls.get_block_type_name()}"
+                    f"Unable to find block document named {block_document_name} for block type {block_type_slug}"
                 ) from e
         return cls._from_block_document(block_document)
 
