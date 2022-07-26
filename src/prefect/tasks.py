@@ -281,7 +281,7 @@ class Task(Generic[P, R]):
     ):
         """
         Run the task and return the result. If `return_state` is True returns
-        the result wrapped in a Prefect State which provides error handling.
+        the result is wrapped in a Prefect State which provides error handling.
         """
         from prefect.engine import enter_task_run_engine
         from prefect.task_runners import SequentialTaskRunner
@@ -372,13 +372,24 @@ class Task(Generic[P, R]):
     def submit(
         self: "Task[P, T]",
         *args: P.args,
+        return_state: Literal[False],
         **kwargs: P.kwargs,
     ) -> PrefectFuture[T, Sync]:
+        ...
+
+    @overload
+    def submit(
+        self: "Task[P, T]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> State[T]:
         ...
 
     def submit(
         self,
         *args: Any,
+        return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: Any,
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
@@ -396,11 +407,16 @@ class Task(Generic[P, R]):
 
         Args:
             *args: Arguments to run the task with
+            return_state: Return the result of the flow run wrapped in a
+            Prefect State.
             wait_for: Upstream task futures to wait for before starting the task
             **kwargs: Keyword arguments to run the task with
 
         Returns:
-            A future allowing asynchronous access to the state of the task
+            If `return_state` is False a future allowing asynchronous access to
+                the state of the task
+            If `return_state` is True a future wrapped in a Prefect State allowing asynchronous access to
+                the state of the task
 
         Examples:
 
@@ -471,12 +487,13 @@ class Task(Generic[P, R]):
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
+        return_type = "state" if return_state else "future"
 
         return enter_task_run_engine(
             self,
             parameters=parameters,
             wait_for=wait_for,
-            return_type="future",
+            return_type=return_type,
             task_runner=None,  # Use the flow's task runner
             mapped=False,
         )
@@ -503,13 +520,24 @@ class Task(Generic[P, R]):
     def map(
         self: "Task[P, T]",
         *args: P.args,
+        return_state: Literal[False],
         **kwargs: P.kwargs,
     ) -> List[PrefectFuture[T, Sync]]:
+        ...
+
+    @overload
+    def map(
+        self: "Task[P, T]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> List[State[T]]:
         ...
 
     def map(
         self,
         *args: Any,
+        return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: Any,
     ) -> List[Union[PrefectFuture, Awaitable[PrefectFuture]]]:
@@ -532,6 +560,8 @@ class Task(Generic[P, R]):
 
         Args:
             *args: Iterable arguments to run the tasks with
+            return_state: Return a list of Prefect States that wrap the results
+                of each task run.
             wait_for: Upstream task futures to wait for before starting the task
             **kwargs: Keyword iterable arguments to run the task with
 
@@ -594,12 +624,13 @@ class Task(Generic[P, R]):
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
+        return_type = "state" if return_state else "future"
 
         return enter_task_run_engine(
             self,
             parameters=parameters,
             wait_for=wait_for,
-            return_type="future",
+            return_type=return_type,
             task_runner=None,
             mapped=True,
         )
