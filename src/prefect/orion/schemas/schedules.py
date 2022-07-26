@@ -11,7 +11,7 @@ import dateutil.rrule
 import pendulum
 import pytz
 from croniter import croniter
-from pydantic import Field, validator, root_validator
+from pydantic import Field, validator
 
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
