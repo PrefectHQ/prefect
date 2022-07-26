@@ -347,7 +347,7 @@ class Deployment(ORMBaseModel):
     )
 
     parameter_openapi_schema: Dict[str, Any] = Field(
-        default_factory=dict,
+        None,
         description="The parameter schema of the flow, including defaults.",
     )
     manifest_path: str = Field(
