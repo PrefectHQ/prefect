@@ -498,9 +498,7 @@ class Block(BaseModel, ABC):
             loaded_block = Block.load("custom/my-custom-message")
         """
         if cls.__name__ == "Block":
-            parts = name.split("/", 1)
-            block_type_slug = parts[0]
-            block_document_name = parts[1]
+            block_type_slug, block_document_name = name.split("/", 1)
         else:
             block_type_slug = cls.get_block_type_slug()
             block_document_name = name
