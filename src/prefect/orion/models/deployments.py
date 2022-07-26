@@ -91,7 +91,7 @@ async def update_deployment(
     deployment_id: UUID,
     deployment: schemas.actions.DeploymentUpdate,
     db: OrionDBInterface,
-):
+) -> bool:
     """Updates a deployment.
 
     Args:
@@ -100,56 +100,21 @@ async def update_deployment(
         deployment: changes to a deployment model
 
     Returns:
-        db.Deployment: the newly-created or updated deployment
+        bool: whether the deployment was updated
 
     """
 
-    current_deployment = await session.get(db.Deployment, deployment_id)
-    if not current_deployment:
-        return False
+    # exclude_unset=True allows us to only update values provided by
+    # the user, ignoring any defaults on the model
+    update_data = deployment.dict(shallow=True, exclude_unset=True)
 
-    # set `updated` manually
-    # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
-    # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
-    deployment.updated = pendulum.now("UTC")
-
-    update_values = deployment.dict(shallow=True, exclude_unset=True)
-
-    insert_stmt = (
-        (await db.insert(db.Deployment))
-        .values(**update_values)
-        .on_conflict_do_update(
-            index_elements=db.deployment_unique_upsert_columns,
-            set_={
-                **deployment.dict(
-                    shallow=True,
-                    include={
-                        "name",
-                        "schedule",
-                        "is_schedule_active",
-                        "description",
-                        "tags",
-                        "parameters",
-                        "updated",
-                        "storage_document_id",
-                        "infrastructure_document_id",
-                    },
-                ),
-            },
-        )
-    )
-
-    await session.execute(insert_stmt)
-
-    query = (
-        sa.select(db.Deployment)
+    update_stmt = (
+        sa.update(db.Deployment)
         .where(db.Deployment.id == deployment_id)
-        .execution_options(populate_existing=True)
+        .values(**update_data)
     )
-    result = await session.execute(query)
-    model = result.scalar()
-
-    return model
+    result = await session.execute(update_stmt)
+    return result.rowcount > 0
 
 
 @inject_db
