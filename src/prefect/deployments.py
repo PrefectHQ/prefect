@@ -60,18 +60,18 @@ from prefect.client import OrionClient, inject_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
 from prefect.filesystems import LocalFileSystem, RemoteFileSystem
-from prefect.flows import Flow, load_flow_from_script, load_flow_from_text
+from prefect.flows import Flow, load_flow_from_script
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
-from prefect.infrastructure.submission import FLOW_RUN_ENTRYPOINT
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.orion import OrionPackager
-from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema
 from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type
 from prefect.utilities.filesystem import tmpchdir, to_display_path
+from prefect.utilities.importtools import load_flow_from_manifest_path
 
 
 class FlowScript(BaseModel):
@@ -201,12 +201,6 @@ class Deployment(BaseModel):
             )
             updates["image"] = manifest.image
 
-        if not self.infrastructure.command:
-            stream_progress_to.write(
-                f"Updating infrastructure command to {' '.join(FLOW_RUN_ENTRYPOINT)!r}..."
-            )
-            updates["command"] = FLOW_RUN_ENTRYPOINT
-
         infrastructure = self.infrastructure.copy(update=updates)
 
         # Always save as an anonymous block even if we are given a block that is
@@ -309,24 +303,9 @@ async def load_flow_from_deployment(
     Load a flow from the location/script/pickle provided in a deployment's flow data
     document.
     """
-    flow_model = await client.read_flow(deployment.flow_id)
-
-    maybe_flow = await client.resolve_datadoc(deployment.flow_data)
-    if isinstance(maybe_flow, (str, bytes)):
-        flow = await run_sync_in_worker_thread(
-            load_flow_from_text, maybe_flow, flow_model.name
-        )
-    elif isinstance(maybe_flow, PackageManifest):
-        flow = await maybe_flow.unpackage()
-    else:
-        flow = maybe_flow
-
-    if not isinstance(flow, Flow):
-        raise TypeError(
-            "Deployment `flow_data` did not resolve to a `Flow`. Found: {flow!r}."
-        )
-
-    return flow
+    with open(deployment.manifest_path, "r") as f:
+        manifest = json.load(f)
+    return load_flow_from_manifest_path(manifest["import_path"])
 
 
 async def _source_to_flow(flow_source: FlowSource) -> Flow:

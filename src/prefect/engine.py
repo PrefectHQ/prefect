@@ -266,6 +266,7 @@ async def retrieve_flow_then_begin_flow_run(
         try:
             parameters = flow.validate_parameters(flow_run.parameters)
         except Exception as exc:
+            flow_run_logger(flow_run).exception("Flow run received invalid parameters.")
             state = Failed(
                 message="Flow run received invalid parameters.",
                 data=DataDocument.encode("cloudpickle", exc),

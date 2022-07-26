@@ -142,7 +142,7 @@ class OrionAgent:
 
     async def get_infrastructure_and_storage(
         self, flow_run: FlowRun
-    ) -> Tuple[Infrastructure, Union[LocalFileSystem, RemoteFileSystem]]:
+    ) -> Tuple[Infrastructure, Union[LocalFileSystem, RemoteFileSystem], str]:
         deployment = await self.client.read_deployment(flow_run.deployment_id)
 
         ## get infra
@@ -163,7 +163,7 @@ class OrionAgent:
         storage_block = Block._from_block_document(storage_document)
 
         # TODO: Here the agent may update the infrastructure with agent-level settings
-        return infrastructure_block, storage_block
+        return infrastructure_block, storage_block, deployment.manifest_path
 
     async def submit_run(self, flow_run: FlowRun) -> None:
         """
@@ -172,15 +172,17 @@ class OrionAgent:
         ready_to_submit = await self._propose_pending_state(flow_run)
 
         if ready_to_submit:
-            infrastructure, storage = await self.get_infrastructure_and_storage(
-                flow_run
-            )
+            (
+                infrastructure,
+                storage,
+                manifest_path,
+            ) = await self.get_infrastructure_and_storage(flow_run)
 
             try:
                 # Wait for submission to be completed. Note that the submission function
                 # may continue to run in the background after this exits.
                 await self.task_group.start(
-                    submit_flow_run, flow_run, infrastructure, storage
+                    submit_flow_run, flow_run, infrastructure, storage, manifest_path
                 )
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
             except Exception as exc:

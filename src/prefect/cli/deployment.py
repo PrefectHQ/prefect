@@ -36,7 +36,7 @@ from prefect.infrastructure.submission import _prepare_infrastructure
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.utilities.callables import parameter_schema
-from prefect.utilities.importtools import load_script_as_module
+from prefect.utilities.importtools import load_flow_from_manifest_path
 
 
 def str_presenter(dumper, data):
@@ -387,6 +387,11 @@ class Infra(str, Enum):
 
 
 @deployment_app.command()
+async def manifest(path: str, flow_name: str, save: str):
+    breakpoint()
+
+
+@deployment_app.command()
 async def build(
     path: str,
     manifest_only: bool = typer.Option(
@@ -425,22 +430,20 @@ async def build(
         )
 
     # validate flow
-    base_path, flow_obj_name = path.split(":", 1)
-    mod = load_script_as_module(base_path)
-
+    fpath, obj_name = path.rsplit(":", 1)
     try:
-        flow = getattr(mod, flow_obj_name)
+        flow = load_flow_from_manifest_path(path)
         app.console.print(f"Found flow {flow.name!r}", style="green")
     except AttributeError:
-        exit_with_error(f"{flow_obj_name!r} not found in file {base_path!r}")
+        exit_with_error(f"{obj_name!r} not found in {fpath!r}.")
 
     flow_parameter_schema = parameter_schema(flow)
     manifest = Manifest(
         flow_name=flow.name,
-        import_path=base_path,
+        import_path=path,
         parameter_openapi_schema=flow_parameter_schema,
     )
-    manifest_loc = f"{flow_obj_name}-manifest.json"
+    manifest_loc = f"{obj_name}-manifest.json"
     with open(manifest_loc, "w") as f:
         json.dump(manifest.dict(), f, indent=4)
 
@@ -448,7 +451,6 @@ async def build(
         f"Manifest created at '{Path(manifest_loc).absolute()!s}'.",
         style="green",
     )
-
     if manifest_only:
         typer.Exit(0)
 
