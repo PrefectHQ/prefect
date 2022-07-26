@@ -24,7 +24,7 @@ Each deployment references to a single flow (though that flow may, in turn, call
 At a high level, you can think of a deployment as configuration for managing flows, whether you run them via the CLI, the UI, or the API.
 
 !!! warning "Deployments are changing"
-    Deployments now use manifest and `deployment.yaml` files to provide a description of your Prefect deployment.
+    Deployments now rely on manifest files for describing your workflow in a portable way, and `deployment.yaml` files for specifying a deployment of your workflow.
 
     Deployments based on `Deployment` and `DeploymentSpec` are no longer supported.
 
@@ -45,6 +45,7 @@ A deployment additionally enables you to:
 - Assign tags for filtering flow runs on work queues and in the Prefect UI
 - Assign custom parameter values for flow runs based on the deployment
 - Create ad-hoc flow runs from the API or Prefect UI
+- Upload flow files to a defined storage location for retrieval at run time
 
 Deployments can package your flow code and pass the manifest to the API &mdash; either Prefect Cloud or a local Prefect Orion server run with `prefect orion start`. The manifest contains the parameter schema so the UI can display a rich interface for providing parameters for a run. 
 
@@ -53,7 +54,7 @@ Deployments are uniquely identified by the combination of: `flow_name/deployment
 To create a deployment you need:
 
 - Your flow code script and any supporting files.
-- A JSON manifest file
+- A manifest file
 - A `deployment.yaml` file
 
 Optionally, you may reference pre-configured storage and infrastructure blocks that define where flow code and results are stored and how your flow execution environment is configured.
@@ -82,6 +83,8 @@ This enables you to run a single flow with different parameters, on multiple sch
 ## Manifests
 
 Manifests are JSON descriptions of a workflow. The manifest lives alongside your workflow code and contains workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters. 
+
+The location of your manifest file is important. When building your deployment and uploading your flow files to storage, the manifest file serves as the root of the directory that is uploaded &mdash; everything in its directory and recursively down will be stored in the storage of your choosing. This ensures that your relative imports remain portable. Additionally, at runtime, your agent will always ensure that your workflow is imported and executed in the same directory as your manifest file.
 
 The default name format for manifests is `[flow-function-name]-manifest.json`, but you may rename the file as long as it is referenced correctly in the `deployment.yaml` file.
 
@@ -149,11 +152,16 @@ parameter_openapi_schema:
   definitions: null
 ```
 
+!!! note "Editing deployment.yaml"
+    Note the big **DO NOT EDIT** comment in `deployment.yaml`: In practice, anything in this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API. 
+    
+    That said, we recommend editing most of these fields in the Prefect UI for convenience.
+
 ## Create a deployment
 
 To create a deployment from an existing flow script, there are two steps:
 
-1. Build the deployment manifest and `deployment.yaml` files.
+1. Build the deployment manifest and `deployment.yaml` files, which includes uploading your flow to its configured storage location.
 1. Create the deployment on the API.
 
 ### Build deployment
@@ -188,7 +196,10 @@ You may specify additional options to specify storage and infrastructure for the
 |  -ib, --infra-block TEXT       | The infrastructure block to use in `type/name` format. |
 |  -sb, --storage-block TEXT     | The storage block to use in `type/name` format. |
 
-Prefect creates the the manifest and `deployment.yaml` files for your deployment based on your flow code and options.
+When you run this command, Prefect: 
+
+- Creates the the manifest and `deployment.yaml` files for your deployment based on your flow code and options.
+- Uploads your flow files to the configured storage location (local by default).
 
 ### Apply deployment
 
