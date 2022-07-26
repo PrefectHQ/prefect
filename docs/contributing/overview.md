@@ -129,4 +129,3 @@ export PREFECT_API_URL=http://localhost:4200/api
 
 Since you previously configured port forwarding for the localhost port to the Kubernetes environment, you’ll be able to interact with the Orion API running in Kubernetes when using local Prefect CLI commands.
 
-For a demonstration, see the [Running flows in Kubernetes](/tutorials/kubernetes-flow-runner/) tutorial.
