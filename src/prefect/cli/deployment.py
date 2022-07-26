@@ -240,7 +240,7 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
 
 
 @deployment_app.command()
-async def create(
+async def apply(
     path: Path = typer.Argument(
         None,
         help="The path a deployment YAML file.",
@@ -457,9 +457,9 @@ async def build(
     ## process storage and move files around
     if storage_block:
         prefix, block_name = storage_block.split("/")
-        if prefix not in ["local", "s3"]:
+        if prefix not in ["local", "s3", "gcs", "abfs", "az"]:
             exit_with_error(
-                f"Storage Block must be prefixed with one of 'local' or 's3', {storage_block} was provided"
+                f"Storage Block must be prefixed with one of 'abfs', 'az', 'local', 'gcs' or 's3', {storage_block} was provided"
             )
         if prefix == "local":
             storage = await LocalFileSystem.load(block_name)
