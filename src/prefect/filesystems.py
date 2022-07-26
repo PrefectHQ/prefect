@@ -309,7 +309,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
 
     @property
     def basepath(self) -> str:
-        return self.filesystem.basepath
+        return f"s3://{self.bucket}"
 
     @property
     def filesystem(self) -> RemoteFileSystem:
@@ -383,7 +383,7 @@ class GCS(ReadableFileSystem, WritableFileSystem):
 
     @property
     def basepath(self) -> str:
-        return self.filesystem.basepath
+        return f"gcs://{self.bucket}"
 
     @property
     def filesystem(self) -> RemoteFileSystem:
