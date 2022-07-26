@@ -13,7 +13,7 @@
   import { showToast } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
-  import router, { routes } from '@/router'
+  import router from '@/router'
   import { deploymentsApi } from '@/services/deploymentsApi'
 
   const deploymentId = useRouteParam('id')
