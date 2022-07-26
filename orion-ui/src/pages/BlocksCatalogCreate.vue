@@ -29,16 +29,16 @@
   const data = ref<BlockDocumentData>({})
   const name = ref('')
 
-  const blockTypeNameParam = useRouteParam('blockTypeName')
-  const blockTypeSubscriptionArgs = computed<Parameters<typeof blockTypesApi.getBlockTypeByName> | null>(() => {
-    if (!blockTypeNameParam.value) {
+  const blockTypeSlugParam = useRouteParam('blockTypeSlug')
+  const blockTypeSubscriptionArgs = computed<Parameters<typeof blockTypesApi.getBlockTypeBySlug> | null>(() => {
+    if (!blockTypeSlugParam.value) {
       return null
     }
 
-    return [blockTypeNameParam.value]
+    return [blockTypeSlugParam.value]
   })
 
-  const blockTypeSubscription = useSubscriptionWithDependencies(blockTypesApi.getBlockTypeByName, blockTypeSubscriptionArgs)
+  const blockTypeSubscription = useSubscriptionWithDependencies(blockTypesApi.getBlockTypeBySlug, blockTypeSubscriptionArgs)
   const blockType = computed(() => blockTypeSubscription.response)
 
   const blockSchemaSubscriptionArgs = computed<Parameters<typeof blockSchemasApi.getBlockSchemas> | null>(() => {
