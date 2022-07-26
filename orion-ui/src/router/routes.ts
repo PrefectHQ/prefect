@@ -4,6 +4,7 @@ export const routes = {
   root: () => ({ name: 'root' }) as const,
   404: () => ({ name: '404' }) as const,
   deployment: (id: string) => ({ name: 'deployment', params: { id } }) as const,
+  deploymentEdit: (id: string) => ({ name: 'edit-deployment', params: { id } }) as const,
   deployments: () => ({ name: 'deployments' }) as const,
   flow: (id: string) => ({ name: 'flow', params: { id } }) as const,
   radar: (id: string) => ({ name: 'radar', params: { id } }) as const,

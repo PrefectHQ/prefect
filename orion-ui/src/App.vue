@@ -37,6 +37,7 @@
     deploymentRouteKey,
     deploymentsApiKey,
     deploymentsRouteKey,
+    editDeploymentRouteKey,
     editNotificationRouteKey,
     editQueueRouteKey,
     flowRouteKey,
@@ -90,6 +91,7 @@
   provide(blockRouteKey, routes.block)
   provide(blocksRouteKey, routes.blocks)
   provide(deploymentRouteKey, routes.deployment)
+  provide(editDeploymentRouteKey, routes.deploymentEdit)
   provide(deploymentsRouteKey, routes.deployments)
   provide(editQueueRouteKey, routes.workQueueEdit)
   provide(flowRouteKey, routes.flow)
