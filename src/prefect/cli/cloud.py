@@ -1,8 +1,10 @@
 """
 Command line interface for interacting with Prefect Cloud
 """
+import re
 from typing import Dict, Iterable, List
 
+import anyio
 import httpx
 import readchar
 import typer
@@ -50,10 +52,25 @@ def confirm_logged_in():
         )
 
 
-def get_cloud_client(host: str = None, api_key: str = None) -> "CloudClient":
+def get_cloud_client(
+    host: str = None,
+    api_key: str = None,
+    httpx_settings: dict = None,
+    infer_cloud_url: bool = False,
+) -> "CloudClient":
+    if httpx_settings is not None:
+        httpx_settings = httpx_settings.copy()
+
+    if infer_cloud_url is False:
+        host = host or PREFECT_CLOUD_URL.value()
+    else:
+        configured_url = prefect.settings.PREFECT_API_URL.value()
+        host = re.sub(r"accounts/.{36}/workspaces/.{36}\Z", "", configured_url)
+
     return CloudClient(
-        host=host or PREFECT_CLOUD_URL.value(),
+        host=host,
         api_key=api_key or PREFECT_API_KEY.value(),
+        httpx_settings=httpx_settings,
     )
 
 
@@ -71,12 +88,22 @@ class CloudClient:
         httpx_settings: dict = None,
     ) -> None:
 
-        httpx_settings = httpx_settings or {}
-        httpx_settings.setdefault("headers", {})
+        httpx_settings = httpx_settings or dict()
+        httpx_settings.setdefault("headers", dict())
         httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
         httpx_settings.setdefault("base_url", host)
         self._client = httpx.AsyncClient(**httpx_settings)
+
+    async def api_healthcheck(self):
+        """
+        Attempts to connect to the Cloud API and raises the encountered exception if not
+        successful.
+
+        If successful, returns `None`.
+        """
+        with anyio.fail_after(10):
+            await self.read_workspaces()
 
     async def read_workspaces(self) -> List[Dict]:
         return await self.get("/me/workspaces")

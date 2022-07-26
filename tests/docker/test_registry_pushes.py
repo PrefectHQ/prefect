@@ -8,7 +8,11 @@ import pytest
 from _pytest.capture import CaptureFixture
 from slugify import slugify
 
-from prefect.docker import DockerClient, ImageBuilder, NotFound, PushError, push_image
+from prefect.docker import ImageBuilder, PushError, push_image, silence_docker_warnings
+
+with silence_docker_warnings():
+    from docker import DockerClient
+    from docker.errors import NotFound
 
 pytestmark = pytest.mark.service("docker")
 
