@@ -264,4 +264,4 @@ Follow the [Getting Started docs](getting-started/overview/) and start building!
 
 While you're at it [give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) and join the thousands of community members in [our Slack community](https://www.prefect.io/slack). 
 
-Thank you for being part of the mission to coordinate the world's dataflow and, of course, **happy engineering!**
+Thank you for joining our mission to coordinate the world's dataflow and, of course, **happy engineering!**
