@@ -144,6 +144,7 @@ def load_script_as_module(path: str) -> ModuleType:
 def load_flow_from_manifest_path(path: str):
     file_path, obj_name = path.rsplit(":", 1)
     sys.path.insert(0, str(Path(file_path).parent))
+    sys.path.insert(0, str(Path(file_path).parent.parent))
     flow = runpy.run_path(file_path)[obj_name]
     return flow
 

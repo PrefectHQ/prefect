@@ -77,11 +77,6 @@ minio_file_packager = FilePackager(
         }
     )
 )
-Deployment(
-    flow=give_greeting,
-    name="minio_file_package_with_remote_s3fs",
-    packager=minio_file_packager
-)
 ```
 
 Now let's look at how we can use `RemoteFileSystem` with AWS S3:
@@ -94,11 +89,6 @@ aws_s3_file_packager = FilePackager(filesystem=RemoteFileSystem(
         "secret": AWS_SECRET_ACCESS_KEY
     }
 ))
-Deployment(
-    flow=give_greeting,
-    name="aws_s3_file_package_with_remote_s3fs",
-    packager=aws_s3_file_packager
-)
 ```
 
 ## Saving and loading file systems
@@ -126,7 +116,7 @@ Prefect provides two abstract file system types, `ReadableFileSystem` and `Write
 - All writeable file systems must implement `write_path` which takes a file path and content and writes the content to the file as bytes. 
 
 A file system may implement both of these types.
-
+<!-- 
 ## Examples
 What does a working example of a MinIO-backed S3 storage block look like within a Prefect flow?
 
@@ -166,4 +156,4 @@ if __name__ == "__main__":
     give_greeting()
 ```
 
-Starting a MinIO server should output logs including login credentials that can be used as your `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD`.
+Starting a MinIO server should output logs including login credentials that can be used as your `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD`. -->

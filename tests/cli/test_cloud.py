@@ -71,7 +71,7 @@ def test_invalid_login(monkeypatch):
         ["cloud", "login", "--key", "invalid_API_key"],
         expected_code=1,
         expected_output=(
-            "Unable to authenticate. Please ensure your credentials are correct."
+            "Unable to authenticate with Prefect Cloud. Please ensure your credentials are correct."
         ),
     )
 
@@ -130,51 +130,6 @@ def test_login_preserves_original_profile(monkeypatch):
     assert profiles[cloud_profile].settings == {
         PREFECT_DEBUG_MODE: True,
     }
-
-
-def test_logout_updates_profile():
-    cloud_profile = "cloud-foo"
-    save_profiles(
-        ProfilesCollection(
-            [
-                Profile(
-                    name=cloud_profile,
-                    settings={
-                        PREFECT_API_URL: FULL_URL,
-                        PREFECT_API_KEY: API_KEY,
-                    },
-                )
-            ],
-            active=None,
-        )
-    )
-
-    with use_profile(cloud_profile):
-        invoke_and_assert(
-            ["cloud", "logout"],
-            expected_code=0,
-            expected_output=f"Successfully logged out in profile {cloud_profile!r}.",
-        )
-
-    profiles = load_profiles()
-    assert profiles[cloud_profile].settings == {}
-
-
-def test_cannot_logout_if_you_are_not_logged_in():
-    cloud_profile = "cloud-foo"
-    save_profiles(
-        ProfilesCollection([Profile(name=cloud_profile, settings={})], active=None)
-    )
-
-    with use_profile(cloud_profile):
-        invoke_and_assert(
-            ["cloud", "logout"],
-            expected_code=1,
-            expected_output=(
-                f"Currently not authenticated in profile {cloud_profile!r}. "
-                "Please login with `prefect cloud login --key <API_KEY>`."
-            ),
-        )
 
 
 def test_cannot_set_workspace_if_you_are_not_logged_in():

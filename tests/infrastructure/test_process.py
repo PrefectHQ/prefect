@@ -126,6 +126,4 @@ async def test_task_status_receives_pid(storage):
     result = await Process(command=["echo", "hello"], stream_output=False).run(
         storage=storage, manifest_path="", task_status=fake_status
     )
-    fake_status.started.assert_called_oncestorage = storage, manifest_path = "", _with(
-        int(result.identifier)
-    )
+    fake_status.started.assert_called_once_with(int(result.identifier))

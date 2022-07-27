@@ -28,8 +28,8 @@ jobs:
 
       - uses: actions/setup-node@v3
         with:
-          node-version-file: '.nvmrc'
-          cache-dependency-path: '**/package-lock.json'
+          node-version-file: ".nvmrc"
+          cache-dependency-path: "**/package-lock.json"
 
       - name: Install python packages
         run: |
@@ -76,13 +76,13 @@ jobs:
         with:
           images: prefecthq/prefect
           tags: |
-            type=pep440,pattern={{version}}
-            type=pep440,pattern={{major}}.{{minor}}
-            type=pep440,pattern={{major}}
-            type=sha
+            type=pep440,pattern={{version}},suffix=-python${{ matrix.python-version }}
+            type=pep440,pattern={{major}}.{{minor}},suffix=-python${{ matrix.python-version }}
+            type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}
+            type=sha,suffix=-python${{ matrix.python-version }}
+            type=raw,value=2-latest,enable=${{ matrix.python-version == "3.10"}}
           flavor: |
             latest=false
-            suffix=-python${{ matrix.python-version }}
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -135,13 +135,13 @@ jobs:
         with:
           images: prefecthq/prefect
           tags: |
-            type=pep440,pattern={{version}}
-            type=pep440,pattern={{major}}.{{minor}}
-            type=pep440,pattern={{major}}
-            type=sha
+            type=pep440,pattern={{version}},suffix=-python${{ matrix.python-version }}-conda
+            type=pep440,pattern={{major}}.{{minor}},suffix=-python${{ matrix.python-version }}-conda
+            type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}-conda
+            type=sha,suffix=-python${{ matrix.python-version }}-conda
+            type=raw,value=2-latest-conda,enable=${{ matrix.python-version == "3.10"}}
           flavor: |
             latest=false
-            suffix=-python${{ matrix.python-version }}-conda
 
       - name: Checkout
         uses: actions/checkout@v3
