@@ -42,7 +42,6 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          # Windows is only tested on Python 3.9
         python-version:
           - "3.7"
           - "3.8"
@@ -61,12 +60,6 @@ jobs:
           # suite from building images automaticlly in fixtures
           - pytest-options: "--only-services"
             build-docker-images: true
-
-          # Run Windows tests on 3.9
-          - os: "windows-latest"
-            python-version: "3.9"
-            # Do not run service tests on windows
-            pytest-options: "--exclude-services"
 
       fail-fast: false
 
@@ -168,8 +161,6 @@ jobs:
 
       fail-fast: false
 
-    # The windows test runner cannot run a postgres service so we can only
-    # test on ubuntu
     runs-on: ubuntu-latest
 
     # TODO: Consider moving this from a service into a normal docker command

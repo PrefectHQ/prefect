@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from pydantic import Field, SecretStr
-from slack_sdk.webhook.async_client import AsyncWebhookClient
 
 from prefect.blocks.core import Block
 
@@ -32,20 +31,23 @@ class SlackWebhook(NotificationBlock):
             (e.g. `https://hooks.slack.com/XXX`).
 
     Examples:
+        Load a saved Slack webhook and send a message:
         ```python
         from prefect.blocks.notifications import SlackWebhook
 
-        slack_webhook_block = SlackWebhook.load(BLOCK_NAME)
+        slack_webhook_block = SlackWebhook.load("BLOCK_NAME")
         slack_webhook_block.notify("Hello from Prefect!")
         ```
     """
 
     _block_type_name = "Slack Webhook"
-    _logo_url = "https://assets.brandfolder.com/pl546j-7le8zk-afym5u/v/3033396/original/Slack_Mark_Web.png"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/7dkzINU9r6j44giEFuHuUC/85d4cd321ad60c1b1e898bc3fbd28580/5cb480cd5f1b6d3fbadece79.png?h=250"
 
     url: SecretStr = Field(..., title="Webhook URL")
 
     def block_initialization(self) -> None:
+        from slack_sdk.webhook.async_client import AsyncWebhookClient
+
         self._async_webhook_client = AsyncWebhookClient(url=self.url.get_secret_value())
 
     async def notify(self, body: str, subject: Optional[str] = None):

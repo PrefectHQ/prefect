@@ -1,4 +1,3 @@
-import os
 from typing import Any
 
 import pendulum
@@ -10,7 +9,20 @@ from prefect.blocks.core import Block
 class JSON(Block):
     """
     A block that represents JSON
+
+    Args:
+        value: A JSON-compatible value.
+
+    Example:
+        Load a stored JSON value:
+        ```python
+        from prefect.blocks.system import JSON
+
+        json_block = JSON.load("BLOCK_NAME")
+        ```
     """
+
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/19W3Di10hhb4oma2Qer0x6/764d1e7b4b9974cd268c775a488b9d26/image16.png?h=250"
 
     value: Any = Field(..., description="A JSON-compatible value")
 
@@ -18,7 +30,20 @@ class JSON(Block):
 class String(Block):
     """
     A block that represents a string
+
+    Args:
+        value: A string value.
+
+    Example:
+        Load a stored string value:
+        ```python
+        from prefect.blocks.system import String
+
+        string_block = String.load("BLOCK_NAME")
+        ```
     """
+
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4zjrZmh9tBrFiikeB44G4O/2ce1dbbac1c8e356f7c429e0f8bbb58d/image10.png?h=250"
 
     value: str = Field(..., description="A string value.")
 
@@ -26,39 +51,26 @@ class String(Block):
 class DateTime(Block):
     """
     A block that represents a datetime
+
+    Args:
+        value: An ISO 8601-compatible datetime value.
+
+    Example:
+        Load a stored JSON value:
+        ```python
+        from prefect.blocks.system import DateTime
+
+        data_time_block = DateTime.load("BLOCK_NAME")
+        ```
     """
+
+    _block_type_name = "Date Time"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1gmljt5UBcAwEXHPnIofcE/0f3cf1da45b8b2df846e142ab52b1778/image21.png?h=250"
 
     value: pendulum.DateTime = Field(
         ...,
         description="An ISO 8601-compatible datetime value.",
     )
-
-
-class EnvironmentVariable(Block):
-    """
-    A block that pulls its value from an environment variable.
-
-    The variable it uses is configurable and can be set in the Prefect UI; the
-    block will recover its value at runtime from that variable. This allows
-    behavior to be modified remotely by changing the environment variable name.
-
-    Example:
-        ```python
-        block = EnvironmentVariable(name="MY_ENV_VAR")
-
-        # loads the value of MY_ENV_VAR
-        block.get()
-        ```
-
-    """
-
-    name: str = Field(
-        ...,
-        description="The name of an environment variable that holds the value for this block",
-    )
-
-    def get(self):
-        return os.getenv(self.name)
 
 
 class Secret(Block):
@@ -76,6 +88,8 @@ class Secret(Block):
         secret_block.get()
         ```
     """
+
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5uUmyGBjRejYuGTWbTxz6E/3003e1829293718b3a5d2e909643a331/image8.png?h=250"
 
     value: SecretStr = Field(
         ..., description="A string value that should be kept secret."

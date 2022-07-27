@@ -1,6 +1,7 @@
 """
 Command line interface for working with work queues.
 """
+from textwrap import dedent
 from typing import List
 from uuid import UUID
 
@@ -25,8 +26,8 @@ async def create(
     tags: List[str] = typer.Option(
         None, "-t", "--tag", help="One or more optional tags"
     ),
-    deployment_ids: List[UUID] = typer.Option(
-        None, "-d", "--deployment", help="One or more optional deployment IDs"
+    limit: int = typer.Option(
+        None, "-l", "--limit", help="The concurrency limit to set on the queue."
     ),
 ):
     """
@@ -37,12 +38,31 @@ async def create(
             result = await client.create_work_queue(
                 name=name,
                 tags=tags or None,
-                deployment_ids=deployment_ids or None,
             )
+            if limit is not None:
+                await client.update_work_queue(
+                    id=result,
+                    concurrency_limit=limit,
+                )
         except ObjectAlreadyExists:
             exit_with_error(f"Work queue with name: {name!r} already exists.")
 
-    app.console.print(Pretty(result))
+    output_msg = dedent(
+        f"""
+        Created work queue with properties:
+            name - {name!r}
+            uuid - {result}
+            tags - {tags or None}
+            concurrency limit - {limit}
+
+        Start an agent to pick up flows from the created work queue:
+            prefect agent start '{result}'
+
+        Inspect the created work queue:
+            prefect work-queue inspect '{result}'
+        """
+    )
+    app.console.print(output_msg)
 
 
 @work_app.command()

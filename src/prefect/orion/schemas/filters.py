@@ -14,6 +14,7 @@ from sqlalchemy.sql.elements import BooleanClauseList
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
     from prefect.orion.database.interface import OrionDBInterface
@@ -21,6 +22,13 @@ if TYPE_CHECKING:
 # TOOD: Consider moving the `as_sql_filter` functions out of here since they are a
 #       database model level function and do not properly separate concerns when
 #       present in the schemas module
+
+
+class Operator(AutoEnum):
+    """Operators for combining filter criteria."""
+
+    and_ = AutoEnum.auto()
+    or_ = AutoEnum.auto()
 
 
 class PrefectFilterBaseModel(PrefectBaseModel):
@@ -32,11 +40,28 @@ class PrefectFilterBaseModel(PrefectBaseModel):
     def as_sql_filter(self, db: "OrionDBInterface") -> BooleanClauseList:
         """Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter."""
         filters = self._get_filter_list(db)
-        return sa.and_(*filters) if filters else sa.and_(True)
+        if not filters:
+            return True
+        return sa.and_(*filters)
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         """Return a list of boolean filter statements based on filter parameters"""
         raise NotImplementedError("_get_filter_list must be implemented")
+
+
+class PrefectOperatorFilterBaseModel(PrefectFilterBaseModel):
+    """Base model for Prefect filters that combines criteria with a user-provided operator"""
+
+    operator: Operator = Field(
+        default=Operator.and_,
+        description="Operator for combining filter criteria. Defaults to 'and_'.",
+    )
+
+    def as_sql_filter(self, db: "OrionDBInterface") -> BooleanClauseList:
+        filters = self._get_filter_list(db)
+        if not filters:
+            return True
+        return sa.and_(*filters) if self.operator == Operator.and_ else sa.or_(*filters)
 
 
 class FlowFilterId(PrefectFilterBaseModel):
@@ -79,7 +104,7 @@ class FlowFilterName(PrefectFilterBaseModel):
         return filters
 
 
-class FlowFilterTags(PrefectFilterBaseModel):
+class FlowFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `Flow.tags`."""
 
     all_: List[str] = Field(
@@ -100,7 +125,7 @@ class FlowFilterTags(PrefectFilterBaseModel):
         return filters
 
 
-class FlowFilter(PrefectFilterBaseModel):
+class FlowFilter(PrefectOperatorFilterBaseModel):
     """Filter for flows. Only flows matching all criteria will be returned."""
 
     id: Optional[FlowFilterId] = Field(
@@ -169,7 +194,7 @@ class FlowRunFilterName(PrefectFilterBaseModel):
         return filters
 
 
-class FlowRunFilterTags(PrefectFilterBaseModel):
+class FlowRunFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.tags`."""
 
     all_: List[str] = Field(
@@ -194,7 +219,7 @@ class FlowRunFilterTags(PrefectFilterBaseModel):
         return filters
 
 
-class FlowRunFilterDeploymentId(PrefectFilterBaseModel):
+class FlowRunFilterDeploymentId(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.deployment_id`."""
 
     any_: List[UUID] = Field(
@@ -340,7 +365,7 @@ class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
         return filters
 
 
-class FlowRunFilterParentTaskRunId(PrefectFilterBaseModel):
+class FlowRunFilterParentTaskRunId(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.parent_task_run_id`."""
 
     any_: List[UUID] = Field(
@@ -363,7 +388,7 @@ class FlowRunFilterParentTaskRunId(PrefectFilterBaseModel):
         return filters
 
 
-class FlowRunFilter(PrefectFilterBaseModel):
+class FlowRunFilter(PrefectOperatorFilterBaseModel):
     """Filter flow runs. Only flow runs matching all criteria will be returned"""
 
     id: Optional[FlowRunFilterId] = Field(
@@ -464,7 +489,7 @@ class TaskRunFilterName(PrefectFilterBaseModel):
         return filters
 
 
-class TaskRunFilterTags(PrefectFilterBaseModel):
+class TaskRunFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `TaskRun.tags`."""
 
     all_: List[str] = Field(
@@ -573,7 +598,7 @@ class TaskRunFilterStartTime(PrefectFilterBaseModel):
         return filters
 
 
-class TaskRunFilter(PrefectFilterBaseModel):
+class TaskRunFilter(PrefectOperatorFilterBaseModel):
     """Filter task runs. Only task runs matching all criteria will be returned"""
 
     id: Optional[TaskRunFilterId] = Field(
@@ -669,7 +694,7 @@ class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
         return filters
 
 
-class DeploymentFilterTags(PrefectFilterBaseModel):
+class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `Deployment.tags`."""
 
     all_: List[str] = Field(
@@ -694,7 +719,7 @@ class DeploymentFilterTags(PrefectFilterBaseModel):
         return filters
 
 
-class DeploymentFilter(PrefectFilterBaseModel):
+class DeploymentFilter(PrefectOperatorFilterBaseModel):
     """Filter for deployments. Only deployments matching all criteria will be returned."""
 
     id: Optional[DeploymentFilterId] = Field(
@@ -808,7 +833,7 @@ class LogFilterTaskRunId(PrefectFilterBaseModel):
         return filters
 
 
-class LogFilter(PrefectFilterBaseModel):
+class LogFilter(PrefectOperatorFilterBaseModel):
     """Filter logs. Only logs matching all criteria will be returned"""
 
     level: Optional[LogFilterLevel] = Field(
@@ -905,6 +930,18 @@ class BlockSchemaFilterBlockTypeId(PrefectFilterBaseModel):
         return filters
 
 
+class BlockSchemaFilterId(PrefectFilterBaseModel):
+    """Filter by BlockSchema.id"""
+
+    any_: List[UUID] = Field(None, description="A list of IDs to include")
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.BlockSchema.id.in_(self.any_))
+        return filters
+
+
 class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
     """Filter by `BlockSchema.capabilities`"""
 
@@ -924,7 +961,7 @@ class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
         return filters
 
 
-class BlockSchemaFilter(PrefectFilterBaseModel):
+class BlockSchemaFilter(PrefectOperatorFilterBaseModel):
     """Filter BlockSchemas"""
 
     block_type_id: Optional[BlockSchemaFilterBlockTypeId] = Field(
@@ -932,6 +969,9 @@ class BlockSchemaFilter(PrefectFilterBaseModel):
     )
     block_capabilities: Optional[BlockSchemaFilterCapabilities] = Field(
         None, description="Filter criteria for `BlockSchema.capabilities`"
+    )
+    id: Optional[BlockSchemaFilterId] = Field(
+        None, description="Filter criteria for `BlockSchema.id`"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -941,6 +981,8 @@ class BlockSchemaFilter(PrefectFilterBaseModel):
             filters.append(self.block_type_id.as_sql_filter(db))
         if self.block_capabilities is not None:
             filters.append(self.block_capabilities.as_sql_filter(db))
+        if self.id is not None:
+            filters.append(self.id.as_sql_filter(db))
 
         return filters
 
@@ -972,7 +1014,7 @@ class BlockDocumentFilterBlockTypeId(PrefectFilterBaseModel):
         return filters
 
 
-class BlockDocumentFilter(PrefectFilterBaseModel):
+class BlockDocumentFilter(PrefectOperatorFilterBaseModel):
     """Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned"""
 
     is_anonymous: Optional[BlockDocumentFilterIsAnonymous] = Field(

@@ -128,7 +128,6 @@ class FlowRun(ORMBaseModel):
     empirical_policy: FlowRunPolicy = Field(
         default_factory=FlowRunPolicy,
     )
-    empirical_config: dict = Field(default_factory=dict)
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags on the flow run",
@@ -172,10 +171,6 @@ class FlowRun(ORMBaseModel):
     )
     auto_scheduled: bool = Field(
         False, description="Whether or not the flow run was automatically scheduled."
-    )
-    flow_runner: FlowRunnerSettings = Field(
-        None,
-        description="The flow runner to use to create infrastructure to execute this flow run",
     )
     infrastructure_document_id: Optional[UUID] = Field(
         None,
@@ -331,11 +326,9 @@ class Deployment(ORMBaseModel):
     """An ORM representation of deployment data."""
 
     name: str = Field(..., description="The name of the deployment.")
+    description: str = Field(None, description="A description for the deployment.")
     flow_id: UUID = Field(
         ..., description="The flow id associated with the deployment."
-    )
-    flow_data: schemas.data.DataDocument = Field(
-        ..., description="A data document representing the flow code to execute."
     )
     schedule: schemas.schedules.SCHEDULE_TYPES = Field(
         None, description="A schedule for the deployment."
@@ -353,11 +346,18 @@ class Deployment(ORMBaseModel):
         example=["tag-1", "tag-2"],
     )
 
-    flow_runner: Optional[FlowRunnerSettings] = Field(
+    parameter_openapi_schema: Dict[str, Any] = Field(
         None,
-        description="The flow runner to assign to flow runs associated with this deployment.",
+        description="The parameter schema of the flow, including defaults.",
     )
-
+    manifest_path: str = Field(
+        ...,
+        description="The path to the flow's manifest file, relative to the chosen storage.",
+    )
+    storage_document_id: Optional[UUID] = Field(
+        None,
+        description="The block document defining storage used for this flow.",
+    )
     infrastructure_document_id: Optional[UUID] = Field(
         None,
         description="The block document defining infrastructure to use for flow runs.",
@@ -384,6 +384,7 @@ class BlockType(ORMBaseModel):
     """An ORM representation of a block type"""
 
     name: str = Field(..., description="A block type's name")
+    slug: str = Field(..., description="A block type's slug")
     logo_url: Optional[HttpUrl] = Field(
         None, description="Web URL for the block type's logo"
     )

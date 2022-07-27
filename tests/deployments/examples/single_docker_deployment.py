@@ -1,5 +1,5 @@
 from prefect import Deployment, flow
-from prefect.flow_runners import DockerFlowRunner
+from prefect.infrastructure import DockerContainer
 
 
 @flow
@@ -10,7 +10,7 @@ def foo():
 Deployment(
     name="hello-world-daily",
     flow=foo,
-    flow_runner=DockerFlowRunner(
+    infrastructure=DockerContainer(
         env={"PREFECT_API_URL": "http://localhost:4200", "HELLO": "world"}
     ),
 )

@@ -10,7 +10,7 @@ from slugify import slugify
 from typing_extensions import Literal
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
-from prefect.flow_runners.base import get_prefect_image_name
+from prefect.docker import get_prefect_image_name
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.hashing import stable_hash
@@ -24,9 +24,6 @@ if TYPE_CHECKING:
     from kubernetes.client import BatchV1Api, CoreV1Api, V1Job, V1Pod
 else:
     kubernetes = lazy_import("kubernetes")
-    kubernetes.config = lazy_import("kubernetes.config")
-    kubernetes.client = lazy_import("kubernetes.client")
-    kubernetes.watch = lazy_import("kubernetes.watch")
 
 
 class KubernetesImagePullPolicy(enum.Enum):
@@ -209,6 +206,9 @@ class KubernetesJob(Infrastructure):
 
         # Monitor the job
         return await run_sync_in_worker_thread(self._watch_job, job_name)
+
+    def preview(self):
+        return yaml.dump(self.build_job())
 
     def build_job(self) -> KubernetesManifest:
         """Builds the Kubernetes Job Manifest"""

@@ -6,7 +6,7 @@ import prefect
 from prefect.infrastructure.base import Infrastructure
 from prefect.orion.schemas.core import FlowRun
 
-FLOW_RUN_ENTRYPOINT = ["python", "-m", "prefect.engine"]
+MIN_COMPAT_PREFECT_VERSION = "2.0b12"
 
 
 def base_flow_run_labels(flow_run: FlowRun) -> Dict[str, str]:
@@ -26,19 +26,23 @@ def base_flow_run_environment(flow_run) -> Dict[str, str]:
     return environment
 
 
+def _prepare_infrastructure(
+    flow_run: FlowRun, infrastructure: Infrastructure
+) -> Infrastructure:
+    # Update the infrastructure for this specific run
+    return infrastructure.copy(
+        update={
+            "env": {**base_flow_run_environment(flow_run), **infrastructure.env},
+            "labels": {**base_flow_run_labels(flow_run), **infrastructure.labels},
+            "name": infrastructure.name or flow_run.name,
+        }
+    )
+
+
 async def submit_flow_run(
     flow_run: FlowRun,
     infrastructure: Infrastructure,
     task_status: Optional[TaskStatus] = None,
 ):
-    # Update the infrastructure for this specific run
-    infrastructure = infrastructure.copy(
-        update={
-            "env": {**base_flow_run_environment(flow_run), **infrastructure.env},
-            "labels": {**base_flow_run_labels(flow_run), **infrastructure.labels},
-            "name": infrastructure.name or flow_run.name,
-            "command": infrastructure.command or FLOW_RUN_ENTRYPOINT,
-        }
-    )
-
+    infrastructure = _prepare_infrastructure(flow_run, infrastructure)
     return await infrastructure.run(task_status=task_status)

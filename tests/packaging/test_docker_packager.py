@@ -9,15 +9,18 @@ import pytest
 
 from prefect.client import OrionClient
 from prefect.deployments import Deployment
-from prefect.docker import Container, DockerClient
-from prefect.flow_runners.base import get_prefect_image_name
-from prefect.flow_runners.docker import DockerFlowRunner
+from prefect.docker import get_prefect_image_name, silence_docker_warnings
+from prefect.infrastructure.docker import DockerContainer
 from prefect.packaging.docker import DockerPackageManifest, DockerPackager
 from prefect.software.conda import CondaEnvironment
 from prefect.software.python import PythonEnvironment
 from prefect.utilities.callables import parameter_schema
 
 from . import howdy
+
+with silence_docker_warnings():
+    from docker import DockerClient
+    from docker.models.containers import Container
 
 IMAGE_ID_PATTERN = re.compile("^sha256:[a-fA-F0-9]{64}$")
 
@@ -133,11 +136,12 @@ async def test_packaging_a_flow_to_registry_without_scheme(
 
 
 @pytest.mark.service("docker")
+@pytest.mark.skip("Packagers are temporarily not supported.")
 async def test_creating_deployments(prefect_base_image: str, orion_client: OrionClient):
     deployment = Deployment(
         name="howdy-deployed",
         flow=howdy,
-        flow_runner=DockerFlowRunner(),
+        infrastructure=DockerContainer(),
         packager=DockerPackager(
             base_image=prefect_base_image,
             python_environment=PythonEnvironment(
@@ -207,6 +211,7 @@ async def test_packager_sets_manifest_flow_parameter_schema(howdy_context: Path)
 
 
 @pytest.mark.service("docker")
+@pytest.mark.flaky(max_runs=3)
 async def test_unpackaging_inside_container(
     prefect_base_image: str, docker: DockerClient
 ):
@@ -222,6 +227,7 @@ async def test_unpackaging_inside_container(
 
 
 @pytest.mark.service("docker")
+@pytest.mark.flaky(max_runs=3)
 async def test_custom_dockerfile_unpackaging(howdy_context: Path, docker: DockerClient):
     packager = DockerPackager(
         dockerfile=howdy_context / "Dockerfile",

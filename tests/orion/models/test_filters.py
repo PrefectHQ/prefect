@@ -9,7 +9,6 @@ import pytest
 from prefect.client import get_client
 from prefect.orion import models
 from prefect.orion.schemas import core, filters, schedules, states
-from prefect.orion.schemas.data import DataDocument
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -48,14 +47,12 @@ async def data(database_engine, flow_function, db):
         f_3 = await create_flow(flow=core.Flow(name="f-3"))
 
         # ---- deployments
-        flow_data = DataDocument.encode("cloudpickle", flow_function)
-
         d_1_1 = await create_deployment(
             deployment=core.Deployment(
                 id=d_1_1_id,
                 name="d-1-1",
                 flow_id=f_1.id,
-                flow_data=flow_data,
+                manifest_path="file.json",
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
                 is_schedule_active=True,
             )
@@ -64,7 +61,7 @@ async def data(database_engine, flow_function, db):
             deployment=core.Deployment(
                 id=d_1_2_id,
                 name="d-1-2",
-                flow_data=flow_data,
+                manifest_path="file.json",
                 flow_id=f_1.id,
                 is_schedule_active=False,
             )
@@ -73,7 +70,7 @@ async def data(database_engine, flow_function, db):
             deployment=core.Deployment(
                 id=d_3_1_id,
                 name="d-3-1",
-                flow_data=flow_data,
+                manifest_path="file.json",
                 flow_id=f_3.id,
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
                 is_schedule_active=True,
@@ -352,6 +349,16 @@ class TestCountFlowsModels:
             ),
             1,
         ],
+        # empty filter
+        [dict(flow_filter=filters.FlowFilter()), 4],
+        # multiple empty filters
+        [
+            dict(
+                flow_filter=filters.FlowFilter(),
+                flow_run_filter=filters.FlowRunFilter(),
+            ),
+            4,
+        ],
     ]
 
     @pytest.mark.parametrize("kwargs,expected", params)
@@ -549,6 +556,16 @@ class TestCountFlowRunModels:
             ),
             1,
         ],
+        # empty filter
+        [dict(flow_filter=filters.FlowFilter()), 12],
+        # multiple empty filters
+        [
+            dict(
+                flow_filter=filters.FlowFilter(),
+                flow_run_filter=filters.FlowRunFilter(),
+            ),
+            12,
+        ],
     ]
 
     @pytest.mark.parametrize("kwargs,expected", params)
@@ -724,6 +741,16 @@ class TestCountTaskRunsModels:
             ),
             0,
         ],
+        # empty filter
+        [dict(flow_filter=filters.FlowFilter()), 10],
+        # multiple empty filters
+        [
+            dict(
+                flow_filter=filters.FlowFilter(),
+                flow_run_filter=filters.FlowRunFilter(),
+            ),
+            10,
+        ],
     ]
 
     @pytest.mark.parametrize("kwargs,expected", params)
@@ -874,6 +901,16 @@ class TestCountDeploymentModels:
                 flow_filter=filters.FlowFilter(name=dict(any_=["f-2"])),
             ),
             0,
+        ],
+        # empty filter
+        [dict(flow_filter=filters.FlowFilter()), 3],
+        # multiple empty filters
+        [
+            dict(
+                flow_filter=filters.FlowFilter(),
+                flow_run_filter=filters.FlowRunFilter(),
+            ),
+            3,
         ],
     ]
 

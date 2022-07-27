@@ -4,11 +4,13 @@ from prefect.cli.root import app
 # isort: split
 
 import prefect.cli.agent
+import prefect.cli.block
 import prefect.cli.cloud
 import prefect.cli.concurrency_limit
 import prefect.cli.config
 import prefect.cli.deployment
 import prefect.cli.dev
+import prefect.cli.flow
 import prefect.cli.flow_run
 import prefect.cli.kubernetes
 import prefect.cli.orion

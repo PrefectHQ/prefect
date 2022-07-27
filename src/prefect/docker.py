@@ -1,12 +1,22 @@
 import hashlib
 import os
 import shutil
+import sys
 import warnings
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
 from types import TracebackType
-from typing import Generator, Iterable, List, Optional, TextIO, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Generator,
+    Iterable,
+    List,
+    Optional,
+    TextIO,
+    Type,
+    Union,
+)
 from urllib.parse import urlsplit
 
 import pendulum
@@ -14,6 +24,43 @@ from slugify import slugify
 from typing_extensions import Self
 
 import prefect
+from prefect.utilities.importtools import lazy_import
+
+
+def python_version_minor() -> str:
+    return f"{sys.version_info.major}.{sys.version_info.minor}"
+
+
+def python_version_micro() -> str:
+    return f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
+
+def get_prefect_image_name(
+    prefect_version: str = None, python_version: str = None, flavor: str = None
+) -> str:
+    """
+    Get the Prefect image name matching the current Prefect and Python versions.
+
+    Args:
+        prefect_version: An optional override for the Prefect version.
+        python_version: An optional override for the Python version; must be at the
+            minor level e.g. '3.9'.
+        flavor: An optional alternative image flavor to build, like 'conda'
+    """
+    parsed_version = (prefect_version or prefect.__version__).split("+")
+    prefect_version = parsed_version[0] if len(parsed_version) == 1 else "dev"
+
+    python_version = python_version or python_version_minor()
+
+    tag = slugify(
+        f"{prefect_version}-python{python_version}" + (f"-{flavor}" if flavor else ""),
+        lowercase=False,
+        max_length=128,
+        # Docker allows these characters for tag names
+        regex_pattern=r"[^a-zA-Z0-9_.-]+",
+    )
+
+    return f"prefecthq/prefect:{tag}"
 
 
 @contextmanager
@@ -40,17 +87,18 @@ def silence_docker_warnings() -> Generator[None, None, None]:
 # want to have those popping up in various modules and test suites.  Instead,
 # consolidate the imports we need here, and expose them via this module.
 with silence_docker_warnings():
-    from docker import DockerClient
-    from docker.errors import APIError, ImageNotFound, NotFound  # noqa: F401
-    from docker.models.containers import Container  # noqa: F401
-    from docker.models.images import Image
+    if TYPE_CHECKING:
+        import docker
+        from docker import DockerClient
+    else:
+        docker = lazy_import("docker")
 
 
 @contextmanager
-def docker_client() -> Generator[DockerClient, None, None]:
+def docker_client() -> Generator["DockerClient", None, None]:
     """Get the environmentally-configured Docker client"""
     with silence_docker_warnings():
-        client = DockerClient.from_env()
+        client = docker.DockerClient.from_env()
 
     try:
         yield client
@@ -118,7 +166,7 @@ def build_image(
                     raise BuildError(event["error"])
                 elif "message" in event:
                     raise BuildError(event["message"])
-        except APIError as e:
+        except docker.errors.APIError as e:
             raise BuildError(e.explanation) from e
 
     assert image_id, "The Docker daemon did not return an image ID"

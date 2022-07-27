@@ -1,13 +1,34 @@
 """
 Reduced schemas for accepting API actions.
 """
+import re
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, validator
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
+
+LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
+
+
+def validate_block_type_slug(value):
+    if not bool(re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)):
+        raise ValueError(
+            "slug must only contain lowercase letters, numbers, and dashes"
+        )
+    return value
+
+
+def validate_block_document_name(value):
+    if value is not None and not bool(
+        re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)
+    ):
+        raise ValueError(
+            "name must only contain lowercase letters, numbers, and dashes"
+        )
+    return value
 
 
 class FlowCreate(
@@ -39,10 +60,12 @@ class DeploymentCreate(
             "flow_id",
             "schedule",
             "is_schedule_active",
+            "description",
             "tags",
             "parameters",
-            "flow_data",
-            "flow_runner",
+            "manifest_path",
+            "parameter_openapi_schema",
+            "storage_document_id",
             "infrastructure_document_id",
         ],
     )
@@ -53,10 +76,30 @@ class DeploymentCreate(
         extra = "forbid"
 
 
+class DeploymentUpdate(
+    schemas.core.Deployment.subclass(
+        name="DeploymentUpdate",
+        include_fields=[
+            "schedule",
+            "is_schedule_active",
+            "description",
+            "tags",
+            "parameters",
+            "storage_document_id",
+            "infrastructure_document_id",
+        ],
+    )
+):
+    """Data used by the Orion API to update a deployment."""
+
+    class Config:
+        extra = "forbid"
+
+
 class FlowRunUpdate(
     schemas.core.FlowRun.subclass(
         name="FlowRunUpdate",
-        include_fields=["flow_version", "parameters", "name", "flow_runner", "tags"],
+        include_fields=["flow_version", "parameters", "name", "tags"],
     )
 ):
     """Data used by the Orion API to update a flow run."""
@@ -119,7 +162,6 @@ class FlowRunCreate(
             "tags",
             "idempotency_key",
             "parent_task_run_id",
-            "flow_runner",
             "empirical_policy",
             "infrastructure_document_id",
         ],
@@ -143,7 +185,6 @@ class DeploymentFlowRunCreate(
             "context",
             "tags",
             "idempotency_key",
-            "flow_runner",
             "empirical_policy",
             "infrastructure_document_id",
         ],
@@ -187,6 +228,7 @@ class BlockTypeCreate(
         name="BlockTypeCreate",
         include_fields=[
             "name",
+            "slug",
             "logo_url",
             "documentation_url",
             "description",
@@ -198,6 +240,11 @@ class BlockTypeCreate(
 
     class Config:
         extra = "forbid"
+
+    # validators
+    _validate_slug_format = validator("slug", allow_reuse=True)(
+        validate_block_type_slug
+    )
 
 
 class BlockTypeUpdate(PrefectBaseModel):
@@ -241,6 +288,11 @@ class BlockDocumentCreate(
     class Config:
         extra = "forbid"
 
+    # validators
+    _validate_name_format = validator("name", allow_reuse=True)(
+        validate_block_document_name
+    )
+
 
 class BlockDocumentUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a block document."""
@@ -248,7 +300,6 @@ class BlockDocumentUpdate(PrefectBaseModel):
     class Config:
         extra = "forbid"
 
-    name: Optional[str] = None
     data: Optional[dict] = None
 
 
