@@ -129,7 +129,9 @@ What did we do here? Let's break down the command:
 - `prefect deployment build` is the Prefect CLI command that enables you to prepare the settings for a deployment.
 -  `./leo_flow.py:leonardo_dicapriflow` specifies the location of the flow script file and the name of the entrypoint flow function, separated by a colon.
 - `-n leo-deployment` is an option to specify a name for the deployment.
-- `-t test` specifies a tag for the deployment. Tags enable filtering deployment flow runs in the UI and on work queues.
+- `-t test` specifies a tag for the deployment. Tags enable filtering deployment flow runs in the UI and on work queues. 
+
+Note that you may specify multiple tags by providing a `-t tag` parameter for each tag you want applied to the deployment.
 
 The command outputs two files: `leonardo_dicapriflow-manifest.json` contains workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters. `deployment.yaml` contains details about the deployment for this flow.
 
