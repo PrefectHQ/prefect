@@ -93,7 +93,8 @@ def my_task():
 
 You can also provide tags as an argument with a [`tags` context manager](/api-ref/prefect/context/#prefect.context.tags), specifying tags when the task is called rather than in its definition.
 
-```python hl_lines="9"
+```python hl_lines="10"
+from prefect import flow, task
 from prefect import tags
 
 @task
@@ -125,7 +126,7 @@ def get_page(url):
 
 Caching refers to the ability of a task run to reflect a finished state without actually running the code that defines the task. This allows you to efficiently reuse results of tasks that may be expensive to run with every flow run, or reuse cached results if the inputs to a task have not changed.
 
-To determine whether a task run should retrieve a cached state, we use "cache keys". A cache key is a string value that indicates if a run should be considered identical to another. When a task run with a cache key finishes, we attach that cache key to the state. When each task run starts, we will look for states with a matching cache key. If we find a state with an identical key, we will use the cached state instead of running the task again.
+To determine whether a task run should retrieve a cached state, we use "cache keys". A cache key is a string value that indicates if one run should be considered identical to another. When a task run with a cache key finishes, we attach that cache key to the state. When each task run starts, Prefect checks for states with a matching cache key. If a state with an identical key is found, Prefect will use the cached state instead of running the task again.
 
 To enable caching, specify a `cache_key_fn` &mdash; a function that returns a cache key &mdash; on your task. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires. If you do not specify a `cache_expiration`, the cache key does not expire.
 
@@ -133,11 +134,12 @@ You can define a task that is cached based on its inputs by using the Prefect `t
 
 Note that, if any arguments are not JSON serializable, the pickle serializer is used as a fallback. If cloudpickle fails, `task_input_hash` returns a null key indicating that a cache key could not be generated for the given inputs.
 
-In this example, until the `cache_expiration` time ends, as long as the input to `hello_task()` remains the same when it is called, it runs only once, but the cached return value will be returned. However, if the input argument value changes, `hello_task()` runs using that input.
+In this example, until the `cache_expiration` time ends, as long as the input to `hello_task()` remains the same when it is called, the cached return value is returned. In this situation the task is not rerun. However, if the input argument value changes, `hello_task()` runs using the new input.
 
-```python hl_lines="1 4"
-from prefect.tasks import task_input_hash
+```python hl_lines="3 5"
 from datetime import timedelta
+from prefect import flow, task
+from prefect.tasks import task_input_hash
 
 @task(cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
 def hello_task(name_input):
@@ -150,14 +152,16 @@ def hello_flow(name_input):
     hello_task(name_input)
 ```
 
-You can also provide your own function or other callable that returns a string cache key. A generic `cache_key_fn` is a function that accepts two positional arguments: 
+Alternatively, you can provide your own function or other callable that returns a string cache key. A generic `cache_key_fn` is a function that accepts two positional arguments: 
 
 - The first argument corresponds to the `TaskRunContext`, which stores task run metadata in the attributes `task_run_id`, `flow_run_id`, and `task`.
 - The second argument corresponds to a dictionary of input values to the task. For example, if your task is defined with signature `fn(x, y, z)` then the dictionary will have keys `"x"`, `"y"`, and `"z"` with corresponding values that can be used to compute your cache key.
 
 Note that the `cache_key_fn` is _not_ defined as a `@task`. 
 
-```python hl_lines="1-5"
+```python hl_lines="3-5 7"
+from prefect import task, flow
+
 def static_cache_key(context, parameters):
     # return a constant
     return "static cache key"
@@ -240,7 +244,7 @@ You can set concurrency limits on as few or as many tags as you wish. You can se
 You can create, list, and remove concurrency limits by using Prefect CLI `concurrency-limit` commands.
 
 ```bash
-$ prefect concurrency_limit [command] [arguments]
+$ prefect concurrency-limit [command] [arguments]
 ```
 
 | Command | Description |
@@ -253,13 +257,13 @@ $ prefect concurrency_limit [command] [arguments]
 For example, to set a concurrency limit of 10 on the 'small_instance' tag:
 
 ```bash
-$ prefect concurrency_limit create small_instance 10
+$ prefect concurrency-limit create small_instance 10
 ```
 
 To delete the concurrency limit on the 'small_instance' tag:
 
 ```bash
-$ prefect concurrency_limit delete small_instance
+$ prefect concurrency-limit delete small_instance
 ```
 
 #### Python client
@@ -278,8 +282,10 @@ from prefect.client import get_client
 
 async with get_client() as client:
     # set a concurrency limit of 10 on the 'small_instance' tag
-    limit_id = await client.create_concurrency_limit(tag="small_instance", 
-                                                     concurrency_limit=10)
+    limit_id = await client.create_concurrency_limit(
+        tag="small_instance", 
+        concurrency_limit=10
+        )
 ```
 
 To remove all concurrency limits on a tag, use [`OrionClient.delete_concurrency_limit_by_tag`](/api-ref/prefect/client/#prefect.client.OrionClient.delete_concurrency_limit_by_tag), passing the tag:

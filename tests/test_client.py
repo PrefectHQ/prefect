@@ -16,9 +16,6 @@ import prefect.context
 import prefect.exceptions
 from prefect import flow
 from prefect.client import OrionClient, PrefectHttpxClient, get_client
-from prefect.flow_runners import UniversalFlowRunner
-from prefect.flow_runners.base import FlowRunnerSettings
-from prefect.infrastructure import Process
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -584,33 +581,38 @@ async def test_create_then_read_flow(orion_client):
     assert lookup.name == foo.name
 
 
-async def test_create_then_read_deployment(orion_client):
+async def test_create_then_read_deployment(
+    orion_client, infrastructure_document_id, storage_document_id
+):
     @flow
     def foo():
         pass
 
     flow_id = await orion_client.create_flow(foo)
     schedule = IntervalSchedule(interval=timedelta(days=1))
-    flow_data = DataDocument.encode("cloudpickle", foo)
 
     deployment_id = await orion_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
-        flow_data=flow_data,
+        manifest_path="path/file.json",
         schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
-        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+        infrastructure_document_id=infrastructure_document_id,
+        storage_document_id=storage_document_id,
+        parameter_openapi_schema={},
     )
 
     lookup = await orion_client.read_deployment(deployment_id)
     assert isinstance(lookup, schemas.core.Deployment)
     assert lookup.name == "test-deployment"
-    assert lookup.flow_data == flow_data
+    assert lookup.manifest_path == "path/file.json"
     assert lookup.schedule == schedule
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
-    assert lookup.flow_runner == UniversalFlowRunner(env={"foo": "bar"}).to_settings()
+    assert lookup.storage_document_id == storage_document_id
+    assert lookup.infrastructure_document_id == infrastructure_document_id
+    assert lookup.parameter_openapi_schema == {}
 
 
 async def test_read_deployment_by_name(orion_client):
@@ -620,12 +622,11 @@ async def test_read_deployment_by_name(orion_client):
 
     flow_id = await orion_client.create_flow(foo)
     schedule = IntervalSchedule(interval=timedelta(days=1))
-    flow_data = DataDocument.encode("cloudpickle", foo)
 
     deployment_id = await orion_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
-        flow_data=flow_data,
+        manifest_path="file.json",
         schedule=schedule,
     )
 
@@ -633,7 +634,7 @@ async def test_read_deployment_by_name(orion_client):
     assert isinstance(lookup, schemas.core.Deployment)
     assert lookup.id == deployment_id
     assert lookup.name == "test-deployment"
-    assert lookup.flow_data == flow_data
+    assert lookup.manifest_path == "file.json"
     assert lookup.schedule == schedule
 
 
@@ -644,12 +645,11 @@ async def test_create_then_delete_deployment(orion_client):
 
     flow_id = await orion_client.create_flow(foo)
     schedule = IntervalSchedule(interval=timedelta(days=1))
-    flow_data = DataDocument.encode("cloudpickle", foo)
 
     deployment_id = await orion_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
-        flow_data=flow_data,
+        manifest_path="file.json",
         schedule=schedule,
     )
 
@@ -695,7 +695,8 @@ async def test_create_then_read_flow_run(orion_client):
         pass
 
     flow_run = await orion_client.create_flow_run(
-        foo, name="zachs-flow-run", flow_runner=UniversalFlowRunner(env={"foo": "bar"})
+        foo,
+        name="zachs-flow-run",
     )
     assert isinstance(flow_run, schemas.core.FlowRun)
 
@@ -847,8 +848,7 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
     # Deployment details attached
     assert flow_run.deployment_id == deployment.id
     assert flow_run.flow_id == deployment.flow_id
-    # Includes flow runner
-    assert flow_run.flow_runner.dict() == deployment.flow_runner.dict()
+
     # Flow version is not populated yet
     assert flow_run.flow_version is None
     # State is scheduled for now
@@ -859,36 +859,6 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
         .in_seconds()
         < 1
     )
-
-
-async def test_create_flow_run_from_deployment_with_anonymous_infrastructure(
-    orion_client, deployment
-):
-    infrastructure_document_id = await Process(env={"foo": "bar"})._save(
-        is_anonymous=True
-    )
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id, infrastructure_document_id=infrastructure_document_id
-    )
-    assert flow_run.infrastructure_document_id == infrastructure_document_id
-
-    # Flow runner is empty
-    assert flow_run.flow_runner == FlowRunnerSettings(type=None, config=None)
-
-
-async def test_create_flow_run_from_deployment_with_saved_infrastructure(
-    orion_client, deployment
-):
-    infrastructure = Process(env={"foo": "bar"})
-    infrastructure_document_id = await infrastructure.save("hello")
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id,
-        infrastructure_document_id=infrastructure_document_id,
-    )
-    assert flow_run.infrastructure_document_id == infrastructure_document_id
-
-    # Flow runner is empty
-    assert flow_run.flow_runner == FlowRunnerSettings(type=None, config=None)
 
 
 async def test_update_flow_run(orion_client):
@@ -1041,16 +1011,14 @@ class TestClientAPIVersionRequests:
     async def test_major_version(
         self, app, major_version, minor_version, patch_version
     ):
-        # higher client major version fails
+        # higher client major version works
         api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(
-                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
-            ):
-                await client.hello()
+            res = await client.hello()
+            assert res.status_code == status.HTTP_200_OK
 
         # lower client major version fails
-        api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
+        api_version = f"{major_version - 1}.{minor_version}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
@@ -1060,13 +1028,11 @@ class TestClientAPIVersionRequests:
     async def test_minor_version(
         self, app, major_version, minor_version, patch_version
     ):
-        # higher client minor version fails
+        # higher client minor version succeeds
         api_version = f"{major_version}.{minor_version + 1}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(
-                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
-            ):
-                await client.hello()
+            res = await client.hello()
+            assert res.status_code == status.HTTP_200_OK
 
         # lower client minor version fails
         api_version = f"{major_version}.{minor_version - 1}.{patch_version}"
@@ -1079,19 +1045,19 @@ class TestClientAPIVersionRequests:
     async def test_patch_version(
         self, app, major_version, minor_version, patch_version
     ):
-        # higher client patch version fails
+        # higher client patch version succeeds
         api_version = f"{major_version}.{minor_version}.{patch_version + 1}"
+        async with OrionClient(app, api_version=api_version) as client:
+            res = await client.hello()
+            assert res.status_code == status.HTTP_200_OK
+
+        # lower client patch version fails
+        api_version = f"{major_version}.{minor_version}.{patch_version - 1}"
         async with OrionClient(app, api_version=api_version) as client:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
             ):
                 await client.hello()
-
-        # lower client minor version succeeds
-        api_version = f"{major_version}.{minor_version}.{patch_version - 1}"
-        async with OrionClient(app, api_version=api_version) as client:
-            res = await client.hello()
-            assert res.status_code == status.HTTP_200_OK
 
     async def test_invalid_header(self, app):
         # Invalid header is rejected
@@ -1144,20 +1110,21 @@ class TestClientAPIKey:
 
 class TestClientWorkQueues:
     @pytest.fixture
-    async def deployment(self, orion_client):
+    async def deployment(self, orion_client, infrastructure_document_id):
         foo = flow(lambda: None, name="foo")
         flow_id = await orion_client.create_flow(foo)
-        schedule = IntervalSchedule(interval=timedelta(days=1))
-        flow_data = DataDocument.encode("cloudpickle", foo)
+        schedule = IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+        )
 
         deployment_id = await orion_client.create_deployment(
             flow_id=flow_id,
             name="test-deployment",
-            flow_data=flow_data,
+            manifest_path="file.json",
             schedule=schedule,
             parameters={"foo": "bar"},
             tags=["bing", "bang"],
-            flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+            infrastructure_document_id=infrastructure_document_id,
         )
         return deployment_id
 
@@ -1191,11 +1158,6 @@ class TestClientWorkQueues:
         )
         assert isinstance(tagged_queue_id, UUID)
 
-        deploy_queue_id = await orion_client.create_work_queue(
-            name="deploy", deployment_ids=[deployment]
-        )
-        assert isinstance(deploy_queue_id, UUID)
-
         run = await orion_client.create_flow_run_from_deployment(deployment)
         assert run.id
 
@@ -1204,9 +1166,6 @@ class TestClientWorkQueues:
 
         tagged_output = await orion_client.get_runs_in_work_queue(tagged_queue_id)
         assert tagged_output == [run]
-
-        deploy_output = await orion_client.get_runs_in_work_queue(deploy_queue_id)
-        assert deploy_output == [run]
 
     async def test_get_runs_from_queue_excludes(self, orion_client, deployment):
         blank_queue_id = await orion_client.create_work_queue(name="blank")
@@ -1218,7 +1177,7 @@ class TestClientWorkQueues:
         assert isinstance(tagged_queue_id, UUID)
 
         deploy_queue_id = await orion_client.create_work_queue(
-            name="deploy", deployment_ids=[tagged_queue_id]  # nonsensical
+            name="deploy", tags=["nonsensical"]
         )
         assert isinstance(deploy_queue_id, UUID)
 
@@ -1236,7 +1195,7 @@ class TestClientWorkQueues:
 
     async def test_get_runs_from_queue_respects_limit(self, orion_client, deployment):
         queue_id = await orion_client.create_work_queue(
-            name="deploy", deployment_ids=[deployment]
+            name="deploy", tags=["bing", "bang"]
         )
 
         runs = []
@@ -1273,3 +1232,12 @@ async def test_delete_flow_run(orion_client, flow_run):
     # Check that trying to delete the deleted flow run raises an error
     with pytest.raises(prefect.exceptions.ObjectNotFound):
         await orion_client.delete_flow_run(flow_run.id)
+
+
+async def test_ephemeral_app_check(orion_client):
+    assert await orion_client.using_ephemeral_app()
+
+
+async def test_ephemeral_app_check_when_using_hosted_orion(hosted_orion_api):
+    async with OrionClient(hosted_orion_api) as orion_client:
+        assert (await orion_client.using_ephemeral_app()) is False

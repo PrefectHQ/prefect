@@ -9,11 +9,10 @@ from prefect.utilities.collections import listrepr
 from prefect.utilities.importtools import lazy_import
 
 if TYPE_CHECKING:
-    import kubernetes.config.kube_config as kube_config
+    import kubernetes
     from kubernetes.client.api_client import ApiClient
 else:
-    # Lazily import from kubernetes
-    kube_config = lazy_import("kubernetes.config.kube_config")
+    kubernetes = lazy_import("kubernetes")
 
 
 class KubernetesClusterConfig(Block):
@@ -53,6 +52,8 @@ class KubernetesClusterConfig(Block):
 
         The entire config file will be loaded and stored.
         """
+        kube_config = kubernetes.config.kube_config
+
         path = Path(path or kube_config.KUBE_CONFIG_DEFAULT_LOCATION)
         path = path.expanduser().resolve()
 
@@ -80,7 +81,7 @@ class KubernetesClusterConfig(Block):
         """
         Returns a Kubernetes API client for this cluster config.
         """
-        return kube_config.new_client_from_config_dict(
+        return kubernetes.config.kube_config.new_client_from_config_dict(
             config_dict=self.config, context=self.context_name
         )
 
@@ -90,6 +91,6 @@ class KubernetesClusterConfig(Block):
         Kubernetes Python client. After calling this, Kubernetes API clients can use
         this config's context.
         """
-        kube_config.load_kube_config_from_dict(
+        kubernetes.config.kube_config.load_kube_config_from_dict(
             config_dict=self.config, context=self.context_name
         )

@@ -7,8 +7,13 @@ from pydantic import AnyHttpUrl, root_validator, validator
 from slugify import slugify
 from typing_extensions import Literal
 
-from prefect.docker import ImageBuilder, build_image, push_image, to_run_command
-from prefect.flow_runners.docker import get_prefect_image_name
+from prefect.docker import (
+    ImageBuilder,
+    build_image,
+    get_prefect_image_name,
+    push_image,
+    to_run_command,
+)
 from prefect.flows import Flow, load_flow_from_script
 from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.serializers import SourceSerializer

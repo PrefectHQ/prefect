@@ -23,21 +23,26 @@ import prefect.orion.api as api
 import prefect.orion.services as services
 import prefect.settings
 from prefect.logging import get_logger
-from prefect.orion.api.dependencies import CheckVersionCompatibility
+from prefect.orion.api.dependencies import EnforceMinimumAPIVersion
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.models.block_schemas import read_block_schema_by_checksum
-from prefect.orion.models.block_types import read_block_type_by_name, update_block_type
+from prefect.orion.models.block_types import read_block_type_by_slug, update_block_type
 from prefect.orion.utilities.server import method_paths_from_routes
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.7.0"
+ORION_API_VERSION = "0.8.0"
 
 logger = get_logger("orion")
 
-version_checker = CheckVersionCompatibility(ORION_API_VERSION, logger)
+enforce_minimum_version = EnforceMinimumAPIVersion(
+    # this should be <= ORION_API_VERSION; clients that send
+    # a version header under this value will be rejected
+    minimum_api_version="0.8.0",
+    logger=logger,
+)
 
 
 API_ROUTERS = (
@@ -155,9 +160,9 @@ def create_orion_api(
 
     # always include version checking
     if dependencies is None:
-        dependencies = [Depends(version_checker)]
+        dependencies = [Depends(enforce_minimum_version)]
     else:
-        dependencies.append(Depends(version_checker))
+        dependencies.append(Depends(enforce_minimum_version))
 
     routers = {router.prefix: router for router in API_ROUTERS}
 
@@ -282,9 +287,9 @@ def create_app(
             for block_class in get_registry_for_type(Block).values():
                 # each block schema gets its own transaction
                 async with session.begin():
-                    block_type = await read_block_type_by_name(
+                    block_type = await read_block_type_by_slug(
                         session=session,
-                        block_type_name=block_class.get_block_type_name(),
+                        block_type_slug=block_class.get_block_type_slug(),
                     )
                     if block_type is None or should_override:
                         block_type = await create_block_type(
@@ -322,6 +327,7 @@ def create_app(
 
         if prefect.settings.PREFECT_ORION_SERVICES_SCHEDULER_ENABLED.value():
             service_instances.append(services.scheduler.Scheduler())
+            service_instances.append(services.scheduler.RecentDeploymentsScheduler())
 
         if prefect.settings.PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED.value():
             service_instances.append(services.late_runs.MarkLateRuns())

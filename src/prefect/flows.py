@@ -30,7 +30,7 @@ from typing import (
 import pydantic
 from fastapi.encoders import jsonable_encoder
 from pydantic.decorator import ValidatedFunction
-from typing_extensions import ParamSpec
+from typing_extensions import Literal, ParamSpec
 
 from prefect import State
 from prefect.context import PrefectObjectRegistry, registry_from_script
@@ -47,6 +47,7 @@ from prefect.utilities.callables import (
     get_call_parameters,
     parameter_schema,
     parameters_to_args_kwargs,
+    raise_for_reserved_arguments,
 )
 from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
@@ -126,6 +127,8 @@ class Flow(Generic[P, R]):
         update_wrapper(self, fn)
         self.fn = fn
         self.isasync = is_async_fn(self.fn)
+
+        raise_for_reserved_arguments(self.fn, ["return_state"])
 
         # Version defaults to a hash of the function's file
         flow_file = inspect.getsourcefile(self.fn)
@@ -313,12 +316,27 @@ class Flow(Generic[P, R]):
         ...
 
     @overload
-    def __call__(self: "Flow[P, T]", *args: P.args, **kwargs: P.kwargs) -> T:
+    def __call__(
+        self: "Flow[P, T]",
+        *args: P.args,
+        return_state: Literal[False],
+        **kwargs: P.kwargs,
+    ) -> T:
+        ...
+
+    @overload
+    def __call__(
+        self: "Flow[P, T]",
+        *args: P.args,
+        return_state: Literal[True],
+        **kwargs: P.kwargs,
+    ) -> State[T]:
         ...
 
     def __call__(
         self,
         *args: "P.args",
+        return_state: bool = False,
         **kwargs: "P.kwargs",
     ):
         """
@@ -333,10 +351,14 @@ class Flow(Generic[P, R]):
 
         Args:
             *args: Arguments to run the flow with.
+            return_state: Return a Prefect State containing the result of the
+            flow run.
             **kwargs: Keyword arguments to run the flow with.
 
         Returns:
-            The result of the flow run.
+            If `return_state` is False, returns the result of the flow run.
+            If `return_state` is True, returns the result of the flow run
+                wrapped in a Prefect State which provides error handling.
 
         Examples:
 
@@ -364,8 +386,10 @@ class Flow(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
+        return_type = "state" if return_state else "result"
+
         return enter_flow_run_engine_from_flow_call(
-            self, parameters, return_type="result"
+            self, parameters, return_type=return_type
         )
 
     @overload

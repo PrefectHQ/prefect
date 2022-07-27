@@ -4,7 +4,8 @@ from uuid import UUID
 import pytest
 import yaml
 
-from prefect.flow_runners.kubernetes import KubernetesFlowRunner
+from prefect.infrastructure.kubernetes import KubernetesJob
+from prefect.infrastructure.submission import _prepare_infrastructure
 from prefect.orion.schemas.core import FlowRun
 from prefect.testing.cli import invoke_and_assert
 
@@ -73,12 +74,16 @@ def test_previewing_single_kubernetes_deployment_from_python(example_deployments
     assert len(previews) == 1
 
     manifest = yaml.load(previews[0], yaml.SafeLoader)
-    assert manifest == KubernetesFlowRunner().build_job(
-        FlowRun(
-            id=UUID(int=0),
-            flow_id=UUID(int=0),
-            name="cool-name",
-        )
+    assert (
+        manifest
+        == _prepare_infrastructure(
+            FlowRun(
+                id=UUID(int=0),
+                flow_id=UUID(int=0),
+                name="cool-name",
+            ),
+            KubernetesJob(),
+        ).build_job()
     )
 
 
@@ -118,6 +123,7 @@ def test_previewing_multiple_kubernetes_deployments_from_python(example_deployme
     assert "MY_ENV_VAR" in [variable["name"] for variable in container["env"]]
 
 
+@pytest.mark.service("docker")
 def test_previewing_docker_deployment(example_deployments):
     """`prefect deployment preview my-flow-file.py` should render the
     Docker API values for the container it will create"""
@@ -140,13 +146,11 @@ def test_previewing_docker_deployment(example_deployments):
     # spot-check some variables and the command-line
     assert "PREFECT_TEST_MODE" in preview
     assert "PREFECT_LOGGING_LEVEL" in preview
-    assert (
-        '["python", "-m", "prefect.engine", "00000000-0000-0000-0000-000000000000"]'
-        in preview
-    )
+    assert "PREFECT__FLOW_RUN_ID" in preview
+    assert '["python", "-m", "prefect.engine"]' in preview
 
 
-def test_previewing_subprocess_deployment(example_deployments):
+def test_previewing_process_deployment(example_deployments):
     """`prefect deployment preview my-flow-file.py` should render the
     shell command that will be run for the subprocess"""
 
@@ -165,4 +169,5 @@ def test_previewing_subprocess_deployment(example_deployments):
     # spot-check some variables and the command-line
     assert "\nPREFECT_TEST_MODE=True \\" in preview
     assert "\nPREFECT_LOGGING_LEVEL=DEBUG \\" in preview
-    assert preview.endswith(" -m prefect.engine 00000000000000000000000000000000")
+    assert "\nPREFECT__FLOW_RUN_ID=00000000000000000000000000000000 \\" in preview
+    assert preview.endswith(" -m prefect.engine")

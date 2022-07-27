@@ -23,6 +23,26 @@ from prefect.settings import (
 
 
 @inject_db
+async def _delete_auto_scheduled_runs(
+    session: sa.orm.Session,
+    deployment_id: UUID,
+    db: OrionDBInterface,
+):
+    """
+    This utility function deletes all of a deployment's scheduled runs that are
+    still in a Scheduled state and that were  auto-scheduled runs. It should be
+    run any time a deployment is created or modified in order to ensure that
+    future runs comply with the deployment's latest values.
+    """
+    delete_query = sa.delete(db.FlowRun).where(
+        db.FlowRun.deployment_id == deployment_id,
+        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        db.FlowRun.auto_scheduled.is_(True),
+    )
+    await session.execute(delete_query)
+
+
+@inject_db
 async def create_deployment(
     session: sa.orm.Session, deployment: schemas.core.Deployment, db: OrionDBInterface
 ):
@@ -44,16 +64,9 @@ async def create_deployment(
 
     insert_values = deployment.dict(shallow=True, exclude_unset=True)
 
-    # Unpack the flow runner composite if set
-    flow_runner = insert_values.pop("flow_runner", None)
-    flow_runner_values = {}
-    if flow_runner:
-        flow_runner_values["flow_runner_type"] = flow_runner.type
-        flow_runner_values["flow_runner_config"] = flow_runner.config
-
     insert_stmt = (
         (await db.insert(db.Deployment))
-        .values(**insert_values, **flow_runner_values)
+        .values(**insert_values)
         .on_conflict_do_update(
             index_elements=db.deployment_unique_upsert_columns,
             set_={
@@ -62,14 +75,14 @@ async def create_deployment(
                     include={
                         "schedule",
                         "is_schedule_active",
+                        "description",
                         "tags",
                         "parameters",
-                        "flow_data",
                         "updated",
+                        "storage_document_id",
                         "infrastructure_document_id",
                     },
                 ),
-                **flow_runner_values,
             },
         )
     )
@@ -89,7 +102,49 @@ async def create_deployment(
     result = await session.execute(query)
     model = result.scalar()
 
+    # because this could upsert a different schedule, delete any runs from the old
+    # deployment
+    await _delete_auto_scheduled_runs(session=session, deployment_id=model.id, db=db)
+
     return model
+
+
+@inject_db
+async def update_deployment(
+    session: sa.orm.Session,
+    deployment_id: UUID,
+    deployment: schemas.actions.DeploymentUpdate,
+    db: OrionDBInterface,
+) -> bool:
+    """Updates a deployment.
+
+    Args:
+        session: a database session
+        deployment_id: the ID of the deployment to modify
+        deployment: changes to a deployment model
+
+    Returns:
+        bool: whether the deployment was updated
+
+    """
+
+    # exclude_unset=True allows us to only update values provided by
+    # the user, ignoring any defaults on the model
+    update_data = deployment.dict(shallow=True, exclude_unset=True)
+
+    update_stmt = (
+        sa.update(db.Deployment)
+        .where(db.Deployment.id == deployment_id)
+        .values(**update_data)
+    )
+    result = await session.execute(update_stmt)
+
+    # delete any auto scheduled runs that would have reflected the old deployment config
+    await _delete_auto_scheduled_runs(
+        session=session, deployment_id=deployment_id, db=db
+    )
+
+    return result.rowcount > 0
 
 
 @inject_db
@@ -280,7 +335,8 @@ async def delete_deployment(
     Returns:
         bool: whether or not the deployment was deleted
     """
-    # delete any scheduled runs for this deployment
+
+    # delete scheduled runs, both auto- and user- created.
     delete_query = sa.delete(db.FlowRun).where(
         db.FlowRun.deployment_id == deployment_id,
         db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
@@ -375,15 +431,13 @@ async def _generate_scheduled_flow_runs(
     )
 
     for date in dates:
-        flow_runner = deployment.flow_runner
         runs.append(
             {
                 "id": uuid4(),
                 "flow_id": deployment.flow_id,
                 "deployment_id": deployment_id,
                 "parameters": deployment.parameters,
-                "flow_runner_type": flow_runner.type if flow_runner else None,
-                "flow_runner_config": flow_runner.config if flow_runner else None,
+                "infrastructure_document_id": deployment.infrastructure_document_id,
                 "idempotency_key": f"scheduled {deployment.id} {date}",
                 "tags": ["auto-scheduled"] + deployment.tags,
                 "auto_scheduled": True,

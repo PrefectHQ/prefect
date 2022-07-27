@@ -18,24 +18,7 @@ If you have used Prefect 1.0 ("Prefect Core") and are familiar with Prefect work
 
 ## Prerequisites
 
-These tutorials assume you have [installed Prefect](/getting-started/installation/). 
-
-If you have at least basic Python programming experience, the examples in these tutorials should be easy to follow. 
-
-To show the basics of Prefect flows and tasks, the examples begin by using an interactive Python interpreter (REPL) session. An easy way to start the interpreter is by simply opening a terminal or console where Python is installed and running the `python` command. You should see something like this.
-
-<div class="terminal">
-```bash
-$ python
-Python 3.9.10 (main, Apr  1 2022, 11:58:52) 
-[Clang 13.0.0 (clang-1300.0.29.30)] on darwin
-Type "help", "copyright", "credits" or "license" for more information.
->>>
-```
-</div>
-
-If you prefer working with iPython, Jupyter Notebooks, or script files, most of the examples are easily adapted to those environments.
-
+These tutorials assume you have [installed Prefect 2.0](/getting-started/installation/) in your virtual environment along with Python 3.7 or newer. 
 ## Flows, tasks, and subflows
 
 Let's start with the basics, defining the central components of Prefect workflows.
@@ -46,52 +29,48 @@ A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorat
 
 All Prefect workflows are defined within the context of a flow. Every Prefect workflow must contain at least one flow function that serves as the entrypoint for execution of the flow. 
 
-Flows can include calls to tasks as well as to child flows, which we call "subflows" in this context. At a high level, this is just like writing any other Python applications: you organize specific, repetitive work into tasks, and call those tasks from flows.
+Flows can include calls to tasks as well as to child flows, which we call "subflows" in this context. At a high level, this is just like writing any other Python application: you organize specific, repetitive work into tasks, and call those tasks from flows.
 
 ## Run a basic flow
 
-The simplest way to begin with Prefect is to import `flow` and annotate your Python function using the [`@flow`][prefect.flows.flow]  decorator:
+The simplest way to begin with Prefect is to import `flow` and annotate your Python function using the [`@flow`][prefect.flows.flow] decorator.
+
+Enter the following code into your code editor, Jupyter Notebook, or Python REPL. 
 
 ```python
 from prefect import flow
 
 @flow
 def my_favorite_function():
-    print("This function doesn't do much")
+    print("What is your favorite number?")
     return 42
+
+print(my_favorite_function())
 ```
 
-Running a Prefect flow manually is as easy as calling the annotated function &mdash; in this case, the `my_favorite_function()` snippet shown above:
+Running a Prefect flow manually is as easy as calling the annotated function &mdash; in this case, the `my_favorite_function()`.
+
+Run your code in your chosen environment. Here's what the output looks like if your run the code in a Python script:
 
 <div class="terminal">
 ```bash
->>> from prefect import flow
->>>
->>> @flow
-... def my_favorite_function():
-...     print("This function doesn't do much")
-...     return 42
-...
->>> number = my_favorite_function()
 15:27:42.543 | INFO    | prefect.engine - Created flow run 'olive-poodle' for flow 'my-favorite-function'
 15:27:42.543 | INFO    | Flow run 'olive-poodle' - Using task runner 'ConcurrentTaskRunner'
-This function doesn't do much
-15:27:42.652 | INFO    | Flow run 'olive-poodle' - Finished in state Completed(None)
+What is your favorite number?
+15:27:42.652 | INFO    | Flow run 'olive-poodle' - Finished in state Completed()
+42
 ```
 </div>
 
-Notice the messages surrounding the expected output, "This function doesn't do much". 
+Notice the log messages surrounding the expected output, "What is your favorite number?". Finally, the value returned by the function is printed. 
 
 By adding the `@flow` decorator to a function, function calls will create a _flow run_ &mdash; the Prefect Orion orchestration engine manages flow and task state, including inspecting their progress, regardless of where your flow code runs.
-
-For clarity in future tutorial examples, these Prefect orchestration messages in results will only be shown where they are relevant to the discussion.
-
 
 In this case, the state of `my_favorite_function()` is "Completed", with no further message details. This reflects the logged message we saw earlier, `Flow run 'olive-poodle' - Finished in state Completed()`. 
 
 ## Run flows with parameters
 
-As with any Python function, you can pass arguments. The positional and keyword arguments defined on your flow function are called _parameters_. To demonstrate, enter this example in your REPL environment:
+As with any Python function, you can pass arguments. The positional and keyword arguments defined on your flow function are called _parameters_. To demonstrate, run this code:
 
 ```python
 import requests
@@ -100,55 +79,21 @@ from prefect import flow
 @flow
 def call_api(url):
     return requests.get(url).json()
+
+api_result = call_api("http://time.jsontest.com/")
+print(api_result)
 ```
 
 You can pass any parameters needed by your flow function, and you can pass [parameters on the `@flow`](/api-ref/prefect/flows/#prefect.flows.flow) decorator for configuration as well. We'll cover that in a future tutorial.
 
-For now, run the `call_api()` flow, passing a valid URL as a parameter. In this case, we're sending a POST request to an API that should return valid JSON in the response.
+For now, we run the `call_api()` flow, passing a valid URL as a parameter. In this case, we're sending a GET request to an API that should return valid JSON in the response. To output the dicionary returned by the API call, we wrap it in a `print` function.
 
 <div class="terminal">
 ```bash
->>> import requests
->>> from prefect import flow
->>>
->>> @flow
-... def call_api(url):
-...     return requests.get(url).json()
-...
->>> api_result = call_api("http://time.jsontest.com/")
-14:33:48.770 | INFO    | prefect.engine - Created flow run 'bronze-lyrebird' for flow 'call-api'
-14:33:48.770 | INFO    | Flow run 'bronze-lyrebird' - Using task runner 'ConcurrentTaskRunner'
-14:33:49.060 | INFO    | Flow run 'bronze-lyrebird' - Finished in state Completed()
-```
-</div>
-
-Again, Prefect Orion automatically orchestrates the flow run.
-
-As you did previously, print you can print the JSON returned by the API call:
-
-<div class="terminal">
-```bash
->>> print(api_result)
-{'date': '02-24-2022', 'milliseconds_since_epoch': 1645731229114, 'time': '07:33:49 PM'}
-```
-</div>
-
-## Error handling
-
-What happens if the Python function encounters an error while your flow is running? To see what happens whenever a flow does not complete successfully, let's intentionally run the `call_api()` flow above with a bad value for the URL:
-
-<div class="terminal">
-```bash
->>> api_result = call_api("foo")
-14:34:35.687 | INFO    | prefect.engine - Created flow run 'purring-swine' for flow 'call-api'
-14:34:35.687 | INFO    | Flow run 'purring-swine' - Using task runner 'ConcurrentTaskRunner'
-14:34:35.710 | ERROR   | Flow run 'purring-swine' - Encountered exception during execution:
-...
-...
-  File "/Users/terry/test/ktest/venv/lib/python3.8/site-packages/requests/models.py", line 392, in prepare_url
-    raise MissingSchema(error)
-requests.exceptions.MissingSchema: Invalid URL 'foo': No scheme supplied. Perhaps you meant http://foo?
-
+13:21:08.437 | INFO    | prefect.engine - Created flow run 'serious-pig' for flow 'call-api'
+13:21:08.437 | INFO    | Flow run 'serious-pig' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
+13:21:08.559 | INFO    | Flow run 'serious-pig' - Finished in state Completed()
+{'date': '07-22-2022', 'milliseconds_since_epoch': 1658510468554, 'time': '05:21:08 PM'}
 ```
 </div>
 
@@ -176,22 +121,25 @@ def call_api(url):
 def api_flow(url):
     fact_json = call_api(url)
     return fact_json
+
+print(api_flow("https://catfact.ninja/fact"))
 ```
 
 As you can see, we still call these tasks as normal functions and can pass their return values to other tasks.  
 We can then call our flow function &mdash; now called `api_flow()` &mdash; 
 just as before and see the printed output. 
-Prefect manages all the relevant intermediate states.
+Prefect manages all the intermediate states.
 
 <div class="terminal">
 ```bash
->>> cat_fact = api_flow("https://catfact.ninja/fact")
-15:10:17.955 | INFO    | prefect.engine - Created flow run 'jasper-ammonite' for flow 'api-flow'
-15:10:17.955 | INFO    | Flow run 'jasper-ammonite' - Using task runner 'ConcurrentTaskRunner'
-15:10:18.022 | INFO    | Flow run 'jasper-ammonite' - Created task run 'call_api-190c7484-0' for task 'call_api'
+14:43:56.876 | INFO    | prefect.engine - Created flow run 'berserk-hornet' for flow 'api-flow'
+14:43:56.876 | INFO    | Flow run 'berserk-hornet' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
+14:43:56.933 | INFO    | Flow run 'berserk-hornet' - Created task run 'call_api-ded10bed-0' for task 'call_api'
+14:43:56.933 | INFO    | Flow run 'berserk-hornet' - Executing 'call_api-ded10bed-0' immediately...
 200
-15:10:18.360 | INFO    | Task run 'call_api-190c7484-0' - Finished in state Completed()
-15:10:18.707 | INFO    | Flow run 'jasper-ammonite' - Finished in state Completed()
+14:43:57.025 | INFO    | Task run 'call_api-ded10bed-0' - Finished in state Completed()
+14:43:57.035 | INFO    | Flow run 'berserk-hornet' - Finished in state Completed()
+{'fact': 'Cats eat grass to aid their digestion and to help them get rid of any fur in their stomachs.', 'length': 92}
 ```
 </div>
 
@@ -218,22 +166,25 @@ def api_flow(url):
     fact_json = call_api(url)
     fact_text = parse_fact(fact_json)
     return fact_text
+
+api_flow("https://catfact.ninja/fact")
 ```
 
 This flow should print an interesting fact about cats:
 
 <div class="terminal">
 ```bash
->>> cat_fact = api_flow("https://catfact.ninja/fact")
-15:12:40.847 | INFO    | prefect.engine - Created flow run 'funny-guillemot' for flow 'api-flow'
-15:12:40.847 | INFO    | Flow run 'funny-guillemot' - Using task runner 'ConcurrentTaskRunner'
-15:12:40.912 | INFO    | Flow run 'funny-guillemot' - Created task run 'call_api-190c7484-0' for task 'call_api'
-15:12:40.968 | INFO    | Flow run 'funny-guillemot' - Created task run 'parse_fact-b0346046-0' for task 'parse_fact'
+15:21:15.227 | INFO    | prefect.engine - Created flow run 'cute-quetzal' for flow 'api-flow'
+15:21:15.227 | INFO    | Flow run 'cute-quetzal' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
+15:21:15.298 | INFO    | Flow run 'cute-quetzal' - Created task run 'call_api-ded10bed-0' for task 'call_api'
+15:21:15.298 | INFO    | Flow run 'cute-quetzal' - Executing 'call_api-ded10bed-0' immediately...
 200
-15:12:41.402 | INFO    | Task run 'call_api-190c7484-0' - Finished in state Completed()
-Abraham Lincoln loved cats. He had four of them while he lived in the White House.
-15:12:41.676 | INFO    | Task run 'parse_fact-b0346046-0' - Finished in state Completed()
-15:12:42.057 | INFO    | Flow run 'funny-guillemot' - Finished in state Completed()
+15:21:15.391 | INFO    | Task run 'call_api-ded10bed-0' - Finished in state Completed()
+15:21:15.403 | INFO    | Flow run 'cute-quetzal' - Created task run 'parse_fact-6803447a-0' for task 'parse_fact'
+15:21:15.403 | INFO    | Flow run 'cute-quetzal' - Executing 'parse_fact-6803447a-0' immediately...
+All cats have three sets of long hairs that are sensitive to pressure - whiskers, eyebrows,and the hairs between their paw pads.
+15:21:15.429 | INFO    | Task run 'parse_fact-6803447a-0' - Finished in state Completed()
+15:21:15.443 | INFO    | Flow run 'cute-quetzal' - Finished in state Completed()
 ```
 </div>
 
@@ -264,23 +215,13 @@ def main_flow():
     # then call another flow function
     data = common_flow(config={})
     # do more things
+
+main_flow()
 ```
 
 Whenever we run `main_flow` as above, a new run will be generated for `common_flow` as well.  Not only is this run tracked as a subflow run of `main_flow`, but you can also inspect it independently in the UI!
 
-<div class="terminal">
-```bash
->>> flow_state = main_flow()
-15:16:18.344 | INFO    | prefect.engine - Created flow run 'teal-goose' for flow 'main-flow'
-15:16:18.345 | INFO    | Flow run 'teal-goose' - Using task runner 'ConcurrentTaskRunner'
-15:16:18.583 | INFO    | Flow run 'teal-goose' - Created subflow run 'brawny-falcon' for flow 'common-flow'
-I am a subgraph that shows up in lots of places!
-15:16:18.805 | INFO    | Flow run 'brawny-falcon' - Finished in state Completed(None)
-15:16:18.933 | INFO    | Flow run 'teal-goose' - Finished in state Completed('All states completed.')
-```
-</div>
-
-You can confirm this for yourself by spinning up the UI using the `prefect orion start` CLI command from your terminal:
+Spin up the local Prefect Orion UI using the `prefect orion start` CLI command from your terminal:
 
 <div class="terminal">
 ```bash
@@ -310,13 +251,16 @@ def printer(obj):
 def validation_flow(x: int, y: str):
     printer(x)
     printer(y)
+
+validation_flow(x="42", y=100)
 ```
 
-Let's now run this flow, but provide values that don't perfectly conform to the type hints provided:
+Note that we are running this with flow with arguments that don't perfectly conform to the type hints provided.
+
+For clarity in future tutorial examples, the Prefect log messages in the results will only be shown where they are relevant to the discussion.
 
 <div class="terminal">
 ```bash
->>> validation_flow(x="42", y=100)
 Received a <class 'int'> with value 42
 Received a <class 'str'> with value 100
 ```
@@ -327,7 +271,7 @@ You can see that Prefect coerced the provided inputs into the types specified on
 While the above example is basic, this can be extended in powerful ways. In particular, Prefect attempts to coerce _any_ [pydantic](https://pydantic-docs.helpmanual.io/) model type hint into the correct form automatically:
 
 ```python
-from prefect import flow
+from prefect import flow, task
 from pydantic import BaseModel
 
 class Model(BaseModel):
@@ -335,14 +279,19 @@ class Model(BaseModel):
     b: float
     c: str
 
+@task
+def printer(obj):
+    print(f"Received a {type(obj)} with value {obj}")
+
 @flow
 def model_validator(model: Model):
     printer(model)
+
+model_validator({"a": 42, "b": 0, "c": 55})
 ```
 
 <div class="terminal">
 ```bash
->>> model_validator({"a": 42, "b": 0, "c": 55})
 Received a <class '__main__.Model'> with value a=42 b=0.0 c='55'
 ```
 </div>
@@ -352,44 +301,6 @@ Received a <class '__main__.Model'> with value a=42 b=0.0 c='55'
 
     Flow configuration is covered in more detail in the [Flow and task configuration](/tutorials/flow-task/) tutorial. For more information about pydantic type coercion, see the [pydantic documentation](https://pydantic-docs.helpmanual.io/usage/models/).
 
-## Asynchronous functions
-
-Even asynchronous functions work with Prefect! Here's a variation of a previous example that makes the API request as an async operation:
-
-```python
-import asyncio
-import httpx
-from prefect import flow, task
-
-@task
-async def call_api(url):
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url)
-    return response.json()
-
-@flow
-async def async_flow(url):
-    fact_json = await call_api(url)
-    return fact_json
-```
-
-If we run this in the interpreter, the output looks just like previous runs.
-
-<div class="terminal">
-```bash
->>> asyncio.run(async_flow("https://catfact.ninja/fact"))
-16:41:50.298 | INFO    | prefect.engine - Created flow run 'dashing-elephant' for flow 'async-flow'
-16:41:50.298 | INFO    | Flow run 'dashing-elephant' - Using task runner 'ConcurrentTaskRunner'
-16:41:50.352 | INFO    | Flow run 'dashing-elephant' - Created task run 'call_api-190c7484-0' for task 'call_api'
-200
-16:41:50.582 | INFO    | Task run 'call_api-190c7484-0' - Finished in state Completed(None)
-16:41:50.890 | INFO    | Flow run 'dashing-elephant' - Finished in state Completed('All states completed.')
-Completed(message='All states completed.', type=COMPLETED, result=[Completed(message=None, type=COMPLETED, 
-result={'fact': 'Cats have about 130,000 hairs per square inch (20,155 hairs per square centimeter).', 'length': 83}
-```
-</div>
-
-You can also run async tasks within non-async flows. This is a more advanced use case and will be covered in [future tutorials](/tutorials/execution/#asynchronous-execution).
 
 !!! tip "Next steps: Flow and task configuration"
     Now that you've seen some flow and task basics, the next step is learning about [configuring your flows and tasks](/tutorials/flow-task-config/) with options such as parameters, retries, caching, and task runners.

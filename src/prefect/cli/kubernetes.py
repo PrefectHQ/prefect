@@ -8,8 +8,8 @@ import yaml
 import prefect
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli.root import app
-from prefect.flow_runners.base import get_prefect_image_name
-from prefect.flow_runners.kubernetes import KubernetesFlowRunner
+from prefect.docker import get_prefect_image_name
+from prefect.infrastructure import KubernetesJob
 from prefect.settings import PREFECT_LOGGING_SERVER_LEVEL
 
 kubernetes_app = PrefectTyper(
@@ -52,9 +52,9 @@ def manifest_orion(
 @manifest_app.command("flow-run-job")
 async def manifest_flow_run_job():
     """
-    Prints the default KubernetesFlowRunner Job manifest.
+    Prints the default KubernetesJob Job manifest.
 
-    Use this file to fully customize your `KubernetesFlowRunner` deployments.
+    Use this file to fully customize your `KubernetesJob` deployments.
 
     \b
     Example:
@@ -69,9 +69,9 @@ async def manifest_flow_run_job():
         ...
     """
 
-    KubernetesFlowRunner.base_job_manifest()
+    KubernetesJob.base_job_manifest()
 
-    output = yaml.dump(KubernetesFlowRunner.base_job_manifest())
+    output = yaml.dump(KubernetesJob.base_job_manifest())
 
     # add some commentary where appropriate
     output = output.replace(

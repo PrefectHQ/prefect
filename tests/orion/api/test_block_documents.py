@@ -150,7 +150,7 @@ class TestCreateBlockDocument:
         assert response.status_code == status.HTTP_201_CREATED
         result = BlockDocument.parse_obj(response.json())
 
-        assert result.name.startswith("anonymous:")
+        assert result.name.startswith("anonymous-")
         assert result.data == dict(y=1)
         assert result.block_schema_id == block_schemas[0].id
         assert result.block_schema.checksum == block_schemas[0].checksum
@@ -158,7 +158,7 @@ class TestCreateBlockDocument:
 
         response = await client.get(f"/block_documents/{result.id}")
         api_block = BlockDocument.parse_obj(response.json())
-        assert api_block.name.startswith("anonymous:")
+        assert api_block.name.startswith("anonymous-")
         assert api_block.data == dict(y=1)
         assert api_block.is_anonymous is True
         assert result.block_schema_id == block_schemas[0].id
@@ -268,11 +268,8 @@ class TestCreateBlockDocument:
     @pytest.mark.parametrize(
         "name",
         [
-            "my block",
-            "my:block",
-            r"my\block",
-            "my👍block",
-            "my|block",
+            "my-block",
+            "myblock",
         ],
     )
     async def test_create_block_document_with_nonstandard_characters(
@@ -294,6 +291,10 @@ class TestCreateBlockDocument:
         [
             "my%block",
             "my/block",
+            "my block",
+            r"my\block",
+            "my👍block",
+            "my|block",
         ],
     )
     async def test_create_block_document_with_invalid_characters(
@@ -327,7 +328,7 @@ class TestReadBlockDocuments:
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
                     block_schema_id=block_schemas[0].id,
-                    name="Block 1",
+                    name="block-1",
                     block_type_id=block_schemas[0].block_type_id,
                 ),
             )
@@ -337,7 +338,7 @@ class TestReadBlockDocuments:
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
                     block_schema_id=block_schemas[1].id,
-                    name="Block 2",
+                    name="block-2",
                     block_type_id=block_schemas[1].block_type_id,
                 ),
             )
@@ -347,7 +348,7 @@ class TestReadBlockDocuments:
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
                     block_schema_id=block_schemas[2].id,
-                    name="Block 3",
+                    name="block-3",
                     block_type_id=block_schemas[2].block_type_id,
                 ),
             )
@@ -357,7 +358,7 @@ class TestReadBlockDocuments:
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
                     block_schema_id=block_schemas[1].id,
-                    name="Block 4",
+                    name="block-4",
                     block_type_id=block_schemas[1].block_type_id,
                 ),
             )
@@ -367,7 +368,7 @@ class TestReadBlockDocuments:
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
                     block_schema_id=block_schemas[2].id,
-                    name="Block 5",
+                    name="block-5",
                     block_type_id=block_schemas[2].block_type_id,
                 ),
             )
@@ -387,7 +388,7 @@ class TestReadBlockDocuments:
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
-                    name="Nested Block 1",
+                    name="nested-block-1",
                     block_schema_id=block_schemas[3].id,
                     block_type_id=block_schemas[3].block_type_id,
                     data={
@@ -402,7 +403,7 @@ class TestReadBlockDocuments:
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
-                    name="Nested Block 2",
+                    name="nested-block-2",
                     block_schema_id=block_schemas[4].id,
                     block_type_id=block_schemas[4].block_type_id,
                     data={
@@ -491,8 +492,8 @@ class TestReadBlockDocuments:
             List[schemas.core.BlockDocument], response.json()
         )
         assert [b.id for b in read_block_documents] == [
-            block_documents[0].id,
             block_documents[1].id,
+            block_documents[2].id,
         ]
 
         response = await client.post(
@@ -502,8 +503,8 @@ class TestReadBlockDocuments:
             List[schemas.core.BlockDocument], response.json()
         )
         assert [b.id for b in read_block_documents] == [
-            block_documents[2].id,
             block_documents[3].id,
+            block_documents[4].id,
         ]
 
     async def test_read_block_documents_filter_capabilities(
@@ -521,7 +522,7 @@ class TestReadBlockDocuments:
         )
 
         assert len(fly_and_swim_block_documents) == 1
-        assert fly_and_swim_block_documents[0].id == block_documents[5].id
+        assert fly_and_swim_block_documents[0].id == block_documents[6].id
 
         response = await client.post(
             "/block_documents/filter",
@@ -533,9 +534,9 @@ class TestReadBlockDocuments:
         )
         assert len(fly_block_documents) == 3
         assert [b.id for b in fly_block_documents] == [
-            block_documents[1].id,
-            block_documents[3].id,
-            block_documents[5].id,
+            block_documents[2].id,
+            block_documents[4].id,
+            block_documents[6].id,
         ]
 
         response = await client.post(
@@ -547,7 +548,7 @@ class TestReadBlockDocuments:
             List[schemas.core.BlockDocument], response.json()
         )
         assert len(swim_block_documents) == 1
-        assert swim_block_documents[0].id == block_documents[5].id
+        assert swim_block_documents[0].id == block_documents[6].id
 
 
 class TestDeleteBlockDocument:
@@ -578,32 +579,6 @@ class TestDeleteBlockDocument:
 
 
 class TestUpdateBlockDocument:
-    async def test_update_block_document_name(self, session, client, block_schemas):
-        block_document = await models.block_documents.create_block_document(
-            session,
-            block_document=schemas.actions.BlockDocumentCreate(
-                name="test-update-name",
-                data=dict(x=1),
-                block_schema_id=block_schemas[1].id,
-                block_type_id=block_schemas[1].block_type_id,
-            ),
-        )
-        await session.commit()
-
-        response = await client.patch(
-            f"/block_documents/{block_document.id}",
-            json=BlockDocumentUpdate(
-                name="updated",
-            ).dict(json_compatible=True, exclude_unset=True),
-        )
-
-        assert response.status_code == status.HTTP_204_NO_CONTENT
-
-        updated_block_document = await models.block_documents.read_block_document_by_id(
-            session, block_document_id=block_document.id
-        )
-        assert updated_block_document.name == "updated"
-
     async def test_update_block_document_data(self, session, client, block_schemas):
         block_document = await models.block_documents.create_block_document(
             session,
@@ -972,7 +947,7 @@ class TestSecretBlockDocuments:
         block = await models.block_documents.create_block_document(
             session=session,
             block_document=schemas.actions.BlockDocumentCreate(
-                name="secret block",
+                name="secret-block",
                 data=dict(x=X, y=Y, z=Z),
                 block_type_id=secret_block_type.id,
                 block_schema_id=secret_block_schema.id,
@@ -988,7 +963,7 @@ class TestSecretBlockDocuments:
         response = await client.post(
             "/block_documents/",
             json=schemas.actions.BlockDocumentCreate(
-                name="secret block",
+                name="secret-block",
                 data=dict(x=X, y=Y, z=Z),
                 block_type_id=secret_block_type.id,
                 block_schema_id=secret_block_schema.id,
@@ -1031,7 +1006,7 @@ class TestSecretBlockDocuments:
         self, client, secret_block_document
     ):
         response = await client.get(
-            f"/block_types/name/{secret_block_document.block_type.name}/block_documents",
+            f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents",
             params=dict(),
         )
         blocks = pydantic.parse_obj_as(
@@ -1048,7 +1023,7 @@ class TestSecretBlockDocuments:
     ):
 
         response = await client.get(
-            f"/block_types/name/{secret_block_document.block_type.name}/block_documents",
+            f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents",
             params=dict(include_secrets=True),
         )
         blocks = pydantic.parse_obj_as(
@@ -1064,7 +1039,7 @@ class TestSecretBlockDocuments:
         self, client, secret_block_document
     ):
         response = await client.get(
-            f"/block_types/name/{secret_block_document.block_type.name}/block_documents/name/{secret_block_document.name}",
+            f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents/name/{secret_block_document.name}",
             params=dict(),
         )
         block = pydantic.parse_obj_as(schemas.core.BlockDocument, response.json())
@@ -1078,7 +1053,7 @@ class TestSecretBlockDocuments:
     ):
 
         response = await client.get(
-            f"/block_types/name/{secret_block_document.block_type.name}/block_documents/name/{secret_block_document.name}",
+            f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents/name/{secret_block_document.name}",
             params=dict(include_secrets=True),
         )
         block = pydantic.parse_obj_as(schemas.core.BlockDocument, response.json())
@@ -1138,7 +1113,7 @@ class TestSecretBlockDocuments:
         await child.save("child")
         # save the parent block
         block = ParentBlock(a=3, b="b", child=child)
-        await block.save("nested test")
+        await block.save("nested-test")
         await session.commit()
         response = await client.get(f"/block_documents/{block._block_document_id}")
         block = schemas.core.BlockDocument.parse_obj(response.json())
@@ -1163,7 +1138,7 @@ class TestSecretBlockDocuments:
         child = ChildBlock(x=X, y=Y)
         # save the parent block
         block = ParentBlock(a=3, b="b", child=child)
-        await block.save("nested test")
+        await block.save("nested-test")
         await session.commit()
         response = await client.get(f"/block_documents/{block._block_document_id}")
         block = schemas.core.BlockDocument.parse_obj(response.json())
@@ -1183,7 +1158,7 @@ class TestSecretBlockDocuments:
             child: ChildBlock
 
         block = ParentBlock(a=3, b="b", child=ChildBlock(x=X, y=Y))
-        await block.save("nested test")
+        await block.save("nested-test")
 
         response = await client.get(
             f"/block_documents/{block._block_document_id}",
