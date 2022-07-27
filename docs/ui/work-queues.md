@@ -36,9 +36,9 @@ Select the **+** button to create a new work queue. You'll be able to specify th
 
     Selecting all or none of the flow runners is functionally equivalent, but selecting any subset of flow runners restricts the work queue to flow runs configured to use those flow runners.
 
-See the [Work Queues and Agents](/concepts/work-queues/) documentation for details on configuring work queues.
+See the [Work Queues and Agents](/concepts/work-queues/) documentation for details on configuring work queues and agents, including creating work queues from the Prefect CLI.
 
-Click on the name of any work queue to see details about it. 
+Click on the name of any work queue to see details about it. This page includes the Prefect CLI command you can use to create an agent that pulls flow runs from this work queue.
 
 ![Viewing details of a work queue including agent configuration string](/img/ui/work-queue-details.png)
 

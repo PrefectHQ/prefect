@@ -16,9 +16,13 @@ depends_on = None
 
 
 def upgrade():
+    op.execute("PRAGMA foreign_keys=OFF")
+
     with op.batch_alter_table("block_document", schema=None) as batch_op:
         batch_op.drop_index("ix_block_document__is_default_storage_block_document")
         batch_op.drop_column("is_default_storage_block_document")
+
+    op.execute("PRAGMA foreign_keys=ON")
 
 
 def downgrade():

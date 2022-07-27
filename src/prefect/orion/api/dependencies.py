@@ -28,22 +28,21 @@ async def get_session(db: OrionDBInterface = Depends(provide_database_interface)
             yield session
 
 
-class CheckVersionCompatibility:
+class EnforceMinimumAPIVersion:
     """
     FastAPI Dependency used to check compatibility between the version of the api
     and a given request.
 
     Looks for the header 'X-PREFECT-API-VERSION' in the request and compares it
-    to the api's version.
+    to the api's version. Rejects requests that are lower than the minimum version.
     """
 
-    def __init__(self, api_version: str, logger: logging.Logger):
-        self.api_version = api_version
-        versions = [int(v) for v in api_version.split(".")]
+    def __init__(self, minimum_api_version: str, logger: logging.Logger):
+        self.minimum_api_version = minimum_api_version
+        versions = [int(v) for v in minimum_api_version.split(".")]
         self.api_major = versions[0]
         self.api_minor = versions[1]
         self.api_patch = versions[2]
-
         self.logger = logger
 
     async def __call__(
@@ -60,9 +59,7 @@ class CheckVersionCompatibility:
         try:
             major, minor, patch = [int(v) for v in request_version.split(".")]
         except ValueError:
-            self.logger.error(
-                f"Invalid X-PREFECT-API-VERSION header format: '{request_version}'"
-            )
+            await self._notify_of_invalid_value(request_version)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
@@ -71,19 +68,26 @@ class CheckVersionCompatibility:
                 ),
             )
 
-        if (major, minor) != (self.api_major, self.api_minor) or (
-            patch > self.api_patch
-        ):
-            self.logger.error(
-                f"Received incompatible X-PREFECT-API-VERSION header: '{request_version}'"
-            )
+        if (major, minor, patch) < (self.api_major, self.api_minor, self.api_patch):
+            await self._notify_of_outdated_version(request_version)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
-                    f"Request specified API version {request_version} but this server"
-                    f" only supports version {self.api_version} and below."
+                    f"The request specified API version {request_version} but this "
+                    f"server requires version {self.minimum_api_version} or higher."
                 ),
             )
+
+    async def _notify_of_invalid_value(self, request_version: str):
+        self.logger.error(
+            f"Invalid X-PREFECT-API-VERSION header format: '{request_version}'"
+        )
+
+    async def _notify_of_outdated_version(self, request_version: str):
+        self.logger.error(
+            f"X-PREFECT-API-VERSION header specifies version '{request_version}' "
+            f"but minimum allowed version is '{self.minimum_api_version}'"
+        )
 
 
 def LimitBody() -> Depends:

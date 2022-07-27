@@ -1,16 +1,21 @@
 """
 Command line interface for working with deployments.
 """
-import textwrap
+import json
 import traceback
+from enum import Enum
+from inspect import getdoc
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 import pendulum
+import typer
+import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
+from prefect import Manifest
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
@@ -19,13 +24,33 @@ from prefect.client import get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import (
     Deployment,
+    DeploymentYAML,
     PackageManifest,
     load_deployments_from_yaml,
     load_flow_from_deployment,
 )
-from prefect.exceptions import ObjectNotFound, ScriptError
+from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError, ScriptError
+from prefect.filesystems import LocalFileSystem
+from prefect.infrastructure import DockerContainer, KubernetesJob, Process
+from prefect.infrastructure.submission import _prepare_infrastructure
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowFilter
+from prefect.utilities.callables import parameter_schema
+from prefect.utilities.importtools import load_flow_from_manifest_path
+
+
+def str_presenter(dumper, data):
+    """
+    configures yaml for dumping multiline strings
+    Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data
+    """
+    if len(data.splitlines()) > 1:  # check for multiline string
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+
+yaml.add_representer(str, str_presenter)
+yaml.representer.SafeRepresenter.add_representer(str, str_presenter)
 
 deployment_app = PrefectTyper(
     name="deployment", help="Commands for working with deployments."
@@ -74,7 +99,6 @@ async def inspect(name: str):
             updated='39 minutes ago',
             name='inline-deployment',
             flow_id='fe50cfa6-fd54-42e3-8930-6d9192678f89',
-            flow_data=DataDocument(encoding='file'),
             parameters={'name': 'Marvin'},
             tags=['foo', 'bar']
         )
@@ -136,7 +160,12 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
 
 
 @deployment_app.command()
-async def run(name: str):
+async def run(
+    name: Optional[str] = typer.Argument(None, help="A deployment name"),
+    deployment_id: Optional[str] = typer.Option(
+        None, "--id", help="A deployment id to search for if no name is given"
+    ),
+):
     """
     Create a flow run for the given flow and deployment.
 
@@ -145,12 +174,20 @@ async def run(name: str):
     The flow run will not execute until an agent starts.
     """
     async with get_client() as client:
-        try:
-            deployment = await client.read_deployment_by_name(name)
-        except ObjectNotFound:
-            exit_with_error(f"Deployment {name!r} not found!")
-        flow_run = await client.create_flow_run_from_deployment(deployment.id)
+        if name is None and deployment_id is not None:
+            try:
+                deployment = await client.read_deployment(deployment_id)
+            except PrefectHTTPStatusError:
+                exit_with_error(f"Deployment {deployment_id!r} not found!")
+        elif name is not None:
+            try:
+                deployment = await client.read_deployment_by_name(name)
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {name!r} not found!")
+        else:
+            exit_with_error("Must provide a deployment name or id")
 
+        flow_run = await client.create_flow_run_from_deployment(deployment.id)
     app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
 
 
@@ -215,111 +252,59 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
 
 
 @deployment_app.command()
-async def create(path: Path):
+async def apply(
+    path: Path = typer.Argument(
+        None,
+        help="The path a deployment YAML file.",
+        show_default=False,
+    )
+):
     """
-    Create or update a deployment from a file.
-
-    File must contain one or more deployments in either Python or YAML
-
-        \b
-        ```python
-        from prefect.deployments import Deployment
-        \b
-        Deployment(
-            name="my-first-deploy", flow=my_flow,
-        )
-        ```
-
-        \b
-        ```yaml
-        name: "my-first-deploy"
-        flow:
-            path: "./my_flow.py"
-        ```
-
-    Multiple deployments can be declared in each file
-
-        \b
-        ```python
-        from prefect.deployments import Deployment
-        \b
-        Deployment(
-            name="my-first-deploy", flow=my_flow,
-        )
-        \b
-        Deployment(
-            name="my-second-deploy", flow=my_other_flow,
-        )
-        ```
-
-        \b
-        ```yaml
-        - name: "my-first-deploy"
-            path: "./my_flows.py"
-            name: "my-flow"
-        - name: "my-second-deploy"
-            path: "./my_flows.py"
-            name: "my-other-flow"
-        ```
+    Create or update a deployment from a YAML file.
     """
-    # Load the deployments into a registry
-    registry = _load_deployments(path)
+    if path is None:
+        path = "deployment.yaml"
 
-    valid_deployments = registry.get_instances(Deployment)
-    invalid_deployments = registry.get_instance_failures(Deployment)
+    # load the file
+    with open(str(path), "r") as f:
+        data = yaml.safe_load(f)
 
-    if invalid_deployments:
-        app.console.print(f"[red]Found {len(invalid_deployments)} invalid deployments:")
-        # Display all invalid deployments
-        for exc, inst, args, kwargs in invalid_deployments:
-            # Reconstruct the deployment as much as possible
-            deployment = type(inst).construct(*args, **kwargs)
-
-            # Attempt to recover a helpful name
-            identifier = ""
-            if deployment.name:
-                identifier += f" for deployment with name {deployment.name!r}"
-            if deployment.flow and hasattr(deployment.flow, "name"):
-                identifier += f" for flow {deployment.flow.name!r}"
-            identifier = identifier or ""
-
-            app.console.print(
-                textwrap.indent(
-                    str(exc).replace(" for Deployment", identifier), prefix=" " * 4
-                )
-            )
-
-            # Add a newline if we're displaying multiple
-            if len(invalid_deployments) > 1:
-                app.console.print()
-
-        exit_with_error(
-            "Invalid deployments must be removed or fixed before creation can continue."
-        )
-
-    failed, created = 0, 0
+    # create deployment object
+    try:
+        deployment = DeploymentYAML(**data)
+        app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
+    except Exception as exc:
+        exit_with_error(f"Provided file did not conform to deployment spec: {exc!r}")
 
     async with get_client() as client:
-        for deployment in valid_deployments:
-            name = _deployment_name(deployment)
-            progress_sink = RichTextIO(app.console, prefix=f"Deployment {name!r}: ")
-            try:
-                await deployment.create(client=client, stream_progress_to=progress_sink)
-                app.console.print(f"Created deployment {name!r}.")
-            except Exception as exc:
-                app.console.print(exception_traceback(exc))
-                app.console.print("Failed to create deployment!", style="red")
-                failed += 1
-            else:
-                created += 1
+        # prep IDs
+        flow_id = await client.create_flow_from_name(deployment.flow_name)
 
-    if failed:
-        exit_with_error(
-            f"Failed to create {failed} out of {len(valid_deployments)} deployments."
+        deployment.infrastructure = deployment.infrastructure.copy()
+        infrastructure_document_id = await deployment.infrastructure._save(
+            is_anonymous=True,
         )
-    else:
-        s = "s" if created > 1 else ""
-        exit_with_success(f"Created {created} deployment{s}!")
+
+        # we assume storage was already saved
+        storage_document_id = deployment.storage._block_document_id
+
+        deployment_id = await client.create_deployment(
+            flow_id=flow_id,
+            name=deployment.name,
+            schedule=deployment.schedule,
+            parameters=deployment.parameters,
+            description=deployment.description,
+            tags=deployment.tags,
+            manifest_path=deployment.manifest_path,
+            storage_document_id=storage_document_id,
+            infrastructure_document_id=infrastructure_document_id,
+            parameter_openapi_schema=deployment.parameter_openapi_schema.dict(),
+        )
+
+    app.console.print(
+        f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
+        style="green",
+    )
 
 
 def _deployment_name(deployment: Deployment):
@@ -339,22 +324,37 @@ def _deployment_name(deployment: Deployment):
 
 
 @deployment_app.command()
-async def delete(deployment_id: UUID):
+async def delete(
+    name: Optional[str] = typer.Argument(None, help="A deployment name"),
+    deployment_id: Optional[str] = typer.Option(
+        None, "--id", help="A deployment id to search for if no name is given"
+    ),
+):
     """
     Delete a deployment.
 
     \b
-    Example:
+    Examples:
         \b
-        $ prefect deployment delete dfd3e220-a130-4149-9af6-8d487e02fea6
+        $ prefect deployment delete test_flow/test_deployment
+        $ prefect deployment delete --id dfd3e220-a130-4149-9af6-8d487e02fea6
     """
     async with get_client() as client:
-        try:
-            await client.delete_deployment(deployment_id)
-        except ObjectNotFound:
-            exit_with_error(f"Deployment '{deployment_id}' not found!")
-
-    exit_with_success(f"Deleted deployment '{deployment_id}'.")
+        if name is None and deployment_id is not None:
+            try:
+                await client.delete_deployment(deployment_id)
+                exit_with_success(f"Deleted deployment '{deployment_id}'.")
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {deployment_id!r} not found!")
+        elif name is not None:
+            try:
+                deployment = await client.read_deployment_by_name(name)
+                await client.delete_deployment(deployment.id)
+                exit_with_success(f"Deleted deployment '{name}'.")
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {name!r} not found!")
+        else:
+            exit_with_error("Must provide a deployment name or id")
 
 
 @deployment_app.command()
@@ -401,5 +401,128 @@ async def preview(path: Path):
     for deployment in deployments:
         name = repr(deployment.name) if deployment.name else "<unnamed deployment>"
         app.console.print(f"[green]Preview for {name}[/]:\n")
-        print(await deployment.flow_runner.preview(flow_run))
-        print()
+        print(_prepare_infrastructure(flow_run, deployment.infrastructure).preview())
+
+
+class Infra(str, Enum):
+    kubernetes = "k8s"
+    process = "process"
+    docker = "docker"
+
+
+@deployment_app.command()
+async def build(
+    path: str,
+    manifest_only: bool = typer.Option(
+        False, "--manifest-only", help="Generate the manifest file only."
+    ),
+    name: str = typer.Option(None, "--name", "-n", help="The name of the deployment."),
+    tags: List[str] = typer.Option(
+        None,
+        "-t",
+        "--tag",
+        help="One or more optional tags to apply to the deployment.",
+    ),
+    infra_type: Infra = typer.Option(
+        "process",
+        "--infra",
+        "-i",
+        help="The infrastructure type to use.",
+    ),
+    infra_block: str = typer.Option(
+        None,
+        "--infra-block",
+        "-ib",
+        help="The slug of the infrastructure block to use.",
+    ),
+    storage_block: str = typer.Option(
+        None,
+        "--storage-block",
+        "-sb",
+        help="The slug of the storage block to use.",
+    ),
+):
+    # validate inputs
+    if not name and not manifest_only:
+        exit_with_error(
+            "A name for this deployment must be provided with the '--name' flag."
+        )
+
+    # validate flow
+    fpath, obj_name = path.rsplit(":", 1)
+    try:
+        flow = load_flow_from_manifest_path(path)
+        app.console.print(f"Found flow {flow.name!r}", style="green")
+    except AttributeError:
+        exit_with_error(f"{obj_name!r} not found in {fpath!r}.")
+
+    flow_parameter_schema = parameter_schema(flow)
+    manifest = Manifest(
+        flow_name=flow.name,
+        import_path=path,
+        parameter_openapi_schema=flow_parameter_schema,
+    )
+    manifest_loc = f"{obj_name}-manifest.json"
+    with open(manifest_loc, "w") as f:
+        json.dump(manifest.dict(), f, indent=4)
+
+    app.console.print(
+        f"Manifest created at '{Path(manifest_loc).absolute()!s}'.",
+        style="green",
+    )
+    if manifest_only:
+        typer.Exit(0)
+
+    ## process storage and move files around
+    if storage_block:
+        template = await Block.load(storage_block)
+        storage = template.copy(
+            exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
+        )
+
+        # upload current directory to storage location
+        file_count = await storage.put_directory()
+        app.console.print(
+            f"Successfully uploaded {file_count} files to {storage.basepath}",
+            style="green",
+        )
+    else:
+        # default storage, no need to move anything around
+        storage = LocalFileSystem(basepath=Path(".").absolute())
+
+    # persists storage now in case it contains secret values
+    await storage._save(is_anonymous=True)
+
+    if infra_block:
+        template = await Block.load(infra_block)
+        infrastructure = template.copy(
+            exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
+        )
+    else:
+        if infra_type == Infra.kubernetes:
+            infrastructure = KubernetesJob()
+        elif infra_type == Infra.docker:
+            infrastructure = DockerContainer()
+        else:
+            infrastructure = Process()
+
+    deployment = DeploymentYAML(
+        name=name,
+        description=getdoc(flow),
+        tags=tags or [],
+        flow_name=flow.name,
+        parameter_openapi_schema=manifest.parameter_openapi_schema,
+        manifest_path=manifest_loc,
+        storage=storage,
+        infrastructure=infrastructure,
+    )
+
+    with open("deployment.yaml", "w") as f:
+        f.write(deployment.header)
+        yaml.dump(deployment.editable_fields_dict(), f, sort_keys=False)
+        f.write("###\n### DO NOT EDIT BELOW THIS LINE\n###\n")
+        yaml.dump(deployment.immutable_fields_dict(), f, sort_keys=False)
+
+    exit_with_success(
+        f"Deployment YAML created at '{Path('deployment.yaml').absolute()!s}'."
+    )

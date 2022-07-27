@@ -9,14 +9,14 @@
       />
     </template>
 
-    <p-tabs v-if="deployment" :tabs="['Overview', 'Parameters']">
+    <p-tabs v-if="deployment" :tabs="tabs">
       <template #overview>
         <p-content secondary>
-          <p-key-value label="Schedule" :value="schedule" />
-          <p-key-value label="Location" :value="deployment.flowData.blob" />
-          <p-key-value label="Flow Runner" :value="deployment.flowRunner?.type" />
-          <template v-if="!media.xl">
-            <DeploymentDetails :deployment="deployment" />
+          <template v-if="deployment.description">
+            <DeploymentDescription :description="deployment.description" />
+          </template>
+          <template v-else>
+            <DeploymentDescriptionEmptyState :deployment="deployment" />
           </template>
         </p-content>
       </template>
@@ -24,16 +24,25 @@
       <template #parameters>
         <ParametersTable :parameters="deployment.parameters" />
       </template>
+
+      <template #details>
+        <DeploymentDetails :deployment="deployment" @update="deploymentSubscription.refresh" />
+      </template>
     </p-tabs>
 
     <template #well>
-      <DeploymentDetails v-if="deployment" :deployment="deployment" alternate />
+      <DeploymentDetails
+        v-if="deployment"
+        :deployment="deployment"
+        alternate
+        @update="deploymentSubscription.refresh"
+      />
     </template>
   </p-layout-well>
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingDeployment, DeploymentDetails, ParametersTable } from '@prefecthq/orion-design'
+  import { DeploymentDescription, DeploymentDescriptionEmptyState, PageHeadingDeployment, DeploymentDetails, ParametersTable } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -48,13 +57,21 @@
     interval: 300000,
   }
 
+  const tabs = computed(() => {
+    const values = ['Overview', 'Parameters']
+
+    if (!media.xl) {
+      values.push('Details')
+    }
+
+    return values
+  })
+
+
   const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
   const deployment = computed(() => deploymentSubscription.response)
-
-  const schedule = computed(() => deployment.value?.schedule ?? '')
 
   function routeToDeployments(): void {
     router.push(routes.deployments())
   }
 </script>
-

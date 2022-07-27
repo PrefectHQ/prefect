@@ -16,6 +16,7 @@ Engine process overview
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
 import logging
+import sys
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
@@ -35,7 +36,7 @@ from prefect.context import (
     TagsContext,
     TaskRunContext,
 )
-from prefect.deployments import load_flow_from_deployment
+from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
@@ -54,7 +55,14 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import Failed, Pending, Running, State, StateDetails
+from prefect.orion.schemas.states import (
+    Failed,
+    Pending,
+    Running,
+    State,
+    StateDetails,
+    StateType,
+)
 from prefect.results import (
     _persist_serialized_result,
     _retrieve_result,
@@ -234,13 +242,8 @@ async def retrieve_flow_then_begin_flow_run(
     """
     flow_run = await client.read_flow_run(flow_run_id)
 
-    deployment = await client.read_deployment(flow_run.deployment_id)
-
-    flow_run_logger(flow_run).debug(
-        f"Loading flow for deployment {deployment.name!r}..."
-    )
     try:
-        flow = await load_flow_from_deployment(deployment, client=client)
+        flow = await load_flow_from_flow_run(flow_run, client=client)
     except Exception as exc:
         message = "Flow could not be retrieved from deployment."
         flow_run_logger(flow_run).exception(message)
@@ -259,6 +262,7 @@ async def retrieve_flow_then_begin_flow_run(
         try:
             parameters = flow.validate_parameters(flow_run.parameters)
         except Exception as exc:
+            flow_run_logger(flow_run).exception("Flow run received invalid parameters.")
             state = Failed(
                 message="Flow run received invalid parameters.",
                 data=DataDocument.encode("cloudpickle", exc),
@@ -1123,7 +1127,7 @@ async def wait_for_task_runs_and_report_crashes(
     for future, state in zip(task_run_futures, states):
         logger = task_run_logger(future.task_run)
 
-        if not state.name == "Crashed":
+        if not state.type == StateType.CRASHED:
             continue
 
         exception = state.result(raise_on_failure=False)
