@@ -23,7 +23,7 @@ Each deployment references a single flow (though that flow may, in turn, call an
 
 At a high level, you can think of a deployment as configuration for managing flows, whether you run them via the CLI, the UI, or the API.
 
-!!! warning "Deployments are changing"
+!!! warning "Deployments have changed since beta"
     Deployments now rely on manifest files for describing your workflow in a portable way, and `deployment.yaml` files for specifying a deployment of your workflow.
 
     Deployments based on `Deployment` and `DeploymentSpec` are no longer supported.
