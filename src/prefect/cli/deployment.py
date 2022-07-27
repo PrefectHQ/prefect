@@ -275,7 +275,7 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
 async def apply(
     path: Path = typer.Argument(
         None,
-        help="The path a deployment YAML file.",
+        help="The path to a deployment YAML file.",
         show_default=False,
     )
 ):
