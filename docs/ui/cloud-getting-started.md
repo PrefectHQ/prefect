@@ -248,7 +248,7 @@ In your terminal, run the `prefect agent start` command, passing a `-t test` opt
 <div class="terminal">
 ```
 $ prefect agent start -t test
-Starting agent connected to https://api-beta.prefect.io/api/accounts/...
+Starting agent connected to https://api.prefect.cloud/api/accounts/...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
  | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
@@ -275,7 +275,7 @@ In the local terminal session where you started the agent, you can see that the 
 <div class="terminal">
 ```
 $ prefect agent start 'test-queue'
-Starting agent connected to https://api-beta.prefect.io/api/accounts/...
+Starting agent connected to https://api.prefect.cloud/api/accounts/...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
  | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
