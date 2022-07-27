@@ -493,9 +493,8 @@ You can now can run the Orion API, UI, and agent on Kubernetes. We've included a
 Note: Prefect 2.0 beta versions prior to 2.0b6 used the CLI command `prefect orion kubernetes-manifest`.
 
 ### Run flows on Kubernetes
-With the Kubernetes [flow runner](https://docs.prefect.io/concepts/flow-runners/), you can now run flows as Kubernetes Jobs. You may specify the Kubernetes flow runner when creating a deployment. If you're running Orion in Kubernetes, you don't need to configure any networking. When the agent runs your deployment, it will create a job, which will start a pod, which creates a container, which runs your flow. You can use standard Kubernetes tooling to display flow run jobs, e.g. `kubectl get jobs -l app=orion`.
 
-Learn more about running Orion and flows on Kubernetes in the [Running flows in Kubernetes](https://docs.prefect.io/tutorials/kubernetes-flow-runner/) tutorial.
+With the `KubernetesJob` [infrastructure](https://orion-docs.prefect.io/concepts/infrastructure/), you can now run flows as Kubernetes Jobs. You may specify the Kubernetes flow runner when creating a deployment. If you're running Orion in Kubernetes, you don't need to configure any networking. When the agent runs your deployment, it will create a job, which will start a pod, which creates a container, which runs your flow. You can use standard Kubernetes tooling to display flow run jobs, e.g. `kubectl get jobs -l app=orion`.
 
 ## 2.0a10
 
