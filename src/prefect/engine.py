@@ -29,7 +29,6 @@ from typing_extensions import Literal
 
 import prefect
 import prefect.context
-from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import (
     FlowRunContext,
@@ -37,7 +36,7 @@ from prefect.context import (
     TagsContext,
     TaskRunContext,
 )
-from prefect.deployments import load_flow_from_deployment
+from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
@@ -243,18 +242,8 @@ async def retrieve_flow_then_begin_flow_run(
     """
     flow_run = await client.read_flow_run(flow_run_id)
 
-    deployment = await client.read_deployment(flow_run.deployment_id)
-    storage_document = await client.read_block_document(deployment.storage_document_id)
-    storage_block = Block._from_block_document(storage_document)
-
-    sys.path.insert(0, ".")
-    await storage_block.get_directory(from_path=None, local_path=".")
-
-    flow_run_logger(flow_run).debug(
-        f"Loading flow for deployment {deployment.name!r}..."
-    )
     try:
-        flow = await load_flow_from_deployment(deployment, client=client)
+        flow = await load_flow_from_flow_run(flow_run, client=client)
     except Exception as exc:
         message = "Flow could not be retrieved from deployment."
         flow_run_logger(flow_run).exception(message)

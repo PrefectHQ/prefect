@@ -867,7 +867,7 @@ class TestDeploymentFlowRun:
 
             monkeypatch.setattr(
                 engine,
-                "load_flow_from_deployment",
+                "load_flow_from_flow_run",
                 anon,
             )
             return f
