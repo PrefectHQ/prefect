@@ -1,5 +1,25 @@
 # Prefect Release Notes
 
+
+## 2.0b16
+
+### Simplified, declarative deployments
+Prefect 2.0's deployments are a powerful way to encapsulate a flow, its required infrastructure, its schedule, its parameters, and more. Now, you can create deployments simply, with just two commands:
+1. `prefect deployment build ./path/to/flow/file.py:name_of_flow_obj --name "Deployment Name"` produces two files:
+     - A manifest file, containing workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters
+     - A `deployment.yaml` file - a complete specification of the metadata and configuration for the deployment such as the name, tags, and description
+3. `prefect deployment apply ./deployment.yaml` creates or updates a deployment with the Orion server
+
+Once the deployment is created with the Orion server, it can now be edited via the UI! See the [Deployments documentation to learn more](https://orion-docs.prefect.io/concepts/deployments/).
+
+### Improvements and bug fixes
+- The [Dask and Ray tutorials](https://orion-docs.prefect.io/tutorials/dask-ray-task-runners/) have been updated to reflect recent changes
+- The [Blocks concept doc](https://orion-docs.prefect.io/concepts/blocks/) has been updated to reflect recent enhancements and includes additional examples
+- The [Storage concept doc](https://orion-docs.prefect.io/concepts/storage/) has been updated to reflect recent enhancements
+- All IntervalSchedules now require both an anchor date and a timezone
+- The new S3 file system block enables you to read and write data as a file on Amazon S3
+- The new GCS file system block allows you to read and write data as a file on Google Cloud Storage
+
 ## 2.0b15
 
 ### Uniquely refer to blocks with slugs

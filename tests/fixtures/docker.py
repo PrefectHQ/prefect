@@ -17,14 +17,14 @@ from prefect.infrastructure.docker import CONTAINER_LABELS
 
 with silence_docker_warnings():
     from docker import DockerClient
-    from docker.errors import ImageNotFound, NotFound
+    from docker.errors import APIError, ImageNotFound, NotFound
     from docker.models.containers import Container
 
 
 def _safe_remove_container(container: Container):
     try:
         container.remove(force=True)
-    except NotFound:
+    except APIError:
         pass
 
 

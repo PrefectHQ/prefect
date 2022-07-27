@@ -80,7 +80,7 @@ jobs:
             type=pep440,pattern={{major}}.{{minor}},suffix=-python${{ matrix.python-version }}
             type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}
             type=sha,suffix=-python${{ matrix.python-version }}
-            type=raw,value=2-latest,enable=${{ matrix.python-version == "3.10"}}
+            type=raw,value=2-latest,enable=${{ matrix.python-version == '3.10'}}
           flavor: |
             latest=false
 
@@ -139,7 +139,7 @@ jobs:
             type=pep440,pattern={{major}}.{{minor}},suffix=-python${{ matrix.python-version }}-conda
             type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}-conda
             type=sha,suffix=-python${{ matrix.python-version }}-conda
-            type=raw,value=2-latest-conda,enable=${{ matrix.python-version == "3.10"}}
+            type=raw,value=2-latest-conda,enable=${{ matrix.python-version == '3.10'}}
           flavor: |
             latest=false
 
