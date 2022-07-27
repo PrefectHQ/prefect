@@ -159,9 +159,9 @@ Install the `prefect-dask` [collection](https://prefecthq.github.io/prefect-dask
 pip install prefect-dask
 ```
 
-Then import the `DaskTaskRunner` and pass an instance of it in your flow decorator.
+Then import the `DaskTaskRunner`, pass an instance of it in your flow decorator, and call `submit`.
 
-```python hl_lines="2 11"
+```python hl_lines="2 11 14"
 from prefect import flow, task
 from prefect_dask import DaskTaskRunner
 import httpx
