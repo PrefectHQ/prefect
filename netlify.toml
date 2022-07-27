@@ -32,3 +32,8 @@ publish = "site"
   from = "/api/*"
   to = "https://docs-v1.prefect.io/api/:splat"
   status = 301
+
+[[redirects]]
+  from = "https://orion-docs.prefect.io/*"
+  to = "https://docs.prefect.io/:splat"
+  status = 301
