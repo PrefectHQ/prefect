@@ -17,7 +17,7 @@ from prefect.infrastructure.docker import CONTAINER_LABELS
 
 with silence_docker_warnings():
     from docker import DockerClient
-    from docker.errors import APIError, ImageNotFound
+    from docker.errors import APIError, ImageNotFound, NotFound
     from docker.models.containers import Container
 
 
