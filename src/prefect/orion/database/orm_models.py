@@ -655,6 +655,8 @@ class ORMDeployment:
     """SQLAlchemy model of a deployment."""
 
     name = sa.Column(sa.String, nullable=False)
+    description = sa.Column(sa.Text(), nullable=True)
+    manifest_path = sa.Column(sa.String, nullable=True)
 
     @declared_attr
     def flow_id(cls):
@@ -671,10 +673,19 @@ class ORMDeployment:
     )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    flow_data = sa.Column(Pydantic(schemas.data.DataDocument))
+    parameter_openapi_schema = sa.Column(JSON, default=dict, nullable=True)
 
     @declared_attr
     def infrastructure_document_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("block_document.id", ondelete="CASCADE"),
+            nullable=True,
+            index=False,
+        )
+
+    @declared_attr
+    def storage_document_id(cls):
         return sa.Column(
             UUID,
             sa.ForeignKey("block_document.id", ondelete="CASCADE"),

@@ -21,6 +21,10 @@ from prefect.software.python import PythonEnvironment
 
 EXAMPLES = Path(__file__).parent / "examples"
 
+pytestmark = pytest.mark.skip(
+    reason="Inline Deployment objects are no longer supported."
+)
+
 
 @flow
 def foo(x: int = 1):

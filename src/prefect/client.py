@@ -445,6 +445,7 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
+        sort: schemas.sorting.FlowSort = None,
         limit: int = None,
         offset: int = 0,
     ) -> List[schemas.core.Flow]:
@@ -457,6 +458,7 @@ class OrionClient:
             flow_run_filter: filter criteria for flow runs
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
+            sort: sort criteria for the flows
             limit: limit for the flow query
             offset: offset for the flow query
 
@@ -477,6 +479,7 @@ class OrionClient:
                 if deployment_filter
                 else None
             ),
+            "sort": sort,
             "limit": limit,
             "offset": offset,
         }
@@ -507,7 +510,6 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         context: dict = None,
         state: schemas.states.State = None,
-        infrastructure_document_id: UUID = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a deployment.
@@ -519,8 +521,6 @@ class OrionClient:
             context: Optional run context data
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
-            infrastructure: An optional infrastructure object to use to for this flow
-                run.
 
         Raises:
             httpx.RequestError: if Orion does not successfully create a run for any reason
@@ -536,7 +536,6 @@ class OrionClient:
             parameters=parameters,
             context=context,
             state=state,
-            infrastructure_document_id=infrastructure_document_id,
         )
 
         response = await self._client.post(
@@ -554,7 +553,6 @@ class OrionClient:
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: schemas.states.State = None,
-        infrastructure_document_id: UUID = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a flow.
@@ -598,7 +596,6 @@ class OrionClient:
                 max_retries=flow.retries,
                 retry_delay_seconds=flow.retry_delay_seconds,
             ),
-            infrastructure_document_id=infrastructure_document_id,
         )
 
         flow_run_create_json = flow_run_create.dict(json_compatible=True)
@@ -1257,11 +1254,14 @@ class OrionClient:
         self,
         flow_id: UUID,
         name: str,
-        flow_data: DataDocument,
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         parameters: Dict[str, Any] = None,
+        description: str = None,
         tags: List[str] = None,
+        manifest_path: str = None,
+        storage_document_id: UUID = None,
         infrastructure_document_id: UUID = None,
+        parameter_openapi_schema: dict = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1269,10 +1269,11 @@ class OrionClient:
         Args:
             flow_id: the flow ID to create a deployment for
             name: the name of the deployment
-            flow_data: a data document that can be resolved into a flow object or script
             schedule: an optional schedule to apply to the deployment
             tags: an optional list of tags to apply to the deployment
-            infrastructure_document_id: an reference to an infrastructure block document
+            storage_document_id: an reference to the storage block document
+                used for the deployed flow
+            infrastructure_document_id: an reference to the infrastructure block document
                 to use for this deployment
 
         Raises:
@@ -1285,10 +1286,13 @@ class OrionClient:
             flow_id=flow_id,
             name=name,
             schedule=schedule,
-            flow_data=flow_data,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
+            description=description,
+            manifest_path=manifest_path,
+            storage_document_id=storage_document_id,
             infrastructure_document_id=infrastructure_document_id,
+            parameter_openapi_schema=parameter_openapi_schema,
         )
 
         response = await self._client.post(

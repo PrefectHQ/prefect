@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.core import Block
 from prefect.blocks.notifications import NotificationBlock
+from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
 from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import provide_database_interface
@@ -16,7 +17,6 @@ from prefect.orion.orchestration.rules import (
     TaskOrchestrationContext,
 )
 from prefect.orion.schemas import states
-from prefect.orion.schemas.data import DataDocument
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -182,6 +182,16 @@ async def task_run_states(session, task_run, task_run_state):
 
 
 @pytest.fixture
+async def storage_document_id(db, block_document):
+    return await LocalFileSystem().save(name="local-test")
+
+
+@pytest.fixture
+async def storage_document_id_2(db, block_document):
+    return await LocalFileSystem().save(name="distinct-local-test")
+
+
+@pytest.fixture
 async def infrastructure_document_id(db, block_document):
     return await Process(env={"MY_TEST_VARIABLE": 1})._save(is_anonymous=True)
 
@@ -192,18 +202,21 @@ async def infrastructure_document_id_2(db, block_document):
 
 
 @pytest.fixture
-async def deployment(session, flow, flow_function, infrastructure_document_id):
+async def deployment(
+    session, flow, flow_function, infrastructure_document_id, storage_document_id
+):
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
             name="My Deployment",
             tags=["test"],
             flow_id=flow.id,
-            flow_data=DataDocument.encode("cloudpickle", flow_function),
+            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=1),
                 anchor_date=pendulum.datetime(2020, 1, 1),
             ),
+            storage_document_id=storage_document_id,
             infrastructure_document_id=infrastructure_document_id,
         ),
     )
