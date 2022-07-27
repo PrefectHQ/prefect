@@ -161,7 +161,9 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
 
 @deployment_app.command()
 async def run(
-    name: Optional[str] = typer.Argument(None, help="A deployment name"),
+    name: Optional[str] = typer.Argument(
+        None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
+    ),
     deployment_id: Optional[str] = typer.Option(
         None, "--id", help="A deployment id to search for if no name is given"
     ),
@@ -198,7 +200,9 @@ async def run(
 
 @deployment_app.command()
 async def execute(
-    name: Optional[str] = typer.Argument(None, help="A deployment name"),
+    name: Optional[str] = typer.Argument(
+        None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
+    ),
     deployment_id: Optional[str] = typer.Option(
         None, "--id", help="A deployment id to search for if no name is given"
     ),
@@ -352,7 +356,9 @@ def _deployment_name(deployment: Deployment):
 
 @deployment_app.command()
 async def delete(
-    name: Optional[str] = typer.Argument(None, help="A deployment name"),
+    name: Optional[str] = typer.Argument(
+        None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
+    ),
     deployment_id: Optional[str] = typer.Option(
         None, "--id", help="A deployment id to search for if no name is given"
     ),
