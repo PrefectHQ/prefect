@@ -449,7 +449,14 @@ async def build(
         )
 
     # validate flow
-    fpath, obj_name = path.rsplit(":", 1)
+    try:
+        fpath, obj_name = path.rsplit(":", 1)
+    except ValueError as exc:
+        if str(exc) == "not enough values to unpack (expected 2, got 1)":
+            missing_flow_name_msg = f"Your flow path must include the name of the function that is the entrypoint to your flow.\nTry {path}:<flow_name> for your flow path."
+            exit_with_error(missing_flow_name_msg)
+        else:
+            raise exc
     try:
         flow = load_flow_from_manifest_path(path)
         app.console.print(f"Found flow {flow.name!r}", style="green")
