@@ -128,7 +128,6 @@ class Scheduler(LoopService):
             .where(
                 db.Deployment.is_schedule_active.is_(True),
                 db.Deployment.schedule.is_not(None),
-                db.Deployment.manifest_path.is_not(""),
             )
             .order_by(db.Deployment.id)
             .limit(self.deployment_batch_size)
