@@ -227,6 +227,11 @@ async def execute(
         else:
             exit_with_error("Must provide a deployment name or id")
 
+        if not deployment.manifest_path:
+            exit_with_error(
+                f"This deployment has been deprecated. Please see https://orion-docs.prefect.io/concepts/deployments/ to learn how to create a deployment."
+            )
+
         app.console.print("Loading flow from deployed location...")
         flow = await load_flow_from_deployment(deployment, client=client)
         parameters = deployment.parameters or {}
