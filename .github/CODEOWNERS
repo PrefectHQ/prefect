@@ -4,6 +4,9 @@
 # orion server
 /src/prefect/orion                   @zangell44 @madkinsz
 
+# deployments
+/src/prefect/*.py                    @cicdw
+
 # ui
 /orion-ui                            @pleek91
 
