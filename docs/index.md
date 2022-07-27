@@ -1,5 +1,5 @@
 ---
-description: Learn about Prefect 2.0, our second-generation workflow coordinating and orchestration engine.
+description: Learn about Prefect 2.0, our second-generation workflow coordination and orchestration engine.
 tags:
     - getting started
     - overview

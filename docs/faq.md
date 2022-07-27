@@ -57,7 +57,7 @@ No, Prefect Cloud 2.0 hosts an instance of Orion for you. In fact, each workspac
 
 ### Does Prefect 2.0 support mapping?
 
-Mapping is one of the most popular features in Prefect 1.0, allowing users to tap into their task runner's native fan-out abilities. An equivalent `.map()` operator will be released for Prefect 2.0 soon. For now, users can take advantage of Prefect's support for native Python to call tasks in loops:
+Yes! For more information, see the [`Task.map` API reference](../api-ref/prefect/tasks/#prefect.tasks.Task.map)
 
 ```python
 @flow
