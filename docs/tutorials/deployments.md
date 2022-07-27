@@ -383,12 +383,16 @@ If you switch over to the terminal session where your agent is running, you'll s
 
 <div class='terminal'>
 ```bash
-09:29:49.422 | INFO    | Flow run 'capable-cormorant' - Using task runner 'ConcurrentTaskRunner'
-09:29:49.531 | INFO    | Flow run 'capable-cormorant' - Created task run 'log_message-2143d244-0' for task 'log_message'
-09:29:49.559 | INFO    | Task run 'log_message-2143d244-0' - Hello Kiki!
-09:29:49.938 | INFO    | Task run 'log_message-2143d244-0' - Finished in state Completed()
-09:29:50.315 | INFO    | Flow run 'capable-cormorant' - Finished in state Completed('All states completed.')
-09:29:50.754 | INFO    | prefect.flow_runner.subprocess - Subprocess for flow run '32ee5937-c5d4-44c8-aa9e-c7ca924790ef' exited cleanly.
+21:26:47.911 | INFO    | prefect.agent - Submitting flow run '210ed779-9b95-4226-8a17-060e7942d046'
+21:26:48.010 | INFO    | prefect.infrastructure.process - Opening process 'mustard-akita'...
+21:26:48.031 | INFO    | prefect.agent - Completed submission of flow run '210ed779-9b95-4226-8a17-060e7942d046'
+21:26:49.973 | INFO    | Flow run 'mustard-akita' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
+21:26:50.127 | INFO    | Flow run 'mustard-akita' - Created task run 'log_message-3e2d0b0c-0' for task 'log_message'
+21:26:50.128 | INFO    | Flow run 'mustard-akita' - Executing 'log_message-3e2d0b0c-0' immediately...
+21:26:50.157 | INFO    | Task run 'log_message-3e2d0b0c-0' - Hello Leo!
+21:26:50.186 | INFO    | Task run 'log_message-3e2d0b0c-0' - Finished in state Completed()
+21:26:50.223 | INFO    | Flow run 'mustard-akita' - Finished in state Completed('All states completed.')
+21:26:50.495 | INFO    | prefect.infrastructure.process - Process 'mustard-akita' exited cleanly.
 ```
 </div>
 
@@ -404,70 +408,10 @@ Click the flow run to see details. In the flow run logs, you can see that the fl
 
 So far you've seen a simple example of a single deployment for a single flow. But a common and useful pattern is to create multiple deployments for a flow. By using tags, parameters, and schedules effectively, you can have a single flow definition that serves multiple purposes or can be configured to run in different environments.
 
-For example, you can extend the earlier example by creating a second deployment for `leo_flow.py` that logs different greetings by passing different parameters.
-
-```python
-from prefect.deployments import Deployment
-from prefect.deployments import FlowScript
-
-Deployment(
-    name="leonardo-deployment",
-    flow=FlowScript(path="./leo_flow.py", name="leonardo_dicapriflow"),
-    tags=['tutorial','test'],
-    parameters={'name':'Leo'}
-)
-
-Deployment(
-    name="marvin-deployment",
-    flow=FlowScript(path="./leo_flow.py", name="leonardo_dicapriflow"),
-    tags=['tutorial','dev'],
-    parameters={'name':'Marvin'}
-)
-```
-
-If you run `prefect deployment create leo_deployment.py` again with this code, it won't change `leonardo_deployment`, but it will create a new `marvin-deployment`.
-
-- Running `leonardo_deployment` logs the message "Hello Leo!".
-- Running `marvin-deployment` logs the message "Hello Marvin!".
-
-Both deployments can use the `tutorial_queue` work queue because they have "tutorial" tags. But if you created a new work queue that served deployments with, say, a "dev" tag, only `marvin-deployment` would be served by that queue and its agents.
-
 ## Cleaning up
 
 You're welcome to leave the work queue and agent running to experiment and to handle local development.
 
 To terminate the agent, simply go to the terminal session where it's running and end the process with either `Ctrl+C` or by terminating the terminal session.
 
-To pause a work queue, run the Prefect CLI command `prefect work-queue pause`, passing the work queue ID.
-
-To delete a work queue, run the command `prefect work-queue delete`, passing the work queue ID.
-
-<div class='terminal'>
-```
-$ prefect work-queue delete '3461754d-e411-4155-9bc7-a0145b6974a0'
-Deleted work queue 3461754d-e411-4155-9bc7-a0145b6974a0
-```
-</div>
-
-To terminate the Prefect API server, go to the terminal session where it's running and end the process with either `Ctrl+C` or by terminating the terminal session.
-
-<!-- The REST API
-
-We can additionally use the REST API directly; to facilitate this, we will demonstrate how this works with the convenient Python Orion Client:
-
-```python
-from prefect.client import get_client
-
-async with get_client() as client:
-    deployment = await client.read_deployment_by_name("Addition Machine/my-first-deployment")
-    flow_run = await client.create_flow_run_from_deployment(deployment)
-```
-
-Note that the return values of these methods are full model objects. -->
-
-!!! tip "Additional Reading"
-    To learn more about the concepts presented here, check out the following resources:
-
-    - [Deployment Specs](/api-ref/prefect/deployments/)
-    - [Deployments](/concepts/deployments/)
-    - [Schedules](/concepts/schedules/)
+You can pause or delete a work queue on the Prefect UI **Work Queues** page.
