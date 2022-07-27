@@ -28,7 +28,7 @@
       </template>
 
       <template #parameters>
-        <ParametersTable v-if="flowRun" :parameters="flowRun.parameters" />
+        <JsonView :value="parameters" />
       </template>
     </p-tabs>
 
@@ -67,7 +67,7 @@
     FlowRunLogs,
     FlowRunTaskRuns,
     FlowRunSubFlows,
-    ParametersTable
+    JsonView
   } from '@prefecthq/orion-design'
   import { PDivider, media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
@@ -91,6 +91,10 @@
 
   const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId], { interval: 5000 })
   const flowRun = computed(() => flowRunDetailsSubscription.response)
+
+  const parameters = computed(() => {
+    return flowRun.value?.parameters ? JSON.stringify(flowRun.value.parameters, undefined, 2) : '{}'
+  })
 
   function goToFlowRuns(): void {
     router.push(routes.flowRuns())
