@@ -2,7 +2,6 @@ import asyncio
 import os
 import sys
 import tempfile
-from pathlib import Path
 from typing import Optional
 
 import sniffio
@@ -65,10 +64,6 @@ class Process(Infrastructure):
                 f"Process{display_name} running command: {' '.join(self.command)} in {tmp_dir}"
             )
 
-            base_path = Path(manifest_path).parent
-
-            # downloads the flow manifest directory to the temporary directory
-            await storage.get_directory(from_path=None, local_path=tmp_dir)
             process = await run_process(
                 self.command,
                 stream_output=self.stream_output,
