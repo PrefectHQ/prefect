@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import anyio.abc
 import pytest
 
-from prefect.flow_runners.base import get_prefect_image_name
+from prefect.docker import get_prefect_image_name
 from prefect.infrastructure.docker import (
     CONTAINER_LABELS,
     DockerContainer,

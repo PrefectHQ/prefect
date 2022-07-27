@@ -374,7 +374,7 @@ class TaskRunnerStandardTestSuite(ABC):
             state = await task_runner.wait(future, 5)
             assert state is not None, "wait timed out"
             assert isinstance(state, State), "wait should return a state"
-            assert state.name == "Crashed"
+            assert state.type == StateType.CRASHED
             result = state.result(raise_on_failure=False)
 
         assert exceptions_equal(result, exception)

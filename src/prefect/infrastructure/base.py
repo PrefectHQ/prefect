@@ -25,7 +25,7 @@ class Infrastructure(Block, abc.ABC):
     env: Dict[str, str] = pydantic.Field(default_factory=dict)
     labels: Dict[str, str] = pydantic.Field(default_factory=dict)
     name: Optional[str] = None
-    command: List[str] = None
+    command: List[str] = ["python", "-m", "prefect.engine"]
 
     @abc.abstractmethod
     async def run(
@@ -34,14 +34,20 @@ class Infrastructure(Block, abc.ABC):
     ) -> InfrastructureResult:
         """
         Run the infrastructure.
-        
+
         If provided a `task_status`, the status will be reported as started when the
         infrastructure is successfully created. The status return value will be an
         identifier for the infrastructure.
-        
-        The call will then monitor the created infrastructure, returning a result at 
+
+        The call will then monitor the created infrastructure, returning a result at
         the end containing a status code indicating if the infrastructure exited cleanly\
         or encountered an error.
+        """
+
+    @abc.abstractmethod
+    def preview(self) -> str:
+        """
+        View a preview of the infrastructure that would be run.
         """
 
     @property

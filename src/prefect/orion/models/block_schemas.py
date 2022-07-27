@@ -3,6 +3,7 @@ Functions for interacting with block schema ORM objects.
 Intended for internal use by the Orion API.
 """
 import json
+from copy import copy
 from typing import Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
@@ -13,7 +14,7 @@ from prefect.blocks.core import Block
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.models.block_types import read_block_type_by_name
+from prefect.orion.models.block_types import read_block_type_by_slug
 from prefect.orion.schemas.actions import BlockSchemaCreate
 from prefect.orion.schemas.core import BlockSchema, BlockSchemaReference
 
@@ -73,7 +74,7 @@ async def create_block_schema(
     )
 
     result = await session.execute(query)
-    created_block_schema = result.scalar()
+    created_block_schema = copy(result.scalar())
 
     await _register_nested_block_schemas(
         session=session,
@@ -81,11 +82,13 @@ async def create_block_schema(
         block_schema_references=block_schema_references,
         base_fields=insert_values["fields"],
         definitions=definitions,
+        override=override,
     )
 
     created_block_schema.fields["block_schema_references"] = block_schema_references
     if definitions is not None:
         created_block_schema.fields["definitions"] = definitions
+
     return created_block_schema
 
 
@@ -95,6 +98,7 @@ async def _register_nested_block_schemas(
     block_schema_references: Dict[str, Union[Dict[str, str], List[Dict[str, str]]]],
     base_fields: Dict,
     definitions: Optional[Dict],
+    override: bool = False,
 ):
     """
     Iterates through each of the block schema references declared on the block schema.
@@ -110,6 +114,7 @@ async def _register_nested_block_schemas(
         base_fields: The field name and type declarations for the parent block schema.
         definitions: A dictionary of the field name and type declarations of each
             child block schema.
+        override: Flag controlling if a block schema should updated in place.
     """
     for reference_name, reference_values in block_schema_references.items():
         # Operate on a list so that we can share the same code paths for union cases
@@ -120,13 +125,13 @@ async def _register_nested_block_schemas(
         )
         for reference_values_entry in reference_values:
             # Check to make sure that associated block type exists
-            reference_block_type = await read_block_type_by_name(
+            reference_block_type = await read_block_type_by_slug(
                 session=session,
-                block_type_name=reference_values_entry["block_type_name"],
+                block_type_slug=reference_values_entry["block_type_slug"],
             )
             if reference_block_type is None:
                 raise MissingBlockTypeException(
-                    f"Cannot create block schema because block type {reference_values_entry['block_type_name']!r} was not found."
+                    f"Cannot create block schema because block type {reference_values_entry['block_type_slug']!r} was not found."
                     "Did you forget to register the block type?"
                 )
             # Checks to see if the visited block schema has been previously created
@@ -156,6 +161,7 @@ async def _register_nested_block_schemas(
                         fields=sub_block_schema_fields,
                         block_type_id=reference_block_type.id,
                     ),
+                    override=override,
                     definitions=definitions,
                 )
             await create_block_schema_reference(
@@ -188,8 +194,8 @@ def _get_fields_for_child_schema(
             # the definition matches the name of the block type that we're
             # currently trying to register a block schema for.
             if (
-                definitions[definition_key]["block_type_name"]
-                == reference_block_type.name
+                definitions[definition_key]["block_type_slug"]
+                == reference_block_type.slug
             ):
                 # Once we've found the matching definition, we not longer
                 # need to iterate
@@ -318,7 +324,7 @@ def _construct_full_block_schema(
     if len(block_schemas_with_references) == 0:
         return None
     root_block_schema = (
-        root_block_schema
+        copy(root_block_schema)
         if root_block_schema is not None
         else _find_root_block_schema(block_schemas_with_references)
     )
@@ -345,7 +351,7 @@ def _find_root_block_schema(block_schemas_with_references):
     """
     return next(
         (
-            block_schema
+            copy(block_schema)
             for (
                 block_schema,
                 _,
@@ -381,7 +387,8 @@ def _construct_block_schema_spec_definitions(
 
             if child_block_schema is not None:
                 child_block_schema = _construct_full_block_schema(
-                    block_schemas_with_references, child_block_schema
+                    block_schemas_with_references=block_schemas_with_references,
+                    root_block_schema=child_block_schema,
                 )
                 definitions = _add_block_schemas_fields_to_definitions(
                     definitions, child_block_schema
@@ -453,7 +460,7 @@ def _construct_block_schema_fields_with_block_references(
         if parent_block_schema_id == parent_block_schema.id:
             new_block_schema_reference = {
                 "block_schema_checksum": nested_block_schema.checksum,
-                "block_type_name": nested_block_schema.block_type.name,
+                "block_type_slug": nested_block_schema.block_type.slug,
             }
             # A block reference for this key does not yet exist
             if name not in block_schema_fields_copy["block_schema_references"]:
@@ -591,7 +598,8 @@ async def read_block_schemas(
         ):
             fully_constructed_block_schemas.append(
                 _construct_full_block_schema(
-                    block_schemas_with_references, root_block_schema
+                    block_schemas_with_references=block_schemas_with_references,
+                    root_block_schema=root_block_schema,
                 )
             )
             visited_block_schema_ids.append(root_block_schema.id)
@@ -690,6 +698,18 @@ async def create_block_schema_reference(
     block_schema_reference: schemas.core.BlockSchemaReference,
     db: OrionDBInterface,
 ):
+    query_stmt = sa.select(db.BlockSchemaReference).where(
+        db.BlockSchemaReference.name == block_schema_reference.name,
+        db.BlockSchemaReference.parent_block_schema_id
+        == block_schema_reference.parent_block_schema_id,
+        db.BlockSchemaReference.reference_block_schema_id
+        == block_schema_reference.reference_block_schema_id,
+    )
+
+    existing_reference = (await session.execute(query_stmt)).scalar()
+    if existing_reference:
+        return existing_reference
+
     insert_stmt = (await db.insert(db.BlockSchemaReference)).values(
         **block_schema_reference.dict(
             shallow=True, exclude_unset=True, exclude={"created", "updated"}

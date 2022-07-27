@@ -16,6 +16,7 @@ Engine process overview
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
 import logging
+import sys
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
@@ -35,7 +36,7 @@ from prefect.context import (
     TagsContext,
     TaskRunContext,
 )
-from prefect.deployments import load_flow_from_deployment
+from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
@@ -54,7 +55,14 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import Failed, Pending, Running, State, StateDetails
+from prefect.orion.schemas.states import (
+    Failed,
+    Pending,
+    Running,
+    State,
+    StateDetails,
+    StateType,
+)
 from prefect.results import (
     _persist_serialized_result,
     _retrieve_result,
@@ -66,13 +74,18 @@ from prefect.states import (
     return_value_to_state,
     safe_encode_exception,
 )
-from prefect.task_runners import BaseTaskRunner
+from prefect.task_runners import (
+    CONCURRENCY_MESSAGES,
+    BaseTaskRunner,
+    TaskConcurrencyType,
+)
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
     run_async_from_worker_thread,
     run_sync_in_interruptible_worker_thread,
+    run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import Quote, visit_collection
@@ -229,13 +242,8 @@ async def retrieve_flow_then_begin_flow_run(
     """
     flow_run = await client.read_flow_run(flow_run_id)
 
-    deployment = await client.read_deployment(flow_run.deployment_id)
-
-    flow_run_logger(flow_run).debug(
-        f"Loading flow for deployment {deployment.name!r}..."
-    )
     try:
-        flow = await load_flow_from_deployment(deployment, client=client)
+        flow = await load_flow_from_flow_run(flow_run, client=client)
     except Exception as exc:
         message = "Flow could not be retrieved from deployment."
         flow_run_logger(flow_run).exception(message)
@@ -254,6 +262,7 @@ async def retrieve_flow_then_begin_flow_run(
         try:
             parameters = flow.validate_parameters(flow_run.parameters)
         except Exception as exc:
+            flow_run_logger(flow_run).exception("Flow run received invalid parameters.")
             state = Failed(
                 message="Flow run received invalid parameters.",
                 data=DataDocument.encode("cloudpickle", exc),
@@ -311,7 +320,10 @@ async def begin_flow_run(
             stack.enter_context(start_blocking_portal()) if flow.isasync else None
         )
 
-        logger.info(f"Using task runner {type(flow.task_runner).__name__!r}")
+        logger.info(
+            f"Starting {type(flow.task_runner).__name__!r}; submitted tasks "
+            f"will be run {CONCURRENCY_MESSAGES[flow.task_runner.concurrency_type]}..."
+        )
         flow_run_context.task_runner = await stack.enter_async_context(
             flow.task_runner.start()
         )
@@ -326,6 +338,8 @@ async def begin_flow_run(
             parameters=parameters,
             client=client,
             partial_flow_run_context=flow_run_context,
+            # Orchestration needs to be interruptible if it has a timeout
+            interruptible=flow.timeout_seconds is not None,
         )
 
     # If debugging, use the more complete `repr` than the usual `str` description
@@ -438,6 +452,9 @@ async def create_and_begin_subflow_run(
                 flow,
                 flow_run=flow_run,
                 parameters=parameters,
+                # If the parent flow run has a timeout, then this one needs to be
+                # interruptible as well
+                interruptible=parent_flow_run_context.timeout_scope is not None,
                 client=client,
                 partial_flow_run_context=PartialModel(
                     FlowRunContext,
@@ -470,6 +487,7 @@ async def orchestrate_flow_run(
     flow: Flow,
     flow_run: FlowRun,
     parameters: Dict[str, Any],
+    interruptible: bool,
     client: OrionClient,
     partial_flow_run_context: PartialModel[FlowRunContext],
 ) -> State:
@@ -530,9 +548,12 @@ async def orchestrate_flow_run(
                     if flow.isasync:
                         result = await flow_call()
                     else:
-                        result = await run_sync_in_interruptible_worker_thread(
-                            flow_call
+                        run_sync = (
+                            run_sync_in_interruptible_worker_thread
+                            if interruptible or timeout_scope
+                            else run_sync_in_worker_thread
                         )
+                        result = await run_sync(flow_call)
 
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
@@ -825,6 +846,9 @@ async def submit_task_run(
     """
     logger = get_run_logger(flow_run_context)
 
+    if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
+        logger.info(f"Executing {task_run.name!r} immediately...")
+
     future = await task_runner.submit(
         task_run=task_run,
         run_key=f"{task_run.name}-{task_run.id.hex}-{flow_run_context.flow_run.run_count}",
@@ -840,7 +864,8 @@ async def submit_task_run(
         asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
 
-    logger.debug(f"Submitted task run {task_run.name!r} to task runner")
+    if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
+        logger.info(f"Submitted task run {task_run.name!r} for execution.")
 
     # Track the task run future in the flow run context
     flow_run_context.task_run_futures.append(future)
@@ -896,9 +921,14 @@ async def begin_task_run(
         if flow_run_context:
             # Accessible if on a worker that is running in the same thread as the flow
             client = flow_run_context.client
+            # Only run the task in an interruptible thread if it in the same thread as
+            # the flow _and_ the flow run has a timeout attached. If the task is on a
+            # worker, the flow run timeout will not be raised in the worker process.
+            interruptible = flow_run_context.timeout_scope is not None
         else:
             # Otherwise, retrieve a new client
             client = await stack.enter_async_context(get_client())
+            interruptible = False
 
         connect_error = await client.api_healthcheck()
         if connect_error:
@@ -914,6 +944,7 @@ async def begin_task_run(
                 parameters=parameters,
                 wait_for=wait_for,
                 result_filesystem=result_filesystem,
+                interruptible=interruptible,
                 client=client,
             )
         except Abort:
@@ -930,6 +961,7 @@ async def orchestrate_task_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     result_filesystem: WritableFileSystem,
+    interruptible: bool,
     client: OrionClient,
 ) -> State:
     """
@@ -1003,9 +1035,12 @@ async def orchestrate_task_run(
                 if task.isasync:
                     result = await task.fn(*args, **kwargs)
                 else:
-                    result = await run_sync_in_interruptible_worker_thread(
-                        task.fn, *args, **kwargs
+                    run_sync = (
+                        run_sync_in_interruptible_worker_thread
+                        if interruptible
+                        else run_sync_in_worker_thread
                     )
+                    result = await run_sync(task.fn, *args, **kwargs)
 
         except Exception as exc:
             logger.error(
@@ -1092,7 +1127,7 @@ async def wait_for_task_runs_and_report_crashes(
     for future, state in zip(task_run_futures, states):
         logger = task_run_logger(future.task_run)
 
-        if not state.name == "Crashed":
+        if not state.type == StateType.CRASHED:
             continue
 
         exception = state.result(raise_on_failure=False)

@@ -71,19 +71,9 @@ async def create_flow_run(
             shallow=True, exclude={"state"}, exclude_unset=True
         )
 
-        # Unpack the flow runner composite if set
-        flow_runner = insert_values.pop("flow_runner", None)
-        flow_runner_values = {}
-        if flow_runner:
-            flow_runner_values["flow_runner_type"] = flow_runner.type
-            flow_runner_values["flow_runner_config"] = flow_runner.config
-
         insert_stmt = (
             (await db.insert(db.FlowRun))
-            .values(
-                **insert_values,
-                **flow_runner_values,
-            )
+            .values(**insert_values)
             .on_conflict_do_nothing(
                 index_elements=db.flow_run_unique_upsert_columns,
             )

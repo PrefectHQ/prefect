@@ -24,8 +24,10 @@ class Telemetry(LoopService):
     improve. It can be toggled off with the PREFECT_ORION_ANALYTICS_ENABLED setting.
     """
 
-    def __init__(self):
-        super().__init__(loop_seconds=600)
+    loop_seconds: int = 600
+
+    def __init__(self, loop_seconds: int = None, **kwargs):
+        super().__init__(loop_seconds=loop_seconds, **kwargs)
         self.telemetry_environment = os.environ.get(
             "PREFECT_ORION_TELEMETRY_ENVIRONMENT", "production"
         )

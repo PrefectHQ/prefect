@@ -364,9 +364,6 @@ class ORMFlowRun(ORMRun):
     )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
-    flow_runner_type = sa.Column(sa.String, index=True)
-    flow_runner_config = sa.Column(JSON)
-
     @declared_attr
     def infrastructure_document_id(cls):
         return sa.Column(
@@ -375,20 +372,6 @@ class ORMFlowRun(ORMRun):
             nullable=True,
             index=False,
         )
-
-    @declared_attr
-    def flow_runner(cls):
-        return sa.orm.composite(
-            schemas.core.FlowRunnerSettings,
-            cls.flow_runner_type,
-            cls.flow_runner_config,
-        )
-
-    # TODO: This field is unused and should be replaced with `empirical_flow_runner_type`
-    #       and `empirical_flow_runner_config` to capture final settings used by agents
-    empirical_config = sa.Column(
-        JSON, server_default="{}", default=dict, nullable=False
-    )
 
     @declared_attr
     def parent_task_run_id(cls):
@@ -672,6 +655,8 @@ class ORMDeployment:
     """SQLAlchemy model of a deployment."""
 
     name = sa.Column(sa.String, nullable=False)
+    description = sa.Column(sa.Text(), nullable=True)
+    manifest_path = sa.Column(sa.String, nullable=True)
 
     @declared_attr
     def flow_id(cls):
@@ -688,10 +673,7 @@ class ORMDeployment:
     )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    flow_data = sa.Column(Pydantic(schemas.data.DataDocument))
-
-    flow_runner_type = sa.Column(sa.String)
-    flow_runner_config = sa.Column(JSON)
+    parameter_openapi_schema = sa.Column(JSON, default=dict, nullable=True)
 
     @declared_attr
     def infrastructure_document_id(cls):
@@ -703,11 +685,12 @@ class ORMDeployment:
         )
 
     @declared_attr
-    def flow_runner(cls):
-        return sa.orm.composite(
-            schemas.core.FlowRunnerSettings,
-            cls.flow_runner_type,
-            cls.flow_runner_config,
+    def storage_document_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("block_document.id", ondelete="CASCADE"),
+            nullable=True,
+            index=False,
         )
 
     @declared_attr
@@ -756,6 +739,7 @@ class ORMConcurrencyLimit:
 @declarative_mixin
 class ORMBlockType:
     name = sa.Column(sa.String, nullable=False)
+    slug = sa.Column(sa.String, nullable=False)
     logo_url = sa.Column(sa.String, nullable=True)
     documentation_url = sa.Column(sa.String, nullable=True)
     description = sa.Column(sa.String, nullable=True)
@@ -768,8 +752,8 @@ class ORMBlockType:
     def __table_args__(cls):
         return (
             sa.Index(
-                "uq_block_type__name",
-                "name",
+                "uq_block_type__slug",
+                "slug",
                 unique=True,
             ),
         )
@@ -1268,7 +1252,7 @@ class BaseORMConfiguration(ABC):
     @property
     def block_type_unique_upsert_columns(self):
         """Unique columns for upserting a BlockType"""
-        return [self.BlockType.name]
+        return [self.BlockType.slug]
 
     @property
     def block_schema_unique_upsert_columns(self):

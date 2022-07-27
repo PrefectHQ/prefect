@@ -2,18 +2,23 @@
 Functions for interacting with block document ORM objects.
 Intended for internal use by the Orion API.
 """
+from copy import copy
 from typing import Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
 
+import prefect.orion.models as models
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import ORMBlockDocument
 from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
 from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
-from prefect.orion.schemas.filters import BlockDocumentFilterIsAnonymous
+from prefect.orion.schemas.filters import (
+    BlockDocumentFilterIsAnonymous,
+    BlockSchemaFilter,
+)
 from prefect.orion.utilities.names import obfuscate_string
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
@@ -27,7 +32,7 @@ async def create_block_document(
 
     # anonymous block documents can be given a random name if none is provided
     if block_document.is_anonymous and not block_document.name:
-        name = f"anonymous:{uuid4()}"
+        name = f"anonymous-{uuid4()}"
     else:
         name = block_document.name
 
@@ -151,9 +156,18 @@ async def read_block_document_by_id(
     )
 
     result = await session.execute(nested_block_documents_query)
-    return await _construct_full_block_document(
+    fully_constructed_block_document = await _construct_full_block_document(
         session, result.all(), include_secrets=include_secrets
     )
+    if fully_constructed_block_document is None:
+        return fully_constructed_block_document
+    fully_constructed_block_document.block_schema = (
+        await models.block_schemas.read_block_schema(
+            session=session,
+            block_schema_id=fully_constructed_block_document.block_schema_id,
+        )
+    )
+    return fully_constructed_block_document
 
 
 async def _construct_full_block_document(
@@ -167,8 +181,12 @@ async def _construct_full_block_document(
     if len(block_documents_with_references) == 0:
         return None
     if parent_block_document is None:
-        parent_block_document = await _find_parent_block_document(
-            session, block_documents_with_references, include_secrets=include_secrets
+        parent_block_document = copy(
+            await _find_parent_block_document(
+                session,
+                block_documents_with_references,
+                include_secrets=include_secrets,
+            )
         )
 
     if parent_block_document is None:
@@ -189,7 +207,7 @@ async def _construct_full_block_document(
             full_child_block_document = await _construct_full_block_document(
                 session,
                 block_documents_with_references,
-                parent_block_document=block_document,
+                parent_block_document=copy(block_document),
                 include_secrets=include_secrets,
             )
             parent_block_document.data[name] = full_child_block_document.data
@@ -236,18 +254,17 @@ async def _find_parent_block_document(
 async def read_block_document_by_name(
     session: sa.orm.Session,
     name: str,
-    block_type_name: str,
+    block_type_slug: str,
     db: OrionDBInterface,
     include_secrets: bool = False,
 ):
     """
-    Read a block document with the given name and block type name. If a block schema checksum
-    is provided, it is matched as well.
+    Read a block document with the given name and block type slug.
     """
     root_block_document_cte = (
         sa.select(db.BlockDocument)
         .join(db.BlockType, db.BlockType.id == db.BlockDocument.block_type_id)
-        .filter(db.BlockType.name == block_type_name, db.BlockDocument.name == name)
+        .filter(db.BlockType.slug == block_type_slug, db.BlockDocument.name == name)
         .cte("root_block_document")
     )
 
@@ -291,9 +308,19 @@ async def read_block_document_by_name(
     )
 
     result = await session.execute(nested_block_documents_query)
-    return await _construct_full_block_document(
+    fully_constructed_block_document = await _construct_full_block_document(
         session, result.all(), include_secrets=include_secrets
     )
+    if fully_constructed_block_document is None:
+        return fully_constructed_block_document
+
+    fully_constructed_block_document.block_schema = (
+        await models.block_schemas.read_block_schema(
+            session=session,
+            block_schema_id=fully_constructed_block_document.block_schema_id,
+        )
+    )
+    return fully_constructed_block_document
 
 
 @inject_db
@@ -408,6 +435,21 @@ async def read_block_documents(
                 )
             )
             visited_block_document_ids.append(root_orm_block_document.id)
+    block_schema_ids = [
+        block_document.block_schema_id
+        for block_document in fully_constructed_block_documents
+    ]
+    block_schemas = await models.block_schemas.read_block_schemas(
+        session=session,
+        block_schema_filter=BlockSchemaFilter(id=dict(any_=block_schema_ids)),
+    )
+    for block_document in fully_constructed_block_documents:
+        corresponding_block_schema = next(
+            block_schema
+            for block_schema in block_schemas
+            if block_schema.id == block_document.block_schema_id
+        )
+        block_document.block_schema = corresponding_block_schema
     return fully_constructed_block_documents
 
 
@@ -436,9 +478,6 @@ async def update_block_document(
         return False
 
     update_values = block_document.dict(shallow=True, exclude_unset=True)
-
-    if "name" in update_values:
-        current_block_document.name = update_values["name"]
 
     if "data" in update_values and update_values["data"] is not None:
         current_data = await current_block_document.decrypt_data(session=session)

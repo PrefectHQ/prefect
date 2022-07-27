@@ -22,7 +22,7 @@ def sens_o_matic_mock():
 async def test_sens_o_matic_called_correctly(sens_o_matic_mock):
     from prefect.orion.api.server import ORION_API_VERSION
 
-    telemetry = Telemetry()
+    telemetry = Telemetry(handle_signals=False)
     await telemetry.start(loops=1)
 
     assert sens_o_matic_mock.called
@@ -49,7 +49,7 @@ async def test_sens_o_matic_called_correctly(sens_o_matic_mock):
 
 
 async def test_sets_and_fetches_session_information(sens_o_matic_mock):
-    telemetry = Telemetry()
+    telemetry = Telemetry(handle_signals=False)
     await telemetry.start(loops=1)
 
     # set it on the first call
@@ -59,7 +59,7 @@ async def test_sets_and_fetches_session_information(sens_o_matic_mock):
     assert sts
 
     # retrieve from the db if process restarted
-    telemetry_2 = Telemetry()
+    telemetry_2 = Telemetry(handle_signals=False)
     await telemetry_2.start(loops=1)
     assert telemetry_2.session_id == sid
     assert telemetry_2.session_start_timestamp == sts

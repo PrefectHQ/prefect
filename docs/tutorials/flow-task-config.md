@@ -24,6 +24,8 @@ You specify flow configuration as arguments on the `@flow` decorator.
 A flow `name` is a distinguished piece of metadata within Prefect. The name that you give to a flow becomes the unifying identifier for all future runs of that flow, regardless of version or task structure.
 
 ```python
+from prefect import flow
+
 @flow(name="My Example Flow")
 def my_flow():
     # run tasks and subflows
@@ -32,6 +34,8 @@ def my_flow():
 A flow `description` enables you to provide documentation right alongside your flow object. You can also provide a specific `description` string as a flow option.
 
 ```python
+from prefect import flow
+
 @flow(name="My Example Flow", 
       description="An example flow for a tutorial.")
 def my_flow():
@@ -41,6 +45,8 @@ def my_flow():
 Prefect can also use the flow function's docstring as a description.
 
 ```python
+from prefect import flow
+
 @flow(name="My Example Flow")
     """An example flow for a tutorial."""
 def my_flow():
@@ -50,6 +56,8 @@ def my_flow():
 A flow `version` enables you to associate a given run of your workflow with the version of code or configuration that was used. 
 
 ```python
+from prefect import flow
+
 @flow(name="My Example Flow", 
       description="An example flow for a tutorial.",
       version="tutorial_02")
@@ -60,6 +68,8 @@ def my_flow():
 If you are using `git` to version control your code, you might use the commit hash as the version. 
 
 ```python
+from prefect import flow
+
 @flow(name="My Example Flow", 
       description="An example flow for a tutorial.",
       version=os.getenv("GIT_COMMIT_SHA"))
@@ -78,12 +88,13 @@ We'll cover the use cases for more advanced task runners for parallel and distri
 For now, we'll just demonstrate that you can specify the task runner _almost_ like any other option: the difference is that you need to import the task runner first, then specify you're using it with the `task_runner` option. 
 
 ```python
+from prefect import flow
 from prefect.task_runners import SequentialTaskRunner
 
 @flow(name="My Example Flow", 
       task_runner=SequentialTaskRunner())
 def my_flow():
-    # run tasks sequentially with Dask
+    # run tasks sequentially
 ```
 
 ## Basic task configuration
@@ -91,22 +102,34 @@ def my_flow():
 By design, tasks follow a very similar model to flows: you can independently assign tasks their own name and description.
 
 ```python
+from prefect import flow, task
+
 @task(name="My Example Task", 
       description="An example task for a tutorial.")
 def my_task():
     # do some work
+
+@flow
+def my_flow():
+    my_task()
 ```
 
 Tasks also accept [tags](/concepts/tasks/#tags) as an option. Tags are runtime metadata used by the Prefect Orion orchestration engine that enable features like filtering display of task runs and configuring task concurrency limits.
 
 You specify the tags on a task as a list of tag strings.
 
-```python hl_lines="3"
+```python hl_lines="5"
+from prefect import flow, task
+
 @task(name="My Example Task", 
       description="An example task for a tutorial.",
       tags=["tutorial","tag-test"])
 def my_task():
     # do some work
+
+@flow
+def my_flow():
+    my_task()
 ```
 
 ## Flow and task retries
@@ -114,7 +137,7 @@ def my_task():
 Prefect includes built-in support for both flow and [task retries](/concepts/tasks/#retries), which you configure on the flow or task. This enables flows and tasks to automatically retry on failure. You can specify how many retries you want to attempt and, optionally, a delay between retry attempts:
 
 ```python hl_lines="4"
-from prefect import task, flow
+from prefect import flow, task
 
 # this tasks runs 3 times before the flow fails
 @task(retries=2, retry_delay_seconds=60)
@@ -178,7 +201,7 @@ One way to use `cache_key_fn` is to cache based on inputs by specifying `task_in
 To illustrate, run the following flow in a Python interpreter.
 
 ```python hl_lines="5"
-from prefect import task, flow
+from prefect import flow, task
 from prefect.tasks import task_input_hash
 from datetime import timedelta
 
@@ -243,7 +266,7 @@ You can also define your own cache key function that returns a string cache key.
 In this example, you could provide different input, but the cache key remains the same if the sum of the inputs remains the same.
 
 ```python hl_lines="5-9"
-from prefect import task, flow
+from prefect import flow, task
 from datetime import timedelta
 import time
 
@@ -312,5 +335,5 @@ For further details on cache key functions, see the [Caching](/concepts/tasks/#c
 
     That is why the examples here include `cache_expiration=timedelta(minutes=1)` so that tutorial cache keys do not remain in your database permanently.
 
-!!! tip "Next steps: Task dependencies"
-    The next step is learning about [task dependencies](/tutorials/task-dependencies/), the ability to control dependencies and execution order between tasks.
+!!! tip "Next steps: Flow execution"
+    The next step is learning about [flow execution](/tutorials/execution/), the ability to configure many aspects of how your flows and tasks run.

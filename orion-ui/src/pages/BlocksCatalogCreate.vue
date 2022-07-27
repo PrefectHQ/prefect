@@ -4,14 +4,18 @@
       <PageHeadingBlocksCatalogCreate :block-type="blockType" />
     </template>
 
-    <template v-if="blockSchema">
-      <BlockSchemaFormCard v-model:data="data" v-model:name="name" :block-schema="blockSchema" v-on="{ submit, cancel }" />
+    <template v-if="blockType">
+      <BlockTypeCardLayout :block-type="blockType">
+        <template v-if="blockSchema">
+          <BlockSchemaCreateForm v-model:data="data" v-model:name="name" :block-schema="blockSchema" v-on="{ submit, cancel }" />
+        </template>
+      </BlockTypeCardLayout>
     </template>
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocksCatalogCreate, BlockSchemaFormCard, BlockDocumentData } from '@prefecthq/orion-design'
+  import { PageHeadingBlocksCatalogCreate, BlockTypeCardLayout, BlockSchemaCreateForm, BlockDocumentData } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
@@ -25,16 +29,16 @@
   const data = ref<BlockDocumentData>({})
   const name = ref('')
 
-  const blockTypeNameParam = useRouteParam('blockTypeName')
-  const blockTypeSubscriptionArgs = computed<Parameters<typeof blockTypesApi.getBlockTypeByName> | null>(() => {
-    if (!blockTypeNameParam.value) {
+  const blockTypeSlugParam = useRouteParam('blockTypeSlug')
+  const blockTypeSubscriptionArgs = computed<Parameters<typeof blockTypesApi.getBlockTypeBySlug> | null>(() => {
+    if (!blockTypeSlugParam.value) {
       return null
     }
 
-    return [blockTypeNameParam.value]
+    return [blockTypeSlugParam.value]
   })
 
-  const blockTypeSubscription = useSubscriptionWithDependencies(blockTypesApi.getBlockTypeByName, blockTypeSubscriptionArgs)
+  const blockTypeSubscription = useSubscriptionWithDependencies(blockTypesApi.getBlockTypeBySlug, blockTypeSubscriptionArgs)
   const blockType = computed(() => blockTypeSubscription.response)
 
   const blockSchemaSubscriptionArgs = computed<Parameters<typeof blockSchemasApi.getBlockSchemas> | null>(() => {
