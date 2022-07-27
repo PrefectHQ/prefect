@@ -16,10 +16,6 @@ tags:
 
 Prefect 2.0 is licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0), an [OSI approved](https://opensource.org/licenses/Apache-2.0) open-source license. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
 
-### Can I use Prefect 2.0 in production?
-
-Prefect 2.0 is beta software and we do not recommend Orion for production use at this time.
-
 ## The Orion Engine
 
 ### Why "Orion"?
@@ -99,11 +95,6 @@ def my_flow():
     # task 2 will wait for task_1 to complete
     y = task_2(wait_for=[x])
 ```
-
-### When will Prefect 2.0 be released?
-
-Prefect is publicly available in beta. It will enter General Availability on Wednesday, July 27th.
-
 
 ### What external requirements does Prefect have?
 

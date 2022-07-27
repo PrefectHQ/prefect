@@ -21,7 +21,7 @@ Prefect is published as a Python package. To install the latest 2.0 release, run
 
 <div class="terminal">
 ```bash
-pip install --pre -U prefect
+pip install -U prefect
 ```
 </div>
 
