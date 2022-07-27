@@ -79,13 +79,15 @@ async def get_deployment(client, name, deployment_id):
             deployment = await client.read_deployment(deployment_id)
         except PrefectHTTPStatusError:
             exit_with_error(f"Deployment {deployment_id!r} not found!")
-    elif name is not None:
+    elif name is not None and deployment_id is None:
         try:
             deployment = await client.read_deployment_by_name(name)
         except ObjectNotFound:
             exit_with_error(f"Deployment {name!r} not found!")
+    elif name is None and deployment_id is None:
+        exit_with_error("Only provide a deployed flow's name or id")
     else:
-        exit_with_error("Must provide a deployment name or id")
+        exit_with_error("Must provide a deployed flow's name or id")
 
     if not deployment.manifest_path:
         exit_with_error(
