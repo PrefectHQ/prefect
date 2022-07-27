@@ -434,11 +434,16 @@ class Infra(str, Enum):
 
 @deployment_app.command()
 async def build(
-    path: str,
+    path: str = typer.Argument(
+        ...,
+        help="The path to a flow entrypoint, in the form of `./path/to/file.py:flow_func_name`",
+    ),
     manifest_only: bool = typer.Option(
         False, "--manifest-only", help="Generate the manifest file only."
     ),
-    name: str = typer.Option(None, "--name", "-n", help="The name of the deployment."),
+    name: str = typer.Option(
+        None, "--name", "-n", help="The name to give the deployment."
+    ),
     tags: List[str] = typer.Option(
         None,
         "-t",
@@ -449,13 +454,13 @@ async def build(
         "process",
         "--infra",
         "-i",
-        help="The infrastructure type to use.",
+        help="The infrastructure type to use, prepopulated with defaults.",
     ),
     infra_block: str = typer.Option(
         None,
         "--infra-block",
         "-ib",
-        help="The slug of the infrastructure block to use.",
+        help="The slug of the infrastructure block to use as a template.",
     ),
     storage_block: str = typer.Option(
         None,
@@ -471,7 +476,14 @@ async def build(
         )
 
     # validate flow
-    fpath, obj_name = path.rsplit(":", 1)
+    try:
+        fpath, obj_name = path.rsplit(":", 1)
+    except ValueError as exc:
+        if str(exc) == "not enough values to unpack (expected 2, got 1)":
+            missing_flow_name_msg = f"Your flow path must include the name of the function that is the entrypoint to your flow.\nTry {path}:<flow_name> for your flow path."
+            exit_with_error(missing_flow_name_msg)
+        else:
+            raise exc
     try:
         flow = load_flow_from_manifest_path(path)
         app.console.print(f"Found flow {flow.name!r}", style="green")
@@ -528,9 +540,17 @@ async def build(
         else:
             infrastructure = Process()
 
+    description = getdoc(flow)
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(f"{flow.name}/{name}")
+            description = deployment.description
+        except ObjectNotFound:
+            pass
+
     deployment = DeploymentYAML(
         name=name,
-        description=getdoc(flow),
+        description=description,
         tags=tags or [],
         flow_name=flow.name,
         parameter_openapi_schema=manifest.parameter_openapi_schema,

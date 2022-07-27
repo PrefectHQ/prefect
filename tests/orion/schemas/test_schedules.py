@@ -67,6 +67,40 @@ class TestCreateIntervalSchedule:
         with pytest.raises(ValidationError, match="(Invalid timezone)"):
             IntervalSchedule(interval=timedelta(days=1), timezone="fake")
 
+    def test_infer_utc_offset_timezone(self):
+        # when pendulum parses a datetime, it keeps the UTC offset as the "timezone"
+        # and we need to make sure this doesn't get picked up as the schedule's timezone
+        # since the schedule should infer that it has the same behavior as "UTC"
+        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        clock = IntervalSchedule(interval=timedelta(days=1), anchor_date=offset_dt)
+        assert clock.timezone == "UTC"
+
+    def test_parse_utc_offset_timezone(self):
+        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        clock = IntervalSchedule(interval=timedelta(days=1), anchor_date=offset_dt)
+        clock_dict = clock.dict(json_compatible=True)
+
+        # remove the timezone
+        clock_dict.pop("timezone")
+        # the offset is part of the clock_dict (check for DST)
+        assert clock_dict["anchor_date"].endswith("-04:00") or clock_dict[
+            "anchor_date"
+        ].endswith("-05:00")
+
+        parsed = IntervalSchedule.parse_obj(clock_dict)
+        assert parsed.anchor_date.tz.name in ("-04:00", "-05:00")
+        assert parsed.timezone == "UTC"
+
+    def test_parse_utc_offset_timezone_with_specified_tz(self):
+        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        clock = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=offset_dt,
+            timezone="America/New_York",
+        )
+        clock_dict = clock.dict(json_compatible=True)
+        assert IntervalSchedule.parse_obj(clock_dict).timezone == "America/New_York"
+
 
 class TestIntervalSchedule:
     @pytest.mark.parametrize(
