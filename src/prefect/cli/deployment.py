@@ -6,7 +6,7 @@ import traceback
 from enum import Enum
 from inspect import getdoc
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 import pendulum
@@ -29,7 +29,7 @@ from prefect.deployments import (
     load_deployments_from_yaml,
     load_flow_from_deployment,
 )
-from prefect.exceptions import ObjectNotFound, ScriptError
+from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError, ScriptError
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.infrastructure.submission import _prepare_infrastructure
@@ -161,11 +161,9 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
 
 @deployment_app.command()
 async def run(
-    name: str = typer.Argument(
-        ..., help="A deployment name or id, if searching by id use `--id`"
-    ),
-    search_by_id: bool = typer.Option(
-        False, "--id", help="Search for deployment by id"
+    name: Optional[str] = typer.Argument(None, help="A deployment name"),
+    deployment_id: Optional[str] = typer.Option(
+        None, "--id", help="A deployment id to search for if no name is given"
     ),
 ):
     """
@@ -176,15 +174,20 @@ async def run(
     The flow run will not execute until an agent starts.
     """
     async with get_client() as client:
-        try:
-            if search_by_id:
-                deployment = await client.read_deployment(name)
-            else:
+        if name is None and deployment_id is not None:
+            try:
+                deployment = await client.read_deployment(deployment_id)
+            except PrefectHTTPStatusError:
+                exit_with_error(f"Deployment {deployment_id!r} not found!")
+        elif name is not None:
+            try:
                 deployment = await client.read_deployment_by_name(name)
-        except ObjectNotFound:
-            exit_with_error(f"Deployment {name!r} not found!")
-        flow_run = await client.create_flow_run_from_deployment(deployment.id)
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {name!r} not found!")
+        else:
+            exit_with_error("Must provide a deployment name or id")
 
+        flow_run = await client.create_flow_run_from_deployment(deployment.id)
     app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
 
 
@@ -322,33 +325,36 @@ def _deployment_name(deployment: Deployment):
 
 @deployment_app.command()
 async def delete(
-    name: str = typer.Argument(
-        ..., help="A deployment name or id, if searching by id use `--id`"
-    ),
-    search_by_id: bool = typer.Option(
-        False, "--id", help="Search for deployment by id"
+    name: Optional[str] = typer.Argument(None, help="A deployment name"),
+    deployment_id: Optional[str] = typer.Option(
+        None, "--id", help="A deployment id to search for if no name is given"
     ),
 ):
     """
     Delete a deployment.
 
     \b
-    Example:
+    Examples:
         \b
         $ prefect deployment delete test_flow/test_deployment
-        $ prefect deployment delete dfd3e220-a130-4149-9af6-8d487e02fea6 --id
+        $ prefect deployment delete --id dfd3e220-a130-4149-9af6-8d487e02fea6
     """
     async with get_client() as client:
-        try:
-            if search_by_id:
-                await client.delete_deployment(name)
-            else:
+        if name is None and deployment_id is not None:
+            try:
+                await client.delete_deployment(deployment_id)
+                exit_with_success(f"Deleted deployment '{deployment_id}'.")
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {deployment_id!r} not found!")
+        elif name is not None:
+            try:
                 deployment = await client.read_deployment_by_name(name)
                 await client.delete_deployment(deployment.id)
-        except ObjectNotFound:
-            exit_with_error(f"Deployment '{name}' not found!")
-
-    exit_with_success(f"Deleted deployment '{name}'.")
+                exit_with_success(f"Deleted deployment '{name}'.")
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {name!r} not found!")
+        else:
+            exit_with_error("Must provide a deployment name or id")
 
 
 @deployment_app.command()
