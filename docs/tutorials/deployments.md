@@ -265,7 +265,7 @@ Use `prefect deployment inspect` to display details for a specific deployment.
 
 <div class='terminal'>
 ```
-$ prefect deployment inspect 'leonardo_dicapriflow/leonardo-deployment'
+$ prefect deployment inspect 'leonardo_dicapriflow/leo-deployment'
 {
     'id': '3d2f55a2-46df-4857-ab6f-6cc80ce9cf9c',
     'created': '2022-07-27T00:50:09.624876+00:00',
@@ -304,7 +304,7 @@ Now that you've created the deployment, you can interact with it in multiple way
 
 <div class="terminal">
 ```
-$ prefect deployment execute leonardo_dicapriflow/leonardo-deployment
+$ prefect deployment execute leonardo_dicapriflow/leo-deployment
 Loading flow from deployed location...
 21:03:10.220 | INFO    | prefect.engine - Created flow run 'crazy-fossa' for flow 'leonardo_dicapriflow'
 21:03:10.220 | INFO    | Flow run 'crazy-fossa' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
