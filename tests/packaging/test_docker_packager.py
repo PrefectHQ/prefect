@@ -136,6 +136,7 @@ async def test_packaging_a_flow_to_registry_without_scheme(
 
 
 @pytest.mark.service("docker")
+@pytest.mark.skip("Packagers are temporarily not supported.")
 async def test_creating_deployments(prefect_base_image: str, orion_client: OrionClient):
     deployment = Deployment(
         name="howdy-deployed",

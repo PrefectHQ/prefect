@@ -3,7 +3,6 @@ import datetime
 import pendulum
 
 from prefect.orion import models, schemas
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.services.scheduler import Scheduler
 from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
@@ -11,13 +10,13 @@ from prefect.settings import (
 )
 
 
-async def test_create_schedules_from_deployment(flow, session, flow_function):
+async def test_create_schedules_from_deployment(flow, session):
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
-            flow_data=DataDocument.encode("cloudpickle", flow_function),
+            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(hours=1)
             ),
@@ -40,13 +39,13 @@ async def test_create_schedules_from_deployment(flow, session, flow_function):
     ), "Scheduler sets flow_run.state_name"
 
 
-async def test_create_schedule_respects_max_future_time(flow, session, flow_function):
+async def test_create_schedule_respects_max_future_time(flow, session):
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
-            flow_data=DataDocument.encode("cloudpickle", flow_function),
+            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=30),
                 anchor_date=pendulum.now("UTC"),
@@ -68,7 +67,7 @@ async def test_create_schedule_respects_max_future_time(flow, session, flow_func
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
 
-async def test_create_schedules_from_multiple_deployments(flow, session, flow_function):
+async def test_create_schedules_from_multiple_deployments(flow, session):
     flow_2 = await models.flows.create_flow(
         session=session, flow=schemas.core.Flow(name="flow-2")
     )
@@ -78,7 +77,7 @@ async def test_create_schedules_from_multiple_deployments(flow, session, flow_fu
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
-            flow_data=DataDocument.encode("cloudpickle", flow_function),
+            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(hours=1)
             ),
@@ -89,7 +88,7 @@ async def test_create_schedules_from_multiple_deployments(flow, session, flow_fu
         deployment=schemas.core.Deployment(
             name="test-2",
             flow_id=flow.id,
-            flow_data=DataDocument.encode("cloudpickle", flow_function),
+            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=10)
             ),
@@ -100,7 +99,7 @@ async def test_create_schedules_from_multiple_deployments(flow, session, flow_fu
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow_2.id,
-            flow_data=DataDocument.encode("cloudpickle", flow_function),
+            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=5)
             ),
@@ -127,9 +126,7 @@ async def test_create_schedules_from_multiple_deployments(flow, session, flow_fu
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
 
-async def test_create_schedules_from_multiple_deployments_in_batches(
-    flow, session, flow_function
-):
+async def test_create_schedules_from_multiple_deployments_in_batches(flow, session):
     flow_2 = await models.flows.create_flow(
         session=session, flow=schemas.core.Flow(name="flow-2")
     )
@@ -146,7 +143,7 @@ async def test_create_schedules_from_multiple_deployments_in_batches(
             deployment=schemas.core.Deployment(
                 name=f"test_{i}",
                 flow_id=flow.id,
-                flow_data=DataDocument.encode("cloudpickle", flow_function),
+                manifest_path="file.json",
                 schedule=schemas.schedules.IntervalSchedule(
                     # assumes this interval is small enough that
                     # the maximum amount of runs will be scheduled per deployment
@@ -169,13 +166,13 @@ async def test_create_schedules_from_multiple_deployments_in_batches(
     assert len(runs) > PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
 
 
-async def test_scheduler_respects_schedule_is_active(flow, session, flow_function):
+async def test_scheduler_respects_schedule_is_active(flow, session):
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
-            flow_data=DataDocument.encode("cloudpickle", flow_function),
+            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(hours=1)
             ),
