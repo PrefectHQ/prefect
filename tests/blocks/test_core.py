@@ -5,10 +5,10 @@ from textwrap import dedent
 from typing import Dict, Type, Union
 from uuid import UUID, uuid4
 
-import prefect
 import pytest
 from pydantic import Field, SecretBytes, SecretStr
 
+import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.client import OrionClient
 from prefect.orion import models
@@ -1349,7 +1349,7 @@ class TestToBlockType:
             face_length_inches: float
 
             def calculate_area(self):
-                return self.face_length_inches ** 3
+                return self.face_length_inches**3
 
         block_type = Cube._to_block_type()
 
@@ -1388,7 +1388,7 @@ class TestToBlockType:
             face_length_inches: float
 
             def calculate_area(self):
-                return self.face_length_inches ** 3
+                return self.face_length_inches**3
 
         block_type = Cube._to_block_type()
 
@@ -1434,7 +1434,7 @@ class TestToBlockType:
             face_length_inches: float
 
             def calculate_area(self):
-                return self.face_length_inches ** 3
+                return self.face_length_inches**3
 
         block_type = Cube._to_block_type()
 
