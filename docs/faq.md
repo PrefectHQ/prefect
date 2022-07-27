@@ -15,9 +15,6 @@ tags:
 ### How is Prefect 2.0 licensed?
 
 Prefect 2.0 is licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0), an [OSI approved](https://opensource.org/licenses/Apache-2.0) open-source license. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
-### Can I use Prefect 2.0 in production?
-
-Prefect 2.0 is beta software and we do not recommend Orion for production use at this time.
 
 ## The Orion Engine
 
@@ -45,19 +42,22 @@ Furthermore, as workflows have become more complex, it has become even more impo
 
 And finally, this additional complexity means that providing clear and consistent insight into the behavior of the orchestration engine and any decisions it makes is critically important.
 
-_Orion represents a unified solution to these three problems_. 
+_Orion represents a unified solution to these three problems_.
 
-Orion is capable of governing **any** code through a well-defined series of state transitions designed to maximize the user's understanding of what happened during execution. It's popular to describe "workflows as code" or "orchestration as code," but Orion represents "code as code": rather than ask users to change how they work to meet the requirements of the orchestrator, we've defined an orchestrator that adapts to how our users work. 
+Orion is capable of governing **any** code through a well-defined series of state transitions designed to maximize the user's understanding of what happened during execution. It's popular to describe "workflows as code" or "orchestration as code," but Orion represents "code as workflows": rather than ask users to change how they work to meet the requirements of the orchestrator, we've defined an orchestrator that adapts to how our users work.
 
 To achieve this, we've leveraged the familiar tools of native Python: first class functions, type annotations, and `async` support. Users are free to implement as much &mdash; or as little &mdash; of the Orion engine as is useful for their objectives.
+
+### If I’m using Prefect Cloud 2.0, do I still need to run Orion locally?
+
+No, Prefect Cloud 2.0 hosts an instance of Orion for you. In fact, each workspace in Prefect Could 2.0 corresponds directly to a single instance of Orion. See [Getting Started with Prefect Cloud](../ui/cloud-getting-started.md) for more information.
 
 
 ## Features
 
-
 ### Does Prefect 2.0 support mapping?
 
-Mapping is one of the most popular features in Prefect 1.0, allowing users to tap into their task runner's native fan-out abilities. An equivalent `.map()` operator will be released for Prefect 2.0 soon. For now, users can take advantage of Prefect's support for native Python to call tasks in loops:
+Yes! For more information, see the [`Task.map` API reference](../api-ref/prefect/tasks/#prefect.tasks.Task.map)
 
 ```python
 @flow
@@ -96,16 +96,11 @@ def my_flow():
     y = task_2(wait_for=[x])
 ```
 
-### When will Prefect 2.0 be released?
-
-The Prefect 2.0 beta period is expected to last for at least the second quarter of 2022.
-
-
 ### What external requirements does Prefect have?
 
 Prefect does not have any additional requirements besides those installed by `pip install --pre prefect`. The entire system, including the UI and services, can be run in a single process via `prefect orion start` and does not require Docker.
 
-To use PostgreSQL, users must provide the [connection string][prefect.settings.Settings.PREFECT_ORION_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable. 
+To use PostgreSQL, users must provide the [connection string][prefect.settings.Settings.PREFECT_ORION_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable.
 
 ### What databases does Prefect support?
 
@@ -119,6 +114,6 @@ This answer will be updated with more concrete guidelines in the future.
 
 ## Relationship with other Prefect products
 
-### Is there an upgrade guide from Prefect 1.0 to Prefect 2.0?
+### Can a flow written with Prefect 1.0 be orchestrated with Prefect 2.0 and vice versa?
 
-As Prefect 2.0 moves closer to release, we will provide upgrade guides and tools to make adoption as easy as possible for Prefect 1.0 users. Given the similarity of the 1.0 and 2.0 client APIs, upgrading should require minimal effort on users' behalf.
+No. Flows written with the Prefect 1.0 client must be rewritten with the Prefect 2.0 client. For most flows, this should take just a few minutes. See our [migration guide](../getting-started/migration_guide.md) and our [Upgrade to Prefect 2](https://www.prefect.io/guide/blog/upgrade-to-prefect-2/) post for more information.
