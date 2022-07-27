@@ -32,7 +32,7 @@ markdown_extensions:
 theme:
     name: material
     custom_dir: overrides
-    favicon: img/favicon.ico
+    favicon: img/favicon.png
     features:
         - toc.integrate
         - navigation.tabs
