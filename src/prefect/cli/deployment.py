@@ -230,7 +230,11 @@ async def execute(
         parameters = deployment.parameters or {}
 
     app.console.print("Running flow...")
-    state = await flow._run(**parameters)
+
+    if flow.isasync:
+        state = await flow._run(**parameters)
+    else:
+        state = flow._run(**parameters)
 
     if state.is_failed():
         exit_with_error("Flow run failed!")
