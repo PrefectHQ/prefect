@@ -88,7 +88,7 @@ nav:
         - Flows: concepts/flows.md
         - Tasks: concepts/tasks.md
         - States: concepts/states.md
-        - Flow Runners: concepts/flow-runners.md
+        - Infrastructure: concepts/infrastructure.md
         - Task Runners: concepts/task-runners.md
         - Deployments: concepts/deployments.md
         - Storage: concepts/storage.md
@@ -208,7 +208,7 @@ nav:
         - Overview: contributing/overview.md
         - Style: contributing/style.md
         - Troubleshooting: contributing/common-mistakes.md
-        - Testing Flow Runners: contributing/testing-flow-runners.md
+        # - Testing Flow Runners: contributing/testing-flow-runners.md
 
 extra:
   analytics:
