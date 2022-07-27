@@ -272,8 +272,8 @@ async def apply(
             is_anonymous=True,
         )
 
-        deployment.storage = deployment.storage.copy()
-        storage_document_id = await deployment.storage._save(is_anonymous=True)
+        # we assume storage was already saved
+        storage_document_id = deployment.storage._block_document_id
 
         deployment_id = await client.create_deployment(
             flow_id=flow_id,
@@ -460,6 +460,9 @@ async def build(
     else:
         # default storage, no need to move anything around
         storage = LocalFileSystem(basepath=Path(".").absolute())
+
+    # persists storage now in case it contains secret values
+    await storage._save(is_anonymous=True)
 
     if infra_block:
         template = await Block.load(infra_block)
