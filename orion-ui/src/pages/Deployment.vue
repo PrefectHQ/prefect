@@ -26,12 +26,17 @@
       </template>
 
       <template #details>
-        <DeploymentDetails :deployment="deployment" />
+        <DeploymentDetails :deployment="deployment" @update="deploymentSubscription.refresh" />
       </template>
     </p-tabs>
 
     <template #well>
-      <DeploymentDetails v-if="deployment" :deployment="deployment" alternate />
+      <DeploymentDetails
+        v-if="deployment"
+        :deployment="deployment"
+        alternate
+        @update="deploymentSubscription.refresh"
+      />
     </template>
   </p-layout-well>
 </template>
