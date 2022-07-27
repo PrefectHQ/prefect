@@ -189,7 +189,7 @@ async def run(
 
         if not deployment.manifest_path:
             exit_with_error(
-                f"This deployment has been deprecated. Please remake this deployment."
+                f"This deployment has been deprecated. Please see https://discourse.prefect.io/t/deployments-are-now-simplified-and-follow-a-declarative-syntax/1255."
             )
 
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
