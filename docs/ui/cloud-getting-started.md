@@ -190,7 +190,7 @@ Prefect Cloud now automatically tracks any flow runs in a local execution enviro
 
 To run a flow from a deployment with Prefect Cloud, you'll need to:
 
-- Add a `DeploymentSpec` to your flow definition
+- Create a flow script
 - Create the deployment using the Prefect CLI
 - Configure a [work queue](/ui/work-queues/) that can allocate your deployment's flow runs to agents
 - Start an agent in your execution environment
@@ -198,40 +198,34 @@ To run a flow from a deployment with Prefect Cloud, you'll need to:
 
 ### Create a deployment specification
 
-Go back to your flow code in `basic_flow.py` and update it to look like this, removing the guarded call to `basic_flow()` and replacing it with a `DeploymentSpec` providing some basic settings for the deployment.
+Let's go back to your flow code in `basic_flow.py`. In a terminal, run the `prefect deployment build` Prefect CLI command to build a manifest and `deployment.yaml` file that you'll use to create the deployment on Prefect Cloud.
 
-```python
-from prefect import flow, get_run_logger
-
-@flow(name="Testing")
-def basic_flow():
-    logger = get_run_logger()
-    logger.warning("The fun is about to begin")
-
-from prefect.deployments import DeploymentSpec
-
-DeploymentSpec(
-    flow=basic_flow,
-    name="Test Deployment",
-    tags=['tutorial','test'], 
-)
+<div class="terminal">
+```bash
+$ prefect deployment build ./basic_flow.py:basic_flow -n test-deployment -t test
 ```
+</div>
+
+What did we do here? Let's break down the command:
+
+- `prefect deployment build` is the Prefect CLI command that enables you to prepare the settings for a deployment.
+-  `./basic_flow.py:basic_flow` specifies the location of the flow script file and the name of the entrypoint flow function, separated by a colon.
+- `-n test-deployment` is an option to specify a name for the deployment.
+- `-t test` specifies a tag for the deployment. Tags enable filtering deployment flow runs in the UI and on work queues.
+
+The command outputs two files: `basic_flow-manifest.json` contains workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters. `deployment.yaml` contains details about the deployment for this flow.
 
 ### Create the deployment
 
-In the terminal, use the `prefect deployment create` command to create the deployment on Prefect Cloud, specifying the name of the `basic_flow.py` file that contains the flow code and deployment specification:
+In the terminal, use the `prefect deployment apply` command to apply the settings contained in the manifest and `deployment.yaml` to create the deployment on Prefect Cloud.
+
+Run the following Prefect CLI command.
 
 <div class="terminal">
-```
-$ prefect deployment create basic_flow.py
-Loading deployment specifications from python script at 'basic_flow.py'...
-Creating deployment 'Test Deployment' for flow 'Testing'...
-Deploying flow script from '/Users/terry/test/testflows/basic_flow.py' using S3 Storage...
-Created deployment 'Testing/Test Deployment'.
-View your new deployment with:
-
-    prefect deployment inspect 'Testing/Test Deployment'
-Created 1 deployments!
+```bash
+$ prefect deployment apply `deployment.yaml`
+Successfully loaded 'test-deployment'
+Deployment '66b3fdea-cd3a-4734-b3f2-65f6702ff260' successfully created.
 ```
 </div>
 
@@ -241,29 +235,19 @@ To demonstrate that your deployment exists, go back to Prefect Cloud and select 
 
 !['Testing/Test Deployment' appears in the Prefect Cloud Deployments page](/img/ui/cloud-test-deployment.png)
 
-### Create a work queue
+### Create a work queue and agent
 
-Next create the work queue that can distribute your new deployment to agents for execution. 
+Next, create a work queue that can distribute your new deployment to agents for execution, and a local agent to pick up the flow run for your 'Testing/Test Deployment' deployment. 
 
-In Prefect Cloud, select the **Work Queues** page, then select the **+** button to create a new work queue. Fill out the form as shown here, noting in particular to create the `test` tag on the queue. Note that this matches the `tags=['tutorial','test']` tag created on the deployment specification.
+In Prefect Cloud, you can create a work queue by selecting the **Work Queues** page, then creating a new work queue. 
 
-![Creating a work queue for test flows in Prefect Cloud](/img/ui/cloud-test-work-queue.png)
+However, we can also use a Prefect CLI convenience command: starting your agent with a set of tags will create a work queue for you that serves deployments with those tags. This is handy for quickly standing up a test environment, for example.
 
-Select **Submit** to create the queue. 
-
-When you go back to the **Work Queues** page, you'll see your new queue in the list.
-
-![Viewing the new work queue for test flows in Prefect Cloud](/img/ui/cloud-test-queues.png)
-
-### Run an agent
-
-Now that you have a work queue to allocate flow runs, you can run an agent to pick up flow runs from that queue.
-
-In your terminal, run the `prefect agent start` command, passing the name of the `test-queue` work queue you just created.
+In your terminal, run the `prefect agent start` command, passing a `-t test` option that creates a work queue for `test` tags.
 
 <div class="terminal">
 ```
-$ prefect agent start 'test-queue'
+$ prefect agent start -t test
 Starting agent connected to https://api-beta.prefect.io/api/accounts/...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
@@ -272,7 +256,7 @@ Starting agent connected to https://api-beta.prefect.io/api/accounts/...
  |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
 
 
-Agent started! Looking for work from queue 'test-queue'...
+Agent started! Looking for work from queue 'Agent queue test'...
 ```
 </div>
 

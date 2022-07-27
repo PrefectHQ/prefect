@@ -10,7 +10,6 @@ from typing import Optional
 import anyio
 import fsspec
 from pydantic import Field, SecretStr, validator
-from typing_extensions import Literal
 
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -48,7 +47,6 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
     _block_type_name = "Local File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/EVKjxM7fNyi4NGUSkeTEE/95c958c5dd5a56c59ea5033e919c1a63/image1.png?h=250"
 
-    type: str = "local"
     basepath: Optional[str] = None
 
     @validator("basepath", pre=True)
@@ -164,7 +162,6 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
     _block_type_name = "Remote File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CxjycqILlT9S9YchI7o1q/ee62e2089dfceb19072245c62f0c69d2/image12.png?h=250"
 
-    type: str = "remote"
     basepath: str
     settings: dict = Field(default_factory=dict)
 
@@ -303,7 +300,6 @@ class S3(ReadableFileSystem, WritableFileSystem):
     _block_type_name = "S3"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1jbV4lceHOjGgunX15lUwT/db88e184d727f721575aeb054a37e277/aws.png?h=250"
 
-    type: str = "s3"
     bucket_path: str = Field(
         ..., description="An S3 bucket path", example="my-bucket/a-directory-within"
     )
@@ -374,7 +370,6 @@ class GCS(ReadableFileSystem, WritableFileSystem):
 
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CD4wwbiIKPkZDt4U3TEuW/c112fe85653da054b6d5334ef662bec4/gcp.png?h=250"
 
-    type: Literal["gcs"] = "gcs"
     bucket_path: str = Field(
         ..., description="A GCS bucket path", example="my-bucket/a-directory-within"
     )

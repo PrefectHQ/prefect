@@ -43,7 +43,7 @@
   const router = useRouter()
 
   const tabs = computed(() => {
-    const values = ['Upcoming runs']
+    const values = ['Upcoming Runs']
 
     if (!media.xl) {
       values.unshift('Details')
