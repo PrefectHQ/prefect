@@ -119,8 +119,6 @@ class DockerContainer(Infrastructure):
 
     async def run(
         self,
-        storage,
-        manifest_path: str,
         task_status: Optional[TaskStatus] = None,
     ) -> Optional[bool]:
 

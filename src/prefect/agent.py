@@ -2,7 +2,7 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional
 from uuid import UUID
 
 import anyio
@@ -15,7 +15,6 @@ from fastapi import status
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client
 from prefect.exceptions import Abort
-from prefect.filesystems import LocalFileSystem, RemoteFileSystem
 from prefect.infrastructure import Infrastructure, Process
 from prefect.infrastructure.submission import submit_flow_run
 from prefect.logging import get_logger
@@ -140,9 +139,7 @@ class OrionAgent:
             )
         return submittable_runs
 
-    async def get_infrastructure_and_storage(
-        self, flow_run: FlowRun
-    ) -> Tuple[Infrastructure, Union[LocalFileSystem, RemoteFileSystem], str]:
+    async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
         deployment = await self.client.read_deployment(flow_run.deployment_id)
 
         ## get infra
@@ -154,16 +151,8 @@ class OrionAgent:
             infrastructure_document_id
         )
         infrastructure_block = Block._from_block_document(infra_document)
-
-        ## get storage
-        storage_document_id = (
-            deployment.storage_document_id or self.default_storage_document_id
-        )
-        storage_document = await self.client.read_block_document(storage_document_id)
-        storage_block = Block._from_block_document(storage_document)
-
         # TODO: Here the agent may update the infrastructure with agent-level settings
-        return infrastructure_block, storage_block, deployment.manifest_path
+        return infrastructure_block
 
     async def submit_run(self, flow_run: FlowRun) -> None:
         """
@@ -172,18 +161,12 @@ class OrionAgent:
         ready_to_submit = await self._propose_pending_state(flow_run)
 
         if ready_to_submit:
-            (
-                infrastructure,
-                storage,
-                manifest_path,
-            ) = await self.get_infrastructure_and_storage(flow_run)
+            infrastructure = await self.get_infrastructure(flow_run)
 
             try:
                 # Wait for submission to be completed. Note that the submission function
                 # may continue to run in the background after this exits.
-                await self.task_group.start(
-                    submit_flow_run, flow_run, infrastructure, storage, manifest_path
-                )
+                await self.task_group.start(submit_flow_run, flow_run, infrastructure)
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
             except Exception as exc:
                 self.logger.error(

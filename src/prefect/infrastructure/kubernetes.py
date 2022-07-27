@@ -184,8 +184,6 @@ class KubernetesJob(Infrastructure):
     async def run(
         self,
         task_status: Optional[TaskStatus] = None,
-        storage=None,
-        manifest_path: str = None,
     ) -> Optional[bool]:
         # if a k8s cluster block is provided to the flow runner, use that
         if self.cluster_config:

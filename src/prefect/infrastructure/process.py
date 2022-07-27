@@ -47,8 +47,6 @@ class Process(Infrastructure):
 
     async def run(
         self,
-        storage,
-        manifest_path: str,
         task_status: TaskStatus = None,
     ) -> Optional[bool]:
         if not self.command:
