@@ -46,9 +46,19 @@ const routeRecords: AppRouteRecord[] = [
     component: (): RouteComponent => import('@/pages/Deployments.vue'),
   },
   {
-    name: 'deployment',
     path: '/deployment/:id',
-    component: (): RouteComponent => import('@/pages/Deployment.vue'),
+    children: [
+      {
+        name: 'edit-deployment',
+        path: 'edit',
+        component: (): RouteComponent => import('@/pages/DeploymentEdit.vue'),
+      },
+      {
+        name: 'deployment',
+        path: '',
+        component: (): RouteComponent => import('@/pages/Deployment.vue'),
+      },
+    ],
   },
   {
     path: '/work-queues',
@@ -95,7 +105,7 @@ const routeRecords: AppRouteRecord[] = [
       },
       {
         name: 'blocks.create',
-        path: 'catalog/:blockTypeName/create',
+        path: 'catalog/:blockTypeSlug/create',
         component: (): RouteComponent => import('@/pages/BlocksCatalogCreate.vue'),
       },
     ],

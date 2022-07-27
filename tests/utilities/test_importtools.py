@@ -59,6 +59,7 @@ def test_lazy_import():
     assert callable(docker.from_env)
 
 
+@pytest.mark.service("docker")
 def test_lazy_import_does_not_break_type_comparisons():
     docker = lazy_import("docker")
     docker.errors = lazy_import("docker.errors")

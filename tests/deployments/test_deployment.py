@@ -1,7 +1,7 @@
 """
 Tests for `prefect.deployments.Deployment`
 """
-
+import datetime
 from pathlib import Path
 
 import pydantic
@@ -20,6 +20,10 @@ from prefect.packaging.base import PackageManifest
 from prefect.software.python import PythonEnvironment
 
 EXAMPLES = Path(__file__).parent / "examples"
+
+pytestmark = pytest.mark.skip(
+    reason="Inline Deployment objects are no longer supported."
+)
 
 
 @flow
@@ -111,7 +115,8 @@ async def test_deployment_schedule(orion_client: OrionClient, schedule):
     deployment_id = await dpl.create()
 
     deployment = await orion_client.read_deployment(deployment_id)
-    assert deployment.schedule == IntervalSchedule(interval=10)
+    assert isinstance(deployment.schedule, IntervalSchedule)
+    assert deployment.schedule.interval == datetime.timedelta(seconds=10)
 
 
 @pytest.mark.parametrize(

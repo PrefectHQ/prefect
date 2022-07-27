@@ -1,7 +1,6 @@
 """
 The Scheduler service.
 """
-
 import asyncio
 import datetime
 from typing import Dict, List
@@ -13,7 +12,7 @@ import sqlalchemy as sa
 import prefect.orion.models as models
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.services.loop_service import LoopService
+from prefect.orion.services.loop_service import LoopService, run_multiple_services
 from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE,
     PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
@@ -29,9 +28,17 @@ class Scheduler(LoopService):
     A loop service that schedules flow runs from deployments.
     """
 
+    # the main scheduler takes its loop interval from
+    # PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS
+    loop_seconds = None
+
     def __init__(self, loop_seconds: float = None, **kwargs):
         super().__init__(
-            loop_seconds or PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS.value(),
+            loop_seconds=(
+                loop_seconds
+                or self.loop_seconds
+                or PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS.value()
+            ),
             **kwargs,
         )
         self.deployment_batch_size: int = (
@@ -170,5 +177,44 @@ class Scheduler(LoopService):
         )
 
 
+class RecentDeploymentsScheduler(Scheduler):
+    """
+    A scheduler that only schedules deployments that were updated very recently.
+    This scheduler can run on a tight loop and ensure that runs from
+    newly-created or updated deployments are rapidly scheduled without having to
+    wait for the "main" scheduler to complete its loop.
+
+    Note that scheduling is idempotent, so its ok for this scheduler to attempt
+    to schedule the same deployments as the main scheduler. It's purpose is to
+    accelerate scheduling for any deployments that users are interacting with.
+    """
+
+    # this scheduler runs on a tight loop
+    loop_seconds = 5
+
+    @inject_db
+    def _get_select_deployments_to_schedule_query(self, db: OrionDBInterface):
+        """
+        Returns a sqlalchemy query for selecting deployments to schedule
+        """
+        query = (
+            sa.select(db.Deployment.id)
+            .where(
+                db.Deployment.is_schedule_active.is_(True),
+                db.Deployment.schedule.is_not(None),
+                # use a slightly larger window than the loop interval to pick up
+                # any deployments that were created *while* the scheduler was
+                # last running (assuming the scheduler takes less than one
+                # second to run). Scheduling is idempotent so picking up schedules
+                # multiple times is not a concern.
+                db.Deployment.updated
+                >= pendulum.now().subtract(seconds=self.loop_seconds + 1),
+            )
+            .order_by(db.Deployment.id)
+            .limit(self.deployment_batch_size)
+        )
+        return query
+
+
 if __name__ == "__main__":
-    asyncio.run(Scheduler().start())
+    asyncio.run(run_multiple_services([Scheduler(), RecentDeploymentsScheduler()]))

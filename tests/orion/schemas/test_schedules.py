@@ -1,4 +1,6 @@
+from datetime import datetime as pydatetime
 from datetime import timedelta
+from unittest import mock
 
 import pendulum
 import pytest
@@ -27,27 +29,77 @@ class TestCreateIntervalSchedule:
             IntervalSchedule(interval=timedelta(minutes=minutes))
 
     def test_default_anchor(self):
-        clock = IntervalSchedule(interval=timedelta(days=1))
-        assert clock.anchor_date == datetime(2020, 1, 1, tz="UTC")
+        mock_now = pendulum.datetime(
+            year=2022,
+            month=1,
+            day=1,
+            hour=1,
+            minute=1,
+        )
+        with mock.patch("pendulum.now", return_value=mock_now):
+            clock = IntervalSchedule(interval=timedelta(days=1))
+        assert clock.anchor_date == mock_now
+        assert clock.timezone == "UTC"
 
-    def test_default_anchor_respects_timezone(self):
-        clock = IntervalSchedule(interval=timedelta(days=1), timezone="EST")
-        assert clock.anchor_date == datetime(2020, 1, 1, tz="EST")
+    def test_default_timezone_from_anchor_date(self):
+        clock = IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=pendulum.now("America/New_York")
+        )
+        assert clock.timezone == "America/New_York"
+
+    def test_different_anchor_date_and_timezone(self):
+        # this is totally fine because the anchordate is serialized as a UTC offset
+        # but the timezone tells us how to localize it
+        clock = IntervalSchedule(
+            interval=timedelta(days=1),
+            timezone="America/Los_Angeles",
+            anchor_date=pendulum.now("America/New_York"),
+        )
+        assert clock.timezone == "America/Los_Angeles"
+        assert clock.anchor_date.tz.name == "America/New_York"
 
     def test_anchor(self):
         dt = now()
         clock = IntervalSchedule(interval=timedelta(days=1), anchor_date=dt)
         assert clock.anchor_date == dt
 
-    def test_cant_supply_timezone_and_anchor(self):
-        with pytest.raises(ValidationError, match="(anchor date or a timezone)"):
-            IntervalSchedule(
-                interval=timedelta(days=1), timezone="EST", anchor_date=now()
-            )
-
     def test_invalid_timezone(self):
         with pytest.raises(ValidationError, match="(Invalid timezone)"):
             IntervalSchedule(interval=timedelta(days=1), timezone="fake")
+
+    def test_infer_utc_offset_timezone(self):
+        # when pendulum parses a datetime, it keeps the UTC offset as the "timezone"
+        # and we need to make sure this doesn't get picked up as the schedule's timezone
+        # since the schedule should infer that it has the same behavior as "UTC"
+        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        clock = IntervalSchedule(interval=timedelta(days=1), anchor_date=offset_dt)
+        assert clock.timezone == "UTC"
+
+    def test_parse_utc_offset_timezone(self):
+        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        clock = IntervalSchedule(interval=timedelta(days=1), anchor_date=offset_dt)
+        clock_dict = clock.dict(json_compatible=True)
+
+        # remove the timezone
+        clock_dict.pop("timezone")
+        # the offset is part of the clock_dict (check for DST)
+        assert clock_dict["anchor_date"].endswith("-04:00") or clock_dict[
+            "anchor_date"
+        ].endswith("-05:00")
+
+        parsed = IntervalSchedule.parse_obj(clock_dict)
+        assert parsed.anchor_date.tz.name in ("-04:00", "-05:00")
+        assert parsed.timezone == "UTC"
+
+    def test_parse_utc_offset_timezone_with_specified_tz(self):
+        offset_dt = pendulum.parse(str(pendulum.now("America/New_York")))
+        clock = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=offset_dt,
+            timezone="America/New_York",
+        )
+        clock_dict = clock.dict(json_compatible=True)
+        assert IntervalSchedule.parse_obj(clock_dict).timezone == "America/New_York"
 
 
 class TestIntervalSchedule:
@@ -87,9 +139,14 @@ class TestIntervalSchedule:
         [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2025, 3, 3)],
     )
     async def test_get_dates_from_start_date_with_timezone(self, start_date):
-        clock = IntervalSchedule(interval=timedelta(days=1), timezone="EST")
+        clock = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=start_date,
+            timezone="America/New_York",
+        )
         dates = await clock.get_dates(n=5, start=start_date)
-        assert dates == [start_date.add(days=i).set(tz="EST") for i in range(5)]
+
+        assert dates == [start_date.add(days=i).in_tz(clock.timezone) for i in range(5)]
 
     @pytest.mark.parametrize("n", [1, 2, 5])
     async def test_get_n_dates(self, n):
@@ -110,6 +167,51 @@ class TestIntervalSchedule:
         dates = await clock.get_dates(n=5, start=datetime(2021, 7, 1))
         assert dates == [
             datetime(2021, 7, 1, 7, 24).add(hours=i * 17) for i in range(5)
+        ]
+
+    async def test_get_dates_from_offset_naive_anchor(self):
+        # Regression test for https://github.com/PrefectHQ/orion/issues/2466
+        clock = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=pydatetime(2022, 1, 1),
+        )
+        dates = await clock.get_dates(start=datetime(2022, 1, 1), n=3)
+        assert dates == [
+            datetime(2022, 1, 1),
+            datetime(2022, 1, 2),
+            datetime(2022, 1, 3),
+        ]
+
+    async def test_get_dates_from_offset_naive_start(self):
+        # Regression test for https://github.com/PrefectHQ/orion/issues/2466
+        clock = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=datetime(2022, 1, 1),
+        )
+        dates = await clock.get_dates(
+            start=pydatetime(2022, 1, 1),
+            end=datetime(2022, 1, 3),
+        )
+        assert dates == [
+            datetime(2022, 1, 1),
+            datetime(2022, 1, 2),
+            datetime(2022, 1, 3),
+        ]
+
+    async def test_get_dates_from_offset_naive_end(self):
+        # Regression test for https://github.com/PrefectHQ/orion/issues/2466
+        clock = IntervalSchedule(
+            interval=timedelta(days=1),
+            anchor_date=datetime(2022, 1, 1),
+        )
+        dates = await clock.get_dates(
+            start=datetime(2022, 1, 1),
+            end=pydatetime(2022, 1, 3),
+        )
+        assert dates == [
+            datetime(2022, 1, 1),
+            datetime(2022, 1, 2),
+            datetime(2022, 1, 3),
         ]
 
 
@@ -135,8 +237,8 @@ class TestCreateCronSchedule:
         assert clock.cron == cron_string
 
     def test_create_cron_schedule_with_timezone(self):
-        clock = CronSchedule(cron="5 4 * * *", timezone="EST")
-        assert clock.timezone == "EST"
+        clock = CronSchedule(cron="5 4 * * *", timezone="America/New_York")
+        assert clock.timezone == "America/New_York"
 
     def test_invalid_timezone(self):
         with pytest.raises(ValidationError, match="(Invalid timezone)"):
@@ -172,16 +274,18 @@ class TestCronSchedule:
         assert all(d.tz.name == "UTC" for d in dates)
 
     async def test_every_day_with_timezone(self):
-        clock = CronSchedule(cron=self.every_hour, timezone="EST")
+        clock = CronSchedule(cron=self.every_hour, timezone="America/New_York")
         dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1))
         assert dates == [datetime(2021, 1, 1).add(hours=i) for i in range(5)]
-        assert all(d.tz.name == "EST" for d in dates)
+        assert all(d.tz.name == "America/New_York" for d in dates)
 
     async def test_every_day_with_timezone_start(self):
         clock = CronSchedule(cron=self.every_hour)
-        dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1).in_tz("EST"))
+        dates = await clock.get_dates(
+            n=5, start=datetime(2021, 1, 1).in_tz("America/New_York")
+        )
         assert dates == [datetime(2021, 1, 1).add(hours=i) for i in range(5)]
-        assert all(d.tz.name == "EST" for d in dates)
+        assert all(d.tz.name == "UTC" for d in dates)
 
     async def test_n(self):
         clock = CronSchedule(cron=self.every_day)

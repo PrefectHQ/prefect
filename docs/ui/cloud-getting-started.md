@@ -93,7 +93,7 @@ $ prefect cloud login --key xxx_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 </div>
 
-The command prompts you to choose a workspace if you haven't given one (you can specify a workspace with the `-w` or `--workspace` option).
+If this is your first time logging in with this API key, you will be prompted to make a new profile as well as select a workspace (you can specify a workspace with the `-w` or `--workspace` option).
 
 <div class="terminal">
 ```bash
@@ -103,25 +103,29 @@ $ prefect cloud login --key xxx_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ┡━━━━━━━━━━━━━━━━━━━━━━┩
 │ > prefect/workinonit │
 └──────────────────────┘
-Successfully logged in and set workspace to 'prefect/workinonit' in profile 'default'.
+Creating a profile for this Prefect Cloud login. Please specify a profile name: my-cloud-profile
+Logged in to Prefect Cloud using profile 'my-cloud-profile'.
+Workspace is currently set to 'prefect/workinonit'. The workspace can be changed using `prefect cloud workspace set`.
 ```
 </div>
 
-The command then sets `PREFECT_API_KEY` and `PREFECT_API_URL` for the current profile.
+The command sets `PREFECT_API_KEY` and `PREFECT_API_URL` for the new profile.
 
 Now you're ready to run flows locally and have the results displayed in the Prefect Cloud UI.
 
-The `prefect cloud logout` CLI command unsets those settings in the current profile, logging the environment out of interaction with Prefect Cloud.
+You can log out of Prefect Cloud by switching to a different profile.
 
 ### Changing workspaces
 
-If you need to change which workspace you're syncing with, use the `prefect cloud workspace set` Prefect CLI command, passing the the account handle and workspace name.
+If you need to change which workspace you're syncing with, use the `prefect cloud workspace set` Prefect CLI command while logged in, passing the the account handle and workspace name.
 
 <div class="terminal">
 ```bash
 $ prefect cloud workspace set --workspace "prefect/workinonit"
 ```
 </div>
+
+If no workspace is provided, you will be prompted to select one.
 
 ### Manually configuring Cloud settings
 
@@ -143,46 +147,6 @@ In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the de
 When using Prefect Cloud, we recommend configuring remote storage for persisting flow and task data. See [Storage](/concepts/storage/) for details.
 
 By default, Prefect uses local file system storage to persist flow code and flow and task results. For local development and testing this may be adequate. Be aware, however, that local storage is not guaranteed to persist data reliably between flow or task runs, particularly when using container-based environments such as Docker or Kubernetes, or running tasks with distributed computing tools like Dask and Ray.
-
-Before doing this next step, make sure you have the information needed to connect to and authenticate with a remote data store. In this example we're connecting to an AWS S3 bucket, but you could also Google Cloud Storage or Azure Blob Storage.
-
-In the same terminal you just used to log into Prefect Cloud, run the `prefect storage create` command. In this case we choose the `S3 Storage` option and supply the bucket name and AWS IAM access key ID and secret access key. You should use the details of a service and authentication method that you have previously configured.
-
-<div class='terminal'>
-```bash
-$ prefect storage create
-Found the following storage types:
-0) Azure Blob Storage
-    Store data in an Azure blob storage container.
-1) File Storage
-    Store data as a file on local or remote file systems.
-2) Google Cloud Storage
-    Store data in a GCS bucket.
-3) Local Storage
-    Store data in a run's local file system.
-4) S3 Storage
-    Store data in an AWS S3 bucket.
-5) Temporary Local Storage
-    Store data in a temporary directory in a run's local file system.
-Select a storage type to create: 4
-
-You've selected S3 Storage. It has 6 option(s).
-BUCKET: the-curious-case-of-benjamin-bucket
-AWS ACCESS KEY ID (optional): XXXXXXXXXXXXXXXXXXXX
-AWS SECRET ACCESS KEY (optional): XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-AWS SESSION TOKEN (optional):
-PROFILE NAME (optional):
-REGION NAME (optional):
-Choose a name for this storage configuration: benjamin-bucket
-Validating configuration...
-Registering storage with server...
-Registered storage 'benjamin-bucket' with identifier '0f536aaa-216f-4c72-9c31-f3272bcdf977'.
-You do not have a default storage configuration. Would you like to set this as your default storage? [Y/n]: y
-Set default storage to 'benjamin-bucket'.
-```
-</div>
-
-Note that the storage parameters differ between storage types. See the [Storage](/concepts/storage/) documentation for details on parameters for storage types.
 
 ## Run a flow with Prefect Cloud
 
@@ -226,7 +190,7 @@ Prefect Cloud now automatically tracks any flow runs in a local execution enviro
 
 To run a flow from a deployment with Prefect Cloud, you'll need to:
 
-- Add a `DeploymentSpec` to your flow definition
+- Create a flow script
 - Create the deployment using the Prefect CLI
 - Configure a [work queue](/ui/work-queues/) that can allocate your deployment's flow runs to agents
 - Start an agent in your execution environment
@@ -234,40 +198,34 @@ To run a flow from a deployment with Prefect Cloud, you'll need to:
 
 ### Create a deployment specification
 
-Go back to your flow code in `basic_flow.py` and update it to look like this, removing the guarded call to `basic_flow()` and replacing it with a `DeploymentSpec` providing some basic settings for the deployment.
+Let's go back to your flow code in `basic_flow.py`. In a terminal, run the `prefect deployment build` Prefect CLI command to build a manifest and `deployment.yaml` file that you'll use to create the deployment on Prefect Cloud.
 
-```python
-from prefect import flow, get_run_logger
-
-@flow(name="Testing")
-def basic_flow():
-    logger = get_run_logger()
-    logger.warning("The fun is about to begin")
-
-from prefect.deployments import DeploymentSpec
-
-DeploymentSpec(
-    flow=basic_flow,
-    name="Test Deployment",
-    tags=['tutorial','test'], 
-)
+<div class="terminal">
+```bash
+$ prefect deployment build ./basic_flow.py:basic_flow -n test-deployment -t test
 ```
+</div>
+
+What did we do here? Let's break down the command:
+
+- `prefect deployment build` is the Prefect CLI command that enables you to prepare the settings for a deployment.
+-  `./basic_flow.py:basic_flow` specifies the location of the flow script file and the name of the entrypoint flow function, separated by a colon.
+- `-n test-deployment` is an option to specify a name for the deployment.
+- `-t test` specifies a tag for the deployment. Tags enable filtering deployment flow runs in the UI and on work queues.
+
+The command outputs two files: `basic_flow-manifest.json` contains workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters. `deployment.yaml` contains details about the deployment for this flow.
 
 ### Create the deployment
 
-In the terminal, use the `prefect deployment create` command to create the deployment on Prefect Cloud, specifying the name of the `basic_flow.py` file that contains the flow code and deployment specification:
+In the terminal, use the `prefect deployment apply` command to apply the settings contained in the manifest and `deployment.yaml` to create the deployment on Prefect Cloud.
+
+Run the following Prefect CLI command.
 
 <div class="terminal">
-```
-$ prefect deployment create basic_flow.py
-Loading deployment specifications from python script at 'basic_flow.py'...
-Creating deployment 'Test Deployment' for flow 'Testing'...
-Deploying flow script from '/Users/terry/test/testflows/basic_flow.py' using S3 Storage...
-Created deployment 'Testing/Test Deployment'.
-View your new deployment with:
-
-    prefect deployment inspect 'Testing/Test Deployment'
-Created 1 deployments!
+```bash
+$ prefect deployment apply `deployment.yaml`
+Successfully loaded 'test-deployment'
+Deployment '66b3fdea-cd3a-4734-b3f2-65f6702ff260' successfully created.
 ```
 </div>
 
@@ -277,30 +235,20 @@ To demonstrate that your deployment exists, go back to Prefect Cloud and select 
 
 !['Testing/Test Deployment' appears in the Prefect Cloud Deployments page](/img/ui/cloud-test-deployment.png)
 
-### Create a work queue
+### Create a work queue and agent
 
-Next create the work queue that can distribute your new deployment to agents for execution. 
+Next, create a work queue that can distribute your new deployment to agents for execution, and a local agent to pick up the flow run for your 'Testing/Test Deployment' deployment. 
 
-In Prefect Cloud, select the **Work Queues** page, then select the **+** button to create a new work queue. Fill out the form as shown here, noting in particular to create the `test` tag on the queue. Note that this matches the `tags=['tutorial','test']` tag created on the deployment specification.
+In Prefect Cloud, you can create a work queue by selecting the **Work Queues** page, then creating a new work queue. 
 
-![Creating a work queue for test flows in Prefect Cloud](/img/ui/cloud-test-work-queue.png)
+However, we can also use a Prefect CLI convenience command: starting your agent with a set of tags will create a work queue for you that serves deployments with those tags. This is handy for quickly standing up a test environment, for example.
 
-Select **Submit** to create the queue. 
-
-When you go back to the **Work Queues** page, you'll see your new queue in the list.
-
-![Viewing the new work queue for test flows in Prefect Cloud](/img/ui/cloud-test-queues.png)
-
-### Run an agent
-
-Now that you have a work queue to allocate flow runs, you can run an agent to pick up flow runs from that queue.
-
-In your terminal, run the `prefect agent start` command, passing the name of the `test-queue` work queue you just created.
+In your terminal, run the `prefect agent start` command, passing a `-t test` option that creates a work queue for `test` tags.
 
 <div class="terminal">
 ```
-$ prefect agent start 'test-queue'
-Starting agent connected to https://api-beta.prefect.io/api/accounts/...
+$ prefect agent start -t test
+Starting agent connected to https://api.prefect.cloud/api/accounts/...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
  | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
@@ -308,7 +256,7 @@ Starting agent connected to https://api-beta.prefect.io/api/accounts/...
  |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
 
 
-Agent started! Looking for work from queue 'test-queue'...
+Agent started! Looking for work from queue 'Agent queue test'...
 ```
 </div>
 
@@ -327,7 +275,7 @@ In the local terminal session where you started the agent, you can see that the 
 <div class="terminal">
 ```
 $ prefect agent start 'test-queue'
-Starting agent connected to https://api-beta.prefect.io/api/accounts/...
+Starting agent connected to https://api.prefect.cloud/api/accounts/...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
  | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
