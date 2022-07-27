@@ -43,7 +43,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentDescription, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable } from '@prefecthq/orion-design'
+  import { DeploymentDescription, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
