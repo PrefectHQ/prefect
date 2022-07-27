@@ -3,12 +3,14 @@ Utilities for working with Python callables.
 """
 import inspect
 from functools import partial
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Tuple
 
 import cloudpickle
 import pydantic
 import pydantic.schema
 from typing_extensions import Literal
+
+from prefect.exceptions import ReservedArgumentError
 
 
 def get_call_parameters(
@@ -155,3 +157,15 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     model = pydantic.create_model("Parameters", __config__=ModelConfig, **model_fields)
     schema = model.schema(by_alias=True)
     return ParameterSchema(**schema)
+
+
+def raise_for_reserved_arguments(fn: Callable, reserved_arguments: Iterable[str]):
+    """Raise a ReservedArgumentError if `fn` has any parameters that conflict
+    with the names contained in `reserved_arguments`."""
+    function_paremeters = inspect.signature(fn).parameters
+
+    for argument in reserved_arguments:
+        if argument in function_paremeters:
+            raise ReservedArgumentError(
+                f"{argument!r} is a reserved argument name and cannot be used."
+            )

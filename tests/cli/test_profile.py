@@ -1,4 +1,8 @@
+from uuid import uuid4
+
 import pytest
+import respx
+from httpx import Response
 
 from prefect.context import use_profile
 from prefect.settings import (
@@ -30,24 +34,183 @@ def test_use_profile_unknown_key():
     )
 
 
-def test_use_profile_sets_active():
-    save_profiles(
-        ProfilesCollection(profiles=[Profile(name="foo", settings={})], active=None)
-    )
+class TestChangingProfileAndCheckingOrionConnection:
+    @pytest.fixture
+    def profiles(self):
+        prefect_cloud_api_url = "https://mock-cloud.prefect.io/api"
+        prefect_cloud_orion_api_url = (
+            f"{prefect_cloud_api_url}/accounts/{uuid4()}/workspaces/{uuid4()}"
+        )
+        hosted_orion_api_url = "https://hosted-orion.prefect.io/api"
 
-    invoke_and_assert(
-        ["profile", "use", "foo"], expected_output="Profile 'foo' now active."
-    )
+        return ProfilesCollection(
+            profiles=[
+                Profile(
+                    name="prefect-cloud",
+                    settings={
+                        "PREFECT_API_URL": prefect_cloud_orion_api_url,
+                        "PREFECT_API_KEY": "a working cloud api key",
+                    },
+                ),
+                Profile(
+                    name="prefect-cloud-with-invalid-key",
+                    settings={
+                        "PREFECT_API_URL": prefect_cloud_orion_api_url,
+                        "PREFECT_API_KEY": "a broken cloud api key",
+                    },
+                ),
+                Profile(
+                    name="hosted-orion",
+                    settings={
+                        "PREFECT_API_URL": hosted_orion_api_url,
+                    },
+                ),
+                Profile(
+                    name="ephemeral-orion",
+                    settings={},
+                ),
+            ],
+            active=None,
+        )
 
-    profiles = load_profiles()
-    assert profiles.active_name == "foo"
+    @pytest.fixture
+    def authorized_cloud(self):
+        # attempts to reach the Cloud 2 workspaces endpoint implies a good connection
+        # to Prefect Cloud as opposed to a hosted Prefect Orion instance
+        with respx.mock:
+            authorized = respx.get(
+                "https://mock-cloud.prefect.io/api/me/workspaces",
+            ).mock(return_value=Response(200, json={}))
+
+            yield authorized
+
+    @pytest.fixture
+    def unauthorized_cloud(self):
+        # requests to cloud with an invalid key will result in a 401 response
+        with respx.mock:
+            unauthorized = respx.get(
+                "https://mock-cloud.prefect.io/api/me/workspaces",
+            ).mock(return_value=Response(401, json={}))
+
+            yield unauthorized
+
+    @pytest.fixture
+    def unhealthy_cloud(self):
+        # Cloud may respond with a 500 error when having connection issues
+        with respx.mock:
+            unhealthy_cloud = respx.get(
+                "https://mock-cloud.prefect.io/api/me/workspaces",
+            ).mock(return_value=Response(500, json={}))
+
+            yield unhealthy_cloud
+
+    @pytest.fixture
+    def hosted_orion_has_no_cloud_api(self):
+        # if the API URL points to a hosted Prefect Orion instance, no Cloud API will be found
+        with respx.mock:
+            hosted = respx.get(
+                "https://hosted-orion.prefect.io/api/me/workspaces",
+            ).mock(return_value=Response(404, json={}))
+
+            yield hosted
+
+    @pytest.fixture
+    def healthy_hosted_orion(self):
+        with respx.mock:
+            hosted = respx.get(
+                "https://hosted-orion.prefect.io/api/health",
+            ).mock(return_value=Response(200, json={}))
+
+            yield hosted
+
+    def connection_error(self, *args):
+        raise Exception
+
+    @pytest.fixture
+    def unhealthy_hosted_orion(self):
+        with respx.mock:
+            badly_hosted = respx.get(
+                "https://hosted-orion.prefect.io/api/health",
+            ).mock(side_effect=self.connection_error)
+
+            yield badly_hosted
+
+    def test_authorized_cloud_connection(self, authorized_cloud, profiles):
+        save_profiles(profiles)
+        invoke_and_assert(
+            ["profile", "use", "prefect-cloud"],
+            expected_output_contains="Connected to Prefect Cloud using profile 'prefect-cloud'",
+            expected_code=0,
+        )
+
+        profiles = load_profiles()
+        assert profiles.active_name == "prefect-cloud"
+
+    def test_unauthorized_cloud_connection(self, unauthorized_cloud, profiles):
+        save_profiles(profiles)
+        invoke_and_assert(
+            ["profile", "use", "prefect-cloud-with-invalid-key"],
+            expected_output_contains="Error authenticating with Prefect Cloud using profile 'prefect-cloud-with-invalid-key'",
+            expected_code=1,
+        )
+
+        profiles = load_profiles()
+        assert profiles.active_name == "prefect-cloud-with-invalid-key"
+
+    def test_unhealthy_cloud_connection(self, unhealthy_cloud, profiles):
+        save_profiles(profiles)
+        invoke_and_assert(
+            ["profile", "use", "prefect-cloud"],
+            expected_output_contains="Error connecting to Prefect Cloud",
+            expected_code=1,
+        )
+
+        profiles = load_profiles()
+        assert profiles.active_name == "prefect-cloud"
+
+    def test_using_hosted_orion(
+        self, hosted_orion_has_no_cloud_api, healthy_hosted_orion, profiles
+    ):
+        save_profiles(profiles)
+        invoke_and_assert(
+            ["profile", "use", "hosted-orion"],
+            expected_output_contains="Connected to Prefect Orion using profile 'hosted-orion'",
+            expected_code=0,
+        )
+
+        profiles = load_profiles()
+        assert profiles.active_name == "hosted-orion"
+
+    def test_unhealthy_hosted_orion(
+        self, hosted_orion_has_no_cloud_api, unhealthy_hosted_orion, profiles
+    ):
+        save_profiles(profiles)
+        invoke_and_assert(
+            ["profile", "use", "hosted-orion"],
+            expected_output_contains="Error connecting to Prefect Orion",
+            expected_code=1,
+        )
+
+        profiles = load_profiles()
+        assert profiles.active_name == "hosted-orion"
+
+    def test_using_ephemeral_orion(self, profiles):
+        save_profiles(profiles)
+        invoke_and_assert(
+            ["profile", "use", "ephemeral-orion"],
+            expected_output_contains="No Prefect Orion instance specified using profile 'ephemeral-orion'.",
+            expected_code=0,
+        )
+
+        profiles = load_profiles()
+        assert profiles.active_name == "ephemeral-orion"
 
 
 def test_ls_default_profiles():
     # 'default' is not the current profile because we have a temporary profile in-use
     # during tests
 
-    invoke_and_assert(["profile", "ls"], expected_output="default")
+    invoke_and_assert(["profile", "ls"], expected_output_contains="default")
 
 
 def test_ls_additional_profiles():
@@ -66,12 +229,10 @@ def test_ls_additional_profiles():
 
     invoke_and_assert(
         ["profile", "ls"],
-        expected_output=(
-            """
-            default
-            foo
-            bar
-            """
+        expected_output_contains=(
+            "default",
+            "foo",
+            "bar",
         ),
     )
 
@@ -88,11 +249,9 @@ def test_ls_respects_current_from_profile_flag():
 
     invoke_and_assert(
         ["--profile", "foo", "profile", "ls"],
-        expected_output=(
-            """
-            default
-            * foo
-            """
+        expected_output_contains=(
+            "default",
+            "* foo",
         ),
     )
 
@@ -111,12 +270,10 @@ def test_ls_respects_current_from_context():
     with use_profile("bar"):
         invoke_and_assert(
             ["profile", "ls"],
-            expected_output=(
-                """
-                default
-                foo
-                * bar
-                """
+            expected_output_contains=(
+                "default",
+                "foo",
+                "* bar",
             ),
         )
 

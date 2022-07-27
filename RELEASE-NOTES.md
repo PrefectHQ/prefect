@@ -1,5 +1,96 @@
 # Prefect Release Notes
 
+
+## 2.0b16
+
+### Simplified, declarative deployments
+Prefect 2.0's deployments are a powerful way to encapsulate a flow, its required infrastructure, its schedule, its parameters, and more. Now, you can create deployments simply, with just two commands:
+1. `prefect deployment build ./path/to/flow/file.py:name_of_flow_obj --name "Deployment Name"` produces two files:
+     - A manifest file, containing workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters
+     - A `deployment.yaml` file - a complete specification of the metadata and configuration for the deployment such as the name, tags, and description
+3. `prefect deployment apply ./deployment.yaml` creates or updates a deployment with the Orion server
+
+Once the deployment is created with the Orion server, it can now be edited via the UI! See the [Deployments documentation to learn more](https://orion-docs.prefect.io/concepts/deployments/).
+
+### Improvements and bug fixes
+- The [Dask and Ray tutorials](https://orion-docs.prefect.io/tutorials/dask-ray-task-runners/) have been updated to reflect recent changes
+- The [Blocks concept doc](https://orion-docs.prefect.io/concepts/blocks/) has been updated to reflect recent enhancements and includes additional examples
+- The [Storage concept doc](https://orion-docs.prefect.io/concepts/storage/) has been updated to reflect recent enhancements
+- All IntervalSchedules now require both an anchor date and a timezone
+- The new S3 file system block enables you to read and write data as a file on Amazon S3
+- The new GCS file system block allows you to read and write data as a file on Google Cloud Storage
+
+## 2.0b15
+
+### Uniquely refer to blocks with slugs
+Blocks are a convenient way to secure store and retrieve configuration. Now, retrieving configuration stored with blocks is even easier with slugs, both human and machine readable unique identifiers. By default, block type slugs are a lowercase, dash delimited version of the block type name, but can be customized via the `_block_type_slug` field on a custom Block subclass. Block document slugs are a concatenation of [block-type-slug]/[block-document-name] and can be used as an argument to the `Block.load` method. Slugs and block document names may only include alphanumeric characters and dashes.
+
+**Warning**: This breaking change makes this release incompatible with previous versions of the Orion server and Prefect Cloud 2.0
+
+### Other improvements and bug fixes
+
+## 2.0b14
+
+### Retreive the state of your tasks or flows with the `return_state` kwarg
+Beginning with 2.0b9, Prefect 2.0 began returning function results, instead of Prefect futures and states, by default. States are still an important concept in Prefect 2. They can be used to dictate and understand the behavior of your flows. Now, you can access the state for _any_ task or flow with the new `return_state` kwarg. Just set `return_state=True` in you flow or task call and you can access its state with the `.result()` method, even if it's been submitted to a task runner.
+
+### `prefect cloud` commands are easier to use
+The `prefect cloud login` command no longer overwrites your current profile with a new API URL and auth key. Instead, the command will prompt you to create a new profile when logging into Prefect Cloud 2.0. Subsequent calls to prefect cloud login using the same key will simply "log in" to prefect cloud by switching to the profile associated with that authentication key.
+
+The new `prefect cloud workspace ls` command lists availible workspaces.
+
+### Other improvements and bug fixes
+- The anchor datetime (aka start datetime) for all newly created interval schedules will be the current date & time
+- The `prefect orion start` command now handles keyboard interrupts
+- CLI performance has been sped up 30-40% through improved import handling
+- UI screenschots have been updated throughout the documentation
+- Broken links don't feel as bad with our slick new 404 page
+
+## 2.0b13
+
+### Improvements and bug fixes
+- RRule schedule strings are now validated on initialization to confirm that the provided RRule strings are valid
+- Concepts docs have been updated for clarity and consistency
+- `IntervalSchedule`'s now coerce naive datetimes to timezone-aware datetimes, so that interval schedules created with timezone-unaware datetimes will work
+
+## 2.0b12
+
+### Work queue pages now display upcoming runs
+A new "Upcoming runs" tab has been added to the work queue page, enabling you to see all of the runs that are eligible for that work queue before they are picked up by an agent.
+
+### Other improvements and bug fixes
+- You can now set a concurrency limit when creating a work queue via the CLI
+- In order to avoid unwittingly breaking references to shared blocks, block names are no longer editable
+- Getting started documentation has been updated and edited for clarity
+- Blocks API documentation has been updated to include system, kubernetes, and notifications block modules
+
+## 2.0b11
+
+This release builds upon the collection of small enhancements made in the previous release.
+
+### Default storage has been removed
+For convenience, earlier versions of Prefect 2.0 allowed for a global storage setting. With forthcoming enhancements to blocks, this will no longer be necessary.
+
+### Other improvements and bug fixes
+- We have published a [guide for migrating workflows from Prefect 1.0 (and lower) to Prefect 2.0](https://orion-docs.prefect.io/migration_guide/) 
+- The Flow run page now has a clearer empty state that is more consistent with other pages
+- Tutorial documentation has been further updated to reflect new result behavior
+- Tasks and flows now run in interruptible threads when timeouts are used
+- Parameter validation no longer fails on unsupported types
+- The UI now returns you to the blocks overview after deleting a block
+- Flow run logs have been updated to improve user visibility into task runner usage
+- Concurrency limits of 0 are now respected on work queues
+
+## 2.0b10
+
+This release is the first of a series of smaller releases to be released daily.
+
+### Improvements and bug fixes
+- The Blocks selection page now includes more complete and consistent metadata about each block type, including block icons, descriptions, and examples
+- We've added a new [CLI style guide](https://github.com/PrefectHQ/prefect/blob/orion/docs/contributing/style.md#command-line-interface-cli-output-messages) for contributors
+- Work queues no longer filter on flow runner types, this capability will instead be achieved through tags
+- Tutorial documentation has been updated to reflect new result behavior
+
 ## 2.0b9
 
 Big things are in the works for Prefect 2! This release includes breaking changes and deprecations in preparation for Prefect 2 graduating from its beta period to General Availability. 

@@ -61,11 +61,6 @@ async def test_process_runs_command(tmp_path):
     assert (tmp_path / "canary").exists()
 
 
-async def test_process_cannot_be_run_with_empty_command():
-    with pytest.raises(ValueError, match="cannot be run with empty command"):
-        await Process().run()
-
-
 async def test_process_environment_variables(monkeypatch, mock_open_process):
     monkeypatch.setenv("MYVAR", "VALUE")
     await Process(command=["echo", "hello"], stream_output=False).run()

@@ -23,7 +23,7 @@ async def test_valid_names(name):
     assert schemas.core.Deployment(
         name=name,
         flow_id=uuid4(),
-        flow_data=schemas.data.DataDocument(encoding="x", blob=b"y"),
+        manifest_path="file.json",
     )
     assert schemas.core.BlockDocument(
         name=name, block_schema_id=uuid4(), block_type_id=uuid4()
@@ -44,7 +44,7 @@ async def test_invalid_names(name):
         assert schemas.core.Deployment(
             name=name,
             flow_id=uuid4(),
-            flow_data=schemas.data.DataDocument(encoding="x", blob=b"y"),
+            manifest_path="file.json",
         )
     with pytest.raises(pydantic.ValidationError, match="contains an invalid character"):
         assert schemas.core.BlockDocument(

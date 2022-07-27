@@ -1,6 +1,7 @@
 import asyncio
 import os
 import sys
+import tempfile
 from typing import Optional
 
 import sniffio
@@ -56,16 +57,18 @@ class Process(Infrastructure):
 
         # Open a subprocess to execute the flow run
         self.logger.info(f"Opening process{display_name}...")
-        self.logger.debug(
-            f"Process{display_name} running command: {' '.join(self.command)}"
-        )
+        with tempfile.TemporaryDirectory(suffix="prefect") as tmp_dir:
+            self.logger.debug(
+                f"Process{display_name} running command: {' '.join(self.command)} in {tmp_dir}"
+            )
 
-        process = await run_process(
-            self.command,
-            stream_output=self.stream_output,
-            task_status=task_status,
-            env=self._get_environment_variables(),
-        )
+            process = await run_process(
+                self.command,
+                stream_output=self.stream_output,
+                task_status=task_status,
+                env=self._get_environment_variables(),
+                cwd=tmp_dir,
+            )
 
         # Use the pid for display if no name was given
         display_name = display_name or f" {process.pid}"

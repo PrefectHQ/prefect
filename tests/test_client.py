@@ -16,7 +16,6 @@ import prefect.context
 import prefect.exceptions
 from prefect import flow
 from prefect.client import OrionClient, PrefectHttpxClient, get_client
-from prefect.infrastructure import Process
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -582,33 +581,38 @@ async def test_create_then_read_flow(orion_client):
     assert lookup.name == foo.name
 
 
-async def test_create_then_read_deployment(orion_client, infrastructure_document_id):
+async def test_create_then_read_deployment(
+    orion_client, infrastructure_document_id, storage_document_id
+):
     @flow
     def foo():
         pass
 
     flow_id = await orion_client.create_flow(foo)
     schedule = IntervalSchedule(interval=timedelta(days=1))
-    flow_data = DataDocument.encode("cloudpickle", foo)
 
     deployment_id = await orion_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
-        flow_data=flow_data,
+        manifest_path="path/file.json",
         schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
         infrastructure_document_id=infrastructure_document_id,
+        storage_document_id=storage_document_id,
+        parameter_openapi_schema={},
     )
 
     lookup = await orion_client.read_deployment(deployment_id)
     assert isinstance(lookup, schemas.core.Deployment)
     assert lookup.name == "test-deployment"
-    assert lookup.flow_data == flow_data
+    assert lookup.manifest_path == "path/file.json"
     assert lookup.schedule == schedule
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
+    assert lookup.storage_document_id == storage_document_id
     assert lookup.infrastructure_document_id == infrastructure_document_id
+    assert lookup.parameter_openapi_schema == {}
 
 
 async def test_read_deployment_by_name(orion_client):
@@ -618,12 +622,11 @@ async def test_read_deployment_by_name(orion_client):
 
     flow_id = await orion_client.create_flow(foo)
     schedule = IntervalSchedule(interval=timedelta(days=1))
-    flow_data = DataDocument.encode("cloudpickle", foo)
 
     deployment_id = await orion_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
-        flow_data=flow_data,
+        manifest_path="file.json",
         schedule=schedule,
     )
 
@@ -631,7 +634,7 @@ async def test_read_deployment_by_name(orion_client):
     assert isinstance(lookup, schemas.core.Deployment)
     assert lookup.id == deployment_id
     assert lookup.name == "test-deployment"
-    assert lookup.flow_data == flow_data
+    assert lookup.manifest_path == "file.json"
     assert lookup.schedule == schedule
 
 
@@ -642,12 +645,11 @@ async def test_create_then_delete_deployment(orion_client):
 
     flow_id = await orion_client.create_flow(foo)
     schedule = IntervalSchedule(interval=timedelta(days=1))
-    flow_data = DataDocument.encode("cloudpickle", foo)
 
     deployment_id = await orion_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
-        flow_data=flow_data,
+        manifest_path="file.json",
         schedule=schedule,
     )
 
@@ -687,7 +689,7 @@ async def test_deleting_concurrency_limits(orion_client):
         await orion_client.read_concurrency_limit_by_tag("dead-limit-walking")
 
 
-async def test_create_then_read_flow_run(orion_client, infrastructure_document_id):
+async def test_create_then_read_flow_run(orion_client):
     @flow
     def foo():
         pass
@@ -695,7 +697,6 @@ async def test_create_then_read_flow_run(orion_client, infrastructure_document_i
     flow_run = await orion_client.create_flow_run(
         foo,
         name="zachs-flow-run",
-        infrastructure_document_id=infrastructure_document_id,
     )
     assert isinstance(flow_run, schemas.core.FlowRun)
 
@@ -847,8 +848,7 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
     # Deployment details attached
     assert flow_run.deployment_id == deployment.id
     assert flow_run.flow_id == deployment.flow_id
-    # Includes flow runner
-    assert flow_run.infrastructure_document_id == deployment.infrastructure_document_id
+
     # Flow version is not populated yet
     assert flow_run.flow_version is None
     # State is scheduled for now
@@ -859,29 +859,6 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
         .in_seconds()
         < 1
     )
-
-
-async def test_create_flow_run_from_deployment_with_anonymous_infrastructure(
-    orion_client, deployment
-):
-    infrastructure_document_id = await Process(env={"foo": "bar"})._save(
-        is_anonymous=True
-    )
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id, infrastructure_document_id=infrastructure_document_id
-    )
-    assert flow_run.infrastructure_document_id == infrastructure_document_id
-
-
-async def test_create_flow_run_from_deployment_with_saved_infrastructure(
-    orion_client, deployment
-):
-    infrastructure = Process(env={"foo": "bar"})
-    infrastructure_document_id = await infrastructure.save("hello")
-    flow_run = await orion_client.create_flow_run_from_deployment(
-        deployment.id, infrastructure_document_id=infrastructure_document_id
-    )
-    assert flow_run.infrastructure_document_id == infrastructure_document_id
 
 
 async def test_update_flow_run(orion_client):
@@ -1136,13 +1113,14 @@ class TestClientWorkQueues:
     async def deployment(self, orion_client, infrastructure_document_id):
         foo = flow(lambda: None, name="foo")
         flow_id = await orion_client.create_flow(foo)
-        schedule = IntervalSchedule(interval=timedelta(days=1))
-        flow_data = DataDocument.encode("cloudpickle", foo)
+        schedule = IntervalSchedule(
+            interval=timedelta(days=1), anchor_date=pendulum.datetime(2020, 1, 1)
+        )
 
         deployment_id = await orion_client.create_deployment(
             flow_id=flow_id,
             name="test-deployment",
-            flow_data=flow_data,
+            manifest_path="file.json",
             schedule=schedule,
             parameters={"foo": "bar"},
             tags=["bing", "bang"],
@@ -1254,3 +1232,12 @@ async def test_delete_flow_run(orion_client, flow_run):
     # Check that trying to delete the deleted flow run raises an error
     with pytest.raises(prefect.exceptions.ObjectNotFound):
         await orion_client.delete_flow_run(flow_run.id)
+
+
+async def test_ephemeral_app_check(orion_client):
+    assert await orion_client.using_ephemeral_app()
+
+
+async def test_ephemeral_app_check_when_using_hosted_orion(hosted_orion_api):
+    async with OrionClient(hosted_orion_api) as orion_client:
+        assert (await orion_client.using_ephemeral_app()) is False

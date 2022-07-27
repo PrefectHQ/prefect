@@ -140,13 +140,17 @@ class OrionAgent:
         return submittable_runs
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
+        deployment = await self.client.read_deployment(flow_run.deployment_id)
+
+        ## get infra
         infrastructure_document_id = (
-            flow_run.infrastructure_document_id
+            deployment.infrastructure_document_id
             or self.default_infrastructure_document_id
         )
-        document = await self.client.read_block_document(infrastructure_document_id)
-        infrastructure_block = Block._from_block_document(document)
-
+        infra_document = await self.client.read_block_document(
+            infrastructure_document_id
+        )
+        infrastructure_block = Block._from_block_document(infra_document)
         # TODO: Here the agent may update the infrastructure with agent-level settings
         return infrastructure_block
 
