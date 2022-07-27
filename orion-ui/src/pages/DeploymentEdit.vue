@@ -27,6 +27,7 @@
   async function submit(deployment: IDeploymentRequest): Promise<void> {
     try {
       await deploymentsApi.updateDeployment(deploymentId.value, deployment)
+      showToast('Deployment updated', 'success')
       router.back()
     } catch (error) {
       showToast('Error updating deployment', 'error')
