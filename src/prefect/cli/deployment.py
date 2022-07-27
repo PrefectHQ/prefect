@@ -197,7 +197,12 @@ async def run(
 
 
 @deployment_app.command()
-async def execute(name: str):
+async def execute(
+    name: Optional[str] = typer.Argument(None, help="A deployment name"),
+    deployment_id: Optional[str] = typer.Option(
+        None, "--id", help="A deployment id to search for if no name is given"
+    ),
+):
     """
     Create and execute a local flow run for the given deployment.
 
@@ -209,7 +214,19 @@ async def execute(name: str):
     assert_deployment_name_format(name)
 
     async with get_client() as client:
-        deployment = await client.read_deployment_by_name(name)
+        if name is None and deployment_id is not None:
+            try:
+                deployment = await client.read_deployment(deployment_id)
+            except PrefectHTTPStatusError:
+                exit_with_error(f"Deployment {deployment_id!r} not found!")
+        elif name is not None:
+            try:
+                deployment = await client.read_deployment_by_name(name)
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {name!r} not found!")
+        else:
+            exit_with_error("Must provide a deployment name or id")
+
         app.console.print("Loading flow from deployed location...")
         flow = await load_flow_from_deployment(deployment, client=client)
         parameters = deployment.parameters or {}
