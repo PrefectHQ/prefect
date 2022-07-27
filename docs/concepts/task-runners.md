@@ -44,25 +44,25 @@ Depending on the task runner you use, the tasks within your flow can run sequent
 
 Prefect currently provides the following built-in task runners: 
 
-- [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) runs tasks concurrently, allowing tasks to switch when blocking on IO. Synchronous tasks will be submitted to a thread pool maintained by `anyio`.
-- [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner) runs tasks sequentially. 
+- [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) can run tasks concurrently, allowing tasks to switch when blocking on IO. Synchronous tasks will be submitted to a thread pool maintained by `anyio`.
+- [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner) can run tasks sequentially. 
 
 In addition, the following Prefect-developed task runners for parallel or distributed task execution may be installed as [Prefect Collections](/collections/overview/). 
 
-- [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) runs tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
-- [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) runs tasks requiring parallel execution using [Ray](https://www.ray.io/).
+- [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) can run tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
+- [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) can run tasks requiring parallel execution using [Ray](https://www.ray.io/).
 
 !!! warning "Dask and Ray task runner collections"
 
-    Note that the Prefect-developed Dask and Ray task runners have moved to [Prefect Collections](/collections/overview/).
+    If you used Dask and Ray task runners with prefect versions below 2.0, note that the Prefect-developed Dask and Ray task runners have moved to [Prefect Collections](/collections/overview/).
 
-    You should migrate your flows that use Dask or Ray to the [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) or [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) collections. See the task runner collection documentation for details.
+    You will need to migrate your flows that use Dask or Ray use [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) or [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) collections. 
 
 ## Using a task runner
 
 You do not need to specify a task runner for a flow unless your tasks require a specific type of execution. If you don't specify a task runner for a flow, and you call a task with `submit()` within the flow, Prefect uses the default `ConcurrentTaskRunner`.
 
-To configure your flow to use a specific task runner, import a task runner and assign it as an argument on the flow when the flow is defined.
+To configure your flow to use a specific task runner, import a task runner and assign it as an argument for the flow when the flow is defined.
 
 
 !!! "Remember to call `submit()` when using a task runner"
@@ -99,7 +99,7 @@ def stop_at_floor(floor):
 
 @flow(task_runner=ConcurrentTaskRunner())
 def elevator():
-    for floor in range(10,0,-1):
+    for floor in range(10, 0, -1):
         stop_at_floor.submit(floor)
 ```
 
@@ -112,7 +112,7 @@ Sometimes, it's useful to force tasks to run sequentially to make it easier to r
 !!! note "Synchronous and asynchronous tasks"
     The `SequentialTaskRunner` works with both synchronous and asynchronous task functions. Asynchronous tasks are Python functions defined using `async def` rather than `def`.
 
-The following example demonstrates using the `SequentialTaskRunner` to ensure that tasks run sequentially. In the example, the flow `glass_tower` runs the task `stop_at_floor` for floors one through 39, in that order.
+The following example demonstrates using the `SequentialTaskRunner` to ensure that tasks run sequentially. In the example, the flow `glass_tower` runs the task `stop_at_floor` for floors one through 38, in that order.
 
 ```python
 from prefect import flow, task
@@ -163,32 +163,34 @@ def sequential_flow():
 def dask_subflow():
     hello_dask.submit()
 
-sequential_flow()
+if __name__ == "__main__":
+    sequential_flow()
 ```
 
-This script outputs the following logs demonstrating the temporary Dask task runner:
+Note that you need to use `if __name__ == "__main__"` to avoid issues with parallel processing. 
+
+This script outputs the following logs demonstrating the use of the Dask task runner:
 
 <div class="terminal">
-```
-13:46:58.865 | Beginning flow run 'olivine-swan' for flow 'sequential-flow'...
-13:46:58.866 | Starting task runner `SequentialTaskRunner`...
-13:46:58.934 | Submitting task run 'hello_local-a087a829-0' to task runner...
+```bash 
+120:14:29.785 | INFO    | prefect.engine - Created flow run 'ivory-caiman' for flow 'sequential-flow'
+20:14:29.785 | INFO    | Flow run 'ivory-caiman' - Starting 'SequentialTaskRunner'; submitted tasks will be run sequentially...
+20:14:29.880 | INFO    | Flow run 'ivory-caiman' - Created task run 'hello_local-7633879f-0' for task 'hello_local'
+20:14:29.881 | INFO    | Flow run 'ivory-caiman' - Executing 'hello_local-7633879f-0' immediately...
 Hello!
-13:46:58.955 | Task run 'hello_local-a087a829-0' finished in state Completed(message=None, type=COMPLETED)
-13:46:58.981 | Beginning subflow run 'discreet-peacock' for flow 'dask-subflow'...
-13:46:58.981 | Starting task runner `DaskTaskRunner`...
-13:46:58.981 | Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
-13:46:59.339 | The Dask dashboard is available at http://127.0.0.1:8787/status
-13:46:59.369 | Submitting task run 'hello_dask-e80d21db-0' to task runner...
+20:14:29.904 | INFO    | Task run 'hello_local-7633879f-0' - Finished in state Completed()
+20:14:29.952 | INFO    | Flow run 'ivory-caiman' - Created subflow run 'nimble-sparrow' for flow 'dask-subflow'
+20:14:29.953 | INFO    | prefect.task_runner.dask - Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
+20:14:31.862 | INFO    | prefect.task_runner.dask - The Dask dashboard is available at http://127.0.0.1:8787/status
+20:14:31.901 | INFO    | Flow run 'nimble-sparrow' - Created task run 'hello_dask-2b96d711-0' for task 'hello_dask'
+20:14:32.370 | INFO    | Flow run 'nimble-sparrow' - Submitted task run 'hello_dask-2b96d711-0' for execution.
 Hello from Dask!
-13:47:00.066 | Task run 'hello_dask-e80d21db-0' finished in state Completed(message=None, type=COMPLETED)
-13:47:00.070 | Shutting down task runner `DaskTaskRunner`...
-13:47:00.294 | Subflow run 'discreet-peacock' finished in state Completed(message='All states completed.', type=COMPLETED)
-13:47:00.305 | Submitting task run 'hello_local-a087a829-1' to task runner...
+20:14:33.358 | INFO    | Flow run 'nimble-sparrow' - Finished in state Completed('All states completed.')
+20:14:33.368 | INFO    | Flow run 'ivory-caiman' - Created task run 'hello_local-7633879f-1' for task 'hello_local'
+20:14:33.368 | INFO    | Flow run 'ivory-caiman' - Executing 'hello_local-7633879f-1' immediately...
 Hello!
-13:47:00.325 | Task run 'hello_local-a087a829-1' finished in state Completed(message=None, type=COMPLETED)
-13:47:00.326 | Shutting down task runner `SequentialTaskRunner`...
-13:47:00.334 | Flow run 'olivine-swan' finished in state Completed(message='All states completed.', type=COMPLETED)
+20:14:33.386 | INFO    | Task run 'hello_local-7633879f-1' - Finished in state Completed()
+20:14:33.399 | INFO    | Flow run 'ivory-caiman' - Finished in state Completed('All states completed.')
 ```
 </div>
 
@@ -212,13 +214,14 @@ def say_hello(name):
 def hello_world():
     future = say_hello.submit("Marvin")
     print(f"variable 'future' is type {type(future)}")
+
+hello_world()
 ```
 
-If you call this flow, you'll see that the variable `future` is a `PrefectFuture`:
+When you run this code, you'll see that the variable `future` is a `PrefectFuture`:
 
 <div class="terminal">
 ```bash
->>> hello_world()
 variable 'future' is type <class 'prefect.futures.PrefectFuture'>
 ```
 </div>
@@ -245,11 +248,12 @@ def print_result(result):
 def hello_world():
     future = say_hello.submit("Marvin")
     print_result.submit(future)
+
+hello_world()
 ```
 
 <div class="terminal">
 ```bash
->>> hello_world()
 <class 'str'>
 Hello Marvin!
 ```
@@ -258,10 +262,19 @@ Hello Marvin!
 Futures have a few useful methods. For example, you can get the return value of the task run with  [`result()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result):
 
 ```python
+from prefect import flow, task
+
+@task
+def my_task():
+    return 42
+
 @flow
 def my_flow():
     future = my_task.submit()
     result = future.result()
+    print(result)
+
+my_flow()
 ```
 
 The `result()` method will wait for the task to complete before returning the result to the caller. If the task run fails, `result()` will raise the task run's exception. You may disable this behavior with the `raise_on_failure` option:
@@ -368,10 +381,14 @@ def say_nice_to_meet_you(hello_greeting):
 def hello_world():
     hello = say_hello.submit("Marvin")
     nice_to_meet_you = say_nice_to_meet_you.submit(hello)
+
+hello_world()
 ```
 
 Using only Python functions:
 ```python
+from prefect import flow, task
+
 def say_hello(name):
     return f"Hello {name}!"
 
@@ -382,11 +399,15 @@ def say_nice_to_meet_you(hello_greeting):
 def hello_world():
     hello = say_hello("Marvin") # because this is just a Python function, calls will not be tracked
     nice_to_meet_you = say_nice_to_meet_you(hello)
+
+hello_world()
 ```
 
 Mixing the two:
 ```python
-def say_hello_extra_nicely_to_marvin(hello): # not a `task`!
+from prefect import flow, task
+
+def say_hello_extra_nicely_to_marvin(hello): # not a task or flow!
     if hello == "Hello Marvin!":
         return "HI MARVIN!"
     return hello
@@ -404,11 +425,15 @@ def hello_world():
     # run a task and get the result
     hello = say_hello.submit("Marvin").result()
 
-    # use .result() and pure Python conditional logic
-    special_greeting = say_hello_extra_nicely_to_marvin.submit(hello)
+    # not calling a task or flow
+    special_greeting = say_hello_extra_nicely_to_marvin(hello)
 
-    # pass our modified greeting back into tasks
+    # pass our modified greeting back into a task
     nice_to_meet_you = say_nice_to_meet_you.submit(special_greeting)
+
+    print(nice_to_meet_you.result())
+
+hello_world()
 ```
 
 Note that `.result()` also limits Prefect's ability to track task dependencies. In the "mixed" example above, Prefect will not be aware that `say_hello` is upstream of `nice_to_meet_you`.
@@ -419,6 +444,8 @@ Note that `.result()` also limits Prefect's ability to track task dependencies. 
 
 ```python
 @task
+from prefect import flow, task
+
 def say_hello(name):
     return f"Hello {name}!"
 
@@ -430,6 +457,8 @@ def do_important_stuff():
 def hello_world():
     future = say_hello.submit("Marvin").result() # blocks until `say_hello` has finished
     do_important_stuff.submit()
+
+hello_world()
 ```
 
 ## Running tasks on Dask
@@ -593,6 +622,7 @@ def show(x):
         cluster_kwargs={"n_workers": 1, "resources": {"GPU": 1, "process": 1}}
     )
 )
+
 def my_flow():
     with dask.annotate(resources={'GPU': 1}):
         future = show(0)  # this task requires 1 GPU resource on a worker
@@ -604,6 +634,10 @@ def my_flow():
         future = show(1)
         future = show(2)
         future = show(3)
+
+
+if __name__ == "main":
+    my_flow()
 ```
 
 ## Running tasks on Ray
