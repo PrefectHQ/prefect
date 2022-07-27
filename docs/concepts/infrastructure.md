@@ -22,7 +22,7 @@ Prefect uses infrastructure to create the environment for a user's flow to execu
 Infrastructure is attached to a deployment and is propagated to flow runs created for that deployment. Infrastructure is deserialized by the agent and it has two jobs:
 
 - Create execution environment infrastructure for the flow run.
-- Run a Python command to start the `prefect.engine` in the infrastructure, which executes the flow.
+- Run a Python command to start the `prefect.engine` in the infrastructure, which retrieves the flow from storage and executes the flow.
 
 The engine acquires and calls the flow. Infrastructure doesn't know anything about how the flow is stored, it's just passing a flow run ID to the engine.
 
@@ -41,20 +41,20 @@ Infrastructure is specific to the environments in which flows will run. Prefect 
 
 ## Using infrastructure
 
-To use infrastructure in a deployment: 
+There are two distinct ways to use infrastructure in a deployment: 
 
-- Pass an infrastructure type with the `-i` or `--infra` flag when building deployment files. 
-- Specify infrastructure settings in the `infrastructure:` section of your `deployment.yaml`.
+- Starting with Prefect defaults &mdash; this is what happens when you pass  the `-i` or `--infra` flag and provide a type when building deployment files.
+- Pre-configure infrastructure settings and base your deployment infrastructure on those settings &mdash; this is what happens when you pass `--infra-block` and a block slug when building deployment files.
 
-For example, when creating your deployment files, the supported types are:
+For example, when creating your deployment files, the supported Prefect infrastrucure types are:
 
 - `process`
-- `docker`
-- `k8s`
+- `docker-container`
+- `kubernetes-job`
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./my_flow.py:my_flow -n my-flow-deployment -t test -i docker -sb s3/my-bucket
+$ prefect deployment build ./my_flow.py:my_flow -n my-flow-deployment -t test -i docker-container -sb s3/my-bucket
 Found flow 'my-flow'
 Manifest created at '/Users/terry/test/testflows/infra/my_flow-manifest.json'.
 Successfully uploaded 2 files to s3://bucket-full-of-sunshine
@@ -133,7 +133,6 @@ Current environment variables and Prefect settings will be included in the creat
 
 | Attributes | Description |
 | ---- | ---- |
-| command	| A list of strings specifying the command to run for the process. |
 | env	| Environment variables to set for the new process. |
 | name	| A name for the process. For display purposes only. |
 | labels	| Labels for the process. Labels are for metadata purposes only and cannot be attached to the process itself. |
@@ -148,12 +147,12 @@ Requirements for `DockerContainer`:
 - Docker Engine must be available.
 - You must configure remote [Storage](/concepts/storage/). Local storage is not supported for Docker.
 - The API must be available from within the flow run container. To facilitate connections to locally hosted APIs, `localhost` and `127.0.0.1` will be replaced with `host.docker.internal`.
+- The ephemeral Orion API won't work with Docker and Kubernetes. You must have an Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
 
 `DockerContainer` supports the following settings:
 
 | Attributes | Description |
 | ---- | ---- |
-| command	| A list of strings specifying the command to run in the container. |
 | image | An optional string specifying the tag of a Docker image to use. Defaults to the Prefect image. |
 | image_pull_policy | Specifies if the image should be pulled. One of 'ALWAYS', 'NEVER', 'IF_NOT_PRESENT'. |
 | network_mode | Set the network mode for the created container. Defaults to 'host' if a local API url is detected, otherwise the Docker default of 'bridge' is used. If 'networks' is set, this cannot be set. | 
@@ -174,6 +173,7 @@ Requirements for `KubernetesJob`:
 
 - `kubectl` must be available.
 - You must configure remote [Storage](/concepts/storage/). Local storage is not supported for Kubernetes.
+- The ephemeral Orion API won't work with Docker and Kubernetes. You must have an Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
 
 The Prefect CLI command `prefect kubernetes manifest orion` automatically generates a Kubernetes manifest with default settings for Prefect deployments. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
 
@@ -182,7 +182,6 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 | Attributes | Description |
 | ---- | ---- |
 | name | An optional name for the job. |
-| command	| A list of strings specifying the command to run in the container. |
 | image | String specifying the tag of a Docker image to use for the Job. |
 | image_pull_policy | The Kubernetes image pull policy to use for job containers. |
 | namespace | String signifying the Kubernetes namespace to use. |
@@ -275,32 +274,6 @@ FROM prefecthq/prefect:0.14.10
 RUN pip install scikit-learn
 ```
 
-**Building a new image from scratch**
-
-Alternatively, you can build your own image without relying on the provided
-`prefecthq/prefect` images. The only requirement is that `prefect` is installed
-and on `$PATH`.
-
-Here we provide an example `Dockerfile` for building an image with `prefect`
-(with the `github` extra), as well as `scikit-learn` and `matplotlib`. We use the
-[python:3.8-buster](https://hub.docker.com/_/python) image as the base image.
-
-```dockerfile
-FROM python:3.8-buster
-
-RUN pip install prefect[github] scikit-learn matplotlib
-```
-
-In either case, after you've built the image and pushed it to a registry, you
-can configure your flow to use it via the `image` field in your flow's [run
-config](./run_configs.md). For example, here we configure a flow deployed on
-Kubernetes to use the `my_org/my_custom_image:latest` image.
-
-```python
-from prefect.run_configs import KubernetesRun
-
-flow.run_configs = KubernetesRun(image="my_org/my_custom_image:latest")
-```
 
 ## Choosing an Image Strategy
 
