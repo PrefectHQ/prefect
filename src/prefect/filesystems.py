@@ -1,11 +1,16 @@
 import abc
+import glob
+import json
+import shutil
+import sys
 import urllib.parse
 from pathlib import Path
 from typing import Optional
 
 import anyio
 import fsspec
-from pydantic import Field, validator
+from pydantic import Field, SecretStr, validator
+from typing_extensions import Literal
 
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -43,6 +48,7 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
     _block_type_name = "Local File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/EVKjxM7fNyi4NGUSkeTEE/95c958c5dd5a56c59ea5033e919c1a63/image1.png?h=250"
 
+    type: str = "local"
     basepath: Optional[str] = None
 
     @validator("basepath", pre=True)
@@ -54,12 +60,14 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
     def _resolve_path(self, path: str) -> Path:
         # Only resolve the base path at runtime, default to the current directory
         basepath = (
-            Path(self.basepath).resolve() if self.basepath else Path(".").resolve()
+            Path(self.basepath).expanduser().resolve()
+            if self.basepath
+            else Path(".").resolve()
         )
 
         # Determine the path to access relative to the base path, ensuring that paths
         # outside of the base path are off limits
-        path: Path = Path(path)
+        path: Path = Path(path).expanduser()
         if not path.is_absolute():
             path = basepath / path
         else:
@@ -70,6 +78,42 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
                 )
 
         return path
+
+    async def get_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> None:
+        """
+        Copies a directory from one place to another on the local filesystem.
+
+        Defaults to copying the entire contents of the block's basepath to the current working directory.
+        """
+        if from_path is None:
+            from_path = Path(self.basepath).expanduser()
+
+        if local_path is None:
+            local_path = Path(".").absolute()
+
+        if sys.version_info < (3, 8):
+            shutil.copytree(from_path, local_path)
+        else:
+            shutil.copytree(from_path, local_path, dirs_exist_ok=True)
+
+    async def put_directory(self, local_path: str = None, to_path: str = None) -> None:
+        """
+        Copies a directory from one place to another on the local filesystem.
+
+        Defaults to copying the entire contents of the current working directory to the block's basepath.
+        """
+        if to_path is None:
+            to_path = Path(self.basepath).expanduser()
+
+        if local_path is None:
+            local_path = Path(".").absolute()
+
+        if sys.version_info < (3, 8):
+            shutil.copytree(from_path, local_path)
+        else:
+            shutil.copytree(from_path, local_path, dirs_exist_ok=True)
 
     async def read_path(self, path: str) -> bytes:
         path: Path = self._resolve_path(path)
@@ -120,6 +164,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
     _block_type_name = "Remote File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CxjycqILlT9S9YchI7o1q/ee62e2089dfceb19072245c62f0c69d2/image12.png?h=250"
 
+    type: str = "remote"
     basepath: str
     settings: dict = Field(default_factory=dict)
 
@@ -166,6 +211,46 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
 
         return f"{self.basepath.rstrip('/')}/{urlpath.lstrip('/')}"
 
+    async def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> None:
+        """
+        Downloads a directory from a given remote path to a local direcotry.
+
+        Defaults to downloading the entire contents of the block's basepath to the current working directory.
+        """
+        if from_path is None:
+            from_path = str(self.basepath)
+
+        if local_path is None:
+            local_path = Path(".").absolute()
+
+        return self.filesystem.get(from_path, local_path, recursive=True)
+
+    async def put_directory(
+        self, local_path: Optional[str] = None, to_path: Optional[str] = None
+    ) -> int:
+        """
+        Uploads a directory from a given local path to a remote direcotry.
+
+        Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        """
+        if to_path is None:
+            to_path = str(self.basepath)
+
+        if local_path is None:
+            local_path = "."
+
+        counter = 0
+        for f in glob.glob("**", recursive=True):
+            if to_path.endswith("/"):
+                fpath = to_path + f
+            else:
+                fpath = to_path + "/" + f
+            self.filesystem.put_file(f, fpath)
+            counter += 1
+        return counter
+
     async def read_path(self, path: str) -> bytes:
         path = self._resolve_path(path)
 
@@ -200,3 +285,154 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
                 ) from exc
 
         return self._filesystem
+
+
+class S3(ReadableFileSystem, WritableFileSystem):
+    """
+    Store data as a file on AWS S3.
+
+    Example:
+        Load stored S3 config:
+        ```python
+        from prefect.filesystems import S3
+
+        s3_block = S3.load("BLOCK_NAME")
+        ```
+    """
+
+    _block_type_name = "S3"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1jbV4lceHOjGgunX15lUwT/db88e184d727f721575aeb054a37e277/aws.png?h=250"
+
+    type: str = "s3"
+    bucket_path: str = Field(
+        ..., description="An S3 bucket path", example="my-bucket/a-directory-within"
+    )
+    aws_access_key_id: SecretStr = Field(None, title="AWS Access Key ID")
+    aws_secret_access_key: SecretStr = Field(None, title="AWS Secret Access Key")
+
+    _remote_file_system: RemoteFileSystem = None
+
+    @property
+    def basepath(self) -> str:
+        return f"s3://{self.bucket_path}"
+
+    @property
+    def filesystem(self) -> RemoteFileSystem:
+        settings = {}
+        if self.aws_access_key_id:
+            settings["key"] = self.aws_access_key_id.get_secret_value()
+        if self.aws_secret_access_key:
+            settings["secret"] = self.aws_secret_access_key.get_secret_value()
+        self._remote_file_system = RemoteFileSystem(
+            basepath=f"s3://{self.bucket_path}", settings=settings
+        )
+        return self._remote_file_system
+
+    async def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> bytes:
+        """
+        Downloads a directory from a given remote path to a local direcotry.
+
+        Defaults to downloading the entire contents of the block's basepath to the current working directory.
+        """
+        return await self.filesystem.get_directory(
+            from_path=from_path, local_path=local_path
+        )
+
+    async def put_directory(
+        self, local_path: Optional[str] = None, to_path: Optional[str] = None
+    ) -> int:
+        """
+        Uploads a directory from a given local path to a remote direcotry.
+
+        Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        """
+        return await self.filesystem.put_directory(
+            local_path=local_path, to_path=to_path
+        )
+
+    async def read_path(self, path: str) -> bytes:
+        return await self.filesystem.read_path(path)
+
+    async def write_path(self, path: str, content: bytes) -> str:
+        return await self.filesystem.write_path(path=path, content=content)
+
+
+class GCS(ReadableFileSystem, WritableFileSystem):
+    """
+    Store data as a file on Google Cloud Storage.
+
+    Example:
+        Load stored GCS config:
+        ```python
+        from prefect.filesystems import GCS
+
+        gcs_block = GCS.load("BLOCK_NAME")
+        ```
+    """
+
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CD4wwbiIKPkZDt4U3TEuW/c112fe85653da054b6d5334ef662bec4/gcp.png?h=250"
+
+    type: Literal["gcs"] = "gcs"
+    bucket_path: str = Field(
+        ..., description="A GCS bucket path", example="my-bucket/a-directory-within"
+    )
+    service_account_info: Optional[SecretStr] = Field(
+        None, description="The contents of a service account keyfile as a JSON string."
+    )
+    project: Optional[str] = Field(
+        None,
+        description="The project the GCS bucket resides in. If not provided, the project will be inferred from the credentials or environment.",
+    )
+
+    @property
+    def basepath(self) -> str:
+        return f"gcs://{self.bucket_path}"
+
+    @property
+    def filesystem(self) -> RemoteFileSystem:
+        settings = {}
+        if self.service_account_info:
+            try:
+                settings["token"] = json.loads(
+                    self.service_account_info.get_secret_value()
+                )
+            except json.JSONDecodeError:
+                raise ValueError(
+                    "Unable to load provided service_account_info. Please make sure that the provided value is a valid JSON string."
+                )
+        remote_file_system = RemoteFileSystem(
+            basepath=f"gcs://{self.bucket_path}", settings=settings
+        )
+        return remote_file_system
+
+    async def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> bytes:
+        """
+        Downloads a directory from a given remote path to a local directory.
+
+        Defaults to downloading the entire contents of the block's basepath to the current working directory.
+        """
+        return await self.filesystem.get_directory(
+            from_path=from_path, local_path=local_path
+        )
+
+    async def put_directory(
+        self, local_path: Optional[str] = None, to_path: Optional[str] = None
+    ) -> int:
+        """
+        Uploads a directory from a given local path to a remote directory.
+
+        Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        """
+        return await self.filesystem.put_directory(
+            local_path=local_path, to_path=to_path
+        )
+
+    async def read_path(self, path: str) -> bytes:
+        return await self.filesystem.read_path(path)
+
+    async def write_path(self, path: str, content: bytes) -> str:
+        return await self.filesystem.write_path(path=path, content=content)
