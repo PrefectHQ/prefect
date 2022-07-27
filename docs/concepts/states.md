@@ -30,10 +30,14 @@ By manipulating a relatively small number of task states, Prefect flows can harn
 ## State Types
 States have names and types. State types are canonical, with specific orchestration rules that apply to transitions into and out of each state type. A state's name, is often, but not always, synonymous with its type. For example, a task run that is running for the first time has a state with the name Running and the type `RUNNING`. However, if the task retries, that same task run will have the name Retrying and the type `RUNNING`. Each time the task run transitions into the `RUNNING` state, the same orchestration rules are applied.
 
-There are three terminal state types, from which there are no orchestrated transitions to any other state type.
+There are terminal state types from which there are no orchestrated transitions to any other state type.
+
 - `COMPLETED`
 - `CANCELLED`
 - `FAILED`
+- `CRASHED`
+
+The full complement of states and state types includes:
   
 | Name | Type | Terminal? | Description
 | --- | --- | --- | --- |
@@ -50,20 +54,15 @@ There are three terminal state types, from which there are no orchestrated trans
 
 ## Returned values
 
-
-
-
 When calling a task or a flow, there are three types of returned values:
 
-
-- _data_: A Python object (such as `int`, `str`, `dict`, `list`, and so on)
-
-- `State`: The status of a flow or task run
-
-- `PrefectFuture`: An object that contains both _data_ and _State_
+- data: A Python object (such as `int`, `str`, `dict`, `list`, and so on)
+- `State`: A Prefect object indicating the state of a flow or task run
+- `PrefectFuture`: A Prefect object that contains both _data_ and _State_
 
 ### Return Data
-By default, running a task will return _data_:
+
+By default, running a task will return data:
 
 ```python hl_lines="3-5"
 from prefect import flow, task 
@@ -90,6 +89,7 @@ def my_flow():
 ```
 
 ### Return Prefect State
+
 To return a `State` instead, add `return_state=True` as a parameter of your task call.
 
 ```python hl_lines="3-5"
@@ -119,7 +119,9 @@ def my_flow():
     state = subflow(return_state=True) # return State
     result = state.result() # return int
 ```
-### Return Prefect Future
+
+### Return a PrefectFuture
+
 To get a `PrefectFuture`, add `.submit()` to your task call.
 
 ```python hl_lines="3-5"
