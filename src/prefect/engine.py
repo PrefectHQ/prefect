@@ -16,6 +16,7 @@ Engine process overview
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
 import logging
+import sys
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
@@ -28,6 +29,7 @@ from typing_extensions import Literal
 
 import prefect
 import prefect.context
+from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import (
     FlowRunContext,
@@ -242,6 +244,11 @@ async def retrieve_flow_then_begin_flow_run(
     flow_run = await client.read_flow_run(flow_run_id)
 
     deployment = await client.read_deployment(flow_run.deployment_id)
+    storage_document = await client.read_block_document(deployment.storage_document_id)
+    storage_block = Block._from_block_document(storage_document)
+
+    sys.path.insert(0, ".")
+    await storage_block.get_directory(from_path=None, local_path=".")
 
     flow_run_logger(flow_run).debug(
         f"Loading flow for deployment {deployment.name!r}..."
