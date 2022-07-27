@@ -1,5 +1,20 @@
 # Prefect Release Notes
 
+
+## 2.0b16
+
+### Simpified deployment experience
+Prefect 2.0's deployments are a powerful way to encapsulate a flow, its required infrastructure, its schedule, its paramters, and more. Previously, creating a dedployment required engaging with the complexity created by the vast array of avaolible options. Now, you can create simple deployments with just two commands:
+1. `prefect deployment build ./path/to/flow/file.py:name_of_flow_obj --name "Deployment Name"` produces two files:
+     - A manifest file, containing workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters
+     - A `deployment.yaml` file - a complete specification of the metadata and configuration for the deployment such as the name, tags, and description
+3. `prefect deployment apply ./deployment.yaml` creates or updates a deployment with the Orion server
+
+### Improvements and bug fixes
+- Dask and Ray tutorials have been updated to reflect recent changes
+- All IntervalSchedules now require both an anchor date and a timezone
+- The new GCSFileSystem enables you to read and write data as a file on Google Cloud Storage
+
 ## 2.0b15
 
 ### Uniquely refer to blocks with slugs
