@@ -10,7 +10,7 @@
 
 <script lang="ts" setup>
   import { PageHeadingBlock, BlockDocumentCard } from '@prefecthq/orion-design'
-  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
+  import { useSubscriptionWithDependencies, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { routes } from '@/router'
@@ -18,7 +18,14 @@
 
   const router = useRouter()
   const blockDocumentId = useRouteParam('blockDocumentId')
-  const blockDocumentSubscription = useSubscription(blockDocumentsApi.getBlockDocument, [blockDocumentId])
+  const blockDocumentSubscriptionsArgs = computed<Parameters<typeof blockDocumentsApi.getBlockDocument> | null >(() => {
+    if (!blockDocumentId.value) {
+      return null
+    }
+
+    return [blockDocumentId.value]
+  })
+  const blockDocumentSubscription = useSubscriptionWithDependencies(blockDocumentsApi.getBlockDocument, blockDocumentSubscriptionsArgs)
   const blockDocument = computed(() => blockDocumentSubscription.response)
 
   const routeToBlocks = (): void => {
