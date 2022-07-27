@@ -187,6 +187,11 @@ async def run(
         else:
             exit_with_error("Must provide a deployment name or id")
 
+        if not deployment.manifest_path:
+            exit_with_error(
+                f"This deployment has been deprecated. Please remake this deployment."
+            )
+
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
     app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
 
