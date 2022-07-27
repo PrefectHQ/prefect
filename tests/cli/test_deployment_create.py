@@ -6,6 +6,8 @@ from prefect.testing.cli import invoke_and_assert
 
 EXAMPLES = Path(__file__).parent.parent / "deployments" / "examples"
 
+pytestmark = pytest.mark.skip(reason="Will revisit later as tech debt.")
+
 
 @pytest.mark.parametrize(
     "path",

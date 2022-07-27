@@ -55,10 +55,11 @@ async def create_deployment(
                     include={
                         "schedule",
                         "is_schedule_active",
+                        "description",
                         "tags",
                         "parameters",
-                        "flow_data",
                         "updated",
+                        "storage_document_id",
                         "infrastructure_document_id",
                     },
                 ),
@@ -82,6 +83,38 @@ async def create_deployment(
     model = result.scalar()
 
     return model
+
+
+@inject_db
+async def update_deployment(
+    session: sa.orm.Session,
+    deployment_id: UUID,
+    deployment: schemas.actions.DeploymentUpdate,
+    db: OrionDBInterface,
+) -> bool:
+    """Updates a deployment.
+
+    Args:
+        session: a database session
+        deployment_id: the ID of the deployment to modify
+        deployment: changes to a deployment model
+
+    Returns:
+        bool: whether the deployment was updated
+
+    """
+
+    # exclude_unset=True allows us to only update values provided by
+    # the user, ignoring any defaults on the model
+    update_data = deployment.dict(shallow=True, exclude_unset=True)
+
+    update_stmt = (
+        sa.update(db.Deployment)
+        .where(db.Deployment.id == deployment_id)
+        .values(**update_data)
+    )
+    result = await session.execute(update_stmt)
+    return result.rowcount > 0
 
 
 @inject_db
