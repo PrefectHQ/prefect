@@ -352,7 +352,6 @@ class OrionClient:
 
         self._client = PrefectHttpxClient(
             **httpx_settings,
-            event_hooks={"response": [lambda *args, **kwargs: breakpoint()]},
         )
         self.logger = get_logger("client")
 
