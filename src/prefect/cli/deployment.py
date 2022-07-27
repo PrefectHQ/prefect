@@ -417,11 +417,16 @@ class Infra(str, Enum):
 
 @deployment_app.command()
 async def build(
-    path: str,
+    path: str = typer.Argument(
+        ...,
+        help="The path to a flow entrypoint, in the form of `./path/to/file.py:flow_func_name`",
+    ),
     manifest_only: bool = typer.Option(
         False, "--manifest-only", help="Generate the manifest file only."
     ),
-    name: str = typer.Option(None, "--name", "-n", help="The name of the deployment."),
+    name: str = typer.Option(
+        None, "--name", "-n", help="The name to give the deployment."
+    ),
     tags: List[str] = typer.Option(
         None,
         "-t",
@@ -432,13 +437,13 @@ async def build(
         "process",
         "--infra",
         "-i",
-        help="The infrastructure type to use.",
+        help="The infrastructure type to use, prepopulated with defaults.",
     ),
     infra_block: str = typer.Option(
         None,
         "--infra-block",
         "-ib",
-        help="The slug of the infrastructure block to use.",
+        help="The slug of the infrastructure block to use as a template.",
     ),
     storage_block: str = typer.Option(
         None,
@@ -518,9 +523,17 @@ async def build(
         else:
             infrastructure = Process()
 
+    description = getdoc(flow)
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(f"{flow.name}/{name}")
+            description = deployment.description
+        except ObjectNotFound:
+            pass
+
     deployment = DeploymentYAML(
         name=name,
-        description=getdoc(flow),
+        description=description,
         tags=tags or [],
         flow_name=flow.name,
         parameter_openapi_schema=manifest.parameter_openapi_schema,
