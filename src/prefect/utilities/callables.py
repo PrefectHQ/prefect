@@ -25,7 +25,9 @@ def get_call_parameters(
     try:
         bound_signature = inspect.signature(fn).bind(*call_args, **call_kwargs)
     except TypeError as exc:
-        raise TypeError(f"Error binding parameters for {fn.__name__}: {str(exc)}")
+        raise TypeError(
+            f"Error calling {fn.__name__}: {str(exc)}, please check input parameters"
+        )
     bound_signature.apply_defaults()
     # We cast from `OrderedDict` to `dict` because Dask will not convert futures in an
     # ordered dictionary to values during execution; this is the default behavior in
