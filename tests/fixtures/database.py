@@ -182,8 +182,8 @@ async def task_run_states(session, task_run, task_run_state):
 
 
 @pytest.fixture
-async def storage_document_id(db, block_document):
-    return await LocalFileSystem().save(name="local-test")
+async def storage_document_id(db, block_document, tmpdir):
+    return await LocalFileSystem(basepath=str(tmpdir)).save(name="local-test")
 
 
 @pytest.fixture
