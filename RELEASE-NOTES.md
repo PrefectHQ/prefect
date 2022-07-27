@@ -1,5 +1,16 @@
 # Prefect Release Notes
 
+## 2.0.0
+
+We're thrilled to announce that, with this release Prefect 2.0 has exited its public beta! Hopefully, this release comes as no surprise. It is the culmination of nearly a year of building in public and incorporating your feedback. With this release, Prefect 2.0 is now the default version of the open source framework provided [upon installation](https://docs.prefect.io/getting-started/installation/). We will continue enhancing Prefect 2.0 rapidly, but future breaking changes will be less frequent and more notice will be provided.
+
+Prefect 2.0 documentation is now hosted at docs.prefect.io. Prefect 1.0 documentation is now hosted at docs-v1.prefect.io
+
+**Upgrading from Prefect 1.0**
+Flows written with Prefect 1.0 will require modifications to run with Prefect 2.0. If you're using Prefect 1.0, please see our [guidence on discourse for explicitly pinning your Prefect version in your package manager and Docker](https://discourse.prefect.io/t/the-general-availability-release-of-prefect-2-0-going-live-on-wednesday-27th-of-july-may-break-your-flows-unless-you-take-action-as-soon-as-possible/1227), so that you can make the transition to Prefect 2.0 when the time is right for you. See our [migration guide](https://docs.prefect.io/migration_guide/) to learn more about upgrading.
+
+**Upgrading from earlier versions of Prefect 2.0**
+We have shipped a lot of breaking changes to Prefect 2.0 over the past week. Most importantly, **recent changes to deployments required that schedules for all previously created deployments be turned off**. You can learn more about the changes via the [deployments concept documentation](https://docs.prefect.io/concepts/deployments/), the [tutorial](https://docs.prefect.io/tutorials/deployments/), or the [discourse guide](https://discourse.prefect.io/t/new-way-of-creating-deployments-in-prefect-2-0/1246).
 
 ## 2.0b16
 
