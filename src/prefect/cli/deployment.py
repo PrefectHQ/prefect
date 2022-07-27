@@ -431,9 +431,9 @@ async def preview(path: Path):
 
 
 class Infra(str, Enum):
-    kubernetes = "k8s"
-    process = "process"
-    docker = "docker"
+    kubernetes = KubernetesJob.get_block_type_slug()
+    process = Process.get_block_type_slug()
+    docker = DockerContainer.get_block_type_slug()
 
 
 @deployment_app.command()
