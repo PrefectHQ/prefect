@@ -50,14 +50,14 @@ To achieve this, we've leveraged the familiar tools of native Python: first clas
 
 ### If I’m using Prefect Cloud 2.0, do I still need to run Orion locally?
 
-No, Prefect Cloud 2.0 hosts an instance of Orion for you. In fact, each workspace in Prefect Could 2.0 corresponds directly to a single instance of Orion. See [Getting Started with Prefect Cloud](../ui/cloud-getting-started.md) for more information.
+No, Prefect Cloud 2.0 hosts an instance of Orion for you. In fact, each workspace in Prefect Could 2.0 corresponds directly to a single instance of Orion. See [Getting Started with Prefect Cloud](/ui/cloud-getting-started/) for more information.
 
 
 ## Features
 
 ### Does Prefect 2.0 support mapping?
 
-Yes! For more information, see the [`Task.map` API reference](../api-ref/prefect/tasks/#prefect.tasks.Task.map)
+Yes! For more information, see the [`Task.map` API reference](/api-ref/prefect/tasks/#prefect.tasks.Task.map)
 
 ```python
 @flow
@@ -116,4 +116,4 @@ This answer will be updated with more concrete guidelines in the future.
 
 ### Can a flow written with Prefect 1.0 be orchestrated with Prefect 2.0 and vice versa?
 
-No. Flows written with the Prefect 1.0 client must be rewritten with the Prefect 2.0 client. For most flows, this should take just a few minutes. See our [migration guide](../getting-started/migration_guide.md) and our [Upgrade to Prefect 2](https://www.prefect.io/guide/blog/upgrade-to-prefect-2/) post for more information.
+No. Flows written with the Prefect 1.0 client must be rewritten with the Prefect 2.0 client. For most flows, this should take just a few minutes. See our [migration guide](/migration-guide/) and our [Upgrade to Prefect 2](https://www.prefect.io/guide/blog/upgrade-to-prefect-2/) post for more information.
