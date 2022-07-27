@@ -189,7 +189,7 @@ async def run(
 
         if not deployment.manifest_path:
             exit_with_error(
-                f"This deployment has been deprecated. Please see https://discourse.prefect.io/t/deployments-are-now-simplified-and-follow-a-declarative-syntax/1255."
+                f"This deployment has been deprecated. Please see https://orion-docs.prefect.io/concepts/deployments/ to learn how to create a deployment."
             )
 
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
