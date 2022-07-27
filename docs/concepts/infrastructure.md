@@ -243,28 +243,6 @@ a few different tag options:
 | sha-<hash>-python3.7-conda  |            <hash>           |            3.7  |
 | sha-<hash>-python3.7-conda  |            <hash>           |            3.7  |
 
-The images can be broken into a few categories:
-
-- `core`: These images contain only `prefect` and its [core
-  dependencies](https://github.com/PrefectHQ/prefect/blob/master/requirements.txt).
-
-- `X.Y.Z`: These images contain `prefect`, as well as all "common" dependencies
-  required for deploying Prefect on common platforms. This includes all
-  dependencies required all builtin agents, as well as all `RunConfig`,
-  `Storage`, and `Result` classes. Each `X.Y.Z.` image corresponds to a
-  specific `prefect` release.
-
-- `latest`: These are the same as the `X.Y.Z` images above, but always
-  correspond to the latest `prefect` release.
-
-If you don't specify an image to use with your flow, Prefect will use the `prefecthq/prefect:X.Y.Z`
-image corresponding to the `prefect` version used to register your flow.
-
-Using the default image is a good option if your flow only relies on tasks
-defined in the same file as the flow, or tasks provided as part of the
-`prefect` library itself. If your task requires additional external
-dependencies, you'll need to build and manage your own images.
-
 ### Installing Extra Dependencies at Runtime
 
 If you're using the `prefecthq/prefect` image (or an image based on
