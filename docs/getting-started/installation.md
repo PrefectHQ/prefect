@@ -37,7 +37,7 @@ Find the available release versions in the [Prefect 2.0 Release Notes](https://g
 
 ### Installing the bleeding edge
 
-If you'd like to test with the most up-to-date code, you can install directly off the `prefect` branch on GitHub:
+If you'd like to test with the most up-to-date code, you can install directly off the `main` branch on GitHub:
 
 <div class="terminal">
 ```bash
