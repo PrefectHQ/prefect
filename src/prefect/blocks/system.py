@@ -74,49 +74,6 @@ class DateTime(Block):
     )
 
 
-class EnvironmentVariable(Block):
-    """
-    A block that pulls its value from an environment variable.
-
-    The variable it uses is configurable and can be set in the Prefect UI; the
-    block will recover its value at runtime from that variable. This allows
-    behavior to be modified remotely by changing the environment variable name.
-
-    Args:
-        name: The name of an environment variable that holds the value for this block.
-
-    Example:
-        Load a stored environment variable name:
-        ```python
-        from prefect.blocks.system import EnvironmentVariable
-
-        environment_variable_block = EnvironmentVariable.load("BLOCK_NAME")
-        ```
-
-        Load a value from an environment variable:
-        ```python
-        from prefect.blocks.system import EnvironmentVariable
-
-        block = EnvironmentVariable(name="MY_ENV_VAR")
-
-        # Loads the value of MY_ENV_VAR
-        env_var_value = block.get()
-        ```
-
-    """
-
-    _block_type_name = "Environment Variable"
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1KFh3IEna0rcEEyRpoBcsL/18aa1054699e90b01d1e064b4b8a763e/image7.png?h=250"
-
-    name: str = Field(
-        ...,
-        description="The name of an environment variable that holds the value for this block",
-    )
-
-    def get(self):
-        return os.getenv(self.name)
-
-
 class Secret(Block):
     """
     A block that represents a secret value. The value stored in this block will be obfuscated when
