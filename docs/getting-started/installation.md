@@ -41,11 +41,11 @@ If you'd like to test with the most up-to-date code, you can install directly of
 
 <div class="terminal">
 ```bash
-pip install git+https://github.com/PrefectHQ/prefect
+pip install -U git+https://github.com/PrefectHQ/prefect
 ```
 </div>
 
-!!! warning "The `prefect` branch may not be stable"
+!!! warning "The `main` branch may not be stable"
     Please be aware that this method installs unreleased code and may not be stable.
 
 ### Installing for development
