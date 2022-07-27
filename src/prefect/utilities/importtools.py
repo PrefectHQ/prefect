@@ -4,6 +4,7 @@ import inspect
 import os
 import runpy
 import sys
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from types import ModuleType
 from typing import Any, Dict, Union
@@ -138,6 +139,14 @@ def load_script_as_module(path: str) -> ModuleType:
         raise ScriptError(user_exc=exc, path=path) from exc
 
     return module
+
+
+def load_flow_from_manifest_path(path: str):
+    file_path, obj_name = path.rsplit(":", 1)
+    sys.path.insert(0, str(Path(file_path).parent))
+    sys.path.insert(0, str(Path(file_path).parent.parent))
+    flow = runpy.run_path(file_path)[obj_name]
+    return flow
 
 
 class DelayedImportErrorModule(ModuleType):

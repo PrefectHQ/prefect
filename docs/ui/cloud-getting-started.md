@@ -93,7 +93,7 @@ $ prefect cloud login --key xxx_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 </div>
 
-The command prompts you to choose a workspace if you haven't given one (you can specify a workspace with the `-w` or `--workspace` option).
+If this is your first time logging in with this API key, you will be prompted to make a new profile as well as select a workspace (you can specify a workspace with the `-w` or `--workspace` option).
 
 <div class="terminal">
 ```bash
@@ -103,25 +103,29 @@ $ prefect cloud login --key xxx_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ┡━━━━━━━━━━━━━━━━━━━━━━┩
 │ > prefect/workinonit │
 └──────────────────────┘
-Successfully logged in and set workspace to 'prefect/workinonit' in profile 'default'.
+Creating a profile for this Prefect Cloud login. Please specify a profile name: my-cloud-profile
+Logged in to Prefect Cloud using profile 'my-cloud-profile'.
+Workspace is currently set to 'prefect/workinonit'. The workspace can be changed using `prefect cloud workspace set`.
 ```
 </div>
 
-The command then sets `PREFECT_API_KEY` and `PREFECT_API_URL` for the current profile.
+The command sets `PREFECT_API_KEY` and `PREFECT_API_URL` for the new profile.
 
 Now you're ready to run flows locally and have the results displayed in the Prefect Cloud UI.
 
-The `prefect cloud logout` CLI command unsets those settings in the current profile, logging the environment out of interaction with Prefect Cloud.
+You can log out of Prefect Cloud by switching to a different profile.
 
 ### Changing workspaces
 
-If you need to change which workspace you're syncing with, use the `prefect cloud workspace set` Prefect CLI command, passing the the account handle and workspace name.
+If you need to change which workspace you're syncing with, use the `prefect cloud workspace set` Prefect CLI command while logged in, passing the the account handle and workspace name.
 
 <div class="terminal">
 ```bash
 $ prefect cloud workspace set --workspace "prefect/workinonit"
 ```
 </div>
+
+If no workspace is provided, you will be prompted to select one.
 
 ### Manually configuring Cloud settings
 
