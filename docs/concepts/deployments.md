@@ -19,7 +19,7 @@ tags:
 
 A deployment is a server-side concept that encapsulates a flow, allowing it to be scheduled and triggered via API. The deployment stores metadata about where your flow's code is stored and how your flow should be run.
 
-Each deployment references to a single flow (though that flow may, in turn, call any number of tasks and subflows). Any single flow, however, may be referenced by any number of deployments. 
+Each deployment references a single flow (though that flow may, in turn, call any number of tasks and subflows). Any single flow, however, may be referenced by any number of deployments. 
 
 At a high level, you can think of a deployment as configuration for managing flows, whether you run them via the CLI, the UI, or the API.
 
@@ -34,7 +34,7 @@ All Prefect flow runs are tracked by the API. The API does not require prior reg
 
 Creating a _deployment_ for a Prefect workflow means packaging workflow code, settings, and infrastructure configuration so that the workflow can be managed via the Prefect API and run remotely by a Prefect agent.  
 
-When creating a Deployment, a user must answer *two* basic questions:
+When creating a deployment, a user must answer *two* basic questions:
 
 - What instructions does the agent need to set up an execution environment for my workflow? For example, a workflow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
 - Where and how can the agent access the flow code?
@@ -153,7 +153,7 @@ parameter_openapi_schema:
 ```
 
 !!! note "Editing deployment.yaml"
-    Note the big **DO NOT EDIT** comment in `deployment.yaml`: In practice, anything in this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API. 
+    Note the big **DO NOT EDIT** comment in `deployment.yaml`: In practice, anything above this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API. 
     
     That said, we recommend editing most of these fields in the Prefect UI for convenience.
 
@@ -201,7 +201,7 @@ When you run this command, Prefect:
 - Creates the the manifest and `deployment.yaml` files for your deployment based on your flow code and options.
 - Uploads your flow files to the configured storage location (local by default).
 
-### Apply deployment
+### Create deployment in API
 
 When you've configured the manifest and `deployment.yaml` for a deployment, you can create the deployment on the API. Run the following Prefect CLI command.
 
@@ -263,7 +263,7 @@ Deployment properties include:
 | `created` | A `datetime` timestamp indicating when the deployment was created. |
 | `updated` | A `datetime` timestamp indicating when the deployment was last changed. |
 | `name` | The name of the deployment. |
-\ `description` | A description of the deployment. |
+| `description` | A description of the deployment. |
 | `flow_id` | The id of the flow associated with the deployment. |
 | `schedule` | An optional schedule for the deployment. |
 | <span class="no-wrap">`is_schedule_active`</span> | Boolean indicating whether the deployment schedule is active. Default is True. |
