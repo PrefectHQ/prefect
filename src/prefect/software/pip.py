@@ -1,12 +1,17 @@
 import warnings
-from typing import Dict, List, Type
+from typing import TYPE_CHECKING, Dict, List, Type
 
 import packaging.requirements
 import packaging.version
-import pkg_resources
 from typing_extensions import Literal, Self
 
 from prefect.software.base import Requirement
+from prefect.utilities.importtools import lazy_import
+
+if TYPE_CHECKING:
+    import pkg_resources
+else:
+    pkg_resources = lazy_import("pkg_resources")
 
 
 class PipRequirement(Requirement, packaging.requirements.Requirement):
@@ -17,7 +22,7 @@ class PipRequirement(Requirement, packaging.requirements.Requirement):
     """
 
     @classmethod
-    def from_distribution(cls: Type[Self], dist: pkg_resources.Distribution) -> Self:
+    def from_distribution(cls: Type[Self], dist: "pkg_resources.Distribution") -> Self:
         """
         Convert a Python distribution object into a requirement
         """
@@ -29,13 +34,13 @@ class PipRequirement(Requirement, packaging.requirements.Requirement):
         return cls.validate(dist.as_requirement())
 
 
-def _get_installed_distributions() -> Dict[str, pkg_resources.Distribution]:
+def _get_installed_distributions() -> Dict[str, "pkg_resources.Distribution"]:
     return {dist.project_name: dist for dist in pkg_resources.working_set}
 
 
 def _remove_distributions_required_by_others(
-    dists: Dict[str, pkg_resources.Distribution]
-) -> Dict[str, pkg_resources.Distribution]:
+    dists: Dict[str, "pkg_resources.Distribution"]
+) -> Dict[str, "pkg_resources.Distribution"]:
     # Collect all child requirements
     child_requirement_names = set()
     for dist in dists.values():

@@ -55,16 +55,16 @@ async def read_block_type_by_id(
     return block_type
 
 
-@router.get("/name/{name}")
-async def read_block_type_by_name(
-    block_type_name: str = Path(..., description="The block type name", alias="name"),
+@router.get("/slug/{slug}")
+async def read_block_type_by_slug(
+    block_type_slug: str = Path(..., description="The block type name", alias="slug"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.BlockType:
     """
     Get a block type by name.
     """
-    block_type = await models.block_types.read_block_type_by_name(
-        session=session, block_type_name=block_type_name
+    block_type = await models.block_types.read_block_type_by_slug(
+        session=session, block_type_slug=block_type_slug
     )
     if not block_type:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block type not found")
@@ -137,16 +137,16 @@ async def delete_block_type(
     )
 
 
-@router.get("/name/{name}/block_documents", tags=router.tags + ["Block documents"])
+@router.get("/slug/{slug}/block_documents", tags=router.tags + ["Block documents"])
 async def read_block_documents_for_block_type(
     session: sa.orm.Session = Depends(dependencies.get_session),
-    block_type_name: str = Path(..., description="The block type name", alias="name"),
+    block_type_slug: str = Path(..., description="The block type name", alias="slug"),
     include_secrets: bool = Query(
         False, description="Whether to include sensitive values in the block document."
     ),
 ) -> List[schemas.core.BlockDocument]:
-    block_type = await models.block_types.read_block_type_by_name(
-        session=session, block_type_name=block_type_name
+    block_type = await models.block_types.read_block_type_by_slug(
+        session=session, block_type_slug=block_type_slug
     )
     if not block_type:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block type not found")
@@ -160,15 +160,12 @@ async def read_block_documents_for_block_type(
 
 
 @router.get(
-    "/name/{block_type_name}/block_documents/name/{block_document_name}",
+    "/slug/{slug}/block_documents/name/{block_document_name}",
     tags=router.tags + ["Block documents"],
 )
 async def read_block_document_by_name_for_block_type(
     session: sa.orm.Session = Depends(dependencies.get_session),
-    block_type_name: str = Path(
-        ...,
-        description="The block type name",
-    ),
+    block_type_slug: str = Path(..., description="The block type name", alias="slug"),
     block_document_name: str = Path(..., description="The block type name"),
     include_secrets: bool = Query(
         False, description="Whether to include sensitive values in the block document."
@@ -176,7 +173,7 @@ async def read_block_document_by_name_for_block_type(
 ) -> schemas.core.BlockDocument:
     block_document = await models.block_documents.read_block_document_by_name(
         session=session,
-        block_type_name=block_type_name,
+        block_type_slug=block_type_slug,
         name=block_document_name,
         include_secrets=include_secrets,
     )
@@ -194,9 +191,7 @@ async def install_system_block_types(
     """Install block types that the system expects to be present"""
     for block in [
         prefect.blocks.system.JSON,
-        prefect.blocks.system.String,
         prefect.blocks.system.DateTime,
-        prefect.blocks.system.EnvironmentVariable,
         prefect.blocks.system.Secret,
     ]:
         block_type = block._to_block_type()

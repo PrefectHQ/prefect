@@ -7,7 +7,16 @@ from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
 from types import TracebackType
-from typing import Generator, Iterable, List, Optional, TextIO, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Generator,
+    Iterable,
+    List,
+    Optional,
+    TextIO,
+    Type,
+    Union,
+)
 from urllib.parse import urlsplit
 
 import pendulum
@@ -15,6 +24,7 @@ from slugify import slugify
 from typing_extensions import Self
 
 import prefect
+from prefect.utilities.importtools import lazy_import
 
 
 def python_version_minor() -> str:
@@ -77,17 +87,18 @@ def silence_docker_warnings() -> Generator[None, None, None]:
 # want to have those popping up in various modules and test suites.  Instead,
 # consolidate the imports we need here, and expose them via this module.
 with silence_docker_warnings():
-    from docker import DockerClient
-    from docker.errors import APIError, ImageNotFound, NotFound  # noqa: F401
-    from docker.models.containers import Container  # noqa: F401
-    from docker.models.images import Image
+    if TYPE_CHECKING:
+        import docker
+        from docker import DockerClient
+    else:
+        docker = lazy_import("docker")
 
 
 @contextmanager
-def docker_client() -> Generator[DockerClient, None, None]:
+def docker_client() -> Generator["DockerClient", None, None]:
     """Get the environmentally-configured Docker client"""
     with silence_docker_warnings():
-        client = DockerClient.from_env()
+        client = docker.DockerClient.from_env()
 
     try:
         yield client
@@ -155,7 +166,7 @@ def build_image(
                     raise BuildError(event["error"])
                 elif "message" in event:
                     raise BuildError(event["message"])
-        except APIError as e:
+        except docker.errors.APIError as e:
             raise BuildError(e.explanation) from e
 
     assert image_id, "The Docker daemon did not return an image ID"

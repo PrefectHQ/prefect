@@ -26,6 +26,7 @@ class TestCreateBlockType:
             session=session,
             block_type=schemas.actions.BlockTypeCreate(
                 name="x",
+                slug="x",
                 logo_url="http://example.com/logo.png",
                 documentation_url="http://example.com/documentation.html",
                 description="A block, verily",
@@ -48,20 +49,26 @@ class TestCreateBlockType:
         assert db_block_type.description == block_type.description
         assert db_block_type.code_example == block_type.code_example
 
-    async def test_create_block_type_unique_name(self, session):
+    async def test_create_block_type_unique_slug(self, session):
         await models.block_types.create_block_type(
             session=session,
-            block_type=schemas.actions.BlockTypeCreate(
-                name="x",
-            ),
+            block_type=schemas.actions.BlockTypeCreate(name="x", slug="x"),
         )
         with pytest.raises(sa.exc.IntegrityError):
             await models.block_types.create_block_type(
                 session=session,
-                block_type=schemas.actions.BlockTypeCreate(
-                    name="x",
-                ),
+                block_type=schemas.actions.BlockTypeCreate(name="x2", slug="x"),
             )
+
+    async def test_create_block_type_same_name_different_slug(self, session):
+        await models.block_types.create_block_type(
+            session=session,
+            block_type=schemas.actions.BlockTypeCreate(name="x", slug="x"),
+        )
+        await models.block_types.create_block_type(
+            session=session,
+            block_type=schemas.actions.BlockTypeCreate(name="x", slug="x2"),
+        )
 
 
 class TestReadBlockTypes:
@@ -128,8 +135,8 @@ class TestReadBlockTypes:
         assert db_block_type.name == block_type_x.name
 
     async def test_read_block_type_by_name(self, session, block_type_x):
-        db_block_type = await models.block_types.read_block_type_by_name(
-            session=session, block_type_name=block_type_x.name
+        db_block_type = await models.block_types.read_block_type_by_slug(
+            session=session, block_type_slug=block_type_x.name
         )
 
         assert db_block_type.id == block_type_x.id
@@ -140,8 +147,8 @@ class TestReadBlockTypes:
         )
 
     async def test_read_nonexistant_block_type_by_name(self, session):
-        assert not await models.block_types.read_block_type_by_name(
-            session=session, block_type_name="huh?"
+        assert not await models.block_types.read_block_type_by_slug(
+            session=session, block_type_slug="huh?"
         )
 
     async def test_read_all_block_types(

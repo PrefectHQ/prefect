@@ -47,16 +47,21 @@ async def create_deployment(
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
 
-    # this deployment might have already scheduled runs (if it's being upserted)
-    # so we delete them all here; if the upserted deployment has an active schedule
-    # then its runs will be rescheduled.
-    delete_query = sa.delete(db.FlowRun).where(
-        db.FlowRun.deployment_id == model.id,
-        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
-        db.FlowRun.auto_scheduled.is_(True),
-    )
-    await session.execute(delete_query)
     return model
+
+
+@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_deployment(
+    deployment: schemas.actions.DeploymentUpdate,
+    deployment_id: str = Path(..., description="The deployment id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
+):
+    result = await models.deployments.update_deployment(
+        session=session, deployment_id=deployment_id, deployment=deployment
+    )
+    if not result:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Deployment not found.")
 
 
 @router.get("/name/{flow_name}/{deployment_name}")
@@ -155,13 +160,6 @@ async def delete_deployment(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )
 
-    # if the delete succeeded, delete any scheduled runs
-    delete_query = sa.delete(db.FlowRun).where(
-        db.FlowRun.deployment_id == deployment_id,
-        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
-    )
-    await session.execute(delete_query)
-
 
 @router.post("/{id}/schedule")
 async def schedule_deployment(
@@ -224,13 +222,10 @@ async def set_schedule_inactive(
     deployment.is_schedule_active = False
     await session.flush()
 
-    # delete any future scheduled runs that were auto-scheduled
-    delete_query = sa.delete(db.FlowRun).where(
-        db.FlowRun.deployment_id == deployment.id,
-        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
-        db.FlowRun.auto_scheduled.is_(True),
+    # delete any auto scheduled runs
+    await models.deployments._delete_auto_scheduled_runs(
+        session=session, deployment_id=deployment_id, db=db
     )
-    await session.execute(delete_query)
 
 
 @router.post("/{id}/create_flow_run")

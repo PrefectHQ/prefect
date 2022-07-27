@@ -164,18 +164,14 @@ class TestCreateFlowRun:
 
         assert flow_run.id != flow_run_2.id
 
-    async def test_create_flow_run_with_deployment_id(
-        self, flow, session, flow_function
-    ):
+    async def test_create_flow_run_with_deployment_id(self, flow, session):
 
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="",
                 flow_id=flow.id,
-                flow_data=schemas.data.DataDocument.encode(
-                    "cloudpickle", flow_function
-                ),
+                manifest_path="file.json",
             ),
         )
         flow_run = await models.flow_runs.create_flow_run(
@@ -777,17 +773,13 @@ class TestReadFlowRuns:
         assert len(result) == 1
         assert result[0].id == flow_run_3.id
 
-    async def test_read_flows_filters_by_deployment_id(
-        self, flow, session, flow_function
-    ):
+    async def test_read_flows_filters_by_deployment_id(self, flow, session):
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="",
                 flow_id=flow.id,
-                flow_data=schemas.data.DataDocument.encode(
-                    "cloudpickle", flow_function
-                ),
+                manifest_path="file.json",
             ),
         )
         flow_run_1 = await models.flow_runs.create_flow_run(
@@ -904,6 +896,17 @@ class TestReadFlowRuns:
             ),
         )
         assert len(result) == 0
+
+        # filter using OR
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                operator="or_",
+                id=schemas.filters.FlowRunFilterId(any_=[flow_run_2.id]),
+                tags=schemas.filters.FlowRunFilterTags(all_=["blue"]),
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id, flow_run_2.id}
 
     async def test_read_flow_runs_filters_by_flow_criteria(self, flow, session):
         flow_run_1 = await models.flow_runs.create_flow_run(

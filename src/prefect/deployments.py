@@ -48,6 +48,8 @@ Examples:
     ```
 """
 
+import json
+import sys
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, TextIO, Union
@@ -55,20 +57,24 @@ from typing import Any, Dict, Iterable, List, Optional, TextIO, Union
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
+from prefect.blocks.core import Block
 from prefect.client import OrionClient, inject_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
-from prefect.flows import Flow, load_flow_from_script, load_flow_from_text
-from prefect.infrastructure import Infrastructure, Process
-from prefect.infrastructure.submission import FLOW_RUN_ENTRYPOINT
+from prefect.filesystems import LocalFileSystem
+from prefect.flows import Flow, load_flow_from_script
+from prefect.infrastructure import DockerContainer, KubernetesJob, Process
+from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.orion import OrionPackager
-from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.callables import ParameterSchema
 from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type
 from prefect.utilities.filesystem import tmpchdir, to_display_path
+from prefect.utilities.importtools import load_flow_from_manifest_path
 
 
 class FlowScript(BaseModel):
@@ -100,7 +106,6 @@ class Deployment(BaseModel):
     Args:
         name: String specifying the name of the deployment.
         flow: The flow object to associate with the deployment. You may provide the flow object directly as `flow=my_flow` if available in the same file as the `Deployment`. Alternatively, you may provide a `Path`, `FlowScript`, or `PackageManifest` specifying how to access to the flow.
-        flow_runner: Specifies the [flow runner](/api-ref/prefect/flow-runners/) used for flow runs. Uses the `UniversalFlowRunner` if none is specified.
         packager: The [prefect.packaging](/api-ref/prefect/packaging/) packager to use for packaging the flow.
         parameters: Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects.
         schedule: [Schedule](/concepts/schedules/) instance specifying a schedule for running the deployment.
@@ -119,7 +124,9 @@ class Deployment(BaseModel):
     parameters: Dict[str, Any] = Field(default_factory=dict)
     schedule: schemas.schedules.SCHEDULE_TYPES = None
 
-    infrastructure: Infrastructure = Field(default_factory=Process)
+    infrastructure: Union[DockerContainer, KubernetesJob, Process] = Field(
+        default_factory=Process
+    )
 
     def __init__(__pydantic_self__, **data: Any) -> None:
         super().__init__(**data)
@@ -196,12 +203,6 @@ class Deployment(BaseModel):
                 f"Updating infrastructure image to {manifest.image!r}..."
             )
             updates["image"] = manifest.image
-
-        if not self.infrastructure.command:
-            stream_progress_to.write(
-                f"Updating infrastructure command to {' '.join(FLOW_RUN_ENTRYPOINT)!r}..."
-            )
-            updates["command"] = FLOW_RUN_ENTRYPOINT
 
         infrastructure = self.infrastructure.copy(update=updates)
 
@@ -302,26 +303,31 @@ async def load_flow_from_deployment(
     deployment: schemas.core.Deployment, client: OrionClient
 ) -> Flow:
     """
-    Load a flow from the location/script/pickle provided in a deployment's flow data
-    document.
+    Load a flow from the location/script provided in a deployment's storage document.
     """
-    flow_model = await client.read_flow(deployment.flow_id)
+    with open(deployment.manifest_path, "r") as f:
+        manifest = json.load(f)
+    return load_flow_from_manifest_path(manifest["import_path"])
 
-    maybe_flow = await client.resolve_datadoc(deployment.flow_data)
-    if isinstance(maybe_flow, (str, bytes)):
-        flow = await run_sync_in_worker_thread(
-            load_flow_from_text, maybe_flow, flow_model.name
-        )
-    elif isinstance(maybe_flow, PackageManifest):
-        flow = await maybe_flow.unpackage()
-    else:
-        flow = maybe_flow
 
-    if not isinstance(flow, Flow):
-        raise TypeError(
-            "Deployment `flow_data` did not resolve to a `Flow`. Found: {flow!r}."
-        )
+@inject_client
+async def load_flow_from_flow_run(
+    flow_run: schemas.core.FlowRun, client: OrionClient
+) -> Flow:
+    """
+    Load a flow from the location/script provided in a deployment's storage document.
+    """
+    deployment = await client.read_deployment(flow_run.deployment_id)
+    storage_document = await client.read_block_document(deployment.storage_document_id)
+    storage_block = Block._from_block_document(storage_document)
 
+    sys.path.insert(0, ".")
+    await storage_block.get_directory(from_path=None, local_path=".")
+
+    flow_run_logger(flow_run).debug(
+        f"Loading flow for deployment {deployment.name!r}..."
+    )
+    flow = await load_flow_from_deployment(deployment, client=client)
     return flow
 
 
@@ -364,3 +370,73 @@ def load_deployments_from_yaml(
                 parse_obj_as(Deployment, deployment_dict)
 
     return registry
+
+
+class DeploymentYAML(BaseModel):
+    @property
+    def editable_fields(self) -> List[str]:
+        editable_fields = [
+            "name",
+            "description",
+            "tags",
+            "schedule",
+            "parameters",
+            "infrastructure",
+        ]
+        return editable_fields
+
+    @property
+    def header(self) -> str:
+        return f"###\n### A complete description of a Prefect Deployment for flow {self.flow_name!r}\n###\n"
+
+    def yaml_dict(self) -> dict:
+        # avoids issues with UUIDs showing up in YAML
+        all_fields = json.loads(
+            self.json(
+                exclude={
+                    "storage": {"_filesystem", "filesystem", "_remote_file_system"}
+                }
+            )
+        )
+        all_fields["storage"]["_block_type_slug"] = self.storage.get_block_type_slug()
+        return all_fields
+
+    def editable_fields_dict(self):
+        "Returns YAML compatible dictionary of editable fields, in the correct order"
+        all_fields = self.yaml_dict()
+        return {field: all_fields[field] for field in self.editable_fields}
+
+    def immutable_fields_dict(self):
+        "Returns YAML compatible dictionary of immutable fields, in the correct order"
+        all_fields = self.yaml_dict()
+        return {k: v for k, v in all_fields.items() if k not in self.editable_fields}
+
+    # top level metadata
+    name: str = Field(..., description="The name of the deployment.")
+    description: str = Field(
+        None, description="An optional description of the deployment."
+    )
+    tags: List[str] = Field(default_factory=list)
+    schedule: schemas.schedules.SCHEDULE_TYPES = None
+    flow_name: str = Field(..., description="The name of the flow.")
+
+    # flow data
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    manifest_path: str = Field(
+        ...,
+        description="The path to the flow's manifest file, relative to the chosen storage.",
+    )
+    infrastructure: Union[DockerContainer, KubernetesJob, Process] = Field(
+        default_factory=Process
+    )
+    storage: Block = Field(default_factory=LocalFileSystem)
+    parameter_openapi_schema: ParameterSchema = Field(
+        ..., description="The parameter schema of the flow, including defaults."
+    )
+
+    @validator("storage", pre=True)
+    def cast_storage_to_block_type(cls, value):
+        if isinstance(value, dict):
+            block = lookup_type(Block, value.pop("_block_type_slug"))
+            return block(**value)
+        return value

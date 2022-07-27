@@ -1,4 +1,5 @@
 import datetime
+import warnings
 
 import pendulum
 import pytest
@@ -7,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.core import Block
 from prefect.blocks.notifications import NotificationBlock
+from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
 from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import provide_database_interface
@@ -15,7 +17,6 @@ from prefect.orion.orchestration.rules import (
     TaskOrchestrationContext,
 )
 from prefect.orion.schemas import states
-from prefect.orion.schemas.data import DataDocument
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -181,6 +182,16 @@ async def task_run_states(session, task_run, task_run_state):
 
 
 @pytest.fixture
+async def storage_document_id(db, block_document, tmpdir):
+    return await LocalFileSystem(basepath=str(tmpdir)).save(name="local-test")
+
+
+@pytest.fixture
+async def storage_document_id_2(db, block_document):
+    return await LocalFileSystem().save(name="distinct-local-test")
+
+
+@pytest.fixture
 async def infrastructure_document_id(db, block_document):
     return await Process(env={"MY_TEST_VARIABLE": 1})._save(is_anonymous=True)
 
@@ -191,17 +202,21 @@ async def infrastructure_document_id_2(db, block_document):
 
 
 @pytest.fixture
-async def deployment(session, flow, flow_function, infrastructure_document_id):
+async def deployment(
+    session, flow, flow_function, infrastructure_document_id, storage_document_id
+):
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
             name="My Deployment",
             tags=["test"],
             flow_id=flow.id,
-            flow_data=DataDocument.encode("cloudpickle", flow_function),
+            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=1)
+                interval=datetime.timedelta(days=1),
+                anchor_date=pendulum.datetime(2020, 1, 1),
             ),
+            storage_document_id=storage_document_id,
             infrastructure_document_id=infrastructure_document_id,
         ),
     )
@@ -211,25 +226,28 @@ async def deployment(session, flow, flow_function, infrastructure_document_id):
 
 @pytest.fixture
 async def block_type_x(session):
+    # Ignore warnings caused by block reuse in fixtuer
+    warnings.filterwarnings("ignore", category=UserWarning)
     # TODO: In some cases, this fixture can run more than once which results in a
     #       failure due to the block already existing. Instead of failing, we'll read
     #       the existing block
     try:
         block_type = await models.block_types.create_block_type(
-            session=session, block_type=schemas.actions.BlockTypeCreate(name="x")
+            session=session,
+            block_type=schemas.actions.BlockTypeCreate(name="x", slug="x"),
         )
         await session.commit()
         return block_type
     except sa.exc.IntegrityError:
-        return await models.block_types.read_block_type_by_name(
-            session=session, block_type_name="x"
+        return await models.block_types.read_block_type_by_slug(
+            session=session, block_type_slug="x"
         )
 
 
 @pytest.fixture
 async def block_type_y(session):
     block_type = await models.block_types.create_block_type(
-        session=session, block_type=schemas.actions.BlockTypeCreate(name="y")
+        session=session, block_type=schemas.actions.BlockTypeCreate(name="y", slug="y")
     )
     await session.commit()
     return block_type
@@ -238,7 +256,7 @@ async def block_type_y(session):
 @pytest.fixture
 async def block_type_z(session):
     block_type = await models.block_types.create_block_type(
-        session=session, block_type=schemas.actions.BlockTypeCreate(name="z")
+        session=session, block_type=schemas.actions.BlockTypeCreate(name="z", slug="z")
     )
     await session.commit()
     return block_type
@@ -253,7 +271,7 @@ async def block_schema(session, block_type_x):
         "properties": {"foo": {"title": "Foo", "type": "string"}},
         "required": ["foo"],
         "block_schema_references": {},
-        "block_type_name": block_type_x.name,
+        "block_type_slug": block_type_x.slug,
     }
     try:
         block_schema = await models.block_schemas.create_block_schema(
@@ -284,10 +302,10 @@ async def nested_block_schema(session, block_type_y, block_type_x, block_schema)
                 "block_schema_references": {
                     "bar": {
                         "block_schema_checksum": block_schema.checksum,
-                        "block_type_name": block_type_x.name,
+                        "block_type_slug": block_type_x.slug,
                     }
                 },
-                "block_type_name": block_type_y.name,
+                "block_type_slug": block_type_y.slug,
                 "definitions": {
                     "x": {
                         "title": "x",
@@ -295,7 +313,7 @@ async def nested_block_schema(session, block_type_y, block_type_x, block_schema)
                         "properties": {"foo": {"title": "Foo", "type": "string"}},
                         "required": ["foo"],
                         "block_schema_references": {},
-                        "block_type_name": block_type_x.name,
+                        "block_type_slug": block_type_x.slug,
                     }
                 },
             },
@@ -312,7 +330,7 @@ async def block_document(session, block_schema, block_type_x):
         session=session,
         block_document=schemas.actions.BlockDocumentCreate(
             block_schema_id=block_schema.id,
-            name="Block 1",
+            name="block-1",
             block_type_id=block_type_x.id,
             data=dict(foo="bar"),
         ),
@@ -435,6 +453,9 @@ def initialize_orchestration(flow):
 
 @pytest.fixture
 async def notifier_block(orion_client):
+    # Ignore warnings from block reuse in fixture
+    warnings.filterwarnings("ignore", category=UserWarning)
+
     class DebugPrintNotification(NotificationBlock):
         """
         Notification block that prints a message, useful for debugging.
@@ -448,5 +469,5 @@ async def notifier_block(orion_client):
             print(body)
 
     block = DebugPrintNotification()
-    await block.save("Debug Print Notification")
+    await block.save("debug-print-notification")
     return block

@@ -7,7 +7,7 @@ import anyio
 import pendulum
 import pytest
 
-from prefect import flow, task
+from prefect import engine, flow, task
 from prefect.context import FlowRunContext
 from prefect.engine import (
     begin_flow_run,
@@ -17,7 +17,6 @@ from prefect.engine import (
 )
 from prefect.exceptions import ParameterTypeError
 from prefect.futures import PrefectFuture
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.states import (
     Cancelled,
@@ -29,7 +28,7 @@ from prefect.orion.schemas.states import (
     StateType,
 )
 from prefect.task_runners import SequentialTaskRunner
-from prefect.testing.utilities import AsyncMock, exceptions_equal
+from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
 from prefect.utilities.collections import quote
 from prefect.utilities.pydantic import PartialModel
 
@@ -319,6 +318,7 @@ class TestOrchestrateTaskRun:
         # Check that the task completed happily
         assert state.is_completed()
 
+    @flaky_on_windows
     async def test_interrupt_task(self):
         i = 0
 
@@ -859,19 +859,35 @@ class TestTaskRunCrashes:
 
 
 class TestDeploymentFlowRun:
+    @pytest.fixture
+    async def patch_manifest_load(self, monkeypatch):
+        async def patch_manifest(f):
+            async def anon(*args, **kwargs):
+                return f
+
+            monkeypatch.setattr(
+                engine,
+                "load_flow_from_flow_run",
+                anon,
+            )
+            return f
+
+        return patch_manifest
+
     async def create_deployment(self, client, flow):
         flow_id = await client.create_flow(flow)
         return await client.create_deployment(
             flow_id,
             name="test",
-            flow_data=DataDocument.encode("cloudpickle", flow),
+            manifest_path="file.json",
         )
 
-    async def test_completed_run(self, orion_client):
+    async def test_completed_run(self, orion_client, patch_manifest_load):
         @flow
         def my_flow(x: int):
             return x
 
+        await patch_manifest_load(my_flow)
         deployment_id = await self.create_deployment(orion_client, my_flow)
 
         flow_run = await orion_client.create_flow_run_from_deployment(
@@ -883,11 +899,12 @@ class TestDeploymentFlowRun:
         )
         assert state.result() == 1
 
-    async def test_failed_run(self, orion_client):
+    async def test_failed_run(self, orion_client, patch_manifest_load):
         @flow
         def my_flow(x: int):
             raise ValueError("test!")
 
+        await patch_manifest_load(my_flow)
         deployment_id = await self.create_deployment(orion_client, my_flow)
 
         flow_run = await orion_client.create_flow_run_from_deployment(
@@ -901,11 +918,14 @@ class TestDeploymentFlowRun:
         with pytest.raises(ValueError, match="test!"):
             state.result()
 
-    async def test_parameters_are_cast_to_correct_type(self, orion_client):
+    async def test_parameters_are_cast_to_correct_type(
+        self, orion_client, patch_manifest_load
+    ):
         @flow
         def my_flow(x: int):
             return x
 
+        await patch_manifest_load(my_flow)
         deployment_id = await self.create_deployment(orion_client, my_flow)
 
         flow_run = await orion_client.create_flow_run_from_deployment(
@@ -917,11 +937,14 @@ class TestDeploymentFlowRun:
         )
         assert state.result() == 1
 
-    async def test_state_is_failed_when_parameters_fail_validation(self, orion_client):
+    async def test_state_is_failed_when_parameters_fail_validation(
+        self, orion_client, patch_manifest_load
+    ):
         @flow
         def my_flow(x: int):
             return x
 
+        await patch_manifest_load(my_flow)
         deployment_id = await self.create_deployment(orion_client, my_flow)
 
         flow_run = await orion_client.create_flow_run_from_deployment(

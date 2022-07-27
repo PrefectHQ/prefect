@@ -1,9 +1,9 @@
 """
 The base class for all Orion loop services.
 """
-
 import asyncio
 import signal
+from typing import List
 
 import pendulum
 
@@ -138,3 +138,18 @@ class LoopService:
         of this method, in order to handle setup/shutdown properly.
         """
         raise NotImplementedError("LoopService subclasses must implement this method.")
+
+
+async def run_multiple_services(loop_services: List[LoopService]):
+    """
+    Only one signal handler can be active at a time, so this function takes a list
+    of loop services and runs all of them with a global signal handler.
+    """
+
+    def stop_all_services(self, *_):
+        for service in loop_services:
+            service._stop()
+
+    signal.signal(signal.SIGINT, stop_all_services)
+    signal.signal(signal.SIGTERM, stop_all_services)
+    await asyncio.gather(*[service.start() for service in loop_services])
