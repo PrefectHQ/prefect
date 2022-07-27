@@ -160,7 +160,14 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
 
 
 @deployment_app.command()
-async def run(name: str):
+async def run(
+    name: str = typer.Argument(
+        ..., help="A deployment name or id, if searching by id use `--id`"
+    ),
+    search_by_id: bool = typer.Option(
+        False, "--id", help="Search for deployment by id"
+    ),
+):
     """
     Create a flow run for the given flow and deployment.
 
@@ -170,7 +177,10 @@ async def run(name: str):
     """
     async with get_client() as client:
         try:
-            deployment = await client.read_deployment_by_name(name)
+            if search_by_id:
+                deployment = await client.read_deployment(name)
+            else:
+                deployment = await client.read_deployment_by_name(name)
         except ObjectNotFound:
             exit_with_error(f"Deployment {name!r} not found!")
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
@@ -289,7 +299,8 @@ async def apply(
         )
 
     app.console.print(
-        f"Deployment '{deployment_id}' successfully created.", style="green"
+        f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
+        style="green",
     )
 
 
@@ -310,22 +321,34 @@ def _deployment_name(deployment: Deployment):
 
 
 @deployment_app.command()
-async def delete(deployment_id: UUID):
+async def delete(
+    name: str = typer.Argument(
+        ..., help="A deployment name or id, if searching by id use `--id`"
+    ),
+    search_by_id: bool = typer.Option(
+        False, "--id", help="Search for deployment by id"
+    ),
+):
     """
     Delete a deployment.
 
     \b
     Example:
         \b
-        $ prefect deployment delete dfd3e220-a130-4149-9af6-8d487e02fea6
+        $ prefect deployment delete test_flow/test_deployment
+        $ prefect deployment delete dfd3e220-a130-4149-9af6-8d487e02fea6 --id
     """
     async with get_client() as client:
         try:
-            await client.delete_deployment(deployment_id)
+            if search_by_id:
+                await client.delete_deployment(name)
+            else:
+                deployment = await client.read_deployment_by_name(name)
+                await client.delete_deployment(deployment.id)
         except ObjectNotFound:
-            exit_with_error(f"Deployment '{deployment_id}' not found!")
+            exit_with_error(f"Deployment '{name}' not found!")
 
-    exit_with_success(f"Deleted deployment '{deployment_id}'.")
+    exit_with_success(f"Deleted deployment '{name}'.")
 
 
 @deployment_app.command()
