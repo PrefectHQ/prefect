@@ -42,11 +42,7 @@ def _prepare_infrastructure(
 async def submit_flow_run(
     flow_run: FlowRun,
     infrastructure: Infrastructure,
-    storage,
-    manifest_path: str,
     task_status: Optional[TaskStatus] = None,
 ):
     infrastructure = _prepare_infrastructure(flow_run, infrastructure)
-    return await infrastructure.run(
-        task_status=task_status, storage=storage, manifest_path=manifest_path
-    )
+    return await infrastructure.run(task_status=task_status)

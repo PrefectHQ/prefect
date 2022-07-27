@@ -6,7 +6,6 @@ import anyio
 import anyio.abc
 import pytest
 
-from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure.process import Process
 from prefect.testing.utilities import AsyncMock
 
@@ -18,17 +17,11 @@ def mock_open_process(monkeypatch):
     yield anyio.open_process
 
 
-@pytest.fixture
-def storage(tmpdir):
-    storage = LocalFileSystem(basepath=str(tmpdir))
-    return storage
-
-
 @pytest.mark.parametrize("stream_output", [True, False])
-async def test_process_stream_output(capsys, stream_output, storage):
+async def test_process_stream_output(capsys, stream_output):
     assert await Process(
         stream_output=stream_output, command=["echo", "hello world"]
-    ).run(storage=storage, manifest_path="")
+    ).run()
 
     out, err = capsys.readouterr()
 
@@ -42,10 +35,10 @@ async def test_process_stream_output(capsys, stream_output, storage):
 @pytest.mark.skipif(
     sys.platform == "win32", reason="stderr redirect does not work on Windows"
 )
-async def test_process_streams_stderr(capsys, storage):
+async def test_process_streams_stderr(capsys):
     assert await Process(
         command=["bash", "-c", ">&2 echo hello world"], stream_output=True
-    ).run(storage=storage, manifest_path="")
+    ).run()
 
     out, err = capsys.readouterr()
     assert out == ""
@@ -56,27 +49,21 @@ async def test_process_streams_stderr(capsys, storage):
     sys.platform == "win32", reason="bash calls are not working on Windows"
 )
 @pytest.mark.parametrize("exit_code", [0, 1, 2])
-async def test_process_returns_exit_code(exit_code, storage):
-    result = await Process(command=["bash", "-c", f"exit {exit_code}"]).run(
-        storage=storage, manifest_path=""
-    )
+async def test_process_returns_exit_code(exit_code):
+    result = await Process(command=["bash", "-c", f"exit {exit_code}"]).run()
     assert result.status_code == exit_code
     assert bool(result) is (exit_code == 0)
 
 
-async def test_process_runs_command(tmp_path, storage):
+async def test_process_runs_command(tmp_path):
     # Perform a side-effect to demonstrate the command is run
-    assert await Process(command=["touch", str(tmp_path / "canary")]).run(
-        storage=storage, manifest_path=""
-    )
+    assert await Process(command=["touch", str(tmp_path / "canary")]).run()
     assert (tmp_path / "canary").exists()
 
 
-async def test_process_environment_variables(monkeypatch, mock_open_process, storage):
+async def test_process_environment_variables(monkeypatch, mock_open_process):
     monkeypatch.setenv("MYVAR", "VALUE")
-    await Process(command=["echo", "hello"], stream_output=False).run(
-        storage=storage, manifest_path=""
-    )
+    await Process(command=["echo", "hello"], stream_output=False).run()
     mock_open_process.assert_awaited_once()
     env = mock_open_process.call_args[1].get("env")
     assert env == {**os.environ, **Process._base_environment(), "MYVAR": "VALUE"}
@@ -85,11 +72,9 @@ async def test_process_environment_variables(monkeypatch, mock_open_process, sto
 @pytest.mark.skipif(
     sys.platform == "win32", reason="bash calls are not working on Windows"
 )
-async def test_process_includes_current_env_vars(monkeypatch, capsys, storage):
+async def test_process_includes_current_env_vars(monkeypatch, capsys):
     monkeypatch.setenv("MYVAR", "VALUE-A")
-    assert await Process(command=["bash", "-c", "echo $MYVAR"]).run(
-        storage=storage, manifest_path=""
-    )
+    assert await Process(command=["bash", "-c", "echo $MYVAR"]).run()
     out, _ = capsys.readouterr()
     assert "VALUE-A" in out
 
@@ -97,16 +82,16 @@ async def test_process_includes_current_env_vars(monkeypatch, capsys, storage):
 @pytest.mark.skipif(
     sys.platform == "win32", reason="bash calls are not working on Windows"
 )
-async def test_process_env_override_current_env_vars(monkeypatch, capsys, storage):
+async def test_process_env_override_current_env_vars(monkeypatch, capsys):
     monkeypatch.setenv("MYVAR", "VALUE-A")
     assert await Process(
         command=["bash", "-c", "echo $MYVAR"], env={"MYVAR": "VALUE-B"}
-    ).run(storage=storage, manifest_path="")
+    ).run()
     out, _ = capsys.readouterr()
     assert "VALUE-B" in out
 
 
-async def test_process_created_then_marked_as_started(mock_open_process, storage):
+async def test_process_created_then_marked_as_started(mock_open_process):
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     # By raising an exception when started is called we can assert the process
     # is opened before this time
@@ -114,16 +99,16 @@ async def test_process_created_then_marked_as_started(mock_open_process, storage
 
     with pytest.raises(RuntimeError, match="Started called!"):
         await Process(command=["echo", "hello"], stream_output=False).run(
-            storage=storage, manifest_path="", task_status=fake_status
+            task_status=fake_status
         )
 
     fake_status.started.assert_called_once()
     mock_open_process.assert_awaited_once()
 
 
-async def test_task_status_receives_pid(storage):
+async def test_task_status_receives_pid():
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     result = await Process(command=["echo", "hello"], stream_output=False).run(
-        storage=storage, manifest_path="", task_status=fake_status
+        task_status=fake_status
     )
     fake_status.started.assert_called_once_with(int(result.identifier))

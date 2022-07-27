@@ -6,8 +6,8 @@ import pytest
 
 from prefect import flow
 from prefect.agent import OrionAgent
+from prefect.blocks.core import Block
 from prefect.exceptions import Abort
-from prefect.infrastructure import Process
 from prefect.orion.schemas.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
 
@@ -148,13 +148,10 @@ async def test_agent_internal_submit_run_called(
     agent.submit_run.assert_awaited_once_with(flow_run)
 
 
-@pytest.mark.skip(reason="Will revisit when all hooks are complete.")
 class TestInfrastructureIntegration:
     @pytest.fixture
     def mock_submit(self, monkeypatch):
-        def mark_as_started(
-            flow_run, infrastructure, task_status, storage, manifest_path
-        ):
+        def mark_as_started(flow_run, infrastructure, task_status):
             task_status.started()
 
         mock = AsyncMock(side_effect=mark_as_started)
@@ -172,7 +169,8 @@ class TestInfrastructureIntegration:
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
 
-        infrastructure = await orion_client.read_block_document(infra_doc_id)
+        infra_document = await orion_client.read_block_document(infra_doc_id)
+        infrastructure = Block._from_block_document(infra_document)
         async with OrionAgent(
             work_queue_id=work_queue_id, prefetch_seconds=10
         ) as agent:
@@ -183,13 +181,9 @@ class TestInfrastructureIntegration:
     async def test_agent_submit_run_sets_pending_state(
         self, orion_client, deployment, work_queue_id, mock_submit
     ):
-        infrastructure = Process(env={"foo": "bar"})
-        infrastructure_document_id = await infrastructure._save(is_anonymous=True)
-
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure_document_id=infrastructure_document_id,
         )
 
         async with OrionAgent(
@@ -223,9 +217,6 @@ class TestInfrastructureIntegration:
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=now.add(seconds=10)),
-            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
-                is_anonymous=True
-            ),
         )
 
         async with OrionAgent(
@@ -247,9 +238,6 @@ class TestInfrastructureIntegration:
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
-                is_anonymous=True
-            ),
         )
 
         async with OrionAgent(
@@ -274,9 +262,6 @@ class TestInfrastructureIntegration:
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
-                is_anonymous=True
-            ),
         )
 
         await orion_client.delete_flow_run(flow_run.id)
@@ -302,9 +287,6 @@ class TestInfrastructureIntegration:
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
-                is_anonymous=True
-            ),
         )
 
         async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
@@ -324,13 +306,13 @@ class TestInfrastructureIntegration:
     async def test_agent_fails_flow_if_infrastructure_submission_fails(
         self, orion_client, deployment, work_queue_id, mock_submit
     ):
-        infrastructure = Process(env={"foo": "bar"})
-        infrastructure_document_id = await infrastructure._save(is_anonymous=True)
+        infra_doc_id = deployment.infrastructure_document_id
+        infra_document = await orion_client.read_block_document(infra_doc_id)
+        infrastructure = Block._from_block_document(infra_document)
 
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure_document_id=infrastructure_document_id,
         )
 
         mock_submit.side_effect = ValueError("Hello!")
@@ -356,9 +338,6 @@ class TestInfrastructureIntegration:
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure_document_id=await Process(env={"foo": "bar"})._save(
-                is_anonymous=True
-            ),
         )
 
         # This excludes calling `task_status.started()` which will throw an anyio error
@@ -381,22 +360,6 @@ class TestInfrastructureIntegration:
             RuntimeError, match="Child exited without calling task_status.started"
         ):
             raise result
-
-    async def test_agent_dispatches_to_given_infrastructure(
-        self, orion_client, deployment, work_queue_id
-    ):
-        infrastructure = Process(env={"foo": "bar"})
-        expected_id = await infrastructure.save("hello")
-
-        flow_run = await orion_client.create_flow_run_from_deployment(
-            deployment.id,
-            state=Scheduled(scheduled_time=pendulum.now("utc")),
-            infrastructure_document_id=expected_id,
-        )
-
-        async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
-            used_infrastructure = await agent.get_infrastructure(flow_run)
-            assert used_infrastructure._block_document_id == expected_id
 
 
 @pytest.fixture
