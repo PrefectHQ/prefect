@@ -23,7 +23,7 @@
       </template>
 
       <template #parameters>
-        <ParametersTable :parameters="deployment.parameters" />
+        <ParametersTable :deployment="deployment" />
       </template>
 
       <template #details>
