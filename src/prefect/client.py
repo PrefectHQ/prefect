@@ -350,7 +350,10 @@ class OrionClient:
                 f"Unexpected type {type(api).__name__!r} for argument `api`. Expected 'str' or 'FastAPI'"
             )
 
-        self._client = PrefectHttpxClient(**httpx_settings)
+        self._client = PrefectHttpxClient(
+            **httpx_settings,
+            event_hooks={"response": [lambda *args, **kwargs: breakpoint()]},
+        )
         self.logger = get_logger("client")
 
     @property
