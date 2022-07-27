@@ -245,6 +245,10 @@ async def login(
     async with get_cloud_client(api_key=key) as client:
         try:
             workspaces = await client.read_workspaces()
+            workspace_handle_details = {
+                f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
+                for workspace in workspaces
+            }
         except CloudUnauthorizedError:
             exit_with_error(
                 "Unable to authenticate with Prefect Cloud. Please ensure your credentials are correct."
@@ -258,6 +262,20 @@ async def login(
             save_profiles(profiles)
             with prefect.context.use_profile(profile_name):
                 current_workspace = get_current_workspace(workspaces)
+
+                if workspace_handle is not None:
+                    if workspace_handle not in workspace_handle_details:
+                        exit_with_error(f"Workspace {workspace_handle!r} not found.")
+
+                    update_current_profile(
+                        {
+                            PREFECT_API_URL: build_url_from_workspace(
+                                workspace_handle_details[workspace_handle]
+                            )
+                        }
+                    )
+                    current_workspace = workspace_handle
+
                 exit_with_success(
                     f"Logged in to Prefect Cloud using profile {profile_name!r}.\n"
                     f"Workspace is currently set to {current_workspace!r}. "
