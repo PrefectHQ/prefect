@@ -16,7 +16,7 @@ tags:
 
 ## Prefect coordinates dataflows
 
-Prefect is the coordination plane that provides you with everything from dataflow observability to dataflow orchestration. 
+Prefect is air traffic control for your data stack. Monitor, coordinate, and orchestrate dataflows between and across your applications. Build pipelines, deploy them anywhere, and configure them remotely. You might just love your workflows again.
 
 ## Why Prefect?
 
