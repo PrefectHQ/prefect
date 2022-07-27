@@ -326,11 +326,9 @@ class Deployment(ORMBaseModel):
     """An ORM representation of deployment data."""
 
     name: str = Field(..., description="The name of the deployment.")
+    description: str = Field(None, description="A description for the deployment.")
     flow_id: UUID = Field(
         ..., description="The flow id associated with the deployment."
-    )
-    flow_data: schemas.data.DataDocument = Field(
-        ..., description="A data document representing the flow code to execute."
     )
     schedule: schemas.schedules.SCHEDULE_TYPES = Field(
         None, description="A schedule for the deployment."
@@ -348,6 +346,18 @@ class Deployment(ORMBaseModel):
         example=["tag-1", "tag-2"],
     )
 
+    parameter_openapi_schema: Dict[str, Any] = Field(
+        None,
+        description="The parameter schema of the flow, including defaults.",
+    )
+    manifest_path: str = Field(
+        ...,
+        description="The path to the flow's manifest file, relative to the chosen storage.",
+    )
+    storage_document_id: Optional[UUID] = Field(
+        None,
+        description="The block document defining storage used for this flow.",
+    )
     infrastructure_document_id: Optional[UUID] = Field(
         None,
         description="The block document defining infrastructure to use for flow runs.",

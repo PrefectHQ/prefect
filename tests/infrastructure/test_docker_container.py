@@ -63,14 +63,14 @@ async def test_name_cast_to_valid_container_name(
     mock_docker_client, requested_name, container_name
 ):
 
-    await DockerContainer(name=requested_name).run()
+    await DockerContainer(name=requested_name).run(storage=None, manifest_path="")
     mock_docker_client.containers.create.assert_called_once()
     call_name = mock_docker_client.containers.create.call_args[1].get("name")
     assert call_name == container_name
 
 
 async def test_container_name_falls_back_to_null(mock_docker_client):
-    await DockerContainer(name="--__....").run()
+    await DockerContainer(name="--__....").run(storage=None, manifest_path="")
     mock_docker_client.containers.create.assert_called_once()
     call_name = mock_docker_client.containers.create.call_args[1].get("name")
     assert call_name is None
@@ -99,7 +99,7 @@ async def test_container_name_includes_index_on_conflict(
 
     mock_docker_client.containers.create.side_effect = fail_if_name_exists
 
-    await DockerContainer(name="test-name").run()
+    await DockerContainer(name="test-name").run(storage=None, manifest_path="")
 
     assert mock_docker_client.containers.create.call_count == collision_count + 1
     call_name = mock_docker_client.containers.create.call_args[1].get("name")
@@ -119,18 +119,18 @@ async def test_container_creation_failure_reraises_if_not_name_conflict(
     )
 
     with pytest.raises(docker.errors.APIError, match="test error"):
-        await DockerContainer().run()
+        await DockerContainer().run(storage=None, manifest_path="")
 
 
 async def test_uses_image_setting(mock_docker_client):
-    await DockerContainer(image="foo").run()
+    await DockerContainer(image="foo").run(storage=None, manifest_path="")
     mock_docker_client.containers.create.assert_called_once()
     call_image = mock_docker_client.containers.create.call_args[1].get("image")
     assert call_image == "foo"
 
 
 async def test_uses_volumes_setting(mock_docker_client):
-    await DockerContainer(volumes=["a:b", "c:d"]).run()
+    await DockerContainer(volumes=["a:b", "c:d"]).run(storage=None, manifest_path="")
     mock_docker_client.containers.create.assert_called_once()
     call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
     assert "a:b" in call_volumes
@@ -139,7 +139,7 @@ async def test_uses_volumes_setting(mock_docker_client):
 
 @pytest.mark.parametrize("networks", [[], ["a"], ["a", "b"]])
 async def test_uses_network_setting(mock_docker_client, networks):
-    await DockerContainer(networks=networks).run()
+    await DockerContainer(networks=networks).run(storage=None, manifest_path="")
     mock_docker_client.containers.create.assert_called_once()
     call_network = mock_docker_client.containers.create.call_args[1].get("network")
 
@@ -165,7 +165,9 @@ async def test_uses_label_setting(
     mock_docker_client,
 ):
 
-    await DockerContainer(labels={"foo": "FOO", "bar": "BAR"}).run()
+    await DockerContainer(labels={"foo": "FOO", "bar": "BAR"}).run(
+        storage=None, manifest_path=""
+    )
     mock_docker_client.containers.create.assert_called_once()
     call_labels = mock_docker_client.containers.create.call_args[1].get("labels")
     assert call_labels == {**CONTAINER_LABELS, "foo": "FOO", "bar": "BAR"}
@@ -175,7 +177,7 @@ async def test_uses_network_mode_setting(
     mock_docker_client,
 ):
 
-    await DockerContainer(network_mode="bridge").run()
+    await DockerContainer(network_mode="bridge").run(storage=None, manifest_path="")
     mock_docker_client.containers.create.assert_called_once()
     network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
     assert network_mode == "bridge"
@@ -185,7 +187,9 @@ async def test_uses_env_setting(
     mock_docker_client,
 ):
 
-    await DockerContainer(env={"foo": "FOO", "bar": "BAR"}).run()
+    await DockerContainer(env={"foo": "FOO", "bar": "BAR"}).run(
+        storage=None, manifest_path=""
+    )
     mock_docker_client.containers.create.assert_called_once()
     call_env = mock_docker_client.containers.create.call_args[1].get("environment")
     assert call_env == {
@@ -201,7 +205,9 @@ async def test_network_mode_defaults_to_host_if_using_localhost_api_on_linux(
 ):
     monkeypatch.setattr("sys.platform", "linux")
 
-    await DockerContainer(env=dict(PREFECT_API_URL=f"http://{localhost}/test")).run()
+    await DockerContainer(env=dict(PREFECT_API_URL=f"http://{localhost}/test")).run(
+        storage=None, manifest_path=""
+    )
     mock_docker_client.containers.create.assert_called_once()
     network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
     assert network_mode == "host"
@@ -213,7 +219,7 @@ async def test_network_mode_defaults_to_none_if_using_networks(mock_docker_clien
     await DockerContainer(
         env=dict(PREFECT_API_URL="http://localhost/test"),
         networks=["test"],
-    ).run()
+    ).run(storage=None, manifest_path="")
     mock_docker_client.containers.create.assert_called_once()
     network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
     assert network_mode is None
@@ -221,7 +227,9 @@ async def test_network_mode_defaults_to_none_if_using_networks(mock_docker_clien
 
 async def test_network_mode_defaults_to_none_if_using_nonlocal_api(mock_docker_client):
 
-    await DockerContainer(env=dict(PREFECT_API_URL="http://foo/test")).run()
+    await DockerContainer(env=dict(PREFECT_API_URL="http://foo/test")).run(
+        storage=None, manifest_path=""
+    )
     mock_docker_client.containers.create.assert_called_once()
     network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
     assert network_mode is None
@@ -232,7 +240,9 @@ async def test_network_mode_defaults_to_none_if_not_on_linux(
 ):
     monkeypatch.setattr("sys.platform", "darwin")
 
-    await DockerContainer(env=dict(PREFECT_API_URL="http://localhost/test")).run()
+    await DockerContainer(env=dict(PREFECT_API_URL="http://localhost/test")).run(
+        storage=None, manifest_path=""
+    )
 
     mock_docker_client.containers.create.assert_called_once()
     network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
@@ -251,7 +261,9 @@ async def test_network_mode_defaults_to_none_if_api_url_cannot_be_parsed(
     )
 
     with pytest.warns(UserWarning, match="Failed to parse host"):
-        await DockerContainer(env=dict(PREFECT_API_URL="foo")).run()
+        await DockerContainer(env=dict(PREFECT_API_URL="foo")).run(
+            storage=None, manifest_path=""
+        )
 
     mock_docker_client.containers.create.assert_called_once()
     network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
@@ -265,7 +277,7 @@ async def test_replaces_localhost_api_with_dockerhost_when_not_using_host_networ
 
     await DockerContainer(
         network_mode="bridge",
-    ).run()
+    ).run(storage=None, manifest_path="")
     mock_docker_client.containers.create.assert_called_once()
     call_env = mock_docker_client.containers.create.call_args[1].get("environment")
     assert "PREFECT_API_URL" in call_env
@@ -285,7 +297,7 @@ async def test_does_not_replace_localhost_api_when_using_host_network(
 
     await DockerContainer(
         network_mode="host",
-    ).run()
+    ).run(storage=None, manifest_path="")
     mock_docker_client.containers.create.assert_called_once()
     call_env = mock_docker_client.containers.create.call_args[1].get("environment")
     assert "PREFECT_API_URL" in call_env
@@ -308,7 +320,7 @@ async def test_warns_at_runtime_when_using_host_network_mode_on_non_linux_platfo
         UserWarning,
         match="'host' network mode is not supported on platform 'darwin'",
     ):
-        await runner.run()
+        await runner.run(storage=None, manifest_path="")
 
     mock_docker_client.containers.create.assert_called_once()
     network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
@@ -318,7 +330,9 @@ async def test_warns_at_runtime_when_using_host_network_mode_on_non_linux_platfo
 async def test_does_not_override_user_provided_api_host(
     mock_docker_client,
 ):
-    await DockerContainer(env={"PREFECT_API_URL": "http://localhost/api"}).run()
+    await DockerContainer(env={"PREFECT_API_URL": "http://localhost/api"}).run(
+        storage=None, manifest_path=""
+    )
     mock_docker_client.containers.create.assert_called_once()
     call_env = mock_docker_client.containers.create.call_args[1].get("environment")
     assert call_env.get("PREFECT_API_URL") == "http://localhost/api"
@@ -327,7 +341,7 @@ async def test_does_not_override_user_provided_api_host(
 async def test_adds_docker_host_gateway_on_linux(mock_docker_client, monkeypatch):
     monkeypatch.setattr("sys.platform", "linux")
 
-    await DockerContainer().run()
+    await DockerContainer().run(storage=None, manifest_path="")
 
     mock_docker_client.containers.create.assert_called_once()
     call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
@@ -339,7 +353,7 @@ async def test_adds_docker_host_gateway_on_linux(mock_docker_client, monkeypatch
 async def test_default_image_pull_policy_pulls_image_with_latest_tag(
     mock_docker_client,
 ):
-    await DockerContainer(image="prefect:latest").run()
+    await DockerContainer(image="prefect:latest").run(storage=None, manifest_path="")
     mock_docker_client.images.pull.assert_called_once()
     mock_docker_client.images.pull.assert_called_with("prefect", "latest")
 
@@ -347,7 +361,7 @@ async def test_default_image_pull_policy_pulls_image_with_latest_tag(
 async def test_default_image_pull_policy_pulls_image_with_no_tag(
     mock_docker_client,
 ):
-    await DockerContainer(image="prefect").run()
+    await DockerContainer(image="prefect").run(storage=None, manifest_path="")
     mock_docker_client.images.pull.assert_called_once()
     mock_docker_client.images.pull.assert_called_with("prefect", None)
 
@@ -359,7 +373,7 @@ async def test_default_image_pull_policy_pulls_image_with_tag_other_than_latest_
 
     mock_docker_client.images.get.side_effect = ImageNotFound("No way, bub")
 
-    await DockerContainer(image="prefect:omega").run()
+    await DockerContainer(image="prefect:omega").run(storage=None, manifest_path="")
     mock_docker_client.images.pull.assert_called_once()
     mock_docker_client.images.pull.assert_called_with("prefect", "omega")
 
@@ -371,7 +385,7 @@ async def test_default_image_pull_policy_does_not_pull_image_with_tag_other_than
 
     mock_docker_client.images.get.return_value = Image()
 
-    await DockerContainer(image="prefect:omega").run()
+    await DockerContainer(image="prefect:omega").run(storage=None, manifest_path="")
     mock_docker_client.images.pull.assert_not_called()
 
 
@@ -380,7 +394,7 @@ async def test_image_pull_policy_always_pulls(
 ):
     await DockerContainer(
         image="prefect", image_pull_policy=ImagePullPolicy.ALWAYS
-    ).run()
+    ).run(storage=None, manifest_path="")
     mock_docker_client.images.get.assert_not_called()
     mock_docker_client.images.pull.assert_called_once()
     mock_docker_client.images.pull.assert_called_with("prefect", None)
@@ -389,9 +403,9 @@ async def test_image_pull_policy_always_pulls(
 async def test_image_pull_policy_never_does_not_pull(
     mock_docker_client,
 ):
-    await DockerContainer(
-        image="prefect", image_pull_policy=ImagePullPolicy.NEVER
-    ).run()
+    await DockerContainer(image="prefect", image_pull_policy=ImagePullPolicy.NEVER).run(
+        storage=None, manifest_path=""
+    )
     mock_docker_client.images.pull.assert_not_called()
 
 
@@ -404,7 +418,7 @@ async def test_image_pull_policy_if_not_present_pulls_image_if_not_present(
 
     await DockerContainer(
         image="prefect", image_pull_policy=ImagePullPolicy.IF_NOT_PRESENT
-    ).run()
+    ).run(storage=None, manifest_path="")
     mock_docker_client.images.pull.assert_called_once()
     mock_docker_client.images.pull.assert_called_with("prefect", None)
 
@@ -418,7 +432,7 @@ async def test_image_pull_policy_if_not_present_does_not_pull_image_if_present(
 
     await DockerContainer(
         image="prefect", image_pull_policy=ImagePullPolicy.IF_NOT_PRESENT
-    ).run()
+    ).run(storage=None, manifest_path="")
     mock_docker_client.images.pull.assert_not_called()
 
 
@@ -428,7 +442,7 @@ async def test_does_not_add_docker_host_gateway_on_other_platforms(
 ):
     monkeypatch.setattr("sys.platform", platform)
 
-    await DockerContainer().run()
+    await DockerContainer().run(storage=None, manifest_path="")
 
     mock_docker_client.containers.create.assert_called_once()
     call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
@@ -465,7 +479,7 @@ async def test_warns_if_docker_version_does_not_support_host_gateway_on_linux(
     ):
         await DockerContainer(
             env={"PREFECT_API_URL": explicit_api_url} if explicit_api_url else {}
-        ).run()
+        ).run(storage=None, manifest_path="")
 
     mock_docker_client.containers.create.assert_called_once()
     call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
@@ -482,9 +496,9 @@ async def test_does_not_warn_about_gateway_if_user_has_provided_nonlocal_api_url
     mock_docker_client.version.return_value = {"Version": "19.1.1"}
 
     with assert_does_not_warn():
-        await DockerContainer(
-            env={"PREFECT_API_URL": "http://my-domain.test/api"}
-        ).run()
+        await DockerContainer(env={"PREFECT_API_URL": "http://my-domain.test/api"}).run(
+            storage=None, manifest_path=""
+        )
 
     mock_docker_client.containers.create.assert_called_once()
     call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
@@ -496,7 +510,7 @@ async def test_does_not_warn_about_gateway_if_user_has_provided_nonlocal_api_url
 async def test_task_status_receives_container_id(mock_docker_client):
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     result = await DockerContainer(command=["echo", "hello"], stream_output=False).run(
-        task_status=fake_status
+        storage=None, manifest_path="", task_status=fake_status
     )
     fake_status.started.assert_called_once_with(result.identifier)
 
@@ -512,7 +526,7 @@ async def test_does_not_warn_about_gateway_if_not_using_linux(
     mock_docker_client.version.return_value = {"Version": "19.1.1"}
 
     with assert_does_not_warn():
-        await DockerContainer().run()
+        await DockerContainer().run(storage=None, manifest_path="")
 
     mock_docker_client.containers.create.assert_called_once()
     call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
@@ -523,7 +537,7 @@ async def test_does_not_warn_about_gateway_if_not_using_linux(
 
 @pytest.mark.service("docker")
 async def test_container_result(docker: "DockerClient"):
-    result = await DockerContainer(command=["echo", "hello"]).run()
+    result = await DockerContainer(command=["echo", "hello"]).run(None, None)
     assert bool(result)
     assert result.status_code == 0
     assert result.identifier
@@ -537,7 +551,7 @@ async def test_container_metadata(docker: "DockerClient"):
         command=["echo", "hello"],
         name="test-name",
         labels={"test.foo": "a", "test.bar": "b"},
-    ).run()
+    ).run(None, None)
     container: "Container" = docker.containers.get(result.identifier)
     assert container.name == "test-name"
     assert container.labels["test.foo"] == "a"
@@ -556,10 +570,10 @@ async def test_container_name_collision(docker: "DockerClient"):
     container = DockerContainer(
         command=["echo", "hello"], name=base_name, auto_remove=False
     )
-    result = await container.run()
+    result = await container.run(None, None)
     created_container: "Container" = docker.containers.get(result.identifier)
     assert created_container.name == base_name
 
-    result = await container.run()
+    result = await container.run(None, None)
     created_container: "Container" = docker.containers.get(result.identifier)
     assert created_container.name == base_name + "-1"

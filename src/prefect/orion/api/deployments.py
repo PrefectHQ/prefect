@@ -59,6 +59,30 @@ async def create_deployment(
     return model
 
 
+@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_deployment(
+    deployment: schemas.actions.DeploymentUpdate,
+    deployment_id: str = Path(..., description="The deployment id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
+):
+    result = await models.deployments.update_deployment(
+        session=session, deployment_id=deployment_id, deployment=deployment
+    )
+    if not result:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Deployment not found.")
+
+    # this deployment might have already-scheduled runs
+    # so we delete them all here; if it has an active schedule
+    # then its runs will be rescheduled with the new schedule
+    delete_query = sa.delete(db.FlowRun).where(
+        db.FlowRun.deployment_id == deployment_id,
+        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        db.FlowRun.auto_scheduled.is_(True),
+    )
+    await session.execute(delete_query)
+
+
 @router.get("/name/{flow_name}/{deployment_name}")
 async def read_deployment_by_name(
     flow_name: str = Path(..., description="The name of the flow"),
