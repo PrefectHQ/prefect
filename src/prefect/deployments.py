@@ -49,6 +49,7 @@ Examples:
 """
 
 import json
+import sys
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, TextIO, Union
@@ -63,6 +64,7 @@ from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentErro
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_script
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
+from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.packaging.base import PackageManifest, Packager
@@ -301,12 +303,32 @@ async def load_flow_from_deployment(
     deployment: schemas.core.Deployment, client: OrionClient
 ) -> Flow:
     """
-    Load a flow from the location/script/pickle provided in a deployment's flow data
-    document.
+    Load a flow from the location/script provided in a deployment's storage document.
     """
     with open(deployment.manifest_path, "r") as f:
         manifest = json.load(f)
     return load_flow_from_manifest_path(manifest["import_path"])
+
+
+@inject_client
+async def load_flow_from_flow_run(
+    flow_run: schemas.core.FlowRun, client: OrionClient
+) -> Flow:
+    """
+    Load a flow from the location/script provided in a deployment's storage document.
+    """
+    deployment = await client.read_deployment(flow_run.deployment_id)
+    storage_document = await client.read_block_document(deployment.storage_document_id)
+    storage_block = Block._from_block_document(storage_document)
+
+    sys.path.insert(0, ".")
+    await storage_block.get_directory(from_path=None, local_path=".")
+
+    flow_run_logger(flow_run).debug(
+        f"Loading flow for deployment {deployment.name!r}..."
+    )
+    flow = await load_flow_from_deployment(deployment, client=client)
+    return flow
 
 
 async def _source_to_flow(flow_source: FlowSource) -> Flow:
