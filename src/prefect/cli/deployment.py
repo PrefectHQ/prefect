@@ -73,11 +73,26 @@ def exception_traceback(exc: Exception) -> str:
     return "".join(list(tb.format()))
 
 
-def check_if_deprecated_deployment(deployment):
+async def get_deployment(client, name, deployment_id):
+    if name is None and deployment_id is not None:
+        try:
+            deployment = await client.read_deployment(deployment_id)
+        except PrefectHTTPStatusError:
+            exit_with_error(f"Deployment {deployment_id!r} not found!")
+    elif name is not None:
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
+    else:
+        exit_with_error("Must provide a deployment name or id")
+
     if not deployment.manifest_path:
         exit_with_error(
             f"This deployment has been deprecated. Please see https://orion-docs.prefect.io/concepts/deployments/ to learn how to create a deployment."
         )
+
+    return deployment
 
 
 class RichTextIO:
@@ -183,21 +198,7 @@ async def run(
     The flow run will not execute until an agent starts.
     """
     async with get_client() as client:
-        if name is None and deployment_id is not None:
-            try:
-                deployment = await client.read_deployment(deployment_id)
-            except PrefectHTTPStatusError:
-                exit_with_error(f"Deployment {deployment_id!r} not found!")
-        elif name is not None:
-            try:
-                deployment = await client.read_deployment_by_name(name)
-            except ObjectNotFound:
-                exit_with_error(f"Deployment {name!r} not found!")
-        else:
-            exit_with_error("Must provide a deployment name or id")
-
-        check_if_deprecated_deployment(deployment)
-
+        deployment = await get_deployment(client, name, deployment_id)
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
     app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
 
@@ -219,30 +220,15 @@ async def execute(
 
     This command will block until the flow run completes.
     """
-    assert_deployment_name_format(name)
-
     async with get_client() as client:
-        if name is None and deployment_id is not None:
-            try:
-                deployment = await client.read_deployment(deployment_id)
-            except PrefectHTTPStatusError:
-                exit_with_error(f"Deployment {deployment_id!r} not found!")
-        elif name is not None:
-            try:
-                deployment = await client.read_deployment_by_name(name)
-            except ObjectNotFound:
-                exit_with_error(f"Deployment {name!r} not found!")
-        else:
-            exit_with_error("Must provide a deployment name or id")
-
-        check_if_deprecated_deployment(deployment)
+        deployment = await get_deployment(client, name, deployment_id)
 
         app.console.print("Loading flow from deployed location...")
         flow = await load_flow_from_deployment(deployment, client=client)
         parameters = deployment.parameters or {}
 
     app.console.print("Running flow...")
-    state = flow._run(**parameters)
+    state = await flow._run(**parameters)
 
     if state.is_failed():
         exit_with_error("Flow run failed!")
