@@ -19,6 +19,11 @@ depends_on = None
 
 def upgrade():
     op.add_column("deployment", sa.Column("manifest_path", sa.String(), nullable=True))
+    # any existing deployment is broken by these changes
+    # set manifest path to an empty string
+    # and turn the schedule off
+    op.execute(sa.text("UPDATE deployment SET manifest_path = '';"))
+    op.execute(sa.text("UPDATE deployment SET is_schedule_active = False;"))
     op.add_column(
         "deployment",
         sa.Column(
