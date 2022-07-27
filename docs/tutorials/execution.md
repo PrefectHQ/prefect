@@ -201,6 +201,30 @@ When you run this flow, the coroutines that were gathered yield control to one a
 ```
 </div>
 
+The example above is equivalent to below:
+
+```python
+import asyncio
+
+from prefect import task, flow
+
+@task
+async def print_values(values):
+    for value in values:
+        await asyncio.sleep(1) # yield
+        print(value, end=" ")
+
+@flow
+async def async_flow():
+    await print_values([1, 2])  # runs immediately
+    await print_values.submit("abcd")
+    await print_values.submit("6789")
+
+asyncio.run(async_flow())
+```
+
+Note, if you are not using `asyncio.gather`, calling `submit` is required for asynchronous execution on the `ConcurrentTaskRunner`.
+
 ## Flow execution
 
 Task runners only manage _task runs_ within a flow run. But what about flows?
