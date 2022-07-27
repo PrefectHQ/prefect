@@ -17,9 +17,11 @@ With blocks, you are able to securely store credentials for authenticating with 
 
 Blocks can also be created by anyone and shared with the community. You'll find blocks that are available for consumption in many of the published [Prefect Collections](/collections/catalog).
 
-## Blocks overview
+## Using existing block types
 
 Blocks are classes that subclass the `Block` base class. They can be instantiated and used like normal classes.
+
+### Instantiating blocks
 
 For example, to instantiate a block that stores a JSON value, use the `JSON` block:
 
@@ -28,6 +30,8 @@ from prefect.blocks.system import JSON
 
 json_block = JSON(value={"the_answer": 42})
 ```
+
+### Saving blocks
 
 If this JSON value needs to be retrieved later to be used within a flow or task, we can use the `.save()` method on the blocks to store the value in a block document on the Orion DB for retrieval later:
 
@@ -49,6 +53,8 @@ def what_is_the_answer():
 what_is_the_answer() # 42
 ```
 
+### Loading blocks
+
 Blocks can also be loaded with a unique slug which a combination of a block type slug and a block document name.
 
 To load our JSON block document from before, we can run the following:
@@ -60,11 +66,11 @@ json_block = Block.load("json/life-the-universe-everything")
 print(json_block.value["the-answer"]) #42
 ```
 
-Blocks documents can also be created and updated via the [Prefect UI](/ui/overview/).
+Blocks documents can also be created and updated via the [Prefect UI](/ui/blocks/).
 
-## Creating blocks
+## Creating new block types
 
-To create a custom block, define a class that subclasses `Block`. The `Block` base class builds off of Pydantic's `BaseModel`, so custom blocks can be [declared in same manner as a Pydantic model](https://pydantic-docs.helpmanual.io/usage/models/#basic-model-usage).
+To create a custom block type, define a class that subclasses `Block`. The `Block` base class builds off of Pydantic's `BaseModel`, so custom blocks can be [declared in same manner as a Pydantic model](https://pydantic-docs.helpmanual.io/usage/models/#basic-model-usage).
 
 Here's a block that represents a cube and holds information about the length of each edge in inches:
 
@@ -111,18 +117,18 @@ calculate_cube_surface_area("rubiks-cube") # 30.375
 Once a block has been created in a `.py` file, the block can be registered with the CLI command:
 
 ```bash
-$ prefect block register -f my_block.py
+$ prefect block register --file my_block.py
 ```
 
-The registered block will then be available in the UI for configuration.
+The registered block will then be available in the [Prefect UI](/ui/blocks/) for configuration.
 
 Blocks can also be registered from a Python module available in the current virtual environment with the CLI command:
 
 ```bash
-$ prefect block register -m prefect_aws.credentials
+$ prefect block register --module prefect_aws.credentials
 ```
 
-This command is useful for registering blocks from [Prefect Collections](/collections/overview).
+This command is useful for registering all blocks found in the credentials module within [Prefect Collections](/collections/overview).
 
 ### Secret fields
 
