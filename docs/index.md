@@ -10,7 +10,7 @@ tags:
 <span style="margin-top: 0; margin-bottom: 0;">![Prefect 2.0 logo](./img/logos/prefect-2-logo-dark.png)</span>
 
 !!! help "Looking for Prefect 1.0 Core and Server?"
-    Prefect 2.0 is now available for general use. See our [Migration Guide](/getting-started/migration-guide/) if you're ready to move your Prefect 1.0 flows to Prefect 2.0.
+    Prefect 2.0 is now available for general use. See our [Migration Guide](/migration-guide/) if you're ready to move your Prefect 1.0 flows to Prefect 2.0.
 
     If you're looking for the [Prefect 1.0 Core and Server documentation](http://docs-v1.prefect.io/), they're available at [http://docs-v1.prefect.io/](http://docs-v1.prefect.io/).
 
@@ -39,34 +39,34 @@ Prefect 2.0 was designed for incremental adoption into your workflows. The docum
 
 **Getting started**
 
-Begin by [installing Prefect 2.0](getting-started/installation.md) on your machine, then follow one of our [friendly tutorials](tutorials/first-steps) to learn by example. See the [Getting Started overview](getting-started/overview) for more.
+Begin by [installing Prefect 2.0](/getting-started/installation/) on your machine, then follow one of our [friendly tutorials](/tutorials/first-steps/) to learn by example. See the [Getting Started overview](/getting-started/overview/) for more.
 
 Even if you have used Prefect 1.0 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps. Prefect 2.0 offers significant new functionality.
 
 
 **Concepts**
 
-Learn more about Prefect 2.0's features and design by reading our in-depth [concept docs](concepts/overview.md). The concept docs are intended to introduce the building blocks of Prefect, build up to orchestration and deployment, and finally cover some of the advanced use cases that Prefect makes possible.
+Learn more about Prefect 2.0's features and design by reading our in-depth [concept docs](/concepts/overview/). The concept docs are intended to introduce the building blocks of Prefect, build up to orchestration and deployment, and finally cover some of the advanced use cases that Prefect makes possible.
 
 **Prefect UI & Prefect Cloud**
 
-See how [Prefect's UI and cloud hosted functionality](ui/overview/) can make coordinating dataflows a joy.
+See how [Prefect's UI and cloud hosted functionality](/ui/overview/) can make coordinating dataflows a joy.
 
 **Collections**
 
-Prefect integrates with the other tools of the modern data stack. In our [collections docs](collections/overview) learn about our pre-built integrations and see how to add your own.
+Prefect integrates with the other tools of the modern data stack. In our [collections docs](/collections/overview/) learn about our pre-built integrations and see how to add your own.
 
 **Frequently asked questions**
 
-Prefect 2.0 represents a fundamentally new way of building and orchestrating dataflows. You can find responses to common questions by reading our [FAQ](faq.md) and checking out the [Prefect Discourse](https://discourse.prefect.io/).
+Prefect 2.0 represents a fundamentally new way of building and orchestrating dataflows. You can find responses to common questions by reading our [FAQ](/faq/) and checking out the [Prefect Discourse](https://discourse.prefect.io/).
 
 **API reference**
 
-Prefect 2.0 provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](api-ref/overview). This section is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
+Prefect 2.0 provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](/api-ref/overview). This section is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
 
 **Contributing**
 
-Learn how [you can get involved](contributing/overview/).
+Learn how [you can get involved](/contributing/overview/).
 
 Prefect 2.0 is made possible by the fastest-growing community of data practitioners. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more, ask questions, or get help with workflow design. 
 
@@ -88,15 +88,15 @@ Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable
 
 **Integrates with other modern data tools**
 
-Prefect has [integrations](collections/overview/) for all the major cloud providers and modern data tools such as Snowflake, Databricks, dbt, and Airbyte. 
+Prefect has [integrations](/collections/overview/) for all the major cloud providers and modern data tools such as Snowflake, Databricks, dbt, and Airbyte. 
 
 **Async and parallelization options**
 
-Prefect provides [concurrency and sequential execution options](concepts/task-runners/). With a single import and one argument to your flow decorator you can set up parallel processing across clusters with Dask and Ray integrations. 
+Prefect provides [concurrency and sequential execution options](/concepts/task-runners/). With a single import and one argument to your flow decorator you can set up parallel processing across clusters with Dask and Ray integrations. 
 
 **Works well with containers**
 
-Prefect is often used with [Docker and Kubernetes](concepts/deployments/#packaging-flows). Prefect can even package your flow directly into a Docker image. 
+Prefect is often used with [Docker and Kubernetes](/concepts/deployments/). Prefect can even package your flow directly into a Docker image. 
 
 **Security first**
 
@@ -104,7 +104,7 @@ Prefect helps you keep your data and code secure. Prefect's patented [hybrid exe
 
 **A user friendly, interactive dashboard for your dataflows**
 
-In the [Prefect Orion UI](ui/overview/) you can quickly set up notifications, visualize run history, and schedule your dataflows.  
+In the [Prefect Orion UI](/ui/overview/) you can quickly set up notifications, visualize run history, and schedule your dataflows.  
 
 **Faster and easier than building from scratch**
 
