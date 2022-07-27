@@ -350,7 +350,10 @@ class OrionClient:
                 f"Unexpected type {type(api).__name__!r} for argument `api`. Expected 'str' or 'FastAPI'"
             )
 
-        self._client = PrefectHttpxClient(**httpx_settings)
+        self._client = PrefectHttpxClient(
+            **httpx_settings,
+            event_hooks={"response": [lambda *args, **kwargs: breakpoint()]},
+        )
         self.logger = get_logger("client")
 
     @property
@@ -1345,7 +1348,7 @@ class OrionClient:
         Query Orion for a deployment by name.
 
         Args:
-            name: the deployment name of interest
+            name: A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404

@@ -71,12 +71,6 @@ class IntervalSchedule(PrefectBaseModel):
             raise ValueError("The interval must be positive")
         return v
 
-    @validator("timezone")
-    def valid_timezone(cls, v):
-        if v and v not in pendulum.tz.timezones:
-            raise ValueError(f'Invalid timezone: "{v}"')
-        return v
-
     @validator("anchor_date", always=True)
     def default_anchor_date(cls, v):
         if v is None:
@@ -85,8 +79,21 @@ class IntervalSchedule(PrefectBaseModel):
 
     @validator("timezone", always=True)
     def default_timezone(cls, v, *, values, **kwargs):
-        if v is None:
-            return values["anchor_date"].tz.name
+        # if was provided, make sure its a valid IANA string
+        if v and v not in pendulum.tz.timezones:
+            raise ValueError(f'Invalid timezone: "{v}"')
+
+        # otherwise infer the timezone from the anchor date
+        elif v is None and values.get("anchor_date"):
+            tz = values["anchor_date"].tz.name
+            if tz in pendulum.tz.timezones:
+                return tz
+            # sometimes anchor dates have "timezones" that are UTC offsets
+            # like "-04:00". This happens when parsing ISO8601 strings.
+            # In this case we, the correct inferred localization is "UTC".
+            else:
+                return "UTC"
+
         return v
 
     async def get_dates(
