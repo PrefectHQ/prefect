@@ -1,9 +1,10 @@
 import datetime
 
 import pendulum
+import sqlalchemy as sa
 
 from prefect.orion import models, schemas
-from prefect.orion.services.scheduler import Scheduler
+from prefect.orion.services.scheduler import RecentDeploymentsScheduler, Scheduler
 from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
@@ -187,3 +188,87 @@ async def test_scheduler_respects_schedule_is_active(flow, session):
     await Scheduler(handle_signals=False).start(loops=1)
     n_runs_2 = await models.flow_runs.count_flow_runs(session)
     assert n_runs_2 == 0
+
+
+class TestRecentDeploymentsScheduler:
+    async def deployment(self, session, flow):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment", manifest_path="file.json", flow_id=flow.id
+            ),
+        )
+        await session.commit()
+        return deployment
+
+    async def test_tight_loop_by_default(self):
+        assert RecentDeploymentsScheduler(handle_signals=False).loop_seconds == 5
+
+    async def test_schedules_runs_for_recently_created_deployments(
+        self, deployment, session, db
+    ):
+        recent_scheduler = RecentDeploymentsScheduler(handle_signals=False)
+        count_query = (
+            sa.select(sa.func.count())
+            .select_from(db.FlowRun)
+            .where(db.FlowRun.deployment_id == deployment.id)
+        )
+        runs_count = (await session.execute(count_query)).scalar()
+        assert runs_count == 0
+
+        await recent_scheduler.start(loops=1)
+
+        runs_count = (await session.execute(count_query)).scalar()
+        assert runs_count == recent_scheduler.max_runs
+
+    async def test_schedules_runs_for_recently_updated_deployments(
+        self, deployment, session, db
+    ):
+        # artifically move the created time back (updated time will still be recent)
+        await session.execute(
+            sa.update(db.Deployment)
+            .where(db.Deployment.id == deployment.id)
+            .values(created=pendulum.now().subtract(hours=1))
+        )
+        await session.commit()
+
+        count_query = (
+            sa.select(sa.func.count())
+            .select_from(db.FlowRun)
+            .where(db.FlowRun.deployment_id == deployment.id)
+        )
+
+        recent_scheduler = RecentDeploymentsScheduler(handle_signals=False)
+        runs_count = (await session.execute(count_query)).scalar()
+        assert runs_count == 0
+
+        await recent_scheduler.start(loops=1)
+
+        runs_count = (await session.execute(count_query)).scalar()
+        assert runs_count == recent_scheduler.max_runs
+
+    async def test_schedules_no_runs_for_deployments_updated_a_while_ago(
+        self, deployment, session, db
+    ):
+        # artifically move the updated time back
+        await session.execute(
+            sa.update(db.Deployment)
+            .where(db.Deployment.id == deployment.id)
+            .values(updated=pendulum.now().subtract(minutes=1))
+        )
+        await session.commit()
+
+        count_query = (
+            sa.select(sa.func.count())
+            .select_from(db.FlowRun)
+            .where(db.FlowRun.deployment_id == deployment.id)
+        )
+
+        recent_scheduler = RecentDeploymentsScheduler(handle_signals=False)
+        runs_count = (await session.execute(count_query)).scalar()
+        assert runs_count == 0
+
+        await recent_scheduler.start(loops=1)
+
+        runs_count = (await session.execute(count_query)).scalar()
+        assert runs_count == 0

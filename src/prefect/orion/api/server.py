@@ -327,6 +327,7 @@ def create_app(
 
         if prefect.settings.PREFECT_ORION_SERVICES_SCHEDULER_ENABLED.value():
             service_instances.append(services.scheduler.Scheduler())
+            service_instances.append(services.scheduler.RecentDeploymentsScheduler())
 
         if prefect.settings.PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED.value():
             service_instances.append(services.late_runs.MarkLateRuns())
