@@ -73,6 +73,30 @@ def exception_traceback(exc: Exception) -> str:
     return "".join(list(tb.format()))
 
 
+async def get_deployment(client, name, deployment_id):
+    if name is None and deployment_id is not None:
+        try:
+            deployment = await client.read_deployment(deployment_id)
+        except PrefectHTTPStatusError:
+            exit_with_error(f"Deployment {deployment_id!r} not found!")
+    elif name is not None and deployment_id is None:
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
+    elif name is None and deployment_id is None:
+        exit_with_error("Must provide a deployed flow's name or id")
+    else:
+        exit_with_error("Only provide a deployed flow's name or id")
+
+    if not deployment.manifest_path:
+        exit_with_error(
+            f"This deployment has been deprecated. Please see https://orion-docs.prefect.io/concepts/deployments/ to learn how to create a deployment."
+        )
+
+    return deployment
+
+
 class RichTextIO:
     def __init__(self, console, prefix: str = None) -> None:
         self.console = console
@@ -161,7 +185,9 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
 
 @deployment_app.command()
 async def run(
-    name: Optional[str] = typer.Argument(None, help="A deployment name"),
+    name: Optional[str] = typer.Argument(
+        None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
+    ),
     deployment_id: Optional[str] = typer.Option(
         None, "--id", help="A deployment id to search for if no name is given"
     ),
@@ -174,30 +200,20 @@ async def run(
     The flow run will not execute until an agent starts.
     """
     async with get_client() as client:
-        if name is None and deployment_id is not None:
-            try:
-                deployment = await client.read_deployment(deployment_id)
-            except PrefectHTTPStatusError:
-                exit_with_error(f"Deployment {deployment_id!r} not found!")
-        elif name is not None:
-            try:
-                deployment = await client.read_deployment_by_name(name)
-            except ObjectNotFound:
-                exit_with_error(f"Deployment {name!r} not found!")
-        else:
-            exit_with_error("Must provide a deployment name or id")
-
-        if not deployment.manifest_path:
-            exit_with_error(
-                f"This deployment has been deprecated. Please see https://orion-docs.prefect.io/concepts/deployments/ to learn how to create a deployment."
-            )
-
+        deployment = await get_deployment(client, name, deployment_id)
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
     app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
 
 
 @deployment_app.command()
-async def execute(name: str):
+async def execute(
+    name: Optional[str] = typer.Argument(
+        None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
+    ),
+    deployment_id: Optional[str] = typer.Option(
+        None, "--id", help="A deployment id to search for if no name is given"
+    ),
+):
     """
     Create and execute a local flow run for the given deployment.
 
@@ -206,16 +222,19 @@ async def execute(name: str):
 
     This command will block until the flow run completes.
     """
-    assert_deployment_name_format(name)
-
     async with get_client() as client:
-        deployment = await client.read_deployment_by_name(name)
+        deployment = await get_deployment(client, name, deployment_id)
+
         app.console.print("Loading flow from deployed location...")
         flow = await load_flow_from_deployment(deployment, client=client)
         parameters = deployment.parameters or {}
 
     app.console.print("Running flow...")
-    state = flow._run(**parameters)
+
+    if flow.isasync:
+        state = await flow._run(**parameters)
+    else:
+        state = flow._run(**parameters)
 
     if state.is_failed():
         exit_with_error("Flow run failed!")
@@ -260,7 +279,7 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
 async def apply(
     path: Path = typer.Argument(
         None,
-        help="The path a deployment YAML file.",
+        help="The path to a deployment YAML file.",
         show_default=False,
     )
 ):
@@ -330,7 +349,9 @@ def _deployment_name(deployment: Deployment):
 
 @deployment_app.command()
 async def delete(
-    name: Optional[str] = typer.Argument(None, help="A deployment name"),
+    name: Optional[str] = typer.Argument(
+        None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
+    ),
     deployment_id: Optional[str] = typer.Option(
         None, "--id", help="A deployment id to search for if no name is given"
     ),
@@ -452,6 +473,10 @@ async def build(
         help="The slug of the storage block to use.",
     ),
 ):
+    """
+    Generate a deployment YAML from /path/to/file.py:flow_function
+    """
+
     # validate inputs
     if not name and not manifest_only:
         exit_with_error(

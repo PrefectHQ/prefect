@@ -24,7 +24,7 @@ The following sections will get you set up and using Prefect Cloud, using these 
 
 ## Sign in or register
 
-To sign in with an existing account or register an account, go to [https://beta.prefect.io/](https://beta.prefect.io/).
+To sign in with an existing account or register an account, go to [https://app.prefect.cloud/](https://app.prefect.cloud/).
 
 You can create an account with:
 
@@ -133,7 +133,7 @@ Note that you can also manually configure the settings to interact with Prefect 
 
 <div class="terminal">
 ```bash
-$ prefect config set PREFECT_API_URL="https://beta.prefect.io/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
+$ prefect config set PREFECT_API_URL="https://app.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
 $ prefect config set PREFECT_API_KEY="[API-KEY]"
 ```
 </div>
@@ -247,7 +247,9 @@ In your terminal, run the `prefect agent start` command, passing a `-t test` opt
 
 <div class="terminal">
 ```
+
 $ prefect agent start -t test
+
 Starting agent connected to https://api.prefect.cloud/api/accounts/...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____

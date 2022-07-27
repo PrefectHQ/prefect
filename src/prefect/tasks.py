@@ -372,7 +372,6 @@ class Task(Generic[P, R]):
     def submit(
         self: "Task[P, T]",
         *args: P.args,
-        return_state: Literal[False],
         **kwargs: P.kwargs,
     ) -> PrefectFuture[T, Sync]:
         ...
@@ -520,7 +519,6 @@ class Task(Generic[P, R]):
     def map(
         self: "Task[P, T]",
         *args: P.args,
-        return_state: Literal[False],
         **kwargs: P.kwargs,
     ) -> List[PrefectFuture[T, Sync]]:
         ...
