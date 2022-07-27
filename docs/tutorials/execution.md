@@ -203,7 +203,7 @@ When you run this flow, the coroutines that were gathered yield control to one a
 
 The example above is equivalent to below:
 
-```
+```python
 import asyncio
 
 from prefect import task, flow
