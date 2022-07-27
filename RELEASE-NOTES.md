@@ -14,7 +14,7 @@ Once the deployment is created with the Orion server, it can now be edited via t
 
 ### Improvements and bug fixes
 - The [Dask and Ray tutorials](https://orion-docs.prefect.io/tutorials/dask-ray-task-runners/) have been updated to reflect recent changes
-- The [Blocks concept doc](https://orion-docs.prefect.io/concepts/blocks/) has been updated to reflect recent enhancements and include additional examples
+- The [Blocks concept doc](https://orion-docs.prefect.io/concepts/blocks/) has been updated to reflect recent enhancements and includes additional examples
 - The [Storage concept doc](https://orion-docs.prefect.io/concepts/storage/) has been updated to reflect recent enhancements
 - All IntervalSchedules now require both an anchor date and a timezone
 - The new GCSFileSystem block enables you to read and write data as a file on Google Cloud Storage
