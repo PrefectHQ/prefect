@@ -412,7 +412,10 @@ class Infra(str, Enum):
 
 @deployment_app.command()
 async def build(
-    path: str,
+    path: str = typer.Argument(
+        ...,
+        help="The path to a flow entrypoint, in the form of `./path/to/file.py:flow_func_name`",
+    ),
     manifest_only: bool = typer.Option(
         False, "--manifest-only", help="Generate the manifest file only."
     ),
