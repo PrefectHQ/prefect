@@ -48,6 +48,96 @@ There are three terminal state types, from which there are no orchestrated trans
 | Failed | FAILED | Yes | The run did not complete because of a code issue and had no remaining retry attempts. |
 | Crashed | CRASHED | Yes | The run did not complete because of an infrastructure issue. |
 
+## Returned Values When Calling a Task or Flow
+
+### Type of Returned Values
+When calling a task or a flow, there are three types of returned values:
+- _data_: A Python object (such as `int`, `str`, `dict`, `list`, etc)
+- `State`: the status of a flow or task run
+- `PrefectFuture`: an object that contains both _data_ and _State_
+### Return Data
+By default, running a task will return _data_:
+
+```python hl_lines="3-5"
+from prefect import flow, task 
+
+@task 
+def add_one(x):
+    return x + 1
+
+@flow 
+def my_flow():
+    result = add_one(1) # return int
+```
+
+The same rule applies for a subflow:
+
+```python hl_lines="3-5"
+@flow 
+def subflow():
+    return 42 
+
+@flow 
+def my_flow():
+    result = subflow() # return data
+```
+
+### Return Prefect State
+To return a `State` instead, add `return_state=True` as a parameter of your task call.
+
+```python hl_lines="3-5"
+@flow 
+def my_flow():
+    state = add_one(1, return_state=True) # return State
+```
+
+To get data from a `State`, call `.result()`.
+
+```python hl_lines="3-5"
+@flow 
+def my_flow():
+    state = add_one(1, return_state=True) # return State
+    result = state.result() # return int
+```
+
+The same rule applies for a subflow:
+
+```python hl_lines="3-5"
+@flow 
+def subflow():
+    return 42 
+
+@flow 
+def my_flow():
+    state = subflow(return_state=True) # return State
+    result = state.result() # return int
+```
+### Return Prefect Future
+To get a `PrefectFuture`, add `.submit()` to your task call.
+
+```python hl_lines="3-5"
+@flow 
+def my_flow():
+    future = add_one.submit(1) # return PrefectFuture
+```
+
+To get data from a `PrefectFuture`, call `.result()`.
+
+```python hl_lines="3-5"
+@flow 
+def my_flow():
+    future = add_one.submit(1) # return PrefectFuture
+    result = future.result() # return data
+```
+
+To get a `State` from a `PrefectFuture`, call `.wait()`.
+
+```python hl_lines="3-5"
+@flow 
+def my_flow():
+    future = add_one.submit(1) # return PrefectFuture
+    state = future.wait() # return State
+```
 ## Final state determination
 
 The final state of a flow is determined by its return value.  The following rules apply:
