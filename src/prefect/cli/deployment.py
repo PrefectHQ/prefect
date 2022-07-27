@@ -452,6 +452,10 @@ async def build(
         help="The slug of the storage block to use.",
     ),
 ):
+    """
+    Generate a deployment YAML.
+    """
+
     # validate inputs
     if not name and not manifest_only:
         exit_with_error(
