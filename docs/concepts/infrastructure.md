@@ -322,7 +322,6 @@ recommendations:
 - If your flow (or flows) require extra dependencies or shared libraries, we
   recommend building a shared custom image with all the extra dependencies and
   shared task definitions you need. Your flows can then all rely on the same
-  image, but have their source stored externally (in e.g. [GitHub
-  storage](./storage.md#github)). This can ease development, as the shared
+  image, but have their source stored externally. This can ease development, as the shared
   image only needs to be rebuilt when dependencies change, not when the flow
   source changes.
