@@ -23,6 +23,26 @@ from prefect.settings import (
 
 
 @inject_db
+async def _delete_auto_scheduled_runs(
+    session: sa.orm.Session,
+    deployment_id: UUID,
+    db: OrionDBInterface,
+):
+    """
+    This utility function deletes all of a deployment's scheduled runs that are
+    still in a Scheduled state and that were  auto-scheduled runs. It should be
+    run any time a deployment is created or modified in order to ensure that
+    future runs comply with the deployment's latest values.
+    """
+    delete_query = sa.delete(db.FlowRun).where(
+        db.FlowRun.deployment_id == deployment_id,
+        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        db.FlowRun.auto_scheduled.is_(True),
+    )
+    await session.execute(delete_query)
+
+
+@inject_db
 async def create_deployment(
     session: sa.orm.Session, deployment: schemas.core.Deployment, db: OrionDBInterface
 ):
@@ -82,6 +102,10 @@ async def create_deployment(
     result = await session.execute(query)
     model = result.scalar()
 
+    # because this could upsert a different schedule, delete any runs from the old
+    # deployment
+    await _delete_auto_scheduled_runs(session=session, deployment_id=model.id, db=db)
+
     return model
 
 
@@ -114,6 +138,12 @@ async def update_deployment(
         .values(**update_data)
     )
     result = await session.execute(update_stmt)
+
+    # delete any auto scheduled runs that would have reflected the old deployment config
+    await _delete_auto_scheduled_runs(
+        session=session, deployment_id=deployment_id, db=db
+    )
+
     return result.rowcount > 0
 
 
@@ -305,7 +335,8 @@ async def delete_deployment(
     Returns:
         bool: whether or not the deployment was deleted
     """
-    # delete any scheduled runs for this deployment
+
+    # delete scheduled runs, both auto- and user- created.
     delete_query = sa.delete(db.FlowRun).where(
         db.FlowRun.deployment_id == deployment_id,
         db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
