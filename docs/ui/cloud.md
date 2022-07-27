@@ -67,6 +67,6 @@ When you first log into Prefect Cloud and create your workspace, it will most li
 
 ## Start using Prefect Cloud
 
-To create an account or sign in with an existing Prefect Cloud account, go to [http://beta.prefect.io/](http://beta.prefect.io/).
+To create an account or sign in with an existing Prefect Cloud account, go to [http://app.prefect.cloud/](http://app.prefect.cloud/).
 
 Then see [Getting Started with Prefect Cloud](/ui/cloud-getting-started/) to set up your profile and workspace, configure your workflow execution environment, and start running workflows with Prefect Cloud.
