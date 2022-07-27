@@ -330,4 +330,5 @@ The `prefect deployment` CLI command provides commands for managing and running 
 
 ## Examples
 
-Coming soon
+- [How to deploy Prefect 2.0 flows to AWS](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-aws/1252)
+- [How to deploy Prefect 2.0 flows to GCP](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-gcp/1251)
