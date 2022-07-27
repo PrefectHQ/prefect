@@ -43,7 +43,7 @@ Let's start with the [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#pre
 
 Let's start with this simple flow. We import the `SequentialTaskRunner`, specify a `task_runner` on the flow, and call the tasks with `.submit()`.
 
-```python hl_lines="2 12"
+```python hl_lines="2 12 15 16"
 from prefect import flow, task
 from prefect.task_runners import SequentialTaskRunner
 
