@@ -174,7 +174,7 @@ Or use the Prefect CLI command `prefect version`, which prints version and envir
 ```
 $ prefect version
 Version:             2.0
-API version:         0.7.0
+API version:         0.8.0
 Python version:      3.9.10
 Git commit:          6379bc53
 Built:               Tue, Jul 19, 2022 12:33 PM
