@@ -53,7 +53,7 @@ Informative Slack threads are archived by our resident bot Marvin. Having well-w
 
 Oftentimes your question may have been answered somewhere else; some good resources to start looking before asking a question:
 * [Previous Slack messages](https://github.com/PrefectHQ/prefect/issues?q=is%3Aopen+is%3Aissue+label%3A%22Prefect+Slack+Community%22) (we do our best to archive relevant threads to GitHub!)
-* [Prefect documentation](https://docs.prefect.io/core/development/documentation.html)
+* [Prefect documentation](/core/development/documentation.html)
 * [Github issues](https://github.com/PrefectHQ/prefect/issues)
 * [StackOverflow](https://stackoverflow.com/questions/tagged/prefect)
 

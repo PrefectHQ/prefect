@@ -656,7 +656,7 @@ spec:
             defaultMode: 0600
 ```
 
-Finally, [configure the agent or flow to use the custom job template](https://docs.prefect.io/orchestration/agents/kubernetes.html#custom-job-template). 
+Finally, [configure the agent or flow to use the custom job template](/orchestration/agents/kubernetes.html#custom-job-template). 
 
 
-Creating a [Kubernetes service account](https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/) to permission the Secret properly is recommended. Once configured in Kubernetes, service account can be set either [on agent start or on the run config](https://docs.prefect.io/orchestration/agents/kubernetes.html#service-account).
+Creating a [Kubernetes service account](https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/) to permission the Secret properly is recommended. Once configured in Kubernetes, service account can be set either [on agent start or on the run config](/orchestration/agents/kubernetes.html#service-account).
