@@ -191,9 +191,7 @@ async def install_system_block_types(
     """Install block types that the system expects to be present"""
     for block in [
         prefect.blocks.system.JSON,
-        prefect.blocks.system.String,
         prefect.blocks.system.DateTime,
-        prefect.blocks.system.EnvironmentVariable,
         prefect.blocks.system.Secret,
     ]:
         block_type = block._to_block_type()
