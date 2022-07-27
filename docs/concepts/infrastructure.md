@@ -1,8 +1,7 @@
 ---
-description: Prefect flow runners are responsible for creating and monitoring the infrastructure for flow runs associated with deployments.
+description: Prefect infrastructure responsible for creating and monitoring the execution environment for flow runs associated with deployments.
 tags:
     - orchestration
-    - flow runners
     - infrastructure
     - flow run infrastructure
     - deployments
