@@ -48,13 +48,20 @@ There are three terminal state types, from which there are no orchestrated trans
 | Failed | FAILED | Yes | The run did not complete because of a code issue and had no remaining retry attempts. |
 | Crashed | CRASHED | Yes | The run did not complete because of an infrastructure issue. |
 
-## Returned Values When Calling a Task or Flow
+## Returned values
 
-### Type of Returned Values
+
+
+
 When calling a task or a flow, there are three types of returned values:
-- _data_: A Python object (such as `int`, `str`, `dict`, `list`, etc)
-- `State`: the status of a flow or task run
-- `PrefectFuture`: an object that contains both _data_ and _State_
+
+
+- _data_: A Python object (such as `int`, `str`, `dict`, `list`, and so on)
+
+- `State`: The status of a flow or task run
+
+- `PrefectFuture`: An object that contains both _data_ and _State_
+
 ### Return Data
 By default, running a task will return _data_:
 
