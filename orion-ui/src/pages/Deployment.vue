@@ -12,7 +12,8 @@
     <p-tabs v-if="deployment" :tabs="tabs">
       <template #overview>
         <p-content secondary>
-          <template v-if="deployment.description">
+          <DeploymentDeprecatedMessage v-if="deployment.deprecated" />
+          <template v-else-if="deployment.description">
             <DeploymentDescription :description="deployment.description" />
           </template>
           <template v-else>
@@ -42,7 +43,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentDescription, DeploymentDescriptionEmptyState, PageHeadingDeployment, DeploymentDetails, ParametersTable } from '@prefecthq/orion-design'
+  import { DeploymentDescription, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
