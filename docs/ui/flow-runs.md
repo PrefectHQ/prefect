@@ -94,7 +94,7 @@ You can see details about the flow run including:
 - Timestamp of flow run creation (time of flow run for ad-hoc flow runs, or time when the deployment was created or updated for scheduled deployments)
 - Flow version
 - Run count
-- [Flow runner](/concepts/flow-runners/) used by the flow run
+- [Infrastructure](/concepts/infrastructure/) used by the flow run
 - Tags
 - Logs
 - Task runs
