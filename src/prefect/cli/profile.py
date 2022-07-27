@@ -149,7 +149,7 @@ async def check_orion_connection(profile_name):
             else:
                 exit_method, msg = (
                     exit_with_error,
-                    "Error connecting to Prefect Cloud",
+                    f"Error connecting to Prefect Cloud: {exc!r}",
                 )
         except TypeError:
             # if no Prefect Orion API URL has been set, httpx will throw a TypeError
