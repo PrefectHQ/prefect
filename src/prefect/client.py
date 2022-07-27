@@ -1345,7 +1345,7 @@ class OrionClient:
         Query Orion for a deployment by name.
 
         Args:
-            name: the deployment name of interest
+            name: A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
