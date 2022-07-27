@@ -1,7 +1,7 @@
 site_name: Prefect 2.0
-site_url: https://orion-docs.prefect.io
-repo_url: https://github.com/PrefectHQ/prefect/tree/orion
-edit_uri: ../../edit/orion/docs/
+site_url: https://docs.prefect.io/
+repo_url: https://github.com/PrefectHQ/prefect
+edit_uri: 
 extra_css:
     - stylesheets/theme.css
     - stylesheets/admonitions.css
@@ -32,7 +32,7 @@ markdown_extensions:
 theme:
     name: material
     custom_dir: overrides
-    favicon: img/favicon.ico
+    favicon: img/favicon.png
     features:
         - toc.integrate
         - navigation.tabs
@@ -89,7 +89,7 @@ nav:
         - Flows: concepts/flows.md
         - Tasks: concepts/tasks.md
         - States: concepts/states.md
-        - Flow Runners: concepts/flow-runners.md
+        - Infrastructure: concepts/infrastructure.md
         - Task Runners: concepts/task-runners.md
         - Deployments: concepts/deployments.md
         - Storage: concepts/storage.md
@@ -208,7 +208,7 @@ nav:
         - Overview: contributing/overview.md
         - Style: contributing/style.md
         - Troubleshooting: contributing/common-mistakes.md
-        - Testing Flow Runners: contributing/testing-flow-runners.md
+        # - Testing Flow Runners: contributing/testing-flow-runners.md
 
 extra:
   analytics:

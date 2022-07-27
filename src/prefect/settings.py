@@ -299,7 +299,7 @@ PREFECT_API_KEY = Setting(
 
 PREFECT_CLOUD_URL = Setting(
     str,
-    default="https://api-beta.prefect.io/api",
+    default="https://api.prefect.cloud/api",
     description="""API URL for Prefect Cloud""",
 )
 

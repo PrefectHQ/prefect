@@ -73,6 +73,30 @@ def exception_traceback(exc: Exception) -> str:
     return "".join(list(tb.format()))
 
 
+async def get_deployment(client, name, deployment_id):
+    if name is None and deployment_id is not None:
+        try:
+            deployment = await client.read_deployment(deployment_id)
+        except PrefectHTTPStatusError:
+            exit_with_error(f"Deployment {deployment_id!r} not found!")
+    elif name is not None and deployment_id is None:
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
+    elif name is None and deployment_id is None:
+        exit_with_error("Must provide a deployed flow's name or id")
+    else:
+        exit_with_error("Only provide a deployed flow's name or id")
+
+    if not deployment.manifest_path:
+        exit_with_error(
+            f"This deployment has been deprecated. Please see https://orion-docs.prefect.io/concepts/deployments/ to learn how to create a deployment."
+        )
+
+    return deployment
+
+
 class RichTextIO:
     def __init__(self, console, prefix: str = None) -> None:
         self.console = console
@@ -161,7 +185,9 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
 
 @deployment_app.command()
 async def run(
-    name: Optional[str] = typer.Argument(None, help="A deployment name"),
+    name: Optional[str] = typer.Argument(
+        None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
+    ),
     deployment_id: Optional[str] = typer.Option(
         None, "--id", help="A deployment id to search for if no name is given"
     ),
@@ -174,25 +200,20 @@ async def run(
     The flow run will not execute until an agent starts.
     """
     async with get_client() as client:
-        if name is None and deployment_id is not None:
-            try:
-                deployment = await client.read_deployment(deployment_id)
-            except PrefectHTTPStatusError:
-                exit_with_error(f"Deployment {deployment_id!r} not found!")
-        elif name is not None:
-            try:
-                deployment = await client.read_deployment_by_name(name)
-            except ObjectNotFound:
-                exit_with_error(f"Deployment {name!r} not found!")
-        else:
-            exit_with_error("Must provide a deployment name or id")
-
+        deployment = await get_deployment(client, name, deployment_id)
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
     app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
 
 
 @deployment_app.command()
-async def execute(name: str):
+async def execute(
+    name: Optional[str] = typer.Argument(
+        None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
+    ),
+    deployment_id: Optional[str] = typer.Option(
+        None, "--id", help="A deployment id to search for if no name is given"
+    ),
+):
     """
     Create and execute a local flow run for the given deployment.
 
@@ -201,16 +222,19 @@ async def execute(name: str):
 
     This command will block until the flow run completes.
     """
-    assert_deployment_name_format(name)
-
     async with get_client() as client:
-        deployment = await client.read_deployment_by_name(name)
+        deployment = await get_deployment(client, name, deployment_id)
+
         app.console.print("Loading flow from deployed location...")
         flow = await load_flow_from_deployment(deployment, client=client)
         parameters = deployment.parameters or {}
 
     app.console.print("Running flow...")
-    state = flow._run(**parameters)
+
+    if flow.isasync:
+        state = await flow._run(**parameters)
+    else:
+        state = flow._run(**parameters)
 
     if state.is_failed():
         exit_with_error("Flow run failed!")
@@ -255,7 +279,7 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
 async def apply(
     path: Path = typer.Argument(
         None,
-        help="The path a deployment YAML file.",
+        help="The path to a deployment YAML file.",
         show_default=False,
     )
 ):
@@ -325,7 +349,9 @@ def _deployment_name(deployment: Deployment):
 
 @deployment_app.command()
 async def delete(
-    name: Optional[str] = typer.Argument(None, help="A deployment name"),
+    name: Optional[str] = typer.Argument(
+        None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
+    ),
     deployment_id: Optional[str] = typer.Option(
         None, "--id", help="A deployment id to search for if no name is given"
     ),
@@ -405,18 +431,23 @@ async def preview(path: Path):
 
 
 class Infra(str, Enum):
-    kubernetes = "k8s"
-    process = "process"
-    docker = "docker"
+    kubernetes = KubernetesJob.get_block_type_slug()
+    process = Process.get_block_type_slug()
+    docker = DockerContainer.get_block_type_slug()
 
 
 @deployment_app.command()
 async def build(
-    path: str,
+    path: str = typer.Argument(
+        ...,
+        help="The path to a flow entrypoint, in the form of `./path/to/file.py:flow_func_name`",
+    ),
     manifest_only: bool = typer.Option(
         False, "--manifest-only", help="Generate the manifest file only."
     ),
-    name: str = typer.Option(None, "--name", "-n", help="The name of the deployment."),
+    name: str = typer.Option(
+        None, "--name", "-n", help="The name to give the deployment."
+    ),
     tags: List[str] = typer.Option(
         None,
         "-t",
@@ -427,13 +458,13 @@ async def build(
         "process",
         "--infra",
         "-i",
-        help="The infrastructure type to use.",
+        help="The infrastructure type to use, prepopulated with defaults.",
     ),
     infra_block: str = typer.Option(
         None,
         "--infra-block",
         "-ib",
-        help="The slug of the infrastructure block to use.",
+        help="The slug of the infrastructure block to use as a template.",
     ),
     storage_block: str = typer.Option(
         None,
@@ -442,6 +473,10 @@ async def build(
         help="The slug of the storage block to use.",
     ),
 ):
+    """
+    Generate a deployment YAML from /path/to/file.py:flow_function
+    """
+
     # validate inputs
     if not name and not manifest_only:
         exit_with_error(
@@ -449,7 +484,14 @@ async def build(
         )
 
     # validate flow
-    fpath, obj_name = path.rsplit(":", 1)
+    try:
+        fpath, obj_name = path.rsplit(":", 1)
+    except ValueError as exc:
+        if str(exc) == "not enough values to unpack (expected 2, got 1)":
+            missing_flow_name_msg = f"Your flow path must include the name of the function that is the entrypoint to your flow.\nTry {path}:<flow_name> for your flow path."
+            exit_with_error(missing_flow_name_msg)
+        else:
+            raise exc
     try:
         flow = load_flow_from_manifest_path(path)
         app.console.print(f"Found flow {flow.name!r}", style="green")
@@ -506,9 +548,17 @@ async def build(
         else:
             infrastructure = Process()
 
+    description = getdoc(flow)
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(f"{flow.name}/{name}")
+            description = deployment.description
+        except ObjectNotFound:
+            pass
+
     deployment = DeploymentYAML(
         name=name,
-        description=getdoc(flow),
+        description=description,
         tags=tags or [],
         flow_name=flow.name,
         parameter_openapi_schema=manifest.parameter_openapi_schema,
