@@ -473,6 +473,10 @@ async def build(
         help="The slug of the storage block to use.",
     ),
 ):
+    """
+    Generate a deployment YAML from /path/to/file.py:flow_function
+    """
+
     # validate inputs
     if not name and not manifest_only:
         exit_with_error(
