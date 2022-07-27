@@ -453,7 +453,7 @@ async def build(
     ),
 ):
     """
-    Generate a deployment YAML from a flow entrypoint.
+    Generate a deployment YAML from /path/to/file.py:flow_function
     """
 
     # validate inputs
