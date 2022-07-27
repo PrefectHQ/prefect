@@ -29,7 +29,7 @@ Prefect 2.0 supports creating multiple storage configurations and switching betw
 When building a deployment for a workflow, you have two options for configuring workflow storage:
 
 - Use the default local storage
-- preconfigure a storage block to use
+- Preconfigure a storage block to use
 
 ### Using the default 
 
