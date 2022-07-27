@@ -301,44 +301,6 @@ Received a <class '__main__.Model'> with value a=42 b=0.0 c='55'
 
     Flow configuration is covered in more detail in the [Flow and task configuration](/tutorials/flow-task/) tutorial. For more information about pydantic type coercion, see the [pydantic documentation](https://pydantic-docs.helpmanual.io/usage/models/).
 
-## Asynchronous functions
-
-Even asynchronous functions work with Prefect! Here's a variation of a previous example that makes the API request as an async operation:
-
-```python
-import asyncio
-import httpx
-from prefect import flow, task
-
-@task
-async def call_api(url):
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url)
-    return response.json()
-
-@flow
-async def async_flow(url):
-    fact_json = await call_api(url)
-    return fact_json
-
-print(asyncio.run(async_flow("https://catfact.ninja/fact")))
-```
-
-When we run this code the output looks just like previous runs.
-
-<div class="terminal">
-```bash
-15:00:13.110 | INFO    | prefect.engine - Created flow run 'successful-starfish' for flow 'async-flow'
-15:00:13.111 | INFO    | Flow run 'successful-starfish' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
-15:00:13.167 | INFO    | Flow run 'successful-starfish' - Created task run 'call_api-ded10bed-0' for task 'call_api'
-15:00:13.167 | INFO    | Flow run 'successful-starfish' - Executing 'call_api-ded10bed-0' immediately...
-15:00:13.256 | INFO    | Task run 'call_api-ded10bed-0' - Finished in state Completed()
-15:00:13.266 | INFO    | Flow run 'successful-starfish' - Finished in state Completed()
-result={'fact': 'Cats have about 130,000 hairs per square inch (20,155 hairs per square centimeter).', 'length': 83}
-```
-</div>
-
-You can also run async tasks within non-async flows. This is a more advanced use case and will be covered in [future tutorials](/tutorials/execution/#asynchronous-execution).
 
 !!! tip "Next steps: Flow and task configuration"
     Now that you've seen some flow and task basics, the next step is learning about [configuring your flows and tasks](/tutorials/flow-task-config/) with options such as parameters, retries, caching, and task runners.
