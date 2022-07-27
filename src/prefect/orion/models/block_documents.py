@@ -2,6 +2,7 @@
 Functions for interacting with block document ORM objects.
 Intended for internal use by the Orion API.
 """
+from copy import copy
 from typing import Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
@@ -31,7 +32,7 @@ async def create_block_document(
 
     # anonymous block documents can be given a random name if none is provided
     if block_document.is_anonymous and not block_document.name:
-        name = f"anonymous:{uuid4()}"
+        name = f"anonymous-{uuid4()}"
     else:
         name = block_document.name
 
@@ -180,8 +181,12 @@ async def _construct_full_block_document(
     if len(block_documents_with_references) == 0:
         return None
     if parent_block_document is None:
-        parent_block_document = await _find_parent_block_document(
-            session, block_documents_with_references, include_secrets=include_secrets
+        parent_block_document = copy(
+            await _find_parent_block_document(
+                session,
+                block_documents_with_references,
+                include_secrets=include_secrets,
+            )
         )
 
     if parent_block_document is None:
@@ -202,7 +207,7 @@ async def _construct_full_block_document(
             full_child_block_document = await _construct_full_block_document(
                 session,
                 block_documents_with_references,
-                parent_block_document=block_document,
+                parent_block_document=copy(block_document),
                 include_secrets=include_secrets,
             )
             parent_block_document.data[name] = full_child_block_document.data
@@ -249,18 +254,17 @@ async def _find_parent_block_document(
 async def read_block_document_by_name(
     session: sa.orm.Session,
     name: str,
-    block_type_name: str,
+    block_type_slug: str,
     db: OrionDBInterface,
     include_secrets: bool = False,
 ):
     """
-    Read a block document with the given name and block type name. If a block schema checksum
-    is provided, it is matched as well.
+    Read a block document with the given name and block type slug.
     """
     root_block_document_cte = (
         sa.select(db.BlockDocument)
         .join(db.BlockType, db.BlockType.id == db.BlockDocument.block_type_id)
-        .filter(db.BlockType.name == block_type_name, db.BlockDocument.name == name)
+        .filter(db.BlockType.slug == block_type_slug, db.BlockDocument.name == name)
         .cte("root_block_document")
     )
 

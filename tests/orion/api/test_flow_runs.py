@@ -8,7 +8,7 @@ from fastapi import status
 
 from prefect.orion import models, schemas
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.schemas import actions, core, data, responses, states
+from prefect.orion.schemas import actions, core, responses, states
 from prefect.orion.schemas.core import TaskRunResult
 
 
@@ -171,7 +171,10 @@ class TestCreateFlowRun:
         assert flow_run.state.type == flow_run_data.state.type
 
     async def test_create_flow_run_with_deployment_id(
-        self, flow, client, session, flow_function
+        self,
+        flow,
+        client,
+        session,
     ):
 
         deployment = await models.deployments.create_deployment(
@@ -179,7 +182,7 @@ class TestCreateFlowRun:
             deployment=core.Deployment(
                 name="",
                 flow_id=flow.id,
-                flow_data=data.DataDocument.encode("cloudpickle", flow_function),
+                manifest_path="file.json",
             ),
         )
         await session.commit()

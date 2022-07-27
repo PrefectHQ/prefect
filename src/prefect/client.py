@@ -106,11 +106,12 @@ def inject_client(fn):
     return with_injected_client
 
 
-def get_client() -> "OrionClient":
+def get_client(httpx_settings: dict = None) -> "OrionClient":
     ctx = prefect.context.get_settings_context()
     return OrionClient(
         PREFECT_API_URL.value() or create_app(ctx.settings, ephemeral=True),
         api_key=PREFECT_API_KEY.value(),
+        httpx_settings=httpx_settings,
     )
 
 
@@ -381,6 +382,9 @@ class OrionClient:
         """
         return await self._client.get("/hello")
 
+    async def using_ephemeral_app(self) -> bool:
+        return self._ephemeral_app is not None
+
     async def create_flow(self, flow: "Flow") -> UUID:
         """
         Create a flow in Orion.
@@ -441,6 +445,7 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
+        sort: schemas.sorting.FlowSort = None,
         limit: int = None,
         offset: int = 0,
     ) -> List[schemas.core.Flow]:
@@ -453,6 +458,7 @@ class OrionClient:
             flow_run_filter: filter criteria for flow runs
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
+            sort: sort criteria for the flows
             limit: limit for the flow query
             offset: offset for the flow query
 
@@ -473,6 +479,7 @@ class OrionClient:
                 if deployment_filter
                 else None
             ),
+            "sort": sort,
             "limit": limit,
             "offset": offset,
         }
@@ -503,7 +510,6 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         context: dict = None,
         state: schemas.states.State = None,
-        infrastructure_document_id: UUID = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a deployment.
@@ -515,8 +521,6 @@ class OrionClient:
             context: Optional run context data
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
-            infrastructure: An optional infrastructure object to use to for this flow
-                run.
 
         Raises:
             httpx.RequestError: if Orion does not successfully create a run for any reason
@@ -532,7 +536,6 @@ class OrionClient:
             parameters=parameters,
             context=context,
             state=state,
-            infrastructure_document_id=infrastructure_document_id,
         )
 
         response = await self._client.post(
@@ -550,7 +553,6 @@ class OrionClient:
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: schemas.states.State = None,
-        infrastructure_document_id: UUID = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a flow.
@@ -594,7 +596,6 @@ class OrionClient:
                 max_retries=flow.retries,
                 retry_delay_seconds=flow.retry_delay_seconds,
             ),
-            infrastructure_document_id=infrastructure_document_id,
         )
 
         flow_run_create_json = flow_run_create.dict(json_compatible=True)
@@ -1074,12 +1075,12 @@ class OrionClient:
             else:
                 raise
 
-    async def read_block_type_by_name(self, name: str) -> BlockType:
+    async def read_block_type_by_slug(self, slug: str) -> BlockType:
         """
-        Read a block type by its name.
+        Read a block type by its slug.
         """
         try:
-            response = await self._client.get(f"/block_types/name/{name}")
+            response = await self._client.get(f"/block_types/slug/{slug}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -1101,6 +1102,33 @@ class OrionClient:
             else:
                 raise
         return schemas.core.BlockSchema.parse_obj(response.json())
+
+    async def update_block_type(
+        self, block_type_id: UUID, block_type: schemas.actions.BlockTypeUpdate
+    ):
+        """
+        Update a block document in Orion.
+        """
+        try:
+            await self._client.patch(
+                f"/block_types/{block_type_id}",
+                json=block_type.dict(
+                    json_compatible=True,
+                    exclude_unset=True,
+                    include={
+                        "logo_url",
+                        "documentation_url",
+                        "description",
+                        "code_example",
+                    },
+                    include_secrets=True,
+                ),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def read_block_schemas(self) -> List[schemas.core.BlockSchema]:
         """
@@ -1152,7 +1180,7 @@ class OrionClient:
     async def read_block_document_by_name(
         self,
         name: str,
-        block_type_name: str,
+        block_type_slug: str,
         include_secrets: bool = True,
     ):
         """
@@ -1161,7 +1189,7 @@ class OrionClient:
 
         Args:
             name: The block document name.
-            block_type_name: The block type name
+            block_type_slug: The block type slug.
             include_secrets (bool): whether to include secret values
                 on the Block, corresponding to Pydantic's `SecretStr` and
                 `SecretBytes` fields. These fields are automatically obfuscated
@@ -1177,7 +1205,7 @@ class OrionClient:
         """
         try:
             response = await self._client.get(
-                f"/block_types/name/{block_type_name}/block_documents/name/{name}",
+                f"/block_types/slug/{block_type_slug}/block_documents/name/{name}",
                 params=dict(include_secrets=include_secrets),
             )
         except httpx.HTTPStatusError as e:
@@ -1226,11 +1254,14 @@ class OrionClient:
         self,
         flow_id: UUID,
         name: str,
-        flow_data: DataDocument,
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         parameters: Dict[str, Any] = None,
+        description: str = None,
         tags: List[str] = None,
+        manifest_path: str = None,
+        storage_document_id: UUID = None,
         infrastructure_document_id: UUID = None,
+        parameter_openapi_schema: dict = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1238,10 +1269,11 @@ class OrionClient:
         Args:
             flow_id: the flow ID to create a deployment for
             name: the name of the deployment
-            flow_data: a data document that can be resolved into a flow object or script
             schedule: an optional schedule to apply to the deployment
             tags: an optional list of tags to apply to the deployment
-            infrastructure_document_id: an reference to an infrastructure block document
+            storage_document_id: an reference to the storage block document
+                used for the deployed flow
+            infrastructure_document_id: an reference to the infrastructure block document
                 to use for this deployment
 
         Raises:
@@ -1254,10 +1286,13 @@ class OrionClient:
             flow_id=flow_id,
             name=name,
             schedule=schedule,
-            flow_data=flow_data,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
+            description=description,
+            manifest_path=manifest_path,
+            storage_document_id=storage_document_id,
             infrastructure_document_id=infrastructure_document_id,
+            parameter_openapi_schema=parameter_openapi_schema,
         )
 
         response = await self._client.post(
@@ -1310,7 +1345,7 @@ class OrionClient:
         Query Orion for a deployment by name.
 
         Args:
-            name: the deployment name of interest
+            name: A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404

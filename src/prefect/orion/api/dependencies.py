@@ -59,9 +59,7 @@ class EnforceMinimumAPIVersion:
         try:
             major, minor, patch = [int(v) for v in request_version.split(".")]
         except ValueError:
-            self.logger.error(
-                f"Invalid X-PREFECT-API-VERSION header format: '{request_version}'"
-            )
+            await self._notify_of_invalid_value(request_version)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
@@ -71,17 +69,25 @@ class EnforceMinimumAPIVersion:
             )
 
         if (major, minor, patch) < (self.api_major, self.api_minor, self.api_patch):
-            self.logger.error(
-                f"X-PREFECT-API-VERSION header specifies version '{request_version}' "
-                f"but minimum allowed version is '{self.minimum_api_version}'"
-            )
+            await self._notify_of_outdated_version(request_version)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
-                    f"The request specified API version {request_version} but this server"
-                    f"requires version {self.minimum_api_version} or higher."
+                    f"The request specified API version {request_version} but this "
+                    f"server requires version {self.minimum_api_version} or higher."
                 ),
             )
+
+    async def _notify_of_invalid_value(self, request_version: str):
+        self.logger.error(
+            f"Invalid X-PREFECT-API-VERSION header format: '{request_version}'"
+        )
+
+    async def _notify_of_outdated_version(self, request_version: str):
+        self.logger.error(
+            f"X-PREFECT-API-VERSION header specifies version '{request_version}' "
+            f"but minimum allowed version is '{self.minimum_api_version}'"
+        )
 
 
 def LimitBody() -> Depends:

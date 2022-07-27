@@ -299,7 +299,7 @@ PREFECT_API_KEY = Setting(
 
 PREFECT_CLOUD_URL = Setting(
     str,
-    default="https://api-beta.prefect.io/api",
+    default="https://api.prefect.cloud/api",
     description="""API URL for Prefect Cloud""",
 )
 
@@ -464,11 +464,9 @@ PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS = Setting(
     float,
     default=60,
     description="""The scheduler loop interval, in seconds. This determines
-    how often the scheduler will attempt to schedule new flow runs, but has
-    no impact on how quickly either flow runs or task runs are actually
-    executed. Creating new deployments or schedules will always create new
-    flow runs optimistically, without waiting for the scheduler. Defaults to
-    `60`.""",
+    how often the scheduler will attempt to schedule new flow runs, but has no
+    impact on how quickly either flow runs or task runs are actually executed.
+    Defaults to `60`.""",
 )
 
 PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE = Setting(

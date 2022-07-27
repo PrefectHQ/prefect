@@ -31,7 +31,7 @@ async def test_validation_error_handler(client):
     bad_deployment_data = {
         "name": "my-deployment",
         "flow_id": str(uuid4()),
-        "flow_data": {"encoding": "x", "blob": "y"},
+        "manifest_path": "file.json",
     }
     response = await client.post("/deployments/", json=bad_deployment_data)
     assert response.status_code == status.HTTP_409_CONFLICT

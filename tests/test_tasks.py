@@ -218,6 +218,19 @@ class TestTaskRun:
 
         assert bar() == "bar"
 
+    def test_task_with_return_state_true(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1, return_state=True)
+
+        task_state = bar()
+        assert isinstance(task_state, State)
+        assert task_state.result() == 1
+
 
 class TestTaskSubmit:
     def test_task_submitted_outside_flow_raises(self):
@@ -238,6 +251,20 @@ class TestTaskSubmit:
             future = foo.submit(1)
             assert isinstance(future, PrefectFuture)
             return future
+
+        task_state = bar()
+        assert task_state.result() == 1
+
+    def test_sync_task_with_return_state_true(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            state = foo.submit(1, return_state=True)
+            assert isinstance(state, State)
+            return state
 
         task_state = bar()
         assert task_state.result() == 1
@@ -1725,6 +1752,16 @@ class TestTaskMap:
 
         futures = my_flow()
         assert [future.result() for future in futures] == [2, 3, 4]
+
+    def test_simple_map_return_state_true(self):
+        @flow
+        def my_flow():
+            states = TestTaskMap.add_one.map([1, 2, 3], return_state=True)
+            assert all(isinstance(s, State) for s in states)
+            return states
+
+        states = my_flow()
+        assert [state.result() for state in states] == [2, 3, 4]
 
     def test_map_can_take_tuple_as_input(self):
         @flow
