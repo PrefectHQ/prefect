@@ -202,6 +202,7 @@ When you run this flow, the coroutines that were gathered yield control to one a
 </div>
 
 The example above is equivalent to below:
+
 ```
 import asyncio
 
