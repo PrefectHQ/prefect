@@ -4,7 +4,7 @@
 ## 2.0b16
 
 ### Simplified, declarative deployments
-Prefect 2.0's deployments are a powerful way to encapsulate a flow, its required infrastructure, its schedule, it's parameters, and more. Now, you can create simple deployments with just two commands:
+Prefect 2.0's deployments are a powerful way to encapsulate a flow, its required infrastructure, its schedule, its parameters, and more. Now, you can create simple deployments with just two commands:
 1. `prefect deployment build ./path/to/flow/file.py:name_of_flow_obj --name "Deployment Name"` produces two files:
      - A manifest file, containing workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters
      - A `deployment.yaml` file - a complete specification of the metadata and configuration for the deployment such as the name, tags, and description
