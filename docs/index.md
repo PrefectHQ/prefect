@@ -50,7 +50,7 @@ Learn more about Prefect 2.0's features and design by reading our in-depth [conc
 
 **Prefect UI & Prefect Cloud**
 
-See how [Prefect's UI and cloud hosted functionality](ui/overview/) can make orchestrating dataflows a joy.
+See how [Prefect's UI and cloud hosted functionality](ui/overview/) can make coordinating dataflows a joy.
 
 **Collections**
 
