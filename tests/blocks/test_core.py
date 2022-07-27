@@ -5,6 +5,7 @@ from textwrap import dedent
 from typing import Dict, Type, Union
 from uuid import UUID, uuid4
 
+import prefect
 import pytest
 from pydantic import Field, SecretBytes, SecretStr
 
@@ -14,6 +15,10 @@ from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 from prefect.orion.utilities.names import obfuscate_string
 from prefect.utilities.dispatch import lookup_type, register_type
+
+
+class CoolBlock(Block):
+    cool_factor: int
 
 
 class TestAPICompatibility:
@@ -968,14 +973,6 @@ class TestSaveBlock:
 
         assert loaded_new_block == new_block
 
-    def test_save_and_load_sync_compatible(self):
-        class CoolBlock(Block):
-            cool_factor: int
-
-        CoolBlock(cool_factor=1000000).save("my-rad-block")
-        loaded_block = CoolBlock.load("my-rad-block")
-        assert loaded_block.cool_factor == 1000000
-
     async def test_save_anonymous_block(self, NewBlock):
         new_anon_block = NewBlock(a="foo", b="bar")
         await new_anon_block._save(is_anonymous=True)
@@ -1352,7 +1349,7 @@ class TestToBlockType:
             face_length_inches: float
 
             def calculate_area(self):
-                return self.face_length_inches**3
+                return self.face_length_inches ** 3
 
         block_type = Cube._to_block_type()
 
@@ -1391,7 +1388,7 @@ class TestToBlockType:
             face_length_inches: float
 
             def calculate_area(self):
-                return self.face_length_inches**3
+                return self.face_length_inches ** 3
 
         block_type = Cube._to_block_type()
 
@@ -1437,7 +1434,7 @@ class TestToBlockType:
             face_length_inches: float
 
             def calculate_area(self):
-                return self.face_length_inches**3
+                return self.face_length_inches ** 3
 
         block_type = Cube._to_block_type()
 
@@ -1610,3 +1607,94 @@ class TestGetCodeExample:
                 print("I am overriding the example in the docstring")
                 ```"""
         )
+
+
+class TestSyncCompatible:
+    def test_save_and_load_sync_compatible(self):
+        CoolBlock(cool_factor=1000000).save("my-rad-block")
+        loaded_block = CoolBlock.load("my-rad-block")
+        assert loaded_block.cool_factor == 1000000
+
+    def test_block_in_flow_sync_test_sync_flow(self):
+
+        CoolBlock(cool_factor=1000000).save("blk")
+
+        @prefect.flow
+        def my_flow():
+            loaded_block = CoolBlock.load("blk")
+            return loaded_block.cool_factor
+
+        result = my_flow()
+        assert result == 1000000
+
+    async def test_block_in_flow_async_test_sync_flow(self):
+
+        await CoolBlock(cool_factor=1000000).save("blk")
+
+        @prefect.flow
+        def my_flow():
+            loaded_block = CoolBlock.load("blk")
+            return loaded_block.cool_factor
+
+        result = my_flow()
+        assert result == 1000000
+
+    async def test_block_in_flow_async_test_async_flow(self):
+
+        await CoolBlock(cool_factor=1000000).save("blk")
+
+        @prefect.flow
+        async def my_flow():
+            loaded_block = await CoolBlock.load("blk")
+            return loaded_block.cool_factor
+
+        result = await my_flow()
+        assert result == 1000000
+
+    def test_block_in_task_sync_test_sync_flow(self):
+
+        CoolBlock(cool_factor=1000000).save("blk")
+
+        @prefect.task
+        def my_task():
+            loaded_block = CoolBlock.load("blk")
+            return loaded_block.cool_factor
+
+        @prefect.flow()
+        def my_flow():
+            return my_task()
+
+        result = my_flow()
+        assert result == 1000000
+
+    async def test_block_in_task_async_test_sync_task(self):
+
+        await CoolBlock(cool_factor=1000000).save("blk")
+
+        @prefect.task
+        def my_task():
+            loaded_block = CoolBlock.load("blk")
+            return loaded_block.cool_factor
+
+        @prefect.flow()
+        def my_flow():
+            return my_task()
+
+        result = my_flow()
+        assert result == 1000000
+
+    async def test_block_in_task_async_test_async_task(self):
+
+        await CoolBlock(cool_factor=1000000).save("blk")
+
+        @prefect.task
+        async def my_task():
+            loaded_block = await CoolBlock.load("blk")
+            return loaded_block.cool_factor
+
+        @prefect.flow()
+        async def my_flow():
+            return await my_task()
+
+        result = await my_flow()
+        assert result == 1000000
