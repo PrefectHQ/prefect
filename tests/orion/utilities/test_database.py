@@ -1,11 +1,13 @@
 import datetime
 import enum
+import math
 from typing import List
 
 import pendulum
 import pydantic
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import declarative_base
 
 from prefect.orion.database.configurations import AioSqliteConfiguration
@@ -395,6 +397,21 @@ class TestJSON:
         assert "json_each" in str(any_stmt)
         assert "?&" not in str(all_stmt)
         assert "json_each" in str(all_stmt)
+
+    @pytest.mark.parametrize("extrema", [-math.inf, math.nan, +math.inf])
+    async def test_json_floating_point_extrema(
+        self, session: AsyncSession, extrema: float
+    ):
+        example = SQLJSONModel(id=100, data=[-1.0, extrema, 1.0])
+        session.add(example)
+        await session.flush()
+        session.expire(example)
+
+        result = await session.execute(
+            sa.select(SQLJSONModel).where(SQLJSONModel.id == 100)
+        )
+        from_db: SQLJSONModel = result.scalars().first()
+        assert from_db.data == [-1.0, None, 1.0]
 
 
 class TestDateFunctions:
