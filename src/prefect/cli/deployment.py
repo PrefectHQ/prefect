@@ -459,7 +459,8 @@ async def build(
         app.console.print(f"Found flow {flow.name!r}", style="green")
     except AttributeError:
         exit_with_error(f"{obj_name!r} not found in {fpath!r}.")
-
+    except FileNotFoundError:
+        exit_with_error(f"{fpath!r} not found.")
     flow_parameter_schema = parameter_schema(flow)
     manifest = Manifest(
         flow_name=flow.name,
