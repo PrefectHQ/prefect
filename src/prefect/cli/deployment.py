@@ -205,42 +205,6 @@ async def run(
     app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
 
 
-@deployment_app.command()
-async def execute(
-    name: Optional[str] = typer.Argument(
-        None, help="A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>"
-    ),
-    deployment_id: Optional[str] = typer.Option(
-        None, "--id", help="A deployment id to search for if no name is given"
-    ),
-):
-    """
-    Create and execute a local flow run for the given deployment.
-
-    This does not require an agent and will bypass all flow runner settings attached to
-    the deployment.
-
-    This command will block until the flow run completes.
-    """
-    async with get_client() as client:
-        deployment = await get_deployment(client, name, deployment_id)
-
-        app.console.print("Loading flow from deployed location...")
-        flow = await load_flow_from_deployment(deployment, client=client)
-        parameters = deployment.parameters or {}
-
-    app.console.print("Running flow...")
-
-    if flow.isasync:
-        state = await flow._run(**parameters)
-    else:
-        state = flow._run(**parameters)
-
-    if state.is_failed():
-        exit_with_error("Flow run failed!")
-    else:
-        exit_with_success("Flow run completed!")
-
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
     """
