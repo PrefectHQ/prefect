@@ -153,10 +153,21 @@ class Scheduler(LoopService):
             finally:
                 connection = await session.connection()
                 if connection.invalidated:
-                    # If the error we handled above was a database error that caused the
-                    # transaction to rollback and become invalidated, rollback this
-                    # session, break from this loop iteration, and have the main loop
-                    # in run_once start over
+                    # If the error we handled above was the kind of database error that
+                    # causes underlying transaction to rollback and the connection to
+                    # become invalidated, rollback this session.  Errors that may cause
+                    # this are connection drops, database restarts, and things of the
+                    # sort.
+                    #
+                    # This rollback _does not rollback a transaction_, since that has
+                    # actually already happened due to the error above.  It brings the
+                    # Python session in sync with underlying connection so that when we
+                    # exec the outer with block, the context manager will not attempt to
+                    # commit the session.
+                    #
+                    # Then, raise TryAgain to break out of these nested loops, back to
+                    # the outer loop, where we'll begin a new transaction with
+                    # session.begin() in the next loop iteration.
                     await session.rollback()
                     raise TryAgain()
         return runs_to_insert
