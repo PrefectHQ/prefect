@@ -10,7 +10,7 @@ import pydantic
 import pydantic.schema
 from typing_extensions import Literal
 
-from prefect.exceptions import ReservedArgumentError
+from prefect.exceptions import ParameterBindError, ReservedArgumentError, SignatureMismatchError
 
 
 def get_call_parameters(
@@ -20,14 +20,12 @@ def get_call_parameters(
     Bind a call to a function to get parameter/value mapping. Default values on the
     signature will be included if not overriden.
 
-    Will throw an exception if the arguments/kwargs are not valid for the function
+    Raises a ParameterBindError if the arguments/kwargs are not valid for the function
     """
     try:
         bound_signature = inspect.signature(fn).bind(*call_args, **call_kwargs)
     except TypeError as exc:
-        raise TypeError(
-            f"Error calling {fn.__name__}: {str(exc)}, please check input parameters"
-        )
+        raise ParameterBindError.from_bind_failure(fn, exc, call_args, call_kwargs)
     bound_signature.apply_defaults()
     # We cast from `OrderedDict` to `dict` because Dask will not convert futures in an
     # ordered dictionary to values during execution; this is the default behavior in
@@ -44,8 +42,14 @@ def parameters_to_args_kwargs(
     The function _must_ have an identical signature to the original function or this
     will return an empty tuple and dict.
     """
+    function_params = dict(inspect.signature(fn).parameters).keys()
+    if parameters.keys() != function_params:
+        raise SignatureMismatchError.from_bad_params(
+            list(function_params), list(parameters.keys())
+        )
     bound_signature = inspect.signature(fn).bind_partial()
     bound_signature.arguments = parameters
+
     return bound_signature.args, bound_signature.kwargs
 
 

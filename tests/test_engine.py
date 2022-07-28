@@ -11,11 +11,13 @@ from prefect import engine, flow, task
 from prefect.context import FlowRunContext
 from prefect.engine import (
     begin_flow_run,
+    create_and_begin_subflow_run,
+    create_then_begin_flow_run,
     orchestrate_flow_run,
     orchestrate_task_run,
     retrieve_flow_then_begin_flow_run,
 )
-from prefect.exceptions import ParameterTypeError
+from prefect.exceptions import ParameterTypeError, SignatureMismatchError
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.states import (
@@ -31,6 +33,49 @@ from prefect.task_runners import SequentialTaskRunner
 from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
 from prefect.utilities.collections import quote
 from prefect.utilities.pydantic import PartialModel
+
+
+@pytest.fixture
+async def patch_manifest_load(monkeypatch):
+    async def patch_manifest(f):
+        async def anon(*args, **kwargs):
+            return f
+
+        monkeypatch.setattr(
+            engine,
+            "load_flow_from_flow_run",
+            anon,
+        )
+        return f
+
+    return patch_manifest
+
+
+@pytest.fixture
+def parameterized_flow():
+    @flow
+    def flow_for_tests(dog: str, cat: int):
+        """Flow for testing functions"""
+
+    return flow_for_tests
+
+
+@pytest.fixture
+def flow_run_caplog(caplog):
+    """
+    Capture logging from flow runs to ensure messages are correct.
+    """
+    import logging
+
+    logger = logging.getLogger("prefect.flow_runs")
+    logger2 = logging.getLogger("prefect")
+    logger.propagate = True
+    logger2.propagate = True
+
+    try:
+        yield caplog
+    finally:
+        logger.propagate = False
 
 
 @pytest.fixture
@@ -859,21 +904,6 @@ class TestTaskRunCrashes:
 
 
 class TestDeploymentFlowRun:
-    @pytest.fixture
-    async def patch_manifest_load(self, monkeypatch):
-        async def patch_manifest(f):
-            async def anon(*args, **kwargs):
-                return f
-
-            monkeypatch.setattr(
-                engine,
-                "load_flow_from_flow_run",
-                anon,
-            )
-            return f
-
-        return patch_manifest
-
     async def create_deployment(self, client, flow):
         flow_id = await client.create_flow(flow)
         return await client.create_deployment(
@@ -955,7 +985,10 @@ class TestDeploymentFlowRun:
             flow_run.id, client=orion_client
         )
         assert state.is_failed()
-        assert state.message == "Flow run received invalid parameters."
+        assert (
+            state.message
+            == "Flow run received invalid parameters:\n - x: value is not a valid integer"
+        )
         with pytest.raises(ParameterTypeError, match="value is not a valid integer"):
             state.result()
 
@@ -1034,3 +1067,126 @@ class TestDynamicKeyHandling:
         task_runs = await orion_client.read_task_runs()
 
         assert sorted([int(run.dynamic_key) for run in task_runs]) == [0, 0, 1, 1]
+
+
+class TestCreateThenBeginFlowRun:
+    async def test_handles_bad_parameter_types(self, orion_client, parameterized_flow):
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"dog": [1, 2], "cat": "not an int"},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Flow run received invalid parameters:\n - dog: str type expected\n - cat: value is not a valid integer"
+        )
+        assert type(state.data.decode()) == ParameterTypeError
+
+    async def test_handles_signature_mismatches(self, orion_client, parameterized_flow):
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+        )
+        assert type(state.data.decode()) == SignatureMismatchError
+
+
+class TestRetrieveFlowThenBeginFlowRun:
+    async def test_handles_bad_parameter_types(
+        self, orion_client, patch_manifest_load, parameterized_flow
+    ):
+        await patch_manifest_load(parameterized_flow)
+        flow_id = await orion_client.create_flow(parameterized_flow)
+        dep_id = await orion_client.create_deployment(
+            flow_id,
+            name="test",
+            manifest_path="path/file.json",
+        )
+        new_flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id=dep_id, parameters={"dog": [1], "cat": "not an int"}
+        )
+        state = await retrieve_flow_then_begin_flow_run(flow_run_id=new_flow_run.id)
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Flow run received invalid parameters:\n - dog: str type expected\n - cat: value is not a valid integer"
+        )
+        assert type(state.data.decode()) == ParameterTypeError
+
+    async def test_handles_signature_mismatches(self, orion_client, parameterized_flow):
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+        )
+        assert type(state.data.decode()) == SignatureMismatchError
+
+
+class TestCreateAndBeginSubflowRun:
+    async def create_test_context(self, orion_client, local_filesystem):
+        @flow
+        def foo():
+            pass
+
+        test_task_runner = SequentialTaskRunner()
+        flow_run = await orion_client.create_flow_run(foo)
+
+        ctx = FlowRunContext(
+            flow=foo,
+            flow_run=flow_run,
+            client=orion_client,
+            task_runner=test_task_runner,
+            result_filesystem=local_filesystem,
+        )
+
+        return ctx
+
+    async def test_handles_bad_parameter_types(
+        self, orion_client, parameterized_flow, local_filesystem
+    ):
+        ctx = await self.create_test_context(orion_client, local_filesystem)
+        with ctx:
+            state = await create_and_begin_subflow_run(
+                flow=parameterized_flow,
+                parameters={"dog": [1, 2], "cat": "not an int"},
+                return_type="state",
+                client=orion_client,
+            )
+            assert state.type == StateType.FAILED
+            assert (
+                state.message
+                == "Flow run received invalid parameters:\n - dog: str type expected\n - cat: value is not a valid integer"
+            )
+            assert type(state.data.decode()) == ParameterTypeError
+
+    async def test_handles_signature_mismatches(
+        self, orion_client, parameterized_flow, local_filesystem
+    ):
+        ctx = await self.create_test_context(orion_client, local_filesystem)
+        with ctx:
+            state = await create_and_begin_subflow_run(
+                flow=parameterized_flow,
+                parameters={"puppy": "a string", "kitty": 42},
+                return_type="state",
+                client=orion_client,
+            )
+            assert state.type == StateType.FAILED
+            assert (
+                state.message
+                == "Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            )
+            assert type(state.data.decode()) == SignatureMismatchError

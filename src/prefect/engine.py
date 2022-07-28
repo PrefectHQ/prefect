@@ -37,7 +37,13 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
-from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
+from prefect.exceptions import (
+    Abort,
+    MappingLengthMismatch,
+    ParameterTypeError,
+    SignatureMismatchError,
+    UpstreamTaskError,
+)
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_data
@@ -87,7 +93,7 @@ from prefect.utilities.asyncutils import (
     run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
 )
-from prefect.utilities.callables import parameters_to_args_kwargs
+from prefect.utilities.callables import get_call_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import Quote, visit_collection
 from prefect.utilities.pydantic import PartialModel
 
@@ -191,14 +197,22 @@ async def create_then_begin_flow_run(
         raise RuntimeError(
             f"Cannot create flow run. Failed to reach API at {client.api_url}."
         ) from connect_error
-
     state = Pending()
     if flow.should_validate_parameters:
         try:
             parameters = flow.validate_parameters(parameters)
-        except Exception as exc:
+        except (ParameterTypeError, SignatureMismatchError) as exc:
+            validation_failure_msg = str(exc)
             state = Failed(
-                message="Flow run received invalid parameters.",
+                message=str(exc),
+                data=DataDocument.encode("cloudpickle", exc),
+            )
+        except Exception as exc:
+            validation_failure_msg = (
+                f"Validation of flow parameters failed with an unexpected error: {exc}"
+            )
+            state = Failed(
+                message=validation_failure_msg,
                 data=DataDocument.encode("cloudpickle", exc),
             )
 
@@ -213,6 +227,7 @@ async def create_then_begin_flow_run(
     engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
 
     if state.is_failed():
+        flow_run_logger(flow_run).error(validation_failure_msg)
         engine_logger.info(
             f"Flow run {flow_run.name!r} received invalid parameters and is marked as failed."
         )
@@ -241,7 +256,6 @@ async def retrieve_flow_then_begin_flow_run(
     - Updates the flow run version
     """
     flow_run = await client.read_flow_run(flow_run_id)
-
     try:
         flow = await load_flow_from_flow_run(flow_run, client=client)
     except Exception as exc:
@@ -253,27 +267,51 @@ async def retrieve_flow_then_begin_flow_run(
         )
         return state
 
+    try:
+        parameters = get_call_parameters(
+            flow.fn, call_args=(), call_kwargs=flow_run.parameters
+        )
+    except Exception as exc:
+        message = f"Encountered an unexpected error when retrieving flow run parameters: {exc}"
+        flow_run_logger(flow_run).exception(message)
+        state = Failed(message=message, data=safe_encode_exception(exc))
+        await client.set_flow_run_state(
+            state=state, flow_run_id=flow_run_id, force=True
+        )
+        return state
+
     await client.update_flow_run(
         flow_run_id=flow_run_id,
         flow_version=flow.version,
+        parameters=parameters,
     )
 
     if flow.should_validate_parameters:
+        failed_state = None
         try:
-            parameters = flow.validate_parameters(flow_run.parameters)
-        except Exception as exc:
-            flow_run_logger(flow_run).exception("Flow run received invalid parameters.")
-            state = Failed(
-                message="Flow run received invalid parameters.",
+            parameters = flow.validate_parameters(parameters)
+        except (ParameterTypeError, SignatureMismatchError) as exc:
+            flow_run_logger(flow_run).error(str(exc))
+            failed_state = Failed(
+                message=str(exc),
                 data=DataDocument.encode("cloudpickle", exc),
             )
+        except Exception as exc:
+            unexpected_error = (
+                f"Validation of flow parameters failed with an unexpected error: {exc}"
+            )
+            flow_run_logger(flow_run).error(unexpected_error)
+            failed_state = Failed(
+                message=unexpected_error,
+                data=DataDocument.encode("cloudpickle", exc),
+            )
+
+        if failed_state is not None:
             await client.propose_state(
-                state=state,
+                state=failed_state,
                 flow_run_id=flow_run_id,
             )
-            return state
-    else:
-        parameters = flow_run.parameters
+            return failed_state
 
     return await begin_flow_run(
         flow=flow,
@@ -428,19 +466,30 @@ async def create_and_begin_subflow_run(
         logger = flow_run_logger(flow_run, flow)
 
         if flow.should_validate_parameters:
+            failed_state = None
             try:
                 parameters = flow.validate_parameters(parameters)
-            except Exception as exc:
-                state = Failed(
-                    message="Flow run received invalid parameters.",
+
+            except (ParameterTypeError, SignatureMismatchError) as exc:
+                logger.error(str(exc))
+                failed_state = Failed(
+                    message=str(exc),
                     data=DataDocument.encode("cloudpickle", exc),
                 )
+            except Exception as exc:
+                unexpected_error = f"Validation of flow parameters failed with an unexpected error: {exc}"
+                logger.error(unexpected_error)
+                failed_state = Failed(
+                    message=unexpected_error,
+                    data=DataDocument.encode("cloudpickle", exc),
+                )
+
+            if failed_state is not None:
                 await client.propose_state(
-                    state=state,
+                    state=failed_state,
                     flow_run_id=flow_run.id,
                 )
-                logger.error("Received invalid parameters", exc_info=True)
-                return state
+                return failed_state
 
         async with AsyncExitStack() as stack:
             await stack.enter_async_context(
@@ -522,7 +571,6 @@ async def orchestrate_flow_run(
 
         # Update the flow run to the latest data
         flow_run = await client.read_flow_run(flow_run.id)
-
         try:
             with timeout_context as timeout_scope:
                 with partial_flow_run_context.finalize(
