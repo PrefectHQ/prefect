@@ -37,7 +37,7 @@ Looking for the latest <a href="https://docs.prefect.io/">Prefect 2.0</a> releas
 
 Prefect 1.0 Core, Server, and Cloud are our first-generation workflow and orchestration tools. You can continue to use them and we'll continue to support them while migrating users to Prefect 2.0.
 
-If you're ready to start migrating your workflows to Prefect 2.0, see our [migration guide](https://docs.prefect.io/getting-started/migration-guide/).
+If you're ready to start migrating your workflows to Prefect 2.0, see our [migration guide](https://docs.prefect.io/migration-guide/).
 
 If you are unsure which Prefect version to choose for your specific use case, [this Prefect Discourse page](https://discourse.prefect.io/t/should-i-start-with-prefect-2-0-orion-skipping-prefect-1-0/544) may help you decide.
 
