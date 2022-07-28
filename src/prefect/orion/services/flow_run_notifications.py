@@ -31,11 +31,12 @@ class FlowRunNotifications(LoopService):
         async with session:
             async with session.begin():
                 while True:
-                    # Drain the queue one entry at a time, because if a database error
-                    # happens while sending a notification, we'll need to rollback the
-                    # transaction, which effectively re-queues any notifications that
-                    # we pulled here.  If we drain in batches larger than 1, we risk
-                    # double-sending notifications when a transient error occurs.
+                    # Drain the queue one entry at a time, because if a transient
+                    # database error happens while sending a notification, the whole
+                    # transaction will be rolled back, which effectively re-queues any
+                    # notifications that we pulled here.  If we drain in batches larger
+                    # than 1, we risk double-sending earlier notifications when a
+                    # transient error occurs.
                     notifications = await db.get_flow_run_notifications_from_queue(
                         session=session,
                         limit=1,
@@ -55,12 +56,14 @@ class FlowRunNotifications(LoopService):
                     finally:
                         connection = await session.connection()
                         if connection.invalidated:
-                            # If the connection was invalidated due to an error that
-                            # we handled in _send_flow_run_notification, we'll need to
-                            # rollback the session before we can proceed with more
-                            # iterations of the loop.  This may happen due to transient
-                            # database connection errors, but will _not_ happen due to
-                            # an calling a third-party service to send a notification.
+                            # If the connection was invalidated due to an error that we
+                            # handled in _send_flow_run_notification, we'll need to
+                            # rollback the session in order to synchronize it with the
+                            # reality of the underlying connection before we can proceed
+                            # with more iterations of the loop.  This may happen due to
+                            # transient database connection errors, but will _not_
+                            # happen due to an calling a third-party service to send a
+                            # notification.
                             await session.rollback()
                             assert not connection.invalidated
 
