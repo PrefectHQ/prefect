@@ -165,7 +165,7 @@ Requirements for `DockerContainer`:
 
 Prefect automatically sets a Docker image matching the Python and Prefect version you're using at deployment time. You can see all available images at [Docker Hub](https://hub.docker.com/r/prefecthq/prefect/tags?page=1&name=2.0).
 
-## Kubernetes flow runner
+## KubernetesJob
 
 [`KubernetesJob`](/api-ref/prefect/infrastructure/#prefect.infrastructure.kubernetes.KubernetesJob) infrastructure executes flow runs in a Kubernetes Job.
 
@@ -266,10 +266,10 @@ own from scratch.
 **Extending the `prefecthq/prefect` image**
 
 Here we provide an example `Dockerfile` for building an image based on
-`prefecthq/prefect:0.14.10`, but with `scikit-learn` installed.
+`prefecthq/prefect:2-latest`, but with `scikit-learn` installed.
 
 ```dockerfile
-FROM prefecthq/prefect:0.14.10
+FROM prefecthq/prefect:2-latest
 
 RUN pip install scikit-learn
 ```
