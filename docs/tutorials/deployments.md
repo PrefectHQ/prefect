@@ -298,34 +298,9 @@ $ prefect deployment inspect 'leonardo_dicapriflow/leo-deployment'
 ```
 </div>
 
-## Run the deployment locally
-
-Now that you've created the deployment, you can interact with it in multiple ways. For example, you can use the Prefect CLI to execute a local flow run for the deployment.
-
-<div class="terminal">
-```
-$ prefect deployment execute leonardo_dicapriflow/leo-deployment
-Loading flow from deployed location...
-21:03:10.220 | INFO    | prefect.engine - Created flow run 'crazy-fossa' for flow 'leonardo_dicapriflow'
-21:03:10.220 | INFO    | Flow run 'crazy-fossa' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
-21:03:10.387 | INFO    | Flow run 'crazy-fossa' - Created task run 'log_message-3e2d0b0c-0' for task 'log_message'
-21:03:10.387 | INFO    | Flow run 'crazy-fossa' - Executing 'log_message-3e2d0b0c-0' immediately...
-21:03:10.413 | INFO    | Task run 'log_message-3e2d0b0c-0' - Hello Leo!
-21:03:10.484 | INFO    | Task run 'log_message-3e2d0b0c-0' - Finished in state Completed()
-21:03:10.514 | INFO    | Flow run 'crazy-fossa' - Finished in state Completed('All states completed.')
-Flow run completed!
-```
-</div>
-
-When you executed the deployment, you referenced it by name in the format "flow_name/deployment_name". When you create new deployments in the future, remember that while a flow may be referenced by multiple deployments, each deployment must have a unique name.
-
-You can also see your flow in the [Prefect UI](/ui/overview/). Open the Prefect UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/). You'll see your deployment's flow run in the UI.
-
-![Deployment flow run on the Flow Runs page of the Prefect UI](/img/tutorials/my-first-deployment.png)
+## Work queues and agents
 
 Note that you can't **Run** the deployment from the UI yet. As mentioned at the beginning of this tutorial, you still need two more items to run orchestrated deployments: a work queue and an agent. You'll set those up next.
-
-## Work queues and agents
 
 [Work queues and agents](/concepts/work-queues/) are the mechanisms by which the Prefect API orchestrates deployment flow runs in remote execution environments.
 
@@ -367,9 +342,40 @@ Remember that:
 
     Note, however, that you can edit the name of a work queue after creation, which may cause errors for agents referencing a work queue by name.
 
+## Run the deployment locally
+
+Now that you've created the deployment, agent, and associated work queue, you can interact with it in multiple ways. For example, you can use the Prefect CLI to run a local flow run for the deployment.
+
+<div class="terminal">
+```
+$ prefect deployment run leonardo_dicapriflow/leo-deployment
+Created flow run 'crazy-fossa' for flow 'leonardo_dicapriflow'
+```
+
+If you switch over to the terminal session where your agent is running, you'll see that the agent picked up the flow run and executed it.
+
+<div class="terminal">
+```
+Loading flow from deployed location...
+21:03:10.220 | INFO    | Flow run 'crazy-fossa' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
+21:03:10.387 | INFO    | Flow run 'crazy-fossa' - Created task run 'log_message-3e2d0b0c-0' for task 'log_message'
+21:03:10.387 | INFO    | Flow run 'crazy-fossa' - Executing 'log_message-3e2d0b0c-0' immediately...
+21:03:10.413 | INFO    | Task run 'log_message-3e2d0b0c-0' - Hello Leo!
+21:03:10.484 | INFO    | Task run 'log_message-3e2d0b0c-0' - Finished in state Completed()
+21:03:10.514 | INFO    | Flow run 'crazy-fossa' - Finished in state Completed('All states completed.')
+Flow run completed!
+```
+</div>
+
+When you executed the deployment, you referenced it by name in the format "flow_name/deployment_name". When you create new deployments in the future, remember that while a flow may be referenced by multiple deployments, each deployment must have a unique name.
+
+You can also see your flow in the [Prefect UI](/ui/overview/). Open the Prefect UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/). You'll see your deployment's flow run in the UI.
+
+![Deployment flow run on the Flow Runs page of the Prefect UI](/img/tutorials/my-first-deployment.png)
+
 ## Run a deployment from the UI
 
-With a work queue and agent in place, you can create a flow run for `leonardo_dicapriflow` directly from the UI.
+With a work queue and agent in place, you can also create a flow run for `leonardo_dicapriflow` directly from the UI.
 
 In the Prefect UI, select the **Deployments** page. You'll see a list of all deployments that have been created in this Prefect Orion instance.
 
@@ -381,7 +387,7 @@ Now select **leonardo_dicapriflow/leonardo-deployment** to see details for the d
 
 You can start a flow run for this deployment from the UI by selecting the **Run** button. The Prefect Orion engine routes the flow run request to the work queue, the agent picks up the new work from the queue and initiates the flow run. 
 
-If you switch over to the terminal session where your agent is running, you'll see that the agent picked up the flow run and executed it.
+As before, the flow run will be picked up by the agent, and you should be able to see it run in the agent process.
 
 <div class='terminal'>
 ```bash
