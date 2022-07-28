@@ -27,7 +27,6 @@ from prefect.deployments import (
     DeploymentYAML,
     PackageManifest,
     load_deployments_from_yaml,
-    load_flow_from_deployment,
 )
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError, ScriptError
 from prefect.filesystems import LocalFileSystem
@@ -203,7 +202,6 @@ async def run(
         deployment = await get_deployment(client, name, deployment_id)
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
     app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
-
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
