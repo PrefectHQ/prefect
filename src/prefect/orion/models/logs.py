@@ -10,6 +10,16 @@ from sqlalchemy import select
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.utilities.collections import batched_iterable
+
+# We have a limit of 32,767 parameters at a time for a single query...
+MAXIMUM_QUERY_PARAMETERS = 32_767
+
+# ...and logs have a certain number of fields...
+NUMBER_OF_LOG_FIELDS = len(schemas.core.Log.schema()["properties"])
+
+# ...so we can only INSERT batches of a certain size at a time
+LOG_BATCH_SIZE = MAXIMUM_QUERY_PARAMETERS // NUMBER_OF_LOG_FIELDS
 
 
 @inject_db
@@ -26,8 +36,9 @@ async def create_logs(
     Returns:
         None
     """
-    insert_stmt = (await db.insert(db.Log)).values([log.dict() for log in logs])
-    await session.execute(insert_stmt)
+    log_insert = await db.insert(db.Log)
+    for batch in batched_iterable(logs, LOG_BATCH_SIZE):
+        await session.execute(log_insert.values([log.dict() for log in batch]))
 
 
 @inject_db
