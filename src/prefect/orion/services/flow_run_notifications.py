@@ -69,7 +69,6 @@ class FlowRunNotifications(LoopService):
         self,
         session: sa.orm.session,
         db: OrionDBInterface,
-        # notification: OrionDBInterface.Notification,
         notification,
     ):
         try:
