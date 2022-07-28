@@ -129,7 +129,7 @@ If no workspace is provided, you will be prompted to select one.
 
 ### Manually configuring Cloud settings
 
-Note that you can also manually configure the settings to interact with Prefect Cloud using an account ID, workspace ID, and API key.
+Note that you can also manually configure the `PREFECT_API_URL` and `PREFECT_API_KEY` settings to interact with Prefect Cloud by using an account ID, workspace ID, and API key.
 
 <div class="terminal">
 ```bash
@@ -138,7 +138,7 @@ $ prefect config set PREFECT_API_KEY="[API-KEY]"
 ```
 </div>
 
-When you're in a Prefect Cloud workspace, you can copy the API URL directly from the page URL.
+When you're in a Prefect Cloud workspace, you can copy the `PREFECT_API_URL` value directly from the page URL.
 
 In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the default profile. You can use `prefect profile` CLI commands to create settings profiles for different configurations. For example, you could have a "cloud" profile configured to use the Prefect Cloud API URL and API key, and another "local" profile for local development using a local Prefect API server started with `prefect orion start`. See [Settings](/concepts/settings/) for details.
 
