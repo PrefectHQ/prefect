@@ -96,7 +96,9 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
         else:
             shutil.copytree(from_path, local_path, dirs_exist_ok=True)
 
-    async def put_directory(self, local_path: str = None, to_path: str = None) -> None:
+    async def put_directory(
+        self, local_path: str = None, to_path: str = None, ignore_file: str = None
+    ) -> None:
         """
         Copies a directory from one place to another on the local filesystem.
 
