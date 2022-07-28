@@ -379,8 +379,8 @@ class DeploymentYAML(BaseModel):
             "name",
             "description",
             "tags",
-            "schedule",
             "parameters",
+            "schedule",
             "infrastructure",
         ]
         return editable_fields
