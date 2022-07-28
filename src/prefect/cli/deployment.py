@@ -27,7 +27,6 @@ from prefect.deployments import (
     DeploymentYAML,
     PackageManifest,
     load_deployments_from_yaml,
-    load_flow_from_deployment,
 )
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError, ScriptError
 from prefect.filesystems import LocalFileSystem
