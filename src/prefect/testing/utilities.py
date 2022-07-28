@@ -124,7 +124,8 @@ def prefect_test_harness():
                     restore_defaults={prefect.settings.PREFECT_API_URL},
                     # Use a temporary directory for the database
                     updates={
-                        prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL: DB_PATH
+                        prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL: DB_PATH,
+                        prefect.settings.PREFECT_API_URL: None,
                     },
                 )
             )
