@@ -68,7 +68,6 @@ class Scheduler(LoopService):
         All inserted flow runs are committed to the database at the termination of the
         loop.
         """
-        now = pendulum.now("UTC")
         total_inserted_runs = 0
 
         session = await db.session()
@@ -88,7 +87,7 @@ class Scheduler(LoopService):
                     # collect runs across all deployments
                     try:
                         runs_to_insert = await self._collect_flow_runs(
-                            session=session, deployment_ids=deployment_ids, now=now
+                            session=session, deployment_ids=deployment_ids
                         )
                     except TryAgain:
                         continue
@@ -131,10 +130,10 @@ class Scheduler(LoopService):
         self,
         session: sa.orm.Session,
         deployment_ids: List[UUID],
-        now: pendulum.DateTime,
     ) -> List[Dict]:
         runs_to_insert = []
         for deployment_id in deployment_ids:
+            now = pendulum.now("UTC")
             # guard against erroneously configured schedules
             try:
                 runs_to_insert.extend(
