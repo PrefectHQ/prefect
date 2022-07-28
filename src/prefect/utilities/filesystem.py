@@ -7,8 +7,25 @@ from contextlib import contextmanager
 from typing import Union
 
 import fsspec
+import pathspec
 from fsspec.core import OpenFile
 from fsspec.implementations.local import LocalFileSystem
+
+
+def filter_files(root: str = ".", ignore_patterns: list = None) -> list:
+    """
+    This function accepts a root directory path and a list of file patterns to ignore, and returns
+    a list of files that excludes those that should be ignored.
+
+    The specification matches that of [.gitignore files](https://git-scm.com/docs/gitignore).
+    """
+    if ignore_patterns is None:
+        ignore_patterns = []
+    spec = pathspec.PathSpec.from_lines("gitwildmatch", ignore_patterns)
+    ignored_files = set(spec.match_tree_files(root))
+    all_files = set(pathspec.util.iter_tree_files(root))
+    included_files = all_files - ignored_files
+    return included_files
 
 
 @contextmanager
