@@ -275,7 +275,7 @@ class TestSettingAccess:
                 PREFECT_ORION_DATABASE_PASSWORD: "password",
             }
         ):
-            assert PREFECT_ORION_DATABASE_CONNECTION_URL.value() == "password/test"
+            assert PREFECT_ORION_DATABASE_CONNECTION_URL.value() == "***/test"
 
     def test_database_connection_url_templates_null_password(self):
         # Not exactly beautiful behavior here, but I think it's clear.
@@ -286,7 +286,7 @@ class TestSettingAccess:
                 PREFECT_ORION_DATABASE_CONNECTION_URL: "${PREFECT_ORION_DATABASE_PASSWORD}/test"
             }
         ):
-            assert PREFECT_ORION_DATABASE_CONNECTION_URL.value() == "None/test"
+            assert PREFECT_ORION_DATABASE_CONNECTION_URL.value() == "***/test"
 
     def test_warning_if_database_password_set_without_template_string(self):
         with pytest.warns(
@@ -299,21 +299,23 @@ class TestSettingAccess:
         ):
             with temporary_settings(
                 {
-                    PREFECT_ORION_DATABASE_CONNECTION_URL: "test",
+                    PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://postgres@localhost/orion",
                     PREFECT_ORION_DATABASE_PASSWORD: "password",
                 }
             ):
                 pass
 
-    def hide_database_password_value(self):
+    def test_hide_database_password_value(self):
+        url = "postgresql+asyncpg://postgres:${PREFECT_ORION_DATABASE_PASSWORD}@localhost/orion"
         with temporary_settings(
             {
+                PREFECT_ORION_DATABASE_CONNECTION_URL: url,
                 PREFECT_ORION_DATABASE_PASSWORD: "postgres_password",
             }
         ):
             assert PREFECT_ORION_DATABASE_PASSWORD.value() == "**********"
 
-    def hide_database_url_password_value(self):
+    def test_hide_database_url_password_value(self):
         with temporary_settings(
             {
                 PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://postgres:postgres_password@localhost/orion",

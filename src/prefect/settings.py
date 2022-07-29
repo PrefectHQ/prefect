@@ -249,7 +249,7 @@ def hide_database_password_value(values):
     """
     password = values["PREFECT_ORION_DATABASE_PASSWORD"]
     if password:
-        values["PREFECT_ORION_DATABASE_PASSWORD"] = str(SecretStr(password).display())
+        values["PREFECT_ORION_DATABASE_PASSWORD"] = str(SecretStr(password))
     return values
 
 
@@ -259,7 +259,13 @@ def hide_database_url_password_value(values):
     """
     url = values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
     if url:
-        values["PREFECT_ORION_DATABASE_CONNECTION_URL"] = repr(make_url(url))
+        password_var = "${PREFECT_ORION_DATABASE_PASSWORD}"
+        if password_var in url:
+            values["PREFECT_ORION_DATABASE_CONNECTION_URL"] = url.replace(
+                password_var, "***"
+            )
+        else:
+            values["PREFECT_ORION_DATABASE_CONNECTION_URL"] = repr(make_url(url))
     return values
 
 
