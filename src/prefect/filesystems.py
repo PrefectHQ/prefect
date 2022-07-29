@@ -116,7 +116,6 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
             else:
                 shutil.copytree(local_path, to_path, dirs_exist_ok=True)
 
-
     async def read_path(self, path: str) -> bytes:
         path: Path = self._resolve_path(path)
 
