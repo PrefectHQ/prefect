@@ -305,6 +305,25 @@ class TestSettingAccess:
             ):
                 pass
 
+    def hide_database_password_value(self):
+        with temporary_settings(
+            {
+                PREFECT_ORION_DATABASE_PASSWORD: "postgres_password",
+            }
+        ):
+            assert PREFECT_ORION_DATABASE_PASSWORD.value() == "**********"
+
+    def hide_database_url_password_value(self):
+        with temporary_settings(
+            {
+                PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://postgres:postgres_password@localhost/orion",
+            }
+        ):
+            assert (
+                PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+                == "postgresql+asyncpg://postgres:***@localhost/orion"
+            )
+
     @pytest.mark.parametrize(
         "value,expected",
         [
