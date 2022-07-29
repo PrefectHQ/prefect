@@ -1,12 +1,21 @@
 ###
 ### A complete description of a Prefect Deployment for flow 'dog'
 ###
-name: qa_test
+name: qa_demo
 description: null
 tags:
 - qa
 schedule: null
-parameters: {}
+parameters:
+  purpose: |-
+    The purpose of this deployment is to demonstrate the standard format for 
+    QA deployments. All QA deployments will take a first parameter `purpose` which explains why
+    the deployment exists and what the expected behavior is.
+
+    This should successfully complete two tasks. The second tasks should log the flow parameter
+    `msg`, and the output of the first task, which is 42. 
+  msg:
+    This is a demo
 infrastructure:
   type: process
   env: {}
