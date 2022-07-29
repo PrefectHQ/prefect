@@ -42,17 +42,17 @@ handlers:
 
     console:
         level: 0
-        class: logging.StreamHandler
+        class: prefect.logging.handlers.PrefectHandler
         formatter: standard
 
     console_flow_runs:
         level: 0
-        class: logging.StreamHandler
+        class: prefect.logging.handlers.PrefectHandler
         formatter: flow_runs
 
     console_task_runs:
         level: 0
-        class: logging.StreamHandler
+        class: prefect.logging.handlers.PrefectHandler
         formatter: task_runs
 
     orion:
