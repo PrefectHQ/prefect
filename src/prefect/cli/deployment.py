@@ -434,6 +434,12 @@ async def build(
         "-sb",
         help="The slug of the storage block to use.",
     ),
+    output: str = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="An optional filename to write the deployment file to.",
+    ),
 ):
     """
     Generate a deployment YAML from /path/to/file.py:flow_function
@@ -444,6 +450,14 @@ async def build(
         exit_with_error(
             "A name for this deployment must be provided with the '--name' flag."
         )
+
+    output_file = None
+    if output:
+        output_file = Path(output)
+        if output_file.suffix and output_file.suffix != ".yaml":
+            exit_with_error("Output file must be a '.yaml' file.")
+        else:
+            output_file = output_file.with_suffix(".yaml")
 
     # validate flow
     try:
@@ -532,12 +546,13 @@ async def build(
         infrastructure=infrastructure,
     )
 
-    with open("deployment.yaml", "w") as f:
+    deployment_loc = output_file or f"{obj_name}-deployment.yaml"
+    with open(deployment_loc, "w") as f:
         f.write(deployment.header)
         yaml.dump(deployment.editable_fields_dict(), f, sort_keys=False)
         f.write("###\n### DO NOT EDIT BELOW THIS LINE\n###\n")
         yaml.dump(deployment.immutable_fields_dict(), f, sort_keys=False)
 
     exit_with_success(
-        f"Deployment YAML created at '{Path('deployment.yaml').absolute()!s}'."
+        f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'."
     )
