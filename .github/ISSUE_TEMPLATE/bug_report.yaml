@@ -54,13 +54,13 @@ Provide your [Minimal, Complete, and Verifiable](https://stackoverflow.com/help/
       label: Error
       description: "
 Provide the full exception tracebacks.
-If the message is a warning, run your program with the ``-Werror`` flag:   ``python -Werror myprogram.py``
+If the message is a warning, run your program with the ``-Werror`` flag:   ``python -Werror myflow.py``
 "
-      placeholder: "# Copy complete stack trace and error message here, including SQL log output if applicable."
+      placeholder: "# Copy complete stack trace and error message here, including log output if applicable."
       value: "\
 ```
 
-# Copy complete stack trace and error message here, including SQL log output if applicable.
+# Copy complete stack trace and error message here, including log output if applicable.
 
 ```
 "
