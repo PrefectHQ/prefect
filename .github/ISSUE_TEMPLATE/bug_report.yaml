@@ -1,0 +1,105 @@
+# docs https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms
+# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema
+
+name: Create a bug report
+description: Errors and regression reports with complete reproducing test cases and/or stack traces.
+labels: [requires triage]
+body:
+  - type: markdown
+    attributes:
+      value: "
+
+**FOR ALL USERS - PLEASE READ THIS PARAGRAPH AS IT IS HELPS US TO DO OUR WORK MORE EFFICIENTLY:**
+
+The **VAST MAJORITY** of bugs reported are in fact
+**USAGE QUESTIONS, NOT BUGS** for APIs that can take some practice to familiarize with,
+and which are also tailored towards high quality relational designs that
+beginners are sometimes less familiar with.
+
+If you are relatively new to SQLAlchemy, and even if not but the issue is uncertain, PLEASE START A NEW
+[DISCUSSION](https://github.com/sqlalchemy/sqlalchemy/discussions/new?category=Usage-Questions) INSTEAD, so that we can
+help with your issue.   If you are relatively new to
+SQLAlchemy, there is an approximately **90% chance your issue is not a bug and will be converted to a
+discussion in any case**.
+If your issue is actually a bug, we will open a new bug report with what we need.
+
+[START A NEW USAGE QUESTIONS DISCUSSION HERE](https://github.com/sqlalchemy/sqlalchemy/discussions/new?category=Usage-Questions)
+
+"
+  - type: markdown
+    attributes:
+      value: "
+
+**GUIDELINES FOR REPORTING BUGS**
+
+If you are new to SQLAlchemy bug reports, please review our many examples
+of [well written bug reports](https://github.com/sqlalchemy/sqlalchemy/issues?q=is%3Aissue+label%3A%22great+mcve%22).   Each of these reports include the following features:
+
+1. a **succinct description of the problem** - typically a line or two at most
+
+2. **succinct, dependency-free code which reproduces the problem**, otherwise known as a [Minimal, Complete, and Verifiable](https://stackoverflow.com/help/mcve) example.
+
+3. **complete stack traces for all errors - please avoid screenshots, use formatted text inside issues**
+
+4. Other things as applicable:   **SQL log output**, **database backend and DBAPI driver**,
+   **operating system**, **comparative performance timings** for performance issues.
+"
+  - type: textarea
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: To Reproduce
+      description: "
+Provide your [Minimal, Complete, and Verifiable](https://stackoverflow.com/help/mcve) example here.
+If you need help creating one, you can model yours after the MCV code shared in one of our previous
+[well written bug reports](https://github.com/sqlalchemy/sqlalchemy/issues?q=is%3Aissue+label%3A%22great+mcve%22)"
+      placeholder: "# Insert code here"
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Error
+      description: "
+Provide the complete text of any errors received **including the complete stack trace**.
+If the message is a warning, run your program with the ``-Werror`` flag:   ``python -Werror myprogram.py``
+"
+      placeholder: "# Copy complete stack trace and error message here, including SQL log output if applicable."
+      value: "\
+```
+
+# Copy complete stack trace and error message here, including SQL log output if applicable.
+
+```
+"
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Versions
+      value: |
+        - OS:
+        - Python:
+        - SQLAlchemy:
+        - Database:
+        - DBAPI (eg: psycopg, cx_oracle, mysqlclient):
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Add any other context about the problem here.
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: "**Have a nice day!**"
