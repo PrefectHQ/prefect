@@ -97,6 +97,19 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
         else:
             shutil.copytree(from_path, local_path, dirs_exist_ok=True)
 
+    async def _get_ignore_func(self, local_path: str, ignore_file: str):
+        with open(ignore_file, "r") as f:
+            ignore_patterns = f.readlines()
+
+        included_files = filter_files(local_path, ignore_patterns)
+
+        def ignore_func(directory, files):
+            print(directory, files)
+            return_val = [f for f in files if f not in included_files]
+            return return_val
+
+        return ignore_func
+
     async def put_directory(
         self, local_path: str = None, to_path: str = None, ignore_file: str = None
     ) -> None:
@@ -111,13 +124,19 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
         if local_path is None:
             local_path = Path(".").absolute()
 
+        if ignore_file:
+            ignore_func = await self._get_ignore_func(local_path, ignore_file)
+        else:
+            ignore_func = None
         if local_path == to_path:
             pass
         else:
             if sys.version_info < (3, 8):
-                shutil.copytree(local_path, to_path)
+                shutil.copytree(local_path, to_path, ignore=ignore_func)
             else:
-                shutil.copytree(local_path, to_path, dirs_exist_ok=True)
+                shutil.copytree(
+                    local_path, to_path, dirs_exist_ok=True, ignore=ignore_func
+                )
 
     async def read_path(self, path: str) -> bytes:
         path: Path = self._resolve_path(path)

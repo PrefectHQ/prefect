@@ -486,7 +486,7 @@ async def build(
         )
 
         # upload current directory to storage location
-        file_count = await storage.put_directory()
+        file_count = await storage.put_directory(ignore_file=".prefectignore")
         app.console.print(
             f"Successfully uploaded {file_count} files to {storage.basepath}",
             style="green",
