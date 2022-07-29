@@ -24,7 +24,7 @@ body:
       label: Example Use
       description: Provide an example of how end users could leverage that functionality
     validations:
-      required: true
+      required: false
 
   - type: textarea
     attributes:
