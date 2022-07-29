@@ -14,33 +14,36 @@ from prefect.client import get_client
 from prefect.deployments import Deployment
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.orion import schemas
-from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL
+from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL, PREFECT_DEV_QA_WORK_QUEUE
 from prefect.utilities.filesystem import tmpchdir
 
 
 async def create_qa_queue(app: PrefectTyper, task_status=TASK_STATUS_IGNORED):
-    """Create a work queue for QA deployments"""
+    """Create a new work queue for QA deployments"""
     async with prefect.get_client() as client:
+        queue_name = PREFECT_DEV_QA_WORK_QUEUE.value()
         try:
-            qa_q = await client.read_work_queue_by_name("PREFECT_DEV_QA_Q")
+            qa_q = await client.read_work_queue_by_name(queue_name)
         except PrefectHTTPStatusError as exc:
-            pass
+            pass  # if the work-queue doesn't exist, we will get a status error
         else:
             await client.delete_work_queue_by_id(qa_q.id)
         finally:
-            q_id = await client.create_work_queue(name="PREFECT_DEV_QA_Q", tags=["qa"])
-        app.console.print("'PREFECT_DEV_QA_Q' created...")
+            q_id = await client.create_work_queue(
+                name=queue_name, tags=["prefect_dev_qa"]
+            )
+        app.console.print(f"'{queue_name}' created...")
         task_status.started()
         return q_id
 
 
 async def start_agent(app: PrefectTyper):
     """Start an agent that listens for work from PREFECT_DEV_QA_Q"""
-    global loop_agent
+    global loop_agent  # eventually will be used to kill both orion and the agent
     loop_agent = True
-    async with OrionAgent(work_queue_name="PREFECT_DEV_QA_Q") as agent:
+    async with OrionAgent(work_queue_name=PREFECT_DEV_QA_WORK_QUEUE.value()) as agent:
         app.console.print(
-            f"Agent started! Looking for work from queue 'PREFECT_DEV_QA_Q'..."
+            f"Agent started! Looking for work from queue '{PREFECT_DEV_QA_WORK_QUEUE.value()}'..."
         )
         while loop_agent:
             await agent.get_and_submit_flow_runs()
@@ -75,6 +78,7 @@ async def execute_flow_scripts(task_status=TASK_STATUS_IGNORED):
 async def submit_deployments_for_execution(
     app: PrefectTyper, deployments: List[Deployment], task_status=TASK_STATUS_IGNORED
 ):
+    """Submit all deployments for execution"""
     async with get_client() as client:
         for deployment in deployments:
             try:

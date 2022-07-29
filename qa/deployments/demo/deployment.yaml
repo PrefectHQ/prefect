@@ -4,7 +4,7 @@
 name: qa_demo
 description: null
 tags:
-- qa
+- prefect_dev_qa
 schedule: null
 parameters:
   purpose: |-

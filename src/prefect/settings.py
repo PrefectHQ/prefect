@@ -582,8 +582,14 @@ PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
     default=True,
     description="Whether or not to start the flow run notifications service in the Orion application. If disabled, you will need to run this service separately to send flow run notifications.",
 )
-# Collect all defined settings
 
+PREFECT_DEV_QA_WORK_QUEUE = Setting(
+    str,
+    default="PREFECT_DEV_QA_Q",
+    description="The name of the work queue used by the command `prefect dev qa` to submit flow runs to. WARNING: this queue is deleted and re-created by default every time `prefect dev qa` is called.",
+)
+
+# Collect all defined settings
 SETTING_VARIABLES = {
     name: val for name, val in tuple(globals().items()) if isinstance(val, Setting)
 }
