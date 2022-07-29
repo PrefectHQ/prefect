@@ -1238,3 +1238,51 @@ class TestOrchestrationContext:
         await ctx.validate_proposed_state()
         assert ctx.run.state.id == ctx.validated_state.id
         assert ctx.validated_state.id == ctx.proposed_state.id
+
+    async def test_context_state_validation_encounters_exception(
+            self, session, run_type, initialize_orchestration
+        ):
+            initial_state_type = states.StateType.PENDING
+            proposed_state_type = states.StateType.RUNNING
+            intended_transition = (initial_state_type, proposed_state_type)
+            before_transition_hook = MagicMock()
+            after_transition_hook = MagicMock()
+            cleanup_hook = MagicMock()
+
+            class MockRule(BaseOrchestrationRule):
+                FROM_STATES = ALL_ORCHESTRATION_STATES
+                TO_STATES = ALL_ORCHESTRATION_STATES
+
+                async def before_transition(self, initial_state, proposed_state, context):
+                    before_transition_hook(initial_state, proposed_state, context)
+
+                async def after_transition(self, initial_state, validated_state, context):
+                    after_transition_hook(initial_state, validated_state, context)
+
+                async def cleanup(self, initial_state, validated_state, context):
+                    cleanup_hook(initial_state, validated_state, context)
+
+            ctx = await initialize_orchestration(session, run_type, *intended_transition)
+
+            # Bypass pydantic mutation protection, inject an error
+            object.__setattr__(
+                ctx.session, "flush", AsyncMock(side_effect=RuntimeError("Test!"))
+            )
+
+            assert ctx.run.state.id != ctx.proposed_state.id
+
+            async with contextlib.AsyncExitStack() as stack:
+                mock_rule = MockRule(ctx, *intended_transition)
+                ctx = await stack.enter_async_context(mock_rule)
+                await ctx.validate_proposed_state()
+
+            # assert (
+                # ctx.run.state is None
+            # ), "No state should be written"
+            assert ctx.validated_state is None, "The validated state was never set"
+
+            before_transition_hook.assert_called_once()
+            # The validated state is null during the after transition hook
+            # TODO: Perhaps the cleanup should be called instead of the after transition?
+            after_transition_hook.assert_called_once_with(ANY, None, ANY)
+            cleanup_hook.assert_not_called()
