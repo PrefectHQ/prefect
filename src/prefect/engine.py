@@ -268,7 +268,7 @@ async def retrieve_flow_then_begin_flow_run(
             flow.fn, call_args=(), call_kwargs=flow_run.parameters
         )
     except Exception as exc:
-        message = f"Encountered an unexpected error when retrieving flow run parameters: {exc}"
+        message = f"Encountered an unexpected error when retrieving flow run parameters: {exc!r}"
         flow_run_logger(flow_run).exception(message)
         state = Failed(message=message, data=safe_encode_exception(exc))
         await client.set_flow_run_state(
