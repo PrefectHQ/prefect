@@ -32,7 +32,7 @@ Your bug report should include the following features:
 
 3. **complete stack traces for errors - please avoid screenshots, and use formatted text inside issues**
 
-4. Other things as applicable: **operating system**, **comparative performance timings** for performance issues.
+4. Additional details that may help us reproduce your issue, including your operating system, the output of the `prefect version` command, or benchmarks for performance issues.
 "
   - type: textarea
     attributes:
