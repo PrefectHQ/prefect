@@ -80,6 +80,7 @@ from prefect.task_runners import (
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
+from prefect.utilities.annotations import unmapped
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
@@ -703,7 +704,11 @@ async def begin_task_map(
     # Resolve any futures / states that are in the parameters as we need to
     # validate the lengths of those values before proceeding.
     parameters.update(await resolve_inputs(parameters))
-    parameter_lengths = {key: len(val) for key, val in parameters.items()}
+    parameter_lengths = {
+        key: len(val)
+        for key, val in parameters.items()
+        if not isinstance(val, unmapped)
+    }
 
     lengths = set(parameter_lengths.values())
     if len(lengths) > 1:
