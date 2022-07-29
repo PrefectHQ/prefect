@@ -97,7 +97,7 @@ class LoopService:
             i += 1
             if loops is not None and i == loops:
                 self.logger.debug(f"{self.name} exiting after {loops} loop(s).")
-                await self.stop(block=False)
+                await self.stop()
 
             # next run is every "loop seconds" after each previous run *started*.
             # note that if the loop took unexpectedly long, the "next_run" time
@@ -115,15 +115,15 @@ class LoopService:
 
         await self._on_stop()
 
-    async def stop(self, block=True) -> None:
+    async def stop(self, block=False) -> None:
         """
         Gracefully stops a running LoopService and optionally blocks until the
         service stops.
 
         Args:
-            block (bool): if True (default), blocks until the service is
+            block (bool): if True, blocks until the service is
                 finished running. Otherwise it requests a stop and returns but
-                the service may still be running a final loop
+                the service may still be running a final loop.
 
         """
         self._stop()

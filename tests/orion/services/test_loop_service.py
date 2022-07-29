@@ -124,7 +124,7 @@ async def test_early_stop():
     assert service._should_stop is False
 
     dt = pendulum.now("UTC")
-    await service.stop()
+    await service.stop(block=True)
     dt2 = pendulum.now("UTC")
 
     assert service._should_stop is True
