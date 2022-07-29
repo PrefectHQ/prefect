@@ -10,8 +10,8 @@ The response Prefect 2 has been overwhelming in the best way possible! Thank you
 - The `prefect deployment execute` command has been removed
 - This repository now includes templates for pull requests and issues
 - A common request we immediately received was for unique deployment YAML names (to better anticipate multi-flow deployments) and an optional output flag to customize the name.
-- The `scheduler` and `flow-run-notifications` LoopServices have been made more resiliant
-- Log inserts have been made more resiliant through smaller log batches
+- The `scheduler` and `flow-run-notifications` LoopServices have been made more resilient
+- Log inserts have been made more performant through smaller log batches
 - Local file system blocks can no longer be created from the UI
 - Support for unmapped values to Task.map has been added
 - The `deployment build` command now supports an optional output flag to customize the name of the deployment.yaml file
