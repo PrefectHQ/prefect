@@ -370,7 +370,7 @@ class ORMFlowRun(ORMRun):
             UUID,
             sa.ForeignKey("block_document.id", ondelete="CASCADE"),
             nullable=True,
-            index=False,
+            index=True,
         )
 
     @declared_attr
