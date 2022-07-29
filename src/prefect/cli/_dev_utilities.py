@@ -1,4 +1,3 @@
-import asyncio
 import os
 import subprocess
 from pathlib import Path
@@ -31,7 +30,6 @@ async def create_qa_queue(app: PrefectTyper, task_status=TASK_STATUS_IGNORED):
         finally:
             q_id = await client.create_work_queue(name="PREFECT_DEV_QA_Q", tags=["qa"])
         app.console.print("'PREFECT_DEV_QA_Q' created...")
-        await asyncio.sleep(1)
         task_status.started()
         return q_id
 

@@ -11,6 +11,7 @@ import textwrap
 import time
 from functools import partial
 from string import Template
+from typing import Optional
 
 import anyio
 import typer
@@ -26,7 +27,6 @@ from prefect.cli._dev_utilities import (
 )
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.agent import start as start_agent
 from prefect.cli.root import app
 from prefect.docker import get_prefect_image_name, python_version_minor
 from prefect.orion.api.server import create_app
@@ -402,14 +402,34 @@ def kubernetes_manifest():
     print(manifest)
 
 
-@dev_app.command()
-async def qa():
+create_components_help = """
+--create-components: create a new QA 
+work queue and start a new agent listening 
+to that work queue 
 
+--flows-only: do not create a new work queue
+or agent
+"""
+
+
+@dev_app.command()
+async def qa(
+    create_components: Optional[bool] = typer.Option(
+        True, "--create-components/--flows-only", help=create_components_help
+    )
+):
+    """Run all flows in `qa/pure_scripts`, and register and submit all deployments
+    in `qa/deployments` that have deployment names beginning with `qa_`. By default
+    also creates a new QA work queue and agent.
+    """
     async with anyio.create_task_group() as tg:
-        # orion.start() # TODO
+
+        if create_components:
+            # orion.start() # TODO
+            await create_qa_queue(app=app)
+            tg.start_soon(start_agent, app)
+
+        await tg.start(execute_flow_scripts)
         await register_deployments()
         deployments = await get_qa_deployments()
-        await create_qa_queue(app=app)
-        tg.start_soon(start_agent, app)
-        await tg.start(execute_flow_scripts)
         await tg.start(submit_deployments_for_execution, app, deployments)
