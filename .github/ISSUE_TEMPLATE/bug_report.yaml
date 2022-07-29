@@ -12,7 +12,7 @@ body:
 **PLEASE READ THIS PARAGRAPH - this helps us identify the root cause and fix the issue:**
 
 Many bug reports are often
-**USAGE QUESTIONS, NOT BUGS** for APIs that can take some practice to familiarize with,
+**USAGE QUESTIONS, NOT BUGS** - for those, please report your question via our [Community Slack](https://www.prefect.io/slack/) or [Discourse](https://discourse.prefect.io/). We'll then investigate the issue and open a bug report when necessary.
 and which are also tailored towards high quality relational designs that
 beginners are sometimes less familiar with.
 
