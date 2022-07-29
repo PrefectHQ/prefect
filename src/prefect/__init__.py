@@ -29,6 +29,7 @@ from prefect.context import tags
 from prefect.client import get_client
 from prefect.deployments import Deployment
 from prefect.manifests import Manifest
+from prefect.utilities.annotations import unmapped
 
 # Import modules that register types
 import prefect.serializers
@@ -59,7 +60,6 @@ PREFECT_1_ATTRIBUTES = [
     "prefect.mapped",
     "prefect.models",
     "prefect.resource_manager",
-    "prefect.unmapped",
 ]
 
 
@@ -103,4 +103,5 @@ __all__ = [
     "tags",
     "task",
     "Task",
+    "unmapped",
 ]
