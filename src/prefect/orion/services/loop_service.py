@@ -33,7 +33,7 @@ class LoopService:
         if loop_seconds:
             self.loop_seconds = loop_seconds  # seconds between runs
         self._should_stop = False  # flag for whether the service should stop running
-        self._is_running = False # flag for whether the service is running
+        self._is_running = False  # flag for whether the service is running
         self.name = type(self).__name__
         self.logger = get_logger(f"orion.services.{self.name.lower()}")
 
@@ -121,7 +121,7 @@ class LoopService:
         service stops.
 
         Args:
-            block (bool): if True (default), blocks until the service is 
+            block (bool): if True (default), blocks until the service is
                 finished running. Otherwise it requests a stop and returns but
                 the service may still be running a final loop
 

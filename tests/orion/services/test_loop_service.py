@@ -84,8 +84,6 @@ async def test_loop_service_run_multiple_times():
     assert service.counter == 6
 
 
-
-
 async def test_loop_service_calls_on_start_on_stop_once():
     class Service(LoopService):
         state = []
