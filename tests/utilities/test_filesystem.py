@@ -60,6 +60,11 @@ class TestFilterFiles:
             "utilities/__init__.py",
         }
 
+    async def test_comments_and_empty_lines_are_ignored(self, tmpdir, messy_dir):
+        filtered = filter_files(tmpdir, ignore_patterns=["*.py", "", "#!*__init__.py"])
+        assert "README.md" in filtered
+        assert {f for f in filtered if f.endswith(".py")} == set()
+
     async def test_override_order_matters(self, tmpdir, messy_dir):
         filtered = filter_files(tmpdir, ignore_patterns=["!*__init__.py", "*.py"])
         assert "README.md" in filtered
