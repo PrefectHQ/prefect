@@ -72,6 +72,7 @@ from pydantic import (
     root_validator,
     validator,
 )
+from sqlalchemy.engine.url import make_url
 
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.pydantic import add_cloudpickle_reduction
@@ -242,6 +243,26 @@ def warn_on_database_password_value_without_usage(values):
     return values
 
 
+def hide_database_password_value(values):
+    """
+    Validator for hiding database password if set.
+    """
+    password = values["PREFECT_ORION_DATABASE_PASSWORD"]
+    if password:
+        values["PREFECT_ORION_DATABASE_PASSWORD"] = str(SecretStr(password).display())
+    return values
+
+
+def hide_database_url_password_value(values):
+    """
+    Validator for settings warning if the database password is set but not used.
+    """
+    url = values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+    if url:
+        values["PREFECT_ORION_DATABASE_CONNECTION_URL"] = repr(make_url(url))
+    return values
+
+
 # Setting definitions
 
 
@@ -404,7 +425,7 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
 )
 
 PREFECT_ORION_DATABASE_PASSWORD = Setting(
-    SecretStr,
+    str,
     default=None,
     description="""Password to template into the `PREFECT_ORION_DATABASE_CONNECTION_URL`.
     This is useful if the password must be provided separately from the connection URL. 
@@ -663,6 +684,8 @@ class Settings(SettingsFieldsMixin):
         #       in the future.
         values = max_log_size_smaller_than_batch_size(values)
         values = warn_on_database_password_value_without_usage(values)
+        values = hide_database_password_value(values)
+        values = hide_database_url_password_value(values)
         return values
 
     def copy_with_update(
