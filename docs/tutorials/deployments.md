@@ -58,7 +58,7 @@ leonardo_dicapriflow("Leo")
 Save this in a file `leo_flow.py` and run it as a Python script. You'll see output like this:
 
 <div class="terminal">
-```
+```bash
 $ python leo_flow.py
 12:14:30.012 | INFO    | prefect.engine - Created flow run 'certain-cormorant' for flow 
 'leonardo_dicapriflow'
@@ -217,7 +217,7 @@ Note the message to set `PREFECT_API_URL` so that you're coordinating flows with
 Open another terminal and run this command to set the API URL:
 
 <div class='terminal'>
-```
+```bash
 $ prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
 Set variable 'PREFECT_API_URL' to 'http://127.0.0.1:4200/api'
 Updated profile 'default'
@@ -237,7 +237,7 @@ To review, we have three files that make up the artifacts for this particular de
 Now use the `prefect deployment apply` command to create the deployment on the Prefect Orion server, specifying the name of the `deployment.yaml` file.
 
 <div class="terminal">
-```
+```bash
 $ prefect deployment apply deployment.yaml
 Successfully loaded 'leo-deployment'
 Deployment '3d2f55a2-46df-4857-ab6f-6cc80ce9cf9c' successfully created.
@@ -249,7 +249,7 @@ Now your deployment has been created by the Prefect API and is ready to create f
 To demonstrate that your deployment exists, list all of the current deployments:
 
 <div class="terminal">
-```
+```bash
 $ prefect deployment ls
                                 Deployments
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -264,7 +264,7 @@ $ prefect deployment ls
 Use `prefect deployment inspect` to display details for a specific deployment.
 
 <div class='terminal'>
-```
+```bash
 $ prefect deployment inspect 'leonardo_dicapriflow/leo-deployment'
 {
     'id': '3d2f55a2-46df-4857-ab6f-6cc80ce9cf9c',
@@ -317,7 +317,7 @@ However, we can also use a Prefect CLI convenience command: starting your agent 
 In your terminal, run the `prefect agent start` command, passing a `-t test` option that creates a work queue for `test` tags. Remember, we configured this same tag on the deployment at an earlier step.
 
 <div class="terminal">
-```
+```bash
 $ prefect agent start -t test
 Starting agent connected to http://127.0.0.1:4200/api...
 
@@ -347,15 +347,16 @@ Remember that:
 Now that you've created the deployment, agent, and associated work queue, you can interact with it in multiple ways. For example, you can use the Prefect CLI to run a local flow run for the deployment.
 
 <div class="terminal">
-```
+```bash
 $ prefect deployment run leonardo_dicapriflow/leo-deployment
 Created flow run 'crazy-fossa' for flow 'leonardo_dicapriflow'
 ```
+</div>
 
 If you switch over to the terminal session where your agent is running, you'll see that the agent picked up the flow run and executed it.
 
 <div class="terminal">
-```
+```bash
 Loading flow from deployed location...
 21:03:10.220 | INFO    | Flow run 'crazy-fossa' - Starting 'ConcurrentTaskRunner'; submitted tasks will be run concurrently...
 21:03:10.387 | INFO    | Flow run 'crazy-fossa' - Created task run 'log_message-3e2d0b0c-0' for task 'log_message'
