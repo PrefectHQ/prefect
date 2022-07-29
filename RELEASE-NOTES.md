@@ -1,5 +1,19 @@
 # Prefect Release Notes
 
+## 2.0.1
+
+- [bfcb801f4](https://github.com/PrefectHQ/prefect/commit/bfcb801f4) - Add templates for issues and pull requests
+- [752c77821](https://github.com/PrefectHQ/prefect/commit/752c77821/) - Introduce output flag on deployment build and update default yaml name 
+- [7bc936b60](https://github.com/PrefectHQ/prefect/commit/7bc936b60/) - Add support for unmapped values to Task.map
+- [2d69e04dc](https://github.com/PrefectHQ/prefect/commit/2d69e04dc/) - Update from_path and skip upload on same path
+- [c60319d17](https://github.com/PrefectHQ/prefect/commit/c60319d17/) - Split up the insert of logs into smaller chunks. 
+- [20c5f7444](https://github.com/PrefectHQ/prefect/commit/20c5f7444/) - Preserve schedules set via the API in building deployments
+- [1f91b8e67](https://github.com/PrefectHQ/prefect/commit/1f91b8e67/) - Add hyperlink on air traffic control in index.md
+- [b900440fd](https://github.com/PrefectHQ/prefect/commit/b900440fd/) - Coerce any floating point extrema (NaN, -Infinity, Infinity) to None for the DB
+- [5b4355363](https://github.com/PrefectHQ/prefect/commit/5b4355363/) - Remove deployment execute (#6085) (Dustin Ngo)
+- [6a9037228](https://github.com/PrefectHQ/prefect/commit/6a9037228/) - Ignore prefect api url in test harness 
+- [4943d69b1](https://github.com/PrefectHQ/prefect/commit/4943d69b1/) - Clarify the flow-run-notifications error handling (Chris Guidry)
+
 ## 2.0.0
 
 We're thrilled to announce that, with this release, Prefect 2.0 has exited its public beta! Hopefully, this release comes as no surprise. It is the culmination of nearly a year of building in public and incorporating your feedback. Prefect 2.0 is now the default version of the open source `prefect` framework provided [upon installation](https://docs.prefect.io/getting-started/installation/). We will continue enhancing Prefect 2.0 rapidly, but future breaking changes will be less frequent and more notice will be provided.
