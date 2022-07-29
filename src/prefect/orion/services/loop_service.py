@@ -32,7 +32,8 @@ class LoopService:
         """
         if loop_seconds:
             self.loop_seconds = loop_seconds  # seconds between runs
-        self.should_stop = False  # flag for whether the service should stop running
+        self._should_stop = False  # flag for whether the service should stop running
+        self._is_running = False # flag for whether the service is running
         self.name = type(self).__name__
         self.logger = get_logger(f"orion.services.{self.name.lower()}")
 
@@ -41,18 +42,21 @@ class LoopService:
             signal.signal(signal.SIGTERM, self._stop)
 
     @inject_db
-    async def setup(self, db: OrionDBInterface) -> None:
+    async def _on_start(self, db: OrionDBInterface) -> None:
         """
         Called prior to running the service
         """
-        self.should_stop = False
+        # reset the should stop flag
+        self._should_stop = False
+        # set the running flag
+        self._is_running = True
 
-    async def shutdown(self) -> None:
+    async def _on_stop(self) -> None:
         """
         Called after running the service
         """
-        # reset `should_stop` to False
-        self.should_stop = False
+        # reset the _is_running flag
+        self._is_running = False
 
     async def start(self, loops=None) -> None:
         """
@@ -62,10 +66,10 @@ class LoopService:
             loops (int, optional): the number of loops to run before exiting.
         """
 
-        await self.setup()
+        await self._on_start()
 
         i = 0
-        while not self.should_stop:
+        while not self._should_stop:
             start_time = pendulum.now("UTC")
 
             try:
@@ -93,7 +97,7 @@ class LoopService:
             i += 1
             if loops is not None and i == loops:
                 self.logger.debug(f"{self.name} exiting after {loops} loop(s).")
-                break
+                await self.stop(block=False)
 
             # next run is every "loop seconds" after each previous run *started*.
             # note that if the loop took unexpectedly long, the "next_run" time
@@ -103,30 +107,37 @@ class LoopService:
             )
             self.logger.debug(f"Finished running {self.name}. Next run at {next_run}")
 
-            # check the `should_stop` flag every 1 seconds until the next run time is reached
-            while pendulum.now("UTC") < next_run and not self.should_stop:
+            # check the `_should_stop` flag every 1 seconds until the next run time is reached
+            while pendulum.now("UTC") < next_run and not self._should_stop:
                 await asyncio.sleep(
                     min(1, (next_run - pendulum.now("UTC")).total_seconds())
                 )
 
-        await self.shutdown()
+        await self._on_stop()
 
-    async def stop(self) -> None:
+    async def stop(self, block=True) -> None:
         """
         Gracefully stops a running LoopService and blocks until the service
-        stops (indicated by resetting the `should_stop` flag).
+        stops.
+
+        Args:
+            block (bool): if True (default), blocks until the service is 
+                finished running. Otherwise it requests a stop and returns but
+                the service may still be running a final loop
+
         """
         self._stop()
 
-        while self.should_stop:
-            await asyncio.sleep(0.1)
+        if block:
+            while self._is_running:
+                await asyncio.sleep(0.1)
 
     def _stop(self, *_) -> None:
         """
-        Private method for setting the `should_stop` flag. Takes arbitrary
+        Private, synchronous method for setting the `_should_stop` flag. Takes arbitrary
         arguments so it can be used as a signal handler.
         """
-        self.should_stop = True
+        self._should_stop = True
 
     async def run_once(self) -> None:
         """
@@ -134,8 +145,9 @@ class LoopService:
 
         Users should override this method.
 
-        To actually run the service once, call `LoopService.start(loops=1)` instead
-        of this method, in order to handle setup/shutdown properly.
+        To actually run the service once, call `LoopService().start(loops=1)`
+        instead of `LoopService().run_once()`, because this method will not invoke setup
+        and teardown methods properly.
         """
         raise NotImplementedError("LoopService subclasses must implement this method.")
 
