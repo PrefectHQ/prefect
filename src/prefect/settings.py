@@ -64,7 +64,14 @@ from typing import (
 
 import pydantic
 import toml
-from pydantic import BaseSettings, Field, create_model, root_validator, validator
+from pydantic import (
+    BaseSettings,
+    Field,
+    SecretStr,
+    create_model,
+    root_validator,
+    validator,
+)
 
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.pydantic import add_cloudpickle_reduction
@@ -397,7 +404,7 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
 )
 
 PREFECT_ORION_DATABASE_PASSWORD = Setting(
-    str,
+    SecretStr,
     default=None,
     description="""Password to template into the `PREFECT_ORION_DATABASE_CONNECTION_URL`.
     This is useful if the password must be provided separately from the connection URL. 
