@@ -78,3 +78,8 @@ class TestFilterFiles:
         filtered = filter_files(tmpdir, ignore_patterns=["venv/**"])
         assert "utilities/venv" in filtered
         assert {f for f in filtered if f.startswith("venv")} == set()
+
+    async def test_alternate_directory_filter(self, tmpdir, messy_dir):
+        filtered = filter_files(tmpdir, ignore_patterns=["__pycache__/"])
+        assert "__init__.py" in filtered
+        assert {f for f in filtered if "pycache" in f} == set()

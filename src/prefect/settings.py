@@ -264,7 +264,7 @@ PREFECT_CLI_COLORS = Setting(
 PREFECT_CLI_WRAP_LINES = Setting(
     bool,
     default=True,
-    description="""If `True`, wrap text by inserting new lines in long lines 
+    description="""If `True`, wrap text by inserting new lines in long lines
         in CLI output. If `False`, output will not be wrapped. Defaults to `True`.""",
 )
 
@@ -311,6 +311,14 @@ PREFECT_PROFILES_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "profiles.toml",
     description="""The path to a profiles configuration files.""",
+    value_callback=template_with_settings(PREFECT_HOME),
+)
+
+
+PREFECT_IGNORE_PATH = Setting(
+    Path,
+    default=Path("${PREFECT_HOME}") / ".prefectignore",
+    description="""The path to a global `.prefectignore` configuration file.""",
     value_callback=template_with_settings(PREFECT_HOME),
 )
 
@@ -400,7 +408,7 @@ PREFECT_ORION_DATABASE_PASSWORD = Setting(
     str,
     default=None,
     description="""Password to template into the `PREFECT_ORION_DATABASE_CONNECTION_URL`.
-    This is useful if the password must be provided separately from the connection URL. 
+    This is useful if the password must be provided separately from the connection URL.
     To use this setting, you must include it in your connection URL.""",
 )
 
@@ -424,7 +432,7 @@ PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
 
         If you need to provide password via a different environment variable, you use
         the `PREFECT_ORION_DATABASE_PASSWORD` setting. For example:
-        
+
         PREFECT_ORION_DATABASE_PASSWORD='mypassword'
         PREFECT_ORION_DATABASE_CONNECTION_URL='postgresql+asyncpg://postgres:${PREFECT_ORION_DATABASE_PASSWORD}@localhost/orion'
         """
