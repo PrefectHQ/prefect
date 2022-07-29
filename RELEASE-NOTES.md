@@ -13,7 +13,7 @@ The response to Prefect 2 has been overwhelming in the best way possible. Thank 
 - The `scheduler` and `flow-run-notifications` LoopServices have been made more resilient
 - Log inserts have been made more performant through smaller log batches
 - Local file system blocks created from the UI now point to the right `base_path`
-- Support for unmapped values to Task.map has been added
+- Support for unmapped values to Task.map has been added as requested by Club42 members
 - The `deployment build` command now supports an optional output flag to customize the name of the deployment.yaml file
 
 ## 2.0.0
