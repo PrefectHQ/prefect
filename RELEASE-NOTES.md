@@ -2,7 +2,7 @@
 
 ## 2.0.1
 
-The response to Prefect 2 has been overwhelming in the best way possible! Thank you to the many users who alerted us to minor issues. This release is a compilation of enhancements and fixes that make for a more resilient, performant, and refined Prefect experience. Thanks in particular to the students at this week's Prefect Associate Certification Course (PACC) in San Jose, for their thoughtful feedback.
+The response to Prefect 2 has been overwhelming in the best way possible. Thank you to the many community members who tried it out and gave us feedback! Thanks in particular to the students at this week's Prefect Associate Certification Course (PACC) in San Jose for their thoughtful recommendations. This release is a compilation of enhancements and fixes that make for a more resilient, performant, and refined Prefect experience.
 
 ### Improvements and bug fixes
 - Schedules set via the API or UI are now preserved when building deployments from the CLI
