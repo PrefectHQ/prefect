@@ -23,11 +23,11 @@ This pull request is:
 	- No tests or issue needed
 - [ ] A short code fix
 	- Please reference the related issue by including "closes `<link to issue>`" in this Pull Request's summary section. 
-        - If no issue exists, please create a bug-fix issue 
+        - If no issue exists, please create a bug report issue 
 	- Please include tests. One line code fixes without tests will not be accepted.
 - [ ] A new feature implementation
 	- Please reference the related issue by including "closes `<link to issue>`" in this Pull Request's summary section. 
-        - If no issue exists, please create a feature-enhancement issue 
+        - If no issue exists, please create a feature enhancement issue 
 	- Please include tests
     - Please make sure that your QA steps are both thorough and easy to reproduce by someobdy with limited knowledge of the feature that you are submitting
 
