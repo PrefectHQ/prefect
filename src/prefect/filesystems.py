@@ -13,6 +13,7 @@ from pydantic import Field, SecretStr, validator
 
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.filesystems import filter_files
 
 
 class ReadableFileSystem(Block, abc.ABC):
