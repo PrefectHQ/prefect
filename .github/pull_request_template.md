@@ -24,7 +24,7 @@ This pull request is:
 - [ ] A short code fix
 	- Please reference the related issue by including "closes `<link to issue>`" in this Pull Request's summary section. 
         - If no issue exists, please create a bug report issue 
-	- Please include tests. One line code fixes without tests will not be accepted.
+	- Please include tests. One-line fixes without tests will not be accepted unless it's related to the documentation only.
 - [ ] A new feature implementation
 	- Please reference the related issue by including "closes `<link to issue>`" in this Pull Request's summary section. 
         - If no issue exists, please create a feature enhancement issue 
