@@ -108,10 +108,14 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
         if local_path is None:
             local_path = Path(".").absolute()
 
-        if sys.version_info < (3, 8):
-            shutil.copytree(from_path, local_path)
+        if local_path == to_path:
+            print("Skipping upload")
         else:
-            shutil.copytree(from_path, local_path, dirs_exist_ok=True)
+            if sys.version_info < (3, 8):
+                shutil.copytree(local_path, to_path)
+            else:
+                shutil.copytree(local_path, to_path, dirs_exist_ok=True)
+
 
     async def read_path(self, path: str) -> bytes:
         path: Path = self._resolve_path(path)
