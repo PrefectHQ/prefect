@@ -133,9 +133,10 @@ Current environment variables and Prefect settings will be included in the creat
 
 | Attributes | Description |
 | ---- | ---- |
+| command | A list of strings specifying the command to start the flow run. In most cases you should not override this. |
 | env	| Environment variables to set for the new process. |
-| name	| A name for the process. For display purposes only. |
 | labels	| Labels for the process. Labels are for metadata purposes only and cannot be attached to the process itself. |
+| name	| A name for the process. For display purposes only. |
 
 
 ## DockerContainer
@@ -153,15 +154,17 @@ Requirements for `DockerContainer`:
 
 | Attributes | Description |
 | ---- | ---- |
+| auto_remove | Bool indicating whether the container will be removed on completion. If False, the container will remain after exit for inspection. |
+| command | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this. |
+| env	| Environment variables to set for the container. |
 | image | An optional string specifying the tag of a Docker image to use. Defaults to the Prefect image. |
 | image_pull_policy | Specifies if the image should be pulled. One of 'ALWAYS', 'NEVER', 'IF_NOT_PRESENT'. |
-| network_mode | Set the network mode for the created container. Defaults to 'host' if a local API url is detected, otherwise the Docker default of 'bridge' is used. If 'networks' is set, this cannot be set. | 
-| networks | An optional list of strings specifying Docker networks to connect the container to. |
 | labels | An optional dictionary of labels, mapping name to value. |
 | name | An optional name for the container. |
-| auto_remove | Bool indicating whether the container will be removed on completion. If False, the container will remain after exit for inspection. |
-| volumes | An optional list of volume mount strings in the format of "local_path:container_path". |
+| networks | An optional list of strings specifying Docker networks to connect the container to. |
+| network_mode | Set the network mode for the created container. Defaults to 'host' if a local API url is detected, otherwise the Docker default of 'bridge' is used. If 'networks' is set, this cannot be set. | 
 | stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
+| volumes | An optional list of volume mount strings in the format of "local_path:container_path". |
 
 Prefect automatically sets a Docker image matching the Python and Prefect version you're using at deployment time. You can see all available images at [Docker Hub](https://hub.docker.com/r/prefecthq/prefect/tags?page=1&name=2.0).
 
@@ -181,19 +184,20 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 
 | Attributes | Description |
 | ---- | ---- |
-| name | An optional name for the job. |
+| command | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this. |
+| customizations	| A list of JSON 6902 patches to apply to the base Job manifest. |
+| env	| Environment variables to set for the container. |
 | image | String specifying the tag of a Docker image to use for the Job. |
 | image_pull_policy | The Kubernetes image pull policy to use for job containers. |
-| namespace | String signifying the Kubernetes namespace to use. |
-| labels | Dictionary of labels to add to the Job. |
-| restart_policy | The Kubernetes restart policy to use for Jobs. |
-| stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
-| namespace	| An optional string signifying the Kubernetes namespace to use. |
-| service_account_name	| An optional string specifying which Kubernetes service account to use. | 
 | job	| The base manifest for the Kubernetes Job. |
-| customizations	| A list of JSON 6902 patches to apply to the base Job manifest. |
 | job_watch_timeout_seconds	| Number of seconds to watch for job creation before timing out (default 5). |
+| labels | Dictionary of labels to add to the Job. |
+| name | An optional name for the job. |
+| namespace | String signifying the Kubernetes namespace to use. |
 | pod_watch_timeout_seconds	| Number of seconds to watch for pod creation before timing out (default 5). |
+| restart_policy | The Kubernetes restart policy to use for Jobs. |
+| service_account_name	| An optional string specifying which Kubernetes service account to use. | 
+| stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
 
 
 ## Docker images
