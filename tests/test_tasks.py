@@ -16,6 +16,7 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal, flaky_on_windows
+from prefect.utilities.annotations import unmapped
 from prefect.utilities.collections import quote
 
 
@@ -1871,3 +1872,13 @@ class TestTaskMap:
 
         futures = await my_flow()
         assert [future.result() for future in futures] == [3, 3, 3]
+
+    async def test_unmapped_value(self):
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            other = unmapped(5)
+            return TestTaskMap.add_together.map(numbers, other)
+
+        futures = my_flow()
+        assert [future.result() for future in futures] == [6, 7, 8]
