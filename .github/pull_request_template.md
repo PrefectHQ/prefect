@@ -1,7 +1,7 @@
 <!-- Make sure that your title neatly summarizes the proposed changes -->
 
 ### Summary
-<!-- Provide a short overview of the changes and its importance -->
+<!-- Provide a short overview of the change and the value it adds -->
 
 ### Steps Taken to QA Changes
 <!-- Describe the steps that you have taken to make sure that your changes work as intended without breaking other functionality. These steps should be reproducible and easy to follow for other QA testers-->
