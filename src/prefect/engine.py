@@ -202,17 +202,13 @@ async def create_then_begin_flow_run(
         try:
             parameters = flow.validate_parameters(parameters)
         except (ParameterTypeError, SignatureMismatchError) as exc:
-            validation_failure_msg = str(exc)
             state = Failed(
-                message=str(exc),
+                message=repr(exc),
                 data=DataDocument.encode("cloudpickle", exc),
             )
         except Exception as exc:
-            validation_failure_msg = (
-                f"Validation of flow parameters failed with an unexpected error: {exc}"
-            )
             state = Failed(
-                message=validation_failure_msg,
+                message=f"Validation of flow parameters failed with an unexpected error: {exc!r}",
                 data=DataDocument.encode("cloudpickle", exc),
             )
 
@@ -227,7 +223,7 @@ async def create_then_begin_flow_run(
     engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
 
     if state.is_failed():
-        flow_run_logger(flow_run).error(validation_failure_msg)
+        flow_run_logger(flow_run).error(state.message)
         engine_logger.info(
             f"Flow run {flow_run.name!r} received invalid parameters and is marked as failed."
         )
@@ -291,15 +287,13 @@ async def retrieve_flow_then_begin_flow_run(
         try:
             parameters = flow.validate_parameters(parameters)
         except (ParameterTypeError, SignatureMismatchError) as exc:
-            flow_run_logger(flow_run).error(str(exc))
+            flow_run_logger(flow_run).exception("Flow parameter validation failed.")
             failed_state = Failed(
-                message=str(exc),
+                message=repr(exc),
                 data=DataDocument.encode("cloudpickle", exc),
             )
         except Exception as exc:
-            unexpected_error = (
-                f"Validation of flow parameters failed with an unexpected error: {exc}"
-            )
+            unexpected_error = f"Validation of flow parameters failed with an unexpected error: {exc!r}"
             flow_run_logger(flow_run).error(unexpected_error)
             failed_state = Failed(
                 message=unexpected_error,
@@ -471,13 +465,13 @@ async def create_and_begin_subflow_run(
                 parameters = flow.validate_parameters(parameters)
 
             except (ParameterTypeError, SignatureMismatchError) as exc:
-                logger.error(str(exc))
+                logger.exception(repr(exc))
                 failed_state = Failed(
-                    message=str(exc),
+                    message=repr(exc),
                     data=DataDocument.encode("cloudpickle", exc),
                 )
             except Exception as exc:
-                unexpected_error = f"Validation of flow parameters failed with an unexpected error: {exc}"
+                unexpected_error = f"Validation of flow parameters failed with an unexpected error: {exc!r}"
                 logger.error(unexpected_error)
                 failed_state = Failed(
                     message=unexpected_error,

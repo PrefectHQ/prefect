@@ -7,6 +7,7 @@ import anyio
 import pendulum
 import pytest
 
+import prefect.flows
 from prefect import engine, flow, task
 from prefect.context import FlowRunContext
 from prefect.engine import (
@@ -987,7 +988,7 @@ class TestDeploymentFlowRun:
         assert state.is_failed()
         assert (
             state.message
-            == "Flow run received invalid parameters:\n - x: value is not a valid integer"
+            == "ParameterTypeError('Flow run received invalid parameters:\\n - x: value is not a valid integer')"
         )
         with pytest.raises(ParameterTypeError, match="value is not a valid integer"):
             state.result()
@@ -1080,7 +1081,7 @@ class TestCreateThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert (
             state.message
-            == "Flow run received invalid parameters:\n - dog: str type expected\n - cat: value is not a valid integer"
+            == "ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
         )
         assert type(state.data.decode()) == ParameterTypeError
 
@@ -1094,9 +1095,33 @@ class TestCreateThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert (
             state.message
-            == "Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            == "SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
         )
         assert type(state.data.decode()) == SignatureMismatchError
+
+    async def test_handles_other_errors(
+        self, orion_client, parameterized_flow, monkeypatch
+    ):
+        def raise_unspecified_exception(*args, **kwargs):
+            raise Exception("I am another exception!")
+
+        # Patch validate_parameters to check for other exception case handling
+        monkeypatch.setattr(
+            prefect.flows.Flow, "validate_parameters", raise_unspecified_exception
+        )
+
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with an unexpected error: Exception('I am another exception!')"
+        )
+        assert type(state.data.decode()) == Exception
 
 
 class TestRetrieveFlowThenBeginFlowRun:
@@ -1117,7 +1142,7 @@ class TestRetrieveFlowThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert (
             state.message
-            == "Flow run received invalid parameters:\n - dog: str type expected\n - cat: value is not a valid integer"
+            == "ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
         )
         assert type(state.data.decode()) == ParameterTypeError
 
@@ -1131,9 +1156,33 @@ class TestRetrieveFlowThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert (
             state.message
-            == "Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            == "SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
         )
         assert type(state.data.decode()) == SignatureMismatchError
+
+    async def test_handles_other_errors(
+        self, orion_client, parameterized_flow, monkeypatch
+    ):
+        def raise_unspecified_exception(*args, **kwargs):
+            raise Exception("I am another exception!")
+
+        # Patch validate_parameters to check for other exception case handling
+        monkeypatch.setattr(
+            prefect.flows.Flow, "validate_parameters", raise_unspecified_exception
+        )
+
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with an unexpected error: Exception('I am another exception!')"
+        )
+        assert type(state.data.decode()) == Exception
 
 
 class TestCreateAndBeginSubflowRun:
@@ -1169,7 +1218,7 @@ class TestCreateAndBeginSubflowRun:
             assert state.type == StateType.FAILED
             assert (
                 state.message
-                == "Flow run received invalid parameters:\n - dog: str type expected\n - cat: value is not a valid integer"
+                == "ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
             )
             assert type(state.data.decode()) == ParameterTypeError
 
@@ -1187,6 +1236,30 @@ class TestCreateAndBeginSubflowRun:
             assert state.type == StateType.FAILED
             assert (
                 state.message
-                == "Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+                == "SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
             )
             assert type(state.data.decode()) == SignatureMismatchError
+
+    async def test_handles_other_errors(
+        self, orion_client, parameterized_flow, monkeypatch
+    ):
+        def raise_unspecified_exception(*args, **kwargs):
+            raise Exception("I am another exception!")
+
+        # Patch validate_parameters to check for other exception case handling
+        monkeypatch.setattr(
+            prefect.flows.Flow, "validate_parameters", raise_unspecified_exception
+        )
+
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with an unexpected error: Exception('I am another exception!')"
+        )
+        assert type(state.data.decode()) == Exception
