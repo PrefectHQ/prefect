@@ -55,7 +55,7 @@ Provide your [Minimal, Complete, and Verifiable](https://stackoverflow.com/help/
     attributes:
       label: Error
       description: "
-Provide the complete text of any errors received **including the complete stack trace**.
+Provide the full exception tracebacks.
 If the message is a warning, run your program with the ``-Werror`` flag:   ``python -Werror myprogram.py``
 "
       placeholder: "# Copy complete stack trace and error message here, including SQL log output if applicable."
