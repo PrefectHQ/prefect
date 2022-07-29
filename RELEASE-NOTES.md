@@ -7,7 +7,7 @@ The response to Prefect 2 has been overwhelming in the best way possible. Thank 
 ### Improvements and bug fixes
 - Schedules set via the API or UI are now preserved when building deployments from the CLI
 - JSON types are now coerced to none, following Javascript convention and supporting standards compatibility
-- The `prefect deployment execute` command has been removed
+- The `prefect deployment execute` command has been removed to avoid confusion between running a flow locally from a Python script and running it by an agent using `prefect deployment run`
 - This repository now includes templates for pull requests and issues
 - A common request we immediately received was for unique deployment YAML names (to better anticipate multi-flow deployments) and an optional output flag to customize the name.
 - The `scheduler` and `flow-run-notifications` LoopServices have been made more resilient
