@@ -16,6 +16,7 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.models import configuration
 from prefect.orion.schemas.core import Configuration
 from prefect.orion.services.loop_service import LoopService
+from prefect.settings import PREFECT_DEBUG_MODE
 
 
 class Telemetry(LoopService):
@@ -101,17 +102,21 @@ class Telemetry(LoopService):
             },
         }
 
-        async with httpx.AsyncClient() as client:
-            result = await client.post(
-                "https://sens-o-matic.prefect.io/",
-                json=heartbeat,
-                headers={"x-prefect-event": "prefect_server"},
+        try:
+            async with httpx.AsyncClient() as client:
+                result = await client.post(
+                    "https://sens-o-matic.prefect.io/",
+                    json=heartbeat,
+                    headers={"x-prefect-event": "prefect_server"},
+                )
+            result.raise_for_status()
+        except Exception as exc:
+            # the traceback is only needed if doing deeper debugging, otherwise
+            # this looks like an impactful server error
+            self.logger.error(
+                "Failed to send telemetry.", exc_info=PREFECT_DEBUG_MODE.value()
             )
-
-            try:
-                result.raise_for_status()
-            except Exception:
-                self.logger.exception("Failed to send telemetry.")
+            await self.stop()
 
 
 if __name__ == "__main__":
