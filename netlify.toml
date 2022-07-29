@@ -34,6 +34,16 @@ publish = "site"
   status = 301
 
 [[redirects]]
+  from = "https://docs.prefect.io/migration_guide/"
+  to = "https://docs.prefect.io/migration-guide/"
+  status = 301
+
+[[redirects]]
+  from = "https://orion-docs.prefect.io/migration_guide/"
+  to = "https://docs.prefect.io/migration-guide/"
+  status = 301
+
+[[redirects]]
   from = "https://orion-docs.prefect.io/*"
   to = "https://docs.prefect.io/:splat"
   status = 301
