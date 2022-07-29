@@ -1,12 +1,12 @@
 import contextlib
 import random
 from itertools import product
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 import pendulum
 import pytest
 
-from prefect.orion import schemas
+from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
@@ -14,6 +14,7 @@ from prefect.orion.orchestration.rules import (
     BaseUniversalTransform,
     OrchestrationContext,
     OrchestrationResult,
+    TaskOrchestrationContext,
 )
 from prefect.orion.schemas import states
 from prefect.orion.schemas.responses import (
@@ -22,6 +23,7 @@ from prefect.orion.schemas.responses import (
     StateRejectDetails,
     StateWaitDetails,
 )
+from prefect.testing.utilities import AsyncMock
 
 # Convert constant from set to list for deterministic ordering of tests
 ALL_ORCHESTRATION_STATES = list(
