@@ -16,6 +16,14 @@ import anyio
 import typer
 
 import prefect
+from prefect.cli._dev_utilities import (
+    create_qa_queue,
+    execute_flow_scripts,
+    get_qa_deployments,
+    register_deployments,
+    start_agent,
+    submit_deployments_for_execution,
+)
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.agent import start as start_agent
@@ -392,3 +400,16 @@ def kubernetes_manifest():
         }
     )
     print(manifest)
+
+
+@dev_app.command()
+async def qa():
+
+    async with anyio.create_task_group() as tg:
+        # orion.start() # TODO
+        await register_deployments()
+        deployments = await get_qa_deployments()
+        await create_qa_queue(app=app)
+        tg.start_soon(start_agent, app)
+        await tg.start(execute_flow_scripts)
+        await tg.start(submit_deployments_for_execution, app, deployments)

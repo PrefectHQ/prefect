@@ -1,0 +1,21 @@
+{
+    "flow_name": "dog",
+    "import_path": "./demo_flow.py:pipeline",
+    "parameter_openapi_schema": {
+        "title": "Parameters",
+        "type": "object",
+        "properties": {
+            "purpose": {
+                "title": "purpose"
+            },
+            "msg": {
+                "title": "msg"
+            }
+        },
+        "required": [
+            "purpose",
+            "msg"
+        ],
+        "definitions": null
+    }
+}

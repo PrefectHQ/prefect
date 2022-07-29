@@ -1,0 +1,42 @@
+###
+### A complete description of a Prefect Deployment for flow 'dog'
+###
+name: qa_test
+description: null
+tags:
+- qa
+schedule: null
+parameters: {}
+infrastructure:
+  type: process
+  env: {}
+  labels: {}
+  name: null
+  command:
+  - python
+  - -m
+  - prefect.engine
+  stream_output: true
+###
+### DO NOT EDIT BELOW THIS LINE
+###
+flow_name: dog
+manifest_path: pipeline-manifest.json
+storage:
+  basepath: /Users/peytonrunyan/Work/orion-dev/QA/qa-repo/qa-flows/deployments/demo
+  _is_anonymous: true
+  _block_document_name: anonymous-a4acb6e9-3805-48c2-8465-f19a169fd046
+  _block_document_id: 731630ed-257b-4d11-8011-576342ddc16d
+  _block_type_slug: local-file-system
+parameter_openapi_schema:
+  title: Parameters
+  type: object
+  properties:
+    purpose:
+      title: purpose
+    msg:
+      title: msg
+  required:
+  - purpose
+  - msg
+  definitions: null

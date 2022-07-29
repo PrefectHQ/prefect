@@ -1,0 +1,26 @@
+from prefect import flow, get_run_logger, task
+
+
+@task
+def first_task():
+    return 42
+
+
+@task
+def second_task(msg, result):
+    logger = get_run_logger()
+    logger.info(
+        f"Hello from second task!\nYour message is '{msg}'.\nThe first result was {result}"
+    )
+
+
+@flow(name="dog")
+def pipeline(purpose, msg):
+    logger = get_run_logger()
+    logger.info(purpose)
+    result_1 = first_task()
+    second_task(msg, result_1)
+
+
+if __name__ == "__main__":
+    pipeline()
