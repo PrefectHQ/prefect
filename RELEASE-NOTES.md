@@ -1,5 +1,20 @@
 # Prefect Release Notes
 
+## 2.0.1
+
+The response to Prefect 2 has been overwhelming in the best way possible. Thank you to the many community members who tried it out and gave us feedback! Thanks in particular to the students at this week's Prefect Associate Certification Course (PACC) in San Jose for their thoughtful recommendations. This release is a compilation of enhancements and fixes that make for a more resilient, performant, and refined Prefect experience.
+
+### Improvements and bug fixes
+- Schedules set via the API or UI are now preserved when building deployments from the CLI
+- JSON types are now coerced to none, following Javascript convention and supporting standards compatibility
+- The `prefect deployment execute` command has been removed to avoid confusion between running a flow locally from a Python script and running it by an agent using `prefect deployment run`
+- This repository now includes templates for pull requests and issues to make bug reports and community contributions easier
+- The `scheduler` and `flow-run-notifications` LoopServices have been made more resilient
+- Log inserts have been made more performant through smaller log batches
+- Local file system blocks created from the UI now point to the right `base_path`
+- Support for unmapped values to Task.map has been added as requested by Club42 members
+- The `deployment build` command now supports an optional output flag to customize the name of the deployment.yaml file, to better support projects with multiple flows
+
 ## 2.0.0
 
 We're thrilled to announce that, with this release, Prefect 2.0 has exited its public beta! Hopefully, this release comes as no surprise. It is the culmination of nearly a year of building in public and incorporating your feedback. Prefect 2.0 is now the default version of the open source `prefect` framework provided [upon installation](https://docs.prefect.io/getting-started/installation/). We will continue enhancing Prefect 2.0 rapidly, but future breaking changes will be less frequent and more notice will be provided.
