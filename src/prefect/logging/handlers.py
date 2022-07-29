@@ -1,16 +1,19 @@
 import atexit
 import logging
-import logging.handlers
 import queue
+import re
 import sys
 import threading
 import time
 import traceback
 import warnings
-from typing import Dict, List
+from typing import Dict, List, Optional, Union
 
 import anyio
 import pendulum
+from rich.console import Console
+from rich.logging import get_console
+from rich.text import Text
 
 import prefect.context
 from prefect.client import get_client
@@ -355,3 +358,44 @@ class OrionHandler(logging.Handler):
             worker.flush()
 
         return super().close()
+
+
+class PrefectHandler(logging.Handler):
+    LEVEL_COLORS = {
+        "DEBUG": "steel_blue",
+        "INFO": "cyan",
+        "WARNING": "bright_yellow",
+        "ERROR": "red3",
+        "CRITICAL": "bright_red",
+    }
+
+    def __init__(
+        self,
+        console: Optional[Console] = None,
+        level: Union[int, str] = logging.NOTSET,
+        level_colors: Optional[Dict[str, str]] = None,
+    ):
+        super().__init__(level=level)
+        self.console = console or get_console()
+        self.level_colors = level_colors or self.LEVEL_COLORS
+
+    def emit(self, record: logging.LogRecord):
+        try:
+            if self.formatter:
+                record.message = record.getMessage()
+                formatter = self.formatter
+                if hasattr(formatter, "usesTime") and formatter.usesTime():
+                    record.asctime = formatter.formatTime(record, formatter.datefmt)
+                message = formatter.formatMessage(record)
+
+            message_text = Text(message)
+            level_name = record.levelname
+            level_color = self.level_colors.get(level_name)
+            for match in re.finditer(level_name, message):
+                message_text.stylize(f"{level_color}", match.start(), match.end())
+                break
+            self.console.print(message_text)
+        except RecursionError:  # See issue 36272
+            raise
+        except Exception:
+            self.handleError(record)
