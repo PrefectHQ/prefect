@@ -60,7 +60,7 @@ Blocks can also be loaded with a unique slug which a combination of a block type
 To load our JSON block document from before, we can run the following:
 
 ```python
-from prefect.block.core import Block
+from prefect.blocks.core import Block
 
 json_block = Block.load("json/life-the-universe-everything")
 print(json_block.value["the-answer"]) #42

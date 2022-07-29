@@ -511,10 +511,12 @@ async def build(
             infrastructure = Process()
 
     description = getdoc(flow)
+    schedule = None
     async with get_client() as client:
         try:
             deployment = await client.read_deployment_by_name(f"{flow.name}/{name}")
             description = deployment.description
+            schedule = deployment.schedule
         except ObjectNotFound:
             pass
 
@@ -523,6 +525,7 @@ async def build(
         description=description,
         tags=tags or [],
         flow_name=flow.name,
+        schedule=schedule,
         parameter_openapi_schema=manifest.parameter_openapi_schema,
         manifest_path=manifest_loc,
         storage=storage,
