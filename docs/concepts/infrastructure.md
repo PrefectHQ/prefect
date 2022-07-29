@@ -41,10 +41,12 @@ Infrastructure is specific to the environments in which flows will run. Prefect 
 
 ## Using infrastructure
 
-There are two distinct ways to use infrastructure in a deployment: 
+You may create customized infrastructure blocks through the Prefect UI or Prefect Cloud [Blocks](/ui/blocks/) page or create them in code and save them to the API using the blocks [`.save()`](/api-ref/prefect/blocks/core/#prefect.blocks.core.Block.save) method.
+
+Once created, there are two distinct ways to use infrastructure in a deployment: 
 
 - Starting with Prefect defaults &mdash; this is what happens when you pass  the `-i` or `--infra` flag and provide a type when building deployment files.
-- Pre-configure infrastructure settings and base your deployment infrastructure on those settings &mdash; this is what happens when you pass `--infra-block` and a block slug when building deployment files.
+- Pre-configure infrastructure settings as blocks and base your deployment infrastructure on those settings &mdash; by passing `-ib` or `--infra-block` and a block slug when building deployment files.
 
 For example, when creating your deployment files, the supported Prefect infrastrucure types are:
 
@@ -62,10 +64,9 @@ Deployment YAML created at '/Users/terry/test/flows/infra/deployment.yaml'.
 ```
 </div>
 
-
 In this example we specify the `DockerContainer` infrastructure in addition to a preconfigured AWS S3 bucket [storage](/concepts/storage/) block.
 
-The default `deployment.yaml` filename may be edited as needed to add an infrastructure type or infrastructure settings.
+The default deployment YAML filename may be edited as needed to add an infrastructure type or infrastructure settings.
 
 ```yaml
 ###
@@ -114,10 +115,33 @@ parameter_openapi_schema:
   definitions: null
 ```
 
-!!! note "Editing deployment.yaml"
-    Note the big **DO NOT EDIT** comment in `deployment.yaml`: In practice, anything above this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API. 
+!!! note "Editing deployment YAML"
+    Note the big **DO NOT EDIT** comment in the deployment YAML: In practice, anything above this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API. 
 
 Once the deployment exists, any flow runs that this deployment starts will use `DockerContainer` infrastructure.
+
+You can also create custom infrastructure blocks &mdash; either in the Prefect UI for in code via the API &mdash; and use the settings in the block to configure your infastructure. For example, here we specify settings for Kubernetes infrastructure in a block named `k8sdev`.
+
+```python
+from prefect.infrastructure import KubernetesJob, KubernetesImagePullPolicy
+
+k8s_job = KubernetesJob(
+    namespace="dev",
+    image="prefecthq/prefect:2.0.0-python3.9",
+    image_pull_policy=KubernetesImagePullPolicy.IF_NOT_PRESENT,
+)
+k8s_job.save("k8sdev")
+```
+
+Now we can apply the infrastrucure type and settings in the block by specifying the block slug `kubernetes-job/k8sdev` as the infrastructure type when building a deployment:
+
+<div class="terminal">
+```bash
+prefect deployment build flows/k8s_example.py:k8s_flow --name k8sdev --tag k8s -sb s3/dev -ib kubernetes-job/k8sdev
+```
+</div>
+
+See [Deployments](/concepts/deployments/) for more information about deployment build options.
 
 ## Configuring infrastructure
 
