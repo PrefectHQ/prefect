@@ -46,9 +46,9 @@ class LoopService:
         """
         Called prior to running the service
         """
-        # reset the should stop flag
+        # reset the _should_stop flag
         self._should_stop = False
-        # set the running flag
+        # set the _is_running flag
         self._is_running = True
 
     async def _on_stop(self) -> None:
@@ -117,8 +117,8 @@ class LoopService:
 
     async def stop(self, block=True) -> None:
         """
-        Gracefully stops a running LoopService and blocks until the service
-        stops.
+        Gracefully stops a running LoopService and optionally blocks until the
+        service stops.
 
         Args:
             block (bool): if True (default), blocks until the service is 
