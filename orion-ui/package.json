@@ -26,7 +26,7 @@
     "@prefecthq/eslint-config": "1.0.16",
     "@types/d3": "^7.4.0",
     "@vitejs/plugin-vue": "^2.3.3",
-    "autoprefixer": "10.4.7",
+    "autoprefixer": "10.4.8",
     "date-fns": "^2.29.1",
     "eslint": "^8.20.0",
     "ts-node": "10.9.1",
