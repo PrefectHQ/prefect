@@ -30,7 +30,7 @@ Your bug report should include the following features:
 
 2. **succinct code example which reproduces the problem**, otherwise known as a [Minimal, Complete, and Verifiable](https://stackoverflow.com/help/mcve) example.
 
-3. **complete stack traces for all errors - please avoid screenshots, use formatted text inside issues**
+3. **complete stack traces for errors - please avoid screenshots, and use formatted text inside issues**
 
 4. Other things as applicable: **operating system**, **comparative performance timings** for performance issues.
 "
