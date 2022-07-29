@@ -60,7 +60,7 @@ block.save("example-block")
 This block configuration is now available to be used by anyone with appropriate access to your Prefect API.  We can use this block to build a deployment by passing its slug to the `prefect deployment build` command as follows:
 
 ```
-prefect deployment build ./flows/my_flow.py:my_flow --name "Example Deployment --storage-block s3/example-block
+prefect deployment build ./flows/my_flow.py:my_flow --name "Example Deployment" --storage-block s3/example-block
 ```
 
 This command will first create a flow manifest file, and then proceed to upload the contents of your flow's directory to the designated storage location. Once complete, the full deployment specification will be persisted to a newly created `deployment.yaml` file.  For more information, see [Deployments](/concepts/deployments).
