@@ -14,7 +14,6 @@ body:
 Many bug reports are often
 **USAGE QUESTIONS, NOT BUGS** - for those, please report your question via our [Community Slack](https://www.prefect.io/slack/) or [Discourse](https://discourse.prefect.io/). We'll then investigate the issue and open a bug report when necessary.
 
-TODO
 "
   - type: markdown
     attributes:
