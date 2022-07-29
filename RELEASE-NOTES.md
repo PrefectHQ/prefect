@@ -12,7 +12,7 @@ The response to Prefect 2 has been overwhelming in the best way possible. Thank 
 - A common request we immediately received was for unique deployment YAML names (to better anticipate multi-flow deployments) and an optional output flag to customize the name.
 - The `scheduler` and `flow-run-notifications` LoopServices have been made more resilient
 - Log inserts have been made more performant through smaller log batches
-- Local file system blocks can no longer be created from the UI
+- Local file system blocks created from the UI now point to the right `base_path`
 - Support for unmapped values to Task.map has been added
 - The `deployment build` command now supports an optional output flag to customize the name of the deployment.yaml file
 
