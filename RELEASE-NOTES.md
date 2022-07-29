@@ -2,17 +2,19 @@
 
 ## 2.0.1
 
-- [bfcb801f4](https://github.com/PrefectHQ/prefect/commit/bfcb801f4) - Add templates for issues and pull requests
-- [752c77821](https://github.com/PrefectHQ/prefect/commit/752c77821/) - Introduce output flag on deployment build and update default yaml name 
-- [7bc936b60](https://github.com/PrefectHQ/prefect/commit/7bc936b60/) - Add support for unmapped values to Task.map
-- [2d69e04dc](https://github.com/PrefectHQ/prefect/commit/2d69e04dc/) - Update from_path and skip upload on same path
-- [c60319d17](https://github.com/PrefectHQ/prefect/commit/c60319d17/) - Split up the insert of logs into smaller chunks. 
-- [20c5f7444](https://github.com/PrefectHQ/prefect/commit/20c5f7444/) - Preserve schedules set via the API in building deployments
-- [1f91b8e67](https://github.com/PrefectHQ/prefect/commit/1f91b8e67/) - Add hyperlink on air traffic control in index.md
-- [b900440fd](https://github.com/PrefectHQ/prefect/commit/b900440fd/) - Coerce any floating point extrema (NaN, -Infinity, Infinity) to None for the DB
-- [5b4355363](https://github.com/PrefectHQ/prefect/commit/5b4355363/) - Remove deployment execute (#6085) (Dustin Ngo)
-- [6a9037228](https://github.com/PrefectHQ/prefect/commit/6a9037228/) - Ignore prefect api url in test harness 
-- [4943d69b1](https://github.com/PrefectHQ/prefect/commit/4943d69b1/) - Clarify the flow-run-notifications error handling (Chris Guidry)
+The response Prefect 2 has been overwhelming in the best way possible! Thank you to the many users who alerted us to minor issues. This release is a compilation of enhancements abnd fixes that make for a more resilient, performant, and refined Prefect experience. Thanks in particular to the students at this week's Prefect Associate Certification Course (PACC) in San Jose, for their thoughtful feedback.
+
+### Improvements and bug fixes
+- Schedules set via the API or UI are now preserved when building deployments from the CLI
+- JSON types are now coerced to none, following Javascript convention and supporting standards compatibility
+- The `prefect deployment execute` command has been removed
+- This repository now includes templates for pull requests and issues
+- A common request we immediately received was for unique deployment YAML names (to better anticipate multi-flow deployments) and an optional output flag to customize the name.
+- The `scheduler` and `flow-run-notifications` LoopServices have been made more resiliant
+- Log inserts have been made more resiliant through smaller log batches
+- Local file system blocks can no longer be created from the UI
+- Support for unmapped values to Task.map has been added
+- The `deployment build` command now supports an optional output flag to customize the name of the deployment.yaml file
 
 ## 2.0.0
 
