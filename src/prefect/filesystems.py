@@ -109,7 +109,7 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
             local_path = Path(".").absolute()
 
         if local_path == to_path:
-            print("Skipping upload")
+            pass
         else:
             if sys.version_info < (3, 8):
                 shutil.copytree(local_path, to_path)
