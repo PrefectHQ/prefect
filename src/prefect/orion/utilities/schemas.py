@@ -16,6 +16,21 @@ from pydantic.json import custom_pydantic_encoder
 T = TypeVar("T")
 
 
+class datetime_tz(pendulum.DateTime):
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        if isinstance(v, str):
+            return pendulum.parse(v)
+        elif isinstance(v, datetime.datetime):
+            return pendulum.instance(v)
+        else:
+            raise ValueError("Unrecognized datetime.")
+
+
 def pydantic_subclass(
     base: BaseModel,
     name: str = None,
@@ -268,9 +283,13 @@ class PrefectBaseModel(BaseModel):
             # Simplify the display of some common fields
             if field.type_ == UUID and value:
                 value = str(value)
-            elif field.type_ == datetime.datetime and name == "timestamp" and value:
+            elif (
+                isinstance(field.type_, datetime.datetime)
+                and name == "timestamp"
+                and value
+            ):
                 value = pendulum.instance(value).isoformat()
-            elif field.type_ == datetime.datetime and value:
+            elif isinstance(field.type_, datetime.datetime) and value:
                 value = pendulum.instance(value).diff_for_humans()
 
             yield name, value, field.get_default()
@@ -301,8 +320,8 @@ class ORMBaseModel(IDBaseModel):
     class Config:
         orm_mode = True
 
-    created: datetime.datetime = Field(None, repr=False)
-    updated: datetime.datetime = Field(None, repr=False)
+    created: datetime_tz = Field(None, repr=False)
+    updated: datetime_tz = Field(None, repr=False)
 
     def _reset_fields(self) -> Set[str]:
         return super()._reset_fields().union({"created", "updated"})

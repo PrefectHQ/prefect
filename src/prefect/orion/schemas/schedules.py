@@ -13,7 +13,7 @@ import pytz
 from croniter import croniter
 from pydantic import Field, validator
 
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion.utilities.schemas import PrefectBaseModel, datetime_tz
 
 MAX_ITERATIONS = 10000
 
@@ -62,7 +62,7 @@ class IntervalSchedule(PrefectBaseModel):
         exclude_none = True
 
     interval: datetime.timedelta
-    anchor_date: datetime.datetime = None
+    anchor_date: datetime_tz = None
     timezone: str = Field(None, example="America/New_York")
 
     @validator("interval")

@@ -15,6 +15,7 @@ import prefect.orion.schemas as schemas
 from prefect.logging import get_logger
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.utilities.schemas import datetime_tz
 
 logger = get_logger("orion.api")
 
@@ -24,8 +25,8 @@ async def run_history(
     session: sa.orm.Session,
     db: OrionDBInterface,
     run_type: Literal["flow_run", "task_run"],
-    history_start: datetime.datetime,
-    history_end: datetime.datetime,
+    history_start: datetime_tz,
+    history_end: datetime_tz,
     history_interval: datetime.timedelta,
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,

@@ -11,7 +11,7 @@ import prefect.orion.schemas as schemas
 from prefect.logging import get_logger
 from prefect.orion import models
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion.utilities.schemas import PrefectBaseModel, datetime_tz
 from prefect.orion.utilities.server import OrionRouter
 
 logger = get_logger("orion.api.ui.flow_runs")
@@ -22,7 +22,7 @@ router = OrionRouter(prefix="/ui/flow_runs", tags=["Flow Runs", "UI"])
 class SimpleFlowRun(PrefectBaseModel):
     id: UUID = Field(..., description="The flow run id.")
     state_type: schemas.states.StateType = Field(..., description="The state type.")
-    timestamp: datetime.datetime = Field(
+    timestamp: datetime_tz = Field(
         ...,
         description="The start time of the run, or the expected start time "
         "if it hasn't run yet.",

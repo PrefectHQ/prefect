@@ -2,7 +2,6 @@
 Routes for interacting with Deployment objects.
 """
 
-import datetime
 from typing import List
 from uuid import UUID
 
@@ -16,6 +15,7 @@ import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.utilities.schemas import datetime_tz
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
@@ -164,10 +164,8 @@ async def delete_deployment(
 @router.post("/{id}/schedule")
 async def schedule_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    start_time: datetime.datetime = Body(
-        None, description="The earliest date to schedule"
-    ),
-    end_time: datetime.datetime = Body(None, description="The latest date to schedule"),
+    start_time: datetime_tz = Body(None, description="The earliest date to schedule"),
+    end_time: datetime_tz = Body(None, description="The latest date to schedule"),
     max_runs: int = Body(None, description="The maximum number of runs to schedule"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> None:
