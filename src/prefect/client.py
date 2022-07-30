@@ -176,7 +176,9 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
             APP_LIFESPANS_REF_COUNTS[key] += 1
         else:
             # Create a new lifespan manager
-            APP_LIFESPANS[key] = context = LifespanManager(app)
+            APP_LIFESPANS[key] = context = LifespanManager(
+                app, startup_timeout=30, shutdown_timeout=30
+            )
             APP_LIFESPANS_REF_COUNTS[key] = 1
 
             # Ensure we enter the context before releasing the lock so startup hooks
