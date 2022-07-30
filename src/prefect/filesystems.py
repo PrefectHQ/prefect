@@ -482,9 +482,13 @@ class Azure(ReadableFileSystem, WritableFileSystem):
     def filesystem(self) -> RemoteFileSystem:
         settings = {}
         if self.azure_storage_connection_string:
-            settings["connection_string"] = self.azure_storage_connection_string.get_secret_value()
+            settings[
+                "connection_string"
+            ] = self.azure_storage_connection_string.get_secret_value()
         if self.azure_storage_account_name:
-            settings["account_name"] = self.azure_storage_account_name.get_secret_value()
+            settings[
+                "account_name"
+            ] = self.azure_storage_account_name.get_secret_value()
         if self.azure_storage_account_key:
             settings["account_key"] = self.azure_storage_account_key.get_secret_value()
         self._remote_file_system = RemoteFileSystem(
@@ -493,7 +497,7 @@ class Azure(ReadableFileSystem, WritableFileSystem):
         return self._remote_file_system
 
     async def get_directory(
-            self, from_path: Optional[str] = None, local_path: Optional[str] = None
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
         """
         Downloads a directory from a given remote path to a local direcotry.
@@ -505,7 +509,7 @@ class Azure(ReadableFileSystem, WritableFileSystem):
         )
 
     async def put_directory(
-            self, local_path: Optional[str] = None, to_path: Optional[str] = None
+        self, local_path: Optional[str] = None, to_path: Optional[str] = None
     ) -> int:
         """
         Uploads a directory from a given local path to a remote direcotry.
