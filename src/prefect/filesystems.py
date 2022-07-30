@@ -104,7 +104,6 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
         included_files = filter_files(local_path, ignore_patterns)
 
         def ignore_func(directory, files):
-            print(directory, files)
             return_val = [f for f in files if f not in included_files]
             return return_val
 
