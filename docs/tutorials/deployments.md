@@ -76,8 +76,8 @@ Like previous flow examples, this is still a script that you have to run locally
 
 In the rest of this tutorial, you'll turn this into a deployment that can create flow runs. You'll create the deployment by doing the following: 
 
-- Creating deployment manifest and `deployment.yaml` file that specify your flow details and deployment settings.
-- Applying the `deployment.yaml` settings to create a deployment on the server.
+- Creating deployment manifest and deployment YAML file that specify your flow details and deployment settings.
+- Applying the deployment YAML settings to create a deployment on the server.
 - Inspecting the deployment with the CLI and Prefect UI.
 - Starting an ad hoc flow run based on the deployment.
 
@@ -106,9 +106,9 @@ def leonardo_dicapriflow(name: str):
 
 To create a deployment from an existing flow script, there are just a few steps:
 
-1. Use the `prefect deployment build` Prefect CLI command to build a deployment manifest and `deployment.yaml` file. These describe the files and settings needed to create your deployment.
-1. If you needed to add customizations to the manifest or `deployment.yaml` file, you would do so now. 
-1. Use the `prefect deployment apply` Prefect CLI command to create the deployment on the API based on the settings in the deployment manifest and `deployment.yaml`.
+1. Use the `prefect deployment build` Prefect CLI command to build a deployment manifest and a deployment YAML file. These describe the files and settings needed to create your deployment.
+1. If you needed to add customizations to the manifest or the deployment YAML file, you would do so now. 
+1. Use the `prefect deployment apply` Prefect CLI command to create the deployment on the API based on the settings in the deployment manifest and deployment YAML.
 
 What you need for the first step, building the deployment artifacts, is:
 
@@ -133,14 +133,14 @@ What did we do here? Let's break down the command:
 
 Note that you may specify multiple tags by providing a `-t tag` parameter for each tag you want applied to the deployment.
 
-The command outputs two files: `leonardo_dicapriflow-manifest.json` contains workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters. `deployment.yaml` contains details about the deployment for this flow.
+The command outputs two files: `leonardo_dicapriflow-manifest.json` contains workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters. `leonardo_dicapriflow-deployment.yaml` contains details about the deployment for this flow.
 
 <div class="terminal">
 ```bash
 Found flow 'leonardo_dicapriflow'
 Manifest created at
 '/Users/terry/test/testflows/leo_flow/leonardo_dicapriflow-manifest.json'.
-Deployment YAML created at '/Users/terry/test/testflows/leo_flow/deployment.yaml'.
+Deployment YAML created at '/Users/terry/test/testflows/leo_flow/leonardo_dicapriflow-deployment.yaml'.
 ```
 </div>
 
@@ -148,7 +148,7 @@ Deployment YAML created at '/Users/terry/test/testflows/leo_flow/deployment.yaml
 
 Note that our flow needs a `name` parameter, but we didn't specify one when building the deployment files.
 
-Open the `deployment.yaml` file and add the parameter as `parameters: {'name':'Leo'}`:
+Open the `leonardo_dicapriflow-deployment.yaml` file and add the parameter as `parameters: {'name':'Leo'}`:
 
 ```yaml hl_lines="9"
 ###
@@ -232,13 +232,13 @@ To review, we have three files that make up the artifacts for this particular de
 
 - The flow code in `leo_flow.py`
 - The manifest `leonardo_dicapriflow-manifest.json`
-- The deployment settings `deployment.yaml`
+- The deployment settings `leonardo_dicapriflow-deployment.yaml`
 
-Now use the `prefect deployment apply` command to create the deployment on the Prefect Orion server, specifying the name of the `deployment.yaml` file.
+Now use the `prefect deployment apply` command to create the deployment on the Prefect Orion server, specifying the name of the `leonardo_dicapriflow-deployment.yaml` file.
 
 <div class="terminal">
 ```bash
-$ prefect deployment apply deployment.yaml
+$ prefect deployment apply leonardo_dicapriflow-deployment.yaml
 Successfully loaded 'leo-deployment'
 Deployment '3d2f55a2-46df-4857-ab6f-6cc80ce9cf9c' successfully created.
 ```

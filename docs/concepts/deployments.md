@@ -24,7 +24,7 @@ Each deployment references a single flow (though that flow may, in turn, call an
 At a high level, you can think of a deployment as configuration for managing flows, whether you run them via the CLI, the UI, or the API.
 
 !!! warning "Deployments have changed since beta"
-    Deployments now rely on manifest files for describing your workflow in a portable way, and `deployment.yaml` files for specifying a deployment of your workflow.
+    Deployments now rely on manifest files for describing your workflow in a portable way, and deployment YAML files for specifying a deployment of your workflow.
 
     Deployments based on `Deployment` and `DeploymentSpec` are no longer supported.
 
@@ -55,7 +55,7 @@ To create a deployment you need:
 
 - Your flow code script and any supporting files.
 - A manifest file
-- A `deployment.yaml` file
+- A deployment YAML file
 
 Optionally, you may reference pre-configured storage and infrastructure blocks that define where flow code and results are stored and how your flow execution environment is configured.
 
@@ -86,7 +86,7 @@ Manifests are JSON descriptions of a workflow. The manifest lives alongside your
 
 The location of your manifest file is important. When building your deployment and uploading your flow files to storage, the manifest file serves as the root of the directory that is uploaded &mdash; everything in its directory and recursively down will be stored in the storage of your choosing. This ensures that your relative imports remain portable. Additionally, at runtime, your agent will always ensure that your workflow is imported and executed in the same directory as your manifest file.
 
-The default name format for manifests is `[flow-function-name]-manifest.json`, but you may rename the file as long as it is referenced correctly in the `deployment.yaml` file.
+The default name format for manifests is `[flow-function-name]-manifest.json`, but you may rename the file as long as it is referenced correctly in the deployment's YAML file.
 
 ```json
 {
@@ -110,11 +110,11 @@ The default name format for manifests is `[flow-function-name]-manifest.json`, b
 
 ## deployment.yaml
 
-A `deployment.yaml` file references the manifest for your flow, and configures additional settings needed to create a deployment on the server.
+A deployment's YAML file references the manifest for your flow, and configures additional settings needed to create a deployment on the server.
 
-As a single flow may have multiple deployments created for it, with different schedules, tags, and so on, a single flow definition may have multiple `deployment.yaml` files, each specifying different settings. The only requirement is that each deployment must have a unique name.
+As a single flow may have multiple deployments created for it, with different schedules, tags, and so on, a single flow definition may have multiple deployment YAML files, each specifying different settings. The only requirement is that each deployment must have a unique name.
 
-The default `deployment.yaml` filename may be edited as needed.
+The default `{flow-name}-deployment.yaml` filename may be edited as needed with the `--output` flag to `prefect deployment build`.
 
 ```yaml
 name: catfact
@@ -153,7 +153,7 @@ parameter_openapi_schema:
 ```
 
 !!! note "Editing deployment.yaml"
-    Note the big **DO NOT EDIT** comment in `deployment.yaml`: In practice, anything above this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API. 
+    Note the big **DO NOT EDIT** comment in your deployment's YAML: In practice, anything above this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API. 
     
     That said, we recommend editing most of these fields in the Prefect UI for convenience.
 
@@ -198,16 +198,16 @@ You may specify additional options to specify storage and infrastructure for the
 
 When you run this command, Prefect: 
 
-- Creates the the manifest and `deployment.yaml` files for your deployment based on your flow code and options.
+- Creates the the manifest and `catfacts_flow-deployment.yaml` files for your deployment based on your flow code and options.
 - Uploads your flow files to the configured storage location (local by default).
 
 ### Create deployment in API
 
-When you've configured the manifest and `deployment.yaml` for a deployment, you can create the deployment on the API. Run the following Prefect CLI command.
+When you've configured the manifest and `catfacts_flow-deployment.yaml` for a deployment, you can create the deployment on the API. Run the following Prefect CLI command.
 
 <div class="terminal">
 ```bash
-$ prefect deployment apply `deployment.yaml`
+$ prefect deployment apply `catfacts_flow-deployment.yaml`
 ```
 </div>
 
@@ -215,7 +215,7 @@ For example:
 
 <div class="terminal">
 ```bash
-$ prefect deployment apply ./catfact-deployment.yaml
+$ prefect deployment apply ./catfacts_flow-deployment.yaml
 Successfully loaded 'catfact'
 Deployment '76a9f1ac-4d8c-4a92-8869-615bec502685' successfully created.
 ```

@@ -1,0 +1,38 @@
+# docs https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms
+# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema
+
+name: Propose a feature enhancement
+description: Propose a new feature or an enhancement for Prefect
+labels: [requires triage]
+body:
+  - type: textarea
+    attributes:
+      label: Describe the proposed behavior
+      description: A clear and concise description of what new feature or behavior you would like to see
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Describe the current behavior
+      description: A clear and concise description of what Prefect currently does
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Example Use
+      description: Provide an example of how end users could leverage that functionality
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Provide additional context about the use case here.
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: "**Happy engineering!**"
