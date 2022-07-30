@@ -1,7 +1,7 @@
 name: PR Labeler
-
-# don't only run when opened in case the branch is changed afterward
-on: [pull_request]
+on:
+  pull_request:
+    types: [opened]
 
 jobs:
   pr-labeler:
