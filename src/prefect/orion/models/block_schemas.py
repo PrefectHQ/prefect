@@ -10,7 +10,11 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-from prefect.blocks.core import Block
+from prefect.blocks.core import (
+    Block,
+    _find_nested_reference_strings,
+    _get_non_block_definitions,
+)
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
@@ -48,11 +52,28 @@ async def create_block_schema(
         exclude_unset=False,
         exclude={"block_type", "id", "created", "updated"},
     )
-    definitions = definitions or insert_values["fields"].pop("definitions", None)
-    insert_values["checksum"] = Block._calculate_schema_checksum(
-        insert_values["fields"]
-    )
+    definitions = definitions or insert_values["fields"].get("definitions", None)
+    fields_for_checksum = insert_values["fields"]
+    if definitions:
+        # Ensure definitions are available if this is a nested schema
+        # that is being registered
+        fields_for_checksum["definitions"] = definitions
+    insert_values["checksum"] = Block._calculate_schema_checksum(fields_for_checksum)
 
+    # Get non block definitions for saving to the DB.
+    non_block_definitions = _get_non_block_definitions(
+        insert_values["fields"], definitions
+    )
+    if non_block_definitions:
+        insert_values["fields"]["definitions"] = _get_non_block_definitions(
+            insert_values["fields"], definitions
+        )
+    else:
+        # Prevent storing definitions for blocks. Those are reconstructed on read.
+        insert_values["fields"].pop("definitions", None)
+
+    # Prevent saving block schema references in the block_schema table. They have
+    # they're own table.
     block_schema_references: Dict = insert_values["fields"].pop(
         "block_schema_references", {}
     )
@@ -141,11 +162,6 @@ async def _register_nested_block_schemas(
             )
             # Attempts to create block schema since it has not already been registered
             if reference_block_schema is None:
-                if definitions is None:
-                    raise ValueError(
-                        "Unable to create nested block schema due to missing definitions "
-                        "in root block schema fields"
-                    )
                 sub_block_schema_fields = _get_fields_for_child_schema(
                     definitions, base_fields, reference_name, reference_block_type
                 )
@@ -197,13 +213,14 @@ def _get_fields_for_child_schema(
                 definitions[definition_key]["block_type_slug"]
                 == reference_block_type.slug
             ):
-                # Once we've found the matching definition, we not longer
+                # Once we've found the matching definition, we no longer
                 # need to iterate
                 sub_block_schema_fields = potential_sub_block_schema_fields
                 break
     else:
         # When a block schema reference is a single block, we can use the
         # title to directly find the definition for that block schema.
+        _find_nested_reference_strings
         sub_block_schema_fields = definitions[
             spec_reference["$ref"].replace("#/definitions/", "")
         ]
@@ -338,8 +355,11 @@ def _construct_full_block_schema(
     definitions = _construct_block_schema_spec_definitions(
         root_block_schema, block_schemas_with_references
     )
-    if definitions:
-        root_block_schema.fields["definitions"] = definitions
+    if definitions or root_block_schema.fields.get("definitions"):
+        root_block_schema.fields["definitions"] = {
+            **root_block_schema.fields.get("definitions", {}),
+            **definitions,
+        }
     return root_block_schema
 
 
