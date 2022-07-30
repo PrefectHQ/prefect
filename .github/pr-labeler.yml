@@ -1,0 +1,2 @@
+# Apply label "1.x" if target branch is "1.x"
+'1.x': ['1.x']
