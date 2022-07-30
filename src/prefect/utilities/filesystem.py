@@ -12,7 +12,9 @@ from fsspec.core import OpenFile
 from fsspec.implementations.local import LocalFileSystem
 
 
-def filter_files(root: str = ".", ignore_patterns: list = None) -> list:
+def filter_files(
+    root: str = ".", ignore_patterns: list = None, include_dirs: bool = True
+) -> list:
     """
     This function accepts a root directory path and a list of file patterns to ignore, and returns
     a list of files that excludes those that should be ignored.
@@ -22,8 +24,11 @@ def filter_files(root: str = ".", ignore_patterns: list = None) -> list:
     if ignore_patterns is None:
         ignore_patterns = []
     spec = pathspec.PathSpec.from_lines("gitwildmatch", ignore_patterns)
-    ignored_files = set(spec.match_tree_files(root))
-    all_files = set(pathspec.util.iter_tree_files(root))
+    ignored_files = {p.path for p in spec.match_tree_entries(root)}
+    if include_dirs:
+        all_files = {p.path for p in pathspec.util.iter_tree_entries(root)}
+    else:
+        all_files = set(pathspec.util.iter_tree_files(root))
     included_files = all_files - ignored_files
     return included_files
 
