@@ -12,6 +12,20 @@ from fsspec.core import OpenFile
 from fsspec.implementations.local import LocalFileSystem
 
 
+def set_default_ignore_file(path: str) -> bool:
+    """
+    Creates default ignore file in the provided path if one does not already exist; returns boolean specifying
+    whether a file was created.
+    """
+    path = pathlib.Path(path)
+    if (path / ".prefectignore").exists():
+        return False
+    default_file = pathlib.Path(__file__).parent / ".." / ".prefectignore"
+    with open(path / ".prefectignore", "w") as f:
+        f.write(default_file.read_text())
+    return True
+
+
 def filter_files(
     root: str = ".", ignore_patterns: list = None, include_dirs: bool = True
 ) -> list:

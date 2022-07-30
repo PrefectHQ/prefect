@@ -35,6 +35,7 @@ from prefect.infrastructure.submission import _prepare_infrastructure
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.utilities.callables import parameter_schema
+from prefect.utilities.filesystem import set_default_ignore_file
 from prefect.utilities.importtools import load_flow_from_manifest_path
 
 
@@ -484,6 +485,13 @@ async def build(
         storage = template.copy(
             exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
         )
+
+        # process .prefectignore file
+        if set_default_ignore_file(path="."):
+            app.console.print(
+                f"Default '.prefectignore' file written to {(Path('.') / '.prefectignore').absolute()}",
+                style="green",
+            )
 
         # upload current directory to storage location
         file_count = await storage.put_directory(ignore_file=".prefectignore")
