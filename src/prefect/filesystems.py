@@ -247,7 +247,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
                 fpath = to_path + f
             else:
                 fpath = to_path + "/" + f
-            self.filesystem.put_file(f, fpath)
+            self.filesystem.put_file(f, fpath, overwrite=True)
             counter += 1
         return counter
 
@@ -422,6 +422,93 @@ class GCS(ReadableFileSystem, WritableFileSystem):
     ) -> int:
         """
         Uploads a directory from a given local path to a remote directory.
+
+        Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        """
+        return await self.filesystem.put_directory(
+            local_path=local_path, to_path=to_path
+        )
+
+    async def read_path(self, path: str) -> bytes:
+        return await self.filesystem.read_path(path)
+
+    async def write_path(self, path: str, content: bytes) -> str:
+        return await self.filesystem.write_path(path=path, content=content)
+
+
+class Azure(ReadableFileSystem, WritableFileSystem):
+    """
+    Store data as a file on Azure Datake and Azure Blob Storage.
+
+    Example:
+        Load stored Azure config:
+        ```python
+        from prefect.filesystems import Azure
+
+        az_block = Azure.load("BLOCK_NAME")
+        ```
+    """
+
+    _block_type_name = "Azure"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6AiQ6HRIft8TspZH7AfyZg/39fd82bdbb186db85560f688746c8cdd/azure.png?h=250"
+
+    bucket_path: str = Field(
+        ...,
+        description="An Azure storage bucket path",
+        example="my-bucket/a-directory-within",
+    )
+    azure_storage_connection_string: Optional[SecretStr] = Field(
+        None,
+        title="Azure storage connection string",
+        description="Equivalent to the AZURE_STORAGE_CONNECTION_STRING environment variable",
+    )
+    azure_storage_account_name: Optional[SecretStr] = Field(
+        None,
+        title="Azure storage account name",
+        description="Equivalent to the AZURE_STORAGE_ACCOUNT_NAME environment variable",
+    )
+    azure_storage_account_key: Optional[SecretStr] = Field(
+        None,
+        title="Azure storage account key",
+        description="Equivalent to the AZURE_STORAGE_ACCOUNT_KEY environment variable",
+    )
+    _remote_file_system: RemoteFileSystem = None
+
+    @property
+    def basepath(self) -> str:
+        return f"az://{self.bucket_path}"
+
+    @property
+    def filesystem(self) -> RemoteFileSystem:
+        settings = {}
+        if self.azure_storage_connection_string:
+            settings["connection_string"] = self.azure_storage_connection_string.get_secret_value()
+        if self.azure_storage_account_name:
+            settings["account_name"] = self.azure_storage_account_name.get_secret_value()
+        if self.azure_storage_account_key:
+            settings["account_key"] = self.azure_storage_account_key.get_secret_value()
+        self._remote_file_system = RemoteFileSystem(
+            basepath=f"az://{self.bucket_path}", settings=settings
+        )
+        return self._remote_file_system
+
+    async def get_directory(
+            self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> bytes:
+        """
+        Downloads a directory from a given remote path to a local direcotry.
+
+        Defaults to downloading the entire contents of the block's basepath to the current working directory.
+        """
+        return await self.filesystem.get_directory(
+            from_path=from_path, local_path=local_path
+        )
+
+    async def put_directory(
+            self, local_path: Optional[str] = None, to_path: Optional[str] = None
+    ) -> int:
+        """
+        Uploads a directory from a given local path to a remote direcotry.
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
