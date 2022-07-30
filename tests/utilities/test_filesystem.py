@@ -8,7 +8,7 @@ from prefect.utilities.filesystem import filter_files
 class TestFilterFiles:
     @pytest.fixture
     async def messy_dir(self, tmpdir):
-        "Returns a full list of files to check against"
+        "Returns a full list of files and directories in a temp directory."
         # some top-level files
         tmpdir.ensure("README.md")
         tmpdir.ensure("config.json")
@@ -34,18 +34,30 @@ class TestFilterFiles:
         tmpdir.ensure("utilities/helpers.py")
 
         path = Path(tmpdir)
-        all_files = {
-            str(p.relative_to(tmpdir)) for p in path.rglob("*") if not p.is_dir()
-        }
+        all_files = {str(p.relative_to(tmpdir)) for p in path.rglob("*")}
         assert "README.md" in all_files  # ensure directory is populated
         return all_files
 
-    async def test_default_includes_all_files(self, tmpdir, messy_dir):
+    async def test_default_includes_all_files_and_dirs(self, tmpdir, messy_dir):
         assert filter_files(root=tmpdir) == messy_dir
+
+    async def test_filter_out_dirs(self, tmpdir, messy_dir):
+        assert filter_files(root=tmpdir, include_dirs=False) == {
+            p for p in messy_dir if not Path(tmpdir / p).is_dir()
+        }
 
     async def test_simple_filetype_filter(self, tmpdir, messy_dir):
         filtered = filter_files(tmpdir, ignore_patterns=["*.py"])
         assert "README.md" in filtered
+        assert "venv" in filtered
+        assert "venv/config.json" in filtered
+        assert "utilities/README.md" in filtered
+        assert {f for f in filtered if f.endswith(".py")} == set()
+
+    async def test_simple_filetype_filter_with_ignore_dirs(self, tmpdir, messy_dir):
+        filtered = filter_files(tmpdir, ignore_patterns=["*.py"], include_dirs=False)
+        assert "README.md" in filtered
+        assert "venv" not in filtered
         assert "venv/config.json" in filtered
         assert "utilities/README.md" in filtered
         assert {f for f in filtered if f.endswith(".py")} == set()
@@ -53,6 +65,7 @@ class TestFilterFiles:
     async def test_simple_filetype_filter_with_override(self, tmpdir, messy_dir):
         filtered = filter_files(tmpdir, ignore_patterns=["*.py", "!*__init__.py"])
         assert "README.md" in filtered
+        assert "venv" in filtered
         assert "venv/config.json" in filtered
         assert "utilities/README.md" in filtered
         assert {f for f in filtered if f.endswith(".py")} == {
@@ -75,16 +88,27 @@ class TestFilterFiles:
     async def test_partial_directory_filter(self, tmpdir, messy_dir):
         filtered = filter_files(tmpdir, ignore_patterns=["utilities/*.md"])
         assert "README.md" in filtered
+        assert "utilities" in filtered
         assert "utilities/__init__.py" in filtered
         assert "utilities/README.md" not in filtered
 
-    async def test_full_directory_filter(self, tmpdir, messy_dir):
+    @pytest.mark.parametrize("include_dirs", [True, False])
+    async def test_full_directory_filter(self, tmpdir, messy_dir, include_dirs):
         tmpdir.ensure("utilities/venv")
-        filtered = filter_files(tmpdir, ignore_patterns=["venv/**"])
+        filtered = filter_files(
+            tmpdir, ignore_patterns=["venv/**"], include_dirs=include_dirs
+        )
         assert "utilities/venv" in filtered
-        assert {f for f in filtered if f.startswith("venv")} == set()
+        expected = {"venv"} if include_dirs else set()
+        assert {f for f in filtered if f.startswith("venv")} == expected
 
-    async def test_alternate_directory_filter(self, tmpdir, messy_dir):
-        filtered = filter_files(tmpdir, ignore_patterns=["__pycache__/"])
+    @pytest.mark.parametrize("include_dirs", [True, False])
+    async def test_alternate_directory_filter(self, tmpdir, messy_dir, include_dirs):
+        filtered = filter_files(
+            tmpdir, ignore_patterns=["__pycache__/"], include_dirs=include_dirs
+        )
         assert "__init__.py" in filtered
-        assert {f for f in filtered if "pycache" in f} == set()
+        expected = (
+            {"utilities/__pycache__", "venv/__pycache__"} if include_dirs else set()
+        )
+        assert {f for f in filtered if "pycache" in f} == expected
