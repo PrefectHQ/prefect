@@ -12,7 +12,7 @@ import pendulum
 from pydantic import Field, root_validator, validator
 
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel, datetime_tz
+from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel, DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 
 R = TypeVar("R")
@@ -43,9 +43,9 @@ class StateDetails(PrefectBaseModel):
     task_run_id: UUID = None
     # for task runs that represent subflows, the subflow's run ID
     child_flow_run_id: UUID = None
-    scheduled_time: datetime_tz = None
+    scheduled_time: DateTimeTZ = None
     cache_key: str = None
-    cache_expiration: datetime_tz = None
+    cache_expiration: DateTimeTZ = None
 
 
 class State(IDBaseModel, Generic[R]):
@@ -56,7 +56,7 @@ class State(IDBaseModel, Generic[R]):
 
     type: StateType
     name: str = None
-    timestamp: datetime_tz = Field(default_factory=lambda: pendulum.now("UTC"))
+    timestamp: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
     message: str = Field(None, example="Run started")
     data: DataDocument[R] = Field(None)
     state_details: StateDetails = Field(default_factory=StateDetails)

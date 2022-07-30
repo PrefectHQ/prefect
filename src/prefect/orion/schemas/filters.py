@@ -12,7 +12,7 @@ from pydantic import Field
 from sqlalchemy.sql.elements import BooleanClauseList
 
 import prefect.orion.schemas as schemas
-from prefect.orion.utilities.schemas import PrefectBaseModel, datetime_tz
+from prefect.orion.utilities.schemas import PrefectBaseModel, DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
@@ -297,10 +297,10 @@ class FlowRunFilterFlowVersion(PrefectFilterBaseModel):
 class FlowRunFilterStartTime(PrefectFilterBaseModel):
     """Filter by `FlowRun.start_time`."""
 
-    before_: datetime_tz = Field(
+    before_: DateTimeTZ = Field(
         None, description="Only include flow runs starting at or before this time"
     )
-    after_: datetime_tz = Field(
+    after_: DateTimeTZ = Field(
         None, description="Only include flow runs starting at or after this time"
     )
     is_null_: bool = Field(
@@ -325,11 +325,11 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
 class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
     """Filter by `FlowRun.expected_start_time`."""
 
-    before_: datetime_tz = Field(
+    before_: DateTimeTZ = Field(
         None,
         description="Only include flow runs scheduled to start at or before this time",
     )
-    after_: datetime_tz = Field(
+    after_: DateTimeTZ = Field(
         None,
         description="Only include flow runs scheduled to start at or after this time",
     )
@@ -346,11 +346,11 @@ class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
 class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
     """Filter by `FlowRun.next_scheduled_start_time`."""
 
-    before_: datetime_tz = Field(
+    before_: DateTimeTZ = Field(
         None,
         description="Only include flow runs with a next_scheduled_start_time or before this time",
     )
-    after_: datetime_tz = Field(
+    after_: DateTimeTZ = Field(
         None,
         description="Only include flow runs with a next_scheduled_start_time at or after this time",
     )
@@ -572,10 +572,10 @@ class TaskRunFilterSubFlowRuns(PrefectFilterBaseModel):
 class TaskRunFilterStartTime(PrefectFilterBaseModel):
     """Filter by `TaskRun.start_time`."""
 
-    before_: datetime_tz = Field(
+    before_: DateTimeTZ = Field(
         None, description="Only include task runs starting at or before this time"
     )
-    after_: datetime_tz = Field(
+    after_: DateTimeTZ = Field(
         None, description="Only include task runs starting at or after this time"
     )
     is_null_: bool = Field(
@@ -792,10 +792,10 @@ class LogFilterLevel(PrefectFilterBaseModel):
 class LogFilterTimestamp(PrefectFilterBaseModel):
     """Filter by `Log.timestamp`."""
 
-    before_: datetime_tz = Field(
+    before_: DateTimeTZ = Field(
         None, description="Only include logs with a timestamp at or before this time"
     )
-    after_: datetime_tz = Field(
+    after_: DateTimeTZ = Field(
         None, description="Only include logs with a timestamp at or after this time"
     )
 

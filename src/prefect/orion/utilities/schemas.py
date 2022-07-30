@@ -16,7 +16,7 @@ from pydantic.json import custom_pydantic_encoder
 T = TypeVar("T")
 
 
-class datetime_tz(pendulum.DateTime):
+class DateTimeTZ(pendulum.DateTime):
     @classmethod
     def __get_validators__(cls):
         yield cls.validate
@@ -320,8 +320,8 @@ class ORMBaseModel(IDBaseModel):
     class Config:
         orm_mode = True
 
-    created: datetime_tz = Field(None, repr=False)
-    updated: datetime_tz = Field(None, repr=False)
+    created: DateTimeTZ = Field(None, repr=False)
+    updated: DateTimeTZ = Field(None, repr=False)
 
     def _reset_fields(self) -> Set[str]:
         return super()._reset_fields().union({"created", "updated"})

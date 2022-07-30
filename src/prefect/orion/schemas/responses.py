@@ -9,7 +9,7 @@ from pydantic import Field
 from typing_extensions import Literal
 
 import prefect.orion.schemas as schemas
-from prefect.orion.utilities.schemas import PrefectBaseModel, datetime_tz
+from prefect.orion.utilities.schemas import PrefectBaseModel, DateTimeTZ
 from prefect.utilities.collections import AutoEnum
 
 
@@ -92,10 +92,10 @@ class HistoryResponseState(PrefectBaseModel):
 class HistoryResponse(PrefectBaseModel):
     """Represents a history of aggregation states over an interval"""
 
-    interval_start: datetime_tz = Field(
+    interval_start: DateTimeTZ = Field(
         ..., description="The start date of the interval."
     )
-    interval_end: datetime_tz = Field(..., description="The end date of the interval.")
+    interval_end: DateTimeTZ = Field(..., description="The end date of the interval.")
     states: List[HistoryResponseState] = Field(
         ..., description="A list of state histories during the interval."
     )

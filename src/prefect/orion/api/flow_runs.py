@@ -19,7 +19,7 @@ from prefect.orion.models.flow_runs import DependencyResult
 from prefect.orion.orchestration import dependencies as orchestration_dependencies
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.utilities.schemas import datetime_tz
+from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 
 logger = get_logger("orion.api")
@@ -91,8 +91,8 @@ async def count_flow_runs(
 
 @router.post("/history")
 async def flow_run_history(
-    history_start: datetime_tz = Body(..., description="The history's start time."),
-    history_end: datetime_tz = Body(..., description="The history's end time."),
+    history_start: DateTimeTZ = Body(..., description="The history's start time."),
+    history_end: DateTimeTZ = Body(..., description="The history's end time."),
     history_interval: datetime.timedelta = Body(
         ...,
         description="The size of each history interval, in seconds. Must be at least 1 second.",

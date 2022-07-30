@@ -36,7 +36,7 @@ from prefect.filesystems import WritableFileSystem
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.states import State
-from prefect.orion.utilities.schemas import datetime_tz
+from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.task_runners import BaseTaskRunner
 from prefect.utilities.importtools import load_script_as_module
@@ -102,7 +102,7 @@ class PrefectObjectRegistry(ContextModel):
         capture_failures: If set, failures during __init__ will be silenced and tracked.
     """
 
-    start_time: datetime_tz = Field(default_factory=lambda: pendulum.now("UTC"))
+    start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
 
     _instance_registry: Dict[Type[T], List[T]] = PrivateAttr(
         default_factory=lambda: defaultdict(list)
@@ -179,7 +179,7 @@ class RunContext(ContextModel):
         client: The Orion client instance being used for API communication
     """
 
-    start_time: datetime_tz = Field(default_factory=lambda: pendulum.now("UTC"))
+    start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
     client: OrionClient
 
 

@@ -9,7 +9,7 @@ from prefect.orion.utilities.schemas import (
     IDBaseModel,
     ORMBaseModel,
     PrefectBaseModel,
-    datetime_tz,
+    DateTimeTZ,
     pydantic_subclass,
 )
 from prefect.testing.utilities import assert_does_not_warn
@@ -276,7 +276,7 @@ class TestDatetimeTZ:
     class Model(pydantic.BaseModel):
         dt: datetime.datetime
         dtp: pendulum.DateTime
-        dttz: datetime_tz
+        dttz: DateTimeTZ
 
     async def test_tz_adds_timezone(self):
         model = self.Model(
