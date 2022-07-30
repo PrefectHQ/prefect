@@ -9,7 +9,7 @@ from pydantic import Field
 from typing_extensions import Literal
 
 import prefect.orion.schemas as schemas
-from prefect.orion.utilities.schemas import PrefectBaseModel, DateTimeTZ
+from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.utilities.collections import AutoEnum
 
 

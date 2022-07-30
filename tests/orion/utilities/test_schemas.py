@@ -6,10 +6,10 @@ import pydantic
 import pytest
 
 from prefect.orion.utilities.schemas import (
+    DateTimeTZ,
     IDBaseModel,
     ORMBaseModel,
     PrefectBaseModel,
-    DateTimeTZ,
     pydantic_subclass,
 )
 from prefect.testing.utilities import assert_does_not_warn

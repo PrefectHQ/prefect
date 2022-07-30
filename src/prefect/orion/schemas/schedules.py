@@ -13,7 +13,7 @@ import pytz
 from croniter import croniter
 from pydantic import Field, validator
 
-from prefect.orion.utilities.schemas import PrefectBaseModel, DateTimeTZ
+from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
 
 MAX_ITERATIONS = 10000
 

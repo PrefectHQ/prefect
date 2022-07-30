@@ -12,7 +12,7 @@ from pydantic import Field
 from sqlalchemy.sql.elements import BooleanClauseList
 
 import prefect.orion.schemas as schemas
-from prefect.orion.utilities.schemas import PrefectBaseModel, DateTimeTZ
+from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:

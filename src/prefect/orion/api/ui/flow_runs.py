@@ -11,7 +11,7 @@ import prefect.orion.schemas as schemas
 from prefect.logging import get_logger
 from prefect.orion import models
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.utilities.schemas import PrefectBaseModel, DateTimeTZ
+from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.orion.utilities.server import OrionRouter
 
 logger = get_logger("orion.api.ui.flow_runs")

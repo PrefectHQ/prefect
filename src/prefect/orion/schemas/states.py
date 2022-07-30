@@ -12,7 +12,7 @@ import pendulum
 from pydantic import Field, root_validator, validator
 
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel, DateTimeTZ
+from prefect.orion.utilities.schemas import DateTimeTZ, IDBaseModel, PrefectBaseModel
 from prefect.utilities.collections import AutoEnum
 
 R = TypeVar("R")
