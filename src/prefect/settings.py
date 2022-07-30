@@ -315,13 +315,6 @@ PREFECT_PROFILES_PATH = Setting(
 )
 
 
-PREFECT_IGNORE_PATH = Setting(
-    Path,
-    default=Path("${PREFECT_HOME}") / ".prefectignore",
-    description="""The path to a global `.prefectignore` configuration file.""",
-    value_callback=template_with_settings(PREFECT_HOME),
-)
-
 PREFECT_LOCAL_STORAGE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "storage",
