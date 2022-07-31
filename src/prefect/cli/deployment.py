@@ -28,6 +28,7 @@ from prefect.deployments import (
     PackageManifest,
     load_deployments_from_yaml,
 )
+from prefect.docker import get_prefect_image_name
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError, ScriptError
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
@@ -428,6 +429,12 @@ async def build(
         "-ib",
         help="The slug of the infrastructure block to use as a template.",
     ),
+    image: str = typer.Option(
+        None,
+        "--image",
+        "-i",
+        help="Docker image to be used by a Docker container or a Kubernetes job.",
+    ),
     storage_block: str = typer.Option(
         None,
         "--storage-block",
@@ -518,9 +525,11 @@ async def build(
         )
     else:
         if infra_type == Infra.kubernetes:
-            infrastructure = KubernetesJob()
+            docker_image = image if image else get_prefect_image_name()
+            infrastructure = KubernetesJob(image=docker_image)
         elif infra_type == Infra.docker:
-            infrastructure = DockerContainer()
+            docker_image = image if image else get_prefect_image_name()
+            infrastructure = DockerContainer(image=docker_image)
         else:
             infrastructure = Process()
 
