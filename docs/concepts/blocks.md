@@ -25,19 +25,54 @@ Blocks are classes that subclass the `Block` base class. They can be instantiate
 
 For example, to instantiate a block that stores a JSON value, use the `JSON` block:
 
-```python
+```python hl_lines="6"
+from prefect import flow
 from prefect.blocks.system import JSON
 
-json_block = JSON(value={"the_answer": 42})
+@flow
+def using_json_block_flow():
+    json_block = JSON(value={"the_answer": 42})
+
+using_json_block_flow()
+```
+
+### Unpacking blocks
+
+To unpack the block and retrieve the field, `value`:
+
+```python hl_lines="7"
+from prefect import flow
+from prefect.blocks.system import JSON
+
+@flow
+def using_json_block_flow():
+    json_block = JSON(value={"the_answer": 42})
+    json_value = json_block.value
+    print(json_value)
+
+using_json_block_flow()  # outputs {'the_answer': 42}
 ```
 
 ### Saving blocks
 
 If this JSON value needs to be retrieved later to be used within a flow or task, we can use the `.save()` method on the blocks to store the value in a block document on the Orion DB for retrieval later:
 
-```python
-json_block.save(name="life-the-universe-everything")
+```python hl_lines="7"
+from prefect import flow
+from prefect.blocks.system import JSON
+
+@flow
+def using_json_block_flow():
+    json_block = JSON(value={"the_answer": 42})
+    json_block.save(name="life-the-universe-everything", overwrite=True)
+
+using_json_block_flow()
 ```
+
+!!! tip "Utilizing the UI"
+    Blocks documents can also be created and updated via the [Prefect UI](/ui/blocks/).
+
+### Loading blocks
 
 The name given when saving the value stored in the JSON block can be used to later when retrieving the value during a flow or task run:
 
@@ -46,27 +81,28 @@ from prefect import flow
 from prefect.blocks.system import JSON
 
 @flow
-def what_is_the_answer():
+def using_json_block_flow():
     json_block = JSON.load("life-the-universe-everything")
     print(json_block.value["the_answer"])
 
-what_is_the_answer() # 42
+using_json_block_flow() # outputs 42
 ```
-
-### Loading blocks
 
 Blocks can also be loaded with a unique slug which a combination of a block type slug and a block document name.
 
-To load our JSON block document from before, we can run the following:
+The following is equivalent to load our JSON block document from before:
 
-```python
+```python hl_lines="2 6"
+from prefect import flow
 from prefect.blocks.core import Block
 
-json_block = Block.load("json/life-the-universe-everything")
-print(json_block.value["the-answer"]) #42
-```
+@flow
+def using_json_block_flow():
+    json_block = Block.load("json/life-the-universe-everything")
+    print(json_block.value["the_answer"]) # outputs 42
 
-Blocks documents can also be created and updated via the [Prefect UI](/ui/blocks/).
+using_json_block_flow()
+```
 
 ## Creating new block types
 
