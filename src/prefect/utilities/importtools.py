@@ -127,26 +127,47 @@ def load_script_as_module(path: str) -> ModuleType:
     If an exception occurs during execution of the script, a
     `prefect.exceptions.ScriptError` is created to wrap the exception and raised.
 
+    During the duration of this function call, `sys` is modified to support loading.
+    These changes are reverted after completion, but this function is not thread safe
+    and use of it in threaded contexts may result in undesirable behavior.
+
     See https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
     """
     spec = importlib.util.spec_from_file_location("__prefect_loader__", path)
     module = importlib.util.module_from_spec(spec)
     sys.modules["__prefect_loader__"] = module
 
+    # Insert the parent directory to support relative imports during execution
+    parent_path = str(Path(path).parent)
+    sys.path.insert(0, parent_path)
+
     try:
         spec.loader.exec_module(module)
     except Exception as exc:
         raise ScriptError(user_exc=exc, path=path) from exc
+    finally:
+        sys.modules.pop("__prefect_loader__")
+        sys.path.remove(parent_path)
 
     return module
 
 
-def load_flow_from_manifest_path(path: str):
-    file_path, obj_name = path.rsplit(":", 1)
-    sys.path.insert(0, str(Path(file_path).parent))
-    sys.path.insert(0, str(Path(file_path).parent.parent))
-    flow = runpy.run_path(file_path)[obj_name]
-    return flow
+def import_object(import_path: str):
+    """
+    Load an object from an import path.
+
+    Import paths can be formatted as "module.object" or "/path/to/script.py:object".
+
+    This function is not thread safe if loading from a script.
+    """
+    if ":" in import_path:
+        module_path, object_name = import_path.rsplit(":", 1)
+        module = load_script_as_module(module_path)
+        obj = getattr(module, object_name)
+    else:
+        obj = from_qualified_name(import_path)
+
+    return obj
 
 
 class DelayedImportErrorModule(ModuleType):
