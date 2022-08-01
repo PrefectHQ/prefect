@@ -15,7 +15,7 @@ import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import Manifest, Flow
+from prefect import Flow, Manifest
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
