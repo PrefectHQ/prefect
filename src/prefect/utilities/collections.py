@@ -13,6 +13,7 @@ from typing import (
     Awaitable,
     Callable,
     Dict,
+    Generator,
     Generic,
     Hashable,
     Iterable,
@@ -340,12 +341,12 @@ def remove_nested_keys(keys_to_remove: List[Hashable], obj):
     `key_to_remove`. Return `obj` unchanged if not a dictionary.
 
     Args:
-        keys_to_remove: A list of keys to remove from obj
-        obj: The object to remove keys from.
+        keys_to_remove: A list of keys to remove from obj obj: The object to remove keys
+        from.
 
     Returns:
-        `obj` without keys matching an entry in `keys_to_remove` if `obj` is a dictionary.
-        `obj` if `obj` is not a dictionary.
+        `obj` without keys matching an entry in `keys_to_remove` if `obj` is a
+        dictionary. `obj` if `obj` is not a dictionary.
     """
     if not isinstance(obj, dict):
         return obj
@@ -354,3 +355,15 @@ def remove_nested_keys(keys_to_remove: List[Hashable], obj):
         for key, value in obj.items()
         if key not in keys_to_remove
     }
+
+
+def distinct(
+    iterable: Iterable[T],
+    key: Callable[[T], Any] = (lambda i: i),
+) -> Generator[T, None, None]:
+    seen: Set = set()
+    for item in iterable:
+        if key(item) in seen:
+            continue
+        seen.add(key(item))
+        yield item
