@@ -88,6 +88,9 @@ def using_json_block_flow():
 using_json_block_flow() # outputs 42
 ```
 
+!!! tip "Sharing Blocks"
+    Blocks can also be loaded by Workspace Collaborators, available in [Prefect Cloud](/ui/cloud/).
+
 Blocks can also be loaded with a unique slug which a combination of a block type slug and a block document name.
 
 The following is equivalent to load our JSON block document from before:
