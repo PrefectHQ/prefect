@@ -1,13 +1,9 @@
 """
 Command line interface for working with agent services
 """
-import traceback
-from collections import deque
-from typing import Callable, Coroutine, Deque, List, Optional
+from typing import List
 from uuid import UUID
 
-import anyio
-import httpx
 import typer
 
 from prefect.agent import OrionAgent
@@ -17,7 +13,7 @@ from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import ObjectAlreadyExists
 from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL, PREFECT_API_URL
-from prefect.utilities.collections import distinct
+from prefect.utilities.services import critical_service_loop
 
 agent_app = PrefectTyper(
     name="agent", help="Commands for starting and interacting with agent processes."
@@ -108,75 +104,7 @@ async def start(
         await critical_service_loop(
             agent.get_and_submit_flow_runs,
             PREFECT_AGENT_QUERY_INTERVAL.value(),
+            printer=app.console.print,
         )
 
     app.console.print("Agent stopped!")
-
-
-async def critical_service_loop(
-    workload: Callable[..., Coroutine],
-    interval: float,
-    memory: int = 20,
-):
-    """
-    Runs the the given `workload` function on the specified `interval`, while being
-    forgiving of intermittent issues like temporary HTTP errors.  If more failures than
-    successes occur, prints a summary of recently seen errors, then returns.
-
-    Args:
-        `workload`: the function to call
-        `interval`: how frequently to call it
-        `memory`: how many successes/failures to remember when deciding whether to exit
-    """
-
-    track_record: Deque[int] = deque(maxlen=memory)
-    exceptions: Deque[Optional[Exception]] = deque(maxlen=track_record.maxlen)
-
-    while True:
-        try:
-            await workload()
-
-            track_record.append(1)
-            exceptions.append(None)
-        except httpx.TransportError as exc:
-            # httpx.TransportError is the base class for any kind of communications
-            # error, like timeouts, connection failures, etc.  This does _not_ cover
-            # routine HTTP error codes (even 5xx errors like 502/503) so this
-            # handler should not be attempting to cover cases where the Orion server
-            # or Prefect Cloud is having an outage (which will be covered by the
-            # exception clause below)
-            track_record.append(-1)
-            exceptions.append(exc)
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code in (502, 503):
-                # 502/503 indicate a potential outage of the Orion server or Prefect
-                # Cloud, which is likely to be temporary and transient.  Don't quit
-                # over these unless it is prolonged.
-                track_record.append(-1)
-                exceptions.append(exc)
-            else:
-                raise
-        except KeyboardInterrupt:
-            return
-
-        # If the last result was a failure, see if it's time to cut our losses because
-        # we're failing more often than we're succeeding
-        if track_record[-1] < 0 and sum(track_record) < 0:
-            # We've failed more than we've succeeded, the writing is on the wall.  Let's
-            # explain what we've seen.
-            losses = abs(sum(w for w in track_record if w < 0))
-            app.console.print(
-                f"\nFailed {losses} of the last {len(track_record)} attempts.  "
-                "Please check your environment and configuration."
-            )
-
-            app.console.print("Examples of recent errors:\n")
-
-            for exception in distinct(reversed(exceptions), key=lambda e: type(e)):
-                if not exception:
-                    continue
-                app.console.print("\n".join(traceback.format_exception(exception)))
-                app.console.print()
-            return
-
-        await anyio.sleep(interval)
