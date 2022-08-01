@@ -74,7 +74,7 @@ from prefect.utilities.callables import ParameterSchema
 from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type
 from prefect.utilities.filesystem import tmpchdir, to_display_path
-from prefect.utilities.importtools import load_flow_from_manifest_path
+from prefect.utilities.importtools import import_object
 
 
 class FlowScript(BaseModel):
@@ -307,7 +307,7 @@ async def load_flow_from_deployment(
     """
     with open(deployment.manifest_path, "r") as f:
         manifest = json.load(f)
-    return load_flow_from_manifest_path(manifest["import_path"])
+    return import_object(manifest["import_path"])
 
 
 @inject_client
