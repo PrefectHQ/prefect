@@ -118,9 +118,6 @@ Some workflow tools require you to make DAGs (directed acyclic graphs). DAGs rep
 
 Prefect 2.0 is designed for incremental adoption. You can decorate as many of your dataflow functions as you like and get all the benefits of Prefect as you go!
 
-!!! info "Don't Panic"
-    Prefect 2.0 is under active development and may change rapidly. For production use, we recommend [Prefect 1.0](https://github.com/prefecthq/prefect).
-
 ## Prefect in action
 
 To dive right in and see what Prefect 2.0 can do, simply sprinkle in a few decorators and add a little configuration, like the example below. 
