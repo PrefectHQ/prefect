@@ -14,11 +14,18 @@ Flows are the most basic Prefect object. Flows are the only Prefect abstraction 
 
 ## Flows overview
 
-Flows are like functions. They can take inputs, perform work, and return an output. In fact, you can turn any function into a Prefect flow by adding the `@flow` decorator. When a function becomes a flow, its behavior changes, giving it advantages.
+Flows are like functions. They can take inputs, perform work, and return an output. In fact, you can turn any function into a Prefect flow by adding the `@flow` decorator. When a function becomes a flow, its behavior changes, giving it the following advantages:
 
-Flows also take advantage of automatic Prefect logging to capture details about [flow runs](#flow-runs) such as run time, task tags, and final state. Flows are required for [deployments](/concepts/deployments/) &mdash; every deployment points to a specific flow as the entrypoint of an API-generated flow run.
+- State transitions are reported to the API, allowing observation of flow execution.
+- Input arguments types can be validated.
+- Retries can be performed on failure.
+- Timeouts can be enforced to prevent unintentional, long-running workflows.
+
+Flows also take advantage of automatic Prefect logging to capture details about [flow runs](#flow-runs) such as run time, task tags, and final state.
 
 All workflows are defined within the context of a flow. Flows can include calls to [tasks](/concepts/tasks/) as well as to other flows, which we call ["subflows"](#subflows) in this context. Flows may be defined within modules and imported for use as subflows in your flow definitions. 
+
+Flows are required for [deployments](/concepts/deployments/) &mdash; every deployment points to a specific flow as the entrypoint for a flow run.
 
 !!! warning "Tasks must be called from flows"
     All tasks must be called from within a flow. Tasks may not be called from other tasks.
