@@ -181,6 +181,18 @@ class OrchestrationContext(PrefectBaseModel):
         safe_context = self.safe_copy()
         return safe_context.initial_state, safe_context.validated_state, safe_context
 
+    async def validate_proposed_state(self):
+        for validation_attempt in range(2):
+            try:
+                await self._validate_proposed_state()
+            except Exception:
+                continue
+            return
+
+        reason = "Error validating state"
+        self.response_status = SetStateStatus.ABORT
+        self.response_details = StateAbortDetails(reason=reason)
+
 
 class FlowOrchestrationContext(OrchestrationContext):
     """
@@ -222,7 +234,7 @@ class FlowOrchestrationContext(OrchestrationContext):
     run: Any = ...
 
     @inject_db
-    async def validate_proposed_state(
+    async def _validate_proposed_state(
         self,
         db: OrionDBInterface,
     ):
@@ -238,26 +250,20 @@ class FlowOrchestrationContext(OrchestrationContext):
         Returns:
             None
         """
-        try:
-            if self.proposed_state is not None:
-                validated_orm_state = db.FlowRunState(
-                    flow_run_id=self.run.id,
-                    **self.proposed_state.dict(shallow=True),
-                )
-                self.session.add(validated_orm_state)
-                self.run.set_state(validated_orm_state)
-            else:
-                validated_orm_state = None
-            validated_state = (
-                validated_orm_state.as_state() if validated_orm_state else None
+        if self.proposed_state is not None:
+            validated_orm_state = db.FlowRunState(
+                flow_run_id=self.run.id,
+                **self.proposed_state.dict(shallow=True),
             )
+            self.session.add(validated_orm_state)
+            self.run.set_state(validated_orm_state)
+        else:
+            validated_orm_state = None
+        validated_state = (
+            validated_orm_state.as_state() if validated_orm_state else None
+        )
 
-            await self.session.flush()
-        except Exception:
-            validated_state = None
-            reason = "Error validating state"
-            self.response_status = SetStateStatus.ABORT
-            self.response_details = StateAbortDetails(reason=reason)
+        await self.session.flush()
         self.validated_state = validated_state
 
     def safe_copy(self):
@@ -332,7 +338,7 @@ class TaskOrchestrationContext(OrchestrationContext):
     run: Any = ...
 
     @inject_db
-    async def validate_proposed_state(
+    async def _validate_proposed_state(
         self,
         db: OrionDBInterface,
     ):
@@ -349,27 +355,20 @@ class TaskOrchestrationContext(OrchestrationContext):
             None
         """
 
-        try:
-            if self.proposed_state is not None:
-                validated_orm_state = db.TaskRunState(
-                    task_run_id=self.run.id,
-                    **self.proposed_state.dict(shallow=True),
-                )
-                self.session.add(validated_orm_state)
-                self.run.set_state(validated_orm_state)
-            else:
-                validated_orm_state = None
-            validated_state = (
-                validated_orm_state.as_state() if validated_orm_state else None
+        if self.proposed_state is not None:
+            validated_orm_state = db.TaskRunState(
+                task_run_id=self.run.id,
+                **self.proposed_state.dict(shallow=True),
             )
+            self.session.add(validated_orm_state)
+            self.run.set_state(validated_orm_state)
+        else:
+            validated_orm_state = None
+        validated_state = (
+            validated_orm_state.as_state() if validated_orm_state else None
+        )
 
-            await self.session.flush()
-        except Exception:
-            validated_state = None
-            reason = "Error validating state"
-            self.response_status = SetStateStatus.ABORT
-            self.response_details = StateAbortDetails(reason=reason)
-
+        await self.session.flush()
         self.validated_state = validated_state
 
     def safe_copy(self):
