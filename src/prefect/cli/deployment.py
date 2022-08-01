@@ -29,7 +29,7 @@ from prefect.deployments import (
     load_deployments_from_yaml,
 )
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError, ScriptError
-from prefect.filesystems import LocalFileSystem
+from prefect.filesystems import LocalFileSystem, RemoteFileSystem, S3, GCS, Azure
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.infrastructure.submission import _prepare_infrastructure
 from prefect.orion.schemas.core import FlowRun
@@ -398,6 +398,14 @@ class Infra(str, Enum):
     docker = DockerContainer.get_block_type_slug()
 
 
+class FileSystem(str, Enum):
+    local_fs = LocalFileSystem.get_block_type_slug()
+    remote_fs = RemoteFileSystem.get_block_type_slug()
+    s3 = S3.get_block_type_slug()
+    gcs = GCS.get_block_type_slug()
+    azure = Azure.get_block_type_slug()
+
+
 @deployment_app.command()
 async def build(
     path: str = typer.Argument(
@@ -428,11 +436,11 @@ async def build(
         "-ib",
         help="The slug of the infrastructure block to use as a template.",
     ),
-    storage_block: str = typer.Option(
+    storage_block: FileSystem = typer.Option(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of the storage block to use.",
+        help="The slug of the storage block to use. Use the syntax: block_type/block_name",
     ),
     output: str = typer.Option(
         None,
