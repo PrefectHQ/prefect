@@ -87,7 +87,7 @@ async def critical_service_loop(
             for exception in distinct(most_recent, key=lambda e: type(e)):
                 if not exception:
                     continue
-                printer("\n".join(traceback.format_exception(exception)))
+                printer("\n".join(traceback.format_exception_only(exception)))
                 printer()
             return
 

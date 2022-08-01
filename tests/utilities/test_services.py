@@ -1,13 +1,12 @@
-from unittest import mock
-
 import httpx
 import pytest
 
+from prefect.testing.utilities import AsyncMock
 from prefect.utilities.services import critical_service_loop
 
 
 async def test_critical_service_loop_operates_normally():
-    workload = mock.AsyncMock(
+    workload = AsyncMock(
         side_effect=[
             None,
             None,
@@ -24,7 +23,7 @@ async def test_critical_service_loop_operates_normally():
 
 
 async def test_tolerates_single_intermittent_error():
-    workload = mock.AsyncMock(
+    workload = AsyncMock(
         side_effect=[
             None,
             httpx.ConnectError("woops"),
@@ -41,7 +40,7 @@ async def test_tolerates_single_intermittent_error():
 
 
 async def test_tolerates_two_consecutive_errors():
-    workload = mock.AsyncMock(
+    workload = AsyncMock(
         side_effect=[
             None,
             httpx.ConnectError("woops"),
@@ -58,7 +57,7 @@ async def test_tolerates_two_consecutive_errors():
 
 
 async def test_tolerates_majority_errors():
-    workload = mock.AsyncMock(
+    workload = AsyncMock(
         side_effect=[
             httpx.ConnectError("woops"),
             None,
@@ -75,7 +74,7 @@ async def test_tolerates_majority_errors():
 
 
 async def test_quits_after_3_consecutive_errors(capsys: pytest.CaptureFixture):
-    workload = mock.AsyncMock(
+    workload = AsyncMock(
         side_effect=[
             None,
             httpx.TimeoutException("oofta"),
