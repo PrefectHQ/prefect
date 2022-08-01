@@ -191,7 +191,10 @@ async def _register_nested_block_schemas(
 
 
 def _get_fields_for_child_schema(
-    definitions: Dict, base_fields: Dict, reference_name: str, reference_block_type: BlockType
+    definitions: Dict,
+    base_fields: Dict,
+    reference_name: str,
+    reference_block_type: BlockType,
 ):
     """
     Returns the field definitions for a child schema. The fields definitions are pulled from the provided `definitions`
@@ -207,7 +210,9 @@ def _get_fields_for_child_schema(
     sub_block_schema_fields = None
     reference_strings = _collect_nested_reference_strings(spec_reference)
     if len(reference_strings) == 1:
-        sub_block_schema_fields = definitions.get(reference_strings[0].replace("#/definitions/", ""))
+        sub_block_schema_fields = definitions.get(
+            reference_strings[0].replace("#/definitions/", "")
+        )
     else:
         for reference_string in reference_strings:
             definition_key = reference_string.replace("#/definitions/", "")
