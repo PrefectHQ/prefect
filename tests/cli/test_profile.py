@@ -476,6 +476,7 @@ def test_rename_profile_renames_profile():
     assert profiles["bar"].settings == {
         PREFECT_API_KEY: "foo"
     }, "Settings should be retained"
+    assert profiles.active_name != "bar", "The active profile should not be changed"
 
 
 def test_rename_profile_changes_active_profile():
