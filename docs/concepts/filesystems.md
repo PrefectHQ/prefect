@@ -158,9 +158,9 @@ The `Azure` file system block enables interaction with Azure Datalake and Azure 
 | Property | Description                                                                                                                  |
 | --- |------------------------------------------------------------------------------------------------------------------------------|
 | basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
-| azure_storage_connection_string | Azure storage connection string                                                                                              |
+| azure_storage_connection_string | Azure storage connection string. |
 | azure_storage_account_name | Azure storage account name                                                                                                   |
-| azure_storage_account_key | Azure storage account key                                                                                                    |
+| azure_storage_account_key | Azure storage account key. |
 
 
 To create a block:
