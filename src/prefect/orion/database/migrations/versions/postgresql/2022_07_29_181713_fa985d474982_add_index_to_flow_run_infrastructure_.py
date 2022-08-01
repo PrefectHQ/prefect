@@ -21,6 +21,7 @@ def upgrade():
         "flow_run",
         ["infrastructure_document_id"],
         unique=False,
+        postgresql_concurrently=True,
     )
     # ### end Alembic commands ###
 
