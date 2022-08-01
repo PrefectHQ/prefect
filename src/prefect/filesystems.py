@@ -13,6 +13,7 @@ from pydantic import Field, SecretStr, validator
 
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.filesystem import filter_files
 
 
 class ReadableFileSystem(Block, abc.ABC):
@@ -96,11 +97,27 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
         else:
             shutil.copytree(from_path, local_path, dirs_exist_ok=True)
 
-    async def put_directory(self, local_path: str = None, to_path: str = None) -> None:
+    async def _get_ignore_func(self, local_path: str, ignore_file: str):
+        with open(ignore_file, "r") as f:
+            ignore_patterns = f.readlines()
+
+        included_files = filter_files(local_path, ignore_patterns)
+
+        def ignore_func(directory, files):
+            return_val = [f for f in files if f not in included_files]
+            return return_val
+
+        return ignore_func
+
+    async def put_directory(
+        self, local_path: str = None, to_path: str = None, ignore_file: str = None
+    ) -> None:
         """
         Copies a directory from one place to another on the local filesystem.
 
         Defaults to copying the entire contents of the current working directory to the block's basepath.
+
+        An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
         """
         if to_path is None:
             to_path = Path(self.basepath).expanduser()
@@ -108,13 +125,19 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
         if local_path is None:
             local_path = Path(".").absolute()
 
+        if ignore_file:
+            ignore_func = await self._get_ignore_func(local_path, ignore_file)
+        else:
+            ignore_func = None
         if local_path == to_path:
             pass
         else:
             if sys.version_info < (3, 8):
-                shutil.copytree(local_path, to_path)
+                shutil.copytree(local_path, to_path, ignore=ignore_func)
             else:
-                shutil.copytree(local_path, to_path, dirs_exist_ok=True)
+                shutil.copytree(
+                    local_path, to_path, dirs_exist_ok=True, ignore=ignore_func
+                )
 
     async def read_path(self, path: str) -> bytes:
         path: Path = self._resolve_path(path)
@@ -228,7 +251,10 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         return self.filesystem.get(from_path, local_path, recursive=True)
 
     async def put_directory(
-        self, local_path: Optional[str] = None, to_path: Optional[str] = None
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
     ) -> int:
         """
         Uploads a directory from a given local path to a remote direcotry.
@@ -241,8 +267,17 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         if local_path is None:
             local_path = "."
 
+        included_files = None
+        if ignore_file:
+            with open(ignore_file, "r") as f:
+                ignore_patterns = f.readlines()
+
+            included_files = filter_files(local_path, ignore_patterns)
+
         counter = 0
         for f in glob.glob("**", recursive=True):
+            if ignore_file and f not in included_files:
+                continue
             if to_path.endswith("/"):
                 fpath = to_path + f
             else:
@@ -340,7 +375,10 @@ class S3(ReadableFileSystem, WritableFileSystem):
         )
 
     async def put_directory(
-        self, local_path: Optional[str] = None, to_path: Optional[str] = None
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
     ) -> int:
         """
         Uploads a directory from a given local path to a remote direcotry.
@@ -348,7 +386,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
         return await self.filesystem.put_directory(
-            local_path=local_path, to_path=to_path
+            local_path=local_path, to_path=to_path, ignore_file=ignore_file
         )
 
     async def read_path(self, path: str) -> bytes:
@@ -418,7 +456,10 @@ class GCS(ReadableFileSystem, WritableFileSystem):
         )
 
     async def put_directory(
-        self, local_path: Optional[str] = None, to_path: Optional[str] = None
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
     ) -> int:
         """
         Uploads a directory from a given local path to a remote directory.
@@ -426,7 +467,7 @@ class GCS(ReadableFileSystem, WritableFileSystem):
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
         return await self.filesystem.put_directory(
-            local_path=local_path, to_path=to_path
+            local_path=local_path, to_path=to_path, ignore_file=ignore_file
         )
 
     async def read_path(self, path: str) -> bytes:

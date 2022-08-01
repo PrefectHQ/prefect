@@ -35,6 +35,7 @@ from prefect.infrastructure.submission import _prepare_infrastructure
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.utilities.callables import parameter_schema
+from prefect.utilities.filesystem import set_default_ignore_file
 from prefect.utilities.importtools import load_flow_from_manifest_path
 
 
@@ -473,7 +474,8 @@ async def build(
         app.console.print(f"Found flow {flow.name!r}", style="green")
     except AttributeError:
         exit_with_error(f"{obj_name!r} not found in {fpath!r}.")
-
+    except FileNotFoundError:
+        exit_with_error(f"{fpath!r} not found.")
     flow_parameter_schema = parameter_schema(flow)
     manifest = Manifest(
         flow_name=flow.name,
@@ -498,8 +500,15 @@ async def build(
             exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
         )
 
+        # process .prefectignore file
+        if set_default_ignore_file(path="."):
+            app.console.print(
+                f"Default '.prefectignore' file written to {(Path('.') / '.prefectignore').absolute()}",
+                style="green",
+            )
+
         # upload current directory to storage location
-        file_count = await storage.put_directory()
+        file_count = await storage.put_directory(ignore_file=".prefectignore")
         app.console.print(
             f"Successfully uploaded {file_count} files to {storage.basepath}",
             style="green",
