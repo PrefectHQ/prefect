@@ -3,7 +3,7 @@
     <template #header>
       <PageHeadingNotificationCreate />
     </template>
-    <NotificationForm v-model:notification="notificationCreate" @submit="submit" @cancel="cancel" />
+    <NotificationForm v-model:notification="notificationCreate" action="Create" @submit="submit" @cancel="cancel" />
   </p-layout-default>
 </template>
 
