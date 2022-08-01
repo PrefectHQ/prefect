@@ -180,6 +180,11 @@ prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag 
 You need to install `adlfs` to use it.
 
 
+## Handling credentials for cloud object storage services
+
+If you leverage `S3`, `GCS`, or `Azure` storage blocks, and you don't explicitly configure credentials on the respective storage block, those credentials will be inferred from the environment. Make sure to set those either on the block or as environment variables, configuration files, or IAM roles within the build environment from which you create your deployments.
+
+
 ## Saving and loading file systems
 
 Configuration for a file system can be saved to the Prefect API. For example:
