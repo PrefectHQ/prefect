@@ -10,7 +10,7 @@ tags:
 
 # File systems
 
-A file system block is an object which allows you to read and write data from paths. Prefect provides two built-in file system types that cover a wide range of use cases. 
+A file system block is an object which allows you to read and write data from paths. Prefect provides multiple built-in file system types that cover a wide range of use cases. 
 
 -  [`LocalFileSystem`](#local-file-system)
 -  [`RemoteFileSystem`](#remote-file-system)
