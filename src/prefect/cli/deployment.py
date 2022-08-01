@@ -21,10 +21,7 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.deployments import (
-    DeploymentYAML,
-    load_deployments_from_yaml,
-)
+from prefect.deployments import DeploymentYAML, load_deployments_from_yaml
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError, ScriptError
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
