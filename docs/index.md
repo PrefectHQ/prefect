@@ -195,13 +195,35 @@ Click on your flow name to see logs and other details.
 
 ![screenshot of prefect orion dashboard with logs, radar plot, and flow info](./img/intro-ui-logs.png)
 
-Let's show how the aforementioned basic example can be expanded on to add parallelism or async concurrency!
+Let's show how the aforementioned basic example can be expanded to run concurrently!
 
-### Parallel execution
+### Simple concurrency
 
-Control the task execution environment by changing a flow's `task_runner`. 
+By changing the task calls to use the `.submit()` method, the tasks will be submitted to a worker for execution. This allows multiple tasks to run at once! Prefect 2.0 comes with built-in threaded concurrency and only this one line change is needed to begin using it.
 
-By using the `DaskTaskRunner`, tasks can be submitted to run in parallel on a [Dask.distributed](http://distributed.dask.org/) cluster. 
+```python hl_lines="13"
+from prefect import flow, task
+import httpx
+
+@task(retries=3)
+def get_stars(repo):
+    url = f"https://api.github.com/repos/{repo}"
+    count = httpx.get(url).json()["stargazers_count"]
+    print(f"{repo} has {count} stars!")
+
+@flow()
+def github_stars(repos):
+    for repo in repos:
+        get_stars.submit(repo)
+
+# call the flow!
+if __name__ == "__main__":
+    github_stars(["PrefectHQ/Prefect", "PrefectHQ/prefect-aws",  "PrefectHQ/prefect-dbt"])
+```
+
+### Parallelization with Dask
+
+The worker tasks are submitted to can be configured to support more advanced execution stories. By using the `DaskTaskRunner`, tasks can be submitted to run in parallel on a local or remote [Dask.distributed](http://distributed.dask.org/) cluster. 
 
 Install the `prefect-dask` [collection](https://prefecthq.github.io/prefect-dask/) package with:
 
@@ -209,7 +231,7 @@ Install the `prefect-dask` [collection](https://prefecthq.github.io/prefect-dask
 pip install prefect-dask
 ```
 
-Then import the `DaskTaskRunner`, pass an instance of it in your flow decorator, and call `submit`.
+Import the `DaskTaskRunner` and configure your flow to use it with the default options.
 
 ```python hl_lines="2 11 14"
 from prefect import flow, task
