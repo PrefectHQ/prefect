@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import Field, SecretStr
 
 from prefect.blocks.core import Block
+from prefect.utilities.asyncutils import sync_compatible
 
 
 class NotificationBlock(Block, ABC):
@@ -50,5 +51,6 @@ class SlackWebhook(NotificationBlock):
 
         self._async_webhook_client = AsyncWebhookClient(url=self.url.get_secret_value())
 
+    @sync_compatible
     async def notify(self, body: str, subject: Optional[str] = None):
         await self._async_webhook_client.send(text=body)
