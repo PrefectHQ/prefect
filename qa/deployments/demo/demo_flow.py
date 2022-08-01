@@ -14,7 +14,7 @@ def second_task(msg, result):
     )
 
 
-@flow(name="dog")
+@flow(name="demo")
 def pipeline(purpose, msg):
     logger = get_run_logger()  # All flows should begin by getting a run logger
     logger.info(purpose)  # and then logging the purpose of the flow.

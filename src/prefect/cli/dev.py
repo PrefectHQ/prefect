@@ -20,10 +20,7 @@ import prefect
 from prefect.cli._dev_utilities import (
     create_qa_queue,
     execute_flow_scripts,
-    get_qa_deployments,
-    register_deployments,
     start_agent,
-    submit_deployments_for_execution,
 )
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
@@ -419,7 +416,7 @@ async def qa(
     )
 ):
     """Run all flows in `qa/pure_scripts`, and register and submit all deployments
-    in `qa/deployments` that have deployment names beginning with `qa_`. By default
+    in `qa/deployments` that have deployment names beginning with `prefect_qa_`. By default
     also creates a new QA work queue and agent.
     """
     async with anyio.create_task_group() as tg:
@@ -430,6 +427,6 @@ async def qa(
             tg.start_soon(start_agent, app)
 
         await tg.start(execute_flow_scripts)
-        await register_deployments()
-        deployments = await get_qa_deployments()
-        await tg.start(submit_deployments_for_execution, app, deployments)
+        # await register_deployments() # TODO when deployments are stable
+        # deployments = await get_qa_deployments()
+        # await tg.start(submit_deployments_for_execution, app, deployments)

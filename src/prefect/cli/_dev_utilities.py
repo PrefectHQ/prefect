@@ -97,14 +97,14 @@ async def submit_deployments_for_execution(
 
 async def get_qa_deployments() -> List[schemas.core.Deployment]:
     """
-    Get a list of all deployments have 'qa_' in their name
+    Get a list of all deployments have 'prefect_qa_' in their name
     """
     async with get_client() as client:
         deployments = await client.read_deployments()
 
     qa_deployments = []
     for deployment in deployments:
-        if "qa_" in deployment.name:
+        if "prefect_qa_" in deployment.name:
             qa_deployments.append(deployment)
 
     return qa_deployments

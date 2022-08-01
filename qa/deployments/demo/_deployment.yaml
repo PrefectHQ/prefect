@@ -1,7 +1,7 @@
 ###
 ### A complete description of a Prefect Deployment for flow 'dog'
 ###
-name: qa_demo
+name: prefect_qa_demo
 description: null
 tags:
 - prefect_dev_qa

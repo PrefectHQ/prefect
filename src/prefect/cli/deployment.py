@@ -254,7 +254,6 @@ async def apply(
     # load the file
     with open(str(path), "r") as f:
         data = yaml.safe_load(f)
-
     # create deployment object
     try:
         deployment = DeploymentYAML(**data)
@@ -273,7 +272,7 @@ async def apply(
 
         # we assume storage was already saved
         storage_document_id = deployment.storage._block_document_id
-
+        # breakpoint()
         deployment_id = await client.create_deployment(
             flow_id=flow_id,
             name=deployment.name,

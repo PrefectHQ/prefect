@@ -3,10 +3,26 @@ prefect config set PREFECT_LOGGING_LEVEL=DEBUG
 """
 from prefect import flow, get_run_logger
 
+purpose = """
+The purpose of this flow is make sure that all logs are working
+as expected. 
+
+Expected behavior: there should be logs for:
+- info
+- debug
+- warning (2x)
+- error
+- debug
+- critical
+- info (3x)
+"""
+
 
 @flow
 def log_levels_flow():
     logger = get_run_logger()
+    logger.info(purpose)
+
     logger.info("Preparing for warp 9")
     logger.debug("Warp drive temperature: 200°C")
     logger.warning("Enemy vessel detected")

@@ -1,0 +1,54 @@
+###
+### A complete description of a Prefect Deployment for flow 'parameters flow'
+###
+name: prefect_qa_params
+description: null
+tags:
+- prefect_dev_qa
+parameters: 
+  purpose: |-
+    The purpose of this deployment is to check that parameters are able to be provided correctly
+    to a deployment. 
+
+    Expected behavior: This flow should successfully complete two tasks. The first task should log
+    the parameter 'msg' and the second task should log in the number 'num'. If parameters are not 
+    provided, the default values are 'I am the default message' and '42'.
+schedule: null
+infrastructure:
+  type: process
+  env: {}
+  labels: {}
+  name: null
+  command:
+  - python
+  - -m
+  - prefect.engine
+  stream_output: true
+###
+### DO NOT EDIT BELOW THIS LINE
+###
+flow_name: parameters flow
+manifest_path: param_flow-manifest.json
+storage:
+  basepath: /Users/peytonrunyan/Work/orion-dev/orion-main/prefect/qa/deployments
+  _is_anonymous: true
+  _block_document_name: anonymous-892fd835-14b4-4452-82f7-28d601d9f4f3
+  _block_document_id: 54e7f55c-8f48-4363-b9c7-25bf2a0458e9
+  _block_type_slug: local-file-system
+parameter_openapi_schema:
+  title: Parameters
+  type: object
+  properties:
+    purpose:
+      title: purpose
+    msg:
+      title: msg
+      default: I am the default message
+      type: string
+    num:
+      title: num
+      default: 42
+      type: integer
+  required:
+  - purpose
+  definitions: null

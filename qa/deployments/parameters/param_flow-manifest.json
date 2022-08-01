@@ -1,0 +1,27 @@
+{
+    "flow_name": "parameters flow",
+    "import_path": "parameters/parameters.py:param_flow",
+    "parameter_openapi_schema": {
+        "title": "Parameters",
+        "type": "object",
+        "properties": {
+            "purpose": {
+                "title": "purpose"
+            },
+            "msg": {
+                "title": "msg",
+                "default": "I am the default message",
+                "type": "string"
+            },
+            "num": {
+                "title": "num",
+                "default": 42,
+                "type": "integer"
+            }
+        },
+        "required": [
+            "purpose"
+        ],
+        "definitions": null
+    }
+}
