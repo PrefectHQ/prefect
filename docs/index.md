@@ -90,9 +90,13 @@ Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable
 
 Prefect has [integrations](/collections/overview/) for all the major cloud providers and modern data tools such as Snowflake, Databricks, dbt, and Airbyte. 
 
-**Async and parallelization options**
+**Simple concurrency**
 
-Prefect provides [concurrency and sequential execution options](/concepts/task-runners/). With a single import and one argument to your flow decorator you can set up parallel processing across clusters with Dask and Ray integrations. 
+Prefect provides accessible [concurrency](concepts/task-runners/). You can configure concurrent processing locally or send tasks to remote clusters with Dask and Ray integrations. 
+
+**Async first**
+
+Prefect 2.0 is built on asynchronous Python and allows you to take advantage of async/await concurrency. Prefect allows you to write workflows mixing synchronous and asynchronous tasks without worrying about the complexity of managing event loops.
 
 **Works well with containers**
 
@@ -232,8 +236,7 @@ You should see similar output to the first example, with additional information 
 
 ### Async concurrency
 
-Prefect 2.0 ships with native async support. 
-Flows can include a mix of synchronous and asynchronous tasks, just like native Python.
+Prefect 2.0 ships with native async support.
 
 ```python hl_lines="3 6-8 13 15 18"
 from prefect import flow, task
@@ -249,6 +252,9 @@ async def get_stars(repo):
 
 @flow()
 async def github_stars(repos):
+    # You can use asyncio to run the tasks concurrently
+    await asyncio.gather(*[get_stars(repo) for repo in repos])
+    # Or use Prefect submission for the same outcome
     for repo in repos:
         await get_stars.submit(repo)
 
