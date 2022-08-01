@@ -1,6 +1,8 @@
-import traceback
+import sys
 from collections import deque
-from typing import Callable, Coroutine, Deque, Optional
+from traceback import format_exception
+from types import TracebackType
+from typing import Callable, Coroutine, Deque, Tuple
 
 import anyio
 import httpx
@@ -29,13 +31,14 @@ async def critical_service_loop(
         `printer`: a `print`-like function where errors will be reported
     """
 
-    track_record: Deque[Optional[Exception]] = deque(maxlen=memory)
+    track_record: Deque[bool] = deque([True] * consecutive, maxlen=consecutive)
+    failures: Deque[Tuple[Exception, TracebackType]] = deque(maxlen=memory)
 
     while True:
         try:
             await workload()
 
-            track_record.append(None)
+            track_record.append(True)
         except httpx.TransportError as exc:
             # httpx.TransportError is the base class for any kind of communications
             # error, like timeouts, connection failures, etc.  This does _not_ cover
@@ -43,13 +46,15 @@ async def critical_service_loop(
             # handler should not be attempting to cover cases where the Orion server
             # or Prefect Cloud is having an outage (which will be covered by the
             # exception clause below)
-            track_record.append(exc)
+            track_record.append(False)
+            failures.append((exc, sys.exc_info()[-1]))
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code in (502, 503):
                 # 502/503 indicate a potential outage of the Orion server or Prefect
                 # Cloud, which is likely to be temporary and transient.  Don't quit
                 # over these unless it is prolonged.
-                track_record.append(exc)
+                track_record.append(False)
+                failures.append((exc, sys.exc_info()[-1]))
             else:
                 raise
         except KeyboardInterrupt:
@@ -73,8 +78,7 @@ async def critical_service_loop(
         # errors to have reasonable confidence that this is indeed an anomaly.
         # @anticorrelator and @chrisguidry estimated that we should only need to look
         # back for 3 consectutive errors.
-        most_recent = list(reversed(track_record))
-        if len(most_recent) > consecutive and all(most_recent[:consecutive]):
+        if not any(track_record):
             # We've failed enough times to be sure something is wrong, the writing is
             # on the wall.  Let's explain what we've seen and exit.
             printer(
@@ -84,10 +88,12 @@ async def critical_service_loop(
 
             printer("Examples of recent errors:\n")
 
-            for exception in distinct(most_recent, key=lambda e: type(e)):
-                if not exception:
-                    continue
-                printer("\n".join(traceback.format_exception_only(exception)))
+            failures_by_type = distinct(
+                reversed(failures),
+                key=lambda pair: type(pair[0]),  # Group by the type of exception
+            )
+            for exception, traceback in failures_by_type:
+                printer("".join(format_exception(None, exception, traceback)))
                 printer()
             return
 
