@@ -433,7 +433,7 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of the storage block to use.",
+        help="The slug of the storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'local-file-system', 'remote-file-system', 's3', 'gcs', 'azure'",
     ),
     output: str = typer.Option(
         None,
