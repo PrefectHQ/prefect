@@ -22,7 +22,7 @@ pip install "prefect==1.*"
 ::: tab Conda
 
 ```bash
-conda install -c conda-forge "prefect>=1.2.4,<2"
+conda install -c conda-forge "prefect<2"
 ```
 
 :::
