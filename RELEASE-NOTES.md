@@ -660,7 +660,7 @@ Additionally, because flows are not statically registered, we're able to easily 
 
 ### Subflow executors
 
-[Subflow runs](https://docs.prefect.io/concepts/flows/#subflows) are a first-class concept in Orion and this enables new execution patterns.
+[Subflow runs](https://docs.prefect.io/concepts/flows/#composing-flows) are a first-class concept in Orion and this enables new execution patterns.
 For example, consider a flow where most of the tasks can run locally, but for some subset of computationally intensive tasks you need more resources.
 You can move your computationally intensive tasks into their own flow, which uses a `DaskExecutor` to spin up a temporary Dask cluster in the cloud provider of your choice.
 Next, you simply call the flow that uses a `DaskExecutor` from your other, parent flow.

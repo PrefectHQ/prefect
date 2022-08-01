@@ -5,6 +5,17 @@ name: Propose a feature enhancement
 description: Propose a new feature or an enhancement for Prefect
 labels: [requires triage]
 body:
+  - type: dropdown
+    id: version
+    attributes:
+      label: Prefect Version
+      description: Which version of Prefect is this enhancement for?
+      options:
+        - 2.x
+        - 1.x
+    validations:
+      required: true
+      
   - type: textarea
     attributes:
       label: Describe the proposed behavior
