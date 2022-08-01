@@ -151,7 +151,7 @@ You need to install `gcsfs`to use it.
 
 ## Azure
 
-The `Azure` file system block enables interaction with Azure Datake and Azure Blob Storage. Under the hood, `Azure` uses [`adlfs`](https://github.com/fsspec/adlfs).
+The `Azure` file system block enables interaction with Azure Datalake and Azure Blob Storage. Under the hood, `Azure` uses [`adlfs`](https://github.com/fsspec/adlfs).
 
 `Azure` properties include:
 
