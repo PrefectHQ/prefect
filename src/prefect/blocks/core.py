@@ -39,22 +39,22 @@ class InvalidBlockRegistration(Exception):
     """
 
 
-def _find_nested_reference_strings(obj):
+def _collect_nested_reference_strings(obj):
     found_reference_strings = []
     if isinstance(obj, dict):
         if obj.get("$ref"):
             found_reference_strings.append(obj.get("$ref"))
         for value in obj.values():
-            found_reference_strings.extend(_find_nested_reference_strings(value))
+            found_reference_strings.extend(_collect_nested_reference_strings(value))
     if isinstance(obj, list):
         for item in obj:
-            found_reference_strings.extend(_find_nested_reference_strings(item))
+            found_reference_strings.extend(_collect_nested_reference_strings(item))
     return found_reference_strings
 
 
 def _get_non_block_definitions(fields, definitions):
     non_block_definitions = {}
-    reference_strings = _find_nested_reference_strings(fields)
+    reference_strings = _collect_nested_reference_strings(fields)
     for reference_string in reference_strings:
         definition_key = reference_string.replace("#/definitions/", "")
         definition = definitions.get(definition_key)

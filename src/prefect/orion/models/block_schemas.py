@@ -12,7 +12,7 @@ from sqlalchemy import delete, select
 
 from prefect.blocks.core import (
     Block,
-    _find_nested_reference_strings,
+    _collect_nested_reference_strings,
     _get_non_block_definitions,
 )
 from prefect.orion import schemas
@@ -20,7 +20,7 @@ from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.models.block_types import read_block_type_by_slug
 from prefect.orion.schemas.actions import BlockSchemaCreate
-from prefect.orion.schemas.core import BlockSchema, BlockSchemaReference
+from prefect.orion.schemas.core import BlockSchema, BlockSchemaReference, BlockType
 
 
 class MissingBlockTypeException(Exception):
@@ -191,8 +191,13 @@ async def _register_nested_block_schemas(
 
 
 def _get_fields_for_child_schema(
-    definitions, base_fields, reference_name, reference_block_type
+    definitions: Dict, base_fields: Dict, reference_name: str, reference_block_type: BlockType
 ):
+    """
+    Returns the field definitions for a child schema. The fields definitions are pulled from the provided `definitions`
+    dictionary based on the information extracted from `base_fields` using the `reference_name`. `reference_block_type`
+    is used to disambiguate fields that have a union type.
+    """
     if definitions is None:
         raise ValueError(
             "Unable to create nested block schema due to missing definitions "
@@ -200,10 +205,12 @@ def _get_fields_for_child_schema(
         )
     spec_reference = base_fields["properties"][reference_name]
     sub_block_schema_fields = None
-    # Looks for the nested schema definition in a union of block schemas
-    if "anyOf" in spec_reference:
-        for reference in spec_reference["anyOf"]:
-            definition_key = reference["$ref"].replace("#/definitions/", "")
+    reference_strings = _collect_nested_reference_strings(spec_reference)
+    if len(reference_strings) == 1:
+        sub_block_schema_fields = definitions.get(reference_strings[0].replace("#/definitions/", ""))
+    else:
+        for reference_string in reference_strings:
+            definition_key = reference_string.replace("#/definitions/", "")
             potential_sub_block_schema_fields = definitions[definition_key]
             # Determines the definition to use when registering a child
             # block schema by verifying that the block type name stored in
@@ -217,13 +224,6 @@ def _get_fields_for_child_schema(
                 # need to iterate
                 sub_block_schema_fields = potential_sub_block_schema_fields
                 break
-    else:
-        # When a block schema reference is a single block, we can use the
-        # title to directly find the definition for that block schema.
-        _find_nested_reference_strings
-        sub_block_schema_fields = definitions[
-            spec_reference["$ref"].replace("#/definitions/", "")
-        ]
     return sub_block_schema_fields
 
 
