@@ -186,6 +186,7 @@ class OrchestrationContext(PrefectBaseModel):
             try:
                 await self._validate_proposed_state()
             except Exception:
+                self.run.set_state(None)  # unset the run state in case it's been set
                 continue
             return
 
