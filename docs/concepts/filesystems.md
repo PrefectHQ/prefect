@@ -182,7 +182,7 @@ You need to install `adlfs` to use it.
 
 ## Handling credentials for cloud object storage services
 
-If you leverage `S3`, `GCS`, or `Azure` storage blocks, and you don't explicitly configure credentials on the respective storage block, those credentials will be inferred from the environment. Make sure to set those either on the block or as environment variables, configuration files, or IAM roles within the build environment from which you create your deployments.
+If you leverage `S3`, `GCS`, or `Azure` storage blocks, and you don't explicitly configure credentials on the respective storage block, those credentials will be inferred from the environment. Make sure to set those either explicitly on the block or as environment variables, configuration files, or IAM roles within both the build and runtime environment for your deployments.
 
 
 ## Saving and loading file systems
