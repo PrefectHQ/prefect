@@ -23,7 +23,7 @@ This pull request is:
 	- Please reference the related issue by including "closes `<link to issue>`" in this Pull Request's summary section. 
         - If no issue exists, please create a feature enhancement issue 
 	- Please include tests
-    - Please make sure that your QA steps are both thorough and easy to reproduce by someobdy with limited knowledge of the feature that you are submitting
+    - Please make sure that your QA steps are both thorough and easy to reproduce by somebody with limited knowledge of the feature that you are submitting
 
 
 **Happy engineering!**
