@@ -953,7 +953,6 @@ class TestReadBlockSchemas:
         assert block_schema.fields == IsABlock.schema()
         assert block_schema.checksum == IsABlock._calculate_schema_checksum()
 
-
         read_block_schema = await models.block_schemas.read_block_schema(
             session=session, block_schema_id=block_schema.id
         )
@@ -992,8 +991,10 @@ class TestReadBlockSchemas:
         )
         assert read_parent_block_schema.fields == IsAlsoABlock.schema()
 
-        read_child_block_schema = await models.block_schemas.read_block_schema_by_checksum(
-            session=session, checksum=IsABlock._calculate_schema_checksum()
+        read_child_block_schema = (
+            await models.block_schemas.read_block_schema_by_checksum(
+                session=session, checksum=IsABlock._calculate_schema_checksum()
+            )
         )
         assert read_child_block_schema.fields == IsABlock.schema()
 
@@ -1020,7 +1021,6 @@ class TestReadBlockSchemas:
 
         assert block_schema.fields == Parent.schema()
         assert block_schema.checksum == Parent._calculate_schema_checksum()
-
 
         read_block_schema = await models.block_schemas.read_block_schema(
             session=session, block_schema_id=block_schema.id
