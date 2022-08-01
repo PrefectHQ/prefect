@@ -113,7 +113,7 @@ block.save("dev")
 
 To use it in a deployment:
 ```bash
-prefect deployment create --name dev --tag dev -sb s3/dev
+prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb s3/dev
 ```
 
 You need to install `s3fs`to use it.
@@ -143,7 +143,7 @@ block.save("dev")
 
 To use it in a deployment:
 ```bash
-prefect deployment create --name dev --tag dev -sb gcs/dev
+prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb gcs/dev
 ```
 
 You need to install `gcsfs`to use it.
@@ -174,7 +174,7 @@ block.save("dev")
 
 To use it in a deployment:
 ```bash
-prefect deployment create --name dev --tag dev -sb az/dev
+prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb az/dev
 ```
 
 You need to install `adlfs` to use it.
