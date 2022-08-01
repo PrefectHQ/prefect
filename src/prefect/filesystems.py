@@ -438,7 +438,7 @@ class GCS(ReadableFileSystem, WritableFileSystem):
 
 class Azure(ReadableFileSystem, WritableFileSystem):
     """
-    Store data as a file on Azure Datake and Azure Blob Storage.
+    Store data as a file on Azure Datalake and Azure Blob Storage.
 
     Example:
         Load stored Azure config:
