@@ -120,6 +120,7 @@ class TestTransformCreateMaterialization:
                     result=None,
                     result_primary_time_granularity=None,
                     result_source=None,
+                    warnings=[],
                 )
 
         mock_mql_client.return_value = MockMQLClient
@@ -186,6 +187,7 @@ class TestTransformCreateMaterialization:
                     result=None,
                     result_primary_time_granularity=None,
                     result_source=None,
+                    warnings=[],
                 )
 
         mock_mql_client.return_value = MockMQLClient
@@ -223,6 +225,7 @@ class TestTransformCreateMaterialization:
                     result=None,
                     result_primary_time_granularity=None,
                     result_source=None,
+                    warnings=[],
                 )
 
         mock_mql_client.return_value = MockMQLClient
@@ -260,6 +263,7 @@ class TestTransformCreateMaterialization:
                     result=None,
                     result_primary_time_granularity=None,
                     result_source=None,
+                    warnings=[],
                 )
 
         mock_mql_client.return_value = MockMQLClient
