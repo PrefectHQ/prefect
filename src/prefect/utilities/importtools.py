@@ -133,12 +133,20 @@ def load_script_as_module(path: str) -> ModuleType:
 
     See https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
     """
-    spec = importlib.util.spec_from_file_location("__prefect_loader__", path)
+    # We will add the parent directory to search locations to support relative imports
+    # during execution of the script
+    parent_path = str(Path(path).parent)
+
+    spec = importlib.util.spec_from_file_location(
+        "__prefect_loader__",
+        path,
+        # Support explicit relative imports
+        submodule_search_locations=[parent_path],
+    )
     module = importlib.util.module_from_spec(spec)
     sys.modules["__prefect_loader__"] = module
 
-    # Insert the parent directory to support relative imports during execution
-    parent_path = str(Path(path).parent)
+    # Support implicit relative imports
     sys.path.insert(0, parent_path)
 
     try:
