@@ -67,11 +67,11 @@ class KubernetesJob(Infrastructure):
     # shortcuts for the most common user-serviceable settings
     image: str = Field(default_factory=get_prefect_image_name)
     namespace: str = "default"
-    service_account_name: str = None
+    service_account_name: Optional[str] = None
     image_pull_policy: Optional[KubernetesImagePullPolicy] = None
 
     # connection to a cluster
-    cluster_config: KubernetesClusterConfig = None
+    cluster_config: Optional[KubernetesClusterConfig] = None
 
     # settings allowing full customization of the Job
     job: KubernetesManifest = Field(
