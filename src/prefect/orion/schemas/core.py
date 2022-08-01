@@ -12,7 +12,7 @@ import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.names import generate_slug, obfuscate_string
-from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
+from prefect.orion.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
@@ -147,17 +147,17 @@ class FlowRun(ORMBaseModel):
         0, description="The number of times the flow run was executed."
     )
 
-    expected_start_time: datetime.datetime = Field(
+    expected_start_time: DateTimeTZ = Field(
         None,
         description="The flow run's expected start time.",
     )
 
-    next_scheduled_start_time: datetime.datetime = Field(
+    next_scheduled_start_time: DateTimeTZ = Field(
         None,
         description="The next time the flow run is scheduled to start.",
     )
-    start_time: datetime.datetime = Field(None, description="The actual start time.")
-    end_time: datetime.datetime = Field(None, description="The actual end time.")
+    start_time: DateTimeTZ = Field(None, description="The actual start time.")
+    end_time: DateTimeTZ = Field(None, description="The actual end time.")
     total_run_time: datetime.timedelta = Field(
         datetime.timedelta(0),
         description="Total run time. If the flow run was executed multiple times, the time of each run will be summed.",
@@ -261,7 +261,7 @@ class TaskRun(ORMBaseModel):
         None,
         description="An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run.",
     )
-    cache_expiration: datetime.datetime = Field(
+    cache_expiration: DateTimeTZ = Field(
         None, description="Specifies when the cached state should expire."
     )
     task_version: str = Field(None, description="The version of the task being run.")
@@ -287,19 +287,19 @@ class TaskRun(ORMBaseModel):
         0, description="The number of times the task run has been executed."
     )
 
-    expected_start_time: datetime.datetime = Field(
+    expected_start_time: DateTimeTZ = Field(
         None,
         description="The task run's expected start time.",
     )
 
     # the next scheduled start time will be populated
     # whenever the run is in a scheduled state
-    next_scheduled_start_time: datetime.datetime = Field(
+    next_scheduled_start_time: DateTimeTZ = Field(
         None,
         description="The next time the task run is scheduled to start.",
     )
-    start_time: datetime.datetime = Field(None, description="The actual start time.")
-    end_time: datetime.datetime = Field(None, description="The actual end time.")
+    start_time: DateTimeTZ = Field(None, description="The actual start time.")
+    end_time: DateTimeTZ = Field(None, description="The actual end time.")
     total_run_time: datetime.timedelta = Field(
         datetime.timedelta(0),
         description="Total run time. If the task run was executed multiple times, the time of each run will be summed.",
@@ -594,7 +594,7 @@ class Log(ORMBaseModel):
     name: str = Field(..., description="The logger name.")
     level: int = Field(..., description="The log level.")
     message: str = Field(..., description="The log message.")
-    timestamp: datetime.datetime = Field(..., description="The log timestamp.")
+    timestamp: DateTimeTZ = Field(..., description="The log timestamp.")
     flow_run_id: UUID = Field(
         ..., description="The flow run ID associated with the log."
     )
@@ -738,7 +738,7 @@ class Agent(ORMBaseModel):
     work_queue_id: UUID = Field(
         ..., description="The work queue with which the agent is associated."
     )
-    last_activity_time: Optional[datetime.datetime] = Field(
+    last_activity_time: Optional[DateTimeTZ] = Field(
         None, description="The last time this agent polled for work."
     )
 
