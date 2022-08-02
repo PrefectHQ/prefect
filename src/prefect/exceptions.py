@@ -57,18 +57,6 @@ class UnspecifiedFlowError(PrefectException):
     """
 
 
-class MissingDeploymentError(PrefectException):
-    """
-    Raised when a given deployment name is not found in the expected script.
-    """
-
-
-class UnspecifiedDeploymentError(PrefectException):
-    """
-    Raised when multiple deployments are found in the expected script and no name is given.
-    """
-
-
 class ScriptError(PrefectException):
     """
     Raised when a script errors during evaluation while attempting to load data

@@ -7,7 +7,6 @@ from enum import Enum
 from inspect import getdoc
 from pathlib import Path
 from typing import List, Optional
-from uuid import UUID
 
 import pendulum
 import typer
@@ -22,17 +21,10 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.deployments import (
-    Deployment,
-    DeploymentYAML,
-    PackageManifest,
-    load_deployments_from_yaml,
-)
+from prefect.deployments import DeploymentYAML, load_deployments_from_yaml
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError, ScriptError
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
-from prefect.infrastructure.submission import _prepare_infrastructure
-from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.filesystem import set_default_ignore_file
@@ -116,16 +108,42 @@ async def inspect(name: str):
     \b
     Example:
         \b
-        $ prefect deployment inspect "hello-world/inline-deployment"
-        Deployment(
-            id='dfd3e220-a130-4149-9af6-8d487e02fea6',
-            created='39 minutes ago',
-            updated='39 minutes ago',
-            name='inline-deployment',
-            flow_id='fe50cfa6-fd54-42e3-8930-6d9192678f89',
-            parameters={'name': 'Marvin'},
-            tags=['foo', 'bar']
-        )
+        $ prefect deployment inspect "hello-world/my-deployment"
+        {
+            'id': '610df9c3-0fb4-4856-b330-67f588d20201',
+            'created': '2022-08-01T18:36:25.192102+00:00',
+            'updated': '2022-08-01T18:36:25.188166+00:00',
+            'name': 'my-deployment',
+            'description': None,
+            'flow_id': 'b57b0aa2-ef3a-479e-be49-381fb0483b4e',
+            'schedule': None,
+            'is_schedule_active': True,
+            'parameters': {'name': 'Marvin'},
+            'tags': ['test'],
+            'parameter_openapi_schema': {
+                'title': 'Parameters',
+                'type': 'object',
+                'properties': {
+                    'name': {
+                        'title': 'name',
+                        'type': 'string'
+                    }
+                },
+                'required': ['name']
+            },
+            'manifest_path': 'my-deployment.json',
+            'storage_document_id': '63ef008f-1e5d-4e07-a0d4-4535731adb32',
+            'infrastructure_document_id': '6702c598-7094-42c8-9785-338d2ec3a028',
+            'infrastructure': {
+                'type': 'process',
+                'env': {},
+                'labels': {},
+                'name': None,
+                'command': ['python', '-m', 'prefect.engine'],
+                'stream_output': True
+            }
+        }
+
     """
     assert_deployment_name_format(name)
 
@@ -294,22 +312,6 @@ async def apply(
     )
 
 
-def _deployment_name(deployment: Deployment):
-    if isinstance(deployment.flow, PackageManifest):
-        flow_name = deployment.flow.flow_name
-    else:
-        flow_name = deployment.flow.name
-
-    if flow_name and deployment.name:
-        return f"{flow_name}/{deployment.name}"
-    elif deployment.name and not flow_name:
-        return f"{deployment.name}"
-    elif not deployment.name and flow_name:
-        return f"{flow_name}/{flow_name}"
-    else:
-        return "<no name provided>"
-
-
 @deployment_app.command()
 async def delete(
     name: Optional[str] = typer.Argument(
@@ -344,53 +346,6 @@ async def delete(
                 exit_with_error(f"Deployment {name!r} not found!")
         else:
             exit_with_error("Must provide a deployment name or id")
-
-
-@deployment_app.command()
-async def preview(path: Path):
-    """
-    Prints a preview of a deployment.
-
-    Accepts the same file types as `prefect deployment create`.  This preview will
-    include any customizations you have made to your deployment's FlowRunner.  If your
-    file includes multiple deployments, use `--name` to identify one to preview.
-
-    `prefect deployment preview` is intended for previewing the customizations you've
-    made to your deployments, and will include mock identifiers.  They will not run
-    correctly if applied directly to an execution environment (like a Kubernetes
-    cluster).  Use `prefect deployment create` and `prefect deployment run` to
-    actually run your deployments.
-
-    \b
-    Example:
-        \b
-        $ prefect deployment preview my-flow.py
-
-    \b
-    Output:
-        \b
-        apiVersion: batch/v1
-        kind: Job ...
-
-    """
-    registry = _load_deployments(path, quietly=True)
-
-    # create an exemplar FlowRun
-    flow_run = FlowRun(
-        id=UUID(int=0),
-        flow_id=UUID(int=0),
-        name="cool-name",
-    )
-
-    deployments = registry.get_instances(Deployment)
-
-    if not deployments:
-        exit_with_error("No deployments found!")
-
-    for deployment in deployments:
-        name = repr(deployment.name) if deployment.name else "<unnamed deployment>"
-        app.console.print(f"[green]Preview for {name}[/]:\n")
-        print(_prepare_infrastructure(flow_run, deployment.infrastructure).preview())
 
 
 class Infra(str, Enum):
