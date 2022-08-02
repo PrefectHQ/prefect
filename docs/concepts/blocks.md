@@ -58,6 +58,9 @@ def what_is_the_answer():
 what_is_the_answer() # 42
 ```
 
+!!! tip "Sharing Blocks"
+    Blocks can also be loaded by Workspace Collaborators, available in [Prefect Cloud](/ui/cloud/).
+
 Blocks can also be loaded with a unique slug which a combination of a block type slug and a block document name.
 
 To load our JSON block document from before, we can run the following:
