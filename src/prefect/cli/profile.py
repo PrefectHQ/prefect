@@ -252,7 +252,7 @@ def rename(name: str, new_name: str):
     profiles.add_profile(profiles[name].copy(update={"name": new_name}))
     profiles.remove_profile(name)
 
-    # Switch the active profile to the new name if provided
+    # If the active profile was renamed switch the active profile to the new name.
     context_profile = prefect.context.get_settings_context().profile
     if profiles.active_name == name:
         profiles.set_active(new_name)
