@@ -26,6 +26,7 @@ class TestCreateDeployment:
     ):
         data = DeploymentCreate(
             name="My Deployment",
+            version="mint",
             manifest_path="file.json",
             flow_id=flow.id,
             tags=["foo"],
@@ -36,6 +37,7 @@ class TestCreateDeployment:
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "My Deployment"
+        assert response.json()["version"] == "mint"
         assert response.json()["manifest_path"] == "file.json"
         assert response.json()["storage_document_id"] == str(storage_document_id)
         assert response.json()["infrastructure_document_id"] == str(
