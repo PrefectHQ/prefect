@@ -1,51 +1,5 @@
 """
 Objects for specifying deployments and utilities for loading flows from deployments.
-
-Deployments can be defined with the `Deployment` object.
-
-To use your deployment, it must be registered with the API. The `Deployment.create()`
-method can be used, or the `prefect deployment create` CLI.
-
-Examples:
-    Define a flow
-    >>> from prefect import flow
-    >>> @flow
-    >>> def hello_world(name="world"):
-    >>>     print(f"Hello, {name}!")
-
-    Write a deployment that sets a new parameter default
-    >>> from prefect.deployments import Deployment
-    >>> Deployment(
-    >>>     flow=hello_world,
-    >>>     name="my-first-deployment",
-    >>>     parameters={"name": "Earth"},
-    >>>     tags=["foo", "bar"],
-    >>> )
-
-    Add a schedule to the deployment to run the flow hourly
-    >>> from prefect.orion.schemas.schedules import IntervalSchedule
-    >>> from datetime import timedelta
-    >>> Deployment(
-    >>>     ...
-    >>>     schedule=IntervalSchedule(interval=timedelta(hours=1))
-    >>> )
-
-    Deployments can also be written in YAML and refer to the flow's location instead
-    of the `Flow` object. If there are multiple flows in the file, a name will needed
-    to load the correct flow.
-    ```yaml
-    name: my-first-deployment
-    flow:
-        path: ./path-to-the-flow-script.py
-        name: hello-world
-    tags:
-    - foo
-    - bar
-    parameters:
-      name: "Earth"
-    schedule:
-      interval: 3600
-    ```
 """
 
 import json
@@ -378,6 +332,7 @@ class DeploymentYAML(BaseModel):
         editable_fields = [
             "name",
             "description",
+            "version",
             "tags",
             "parameters",
             "schedule",
@@ -416,6 +371,7 @@ class DeploymentYAML(BaseModel):
     description: str = Field(
         None, description="An optional description of the deployment."
     )
+    version: str = Field(None, description="An optional version for the deployment.")
     tags: List[str] = Field(default_factory=list)
     schedule: schemas.schedules.SCHEDULE_TYPES = None
     flow_name: str = Field(..., description="The name of the flow.")
