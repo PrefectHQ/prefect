@@ -8,6 +8,7 @@ This release implements a number of improvements and bug fixes in response to co
  .prefectignore files allow users to omit certain files or directories from their deployments. Similar to other .ignore files, the syntax supports pattern matching, so an entry of `*.pyc` will ensure *all* .pyc files are ignored by the deployment call when uploading to remote storage. Prefect provides a default .prefectignore file, but users can customize it to their needs.
 
 ### Improvements and bug fixes
+- Users can now leverage Azure storage blocks.
 - Users can now submit bug reports and feature enhancements using our issue templates.
 - Block deletion is now more performant.
 - Inconsistencies in UI button copy have been removed.
