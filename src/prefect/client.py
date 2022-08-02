@@ -1258,6 +1258,7 @@ class OrionClient:
         self,
         flow_id: UUID,
         name: str,
+        version: str = None,
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         parameters: Dict[str, Any] = None,
         description: str = None,
@@ -1273,6 +1274,7 @@ class OrionClient:
         Args:
             flow_id: the flow ID to create a deployment for
             name: the name of the deployment
+            version: an optional version string for the deployment
             schedule: an optional schedule to apply to the deployment
             tags: an optional list of tags to apply to the deployment
             storage_document_id: an reference to the storage block document
@@ -1289,6 +1291,7 @@ class OrionClient:
         deployment_create = schemas.actions.DeploymentCreate(
             flow_id=flow_id,
             name=name,
+            version=version,
             schedule=schedule,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
