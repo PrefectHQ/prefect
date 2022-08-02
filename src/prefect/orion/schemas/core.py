@@ -326,6 +326,9 @@ class Deployment(ORMBaseModel):
     """An ORM representation of deployment data."""
 
     name: str = Field(..., description="The name of the deployment.")
+    version: Optional[str] = Field(
+        None, description="An optional version for the deployment."
+    )
     description: str = Field(None, description="A description for the deployment.")
     flow_id: UUID = Field(
         ..., description="The flow id associated with the deployment."

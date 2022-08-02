@@ -26,6 +26,7 @@ class TestCreateDeployment:
     ):
         data = DeploymentCreate(
             name="My Deployment",
+            version="mint",
             manifest_path="file.json",
             flow_id=flow.id,
             tags=["foo"],
@@ -36,6 +37,7 @@ class TestCreateDeployment:
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "My Deployment"
+        assert response.json()["version"] == "mint"
         assert response.json()["manifest_path"] == "file.json"
         assert response.json()["storage_document_id"] == str(storage_document_id)
         assert response.json()["infrastructure_document_id"] == str(
@@ -268,6 +270,45 @@ class TestCreateDeployment:
         query = sa.select(sa.func.max(db.FlowRun.expected_start_time))
         result = await session.execute(query)
         assert result.scalar() < pendulum.now().add(seconds=100)
+
+    async def test_create_deployment_throws_useful_error_on_missing_blocks(
+        self,
+        client,
+        flow,
+        infrastructure_document_id,
+        storage_document_id,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            manifest_path="file.json",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=uuid4(),
+            storage_document_id=storage_document_id,
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert (
+            "Error creating deployment. Could not find infrastructure block with id"
+            in response.json()["detail"]
+        ), "Error message identifies infrastructure block could not be found"
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            manifest_path="file.json",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            storage_document_id=uuid4(),
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert (
+            "Error creating deployment. Could not find storage block with id"
+            in response.json()["detail"]
+        ), "Error message identifies storage block could not be found."
 
 
 class TestReadDeployment:

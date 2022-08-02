@@ -7,10 +7,7 @@ from tarfile import TarFile, TarInfo
 
 import pytest
 
-from prefect.client import OrionClient
-from prefect.deployments import Deployment
 from prefect.docker import get_prefect_image_name, silence_docker_warnings
-from prefect.infrastructure.docker import DockerContainer
 from prefect.packaging.docker import DockerPackageManifest, DockerPackager
 from prefect.software.conda import CondaEnvironment
 from prefect.software.python import PythonEnvironment
@@ -136,30 +133,6 @@ async def test_packaging_a_flow_to_registry_without_scheme(
     assert manifest.image.startswith("localhost:5555/howdy:")
     assert manifest.image_flow_location == "/flow.py"
     assert manifest.flow_name == "howdy"
-
-
-@pytest.mark.service("docker")
-@pytest.mark.skip("Packagers are temporarily not supported.")
-async def test_creating_deployments(prefect_base_image: str, orion_client: OrionClient):
-    deployment = Deployment(
-        name="howdy-deployed",
-        flow=howdy,
-        infrastructure=DockerContainer(),
-        packager=DockerPackager(
-            base_image=prefect_base_image,
-            python_environment=PythonEnvironment(
-                python_version="3.9",
-                pip_requirements=["requests==2.28.0"],
-            ),
-        ),
-    )
-    deployment_id = await deployment.create()
-
-    roundtripped = await orion_client.read_deployment(deployment_id)
-    assert roundtripped.flow_data.encoding == "package-manifest"
-
-    manifest = DockerPackageManifest.parse_raw(roundtripped.flow_data.blob)
-    assert IMAGE_ID_PATTERN.match(manifest.image)
 
 
 @pytest.fixture

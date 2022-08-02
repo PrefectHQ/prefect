@@ -294,6 +294,10 @@ async def login(
         "Creating a profile for this Prefect Cloud login. Please specify a profile name: "
     )
 
+    cloud_profile_name = cloud_profile_name.strip()
+    if cloud_profile_name == "":
+        exit_with_error("Please provide a non-empty profile name.")
+
     if cloud_profile_name in profiles:
         exit_with_error(f"Profile {cloud_profile_name!r} already exists.")
 
