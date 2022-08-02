@@ -39,7 +39,10 @@ class InvalidBlockRegistration(Exception):
     """
 
 
-def _collect_nested_reference_strings(obj):
+def _collect_nested_reference_strings(obj: Dict):
+    """
+    Collects all nested reference strings (e.g. #/definitions/Model) from a given object.
+    """
     found_reference_strings = []
     if isinstance(obj, dict):
         if obj.get("$ref"):
@@ -52,9 +55,15 @@ def _collect_nested_reference_strings(obj):
     return found_reference_strings
 
 
-def _get_non_block_definitions(fields, definitions):
+def _get_non_block_reference_definitions(object_definition: Dict, definitions: Dict):
+    """
+    Given a definition of an object in a block schema OpenAPI spec and the dictionary
+    of all reference definitions in that same block schema OpenAPI spec, return the
+    definitions for objects that are referenced from the object or any children of
+    the object that do not reference a block.
+    """
     non_block_definitions = {}
-    reference_strings = _collect_nested_reference_strings(fields)
+    reference_strings = _collect_nested_reference_strings(object_definition)
     for reference_string in reference_strings:
         definition_key = reference_string.replace("#/definitions/", "")
         definition = definitions.get(definition_key)
@@ -62,7 +71,7 @@ def _get_non_block_definitions(fields, definitions):
             non_block_definitions = {
                 **non_block_definitions,
                 definition_key: definition,
-                **_get_non_block_definitions(definition, definitions),
+                **_get_non_block_reference_definitions(definition, definitions),
             }
     return non_block_definitions
 
@@ -227,7 +236,7 @@ class Block(BaseModel, ABC):
             ["description", "secret_fields"], block_schema_fields
         )
         if fields_for_checksum.get("definitions"):
-            non_block_definitions = _get_non_block_definitions(
+            non_block_definitions = _get_non_block_reference_definitions(
                 fields_for_checksum, fields_for_checksum["definitions"]
             )
             if non_block_definitions:

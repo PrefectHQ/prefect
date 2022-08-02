@@ -958,6 +958,31 @@ class TestReadBlockSchemas:
         )
         assert read_block_schema.fields == IsABlock.schema()
 
+    async def test_read_block_with_non_block_list_attribute(self, session):
+        class NotABlock(BaseModel):
+            alias: str
+
+        class IsABlock(Block):
+            size: int
+            contents: List[NotABlock]
+
+        block_type = await models.block_types.create_block_type(
+            session=session, block_type=IsABlock._to_block_type()
+        )
+
+        block_schema = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=IsABlock._to_block_schema(block_type_id=block_type.id),
+        )
+
+        assert block_schema.fields == IsABlock.schema()
+        assert block_schema.checksum == IsABlock._calculate_schema_checksum()
+
+        read_block_schema = await models.block_schemas.read_block_schema(
+            session=session, block_schema_id=block_schema.id
+        )
+        assert read_block_schema.fields == IsABlock.schema()
+
     async def test_read_block_with_both_block_and_non_block_attributes(self, session):
         class NotABlock(BaseModel):
             alias: str
@@ -1021,6 +1046,12 @@ class TestReadBlockSchemas:
 
         assert block_schema.fields == Parent.schema()
         assert block_schema.checksum == Parent._calculate_schema_checksum()
+        assert block_schema.fields["block_schema_references"] == {
+            "children": {
+                "block_type_slug": "child",
+                "block_schema_checksum": Child._calculate_schema_checksum(),
+            }
+        }
 
         read_block_schema = await models.block_schemas.read_block_schema(
             session=session, block_schema_id=block_schema.id
