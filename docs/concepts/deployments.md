@@ -328,6 +328,11 @@ The `prefect deployment` CLI command provides commands for managing and running 
 | `preview` | Prints a preview of a deployment. |
 | `run`     | Create a flow run for the given flow and deployment. |
 
+!!! tip "`PREFECT_API_URL` setting for agents"
+    You'll need to configure [work queues and agents](/concepts/work-queues/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running. 
+
+    If you want the agent to communicate with Prefect Cloud from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
+
 ## Examples
 
 - [How to deploy Prefect 2.0 flows to AWS](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-aws/1252)
