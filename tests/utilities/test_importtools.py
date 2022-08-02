@@ -144,7 +144,7 @@ def reset_sys_modules():
         (__root_path__, TEST_PROJECTS_DIR / "flat-project" / "explicit_relative.py"),
         (__root_path__, TEST_PROJECTS_DIR / "flat-project" / "implicit_relative.py"),
         (__root_path__, TEST_PROJECTS_DIR / "nested-project" / "implicit_relative.py"),
-        # They also work with the working directory set
+        # They also work with the working directory set to the project
         (TEST_PROJECTS_DIR / "flat-project", "explicit_relative.py"),
         (TEST_PROJECTS_DIR / "flat-project", "implicit_relative.py"),
         (TEST_PROJECTS_DIR / "nested-project", "implicit_relative.py"),
@@ -167,6 +167,7 @@ def test_import_object_from_script_with_relative_imports(
 @pytest.mark.parametrize(
     "working_directory,script_path",
     [
+        # Explicit relative imports do not work unless it is a flat structure
         (TEST_PROJECTS_DIR / "nested-project", "explicit_relative.py"),
         (TEST_PROJECTS_DIR / "tree-project", Path("imports") / "explicit_relative.py"),
         # Note here the working directory is too far up in the structure
@@ -195,6 +196,7 @@ def test_import_object_from_script_with_relative_imports_expected_failures(
 @pytest.mark.parametrize(
     "path",
     [
+        # Implicit relative imports work if the working directory is the project
         "flat-project.implicit_relative.foobar",
         "nested-project.implicit_relative.foobar",
         "tree-project.imports.implicit_relative.foobar",
@@ -212,6 +214,7 @@ def test_import_object_from_module_with_relative_imports(path: str):
 @pytest.mark.parametrize(
     "path",
     [
+        # Explicit relative imports are not expected to work
         "flat-project.explicit_relative.foobar",
         "nested-project.explicit_relative.foobar",
         "tree-project.imports.explicit_relative.foobar",
