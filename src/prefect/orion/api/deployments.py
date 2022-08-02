@@ -2,7 +2,6 @@
 Routes for interacting with Deployment objects.
 """
 
-import datetime
 from typing import List
 from uuid import UUID
 
@@ -16,6 +15,7 @@ import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
@@ -38,6 +38,30 @@ async def create_deployment(
 
     # hydrate the input model into a full model
     deployment = schemas.core.Deployment(**deployment.dict())
+
+    # check to see if relevant blocks exist, allowing us throw a useful error message
+    # for debugging
+    if deployment.infrastructure_document_id is not None:
+        infrastructure_block = await models.block_documents.read_block_document_by_id(
+            session=session,
+            block_document_id=deployment.infrastructure_document_id,
+        )
+        if not infrastructure_block:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Error creating deployment. Could not find infrastructure block with id: {deployment.infrastructure_document_id}. This usually occurs when applying a deployment specification that was built against a different Prefect database / workspace.",
+            )
+
+    if deployment.storage_document_id is not None:
+        infrastructure_block = await models.block_documents.read_block_document_by_id(
+            session=session,
+            block_document_id=deployment.storage_document_id,
+        )
+        if not infrastructure_block:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Error creating deployment. Could not find storage block with id: {deployment.storage_document_id}. This usually occurs when applying a deployment specification that was built against a different Prefect database / workspace.",
+            )
 
     now = pendulum.now()
     model = await models.deployments.create_deployment(
@@ -164,10 +188,8 @@ async def delete_deployment(
 @router.post("/{id}/schedule")
 async def schedule_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    start_time: datetime.datetime = Body(
-        None, description="The earliest date to schedule"
-    ),
-    end_time: datetime.datetime = Body(None, description="The latest date to schedule"),
+    start_time: DateTimeTZ = Body(None, description="The earliest date to schedule"),
+    end_time: DateTimeTZ = Body(None, description="The latest date to schedule"),
     max_runs: int = Body(None, description="The maximum number of runs to schedule"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> None:

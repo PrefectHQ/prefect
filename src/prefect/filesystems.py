@@ -13,6 +13,7 @@ from pydantic import Field, SecretStr, validator
 
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.filesystem import filter_files
 
 
 class ReadableFileSystem(Block, abc.ABC):
@@ -96,11 +97,27 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
         else:
             shutil.copytree(from_path, local_path, dirs_exist_ok=True)
 
-    async def put_directory(self, local_path: str = None, to_path: str = None) -> None:
+    async def _get_ignore_func(self, local_path: str, ignore_file: str):
+        with open(ignore_file, "r") as f:
+            ignore_patterns = f.readlines()
+
+        included_files = filter_files(local_path, ignore_patterns)
+
+        def ignore_func(directory, files):
+            return_val = [f for f in files if f not in included_files]
+            return return_val
+
+        return ignore_func
+
+    async def put_directory(
+        self, local_path: str = None, to_path: str = None, ignore_file: str = None
+    ) -> None:
         """
         Copies a directory from one place to another on the local filesystem.
 
         Defaults to copying the entire contents of the current working directory to the block's basepath.
+
+        An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
         """
         if to_path is None:
             to_path = Path(self.basepath).expanduser()
@@ -108,13 +125,19 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
         if local_path is None:
             local_path = Path(".").absolute()
 
+        if ignore_file:
+            ignore_func = await self._get_ignore_func(local_path, ignore_file)
+        else:
+            ignore_func = None
         if local_path == to_path:
             pass
         else:
             if sys.version_info < (3, 8):
-                shutil.copytree(local_path, to_path)
+                shutil.copytree(local_path, to_path, ignore=ignore_func)
             else:
-                shutil.copytree(local_path, to_path, dirs_exist_ok=True)
+                shutil.copytree(
+                    local_path, to_path, dirs_exist_ok=True, ignore=ignore_func
+                )
 
     async def read_path(self, path: str) -> bytes:
         path: Path = self._resolve_path(path)
@@ -228,7 +251,10 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         return self.filesystem.get(from_path, local_path, recursive=True)
 
     async def put_directory(
-        self, local_path: Optional[str] = None, to_path: Optional[str] = None
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
     ) -> int:
         """
         Uploads a directory from a given local path to a remote direcotry.
@@ -241,13 +267,22 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         if local_path is None:
             local_path = "."
 
+        included_files = None
+        if ignore_file:
+            with open(ignore_file, "r") as f:
+                ignore_patterns = f.readlines()
+
+            included_files = filter_files(local_path, ignore_patterns)
+
         counter = 0
         for f in glob.glob("**", recursive=True):
+            if ignore_file and f not in included_files:
+                continue
             if to_path.endswith("/"):
                 fpath = to_path + f
             else:
                 fpath = to_path + "/" + f
-            self.filesystem.put_file(f, fpath)
+            self.filesystem.put_file(f, fpath, overwrite=True)
             counter += 1
         return counter
 
@@ -340,7 +375,10 @@ class S3(ReadableFileSystem, WritableFileSystem):
         )
 
     async def put_directory(
-        self, local_path: Optional[str] = None, to_path: Optional[str] = None
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
     ) -> int:
         """
         Uploads a directory from a given local path to a remote direcotry.
@@ -348,7 +386,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
         return await self.filesystem.put_directory(
-            local_path=local_path, to_path=to_path
+            local_path=local_path, to_path=to_path, ignore_file=ignore_file
         )
 
     async def read_path(self, path: str) -> bytes:
@@ -418,10 +456,104 @@ class GCS(ReadableFileSystem, WritableFileSystem):
         )
 
     async def put_directory(
-        self, local_path: Optional[str] = None, to_path: Optional[str] = None
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
     ) -> int:
         """
         Uploads a directory from a given local path to a remote directory.
+
+        Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        """
+        return await self.filesystem.put_directory(
+            local_path=local_path, to_path=to_path, ignore_file=ignore_file
+        )
+
+    async def read_path(self, path: str) -> bytes:
+        return await self.filesystem.read_path(path)
+
+    async def write_path(self, path: str, content: bytes) -> str:
+        return await self.filesystem.write_path(path=path, content=content)
+
+
+class Azure(ReadableFileSystem, WritableFileSystem):
+    """
+    Store data as a file on Azure Datalake and Azure Blob Storage.
+
+    Example:
+        Load stored Azure config:
+        ```python
+        from prefect.filesystems import Azure
+
+        az_block = Azure.load("BLOCK_NAME")
+        ```
+    """
+
+    _block_type_name = "Azure"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6AiQ6HRIft8TspZH7AfyZg/39fd82bdbb186db85560f688746c8cdd/azure.png?h=250"
+
+    bucket_path: str = Field(
+        ...,
+        description="An Azure storage bucket path",
+        example="my-bucket/a-directory-within",
+    )
+    azure_storage_connection_string: Optional[SecretStr] = Field(
+        None,
+        title="Azure storage connection string",
+        description="Equivalent to the AZURE_STORAGE_CONNECTION_STRING environment variable",
+    )
+    azure_storage_account_name: Optional[SecretStr] = Field(
+        None,
+        title="Azure storage account name",
+        description="Equivalent to the AZURE_STORAGE_ACCOUNT_NAME environment variable",
+    )
+    azure_storage_account_key: Optional[SecretStr] = Field(
+        None,
+        title="Azure storage account key",
+        description="Equivalent to the AZURE_STORAGE_ACCOUNT_KEY environment variable",
+    )
+    _remote_file_system: RemoteFileSystem = None
+
+    @property
+    def basepath(self) -> str:
+        return f"az://{self.bucket_path}"
+
+    @property
+    def filesystem(self) -> RemoteFileSystem:
+        settings = {}
+        if self.azure_storage_connection_string:
+            settings[
+                "connection_string"
+            ] = self.azure_storage_connection_string.get_secret_value()
+        if self.azure_storage_account_name:
+            settings[
+                "account_name"
+            ] = self.azure_storage_account_name.get_secret_value()
+        if self.azure_storage_account_key:
+            settings["account_key"] = self.azure_storage_account_key.get_secret_value()
+        self._remote_file_system = RemoteFileSystem(
+            basepath=f"az://{self.bucket_path}", settings=settings
+        )
+        return self._remote_file_system
+
+    async def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> bytes:
+        """
+        Downloads a directory from a given remote path to a local direcotry.
+
+        Defaults to downloading the entire contents of the block's basepath to the current working directory.
+        """
+        return await self.filesystem.get_directory(
+            from_path=from_path, local_path=local_path
+        )
+
+    async def put_directory(
+        self, local_path: Optional[str] = None, to_path: Optional[str] = None
+    ) -> int:
+        """
+        Uploads a directory from a given local path to a remote direcotry.
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """

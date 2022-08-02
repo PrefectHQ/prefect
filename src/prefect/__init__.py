@@ -27,7 +27,6 @@ from prefect.flows import flow, Flow
 from prefect.tasks import task, Task
 from prefect.context import tags
 from prefect.client import get_client
-from prefect.deployments import Deployment
 from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped
 
@@ -93,7 +92,6 @@ prefect.plugins.load_prefect_collections()
 
 # Declare API
 __all__ = [
-    "Deployment",
     "flow",
     "Flow",
     "get_client",
