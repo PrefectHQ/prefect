@@ -256,6 +256,7 @@ class FlowOrchestrationContext(OrchestrationContext):
                 continue
             return
 
+        self.proposed_state = None
         reason = "Error validating state"
         self.response_status = SetStateStatus.ABORT
         self.response_details = StateAbortDetails(reason=reason)
@@ -387,6 +388,7 @@ class TaskOrchestrationContext(OrchestrationContext):
                 continue
             return
 
+        self.proposed_state = None
         reason = "Error validating state"
         self.response_status = SetStateStatus.ABORT
         self.response_details = StateAbortDetails(reason=reason)
