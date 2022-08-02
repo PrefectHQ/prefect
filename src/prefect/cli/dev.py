@@ -14,6 +14,7 @@ from string import Template
 
 import anyio
 import typer
+import yaml
 
 import prefect
 from prefect.cli._types import PrefectTyper, SettingsOption
@@ -73,6 +74,25 @@ def build_docs(
     with open(schema_path, "w") as f:
         json.dump(schema, f)
     app.console.print(f"OpenAPI schema written to {schema_path}")
+
+
+@dev_app.command()
+def build_docs_yaml(
+    yaml_path: str,
+):
+    """
+    Builds REST API reference documentation in yaml format.
+
+    Intended for use internally in detecting schema changes.
+    """
+    exit_with_error_if_not_editable_install()
+    orion_app = create_app()
+    schema = orion_app.openapi()
+    # overwrite info for comparison
+    schema["info"] = {}
+    with open(yaml_path, "w") as f:
+        yaml.dump(orion_app.openapi(), f)
+    app.console.print(f"OpenAPI schema written to {yaml_path}")
 
 
 BUILD_UI_HELP = f"""

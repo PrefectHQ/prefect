@@ -1,0 +1,99 @@
+name: Check for schema changes
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/check-for-schema-updates.yaml
+      - "**/*.py"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# Limit concurrency by workflow/branch combination.
+#
+# For pull request builds, pushing additional changes to the
+# branch will cancel prior in-progress and pending builds.
+#
+# For builds triggered on a branch push, additional changes
+# will wait for prior builds to complete before starting.
+#
+# https://docs.github.com/en/actions/using-jobs/using-concurrency
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check-schema-diff:
+    name: Check for Orion API schema differences
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.18'
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      # This can be re-enabled and debugged once
+      # prefect dev build-docs-yaml command is on main
+      # - name: Checkout current main
+      #   uses: actions/checkout@v3
+      #   with:
+      #     ref: main
+      #     persist-credentials: false
+      #     fetch-depth: 0
+      # - name: list stuff
+      #   run: ls
+      # - name: Install current main
+      #   run: pip install -e .[dev]
+      # - name: Generate schema yaml for current API
+      #   run: prefect dev build-docs-yaml current-schema.yaml
+
+      # create a yaml file from the schema in the current
+      # pull request
+      - name: Checkout current commit
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install current commit
+        run: pip install -e .[dev]
+      - name: Generate updated schema yaml
+        run: prefect dev build-docs-yaml updated-schema.yaml
+
+      # find and alert on any schema changes
+      - name: Install oasdiff
+        run: go install github.com/tufin/oasdiff@latest
+      - name: Testing for breaking changes
+        id: test_breaking_changes
+        run: oasdiff -format text -base current-schema.yaml -revision updated-schema.yaml --breaking-only --fail-on-diff
+      - name: Display all changes
+        id: display_all_changes
+        run: |
+          schema_diff=$(oasdiff -format text -base current-schema.yaml -revision updated-schema.yaml)
+          schema_diff="${schema_diff//'%'/'%25'}"
+          schema_diff="${schema_diff//$'\n'/'%0A'}"
+          schema_diff="${schema_diff//$'\r'/'%0D'}"
+          echo "::set-output name=schema_diff::$schema_diff" 
+
+      - name: Find Comment
+        uses: peter-evans/find-comment@v2
+        id: fc
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: Schema changes
+      - name: Create or update comment
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            Orion API schema changes in this PR:
+            ${{ steps.display_all_changes.outputs.schema_diff }}
+          edit-mode: replace

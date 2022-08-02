@@ -52,6 +52,10 @@ class Flow(ORMBaseModel):
         description="A list of flow tags",
         example=["tag-1", "tag-2"],
     )
+    new_field: str = Field(
+        default="theres a default so not breaking",
+        description="this is a field i added as a test",
+    )
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
