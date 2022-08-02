@@ -242,6 +242,7 @@ class FlowOrchestrationContext(OrchestrationContext):
         for validation_attempt in range(2):
             try:
                 await self._validate_proposed_state()
+                return
             except Exception:
                 # unset the run state in case it's been set
                 if self.initial_state is not None:
@@ -374,6 +375,7 @@ class TaskOrchestrationContext(OrchestrationContext):
         for validation_attempt in range(2):
             try:
                 await self._validate_proposed_state()
+                return
             except Exception:
                 # unset the run state in case it's been set
                 if self.initial_state is not None:
