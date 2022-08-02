@@ -91,6 +91,16 @@ class TestDatafactoryCreate:
                 )
                 assert result == "df_name"
 
+    def test_run_set_polling_interval(self, monkeypatch):
+        datafactory = MagicMock(DataFactoryManagementClient=MockClient)
+        monkeypatch.setattr(
+            "prefect.tasks.azure.datafactory.azure.mgmt.datafactory", datafactory
+        )
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(AZ_CREDENTIALS=AZ_CREDENTIALS)):
+                task = DatafactoryCreate(polling_interval=42)
+                assert task.polling_interval == 42
+
 
 class TestPipelineCreate:
     def test_initialization(self):
