@@ -28,7 +28,7 @@ class TestInputValidation:
 class TestManifestGeneration:
     @pytest.fixture
     def cwd(self, tmp_path):
-        """Uses a local file system method to move `examples/` to a temporary directory
+        """Uses a local file system method to copy `examples/` to a temporary directory
         from which CLI commands can be run."""
         fpath = Path(__file__).parent / "example-project"
         shutil.copytree(fpath, tmp_path / "example-project")
