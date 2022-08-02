@@ -39,6 +39,30 @@ async def create_deployment(
     # hydrate the input model into a full model
     deployment = schemas.core.Deployment(**deployment.dict())
 
+    # check to see if relevant blocks exist, allowing us throw a useful error message
+    # for debugging
+    if deployment.infrastructure_document_id is not None:
+        infrastructure_block = await models.block_documents.read_block_document_by_id(
+            session=session,
+            block_document_id=deployment.infrastructure_document_id,
+        )
+        if not infrastructure_block:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Error creating deployment. Could not find infrastructure block with id: {deployment.infrastructure_document_id}. This usually occurs when applying a deployment specification that was built against a different Prefect database / workspace.",
+            )
+
+    if deployment.storage_document_id is not None:
+        infrastructure_block = await models.block_documents.read_block_document_by_id(
+            session=session,
+            block_document_id=deployment.storage_document_id,
+        )
+        if not infrastructure_block:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Error creating deployment. Could not find storage block with id: {deployment.storage_document_id}. This usually occurs when applying a deployment specification that was built against a different Prefect database / workspace.",
+            )
+
     now = pendulum.now()
     model = await models.deployments.create_deployment(
         session=session, deployment=deployment
