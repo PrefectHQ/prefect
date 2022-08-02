@@ -1,5 +1,0 @@
-enhancement:
-  - "Adds container parameter to ReadNamespacedPodLogs - [#5979](https://github.com/PrefectHQ/prefect/pull/5979)"
-
-contributor:
-  - "[Alvaro Duran Tovar](https://github.com/hermesdt)"

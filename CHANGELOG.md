@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.3.0 <Badge text="beta" type="success" />
+
+Released on August 2, 2022.
+
+### Enhancements
+
+- Allow custom job name for Kubernetes flow runsto be set in job template - [#5819](https://github.com/PrefectHQ/prefect/pull/5819)
+
+### Task Library
+
+- Adds container parameter to `ReadNamespacedPodLogs` - [#5979](https://github.com/PrefectHQ/prefect/pull/5979)
+- Add `PowershellTask` for running commands with Microsoft Powershell - [#6035](https://github.com/PrefectHQ/prefect/pull/6035)
+- Move `azure-mgmt-datafactory` requirement to 'extras', instead of 'orchestration_extras' - [#6018](https://github.com/PrefectHQ/prefect/pull/6018)
+- Fix default initialization of `polling_interval` in `azure.datafactory.PipelineRun` - [#6021](https://github.com/PrefectHQ/prefect/pull/6021)
+
+### Contributors
+
+- [Alvaro Duran Tovar](https://github.com/hermesdt)
+- [Chinmay Bhat](https://github.com/chinmay-bhat)
+
 ## 1.2.4 <Badge text="beta" type="success" />
 
 Released on July 8, 2022.
