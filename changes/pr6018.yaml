@@ -1,3 +1,0 @@
-fix:
-  - "Move azure-mgmt-datafactory requirement to extras, instead of orchestration_extras - [#6018](https://github.com/PrefectHQ/prefect/pull/6018)"
-

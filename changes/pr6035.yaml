@@ -1,5 +1,0 @@
-enhancement:
-  - "Powershell as shell input to ShellTask - [#6035](https://github.com/PrefectHQ/prefect/pull/6035)"
-
-contributor:
-  - "[Chinmay Bhat](https://github.com/chinmay-bhat)"
