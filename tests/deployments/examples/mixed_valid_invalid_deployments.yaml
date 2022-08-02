@@ -1,6 +1,0 @@
-name: "foo"
-flow: null
----
-name: "bar"
-flow: 
-  path: single_flow_in_file.py
