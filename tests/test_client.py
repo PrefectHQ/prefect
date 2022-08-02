@@ -594,6 +594,7 @@ async def test_create_then_read_deployment(
     deployment_id = await orion_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
+        version="git-commit-hash",
         manifest_path="path/file.json",
         schedule=schedule,
         parameters={"foo": "bar"},
@@ -606,6 +607,7 @@ async def test_create_then_read_deployment(
     lookup = await orion_client.read_deployment(deployment_id)
     assert isinstance(lookup, schemas.core.Deployment)
     assert lookup.name == "test-deployment"
+    assert lookup.version == "git-commit-hash"
     assert lookup.manifest_path == "path/file.json"
     assert lookup.schedule == schedule
     assert lookup.parameters == {"foo": "bar"}
