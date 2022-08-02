@@ -244,12 +244,15 @@ class FlowOrchestrationContext(OrchestrationContext):
                 await self._validate_proposed_state()
             except Exception:
                 # unset the run state in case it's been set
-                initial_orm_state = db.FlowRunState(
-                    flow_run_id=self.run.id,
-                    **self.initial_state.dict(shallow=True),
-                )
-                self.session.add(initial_orm_state)
-                self.run.set_state(initial_orm_state)
+                if self.initial_state is not None:
+                    initial_orm_state = db.FlowRunState(
+                        flow_run_id=self.run.id,
+                        **self.initial_state.dict(shallow=True),
+                    )
+                    self.session.add(initial_orm_state)
+                    self.run.set_state(initial_orm_state)
+                else:
+                    self.run.set_state(None)
                 continue
             return
 
@@ -372,12 +375,15 @@ class TaskOrchestrationContext(OrchestrationContext):
                 await self._validate_proposed_state()
             except Exception:
                 # unset the run state in case it's been set
-                initial_orm_state = db.TaskRunState(
-                    flow_run_id=self.run.id,
-                    **self.initial_state.dict(shallow=True),
-                )
-                self.session.add(initial_orm_state)
-                self.run.set_state(initial_orm_state)
+                if self.initial_state is not None:
+                    initial_orm_state = db.TaskRunState(
+                        task_run_id=self.run.id,
+                        **self.initial_state.dict(shallow=True),
+                    )
+                    self.session.add(initial_orm_state)
+                    self.run.set_state(initial_orm_state)
+                else:
+                    self.run.set_state(None)
                 continue
             return
 
