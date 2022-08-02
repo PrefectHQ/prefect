@@ -25,48 +25,18 @@ Blocks are classes that subclass the `Block` base class. They can be instantiate
 
 For example, to instantiate a block that stores a JSON value, use the `JSON` block:
 
-```python hl_lines="6"
-from prefect import flow
+```python
 from prefect.blocks.system import JSON
 
-@flow
-def using_json_block_flow():
-    json_block = JSON(value={"the_answer": 42})
-
-using_json_block_flow()
-```
-
-### Unpacking blocks
-
-To unpack the block and retrieve the field, `value`:
-
-```python hl_lines="7"
-from prefect import flow
-from prefect.blocks.system import JSON
-
-@flow
-def using_json_block_flow():
-    json_block = JSON(value={"the_answer": 42})
-    json_value = json_block.value
-    print(json_value)
-
-using_json_block_flow()  # outputs {'the_answer': 42}
+json_block = JSON(value={"the_answer": 42})
 ```
 
 ### Saving blocks
 
 If this JSON value needs to be retrieved later to be used within a flow or task, we can use the `.save()` method on the blocks to store the value in a block document on the Orion DB for retrieval later:
 
-```python hl_lines="7"
-from prefect import flow
-from prefect.blocks.system import JSON
-
-@flow
-def using_json_block_flow():
-    json_block = JSON(value={"the_answer": 42})
-    json_block.save(name="life-the-universe-everything", overwrite=True)
-
-using_json_block_flow()
+```python
+json_block.save(name="life-the-universe-everything")
 ```
 
 !!! tip "Utilizing the UI"
@@ -81,28 +51,26 @@ from prefect import flow
 from prefect.blocks.system import JSON
 
 @flow
-def using_json_block_flow():
+def what_is_the_answer():
     json_block = JSON.load("life-the-universe-everything")
     print(json_block.value["the_answer"])
 
-using_json_block_flow() # outputs 42
+what_is_the_answer() # 42
 ```
 
 Blocks can also be loaded with a unique slug which a combination of a block type slug and a block document name.
 
-The following is equivalent to load our JSON block document from before:
+To load our JSON block document from before, we can run the following:
 
-```python hl_lines="2 6"
-from prefect import flow
+```python hl_lines="3"
 from prefect.blocks.core import Block
 
-@flow
-def using_json_block_flow():
-    json_block = Block.load("json/life-the-universe-everything")
-    print(json_block.value["the_answer"]) # outputs 42
-
-using_json_block_flow()
+json_block = Block.load("json/life-the-universe-everything")
+print(json_block.value["the-answer"]) #42
 ```
+
+!!! tip "Sharing Blocks"
+    Blocks can also be loaded by fellow Workspace Collaborators, available on [Prefect Cloud](/ui/cloud/).
 
 ## Creating new block types
 
