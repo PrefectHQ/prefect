@@ -269,6 +269,45 @@ class TestCreateDeployment:
         result = await session.execute(query)
         assert result.scalar() < pendulum.now().add(seconds=100)
 
+    async def test_create_deployment_throws_useful_error_on_missing_blocks(
+        self,
+        client,
+        flow,
+        infrastructure_document_id,
+        storage_document_id,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            manifest_path="file.json",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=uuid4(),
+            storage_document_id=storage_document_id,
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert (
+            "Error creating deployment. Could not find infrastructure block with id"
+            in response.json()["detail"]
+        ), "Error message identifies infrastructure block could not be found"
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            manifest_path="file.json",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            storage_document_id=uuid4(),
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert (
+            "Error creating deployment. Could not find storage block with id"
+            in response.json()["detail"]
+        ), "Error message identifies storage block could not be found."
+
 
 class TestReadDeployment:
     async def test_read_deployment(
