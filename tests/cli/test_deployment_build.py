@@ -1,3 +1,8 @@
+import shutil
+from pathlib import Path
+
+import pytest
+
 from prefect.testing.cli import invoke_and_assert
 
 
@@ -17,4 +22,29 @@ class TestInputValidation:
             ["deployment", "build", "./dog.py"],
             expected_output_contains=["A name for this deployment must be provided"],
             expected_code=1,
+        )
+
+
+class TestManifestGeneration:
+    @pytest.fixture
+    def cwd(self, tmp_path):
+        """Uses a local file system method to move `examples/` to a temporary directory
+        from which CLI commands can be run."""
+        fpath = Path(__file__).parent / "example-project"
+        shutil.copytree(fpath, tmp_path / "example-project")
+        return tmp_path / "example-project"
+
+    def test_manifest_only_creation(self, cwd):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                f"{cwd}/flows/hello.py:my_flow",
+                "-n",
+                "test-me",
+                "--manifest-only",
+            ],
+            expected_output_contains=["Manifest created"],
+            expected_code=0,
+            temp_dir=str(cwd),
         )
