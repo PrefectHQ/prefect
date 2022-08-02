@@ -4,7 +4,6 @@ Command line interface for working with agent services
 from typing import List
 from uuid import UUID
 
-import anyio
 import typer
 
 from prefect.agent import OrionAgent
@@ -14,6 +13,7 @@ from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import ObjectAlreadyExists
 from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL, PREFECT_API_URL
+from prefect.utilities.services import critical_service_loop
 
 agent_app = PrefectTyper(
     name="agent", help="Commands for starting and interacting with agent processes."
@@ -64,7 +64,7 @@ async def start(
         try:
             work_queue_id = UUID(work_queue)
             work_queue_name = None
-        except:
+        except (TypeError, ValueError):
             work_queue_id = None
             work_queue_name = work_queue
     elif tags:
@@ -97,15 +97,14 @@ async def start(
         if not hide_welcome:
             app.console.print(ascii_name)
             app.console.print(
-                f"Agent started! Looking for work from queue '{work_queue_name or work_queue_id}'..."
+                "Agent started! Looking for work from "
+                f"queue '{work_queue_name or work_queue_id}'..."
             )
 
-        while True:
-            try:
-                await agent.get_and_submit_flow_runs()
-            except KeyboardInterrupt:
-                break
-
-            await anyio.sleep(PREFECT_AGENT_QUERY_INTERVAL.value())
+        await critical_service_loop(
+            agent.get_and_submit_flow_runs,
+            PREFECT_AGENT_QUERY_INTERVAL.value(),
+            printer=app.console.print,
+        )
 
     app.console.print("Agent stopped!")

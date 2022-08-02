@@ -57,6 +57,7 @@ class DeploymentCreate(
         name="DeploymentCreate",
         include_fields=[
             "name",
+            "version",
             "flow_id",
             "schedule",
             "is_schedule_active",
@@ -80,6 +81,7 @@ class DeploymentUpdate(
     schemas.core.Deployment.subclass(
         name="DeploymentUpdate",
         include_fields=[
+            "version",
             "schedule",
             "is_schedule_active",
             "description",
