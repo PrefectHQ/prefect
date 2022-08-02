@@ -1,5 +1,5 @@
-from libs.bar import bar
-from libs.foo import foo
+from shared_libs.bar import bar
+from shared_libs.foo import foo
 
 
 def foobar():
