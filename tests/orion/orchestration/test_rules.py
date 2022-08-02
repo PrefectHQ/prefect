@@ -1,6 +1,6 @@
 import contextlib
 import random
-from itertools import product, permutations
+from itertools import permutations, product
 from unittest.mock import ANY, MagicMock
 
 import pendulum
@@ -1315,7 +1315,7 @@ class TestOrchestrationContext:
         ids=transition_names,
     )
     async def test_context_state_validation_encounters_multiple_exceptions(
-            self, session, run_type, intended_transition, initialize_orchestration
+        self, session, run_type, intended_transition, initialize_orchestration
     ):
         initial_state_type, proposed_state_type = intended_transition
         before_transition_hook = MagicMock()
@@ -1342,9 +1342,7 @@ class TestOrchestrationContext:
             RuntimeError("Something's wrong with the database!"),
             RuntimeError("Something's really wrong with the database..."),
         ]
-        object.__setattr__(
-            ctx.session, "flush", AsyncMock(side_effect=side_effects)
-        )
+        object.__setattr__(ctx.session, "flush", AsyncMock(side_effect=side_effects))
 
         async with contextlib.AsyncExitStack() as stack:
             mock_rule = MockRule(ctx, *intended_transition)
@@ -1352,9 +1350,7 @@ class TestOrchestrationContext:
             await ctx.validate_proposed_state()
 
         if ctx.initial_state is None:
-            assert (
-                ctx.run.state is None
-            ), "The run state should remain unchanged"
+            assert ctx.run.state is None, "The run state should remain unchanged"
         else:
             assert (
                 ctx.run.state.type == ctx.initial_state.type
@@ -1374,7 +1370,7 @@ class TestOrchestrationContext:
             ids=transition_names,
         )
         async def test_context_state_validation_encounters_intermittent_exception(
-                self, session, run_type, intended_transition, initialize_orchestration
+            self, session, run_type, intended_transition, initialize_orchestration
         ):
             initial_state_type, proposed_state_type = intended_transition
             before_transition_hook = MagicMock()
@@ -1385,16 +1381,22 @@ class TestOrchestrationContext:
                 FROM_STATES = ALL_ORCHESTRATION_STATES
                 TO_STATES = ALL_ORCHESTRATION_STATES
 
-                async def before_transition(self, initial_state, proposed_state, context):
+                async def before_transition(
+                    self, initial_state, proposed_state, context
+                ):
                     before_transition_hook(initial_state, proposed_state, context)
 
-                async def after_transition(self, initial_state, validated_state, context):
+                async def after_transition(
+                    self, initial_state, validated_state, context
+                ):
                     after_transition_hook(initial_state, validated_state, context)
 
                 async def cleanup(self, initial_state, validated_state, context):
                     cleanup_hook(initial_state, validated_state, context)
 
-            ctx = await initialize_orchestration(session, run_type, *intended_transition)
+            ctx = await initialize_orchestration(
+                session, run_type, *intended_transition
+            )
 
             # Bypass pydantic mutation protection, inject a one-time error
             working_flush = ctx.session.flush
