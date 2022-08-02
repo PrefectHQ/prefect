@@ -1,6 +1,6 @@
 import contextlib
 import random
-from itertools import product
+from itertools import product, permutations
 from unittest.mock import ANY, MagicMock
 
 import pendulum
@@ -492,6 +492,11 @@ class TestBaseOrchestrationRule:
     async def test_rules_that_raise_exceptions_during_before_transition(
         self, session, task_run
     ):
+        # TODO: This test documents undesired behavior: we currently don't handle errors
+        # in the `before_transition` hooks fired by orchestration rules. We probably
+        # want to decide how to proceed in the event of such errors and handle them
+        # accordingly
+
         before_transition_hook = MagicMock()
         after_transition_hook = MagicMock()
         cleanup_step = MagicMock()
@@ -1306,12 +1311,13 @@ class TestOrchestrationContext:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        list(product([*states.StateType, None], [*states.StateType, None])),
+        list(permutations([*states.StateType, None], 2)),
         ids=transition_names,
     )
     async def test_context_state_validation_encounters_multiple_exceptions(
             self, session, run_type, intended_transition, initialize_orchestration
     ):
+        initial_state_type, proposed_state_type = intended_transition
         before_transition_hook = MagicMock()
         after_transition_hook = MagicMock()
         cleanup_hook = MagicMock()
@@ -1355,17 +1361,22 @@ class TestOrchestrationContext:
             ), "The run state should remain unchanged"
 
         before_transition_hook.assert_called_once()
-        after_transition_hook.assert_not_called()
-        cleanup_hook.assert_called_once()
+        if proposed_state_type is not None:
+            after_transition_hook.assert_not_called()
+            cleanup_hook.assert_called_once(), "Cleanup should be called when trasition is aborted"
+        else:
+            after_transition_hook.assert_called_once(), "Rule expected no transition"
+            cleanup_hook.assert_not_called()
 
         @pytest.mark.parametrize(
             "intended_transition",
-            list(product([*states.StateType, None], [*states.StateType, None])),
+            list(permutations([*states.StateType, None], 2)),
             ids=transition_names,
         )
         async def test_context_state_validation_encounters_intermittent_exception(
                 self, session, run_type, intended_transition, initialize_orchestration
         ):
+            initial_state_type, proposed_state_type = intended_transition
             before_transition_hook = MagicMock()
             after_transition_hook = MagicMock()
             cleanup_hook = MagicMock()
@@ -1407,11 +1418,11 @@ class TestOrchestrationContext:
             elif ctx.initial_state is None:
                 assert (
                     ctx.run.state is None
-                ), "The run state was not set to the proposed state after validation"
+                ), "No state should be set if the proposed state is None"
             else:
                 assert (
                     ctx.run.state.type == ctx.initial_state.type
-                ), "The run state was not set to the proposed state after validation"
+                ), "No state should be set if the proposed state is None"
 
             before_transition_hook.assert_called_once()
             after_transition_hook.assert_called_once()
