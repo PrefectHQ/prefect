@@ -1,7 +1,7 @@
 import contextlib
 import random
 from itertools import permutations, product
-from unittest.mock import ANY, MagicMock
+from unittest.mock import MagicMock
 
 import pendulum
 import pytest
