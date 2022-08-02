@@ -1,0 +1,3 @@
+# any PR to this branch gets the v1 label
+v1:
+  - **/*
