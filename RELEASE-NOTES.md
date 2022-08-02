@@ -12,6 +12,7 @@ This release implements a number of improvements and bug fixes in response to co
 - Block deletion is now more performant.
 - Inconsistencies in UI button copy have been removed.
 - Error messaging is clearer in the `deployment build` CLI command.
+- Resolved timeout errors that occurred when using async task functions inside synchronous flows.
 
 ## 2.0.1
 
