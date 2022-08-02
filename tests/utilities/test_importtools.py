@@ -3,6 +3,7 @@ import os
 import runpy
 import sys
 from contextlib import contextmanager
+from pathlib import Path
 from types import ModuleType
 from uuid import uuid4
 
@@ -128,40 +129,69 @@ def test_lazy_import_includes_help_message_in_deferred_failure():
         module.foo
 
 
+@pytest.fixture
+def reset_sys_modules():
+    original = sys.modules.copy()
+    yield
+    sys.modules = original
+
+
+@pytest.mark.usefixtures("reset_sys_modules")
 @pytest.mark.parametrize(
-    "script_path",
+    "working_directory,script_path",
     [
-        TEST_PROJECTS_DIR / "flat-project" / "explicit_relative.py",
-        TEST_PROJECTS_DIR / "flat-project" / "implicit_relative.py",
-        TEST_PROJECTS_DIR / "nested-project" / "implicit_relative.py",
+        # Working directory is not necessary for these imports to work
+        (__root_path__, TEST_PROJECTS_DIR / "flat-project" / "explicit_relative.py"),
+        (__root_path__, TEST_PROJECTS_DIR / "flat-project" / "implicit_relative.py"),
+        (__root_path__, TEST_PROJECTS_DIR / "nested-project" / "implicit_relative.py"),
+        # They also work with the working directory set
+        (TEST_PROJECTS_DIR / "flat-project", "explicit_relative.py"),
+        (TEST_PROJECTS_DIR / "flat-project", "implicit_relative.py"),
+        (TEST_PROJECTS_DIR / "nested-project", "implicit_relative.py"),
+        # The tree structure requires the working directory to be at the base of all
+        # module imports
+        (TEST_PROJECTS_DIR / "tree-project", Path("imports") / "implicit_relative.py"),
     ],
 )
-def test_import_object_from_script_with_relative_imports(script_path):
-    # Remove shared_libs if it exists from a prior test or the module can be cached
-    sys.modules.pop("shared_libs", None)
-    foobar = import_object(f"{script_path}:foobar")
+def test_import_object_from_script_with_relative_imports(
+    working_directory, script_path
+):
+
+    with tmp_chdir(working_directory):
+        foobar = import_object(f"{script_path}:foobar")
+
     assert foobar() == "foobar"
 
 
+@pytest.mark.usefixtures("reset_sys_modules")
 @pytest.mark.parametrize(
-    "script_path",
+    "working_directory,script_path",
     [
-        TEST_PROJECTS_DIR / "nested-project" / "explicit_relative.py",
-        TEST_PROJECTS_DIR / "tree-project" / "imports" / "explicit_relative.py",
-        TEST_PROJECTS_DIR / "tree-project" / "imports" / "implicit_relative.py",
+        (TEST_PROJECTS_DIR / "nested-project", "explicit_relative.py"),
+        (TEST_PROJECTS_DIR / "tree-project", Path("imports") / "explicit_relative.py"),
+        # Note here the working directory is too far up in the structure
+        (
+            TEST_PROJECTS_DIR,
+            Path("tree-project") / "imports" / "implicit_relative.py",
+        ),
+        # Note here the working directory is too far down in the structure
+        (TEST_PROJECTS_DIR / "tree-project" / "imports", "implicit_relative.py"),
     ],
 )
-def test_import_object_from_script_with_relative_imports_expected_failures(script_path):
-    # Remove shared_libs if it exists from a prior test or the module can be cached
-    sys.modules.pop("shared_libs", None)
-    with pytest.raises(ScriptError):
-        import_object(f"{script_path}:foobar")
+def test_import_object_from_script_with_relative_imports_expected_failures(
+    working_directory, script_path
+):
 
-    # Python would raise the same error if running `python <script>`
-    with pytest.raises(ImportError):
-        runpy.run_path(script_path)
+    with tmp_chdir(working_directory):
+        with pytest.raises(ScriptError):
+            import_object(f"{script_path}:foobar")
+
+        # Python would raise the same error if running `python <script>`
+        with pytest.raises(ImportError):
+            runpy.run_path(script_path)
 
 
+@pytest.mark.usefixtures("reset_sys_modules")
 @pytest.mark.parametrize(
     "path",
     [
@@ -171,8 +201,6 @@ def test_import_object_from_script_with_relative_imports_expected_failures(scrip
     ],
 )
 def test_import_object_from_module_with_relative_imports(path: str):
-    # Remove shared_libs if it exists from a prior test or the module can be cached
-    sys.modules.pop("shared_libs", None)
     project_name, _, import_path = path.partition(".")
 
     with tmp_chdir(TEST_PROJECTS_DIR / project_name):
@@ -180,6 +208,7 @@ def test_import_object_from_module_with_relative_imports(path: str):
         assert foobar() == "foobar"
 
 
+@pytest.mark.usefixtures("reset_sys_modules")
 @pytest.mark.parametrize(
     "path",
     [
@@ -189,8 +218,6 @@ def test_import_object_from_module_with_relative_imports(path: str):
     ],
 )
 def test_import_object_from_module_with_relative_imports_expected_failures(path: str):
-    # Remove shared_libs if it exists from a prior test or the module can be cached
-    sys.modules.pop("shared_libs", None)
     project_name, _, import_path = path.partition(".")
 
     with tmp_chdir(TEST_PROJECTS_DIR / project_name):
