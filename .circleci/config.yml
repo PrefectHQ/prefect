@@ -341,13 +341,12 @@ jobs:
     steps:
       - checkout
       - run:
-          # since this job is kicked off on *any* tag, we want to bail if this commit is not on master.
-          # todo: is there a better way to ensure that this is a commit on master?
+          # since this job is kicked off on *any* tag, we want to bail if this commit is not on 1.x
           name: Master branch check
           command: |
             apk add git
-            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
-              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at 1.x | grep 1.x | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the 1.x branch"
               exit 1
             fi
       - setup_remote_docker:
@@ -376,7 +375,7 @@ jobs:
       - run:
           name: Test image
           command: |
-            docker run -dit prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+            docker run -dit prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/1.x/examples/retries_with_mapping.py | python'
       - run:
           name: Push versioned tags
           command: |
@@ -392,7 +391,7 @@ jobs:
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
                   docker push prefecthq/prefect:latest
                   docker push prefecthq/prefect:${CIRCLE_TAG}
-  build_master_docker_image:
+  build_dev_docker_image:
     docker:
       - image: docker
         auth:
@@ -412,8 +411,8 @@ jobs:
           name: Master branch check
           command: |
             apk add git
-            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
-              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at 1.x | grep 1.x | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the 1.x branch"
               exit 1
             fi
       - setup_remote_docker:
@@ -428,17 +427,17 @@ jobs:
               --build-arg PREFECT_VERSION=$CIRCLE_SHA1 \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
               --build-arg EXTRAS=$EXTRAS \
-              -t prefecthq/prefect:master \
+              -t prefecthq/prefect:1-dev \
               .
       - run:
           name: Test image
           command: |
-            docker run -dit prefecthq/prefect:master /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+            docker run -dit prefecthq/prefect:1-dev /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/1.x/examples/retries_with_mapping.py | python'
       - run:
-          name: Push master tag
+          name: Push 1-dev tag
           command: |
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-            docker push prefecthq/prefect:master
+            docker push prefecthq/prefect:1-dev
 
   build_core_docker_image:
     docker:
@@ -460,8 +459,8 @@ jobs:
           name: Master branch check
           command: |
             apk add git
-            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
-              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at 1.x | grep 1.x | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the 1.x branch"
               exit 1
             fi
       - setup_remote_docker:
@@ -481,7 +480,7 @@ jobs:
       - run:
           name: Test image
           command: |
-            docker run -dit prefecthq/prefect:core-${CIRCLE_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+            docker run -dit prefecthq/prefect:core-${CIRCLE_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/1.x/examples/retries_with_mapping.py | python'
       - run:
           name: Push core tag
           command: |
@@ -527,12 +526,11 @@ jobs:
 
       - run:
           # since this job is kicked off on *any* tag (that matches the version pattern), we want to bail if this
-          # commit is not on master.
-          # todo: is there a better way to ensure that this is a commit on master?
+          # commit is not on 1.x.
           name: Master branch check
           command: |
-            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
-              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at 1.x | grep 1.x | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the 1.x branch"
               exit 1
             fi
       - run:
@@ -575,12 +573,12 @@ workflows:
 
   'Build and publish development artifacts':
     jobs:
-      - build_master_docker_image:
+      - build_dev_docker_image:
           python_version: '3.7'
           extras: 'all_orchestration_extras'
           filters:
             branches:
-              only: master
+              only: '1.x'
 
   'Build and publish release artifacts':
     jobs:
