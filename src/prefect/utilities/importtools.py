@@ -136,17 +136,19 @@ def load_script_as_module(path: str) -> ModuleType:
     # We will add the parent directory to search locations to support relative imports
     # during execution of the script
     parent_path = str(Path(path).parent)
+    working_directory = os.getcwd()
 
     spec = importlib.util.spec_from_file_location(
         "__prefect_loader__",
         path,
-        # Support explicit relative imports
-        submodule_search_locations=[parent_path],
+        # Support explicit relative imports i.e. `from .foo import bar`
+        submodule_search_locations=[parent_path, working_directory],
     )
     module = importlib.util.module_from_spec(spec)
     sys.modules["__prefect_loader__"] = module
 
-    # Support implicit relative imports
+    # Support implicit relative imports i.e. `from foo import bar`
+    sys.path.insert(0, working_directory)
     sys.path.insert(0, parent_path)
 
     try:
@@ -156,6 +158,7 @@ def load_script_as_module(path: str) -> ModuleType:
     finally:
         sys.modules.pop("__prefect_loader__")
         sys.path.remove(parent_path)
+        sys.path.remove(working_directory)
 
     return module
 

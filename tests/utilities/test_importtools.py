@@ -34,6 +34,9 @@ class Foo:
 def reset_sys_modules():
     original = sys.modules.copy()
     yield
+    for module in set(sys.modules.keys()):
+        if module not in original:
+            del sys.modules[module]
     sys.modules = original
 
 
@@ -129,15 +132,16 @@ def test_lazy_import_includes_help_message_in_deferred_failure():
     "working_directory,script_path",
     [
         # Working directory is not necessary for these imports to work
-        (__root_path__, TEST_PROJECTS_DIR / "flat-project" / "explicit_relative.py"),
         (__root_path__, TEST_PROJECTS_DIR / "flat-project" / "implicit_relative.py"),
+        (__root_path__, TEST_PROJECTS_DIR / "flat-project" / "explicit_relative.py"),
         (__root_path__, TEST_PROJECTS_DIR / "nested-project" / "implicit_relative.py"),
+        (__root_path__, TEST_PROJECTS_DIR / "nested-project" / "explicit_relative.py"),
         # They also work with the working directory set to the project
-        (TEST_PROJECTS_DIR / "flat-project", "explicit_relative.py"),
         (TEST_PROJECTS_DIR / "flat-project", "implicit_relative.py"),
+        (TEST_PROJECTS_DIR / "flat-project", "explicit_relative.py"),
         (TEST_PROJECTS_DIR / "nested-project", "implicit_relative.py"),
-        # The tree structure requires the working directory to be at the base of all
-        # module imports
+        (TEST_PROJECTS_DIR / "nested-project", "explicit_relative.py"),
+        # The tree structure requires the working directory to be at the base
         (TEST_PROJECTS_DIR / "tree-project", Path("imports") / "implicit_relative.py"),
     ],
 )
@@ -155,8 +159,7 @@ def test_import_object_from_script_with_relative_imports(
 @pytest.mark.parametrize(
     "working_directory,script_path",
     [
-        # Explicit relative imports do not work unless it is a flat structure
-        (TEST_PROJECTS_DIR / "nested-project", "explicit_relative.py"),
+        # Explicit relative imports cannot go up levels with script-based imports
         (TEST_PROJECTS_DIR / "tree-project", Path("imports") / "explicit_relative.py"),
         # Note here the working directory is too far up in the structure
         (
@@ -184,10 +187,13 @@ def test_import_object_from_script_with_relative_imports_expected_failures(
 @pytest.mark.parametrize(
     "working_directory,import_path",
     [
-        # Implicit relative imports work if the working directory is the project
+        # Relative imports work if the working directory is the project
         (TEST_PROJECTS_DIR / "flat-project", "implicit_relative.foobar"),
         (TEST_PROJECTS_DIR / "nested-project", "implicit_relative.foobar"),
         (TEST_PROJECTS_DIR / "tree-project", "imports.implicit_relative.foobar"),
+        # (TEST_PROJECTS_DIR / "flat-project", "explicit_relative.foobar"),
+        # (TEST_PROJECTS_DIR / "nested-project", "explicit_relative.foobar"),
+        # (TEST_PROJECTS_DIR / "tree-project", "imports.explicit_relative.foobar"),
     ],
 )
 def test_import_object_from_module_with_relative_imports(
@@ -198,23 +204,21 @@ def test_import_object_from_module_with_relative_imports(
         assert foobar() == "foobar"
 
 
-@pytest.mark.usefixtures("reset_sys_modules")
-@pytest.mark.parametrize(
-    "working_directory,import_path",
-    [
-        # Explicit relative imports are not expected to work
-        (TEST_PROJECTS_DIR / "flat-project", "explicit_relative.foobar"),
-        (TEST_PROJECTS_DIR / "nested-project", "explicit_relative.foobar"),
-        (TEST_PROJECTS_DIR / "tree-project", "imports.explicit_relative.foobar"),
-    ],
-)
-def test_import_object_from_module_with_relative_imports_expected_failures(
-    working_directory, import_path
-):
-    with tmpchdir(working_directory):
-        with pytest.raises((ValueError, ImportError)):
-            import_object(import_path)
+# @pytest.mark.usefixtures("reset_sys_modules")
+# @pytest.mark.parametrize(
+#     "working_directory,import_path",
+#     [
+#         # Not expected to work if the working directory is not the project
+#         # (TEST_PROJECTS_DIR, "implicit_relative.foobar"),
+#     ],
+# )
+# def test_import_object_from_module_with_relative_imports_expected_failures(
+#     working_directory, import_path
+# ):
+#     with tmpchdir(working_directory):
+#         with pytest.raises((ValueError, ImportError)):
+#             import_object(import_path)
 
-        # Python would raise the same error
-        with pytest.raises((ValueError, ImportError)):
-            runpy.run_module(import_path)
+#         # Python would raise the same error
+#         with pytest.raises((ValueError, ImportError)):
+#             runpy.run_module(import_path)
