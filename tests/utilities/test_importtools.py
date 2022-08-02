@@ -1,17 +1,36 @@
 import importlib.util
+import os
+import runpy
 import sys
+from contextlib import contextmanager
 from types import ModuleType
 from uuid import uuid4
 
 import pytest
 
 import prefect
+from prefect import __root_path__
 from prefect.docker import docker_client
+from prefect.exceptions import ScriptError
 from prefect.utilities.importtools import (
     from_qualified_name,
+    import_object,
     lazy_import,
     to_qualified_name,
 )
+
+
+@contextmanager
+def tmp_chdir(dirpath):
+    original = os.getcwd()
+    os.chdir(dirpath)
+    try:
+        yield
+    finally:
+        os.chdir(original)
+
+
+TEST_PROJECTS_DIR = __root_path__ / "tests" / "test-projects"
 
 
 def my_fn():
@@ -107,3 +126,81 @@ def test_lazy_import_includes_help_message_in_deferred_failure():
         ModuleNotFoundError, match="No module named 'flibbidy'.*Hello world"
     ):
         module.foo
+
+
+@pytest.mark.parametrize(
+    "script_path",
+    [
+        TEST_PROJECTS_DIR / "flat-project" / "explicit_relative.py",
+        TEST_PROJECTS_DIR / "flat-project" / "implicit_relative.py",
+        TEST_PROJECTS_DIR / "nested-project" / "implicit_relative.py",
+    ],
+)
+def test_import_object_from_script_with_relative_imports(script_path):
+    # Remove shared_libs if it exists from a prior test or the module can be cached
+    sys.modules.pop("shared_libs", None)
+    foobar = import_object(f"{script_path}:foobar")
+    assert foobar() == "foobar"
+
+
+@pytest.mark.parametrize(
+    "script_path",
+    [
+        TEST_PROJECTS_DIR / "nested-project" / "explicit_relative.py",
+        TEST_PROJECTS_DIR / "tree-project" / "imports" / "explicit_relative.py",
+        TEST_PROJECTS_DIR / "tree-project" / "imports" / "implicit_relative.py",
+    ],
+)
+def test_import_object_from_script_with_relative_imports_expected_failures(script_path):
+    # Remove shared_libs if it exists from a prior test or the module can be cached
+    sys.modules.pop("shared_libs", None)
+    with pytest.raises(ScriptError):
+        import_object(f"{script_path}:foobar")
+
+    # Python would raise the same error if running `python <script>`
+    with pytest.raises(ImportError):
+        runpy.run_path(script_path)
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "flat-project.implicit_relative.foobar",
+        "nested-project.implicit_relative.foobar",
+        "tree-project.imports.implicit_relative.foobar",
+    ],
+)
+def test_import_object_from_module_with_relative_imports(path: str):
+    # Remove shared_libs if it exists from a prior test or the module can be cached
+    sys.modules.pop("shared_libs", None)
+    project_name, _, import_path = path.partition(".")
+
+    with tmp_chdir(TEST_PROJECTS_DIR / project_name):
+        foobar = import_object(import_path)
+        assert foobar() == "foobar"
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "flat-project.explicit_relative.foobar",
+        "nested-project.explicit_relative.foobar",
+        "tree-project.imports.explicit_relative.foobar",
+    ],
+)
+def test_import_object_from_module_with_relative_imports_expected_failures(path: str):
+    # Remove shared_libs if it exists from a prior test or the module can be cached
+    sys.modules.pop("shared_libs", None)
+    project_name, _, import_path = path.partition(".")
+
+    with tmp_chdir(TEST_PROJECTS_DIR / project_name):
+        with pytest.raises(
+            (ValueError, ImportError), match="attempted relative import"
+        ):
+            import_object(import_path)
+
+        # Python would raise the same error
+        with pytest.raises(
+            (ValueError, ImportError), match="attempted relative import"
+        ):
+            runpy.run_module(import_path)
