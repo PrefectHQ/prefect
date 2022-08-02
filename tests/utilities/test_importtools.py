@@ -30,6 +30,13 @@ class Foo:
     pass
 
 
+@pytest.fixture
+def reset_sys_modules():
+    original = sys.modules.copy()
+    yield
+    sys.modules = original
+
+
 @pytest.mark.parametrize(
     "obj,expected",
     [
@@ -117,13 +124,6 @@ def test_lazy_import_includes_help_message_in_deferred_failure():
         module.foo
 
 
-@pytest.fixture
-def reset_sys_modules():
-    original = sys.modules.copy()
-    yield
-    sys.modules = original
-
-
 @pytest.mark.usefixtures("reset_sys_modules")
 @pytest.mark.parametrize(
     "working_directory,script_path",
@@ -182,36 +182,36 @@ def test_import_object_from_script_with_relative_imports_expected_failures(
 
 @pytest.mark.usefixtures("reset_sys_modules")
 @pytest.mark.parametrize(
-    "path",
+    "working_directory,import_path",
     [
         # Implicit relative imports work if the working directory is the project
-        "flat-project.implicit_relative.foobar",
-        "nested-project.implicit_relative.foobar",
-        "tree-project.imports.implicit_relative.foobar",
+        (TEST_PROJECTS_DIR / "flat-project", "implicit_relative.foobar"),
+        (TEST_PROJECTS_DIR / "nested-project", "implicit_relative.foobar"),
+        (TEST_PROJECTS_DIR / "tree-project", "imports.implicit_relative.foobar"),
     ],
 )
-def test_import_object_from_module_with_relative_imports(path: str):
-    project_name, _, import_path = path.partition(".")
-
-    with tmpchdir(TEST_PROJECTS_DIR / project_name):
+def test_import_object_from_module_with_relative_imports(
+    working_directory, import_path
+):
+    with tmpchdir(working_directory):
         foobar = import_object(import_path)
         assert foobar() == "foobar"
 
 
 @pytest.mark.usefixtures("reset_sys_modules")
 @pytest.mark.parametrize(
-    "path",
+    "working_directory,import_path",
     [
         # Explicit relative imports are not expected to work
-        "flat-project.explicit_relative.foobar",
-        "nested-project.explicit_relative.foobar",
-        "tree-project.imports.explicit_relative.foobar",
+        (TEST_PROJECTS_DIR / "flat-project", "explicit_relative.foobar"),
+        (TEST_PROJECTS_DIR / "nested-project", "explicit_relative.foobar"),
+        (TEST_PROJECTS_DIR / "tree-project", "imports.explicit_relative.foobar"),
     ],
 )
-def test_import_object_from_module_with_relative_imports_expected_failures(path: str):
-    project_name, _, import_path = path.partition(".")
-
-    with tmpchdir(TEST_PROJECTS_DIR / project_name):
+def test_import_object_from_module_with_relative_imports_expected_failures(
+    working_directory, import_path
+):
+    with tmpchdir(working_directory):
         with pytest.raises((ValueError, ImportError)):
             import_object(import_path)
 
