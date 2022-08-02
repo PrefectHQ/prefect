@@ -1,8 +1,6 @@
 import importlib.util
-import os
 import runpy
 import sys
-from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
 from uuid import uuid4
@@ -13,23 +11,13 @@ import prefect
 from prefect import __root_path__
 from prefect.docker import docker_client
 from prefect.exceptions import ScriptError
+from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.importtools import (
     from_qualified_name,
     import_object,
     lazy_import,
     to_qualified_name,
 )
-
-
-@contextmanager
-def tmp_chdir(dirpath):
-    original = os.getcwd()
-    os.chdir(dirpath)
-    try:
-        yield
-    finally:
-        os.chdir(original)
-
 
 TEST_PROJECTS_DIR = __root_path__ / "tests" / "test-projects"
 
@@ -157,7 +145,7 @@ def test_import_object_from_script_with_relative_imports(
     working_directory, script_path
 ):
 
-    with tmp_chdir(working_directory):
+    with tmpchdir(working_directory):
         foobar = import_object(f"{script_path}:foobar")
 
     assert foobar() == "foobar"
@@ -183,7 +171,7 @@ def test_import_object_from_script_with_relative_imports_expected_failures(
     working_directory, script_path
 ):
 
-    with tmp_chdir(working_directory):
+    with tmpchdir(working_directory):
         with pytest.raises(ScriptError):
             import_object(f"{script_path}:foobar")
 
@@ -205,7 +193,7 @@ def test_import_object_from_script_with_relative_imports_expected_failures(
 def test_import_object_from_module_with_relative_imports(path: str):
     project_name, _, import_path = path.partition(".")
 
-    with tmp_chdir(TEST_PROJECTS_DIR / project_name):
+    with tmpchdir(TEST_PROJECTS_DIR / project_name):
         foobar = import_object(import_path)
         assert foobar() == "foobar"
 
@@ -223,7 +211,7 @@ def test_import_object_from_module_with_relative_imports(path: str):
 def test_import_object_from_module_with_relative_imports_expected_failures(path: str):
     project_name, _, import_path = path.partition(".")
 
-    with tmp_chdir(TEST_PROJECTS_DIR / project_name):
+    with tmpchdir(TEST_PROJECTS_DIR / project_name):
         with pytest.raises((ValueError, ImportError)):
             import_object(import_path)
 
