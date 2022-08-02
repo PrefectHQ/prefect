@@ -224,13 +224,9 @@ def test_import_object_from_module_with_relative_imports_expected_failures(path:
     project_name, _, import_path = path.partition(".")
 
     with tmp_chdir(TEST_PROJECTS_DIR / project_name):
-        with pytest.raises(
-            (ValueError, ImportError), match="attempted relative import"
-        ):
+        with pytest.raises((ValueError, ImportError)):
             import_object(import_path)
 
         # Python would raise the same error
-        with pytest.raises(
-            (ValueError, ImportError), match="attempted relative import"
-        ):
+        with pytest.raises((ValueError, ImportError)):
             runpy.run_module(import_path)
