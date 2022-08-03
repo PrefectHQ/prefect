@@ -102,7 +102,7 @@ type UseTable = {
   rows: Locator,
 }
 
-export function useTable(locator: string | Locator, page: Page = PAGE): UseTable {
+export function useTable(locator: string | Locator = '.p-table', page: Page = PAGE): UseTable {
   const table = locate(locator, page)
   const rows = table.locator('.p-table-body .p-table-row')
 
@@ -118,7 +118,7 @@ type UseForm = {
   submit: () => Promise<void>,
 }
 
-export function useForm(locator: string | Locator, page: Page = PAGE): UseForm {
+export function useForm(locator: string | Locator = '.p-form', page: Page = PAGE): UseForm {
   const form = locate(locator, page)
   const footer = form.locator('.p-form__footer')
   const submit = async (): Promise<void> => await footer.locator('[type="submit"]').click()
