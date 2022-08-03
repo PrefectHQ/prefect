@@ -255,8 +255,8 @@ class KubernetesJob(Infrastructure):
         shortcuts += [
             {
                 "op": "add",
-                "path": f"/metadata/labels/{key.replace('/', '~1')}",
-                "value": self._slugify_label(value),
+                "path": f"/metadata/labels/{self._slugify_label_key(key).replace('/', '~1', 1)}",
+                "value": self._slugify_label_value(value),
             }
             for key, value in self.labels.items()
         ]
@@ -440,28 +440,86 @@ class KubernetesJob(Infrastructure):
 
         return slug
 
-    def _slugify_label(self, label: str) -> str:
+    def _slugify_label_key(self, key: str) -> str:
         """
-        Slugify text for use as a label.
+        Slugify text for use as a label key.
 
-        Keeps only alphanumeric characters and dashes, and caps the length
-        of the slug at 45 chars.
+        Keys are composed of an optional prefix and name, separated by a slash (/).
 
-        Limits the total length of label text to below 63 characters, which is
-        the limit for e.g. label names that follow RFC 1123 (hostnames) and
-        RFC 1035 (domain names).
+        Keeps only alphanumeric characters, dashes, underscores, and periods.
+        Limits the length of the label prefix to 253 characters.
+        Limits the length of the label name to 63 characters.
+
+        See https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
 
         Args:
-            flow_run: The flow run
+            key: The label key
 
         Returns:
-            the slugified flow name
+            The slugified label key
         """
-        slug = slugify(
-            label,
-            max_length=63,
-            regex_pattern=r"[^a-zA-Z0-9-]+",
+        if "/" in key:
+            prefix, name = key.split("/", maxsplit=1)
+        else:
+            prefix = None
+            name = key
+
+        # TODO: Note that the name must start and end with an alphanumeric character
+        #       but that is not enforced here
+
+        name_slug = (
+            slugify(
+                name,
+                max_length=63,
+                regex_pattern=r"[^a-zA-Z0-9-_.]+",
+            )
+            or name
         )
+        # Fallback to the original if we end up with an empty slug, this will allow
+        # Kubernetes to throw the validation error
+
+        if prefix:
+            prefix_slug = (
+                slugify(
+                    prefix,
+                    max_length=253,
+                    regex_pattern=r"[^a-zA-Z0-9-\.]+",
+                )
+                or prefix
+            )
+
+            return f"{prefix_slug}/{name_slug}"
+
+        return name_slug
+
+    def _slugify_label_value(self, value: str) -> str:
+        """
+        Slugify text for use as a label value.
+
+        Keeps only alphanumeric characters, dashes, underscores, and periods.
+        Limits the total length of label text to below 63 characters.
+
+        See https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
+
+        Args:
+            value: The text for the label
+
+        Returns:
+            The slugified value
+        """
+        # TODO: Note that the text must start and end with an alphanumeric character
+        #       but that is not enforced here
+        slug = (
+            slugify(
+                value,
+                max_length=63,
+                regex_pattern=r"[^a-zA-Z0-9-_\.]+",
+            )
+            or value
+        )
+        # Fallback to the original if we end up with an empty slug, this will allow
+        # Kubernetes to throw the validation error
+
         return slug
 
     def _get_environment_variables(self):
