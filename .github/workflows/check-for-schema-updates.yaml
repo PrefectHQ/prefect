@@ -72,7 +72,7 @@ jobs:
       - name: Display all changes
         id: display_all_changes
         run: |
-          schema_diff=$(oasdiff -format text -base current-schema.yaml -revision updated-schema.yaml)
+          schema_diff=$(oasdiff -format text -base current-schema.yaml -revision updated-schema.yaml -exclude-description -exclude-examples)
           schema_diff="${schema_diff//'%'/'%25'}"
           schema_diff="${schema_diff//$'\n'/'%0A'}"
           schema_diff="${schema_diff//$'\r'/'%0D'}"
