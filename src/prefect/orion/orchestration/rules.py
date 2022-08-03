@@ -260,7 +260,9 @@ class FlowOrchestrationContext(OrchestrationContext):
                 continue
             return
 
-        logger.error(f"Encountered errors during state validation: {validation_errors!r}")
+        logger.error(
+            f"Encountered errors during state validation: {validation_errors!r}"
+        )
         self.proposed_state = None
         reason = f"Error validating state: {validation_errors!r}"
         self.response_status = SetStateStatus.ABORT
@@ -395,7 +397,9 @@ class TaskOrchestrationContext(OrchestrationContext):
                 continue
             return
 
-        logger.error(f"Encountered errors during state validation: {validation_errors!r}")
+        logger.error(
+            f"Encountered errors during state validation: {validation_errors!r}"
+        )
         self.proposed_state = None
         reason = f"Error validating state: {validation_errors!r}"
         self.response_status = SetStateStatus.ABORT
