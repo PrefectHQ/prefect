@@ -57,5 +57,5 @@ dask-worker-space/
 .vscode/
 
 # QA manifest.json and deployment.yaml files
-qa/deployment/*.yaml
-qa/deployment/*.json
+qa/deployments/*/*.yaml
+qa/deployments/*/*.json
