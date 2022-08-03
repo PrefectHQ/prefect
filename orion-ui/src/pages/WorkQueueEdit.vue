@@ -1,7 +1,7 @@
 <template>
   <p-layout-default>
     <template #header>
-      <PageHeadingWorkQueueEdit />
+      <PageHeadingWorkQueueEdit :queue="workQueueDetails" />
     </template>
 
     <WorkQueueForm :work-queue="workQueueDetails" @submit="updateQueue" @cancel="goBack" />

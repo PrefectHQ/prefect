@@ -120,6 +120,16 @@ def my_flow():
     return
 ```
 
+You can also provide the description as the docstring on the flow function.
+
+```python
+@flow(name="My Flow",
+      task_runner=SequentialTaskRunner())
+def my_flow():
+    """My flow using SequentialTaskRunner"""
+    return
+```
+
 Note that `validate_parameters` will check that input values conform to the annotated types on the function. Where possible, values will be coerced into the correct type. For example, if a parameter is defined as `x: int` and "5" is passed, it will be resolved to `5`. If set to `False`, no validation will be performed on flow parameters.
 
 ## Separating logic into tasks
