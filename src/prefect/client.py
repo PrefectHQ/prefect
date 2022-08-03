@@ -514,6 +514,8 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         context: dict = None,
         state: schemas.states.State = None,
+        name: str = None,
+        tags: Iterable[str] = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a deployment.
@@ -535,11 +537,14 @@ class OrionClient:
         parameters = parameters or {}
         context = context or {}
         state = state or Scheduled()
+        tags = tags or []
 
         flow_run_create = schemas.actions.DeploymentFlowRunCreate(
             parameters=parameters,
             context=context,
             state=state,
+            tags=tags,
+            name=name,
         )
 
         response = await self._client.post(
