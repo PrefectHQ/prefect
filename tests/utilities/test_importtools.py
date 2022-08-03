@@ -190,7 +190,7 @@ def test_import_object_from_script_with_relative_imports_expected_failures(
 
         # Python would raise the same error if running `python <script>`
         with pytest.raises(ImportError):
-            runpy.run_path(script_path)
+            runpy.run_path(str(script_path))
 
 
 @pytest.mark.usefixtures("reset_sys_modules")
