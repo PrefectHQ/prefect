@@ -466,17 +466,26 @@ class KubernetesJob(Infrastructure):
 
         # TODO: Note that the name must start and end with an alphanumeric character
         #       but that is not enforced here
-        name_slug = slugify(
-            name,
-            max_length=63,
-            regex_pattern=r"[^a-zA-Z0-9-_.]+",
+
+        name_slug = (
+            slugify(
+                name,
+                max_length=63,
+                regex_pattern=r"[^a-zA-Z0-9-_.]+",
+            )
+            or name
         )
+        # Fallback to the original if we end up with an empty slug, this will allow
+        # Kubernetes to throw the validation error
 
         if prefix:
-            prefix_slug = slugify(
-                prefix,
-                max_length=253,
-                regex_pattern=r"[^a-zA-Z0-9-\.]+",
+            prefix_slug = (
+                slugify(
+                    prefix,
+                    max_length=253,
+                    regex_pattern=r"[^a-zA-Z0-9-\.]+",
+                )
+                or prefix
             )
 
             return f"{prefix_slug}/{name_slug}"
@@ -500,11 +509,17 @@ class KubernetesJob(Infrastructure):
         """
         # TODO: Note that the text must start and end with an alphanumeric character
         #       but that is not enforced here
-        slug = slugify(
-            value,
-            max_length=63,
-            regex_pattern=r"[^a-zA-Z0-9-_\.]+",
+        slug = (
+            slugify(
+                value,
+                max_length=63,
+                regex_pattern=r"[^a-zA-Z0-9-_\.]+",
+            )
+            or value
         )
+        # Fallback to the original if we end up with an empty slug, this will allow
+        # Kubernetes to throw the validation error
+
         return slug
 
     def _get_environment_variables(self):

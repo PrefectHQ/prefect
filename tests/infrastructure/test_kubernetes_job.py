@@ -230,6 +230,10 @@ async def test_uses_labels_setting(
         ("a" * 300, "a" * 63),
         # Truncation of the prefix and name together
         ("a" * 300 + "/" + "b" * 100, "a" * 253 + "/" + "b" * 63),
+        # All invalid passes through
+        ("$@*^$@", "$@*^$@"),
+        # All invalid passes through for prefix
+        ("$@*^$@/name", "$@*^$@/name"),
     ],
 )
 async def test_sanitizes_user_label_keys(
@@ -263,6 +267,8 @@ async def test_sanitizes_user_label_keys(
         ),
         # Truncation
         ("a" * 100, "a" * 63),
+        # All invalid passes through
+        ("$@*^$@", "$@*^$@"),
     ],
 )
 async def test_sanitizes_user_label_values(
