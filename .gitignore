@@ -55,3 +55,7 @@ dask-worker-space/
 # Editors
 .idea/
 .vscode/
+
+# QA manifest.json and deployment.yaml files
+qa/deployment/*.yaml
+qa/deployment/*.json
