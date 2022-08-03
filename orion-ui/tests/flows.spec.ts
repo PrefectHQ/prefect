@@ -1,11 +1,11 @@
-import { test, expect } from '@playwright/test'
-
-test.beforeEach(async ({ page }) => {
-  await page.goto('http://127.0.0.1:4200/flows')
-})
+import { expect } from '@playwright/test'
+import { test, useTable } from './utilities'
 
 test('Flows show up in the list', async ({ page }) => {
-  const flows = page.locator('.flows-table .p-table-body .p-table-row')
+  await page.goto('/flows')
 
-  await expect(await flows.count()).toEqual(2)
+  const { rows: flows } = useTable('.flows-table')
+  const count = await flows.count()
+
+  await expect(count).toEqual(2)
 })
