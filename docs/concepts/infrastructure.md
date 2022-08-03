@@ -226,13 +226,29 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 
 ## Docker images
 
-Prefect agents rely on Docker images for executing flow runs using `DockerContainer` or `KubernetesJob` infrastructure.
-
 Every release of Prefect comes with a few built-in images. These images are all
-named [prefecthq/prefect](https://hub.docker.com/r/prefecthq/prefect), but have
-a few different tag options:
+named [prefecthq/prefect](https://hub.docker.com/r/prefecthq/prefect) and their
+**tags** are used to identify differences in images.
 
+Prefect agents rely on Docker images for executing flow runs using `DockerContainer` or `KubernetesJob` infrastructure. 
+If you do not specify an image, we will use a Prefect image tag that matches your local Prefect and Python versions. 
+If you are building your own image, you may find it useful to use one of the Prefect images as a base.
+
+When a release is published, images are built for all of Prefect's supported Python versions. 
+These images are tagged to identify the combination of Prefect and Python versions contained. 
+Additionally, we have "convenience" tags which are updated with each release to facilitate automatic updates.
+
+For example, when release `2.1.1` is published:
+
+1. Images with the release packaged are built for each supported Python version (3.7, 3.8, 3.9, 3.10) with both standard Python and Conda.
+2. These images are tagged with the full description, e.g. `prefect:2.1.1-python3.7` and `prefect:2.1.1-python3.7-conda`.
+3. For users that want more specific pins, these images are also tagged with the SHA of the git commit of the release, e.g. `sha-88a7ff17a3435ec33c95c0323b8f05d7b9f3f6d2-python3.7`
+4. For users that want to be on the latest `2.1.x` release, receiving patch updates, we update a tag without the patch version to this release e.g. `prefect.2.1-python3.7`.
+5. For users that want to be on the latest `2.x.y` release, receiving minor version updates, we update a tag without the minor or patch version to this release e.g. `prefect.2-python3.7`
+6. Finally, for users who want the latest `2.x.y` release without specifying a Python version, we update `2-latest` to the image for our highest supported Python version which in this case would be equivalent to `prefect:2.1.1-python3.10`.
 ### Standard Python
+
+Standard Python images are based on the official Python `slim` images e.g. `python:3.10-slim`.
 
 | Tag                   |       Prefect Version       | Python Version  |
 | --------------------- | :-------------------------: | -------------:  |
@@ -252,6 +268,8 @@ a few different tag options:
 | sha-&lt;hash&gt;-python3.7  |            &lt;hash&gt;           |            3.7  |
 
 ### Conda-flavored Python
+
+Conda flavored images are based on `continuumio/miniconda3`. Prefect is installed into a conda environment named `prefect`.
 
 | Tag                         |       Prefect Version       | Python Version  |
 | --------------------------- | :-------------------------: | -------------:  |
