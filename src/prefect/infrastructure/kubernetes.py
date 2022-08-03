@@ -445,17 +445,12 @@ class KubernetesJob(Infrastructure):
         Slugify text for use as a label key.
 
         Keys are composed of an optional prefix and name, separated by a slash (/).
-        The name segment is required and must be 63 characters or less, beginning
-        and ending with an alphanumeric character ([a-z0-9A-Z]) with dashes (-),
-        underscores (_), dots (.), and alphanumerics between.
 
-        The prefix is optional. If specified, the prefix must be a DNS subdomain:
-        a series of DNS labels separated by dots (.),
-        not longer than 253 characters in total, followed by a slash (/).
+        Keeps only alphanumeric characters, dashes, underscores, and periods.
+        Limits the length of the label prefix to 253 characters.
+        Limits the length of the label name to 63 characters.
 
-        Limits the total length of label text to below 63 characters, which is
-        the limit for e.g. label names that follow RFC 1123 (hostnames) and
-        RFC 1035 (domain names).
+        See https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
 
         Args:
             key: The label key
@@ -493,10 +488,7 @@ class KubernetesJob(Infrastructure):
         Slugify text for use as a label value.
 
         Keeps only alphanumeric characters, dashes, underscores, and periods.
-
-        Limits the total length of label text to below 63 characters, which is
-        the limit for e.g. label names that follow RFC 1123 (hostnames) and
-        RFC 1035 (domain names).
+        Limits the total length of label text to below 63 characters.
 
         See https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
 
