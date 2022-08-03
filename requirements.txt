@@ -13,6 +13,7 @@ croniter >= 1.0.12
 cryptography >= 36.0.1
 docker >= 4.0
 fastapi >= 0.70
+flipper-client >= 1.2.9
 fsspec >= 2022.5.0
 griffe >= 0.20.0
 httpx[http2] >= 0.23
