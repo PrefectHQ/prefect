@@ -1,14 +1,14 @@
 import { expect } from '@playwright/test'
-import { test, useForm, useCombobox, useLabel, useSelect, useTable, useButton } from './utilities'
+import { test, useForm, useCombobox, useLabel, useSelect, useTable, useButton, usePageHeading } from './utilities'
 
 test('Can create a notification', async ({ page }) => {
   await page.goto('/notifications')
 
-  const { table, rows: notifications } = useTable('.notifications-table .p-table')
+  const { table, rows: notifications } = useTable()
   const existingNotifications = await notifications.count()
 
-  // navigate to the Create Notification page
-  await page.locator('[href="/notifications/new"]').first().click()
+  const { heading } = usePageHeading()
+  await heading.locator('[href="/notifications/new"]').click()
 
   const { control: states } = useLabel('Run states')
   const { selectOption } = useSelect(states)
@@ -20,13 +20,13 @@ test('Can create a notification', async ({ page }) => {
   await selectCustomOption('foo')
 
   const { button } = useButton('Slack Webhook')
-  button.click()
+  await button.click()
 
   const { control: webhookUrl } = useLabel('Webhook URL')
-  webhookUrl.fill('https://slack.test')
+  await webhookUrl.fill('https://slack.test')
 
-  const { submit } = useForm('.notification-form')
-  submit()
+  const { submit } = useForm()
+  await submit()
 
   await table.waitFor()
   const newNotifications = await notifications.count()
