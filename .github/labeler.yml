@@ -1,2 +1,4 @@
 migration:
   - src/**/migrations/**/*.py
+orion-api:
+  - src/prefect/orion/**/*.py
