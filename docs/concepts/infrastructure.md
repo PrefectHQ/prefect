@@ -232,7 +232,9 @@ named [prefecthq/prefect](https://hub.docker.com/r/prefecthq/prefect) and their
 
 Prefect agents rely on Docker images for executing flow runs using `DockerContainer` or `KubernetesJob` infrastructure. 
 If you do not specify an image, we will use a Prefect image tag that matches your local Prefect and Python versions. 
-If you are building your own image, you may find it useful to use one of the Prefect images as a base.
+If you are [building your own image](#building-your-own-image), you may find it useful to use one of the Prefect images as a base.
+
+### Image tags
 
 When a release is published, images are built for all of Prefect's supported Python versions. 
 These images are tagged to identify the combination of Prefect and Python versions contained. 
@@ -246,7 +248,7 @@ For example, when release `2.1.1` is published:
 4. For users that want to be on the latest `2.1.x` release, receiving patch updates, we update a tag without the patch version to this release e.g. `prefect.2.1-python3.7`.
 5. For users that want to be on the latest `2.x.y` release, receiving minor version updates, we update a tag without the minor or patch version to this release e.g. `prefect.2-python3.7`
 6. Finally, for users who want the latest `2.x.y` release without specifying a Python version, we update `2-latest` to the image for our highest supported Python version which in this case would be equivalent to `prefect:2.1.1-python3.10`.
-### Standard Python
+#### Standard Python
 
 Standard Python images are based on the official Python `slim` images e.g. `python:3.10-slim`.
 
@@ -267,7 +269,7 @@ Standard Python images are based on the official Python `slim` images e.g. `pyth
 | sha-&lt;hash&gt;-python3.7  |            &lt;hash&gt;           |            3.7  |
 | sha-&lt;hash&gt;-python3.7  |            &lt;hash&gt;           |            3.7  |
 
-### Conda-flavored Python
+#### Conda-flavored Python
 
 Conda flavored images are based on `continuumio/miniconda3`. Prefect is installed into a conda environment named `prefect`.
 
