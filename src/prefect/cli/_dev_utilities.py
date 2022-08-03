@@ -1,5 +1,4 @@
 import os
-import pathlib
 import subprocess
 from pathlib import Path
 from typing import List
@@ -9,13 +8,12 @@ import yaml
 from anyio import TASK_STATUS_IGNORED
 
 import prefect
-from prefect import infrastructure
 from prefect.agent import OrionAgent
 from prefect.cli._types import PrefectTyper
 from prefect.cli.deployment import _create_deployment_from_deployment_yaml
 from prefect.client import get_client
 from prefect.deployments import Deployment, DeploymentYAML
-from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.filesystems import LocalFileSystem
 from prefect.settings import (
     PREFECT_AGENT_QUERY_INTERVAL,
@@ -139,69 +137,3 @@ async def submit_deployments_for_execution(
                 )
 
         task_status.started()
-
-
-async def create_deployment(path):
-    # load the file
-    with open(str(path), "r") as f:
-        data = yaml.safe_load(f)
-    # create deployment object
-    try:
-        deployment = DeploymentYAML(**data)
-        print(f"Successfully loaded {deployment.name!r}")
-    except Exception as exc:
-        raise Exception("Issue loading deployment")
-        # exit_with_error(f"Provided file did not conform to deployment spec: {exc!r}")
-    async with get_client() as client:
-        # prep IDs
-        flow_id = await client.create_flow_from_name(deployment.flow_name)
-
-        deployment.infrastructure = deployment.infrastructure.copy()
-        try:
-            infrastructure_document_id = await deployment.infrastructure._save(
-                is_anonymous=True,
-            )
-        except ValueError as exc:
-            deployment_infrastructure = infrastructure.Process()
-            deployment.infrastructure = deployment_infrastructure
-            infrastructure_document_id = await deployment.infrastructure._save(
-                is_anonymous=True,
-            )
-
-        # we assume storage was already saved
-        storage_document_id = deployment.storage._block_document_id
-        try:
-            await client.read_block_document(deployment.storage._block_document_id)
-        except ObjectNotFound as exc:
-            storage = LocalFileSystem(basepath=Path(".").absolute())
-            await storage._save(is_anonymous=True)
-            deployment.storage = storage
-            storage_document_id = storage._block_document_id
-
-        deployment.manifest_path = str(
-            pathlib.Path(path).absolute().parent / "manifest.json"
-        )
-
-        with open(path, "w") as f:
-            f.write(deployment.header)
-            yaml.dump(deployment.editable_fields_dict(), f, sort_keys=False)
-            f.write("###\n### DO NOT EDIT BELOW THIS LINE\n###\n")
-            yaml.dump(deployment.immutable_fields_dict(), f, sort_keys=False)
-
-        deployment_id = await client.create_deployment(
-            flow_id=flow_id,
-            name=deployment.name,
-            schedule=deployment.schedule,
-            parameters=deployment.parameters,
-            description=deployment.description,
-            tags=deployment.tags,
-            manifest_path=deployment.manifest_path,
-            storage_document_id=storage_document_id,
-            infrastructure_document_id=infrastructure_document_id,
-            parameter_openapi_schema=deployment.parameter_openapi_schema.dict(),
-        )
-
-    print(
-        f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'."
-    )
-    return deployment_id
