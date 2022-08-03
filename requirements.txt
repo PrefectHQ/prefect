@@ -16,6 +16,7 @@ fsspec >= 2022.5.0
 griffe >= 0.20.0, <0.22.0  # pinned due to https://github.com/PrefectHQ/orion/issues/2224
 httpx >= 0.22
 importlib_metadata >= 4.4; python_version < '3.10'
+jsondiff == 2.0.0
 jsonpatch >= 1.32
 kubernetes >= 24.2.0
 packaging >= 21.3

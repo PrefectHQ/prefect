@@ -3,9 +3,11 @@ Utilities for the Orion API server.
 """
 import functools
 import inspect
+import json
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, Callable, Coroutine, Iterable, List, Set, get_type_hints
 
+import jsondiff
 from fastapi import APIRouter, Request, Response, status
 from fastapi.routing import APIRoute
 
@@ -157,11 +159,18 @@ def compare_open_api_schemas(base: dict, revision: dict) -> str:
     """
     base_routes = _get_routes_from_schema(schema=base)
     revised_routes = _get_routes_from_schema(schema=revision)
+    schema_differences, schema_differences_explanations = _get_schema_differences(
+        base=base, revision=revision
+    )
 
     report = "\n\n".join(
         [
             _get_added_schemas_report_text(base=base, revision=revision),
             _get_deleted_schemas_report_text(base=base, revision=revision),
+            _get_schema_differences_report(
+                changed_schemas=schema_differences,
+                changed_schema_explanations=schema_differences_explanations,
+            ),
             _get_report_text_for_added_routes(
                 added_routes=_get_added_routes(
                     base_routes=base_routes, revised_routes=revised_routes
@@ -204,7 +213,7 @@ def _get_added_schemas_report_text(base: dict, revision: dict) -> List[str]:
     return report_text
 
 
-def _get_deleted_schemas_report_text(base, revision):
+def _get_deleted_schemas_report_text(base: dict, revision: dict) -> str:
     """
     Find schemas that were removed from revision but present in base.
     """
@@ -219,10 +228,52 @@ def _get_deleted_schemas_report_text(base, revision):
     return report_text
 
 
-def _get_schema_differences(schema):
+def _get_schema_differences_report(
+    changed_schemas: List[str], changed_schema_explanations: List[str]
+) -> str:
     """
-    Get API schemas from a full open api schema
+    TODO
     """
+    report_text = "## Schema updates\n"
+    if len(changed_schemas) == 0:
+        report_text += "No schema updates found."
+        return report_text
+    for schema_name, explanation in zip(changed_schemas, changed_schema_explanations):
+        report_text += f"**{schema_name}**\n"
+        report_text += f"{explanation}\n"
+    return report_text
+
+
+def _get_schema_differences(base: dict, revision: dict):
+    """
+    TODO
+    """
+    changed_schemas = []
+    changed_schema_explanations = []
+    # TODO - make sure "nested" changes are picked up
+    # e.g. when State changes, it should track that impact on
+    # Flow.state: State
+    for schema_name, schema in revision["components"]["schemas"].items():
+        if (
+            schema_name in base["components"]["schemas"]
+            and schema != base["components"]["schemas"][schema_name]
+        ):
+            changed_schemas.append(schema_name)
+            diff = jsondiff.diff(
+                a=base["components"]["schemas"][schema_name],
+                b=revision["components"]["schemas"][schema_name],
+                syntax="explicit",
+                marshal=True,
+            )
+            diff_text = "The following changes have been made:\n"
+
+            diff_text += json.dumps(
+                diff,
+                indent=4,
+                sort_keys=True,
+            )
+            changed_schema_explanations.append(diff_text)
+    return changed_schemas, changed_schema_explanations
 
 
 def _get_report_text_for_deleted_routes(deleted_routes: List[str]) -> str:
@@ -329,11 +380,29 @@ def _get_added_routes(base_routes: dict, revised_routes: dict) -> List[str]:
 def _get_route_changes_report_text(base_routes, revised_routes) -> str:
     # TODO - this should check for schema changes too
     report_text = "## Route changes\n"
-    changed_routes = []
+    changed_routes = {}
     for route in revised_routes:
         if route in base_routes and base_routes[route] != revised_routes[route]:
-            changed_routes.append(route)
+            diff = jsondiff.diff(
+                a=base_routes[route],
+                b=revised_routes[route],
+                syntax="explicit",
+                marshal=True,
+            )
+            diff_text = "The following changes have been made:\n"
+
+            diff_text += json.dumps(
+                diff,
+                indent=4,
+                sort_keys=True,
+            )
+            changed_routes[route] = diff_text
 
     # TODO - be more descriptive about changes
-    report_text += "\n".join(changed_routes)
+    report_text += "\n".join(
+        [
+            route + "\n" + str(route_change)
+            for route, route_change in changed_routes.items()
+        ]
+    )
     return report_text
