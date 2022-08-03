@@ -245,11 +245,11 @@ a few different tag options:
 | 2.X-python3.9         |             2.X             |            3.9  |
 | 2.X-python3.8         |             2.X             |            3.8  |
 | 2.X-python3.7         |             2.X             |            3.7  |
-| sha-<hash>-python3.10 |            <hash>           |            3.10 |
-| sha-<hash>-python3.9  |            <hash>           |            3.9  |
-| sha-<hash>-python3.8  |            <hash>           |            3.8  |
-| sha-<hash>-python3.7  |            <hash>           |            3.7  |
-| sha-<hash>-python3.7  |            <hash>           |            3.7  |
+| sha-&lt;hash&gt;-python3.10 |            &lt;hash&gt;           |            3.10 |
+| sha-&lt;hash&gt;-python3.9  |            &lt;hash&gt;           |            3.9  |
+| sha-&lt;hash&gt;-python3.8  |            &lt;hash&gt;           |            3.8  |
+| sha-&lt;hash&gt;-python3.7  |            &lt;hash&gt;           |            3.7  |
+| sha-&lt;hash&gt;-python3.7  |            &lt;hash&gt;           |            3.7  |
 
 ### Conda-flavored Python
 
@@ -264,11 +264,11 @@ a few different tag options:
 | 2.X-python3.9-conda         |             2.X             |            3.9  |
 | 2.X-python3.8-conda         |             2.X             |            3.8  |
 | 2.X-python3.7-conda         |             2.X             |            3.7  |
-| sha-<hash>-python3.10-conda |            <hash>           |            3.10 |
-| sha-<hash>-python3.9-conda  |            <hash>           |            3.9  |
-| sha-<hash>-python3.8-conda  |            <hash>           |            3.8  |
-| sha-<hash>-python3.7-conda  |            <hash>           |            3.7  |
-| sha-<hash>-python3.7-conda  |            <hash>           |            3.7  |
+| sha-&lt;hash&gt;-python3.10-conda |            &lt;hash&gt;           |            3.10 |
+| sha-&lt;hash&gt;-python3.9-conda  |            &lt;hash&gt;           |            3.9  |
+| sha-&lt;hash&gt;-python3.8-conda  |            &lt;hash&gt;           |            3.8  |
+| sha-&lt;hash&gt;-python3.7-conda  |            &lt;hash&gt;           |            3.7  |
+| sha-&lt;hash&gt;-python3.7-conda  |            &lt;hash&gt;          |            3.7  |
 
 ### Installing Extra Dependencies at Runtime
 
