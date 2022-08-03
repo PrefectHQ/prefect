@@ -1,3 +1,4 @@
+import glob
 import shutil
 from pathlib import Path
 
@@ -48,3 +49,22 @@ class TestManifestGeneration:
             expected_code=0,
             temp_dir=str(cwd),
         )
+        res = glob.glob(f"{cwd}/**/**", recursive=True)
+        assert len({p for p in res if p.endswith("-manifest.json")}) == 1
+        assert len({p for p in res if p.endswith("-deployment.yaml")}) == 0
+
+    def test_manifest_only_creation_does_not_require_name(self, cwd):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                f"{cwd}/flows/hello.py:my_flow",
+                "--manifest-only",
+            ],
+            expected_output_contains=["Manifest created"],
+            expected_code=0,
+            temp_dir=str(cwd),
+        )
+        res = glob.glob(f"{cwd}/**/**", recursive=True)
+        assert len({p for p in res if p.endswith("-manifest.json")}) == 1
+        assert len({p for p in res if p.endswith("-deployment.yaml")}) == 0
