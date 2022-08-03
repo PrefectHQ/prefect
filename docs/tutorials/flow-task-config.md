@@ -48,8 +48,8 @@ Prefect can also use the flow function's docstring as a description.
 from prefect import flow
 
 @flow(name="My Example Flow")
-    """An example flow for a tutorial."""
 def my_flow():
+    """An example flow for a tutorial."""
     # run tasks and subflows
 ```
 

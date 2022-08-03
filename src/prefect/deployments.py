@@ -82,6 +82,7 @@ class DeploymentYAML(BaseModel):
         editable_fields = [
             "name",
             "description",
+            "version",
             "tags",
             "parameters",
             "schedule",
@@ -120,6 +121,7 @@ class DeploymentYAML(BaseModel):
     description: str = Field(
         None, description="An optional description of the deployment."
     )
+    version: str = Field(None, description="An optional version for the deployment.")
     tags: List[str] = Field(default_factory=list)
     schedule: schemas.schedules.SCHEDULE_TYPES = None
     flow_name: str = Field(..., description="The name of the flow.")

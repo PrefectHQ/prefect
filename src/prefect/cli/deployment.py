@@ -296,6 +296,7 @@ async def apply(
         deployment_id = await client.create_deployment(
             flow_id=flow_id,
             name=deployment.name,
+            version=deployment.version,
             schedule=deployment.schedule,
             parameters=deployment.parameters,
             description=deployment.description,
@@ -365,6 +366,9 @@ async def build(
     ),
     name: str = typer.Option(
         None, "--name", "-n", help="The name to give the deployment."
+    ),
+    version: str = typer.Option(
+        None, "--version", "-v", help="A version to give the deployment."
     ),
     tags: List[str] = typer.Option(
         None,
@@ -451,7 +455,7 @@ async def build(
         style="green",
     )
     if manifest_only:
-        typer.Exit(0)
+        raise typer.Exit(0)
 
     ## process storage and move files around
     if storage_block:
@@ -507,6 +511,7 @@ async def build(
         name=name,
         description=description,
         tags=tags or [],
+        version=version or flow.version,
         flow_name=flow.name,
         schedule=schedule,
         parameter_openapi_schema=manifest.parameter_openapi_schema,
