@@ -87,7 +87,7 @@ jobs:
         with:
           issue-number: ${{ github.event.pull_request.number }}
           comment-author: 'github-actions[bot]'
-          body-includes: Schema changes
+          body-includes: Orion API schema changes in this PR
       - name: Create or update comment
         uses: peter-evans/create-or-update-comment@v2
         with:
