@@ -259,18 +259,20 @@ def _get_schema_differences(base: dict, revision: dict):
             and schema != base["components"]["schemas"][schema_name]
         ):
             changed_schemas.append(schema_name)
-            diff = jsondiff.diff(
-                a=base["components"]["schemas"][schema_name],
-                b=revision["components"]["schemas"][schema_name],
-                syntax="explicit",
-                marshal=True,
-            )
-            diff_text = "The following changes have been made:\n"
 
-            diff_text += json.dumps(
-                diff,
-                indent=4,
-                sort_keys=True,
+            diff_text = (
+                "The following changes have been made:\n```json"
+                + json.dumps(
+                    jsondiff.diff(
+                        a=base["components"]["schemas"][schema_name],
+                        b=revision["components"]["schemas"][schema_name],
+                        syntax="explicit",
+                        marshal=True,
+                    ),
+                    indent=4,
+                    sort_keys=True,
+                )
+                + "\n```"
             )
             changed_schema_explanations.append(diff_text)
     return changed_schemas, changed_schema_explanations
@@ -383,25 +385,25 @@ def _get_route_changes_report_text(base_routes, revised_routes) -> str:
     changed_routes = {}
     for route in revised_routes:
         if route in base_routes and base_routes[route] != revised_routes[route]:
-            diff = jsondiff.diff(
-                a=base_routes[route],
-                b=revised_routes[route],
-                syntax="explicit",
-                marshal=True,
-            )
-            diff_text = "The following changes have been made:\n"
-
-            diff_text += json.dumps(
-                diff,
+            changed_routes[route] = json.dumps(
+                jsondiff.diff(
+                    a=base_routes[route],
+                    b=revised_routes[route],
+                    syntax="explicit",
+                    marshal=True,
+                ),
                 indent=4,
                 sort_keys=True,
             )
-            changed_routes[route] = diff_text
 
     # TODO - be more descriptive about changes
     report_text += "\n".join(
         [
-            route + "\n```json\n" + str(route_change) + "\n```"
+            route
+            + "\nThe following changes have been made:"
+            + "\n```json\n"
+            + str(route_change)
+            + "\n```"
             for route, route_change in changed_routes.items()
         ]
     )
