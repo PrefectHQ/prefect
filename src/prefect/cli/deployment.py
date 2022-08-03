@@ -237,29 +237,7 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
     return specs
 
 
-@deployment_app.command()
-async def apply(
-    path: Path = typer.Argument(
-        None,
-        help="The path to a deployment YAML file.",
-        show_default=False,
-    )
-):
-    """
-    Create or update a deployment from a YAML file.
-    """
-    if path is None:
-        path = "deployment.yaml"
-
-    # load the file
-    with open(str(path), "r") as f:
-        data = yaml.safe_load(f)
-    # create deployment object
-    try:
-        deployment = DeploymentYAML(**data)
-        app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
-    except Exception as exc:
-        exit_with_error(f"Provided file did not conform to deployment spec: {exc!r}")
+async def _create_deployment_from_deployment_yaml(deployment: DeploymentYAML) -> UUID:
 
     async with get_client() as client:
         # prep IDs
@@ -286,6 +264,34 @@ async def apply(
             parameter_openapi_schema=deployment.parameter_openapi_schema.dict(),
         )
 
+        return deployment_id
+
+
+@deployment_app.command()
+async def apply(
+    path: Path = typer.Argument(
+        None,
+        help="The path to a deployment YAML file.",
+        show_default=False,
+    )
+):
+    """
+    Create or update a deployment from a YAML file.
+    """
+    if path is None:
+        path = "deployment.yaml"
+
+    # load the file
+    with open(str(path), "r") as f:
+        data = yaml.safe_load(f)
+    # create deployment object
+    try:
+        deployment = DeploymentYAML(**data)
+        app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
+    except Exception as exc:
+        exit_with_error(f"Provided file did not conform to deployment spec: {exc!r}")
+
+    deployment_id = await _create_deployment_from_deployment_yaml(deployment=deployment)
     app.console.print(
         f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
         style="green",

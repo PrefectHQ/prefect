@@ -589,6 +589,12 @@ PREFECT_DEV_QA_WORK_QUEUE = Setting(
     description="The name of the work queue used by the command `prefect dev qa` to submit flow runs to. WARNING: this queue is deleted and re-created by default every time `prefect dev qa` is called.",
 )
 
+PREFECT_DEV_QA_TAG = Setting(
+    str,
+    default="prefect_dev_qa",
+    description="The value of the tag used for the work queue created by the command `prefect dev qa`",
+)
+
 # Collect all defined settings
 SETTING_VARIABLES = {
     name: val for name, val in tuple(globals().items()) if isinstance(val, Setting)

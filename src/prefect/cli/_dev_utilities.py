@@ -1,7 +1,6 @@
 import os
 import pathlib
 import subprocess
-import sys
 from pathlib import Path
 from typing import List
 
@@ -13,11 +12,16 @@ import prefect
 from prefect import infrastructure
 from prefect.agent import OrionAgent
 from prefect.cli._types import PrefectTyper
+from prefect.cli.deployment import _create_deployment_from_deployment_yaml
 from prefect.client import get_client
 from prefect.deployments import Deployment, DeploymentYAML
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
 from prefect.filesystems import LocalFileSystem
-from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL, PREFECT_DEV_QA_WORK_QUEUE
+from prefect.settings import (
+    PREFECT_AGENT_QUERY_INTERVAL,
+    PREFECT_DEV_QA_TAG,
+    PREFECT_DEV_QA_WORK_QUEUE,
+)
 from prefect.utilities.filesystem import tmpchdir
 
 
@@ -33,7 +37,7 @@ async def create_qa_queue(app: PrefectTyper, task_status=TASK_STATUS_IGNORED):
             await client.delete_work_queue_by_id(qa_q.id)
         finally:
             q_id = await client.create_work_queue(
-                name=queue_name, tags=["prefect_dev_qa"]
+                name=queue_name, tags=[PREFECT_DEV_QA_TAG.value()]
             )
         app.console.print(f"'{queue_name}' created...")
         task_status.started()
@@ -55,37 +59,52 @@ async def start_agent(app: PrefectTyper):
     print("Agent shutting down...")
 
 
+async def get_qa_storage_block(path, name="qa-storage-block"):
+    try:
+        storage_block = await LocalFileSystem.load(name)
+    except ValueError as exc:
+        storage_block = LocalFileSystem(basepath=path)
+        await storage_block.save(name)
+
+    return storage_block
+
+
+async def register_deployment_from_yaml(
+    directory_path, deployment_name, yaml_name="main-deployment.yaml"
+):
+    flow_file = [f for f in os.listdir(directory_path) if ".py" in f][0]
+    subprocess.run(
+        [
+            "prefect",
+            "deployment",
+            "build",
+            f"{flow_file}:main",
+            "-n",
+            deployment_name,
+            "-t",
+            PREFECT_DEV_QA_TAG.value(),
+        ]
+    )
+    with open(f"{directory_path}/{yaml_name}") as f:
+        deployment = DeploymentYAML(**yaml.safe_load(f))
+
+    deployment_id = await _create_deployment_from_deployment_yaml(deployment=deployment)
+
+    return deployment_id
+
+
 async def register_deployments(task_status=TASK_STATUS_IGNORED):
     # Create storage
     with tmpchdir(prefect.__root_path__ / "qa/deployments"):
+        await get_qa_storage_block(path=Path.cwd().parent)
         deployment_ids = []
         dirs = [d for d in os.listdir() if os.path.isdir(d)]
         for directory in dirs:
             with tmpchdir(prefect.__root_path__ / f"qa/deployments/{directory}"):
-                flow_file = [f for f in os.listdir() if ".py" in f][0]
-                subprocess.run(
-                    [
-                        "prefect",
-                        "deployment",
-                        "build",
-                        f"{flow_file}:main",
-                        "-n",
-                        directory,
-                        "-t",
-                        "prefect_dev_qa",
-                    ]
+                deployment_id = await register_deployment_from_yaml(
+                    directory_path=Path.cwd(), deployment_name=directory
                 )
-
-    # Create deployments using that storage
-
-    storage_block = LocalFileSystem()
-    # print("Registering deployments...")
-    #         deployment_files = [f for f in os.listdir(dir) if ".yaml" in f]
-    #         for file in deployment_files:
-    #             dep = await create_deployment(Path(f"{dir}/{file}"))
-    #             deployment_ids.append(dep)
-
-    #     return deployment_ids
+                deployment_ids.append(deployment_id)
 
     print("Deployment registration complete")
     task_status.started()
@@ -107,19 +126,13 @@ async def submit_deployments_for_execution(
     """Submit all deployments for execution"""
     async with get_client() as client:
         for deployment_id in deployment_ids:
+            deployment = await client.read_deployment(deployment_id)
             try:
-                deployment = await client.read_deployment(deployment_id)
-            except Exception as exc:
-                pass
-            try:
-                print(sys.path)
                 await client.create_flow_run_from_deployment(
                     deployment_id=deployment.id
                 )
-                print(sys.path)
-                app.console.print(f"Created deployment {deployment.name}")
+                print(f"Submitted deployment {deployment.name} for execution.")
             except Exception as exc:
-                print(f"deployment_id: {deployment_id}")
                 app.console.print(exc)
                 app.console.print(
                     f"Failed to create deployment {deployment.name}", style="red"

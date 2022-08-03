@@ -14,8 +14,13 @@ def second_task(msg, result):
     )
 
 
+default_purpose = """
+Placeholder
+"""
+
+
 @flow(name="demo")
-def main(purpose, msg):
+def main(msg="default message", purpose=default_purpose):
     logger = get_run_logger()  # All flows should begin by getting a run logger
     logger.info(purpose)  # and then logging the purpose of the flow.
     result_1 = first_task()
