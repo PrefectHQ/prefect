@@ -62,16 +62,17 @@ async def register_deployments(task_status=TASK_STATUS_IGNORED):
         dirs = [d for d in os.listdir() if os.path.isdir(d)]
         for directory in dirs:
             with tmpchdir(prefect.__root_path__ / f"qa/deployments/{directory}"):
-                flow_file = [f for f in os.listdir(directory) if ".py" in f][0]
-                breakpoint()
+                flow_file = [f for f in os.listdir() if ".py" in f][0]
                 subprocess.run(
                     [
                         "prefect",
                         "deployment",
                         "build",
-                        f"{directory}/{flow_file}:main",
+                        f"{flow_file}:main",
                         "-n",
                         directory,
+                        "-t",
+                        "prefect_dev_qa",
                     ]
                 )
 

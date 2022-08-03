@@ -1,0 +1,42 @@
+###
+### A complete description of a Prefect Deployment for flow 'demo'
+###
+name: demo
+description: null
+tags:
+- prefect_dev_qa
+parameters: {}
+schedule: null
+infrastructure:
+  type: process
+  env: {}
+  labels: {}
+  name: null
+  command:
+  - python
+  - -m
+  - prefect.engine
+  stream_output: true
+###
+### DO NOT EDIT BELOW THIS LINE
+###
+flow_name: demo
+manifest_path: main-manifest.json
+storage:
+  basepath: /Users/peytonrunyan/Work/orion-dev/orion-main/prefect/qa/deployments/demo
+  _is_anonymous: true
+  _block_document_name: anonymous-b4ac63e0-4f93-455f-8118-d2692253bbd5
+  _block_document_id: 180aac9e-38d1-4a14-8ad7-0cf743eaccfa
+  _block_type_slug: local-file-system
+parameter_openapi_schema:
+  title: Parameters
+  type: object
+  properties:
+    purpose:
+      title: purpose
+    msg:
+      title: msg
+  required:
+  - purpose
+  - msg
+  definitions: null
