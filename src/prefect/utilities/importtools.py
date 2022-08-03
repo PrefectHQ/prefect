@@ -172,8 +172,7 @@ def load_module(module_name: str) -> ModuleType:
     sys.path.insert(0, working_directory)
 
     try:
-        module = importlib.import_module(module_name)
-        return module
+        return importlib.import_module(module_name)
     finally:
         sys.path.remove(working_directory)
 
