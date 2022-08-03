@@ -1996,10 +1996,16 @@ components:
       type: object
     FlowRunFilterState:
       additionalProperties: false
-      description: Base model for Prefect filters
+      description: Base model for Prefect filters that combines criteria with a user-provided
+        operator
       properties:
         name:
           $ref: '#/components/schemas/FlowRunFilterStateName'
+        operator:
+          allOf:
+          - $ref: '#/components/schemas/Operator'
+          default: and_
+          description: Operator for combining filter criteria. Defaults to 'and_'.
         type:
           $ref: '#/components/schemas/FlowRunFilterStateType'
       title: FlowRunFilterState
@@ -3695,10 +3701,16 @@ components:
       type: object
     TaskRunFilterState:
       additionalProperties: false
-      description: Base model for Prefect filters
+      description: Base model for Prefect filters that combines criteria with a user-provided
+        operator
       properties:
         name:
           $ref: '#/components/schemas/TaskRunFilterStateName'
+        operator:
+          allOf:
+          - $ref: '#/components/schemas/Operator'
+          default: and_
+          description: Operator for combining filter criteria. Defaults to 'and_'.
         type:
           $ref: '#/components/schemas/TaskRunFilterStateType'
       title: TaskRunFilterState
@@ -3929,7 +3941,7 @@ components:
       type: object
 info:
   title: Prefect Orion API
-  version: 2.0.1+98.g651c319b5.dirty
+  version: 2.0.1+107.g1bde16868.dirty
   x-logo:
     url: static/prefect-logo-mark-gradient.png
 openapi: 3.0.2
