@@ -141,3 +141,19 @@ export function usePageHeading(locator: string | Locator = '.page-heading', page
     heading,
   }
 }
+
+type UseCheckbox = {
+  checkbox: Locator,
+}
+
+export function useCheckbox(label: string, page: Page = PAGE): UseCheckbox {
+  const checkbox = page.locator('.p-checkbox', {
+    has: page.locator('.p-checkbox__label', {
+      hasText: label,
+    }),
+  }).locator('[type="checkbox"]')
+
+  return {
+    checkbox,
+  }
+}
