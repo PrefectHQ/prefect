@@ -401,7 +401,7 @@ def _get_route_changes_report_text(base_routes, revised_routes) -> str:
     # TODO - be more descriptive about changes
     report_text += "\n".join(
         [
-            route + "\n" + str(route_change)
+            route + "\n```json\n" + str(route_change) + "\n```"
             for route, route_change in changed_routes.items()
         ]
     )
