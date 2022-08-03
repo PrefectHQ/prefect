@@ -32,12 +32,22 @@ class Foo:
 
 @pytest.fixture
 def reset_sys_modules():
-    original = sys.modules.copy()
+    original_modules = sys.modules.copy()
+
+    # Workaround for weird behavior on Linux where some of our "expected failure" tests
+    # succeed because '.' is in the path.
+    if sys.platform == "linux" and "." in sys.path:
+        sys.path.remove(".")
+
     yield
+
+    # Delete all of the module objects that were introduced so they are not cached
     for module in set(sys.modules.keys()):
-        if module not in original:
+        if module not in original_modules:
             del sys.modules[module]
-    sys.modules = original
+
+    importlib.invalidate_caches()
+    sys.modules = original_modules
 
 
 @pytest.mark.parametrize(

@@ -45,7 +45,6 @@ def from_qualified_name(name: str) -> Any:
         >>> obj == random.randint
         True
     """
-
     # Try importing it first so we support "module" or "module.sub_module"
     try:
         module = importlib.import_module(name)
@@ -135,7 +134,7 @@ def load_script_as_module(path: str) -> ModuleType:
     """
     # We will add the parent directory to search locations to support relative imports
     # during execution of the script
-    parent_path = str(Path(path).parent)
+    parent_path = str(Path(path).resolve().parent)
     working_directory = os.getcwd()
 
     spec = importlib.util.spec_from_file_location(
@@ -163,22 +162,49 @@ def load_script_as_module(path: str) -> ModuleType:
     return module
 
 
+def load_module(module_name: str) -> ModuleType:
+    """
+    Import a module with support for relative imports within the module.
+    """
+    # Ensure relative imports within the imported module work if the user is in the
+    # correct working directory
+    working_directory = os.getcwd()
+    sys.path.insert(0, working_directory)
+
+    try:
+        module = importlib.import_module(module_name)
+        return module
+    finally:
+        sys.path.remove(working_directory)
+
+
 def import_object(import_path: str):
     """
     Load an object from an import path.
 
-    Import paths can be formatted as "module.object" or "/path/to/script.py:object".
+    Import paths can be formatted as one of:
+    - module.object
+    - module:object
+    - /path/to/script.py:object
 
-    This function is not thread safe if loading from a script.
+    This function is not thread safe as it modifies the 'sys' module during execution.
     """
-    if ":" in import_path:
-        module_path, object_name = import_path.rsplit(":", 1)
-        module = load_script_as_module(module_path)
-        obj = getattr(module, object_name)
+    if ".py:" in import_path:
+        script_path, object_name = import_path.rsplit(":", 1)
+        module = load_script_as_module(script_path)
     else:
-        obj = from_qualified_name(import_path)
+        if ":" in import_path:
+            module_name, object_name = import_path.rsplit(":", 1)
+        elif "." in import_path:
+            module_name, object_name = import_path.rsplit(".", 1)
+        else:
+            raise ValueError(
+                f"Invalid format for object import. Received {import_path!r}."
+            )
 
-    return obj
+        module = load_module(module_name)
+
+    return getattr(module, object_name)
 
 
 class DelayedImportErrorModule(ModuleType):
