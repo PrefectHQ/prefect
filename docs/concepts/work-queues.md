@@ -222,6 +222,11 @@ You must start an agent within an environment that can access or create the infr
 !!! tip "Prefect must be installed in execution environments"
     Prefect must be installed in any environment in which you intend to run the agent or execute a flow run.
 
+!!! tip "`PREFECT_API_URL` setting for agents"
+    `PREFECT_API_URL` must be set for the environment in which your agent is running. 
+
+    If you want an agent to communicate with Prefect Cloud or a Prefect Orion API server from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
+
 Run the following `prefect agent start` CLI command to start an agent. You must pass the [work queue ID](#work-queue-configuration) for the queue the agent should poll for work.
 
 <div class="terminal">
