@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test'
-import { test, useButton, useCombobox, useLabel, useSelect, useTable } from './utilities'
+import { test, useForm, useCombobox, useLabel, useSelect, useTable, useButton } from './utilities'
 
 test('Can create a notification', async ({ page }) => {
   await page.goto('/notifications')
@@ -19,14 +19,14 @@ test('Can create a notification', async ({ page }) => {
   const { selectCustomOption } = useCombobox(tags)
   await selectCustomOption('foo')
 
-  const { button: slackWebhookButton } = useButton('Slack Webhook')
-  await slackWebhookButton.click()
+  const { button } = useButton('Slack Webhook')
+  await button.click()
 
   const { control: webhookUrl } = useLabel('Webhook URL')
   await webhookUrl.fill('https://slack.test')
 
-  const { button: createButton } = useButton('Create')
-  await createButton.click()
+  const { submit } = useForm('.notification-form')
+  await submit()
 
   await table.waitFor()
   const newNotifications = await notifications.count()
