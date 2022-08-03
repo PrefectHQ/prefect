@@ -245,12 +245,12 @@ For example, when release `2.1.1` is published:
 1. Images with the release packaged are built for each supported Python version (3.7, 3.8, 3.9, 3.10) with both standard Python and Conda.
 2. These images are tagged with the full description, e.g. `prefect:2.1.1-python3.7` and `prefect:2.1.1-python3.7-conda`.
 3. For users that want more specific pins, these images are also tagged with the SHA of the git commit of the release, e.g. `sha-88a7ff17a3435ec33c95c0323b8f05d7b9f3f6d2-python3.7`
-4. For users that want to be on the latest `2.1.x` release, receiving patch updates, we update a tag without the patch version to this release e.g. `prefect.2.1-python3.7`.
-5. For users that want to be on the latest `2.x.y` release, receiving minor version updates, we update a tag without the minor or patch version to this release e.g. `prefect.2-python3.7`
-6. Finally, for users who want the latest `2.x.y` release without specifying a Python version, we update `2-latest` to the image for our highest supported Python version which in this case would be equivalent to `prefect:2.1.1-python3.10`.
+4. For users that want to be on the latest `2.1.x` release, receiving patch updates, we update a tag without the patch version to this release, e.g. `prefect.2.1-python3.7`.
+5. For users that want to be on the latest `2.x.y` release, receiving minor version updates, we update a tag without the minor or patch version to this release, e.g. `prefect.2-python3.7`
+6. Finally, for users who want the latest `2.x.y` release without specifying a Python version, we update `2-latest` to the image for our highest supported Python version, which in this case would be equivalent to `prefect:2.1.1-python3.10`.
 #### Standard Python
 
-Standard Python images are based on the official Python `slim` images e.g. `python:3.10-slim`.
+Standard Python images are based on the official Python `slim` images, e.g. `python:3.10-slim`.
 
 | Tag                   |       Prefect Version       | Python Version  |
 | --------------------- | :-------------------------: | -------------:  |
