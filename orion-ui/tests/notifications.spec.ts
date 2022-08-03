@@ -20,13 +20,13 @@ test('Can create a notification', async ({ page }) => {
   await selectCustomOption('foo')
 
   const { button } = useButton('Slack Webhook')
-  await button.click()
+  button.click()
 
   const { control: webhookUrl } = useLabel('Webhook URL')
-  await webhookUrl.fill('https://slack.test')
+  webhookUrl.fill('https://slack.test')
 
   const { submit } = useForm('.notification-form')
-  await submit()
+  submit()
 
   await table.waitFor()
   const newNotifications = await notifications.count()
