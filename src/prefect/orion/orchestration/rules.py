@@ -25,6 +25,7 @@ import sqlalchemy as sa
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.logging import get_logger
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.models import flow_runs
@@ -44,6 +45,7 @@ ALL_ORCHESTRATION_STATES = {*states.StateType, None}
 # all terminal states
 TERMINAL_STATES = states.TERMINAL_STATES
 
+logger = get_logger("orion")
 
 StateResponseDetails = Union[
     StateAcceptDetails, StateWaitDetails, StateRejectDetails, StateAbortDetails
@@ -240,11 +242,12 @@ class FlowOrchestrationContext(OrchestrationContext):
         """
 
         for validation_attempt in range(2):
+            validation_errors = []
             try:
                 await self._validate_proposed_state()
-                return
-            except Exception:
+            except Exception as exc:
                 # unset the run state in case it's been set
+                validation_errors.append(exc)
                 if self.initial_state is not None:
                     initial_orm_state = db.FlowRunState(
                         flow_run_id=self.run.id,
@@ -257,8 +260,9 @@ class FlowOrchestrationContext(OrchestrationContext):
                 continue
             return
 
+        logger.error(f"Encountered errors during state validation: {validation_errors!r}")
         self.proposed_state = None
-        reason = "Error validating state"
+        reason = f"Error validating state: {validation_errors!r}"
         self.response_status = SetStateStatus.ABORT
         self.response_details = StateAbortDetails(reason=reason)
 
@@ -373,11 +377,12 @@ class TaskOrchestrationContext(OrchestrationContext):
         """
 
         for validation_attempt in range(2):
+            validation_errors = []
             try:
                 await self._validate_proposed_state()
-                return
-            except Exception:
+            except Exception as exc:
                 # unset the run state in case it's been set
+                validation_errors.append(exc)
                 if self.initial_state is not None:
                     initial_orm_state = db.TaskRunState(
                         task_run_id=self.run.id,
@@ -390,8 +395,9 @@ class TaskOrchestrationContext(OrchestrationContext):
                 continue
             return
 
+        logger.error(f"Encountered errors during state validation: {validation_errors!r}")
         self.proposed_state = None
-        reason = "Error validating state"
+        reason = f"Error validating state: {validation_errors!r}"
         self.response_status = SetStateStatus.ABORT
         self.response_details = StateAbortDetails(reason=reason)
 
