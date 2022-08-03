@@ -24,7 +24,7 @@ class TestSlackWebhook:
         async_webhook_client_constructor_mock.assert_called_once_with(
             url=block.url.get_secret_value()
         )
-        async_webhook_client_mock.send.assert_called_once_with(text="test")
+        async_webhook_client_mock.send.assert_called_once_with(text="test", blocks=None)
 
     async def test_notify_async_slack_blocks(self, monkeypatch):
         async_webhook_client_mock = AsyncMock()
