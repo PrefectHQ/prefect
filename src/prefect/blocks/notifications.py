@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Any, Dict, Optional, Sequence, Union
 
 from pydantic import Field, SecretStr
 
@@ -52,5 +52,10 @@ class SlackWebhook(NotificationBlock):
         self._async_webhook_client = AsyncWebhookClient(url=self.url.get_secret_value())
 
     @sync_compatible
-    async def notify(self, body: str, subject: Optional[str] = None):
-        await self._async_webhook_client.send(text=body)
+    async def notify(
+        self,
+        body: str,
+        subject: Optional[str] = None,
+        blocks: Optional[Sequence[Union[Dict[str, Any], Block]]] = None,
+    ):
+        await self._async_webhook_client.send(text=body, blocks=blocks)

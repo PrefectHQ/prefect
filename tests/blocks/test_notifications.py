@@ -26,6 +26,35 @@ class TestSlackWebhook:
         )
         async_webhook_client_mock.send.assert_called_once_with(text="test")
 
+    async def test_notify_async_slack_blocks(self, monkeypatch):
+        async_webhook_client_mock = AsyncMock()
+        async_webhook_client_constructor_mock = MagicMock(
+            return_value=async_webhook_client_mock
+        )
+        monkeypatch.setattr(
+            "slack_sdk.webhook.async_client.AsyncWebhookClient",
+            async_webhook_client_constructor_mock,
+        )
+
+        block = SlackWebhook(url="http://example.com/slack")
+        slack_blocks = [
+            {
+                "type": "header",
+                "title": {"type": "plain_text", "text": "header title"},
+            }
+        ]
+        await block.notify(
+            "test",
+            blocks=slack_blocks,
+        )
+
+        async_webhook_client_constructor_mock.assert_called_once_with(
+            url=block.url.get_secret_value()
+        )
+        async_webhook_client_mock.send.assert_called_once_with(
+            text="test", blocks=slack_blocks
+        )
+
     def test_notify_sync(self, monkeypatch):
         async_webhook_client_mock = AsyncMock()
         async_webhook_client_constructor_mock = MagicMock(
