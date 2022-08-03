@@ -1,5 +1,20 @@
 # Prefect Release Notes
 
+## 2.0.2
+
+This release implements a number of improvements and bug fixes in response to continued engagement by members of our community. Thanks, as always, to all who submitted ideas on how to make Prefect 2 even better.
+
+### Introducing .prefectignore files
+ .prefectignore files allow users to omit certain files or directories from their deployments. Similar to other .ignore files, the syntax supports pattern matching, so an entry of `*.pyc` will ensure *all* .pyc files are ignored by the deployment call when uploading to remote storage. Prefect provides a default .prefectignore file, but users can customize it to their needs.
+
+### Improvements and bug fixes
+- Users can now leverage Azure storage blocks.
+- Users can now submit bug reports and feature enhancements using our issue templates.
+- Block deletion is now more performant.
+- Inconsistencies in UI button copy have been removed.
+- Error messaging is clearer in the `deployment build` CLI command.
+- Resolved timeout errors that occurred when using async task functions inside synchronous flows.
+
 ## 2.0.1
 
 The response to Prefect 2 has been overwhelming in the best way possible. Thank you to the many community members who tried it out and gave us feedback! Thanks in particular to the students at this week's Prefect Associate Certification Course (PACC) in San Jose for their thoughtful recommendations. This release is a compilation of enhancements and fixes that make for a more resilient, performant, and refined Prefect experience.

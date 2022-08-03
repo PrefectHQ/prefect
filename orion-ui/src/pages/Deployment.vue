@@ -59,15 +59,16 @@
   }
 
   const tabs = computed(() => {
-    const values = ['Overview', 'Parameters']
+    const values = ['Overview']
 
+    if (!deployment.value?.deprecated) {
+      values.push('Parameters')
+    }
     if (!media.xl) {
       values.push('Details')
     }
-
     return values
   })
-
 
   const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
   const deployment = computed(() => deploymentSubscription.response)
