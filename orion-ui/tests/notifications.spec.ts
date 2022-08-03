@@ -17,7 +17,7 @@ test('Can create a notification', async ({ page }) => {
 
   const { control: tags } = useLabel('Tags')
   const { selectCustomOption } = useCombobox(tags)
-  await selectCustomOption('foo')
+  await selectCustomOption('playwright')
 
   const { button } = useButton('Slack Webhook')
   await button.click()
