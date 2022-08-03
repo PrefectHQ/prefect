@@ -20,7 +20,7 @@ router = OrionRouter(prefix="/flows", tags=["Flows"])
 
 @router.post("/new_route_example/{path_param}")
 async def my_new_route(
-    flow: schemas.actions.FlowCreate,
+    flow: schemas.actions.NewSchema,
     path_param: int = None,
 ):
     """A new route for tesing this PR"""

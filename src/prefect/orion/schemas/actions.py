@@ -31,6 +31,12 @@ def validate_block_document_name(value):
     return value
 
 
+class NewSchema(PrefectBaseModel):
+    """New schema for testing"""
+
+    x: int = Field(default=1, description="A field for testing")
+
+
 class FlowCreate(
     schemas.core.Flow.subclass(
         name="FlowCreate",

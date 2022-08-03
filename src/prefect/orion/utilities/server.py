@@ -4,7 +4,7 @@ Utilities for the Orion API server.
 import functools
 import inspect
 from contextlib import AsyncExitStack, asynccontextmanager
-from typing import Any, Callable, Coroutine, Iterable, Set, get_type_hints
+from typing import Any, Callable, Coroutine, Iterable, List, Set, get_type_hints
 
 from fastapi import APIRouter, Request, Response, status
 from fastapi.routing import APIRoute
@@ -144,70 +144,127 @@ def compare_open_api_schemas(base: dict, revision: dict) -> str:
     - Added routes
     - Deleted routes
     - Schema changes
+
+    Args:
+        base: a dictionary representing the prior state of the
+            open api schema
+        revision: a dictionary representing the updated state of the
+            open api schema
+
+    Returns:
+        A markdown formatted string containing a human readable summary
+            of the api schema changes
     """
-    report = ""
     base_routes = _get_routes_from_schema(schema=base)
     revised_routes = _get_routes_from_schema(schema=revision)
 
-    deleted_routes = _get_deleted_routes(
-        base_routes=base_routes, revised_routes=revised_routes
+    report = "\n\n".join(
+        [
+            _get_added_schemas_report_text(base=base, revision=revision),
+            _get_deleted_schemas_report_text(base=base, revision=revision),
+            _get_report_text_for_added_routes(
+                added_routes=_get_added_routes(
+                    base_routes=base_routes, revised_routes=revised_routes
+                ),
+                revised_routes=revised_routes,
+            ),
+            _get_report_text_for_deleted_routes(
+                deleted_routes=_get_deleted_routes(
+                    base_routes=base_routes, revised_routes=revised_routes
+                )
+            ),
+            _get_route_changes_report_text(
+                base_routes=base_routes, revised_routes=revised_routes
+            ),
+        ]
     )
-    report += "## Deleted routes\n"
-    report += _get_report_text_for_deleted_routes(deleted_routes=deleted_routes)
-    report += "\n\n"
-    added_routes = _get_added_routes(
-        base_routes=base_routes, revised_routes=revised_routes
-    )
-    report += "## Added routes\n"
-    report += _get_report_text_for_added_routes(
-        added_routes=added_routes, revised_routes=revised_routes
-    )
-    report += "\n\n"
-
-    report += "## Route changes\n"
-    changed_routes = _get_route_changes(
-        base_routes=base_routes, revised_routes=revised_routes
-    )
-    report += "\n".join(changed_routes)
 
     print(report)
 
 
-def _get_report_text_for_deleted_routes(deleted_routes: list[str]) -> str:
+def _get_added_schemas_report_text(base: dict, revision: dict) -> List[str]:
     """
-    Given a list of deleted routes, generate report text.
+    Find schemas that were added to revision.
     """
+    report_text = "## Added Schemas\n"
+    added_schemas = (
+        revision["components"]["schemas"].keys() - base["components"]["schemas"].keys()
+    )
+    if len(added_schemas) == 0:
+        report_text += "\nNo schemas added."
+        return report_text
+
+    for added_schema in added_schemas:
+        report_text += f"\n**{added_schema}**"
+        report_text += f"\nDescription: {revision['components']['schemas'][added_schema]['description']}"
+        report_text += (
+            f"\nType: {revision['components']['schemas'][added_schema]['type']}"
+        )
+        report_text += f"\nProperties: {revision['components']['schemas'][added_schema]['properties']}"
+    return report_text
+
+
+def _get_deleted_schemas_report_text(base, revision):
+    """
+    Find schemas that were removed from revision but present in base.
+    """
+    report_text = "## Deleted Schemas\n"
+    deleted_schemas = (
+        base["components"]["schemas"].keys() - revision["components"]["schemas"].keys()
+    )
+    if len(deleted_schemas) == 0:
+        report_text += "\nNo schemas deleted."
+        return report_text
+    report_text += "\n".join(deleted_schemas)
+    return report_text
+
+
+def _get_schema_differences(schema):
+    """
+    Get API schemas from a full open api schema
+    """
+
+
+def _get_report_text_for_deleted_routes(deleted_routes: List[str]) -> str:
+    """
+    Given a List of deleted routes, generate report text.
+    """
+    report_text = "## Deleted Routes\n"
     if len(deleted_routes) == 0:
-        return "No routes deleted"
-    deleted_route_text_list = "\n".join(deleted_routes)
-    return f"The following routes have been deleted:\n {deleted_route_text_list}"
+        report_text += "\nNo routes deleted"
+        return report_text
+    deleted_route_text_List = "\n".join(deleted_routes)
+    return (
+        report_text
+        + f"The following routes have been deleted:\n {deleted_route_text_List}"
+    )
 
 
 def _get_report_text_for_added_routes(
-    added_routes: list[str], revised_routes: dict
+    added_routes: List[str], revised_routes: dict
 ) -> str:
     """
-    Given a list of added routes, generate report text.
+    Given a List of added routes, generate report text.
 
     Args:
-        added_routes: a list of routes added
+        added_routes: a List of routes added
         revised_routes: a dictionary containing information about
             the revised routes, this will be used to populate info
             about added routes
     """
+    report_text = "## Added routes\n"
     if len(added_routes) == 0:
-        return "No routes added."
+        report_text += "\nNo routes added."
+        return report_text
 
-    added_routes_text = "The following routes have been added:\n"
+    report_text += "\nThe following routes have been added:\n"
     for route in added_routes:
-        added_routes_text += f"### {route}"
+        report_text += f"**{route}**"
         description = revised_routes[route].get("description", "")
-        added_routes_text += f"\nDescription: {description}"
-        added_routes_text += (
-            f"\nParameters:\n{_format_parameters(revised_routes[route])}"
-        )
+        report_text += f"\nDescription: {description}"
+        report_text += f"\nParameters:\n{_format_parameters(revised_routes[route])}"
 
-    return added_routes_text
+    return report_text
 
 
 def _format_parameters(route: dict) -> str:
@@ -230,7 +287,7 @@ def _format_parameters(route: dict) -> str:
     # check for body params, note this only
     # checks for application/json types at the moment
     if route.get("requestBody"):
-        parameter_text += f"Name: <request body>\nLocation: Body\nRequred?: True\n"
+        parameter_text += f"Name: (request body)\nLocation: Body\nRequred?: True\n"
         # TODO - resolve refs here
         parameter_text += (
             f"Type: {route['requestBody']['content']['application/json']['schema']}\n"
@@ -253,7 +310,7 @@ def _get_routes_from_schema(schema: dict) -> dict:
     return routes
 
 
-def _get_deleted_routes(base_routes: dict, revised_routes: dict) -> list[str]:
+def _get_deleted_routes(base_routes: dict, revised_routes: dict) -> List[str]:
     """
     Gets any routes that were deleted from `base_routes` in `revised_routes`.
     """
@@ -261,7 +318,7 @@ def _get_deleted_routes(base_routes: dict, revised_routes: dict) -> list[str]:
     return deleted_routes
 
 
-def _get_added_routes(base_routes: dict, revised_routes: dict) -> list[str]:
+def _get_added_routes(base_routes: dict, revised_routes: dict) -> List[str]:
     """
     Gets any routes that were added to `revised_routes` not present in `base_routes`.
     """
@@ -269,10 +326,14 @@ def _get_added_routes(base_routes: dict, revised_routes: dict) -> list[str]:
     return added_routes
 
 
-def _get_route_changes(base_routes, revised_routes):
+def _get_route_changes_report_text(base_routes, revised_routes) -> str:
     # TODO - this should check for schema changes too
+    report_text = "## Route changes\n"
     changed_routes = []
     for route in revised_routes:
         if route in base_routes and base_routes[route] != revised_routes[route]:
             changed_routes.append(route)
-    return changed_routes
+
+    # TODO - be more descriptive about changes
+    report_text += "\n".join(changed_routes)
+    return report_text
