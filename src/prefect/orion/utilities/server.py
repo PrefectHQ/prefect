@@ -399,7 +399,7 @@ def _get_route_changes_report_text(base_routes, revised_routes) -> str:
     # TODO - be more descriptive about changes
     report_text += "\n".join(
         [
-            route
+            f"**{route}**"
             + "\nThe following changes have been made:"
             + "\n```json\n"
             + str(route_change)
