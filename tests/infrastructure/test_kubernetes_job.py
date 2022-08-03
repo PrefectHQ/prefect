@@ -210,6 +210,80 @@ async def test_uses_labels_setting(
     assert labels["bar"] == "bar"
 
 
+@pytest.mark.parametrize(
+    "given,expected",
+    [
+        ("a-valid-dns-subdomain1/and-a-name", "a-valid-dns-subdomain1/and-a-name"),
+        (
+            "a-prefix-with-invalid$@*^$@-characters/and-a-name",
+            "a-prefix-with-invalid-characters/and-a-name",
+        ),
+        (
+            "a-name-with-invalid$@*^$@-characters",
+            "a-name-with-invalid-characters",
+        ),
+        ("/a-name-that-starts-with-slash", "a-name-that-starts-with-slash"),
+        ("a-prefix/and-a-name/-with-a-slash", "a-prefix/and-a-name-with-a-slash"),
+        # Truncation of the prefix
+        ("a" * 300 + "/and-a-name", "a" * 253 + "/and-a-name"),
+        # Truncation of the name
+        ("a" * 300, "a" * 63),
+        # Truncation of the prefix and name together
+        ("a" * 300 + "/" + "b" * 100, "a" * 253 + "/" + "b" * 63),
+    ],
+)
+async def test_sanitizes_user_label_keys(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+    given,
+    expected,
+):
+    mock_watch.stream = _mock_pods_stream_that_returns_running_pod
+
+    await KubernetesJob(command=["echo", "hello"], labels={given: "foo"}).run(
+        MagicMock()
+    )
+    mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+    labels = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["metadata"][
+        "labels"
+    ]
+    assert len(list(labels.keys())) == 1, "Only a single label should be created"
+    assert list(labels.keys())[0] == expected
+    assert labels[expected] == "foo"
+
+
+@pytest.mark.parametrize(
+    "given,expected",
+    [
+        ("valid-label-text", "valid-label-text"),
+        (
+            "text-with-invalid$@*^$@-characters",
+            "text-with-invalid-characters",
+        ),
+        # Truncation
+        ("a" * 100, "a" * 63),
+    ],
+)
+async def test_sanitizes_user_label_values(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+    given,
+    expected,
+):
+    mock_watch.stream = _mock_pods_stream_that_returns_running_pod
+
+    await KubernetesJob(command=["echo", "hello"], labels={"foo": given}).run(
+        MagicMock()
+    )
+    mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+    labels = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["metadata"][
+        "labels"
+    ]
+    assert labels["foo"] == expected
+
+
 async def test_uses_namespace_setting(
     mock_k8s_client,
     mock_watch,
