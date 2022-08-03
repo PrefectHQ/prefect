@@ -4,7 +4,7 @@
       <PageHeadingWorkQueueCreate />
     </template>
 
-    <WorkQueueForm @submit="createQueue" @cancel="goToQueues" />
+    <WorkQueueForm action="Create" @submit="createQueue" @cancel="goToQueues" />
   </p-layout-default>
 </template>
 

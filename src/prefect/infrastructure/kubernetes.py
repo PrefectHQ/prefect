@@ -49,29 +49,31 @@ class KubernetesJob(Infrastructure):
     Runs a command as a Kubernetes Job.
 
     Attributes:
-        command: A list of strings specifying
+        command: A list of strings specifying the command to run in the container to
+            start the flow run. In most cases you should not override this.
+        customizations: A list of JSON 6902 patches to apply to the base Job manifest.
+        env: Environment variables to set for the container.
         image: An optional string specifying the tag of a Docker image to use for the job.
             Defaults to the Prefect image.
-        name: An optional name for the job.
-        namespace: An optional string signifying the Kubernetes namespace to use.
-        service_account_name: An optional string specifying which Kubernetes service account to use.
-        labels: An optional dictionary of labels to add to the job.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
         job: The base manifest for the Kubernetes Job.
-        customizations: A list of JSON 6902 patches to apply to the base Job manifest.
         job_watch_timeout_seconds: Number of seconds to watch for job creation before timing out (default 5).
+        labels: An optional dictionary of labels to add to the job.
+        name: An optional name for the job.
+        namespace: An optional string signifying the Kubernetes namespace to use.
         pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 5).
+        service_account_name: An optional string specifying which Kubernetes service account to use.
         stream_output: If set, stream output from the job to local standard output.
     """
 
     # shortcuts for the most common user-serviceable settings
     image: str = Field(default_factory=get_prefect_image_name)
     namespace: str = "default"
-    service_account_name: str = None
+    service_account_name: Optional[str] = None
     image_pull_policy: Optional[KubernetesImagePullPolicy] = None
 
     # connection to a cluster
-    cluster_config: KubernetesClusterConfig = None
+    cluster_config: Optional[KubernetesClusterConfig] = None
 
     # settings allowing full customization of the Job
     job: KubernetesManifest = Field(

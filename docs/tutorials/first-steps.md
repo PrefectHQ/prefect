@@ -196,7 +196,7 @@ All cats have three sets of long hairs that are sensitive to pressure - whiskers
 
 ## Run a flow within a flow
 
-Not only can you call task functions within a flow, but you can also call other flow functions! Child flows are called [subflows](/concepts/flows/#subflows) and allow you to efficiently manage, track, and version common multi-task logic. See the [Subflows](/concepts/flows/#subflows) section of the Flows documentation for details.
+Not only can you call task functions within a flow, but you can also call other flow functions! Child flows are called [subflows](/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic. See the [Composing flows](/concepts/flows/#composing-flows) section of the Flows documentation for details.
 
 Consider the following simple example:
 

@@ -64,7 +64,7 @@ If the message is a warning, run your program with the ``-Werror`` flag:   ``pyt
 ```
 "
     validations:
-      required: true
+      required: false
 
   - type: textarea
     attributes:
