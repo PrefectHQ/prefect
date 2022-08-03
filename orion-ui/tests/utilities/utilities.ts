@@ -129,3 +129,15 @@ export function useForm(locator: string | Locator, page: Page = PAGE): UseForm {
     submit,
   }
 }
+
+type UsePageHeading = {
+  heading: Locator,
+}
+
+export function usePageHeading(locator: string | Locator = '.page-heading', page: Page = PAGE): UsePageHeading {
+  const heading = locate(locator, page)
+
+  return {
+    heading,
+  }
+}
