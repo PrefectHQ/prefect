@@ -134,8 +134,12 @@ type UsePageHeading = {
   heading: Locator,
 }
 
-export function usePageHeading(locator: string | Locator = '.page-heading', page: Page = PAGE): UsePageHeading {
-  const heading = locate(locator, page)
+export function usePageHeading(text: string = '', page: Page = PAGE): UsePageHeading {
+  const heading = page.locator('.page-heading', {
+    has: page.locator('.page-heading__crumbs', {
+      hasText: text,
+    }),
+  })
 
   return {
     heading,
