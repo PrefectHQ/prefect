@@ -26,6 +26,7 @@
 <script lang="ts" setup>
   import {
     blockCapabilitiesApiKey,
+    blockCatalogViewRouteKey,
     blockCatalogCreateRouteKey,
     blockCatalogRouteKey,
     blockDocumentsApiKey,
@@ -88,6 +89,7 @@
 
   provide(canKey, can)
 
+  provide(blockCatalogViewRouteKey, routes.blocksCatalogView)
   provide(blockCatalogCreateRouteKey, routes.blocksCatalogCreate)
   provide(blockCatalogRouteKey, routes.blocksCatalog)
   provide(blockEditRouteKey, routes.blockEdit)
