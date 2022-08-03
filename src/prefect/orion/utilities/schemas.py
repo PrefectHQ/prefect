@@ -31,12 +31,16 @@ class DateTimeTZ(pendulum.DateTime):
             raise ValueError("Unrecognized datetime.")
 
 
+B = TypeVar("B", bound=BaseModel)
+S = TypeVar("S", bound=BaseModel)
+
+
 def pydantic_subclass(
-    base: Type[BaseModel],
+    base: Type[B],
     name: str = None,
     include_fields: List[str] = None,
     exclude_fields: List[str] = None,
-) -> Type[BaseModel]:
+) -> Type[S]:
     """Creates a subclass of a Pydantic model that excludes certain fields.
     Pydantic models use the __fields__ attribute of their parent class to
     determine inherited fields, so to create a subclass without fields, we
@@ -141,7 +145,7 @@ class PrefectBaseModel(BaseModel):
         name: str = None,
         include_fields: List[str] = None,
         exclude_fields: List[str] = None,
-    ) -> Type[BaseModel]:
+    ) -> Type[S]:
         """Creates a subclass of this model containing only the specified fields.
 
         See `pydantic_subclass()`.
