@@ -133,7 +133,7 @@ Note that you can also manually configure the `PREFECT_API_URL` and `PREFECT_API
 
 <div class="terminal">
 ```bash
-$ prefect config set PREFECT_API_URL="https://app.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
+$ prefect config set PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
 $ prefect config set PREFECT_API_KEY="[API-KEY]"
 ```
 </div>
@@ -196,9 +196,9 @@ To run a flow from a deployment with Prefect Cloud, you'll need to:
 - Start an agent in your execution environment
 - Run your deployment to create a flow run
 
-### Create a deployment specification
+### Create a deployment
 
-Let's go back to your flow code in `basic_flow.py`. In a terminal, run the `prefect deployment build` Prefect CLI command to build a manifest and `deployment.yaml` file that you'll use to create the deployment on Prefect Cloud.
+Let's go back to your flow code in `basic_flow.py`. In a terminal, run the `prefect deployment build` Prefect CLI command to build a manifest JSON file and deployment YAML file that you'll use to create the deployment on Prefect Cloud.
 
 <div class="terminal">
 ```bash
@@ -261,6 +261,11 @@ Starting agent connected to https://api.prefect.cloud/api/accounts/...
 Agent started! Looking for work from queue 'Agent queue test'...
 ```
 </div>
+
+!!! tip "`PREFECT_API_URL` setting for agents"
+    `PREFECT_API_URL` must be set for the environment in which your agent is running. 
+
+    In this case, we're running the agent in the same environment we logged into Prefect Cloud earlier. However, if you want the agent to communicate with Prefect Cloud from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
 ### Run a flow
 
