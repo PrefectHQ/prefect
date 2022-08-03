@@ -23,6 +23,7 @@ from prefect.cli.agent import start as start_agent
 from prefect.cli.root import app
 from prefect.docker import get_prefect_image_name, python_version_minor
 from prefect.orion.api.server import create_app
+from prefect.orion.utilities.server import compare_open_api_schemas
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_ORION_API_HOST,
@@ -93,6 +94,24 @@ def build_docs_yaml(
     with open(yaml_path, "w") as f:
         yaml.dump(orion_app.openapi(), f)
     app.console.print(f"OpenAPI schema written to {yaml_path}")
+
+
+@dev_app.command()
+def compare_docs_yaml(
+    base_yaml_path: str,
+    revision_yaml_path: str,
+):
+    """
+    Builds REST API reference documentation in yaml format.
+
+    Intended for use internally in detecting schema changes.
+    """
+    exit_with_error_if_not_editable_install()
+    with open(base_yaml_path, "r") as f:
+        base_yaml = yaml.safe_load(f)
+    with open(revision_yaml_path, "r") as f:
+        revision_yaml = yaml.safe_load(f)
+    compare_open_api_schemas(base=base_yaml, revision=revision_yaml)
 
 
 BUILD_UI_HELP = f"""

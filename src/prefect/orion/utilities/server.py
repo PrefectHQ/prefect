@@ -134,3 +134,145 @@ class OrionRouter(APIRouter):
         if kwargs.get("response_model") is None:
             kwargs["response_model"] = get_type_hints(endpoint).get("return")
         return super().add_api_route(path, endpoint, **kwargs)
+
+
+def compare_open_api_schemas(base: dict, revision: dict) -> str:
+    """
+    Compare two open API schemas and generate descriptive markdown of the changes.
+
+    Changes should include
+    - Added routes
+    - Deleted routes
+    - Schema changes
+    """
+    report = ""
+    base_routes = _get_routes_from_schema(schema=base)
+    revised_routes = _get_routes_from_schema(schema=revision)
+
+    deleted_routes = _get_deleted_routes(
+        base_routes=base_routes, revised_routes=revised_routes
+    )
+    report += "## Deleted routes\n"
+    report += _get_report_text_for_deleted_routes(deleted_routes=deleted_routes)
+    report += "\n\n"
+    added_routes = _get_added_routes(
+        base_routes=base_routes, revised_routes=revised_routes
+    )
+    report += "## Added routes\n"
+    report += _get_report_text_for_added_routes(
+        added_routes=added_routes, revised_routes=revised_routes
+    )
+    report += "\n\n"
+
+    report += "## Route changes\n"
+    changed_routes = _get_route_changes(
+        base_routes=base_routes, revised_routes=revised_routes
+    )
+    report += "\n".join(changed_routes)
+
+    print(report)
+
+
+def _get_report_text_for_deleted_routes(deleted_routes: list[str]) -> str:
+    """
+    Given a list of deleted routes, generate report text.
+    """
+    if len(deleted_routes) == 0:
+        return "No routes deleted"
+    deleted_route_text_list = "\n".join(deleted_routes)
+    return f"The following routes have been deleted:\n {deleted_route_text_list}"
+
+
+def _get_report_text_for_added_routes(
+    added_routes: list[str], revised_routes: dict
+) -> str:
+    """
+    Given a list of added routes, generate report text.
+
+    Args:
+        added_routes: a list of routes added
+        revised_routes: a dictionary containing information about
+            the revised routes, this will be used to populate info
+            about added routes
+    """
+    if len(added_routes) == 0:
+        return "No routes added."
+
+    added_routes_text = "The following routes have been added:\n"
+    for route in added_routes:
+        added_routes_text += f"### {route}"
+        description = revised_routes[route].get("description", "")
+        added_routes_text += f"\nDescription: {description}"
+        added_routes_text += (
+            f"\nParameters:\n{_format_parameters(revised_routes[route])}"
+        )
+
+    return added_routes_text
+
+
+def _format_parameters(route: dict) -> str:
+    """
+    Format an OpenAPI route parameter spec in readable text.
+    """
+    parameter_text = ""
+    for param in route.get("parameters", []):
+        param_name = param["name"]
+        param_required = param["required"]
+        param_location = param["in"]
+        param_type = param["schema"]["type"]
+
+        parameter_text += f"Name: {param_name}\n"
+        parameter_text += f"Location: {param_location}\n"
+        parameter_text += f"Required?: {param_required}\n"
+        parameter_text += f"Type: {param_type}\n"
+        parameter_text += "\n"
+
+    # check for body params, note this only
+    # checks for application/json types at the moment
+    if route.get("requestBody"):
+        parameter_text += f"Name: <request body>\nLocation: Body\nRequred?: True\n"
+        # TODO - resolve refs here
+        parameter_text += (
+            f"Type: {route['requestBody']['content']['application/json']['schema']}\n"
+        )
+        parameter_text += "\n"
+    return parameter_text
+
+
+def _get_routes_from_schema(schema: dict) -> dict:
+    """
+    Extracts routes from a fast api schema.
+    Outputs a dict of the form:
+
+    {VERB /path/to/route: <route schema>}
+    """
+    routes = dict()
+    for path in schema["paths"].keys():
+        for path_op in schema["paths"][path].keys():
+            routes[f"{path_op.upper()} - {path}"] = schema["paths"][path][path_op]
+    return routes
+
+
+def _get_deleted_routes(base_routes: dict, revised_routes: dict) -> list[str]:
+    """
+    Gets any routes that were deleted from `base_routes` in `revised_routes`.
+    """
+    deleted_routes = base_routes.keys() - revised_routes.keys()
+    return deleted_routes
+
+
+def _get_added_routes(base_routes: dict, revised_routes: dict) -> list[str]:
+    """
+    Gets any routes that were added to `revised_routes` not present in `base_routes`.
+    """
+    added_routes = revised_routes.keys() - base_routes.keys()
+    return added_routes
+
+
+def _get_route_changes(base_routes, revised_routes):
+    # TODO - this should check for schema changes too
+    changed_routes = []
+    for route in revised_routes:
+        if route in base_routes and base_routes[route] != revised_routes[route]:
+            changed_routes.append(route)
+    return changed_routes
