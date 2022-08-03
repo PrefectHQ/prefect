@@ -69,9 +69,6 @@ jobs:
       # find and alert on any schema changes
       - name: Install oasdiff
         run: go install github.com/tufin/oasdiff@latest
-      - name: Testing for breaking changes
-        id: test_breaking_changes
-        run: oasdiff -format text -base current-schema.yaml -revision updated-schema.yaml --breaking-only --fail-on-diff
       - name: Display all changes
         id: display_all_changes
         run: |
@@ -80,7 +77,6 @@ jobs:
           schema_diff="${schema_diff//$'\n'/'%0A'}"
           schema_diff="${schema_diff//$'\r'/'%0D'}"
           echo "::set-output name=schema_diff::$schema_diff" 
-
       - name: Find Comment
         uses: peter-evans/find-comment@v2
         id: fc

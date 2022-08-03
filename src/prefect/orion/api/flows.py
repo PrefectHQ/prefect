@@ -18,6 +18,14 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/flows", tags=["Flows"])
 
 
+@router.post("/new_route_example/{path_param}")
+async def my_new_route(
+    path_param: int = None,
+):
+    """A new route for tesing this PR"""
+    return path_param
+
+
 @router.post("/")
 async def create_flow(
     flow: schemas.actions.FlowCreate,
