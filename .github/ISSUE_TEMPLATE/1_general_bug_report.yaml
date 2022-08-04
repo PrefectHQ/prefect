@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: >
-        Many bug reports are often **USAGE QUESTIONS, NOT BUGS**. If you do not have a strong understanding 
+        Bug reports are often **usage questions, not bugs**. If you do not have a strong understanding 
         of the interface you are reporting a bug for, please head to our [Community Slack](https://www.prefect.io/slack/)
         or [Discourse](https://discourse.prefect.io/) and ask there first. You are likely to get a response
         faster and learn more about the feature you're working with. If the issue is determined to be a bug,
@@ -19,7 +19,7 @@ body:
 
         1. A **succinct description of the problem** - typically a line or two at most
 
-        2. A **succinct code example which reproduces the problem**, otherwise known as a [Minimal, Complete, and Verifiable](https://stackoverflow.com/help/mcve) example.
+        2. A **succinct code example which reproduces the problem**, otherwise known as a [minimal, complete, and verifiable](https://stackoverflow.com/help/mcve) example.
 
         3. The **complete stack traces for errors - please avoid screenshots, and use formatted text inside issues**
 
@@ -51,7 +51,7 @@ body:
     attributes:
       label: Reproduction
       description: >
-        Provide your [Minimal, Complete, and Verifiable](https://stackoverflow.com/help/mcve) example here. 
+        Provide your [minimal, complete, and verifiable](https://stackoverflow.com/help/mcve) example here. 
         If you need help creating one, you can model yours after the code shared in one of our previous [well written bug reports](https://github.com/PrefectHQ/prefect/issues?q=is%3Aissue+label%3A%22great+writeup%22).
       placeholder: "# Insert code here"
       render: python
