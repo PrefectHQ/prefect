@@ -1134,6 +1134,18 @@ class OrionClient:
             else:
                 raise
 
+    async def read_block_types(self) -> List[schemas.core.BlockType]:
+        """
+        Read all block types
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            List of BlockTypes.
+        """
+        response = await self._client.post(f"/block_types/filter", json={})
+        return pydantic.parse_obj_as(List[schemas.core.BlockType], response.json())
+
     async def read_block_schemas(self) -> List[schemas.core.BlockSchema]:
         """
         Read all block schemas
