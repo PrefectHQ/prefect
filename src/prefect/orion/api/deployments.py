@@ -6,8 +6,8 @@ from typing import List
 from uuid import UUID
 
 import pendulum
-import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
@@ -25,7 +25,7 @@ router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 async def create_deployment(
     deployment: schemas.actions.DeploymentCreate,
     response: Response,
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    session: AsyncSession = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.Deployment:
     """
@@ -78,7 +78,7 @@ async def create_deployment(
 async def update_deployment(
     deployment: schemas.actions.DeploymentUpdate,
     deployment_id: str = Path(..., description="The deployment id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    session: AsyncSession = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     result = await models.deployments.update_deployment(
@@ -92,7 +92,7 @@ async def update_deployment(
 async def read_deployment_by_name(
     flow_name: str = Path(..., description="The name of the flow"),
     deployment_name: str = Path(..., description="The name of the deployment"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    session: AsyncSession = Depends(dependencies.get_session),
 ) -> schemas.core.Deployment:
     """
     Get a deployment using the name of the flow and the deployment.
@@ -108,7 +108,7 @@ async def read_deployment_by_name(
 @router.get("/{id}")
 async def read_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    session: AsyncSession = Depends(dependencies.get_session),
 ) -> schemas.core.Deployment:
     """
     Get a deployment by id.
@@ -131,7 +131,7 @@ async def read_deployments(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    session: AsyncSession = Depends(dependencies.get_session),
 ) -> List[schemas.core.Deployment]:
     """
     Query for deployments.
@@ -153,7 +153,7 @@ async def count_deployments(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    session: AsyncSession = Depends(dependencies.get_session),
 ) -> int:
     """
     Count deployments.
@@ -170,7 +170,7 @@ async def count_deployments(
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    session: AsyncSession = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
@@ -191,7 +191,7 @@ async def schedule_deployment(
     start_time: DateTimeTZ = Body(None, description="The earliest date to schedule"),
     end_time: DateTimeTZ = Body(None, description="The latest date to schedule"),
     max_runs: int = Body(None, description="The maximum number of runs to schedule"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    session: AsyncSession = Depends(dependencies.get_session),
 ) -> None:
     """
     Schedule runs for a deployment. For backfills, provide start/end times in the past.
@@ -208,7 +208,7 @@ async def schedule_deployment(
 @router.post("/{id}/set_schedule_active")
 async def set_schedule_active(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    session: AsyncSession = Depends(dependencies.get_session),
 ) -> None:
     """
     Set a deployment schedule to active. Runs will be scheduled immediately.
@@ -227,7 +227,7 @@ async def set_schedule_active(
 @router.post("/{id}/set_schedule_inactive")
 async def set_schedule_inactive(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    session: AsyncSession = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> None:
     """
@@ -254,7 +254,7 @@ async def set_schedule_inactive(
 async def create_flow_run_from_deployment(
     flow_run: schemas.actions.DeploymentFlowRunCreate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    session: AsyncSession = Depends(dependencies.get_session),
     response: Response = None,
 ) -> schemas.core.FlowRun:
     """
@@ -309,7 +309,7 @@ async def create_flow_run_from_deployment(
 @router.get("/{id}/work_queue_check")
 async def work_queue_check_for_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    session: AsyncSession = Depends(dependencies.get_session),
 ) -> List[schemas.core.WorkQueue]:
     """
     Get list of work-queues that are able to pick up the specified deployment.
