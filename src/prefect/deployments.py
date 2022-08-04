@@ -17,6 +17,7 @@ from prefect.flows import Flow
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
+from prefect.orion.schemas.core import Deployment
 from prefect.utilities.callables import ParameterSchema
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.filesystem import tmpchdir
