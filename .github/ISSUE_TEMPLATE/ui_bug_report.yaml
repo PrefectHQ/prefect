@@ -29,7 +29,7 @@ body:
       options:
         - label: I added a descriptive title to this issue.
           required: true
-        - label: I used the GitHub search to find a similar request and didn't find it.
+        - label: I used the GitHub search to find a similar issue and didn't find it.
           required: true
 
   - type: textarea
