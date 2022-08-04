@@ -22,7 +22,7 @@ body:
         4. Additional details that may help us reproduce your issue.
   - type: textarea
     attributes:
-      label: Describe the bug
+      label: Bug summary
       description: A clear and concise description of what the bug is.
     validations:
       required: true
@@ -36,10 +36,10 @@ body:
 
   - type: textarea
     attributes:
-      label: Issue
+      label: Error
       description: >
         Provide screenshots of the issue if applicable.
-        Include any errors in the console if applicable. For help accessing the console on your browser, see [this article](https://support.airtable.com/hc/en-us/articles/232313848-How-to-open-the-developer-console).
+        Include any errors in the console. For help accessing the console on your browser, see [this article](https://support.airtable.com/hc/en-us/articles/232313848-How-to-open-the-developer-console).
     validations:
       required: true
 
@@ -68,7 +68,6 @@ body:
         - Firefox
         - Safari
         - Edge
-        - Internet Explorer
     validations:
       required: true
 
