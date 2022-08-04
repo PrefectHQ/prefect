@@ -8,9 +8,7 @@ from prefect.infrastructure.process import Process
 from prefect.utilities.callables import parameter_schema
 
 
-async def test_create_deployment_from_deployment_yaml(
-    orion_client, storage_document_id
-):
+async def test_create_deployment_from_deployment_yaml(orion_client):
     @flow
     def test_flow():
         pass
