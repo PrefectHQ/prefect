@@ -23,6 +23,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
           
+      - name: Build orion-ui
+        run: |
+          prefect dev build-ui
+          
       - name: Start orion
         run: |
           prefect orion start &
