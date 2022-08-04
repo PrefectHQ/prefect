@@ -397,6 +397,13 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
+PREFECT_FEATURE_FLAGGING_ENABLED = Setting(
+    bool,
+    default=False,
+    description="""Whether or not to enable Prefect's feature flagging system. 
+    Defaults to `False`.""",
+)
+
 PREFECT_ORION_DATABASE_PASSWORD = Setting(
     str,
     default=None,
