@@ -3,7 +3,7 @@
 
 name: Propose a feature enhancement
 description: Propose a new feature or an enhancement for Prefect
-labels: [requires triage]
+labels: ["status:needs-triage"]
 body:
   - type: dropdown
     id: version
