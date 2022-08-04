@@ -331,7 +331,7 @@ PREFECT_MEMO_STORE_PATH = Setting(
 PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION = Setting(
     bool,
     default=True,
-    description="""Controls whether or not block auto-registration on start 
+    description="""Controls whether or not block auto-registration on start
     up should be memoized. Setting to False may result in slower server start
     up times.""",
 )
@@ -416,11 +416,18 @@ PREFECT_ORION_BLOCKS_REGISTER_ON_START = Setting(
     default=True,
     description=textwrap.dedent(
         """
-        If set, any block types that have been imported will be registered with the 
-        backend on application startup. If not set, block types must be manually 
+        If set, any block types that have been imported will be registered with the
+        backend on application startup. If not set, block types must be manually
         registered.
         """
     ),
+)
+
+PREFECT_FEATURE_FLAGGING_ENABLED = Setting(
+    bool,
+    default=False,
+    description="""Whether or not to enable Prefect's feature flagging system.
+    Defaults to `False`.""",
 )
 
 PREFECT_ORION_DATABASE_PASSWORD = Setting(
