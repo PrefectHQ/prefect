@@ -37,10 +37,6 @@ jobs:
         working-directory: ./orion-ui
         run: npm ci install
 
-      - name: Build orion-ui
-        working-directory: ./orion-ui
-        run: npm run build
-
       - name: Install Playwright Browsers
         working-directory: ./orion-ui
         run: npx playwright install --with-deps
