@@ -845,6 +845,17 @@ async def test_read_flows_with_filter(orion_client):
     assert {flow.id for flow in flows} == {flow_id_1, flow_id_2}
 
 
+async def test_read_flow_by_name(orion_client):
+    @flow(name="null-flow")
+    def do_nothing():
+        pass
+
+    flow_id = await orion_client.create_flow(do_nothing)
+    the_flow = await orion_client.read_flow_by_name("null-flow")
+
+    assert the_flow.id == flow_id
+
+
 async def test_create_flow_run_from_deployment(orion_client, deployment):
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
     # Deployment details attached
