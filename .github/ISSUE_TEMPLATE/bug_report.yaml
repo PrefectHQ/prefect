@@ -1,6 +1,6 @@
 name: Create a bug report
 description: Errors and regression reports with complete reproducing test cases and/or stack traces.
-labels: ["status:needs-triage"]
+labels: ["status:needs-triage", "bug"]
 body:
   - type: markdown
     attributes:
