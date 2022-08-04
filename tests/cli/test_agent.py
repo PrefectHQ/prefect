@@ -123,7 +123,8 @@ def test_agent_start(name, import_path, extra_cmd, extra_kwargs, monkeypatch):
         (
             "--key TEST-KEY --api TEST-API --agent-config-id TEST-AGENT-CONFIG-ID "
             "--name TEST-NAME -l label1 -l label2 -e KEY1=VALUE1 -e KEY2=VALUE2 "
-            "-e KEY3=VALUE=WITH=EQUALS --max-polls 10 --agent-address 127.0.0.1:8080"
+            "-e KEY3=VALUE=WITH=EQUALS --max-polls 10 --agent-address 127.0.0.1:8080 "
+            "--max-concurrent-runs 4"
         ).split()
     )
     command.extend(["--log-level", "debug"])
@@ -143,6 +144,7 @@ def test_agent_start(name, import_path, extra_cmd, extra_kwargs, monkeypatch):
         "max_polls": 10,
         "agent_address": "127.0.0.1:8080",
         "no_cloud_logs": None,
+        "max_concurrent_runs": 4,
         **extra_kwargs,
     }
 
