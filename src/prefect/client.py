@@ -505,7 +505,7 @@ class OrionClient:
             a fully hydrated [Flow model][prefect.orion.schemas.core.Flow]
         """
         response = await self._client.get(f"/flows/name/{flow_name}")
-        return schemas.core.Deployment.parse_obj(response.json())
+        return schemas.core.Flow.parse_obj(response.json())
 
     async def create_flow_run_from_deployment(
         self,
