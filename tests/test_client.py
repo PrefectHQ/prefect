@@ -14,7 +14,7 @@ from httpx import AsyncClient, HTTPStatusError, Request, Response
 
 import prefect.context
 import prefect.exceptions
-from prefect import flow
+from prefect import flow, tags
 from prefect.client import OrionClient, PrefectHttpxClient, get_client
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
@@ -845,6 +845,17 @@ async def test_read_flows_with_filter(orion_client):
     assert {flow.id for flow in flows} == {flow_id_1, flow_id_2}
 
 
+async def test_read_flow_by_name(orion_client):
+    @flow(name="null-flow")
+    def do_nothing():
+        pass
+
+    flow_id = await orion_client.create_flow(do_nothing)
+    the_flow = await orion_client.read_flow_by_name("null-flow")
+
+    assert the_flow.id == flow_id
+
+
 async def test_create_flow_run_from_deployment(orion_client, deployment):
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
     # Deployment details attached
@@ -863,6 +874,21 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
     )
 
 
+async def test_create_flow_run_from_deployment_with_options(orion_client, deployment):
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        deployment.id,
+        name="test-run-name",
+        tags={"foo", "bar"},
+        state=Pending(message="test"),
+        parameters={"foo": "bar"},
+    )
+    assert flow_run.name == "test-run-name"
+    assert set(flow_run.tags) == {"foo", "bar"}.union(deployment.tags)
+    assert flow_run.state.type == StateType.PENDING
+    assert flow_run.state.message == "test"
+    assert flow_run.parameters == {"foo": "bar"}
+
+
 async def test_update_flow_run(orion_client):
     @flow
     def foo():
@@ -879,12 +905,35 @@ async def test_update_flow_run(orion_client):
 
     # Fields updated when set
     await orion_client.update_flow_run(
-        flow_run.id, flow_version="foo", parameters={"foo": "bar"}, name="test"
+        flow_run.id,
+        flow_version="foo",
+        parameters={"foo": "bar"},
+        name="test",
+        tags=["hello", "world"],
     )
     updated_flow_run = await orion_client.read_flow_run(flow_run.id)
     assert updated_flow_run.flow_version == "foo"
     assert updated_flow_run.parameters == {"foo": "bar"}
     assert updated_flow_run.name == "test"
+    assert updated_flow_run.tags == ["hello", "world"]
+
+
+async def test_update_flow_run_overrides_tags(orion_client):
+    @flow(name="test_update_flow_run_tags__flow")
+    def hello(name):
+        return f"Hello {name}"
+
+    with tags("goodbye", "cruel", "world"):
+        state = hello("Marvin", return_state=True)
+
+    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+
+    await orion_client.update_flow_run(
+        flow_run.id,
+        tags=["hello", "world"],
+    )
+    updated_flow_run = await orion_client.read_flow_run(flow_run.id)
+    assert updated_flow_run.tags == ["hello", "world"]
 
 
 async def test_create_then_read_task_run(orion_client):

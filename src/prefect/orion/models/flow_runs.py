@@ -12,6 +12,7 @@ from uuid import UUID
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
 import prefect.orion.models as models
@@ -34,7 +35,7 @@ from prefect.orion.utilities.schemas import PrefectBaseModel
 
 @inject_db
 async def create_flow_run(
-    session: sa.orm.Session, flow_run: schemas.core.FlowRun, db: OrionDBInterface
+    session: AsyncSession, flow_run: schemas.core.FlowRun, db: OrionDBInterface
 ):
     """Creates a new flow run.
 
@@ -105,7 +106,7 @@ async def create_flow_run(
 
 @inject_db
 async def update_flow_run(
-    session: sa.orm.Session,
+    session: AsyncSession,
     flow_run_id: UUID,
     flow_run: schemas.actions.FlowRunUpdate,
     db: OrionDBInterface,
@@ -138,9 +139,7 @@ async def update_flow_run(
 
 
 @inject_db
-async def read_flow_run(
-    session: sa.orm.Session, flow_run_id: UUID, db: OrionDBInterface
-):
+async def read_flow_run(session: AsyncSession, flow_run_id: UUID, db: OrionDBInterface):
     """
     Reads a flow run by id.
 
@@ -208,7 +207,7 @@ async def _apply_flow_run_filters(
 
 @inject_db
 async def read_flow_runs(
-    session: sa.orm.Session,
+    session: AsyncSession,
     db: OrionDBInterface,
     columns: List = None,
     flow_filter: schemas.filters.FlowFilter = None,
@@ -272,7 +271,7 @@ class DependencyResult(PrefectBaseModel):
 
 
 async def read_task_run_dependencies(
-    session: sa.orm.Session,
+    session: AsyncSession,
     flow_run_id: UUID,
 ) -> List[DependencyResult]:
     """
@@ -313,7 +312,7 @@ async def read_task_run_dependencies(
 
 @inject_db
 async def count_flow_runs(
-    session: sa.orm.Session,
+    session: AsyncSession,
     db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
@@ -351,7 +350,7 @@ async def count_flow_runs(
 
 @inject_db
 async def delete_flow_run(
-    session: sa.orm.Session, flow_run_id: UUID, db: OrionDBInterface
+    session: AsyncSession, flow_run_id: UUID, db: OrionDBInterface
 ) -> bool:
     """
     Delete a flow run by flow_run_id.
@@ -371,7 +370,7 @@ async def delete_flow_run(
 
 
 async def set_flow_run_state(
-    session: sa.orm.Session,
+    session: AsyncSession,
     flow_run_id: UUID,
     state: schemas.states.State,
     force: bool = False,
