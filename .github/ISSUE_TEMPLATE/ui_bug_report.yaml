@@ -1,5 +1,5 @@
-name: Create a UI bug report
-description: Bug reports for the Prefect web UI.
+name: Report a bug with the Prefect UI
+description: Errors and display issues with the Prefect web interface.
 labels: ["status:needs-triage", "ui", "bug"]
 body:
   - type: markdown
