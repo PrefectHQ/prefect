@@ -59,7 +59,7 @@ async def start_agent(app: PrefectTyper):
     print("Agent shutting down...")
 
 
-async def get_qa_storage_block(path: str, name="qa-storage-block"):
+async def get_qa_storage_block(path: Path, name="qa-storage-block"):
     try:
         storage_block = await LocalFileSystem.load(name)
     except ValueError as exc:
