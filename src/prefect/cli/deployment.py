@@ -258,59 +258,57 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
 
 @deployment_app.command()
 async def apply(
-    path: Path = typer.Argument(
-        None,
-        help="The path to a deployment YAML file.",
-        show_default=False,
-    )
+    paths: List[str] = typer.Argument(
+        ...,
+        help="One or more paths to deployment YAML files.",
+    ),
 ):
     """
     Create or update a deployment from a YAML file.
     """
-    if path is None:
-        path = "deployment.yaml"
+    for path in paths:
 
-    # load the file
-    with open(str(path), "r") as f:
-        data = yaml.safe_load(f)
+        # load the file
+        with open(str(path), "r") as f:
+            data = yaml.safe_load(f)
 
-    # create deployment object
-    try:
-        deployment = DeploymentYAML(**data)
-        app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
-    except Exception as exc:
-        exit_with_error(f"Provided file did not conform to deployment spec: {exc!r}")
+        # create deployment object
+        try:
+            deployment = DeploymentYAML(**data)
+            app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
+        except Exception as exc:
+            exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
 
-    async with get_client() as client:
-        # prep IDs
-        flow_id = await client.create_flow_from_name(deployment.flow_name)
+        async with get_client() as client:
+            # prep IDs
+            flow_id = await client.create_flow_from_name(deployment.flow_name)
 
-        deployment.infrastructure = deployment.infrastructure.copy()
-        infrastructure_document_id = await deployment.infrastructure._save(
-            is_anonymous=True,
+            deployment.infrastructure = deployment.infrastructure.copy()
+            infrastructure_document_id = await deployment.infrastructure._save(
+                is_anonymous=True,
+            )
+
+            # we assume storage was already saved
+            storage_document_id = deployment.storage._block_document_id
+
+            deployment_id = await client.create_deployment(
+                flow_id=flow_id,
+                name=deployment.name,
+                version=deployment.version,
+                schedule=deployment.schedule,
+                parameters=deployment.parameters,
+                description=deployment.description,
+                tags=deployment.tags,
+                manifest_path=deployment.manifest_path,
+                storage_document_id=storage_document_id,
+                infrastructure_document_id=infrastructure_document_id,
+                parameter_openapi_schema=deployment.parameter_openapi_schema.dict(),
+            )
+
+        app.console.print(
+            f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
+            style="green",
         )
-
-        # we assume storage was already saved
-        storage_document_id = deployment.storage._block_document_id
-
-        deployment_id = await client.create_deployment(
-            flow_id=flow_id,
-            name=deployment.name,
-            version=deployment.version,
-            schedule=deployment.schedule,
-            parameters=deployment.parameters,
-            description=deployment.description,
-            tags=deployment.tags,
-            manifest_path=deployment.manifest_path,
-            storage_document_id=storage_document_id,
-            infrastructure_document_id=infrastructure_document_id,
-            parameter_openapi_schema=deployment.parameter_openapi_schema.dict(),
-        )
-
-    app.console.print(
-        f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
-        style="green",
-    )
 
 
 @deployment_app.command()
