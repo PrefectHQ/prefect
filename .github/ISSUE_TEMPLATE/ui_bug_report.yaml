@@ -20,6 +20,18 @@ body:
         3. The browser console output or screenshots demonstrating the issue.
 
         4. Additional details that may help us reproduce your issue.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: First Check
+      description: Please confirm and check all the following options.
+      options:
+        - label: I added a descriptive title to this issue.
+          required: true
+        - label: I used the GitHub search to find a similar request and didn't find it.
+          required: true
+
   - type: textarea
     attributes:
       label: Bug summary

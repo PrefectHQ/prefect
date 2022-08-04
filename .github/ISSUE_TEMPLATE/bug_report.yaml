@@ -10,6 +10,7 @@ body:
         or [Discourse](https://discourse.prefect.io/) and ask there first. You are likely to get a response
         faster and learn more about the feature you're working with. If the issue is determined to be a bug,
         we will open an issue here.
+  
   - type: markdown
     attributes:
       value: >
@@ -23,9 +24,25 @@ body:
         3. The **complete stack traces for errors - please avoid screenshots, and use formatted text inside issues**
 
         4. Additional details that may help us reproduce your issue.
+  
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: First Check
+      description: Please confirm and check all the following options.
+      options:
+        - label: I added a descriptive title to this issue.
+          required: true
+        - label: I used the GitHub search to find a similar issue and didn't find it.
+          required: true
+        - label: I searched the Prefect documentation for this issue.
+          required: true
+        - label: I checked that this issue is related to Prefect and not one of its dependencies.
+          required: true
+
   - type: textarea
     attributes:
-      label: Describe the bug
+      label: Bug summary
       description: A clear and concise description of what the bug is.
     validations:
       required: true
