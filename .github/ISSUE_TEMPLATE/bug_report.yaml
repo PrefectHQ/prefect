@@ -1,36 +1,28 @@
-# docs https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms
-# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema
-
 name: Create a bug report
 description: Errors and regression reports with complete reproducing test cases and/or stack traces.
 labels: [requires triage]
 body:
   - type: markdown
     attributes:
-      value: "
-
-**PLEASE READ THIS PARAGRAPH - this helps us identify the root cause and fix the issue:**
-
-Many bug reports are often
-**USAGE QUESTIONS, NOT BUGS** - for those, please report your question via our [Community Slack](https://www.prefect.io/slack/) or [Discourse](https://discourse.prefect.io/). We'll then investigate the issue and open a bug report when necessary.
-
-"
+      value: >
+        Many bug reports are often **USAGE QUESTIONS, NOT BUGS**. If you do not have a strong understanding 
+        of the interface you are reporting a bug for, please head to our [Community Slack](https://www.prefect.io/slack/)
+        or [Discourse](https://discourse.prefect.io/) and ask there first. You are likely to get a response
+        faster and learn more about the feature you're working with. If the issue is determined to be a bug,
+        we will open an issue here.
   - type: markdown
     attributes:
-      value: "
+      value: >
+        If you are new to Prefect bug reports, please review our many examples of [well written bug reports](https://github.com/PrefectHQ/prefect/issues?q=is%3Aissue+label%3A%22great+writeup%22). 
+        Each of these reports include the following features:
 
-**GUIDELINES FOR REPORTING BUGS**
+        1. A **succinct description of the problem** - typically a line or two at most
 
-Your bug report should include the following features:
+        2. A **succinct code example which reproduces the problem**, otherwise known as a [Minimal, Complete, and Verifiable](https://stackoverflow.com/help/mcve) example.
 
-1. a **succinct description of the problem** - typically a line or two at most
+        3. The **complete stack traces for errors - please avoid screenshots, and use formatted text inside issues**
 
-2. **succinct code example which reproduces the problem**, otherwise known as a [Minimal, Complete, and Verifiable](https://stackoverflow.com/help/mcve) example.
-
-3. **complete stack traces for errors - please avoid screenshots, and use formatted text inside issues**
-
-4. Additional details that may help us reproduce your issue, including your operating system, the output of the `prefect version` command, or benchmarks for performance issues.
-"
+        4. Additional details that may help us reproduce your issue.
   - type: textarea
     attributes:
       label: Describe the bug
@@ -40,9 +32,10 @@ Your bug report should include the following features:
 
   - type: textarea
     attributes:
-      label: To Reproduce
-      description: "
-Provide your [Minimal, Complete, and Verifiable](https://stackoverflow.com/help/mcve) example here.
+      label: Reproduction
+      description: >
+        Provide your [Minimal, Complete, and Verifiable](https://stackoverflow.com/help/mcve) example here. 
+        If you need help creating one, you can model yours after the code shared in one of our previous [well written bug reports]([well written bug reports](https://github.com/PrefectHQ/prefect/issues?q=is%3Aissue+label%3A%22great+writeup%22).
       placeholder: "# Insert code here"
       render: python
     validations:
@@ -51,28 +44,31 @@ Provide your [Minimal, Complete, and Verifiable](https://stackoverflow.com/help/
   - type: textarea
     attributes:
       label: Error
-      description: "
-Provide the full exception tracebacks.
-If the message is a warning, run your program with the ``-Werror`` flag:   ``python -Werror myflow.py``
-"
+      description: >
+        Provide the full exception tracebacks.
+        If the message is a warning, run your program with the ``-Werror`` flag:   ``python -Werror my_flow.py``
       placeholder: "# Copy complete stack trace and error message here, including log output if applicable."
-      value: "\
-```
+      value: |
+        ```
 
-# Copy complete stack trace and error message here, including log output if applicable.
+        # Copy complete stack trace and error message here, including log output if applicable.
 
-```
-"
+        ```
     validations:
       required: false
 
   - type: textarea
     attributes:
       label: Versions
+      description: >
+        Provide information about your Prefect version and environment. The easiest way to retrieve all of the information we require is the `prefect version` command.
+        If using Prefect 1.x, it is useful to also include the output of `prefect diagnostics`.
       value: |
-        - OS:
-        - Python:
-        - Prefect:
+        ```
+
+        # Copy output of `prefect version` here
+
+        ```
     validations:
       required: true
 
