@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Read the documentation
+    url: https://docs.prefect.io/
+    about: Please consult the documentation before opening any issues!
+  - name: Ask a question
+    url: https://discourse.prefect.io/c/21
+    about: Ask questions about how to use Prefect on our Discourse forum.
+  - name: Chat with an expert
+    url: https://www.prefect.io/slack
+    about: Live chat with Prefect experts, engineers, and users on our Slack community.
+  - name: Contact us about professional services
+    url: https://www.prefect.io/#contact
+    about: Contact the Prefect sales team for paid support.
