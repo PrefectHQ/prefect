@@ -31,6 +31,8 @@ body:
           required: true
         - label: I used the GitHub search to find a similar issue and didn't find it.
           required: true
+        - label: I refreshed the page and this issue still occurred.
+          required: true
 
   - type: textarea
     attributes:
