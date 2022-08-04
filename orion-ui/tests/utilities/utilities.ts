@@ -47,7 +47,7 @@ export function useSelect(locator: string | Locator, page: Page | Locator = PAGE
 
   const selectOption = async (text: string): Promise<void> => {
     await click()
-    await page.locator('.p-select-options').locator(`text=${text}`).click()
+    await PAGE.locator('.p-select-options').locator(`text=${text}`).click()
     await click()
   }
 
