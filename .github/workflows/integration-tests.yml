@@ -8,6 +8,8 @@ jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.24.2-focal
     steps:
       - uses: actions/checkout@v3
 
@@ -40,10 +42,6 @@ jobs:
       - name: Install orion-ui dependencies
         working-directory: ./orion-ui
         run: npm ci install
-
-      - name: Install Playwright Browsers
-        working-directory: ./orion-ui
-        run: npx playwright install --with-deps
 
       - name: Run Playwright tests
         working-directory: ./orion-ui
