@@ -7,6 +7,7 @@ from enum import Enum
 from inspect import getdoc
 from pathlib import Path
 from typing import List, Optional
+from uuid import UUID
 
 import pendulum
 import typer

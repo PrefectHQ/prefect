@@ -59,4 +59,4 @@ dask-worker-space/
 # QA manifest.json and deployment.yaml files
 qa/deployments/*/*.yaml
 qa/deployments/*/*.json
-qa/deployment_storage
+qa/deployment_storage/*

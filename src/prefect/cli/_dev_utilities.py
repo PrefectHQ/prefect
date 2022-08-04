@@ -2,6 +2,7 @@ import os
 import subprocess
 from pathlib import Path
 from typing import List
+from uuid import UUID
 
 import anyio
 import yaml
@@ -12,7 +13,7 @@ from prefect.agent import OrionAgent
 from prefect.cli._types import PrefectTyper
 from prefect.cli.deployment import _create_deployment_from_deployment_yaml
 from prefect.client import get_client
-from prefect.deployments import Deployment, DeploymentYAML
+from prefect.deployments import DeploymentYAML
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
 from prefect.filesystems import LocalFileSystem
 from prefect.settings import (
@@ -131,7 +132,7 @@ async def execute_flow_scripts(task_status=TASK_STATUS_IGNORED):
 
 
 async def submit_deployments_for_execution(
-    app: PrefectTyper, deployment_ids: List[Deployment], task_status=TASK_STATUS_IGNORED
+    app: PrefectTyper, deployment_ids: List[UUID], task_status=TASK_STATUS_IGNORED
 ):
     """Submit all deployments for execution"""
     async with get_client() as client:
