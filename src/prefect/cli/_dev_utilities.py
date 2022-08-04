@@ -1,4 +1,5 @@
 import os
+import pathlib
 import subprocess
 from pathlib import Path
 from typing import List
@@ -58,7 +59,7 @@ async def start_agent(app: PrefectTyper):
     print("Agent shutting down...")
 
 
-async def get_qa_storage_block(path, name="qa-storage-block"):
+async def get_qa_storage_block(path: str, name="qa-storage-block"):
     try:
         storage_block = await LocalFileSystem.load(name)
     except ValueError as exc:
@@ -70,7 +71,7 @@ async def get_qa_storage_block(path, name="qa-storage-block"):
     return storage_block
 
 
-async def register_deployment_from_yaml(directory_path, block_slug):
+async def register_deployment_from_yaml(directory_path: pathlib.Path, block_slug: str):
     """
     Builds and applies the flow in a given directory to
     a deployment.
