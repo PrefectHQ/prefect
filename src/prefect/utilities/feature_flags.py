@@ -3,24 +3,27 @@ This module contains code related to feature flagging.
 
 For more guidance, read docs/feature_flags.md.
 """
-import functools
-from typing import Any, Iterable, Optional, List
+from typing import Any, Iterable, List, Optional
 
-from flipper import (
-    Condition,
-    FeatureFlagClient,
-    MemoryFeatureFlagStore
-)
+from flipper import Condition, FeatureFlagClient, MemoryFeatureFlagStore
 from flipper.bucketing.base import AbstractBucketer
 from flipper.flag import FeatureFlag
 
 from prefect import settings
 
+_client: Optional[FeatureFlagClient] = None
 
-@functools.cache
+
 def get_features_client() -> FeatureFlagClient:
+    global _client
+
+    if _client:
+        return _client
+
     store = MemoryFeatureFlagStore()
-    return FeatureFlagClient(store)
+    _client = FeatureFlagClient(store)
+
+    return _client
 
 
 def create_if_missing(
@@ -29,7 +32,7 @@ def create_if_missing(
     client_data: Optional[dict] = None,
     bucketer: Optional[AbstractBucketer] = None,
     conditions: Optional[Iterable[Condition]] = None,
-    client: FeatureFlagClient = None
+    client: FeatureFlagClient = None,
 ) -> Optional[FeatureFlag]:
     """
     Create a feature flag if a flag matching the given name does not
@@ -49,9 +52,8 @@ def create_if_missing(
                 configured to look at an in-memory feature store.
 
     Returns:
-        FeatureFlag or None: Returns the new FeatureFlag if one did not
-                             exist with this name already or None if the
-                             flag already existed.
+        FeatureFlag or None: Returns a created or existing FeatureFlag, or None
+                             if feature flagging is disabled.
     """
     if not settings.PREFECT_FEATURE_FLAGGING_ENABLED.value():
         return
@@ -59,10 +61,11 @@ def create_if_missing(
     if not client:
         client = get_features_client()
 
-    # If the feature flag exists, we'll consider the state of the flag
-    # in the feature flag store as canonical.
-    if client.get(flag_name).exists():
-        return
+    # If the flag exists in the feature flag store, we'll consider the
+    # enabled state, bucketer, and conditions currently saved in the
+    # feature flag store as canonical.
+    if client.exists(flag_name):
+        return client.get(flag_name)
 
     flag = client.create(flag_name, is_enabled=is_enabled, client_data=client_data)
 
@@ -75,7 +78,12 @@ def create_if_missing(
     return flag
 
 
-def flag_is_enabled(flag_name: str, default=False, client: FeatureFlagClient = None, **conditions: Optional[Any]):
+def flag_is_enabled(
+    flag_name: str,
+    default=False,
+    client: FeatureFlagClient = None,
+    **conditions: Optional[Any]
+):
     """
     Check if a feature flag is enabled.
 
@@ -107,7 +115,9 @@ def flag_is_enabled(flag_name: str, default=False, client: FeatureFlagClient = N
     return client.is_enabled(flag_name, default=default, **conditions)
 
 
-def list_feature_flags(batch_size: int = 10, client: FeatureFlagClient = None) -> List[FeatureFlag]:
+def list_feature_flags(
+    batch_size: int = 10, client: FeatureFlagClient = None
+) -> List[FeatureFlag]:
     """
     List all feature flags.
 
@@ -120,7 +130,7 @@ def list_feature_flags(batch_size: int = 10, client: FeatureFlagClient = None) -
                 configured to look at an in-memory feature store.
 
     Returns:
-        list[FeatureFlag]: list of all feature flags
+        List[FeatureFlag]: list of all feature flags in the store
     """
     if not settings.PREFECT_FEATURE_FLAGGING_ENABLED.value():
         return []
@@ -143,7 +153,7 @@ def list_feature_flags(batch_size: int = 10, client: FeatureFlagClient = None) -
     return flags
 
 
-# Current in-use feature flags go here.
+# Feature flags currently in use go here.
 #
 # Flags should follow the naming pattern of {ENABLE/DISABLE}_{FEATURE_NAME}.
 # The UI consumes some of these via `/api/flags` so that features can
