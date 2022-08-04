@@ -110,6 +110,10 @@ COPY --from=python-builder /opt/prefect/dist ./dist
 ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
 RUN pip install --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
 
+# Install remote storage block dependencies
+COPY requirements-fs.txt ./
+RUN pip install --no-cache-dir -r requirements-fs.txt
+
 # Setup entrypoint
 COPY scripts/entrypoint.sh ./entrypoint.sh
 ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/opt/prefect/entrypoint.sh"]
