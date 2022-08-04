@@ -427,5 +427,5 @@ async def qa(
             tg.start_soon(start_agent, app)
 
         await tg.start(execute_flow_scripts)
-        registered_deployments = await register_deployments()
+        registered_deployments = await register_deployments(app=app)
         await tg.start(submit_deployments_for_execution, app, registered_deployments)

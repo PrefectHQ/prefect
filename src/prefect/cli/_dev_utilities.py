@@ -13,7 +13,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli.deployment import _create_deployment_from_deployment_yaml
 from prefect.client import get_client
 from prefect.deployments import Deployment, DeploymentYAML
-from prefect.exceptions import PrefectHTTPStatusError
+from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
 from prefect.filesystems import LocalFileSystem
 from prefect.settings import (
     PREFECT_AGENT_QUERY_INTERVAL,
@@ -62,10 +62,10 @@ async def get_qa_storage_block(path, name="qa-storage-block"):
         storage_block = await LocalFileSystem.load(name)
     except ValueError as exc:
         storage_block = LocalFileSystem(basepath=path)
-        # try:
-        await storage_block.save(name, overwrite=True)
-        # except ObjectNotFound as exc:
-        #     await storage_block.save(name)
+        try:
+            await storage_block.save(name, overwrite=True)
+        except ObjectNotFound as exc:
+            await storage_block.save(name)
     return storage_block
 
 
