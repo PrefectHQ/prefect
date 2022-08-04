@@ -82,7 +82,13 @@ async def test_run_sync_in_interruptible_worker_thread():
 
     assert await run_sync_in_interruptible_worker_thread(foo, 1, y=2) == 6
 
-
+# During testing cancelling the worker thread by raising a exeption sometimes
+# causes pytest to catch the exception from the worker thread.  It seems
+# there is some kind of race condition going on between teardown of the test
+# as a whole and the cancellation of the thread.  Because unhandled thread
+# exeptions are normally silently ignored and we want this exception to
+# happen in the first place we'll tell pytest to ignore this as well
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 async def test_run_sync_in_interruptible_worker_thread_does_not_hide_exceptions():
     def foo():
         raise ValueError("test")
@@ -90,7 +96,8 @@ async def test_run_sync_in_interruptible_worker_thread_does_not_hide_exceptions(
     with pytest.raises(ValueError, match="test"):
         await run_sync_in_interruptible_worker_thread(foo)
 
-
+# See the test above for the explanation
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 async def test_run_sync_in_interruptible_worker_thread_does_not_hide_base_exceptions():
     class LikeKeyboardInterrupt(BaseException):
         """Like a keyboard interrupt but not for real"""
