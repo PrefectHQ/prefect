@@ -10,6 +10,7 @@ from typing import List, Optional, Type
 import typer
 from rich.table import Table
 
+from prefect.client import get_client
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
@@ -18,6 +19,7 @@ from prefect.exceptions import ScriptError
 from prefect.utilities.importtools import load_script_as_module
 
 blocks_app = PrefectTyper(name="block", help="Commands for working with blocks.")
+blocktypes_app = PrefectTyper(name="types", help="Commands for working with blocks.")
 app.add_typer(blocks_app)
 
 
@@ -104,3 +106,53 @@ async def register(
         "\n To configure the newly registered blocks, "
         "go to the Blocks page in the Prefect UI.\n"
     )
+
+
+@blocks_app.command()
+async def ls():
+    """
+    View all configured Blocks.
+    """
+    async with get_client() as client:
+        blocks = await client.read_block_documents()
+
+    table = Table(
+        title="Blocks",
+    )
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Name", style="blue", no_wrap=True)
+    table.add_column("Type", style="blue", no_wrap=True)
+
+    for block in sorted(blocks, key=lambda x: x.block_schema.fields["title"]):
+        table.add_row(
+            str(block.id),
+            str(block.name),
+            block.block_schema.fields["title"],
+        )
+
+    app.console.print(table)
+
+
+@blocks_app.command('list-types')
+async def list_types():
+    """
+    View all Block types.
+    """
+    async with get_client() as client:
+        block_types = await client.read_block_types()
+
+    table = Table(
+        title="Block Types", show_lines=True,
+    )
+    table.add_column("Name", style="blue", no_wrap=True)
+    table.add_column("Slug", style="italic cyan", no_wrap=True)
+    table.add_column("Description", style="blue", no_wrap=False, justify="right")
+
+    for blocktype in sorted(block_types, key=lambda x: x.name):
+        table.add_row(
+            str(blocktype.name),
+            str(blocktype.slug),
+            str(blocktype.description.splitlines()[0].partition('.')[0]),
+        )
+
+    app.console.print(table)
