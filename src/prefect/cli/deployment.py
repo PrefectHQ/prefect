@@ -450,7 +450,7 @@ async def build(
         style="green",
     )
     if manifest_only:
-        typer.Exit(0)
+        raise typer.Exit(0)
 
     ## process storage and move files around
     if storage_block:

@@ -2,8 +2,10 @@
 Utilities for injecting FastAPI dependencies.
 """
 import logging
+from typing import AsyncGenerator
 
 from fastapi import Body, Depends, Header, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
@@ -12,7 +14,9 @@ from prefect.settings import PREFECT_ORION_API_DEFAULT_LIMIT
 
 
 @response_scoped_dependency
-async def get_session(db: OrionDBInterface = Depends(provide_database_interface)):
+async def get_session(
+    db: OrionDBInterface = Depends(provide_database_interface),
+) -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency-injected database session.
 
