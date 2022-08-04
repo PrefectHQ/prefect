@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test'
-import { test, useForm, useCombobox, useLabel, useSelect, useTable, useButton, usePageHeading } from './utilities'
+import { test, useForm, useCombobox, useLabel, useSelect, useTable, useButton, usePageHeading, useLink } from './utilities'
 
 test('Can create a notification', async ({ page }) => {
   await page.goto('/notifications')
@@ -8,7 +8,8 @@ test('Can create a notification', async ({ page }) => {
   const existingNotifications = await notifications.count()
 
   const { heading } = usePageHeading()
-  await heading.locator('[href="/notifications/new"]').click()
+  const { link } = useLink('/notifications/new', heading)
+  await link.click()
 
   const { control: states } = useLabel('Run states')
   const { selectOption } = useSelect(states)
