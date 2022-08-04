@@ -250,6 +250,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
         # Runtime attributes
         self._task_group: TaskGroup = None
+        self._events: Dict[UUID, anyio.Event] = {}
         self._results: Dict[UUID, Any] = {}
         self._run_keys: Set[UUID] = set()
         super().__init__()
@@ -284,6 +285,9 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
         # Track the keys so we can ensure to gather them later
         self._run_keys.add(run_key)
+        # Going for a minimally invasive change for now but probably
+        # the _run_keys set can go away now: just use _events.keys()
+        self._events[run_key] = anyio.Event()
 
         return PrefectFuture(
             task_run=task_run,
@@ -312,20 +316,26 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         Since this run is occuring on the main thread, we capture exceptions to prevent
         task crashes from crashing the flow run.
         """
+
         try:
             self._results[run_key] = await run_fn(**run_kwargs)
         except BaseException as exc:
             self._results[run_key] = exception_to_crashed_state(exc)
+        finally:
+            self._events[run_key].set() # raise event
 
     async def _get_run_result(self, run_key: str, timeout: float = None):
         """
         Block until the run result has been populated.
         """
         with anyio.move_on_after(timeout):
-            result = self._results.get(run_key)
-            while not result:
-                await anyio.sleep(0)  # yield to other tasks
-                result = self._results.get(run_key)
+            await self._events[run_key].wait()
+            # I would like to use pop to avoid a memory leak here but wait() seems to
+            # be called twice sometimes? Not cleaning up task_run results is going to be
+            # a problem for flows with lots of tasks or large results
+            #self._events.pop(run_key)
+            #result = self._results.pop(run_key)
+            result = self._results[run_key]
         return result
 
     async def _start(self, exit_stack: AsyncExitStack):
