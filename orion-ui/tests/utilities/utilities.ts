@@ -171,3 +171,64 @@ export function useLink(href: string, page: Page | Locator = PAGE): UseLink {
     link,
   }
 }
+
+type UseIconButtonMenu = {
+  menu: Locator,
+  selectItem: (text: string) => void,
+}
+
+export function useIconButtonMenu(locator: string | Locator = '.p-icon-button-menu', page: Page | Locator = PAGE): UseIconButtonMenu {
+  const menu = locate(locator, page)
+
+  const selectItem = async (text: string): Promise<void> => {
+    await menu.click()
+    await PAGE.locator('.p-icon-button-menu__content').locator(`text=${text}`).click()
+    await menu.click
+  }
+
+  return {
+    menu,
+    selectItem,
+  }
+}
+
+type UseTag = {
+  tag: Locator,
+}
+
+export function useTag(text: string, page: Page | Locator = PAGE): UseTag {
+  const tag = page.locator('.p-tag', {
+    hasText: text,
+  })
+
+  return {
+    tag,
+  }
+}
+
+type UseModal = {
+  modal: Locator,
+  header: Locator,
+  body: Locator,
+  footer: Locator,
+  close: () => Promise<void>,
+  closed: () => Promise<void>,
+}
+
+export function useModal(page: Page | Locator = PAGE): UseModal {
+  const modal = page.locator('.p-modal')
+  const header = modal.locator('.p-modal__header')
+  const body = modal.locator('.p-modal__body')
+  const footer = modal.locator('.p-modal__footer')
+  const close = (): Promise<void> => modal.locator('.p-modal__x-button').click()
+  const closed = async (): Promise<void> => await modal.waitFor({ state: 'detached' })
+
+  return {
+    modal,
+    header,
+    body,
+    footer,
+    close,
+    closed,
+  }
+}
