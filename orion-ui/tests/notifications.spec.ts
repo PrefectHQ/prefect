@@ -37,7 +37,6 @@ test('Can create notification', async ({ page }) => {
   expect(newNotifications).toBe(existingNotifications + 1)
 })
 
-
 test('Can edit notification', async ({ page }) => {
   const tagToAdd = 'playwright-edited'
 
@@ -69,14 +68,18 @@ test('Can delete notification', async ({ page }) => {
 
   const { rows: notifications } = useTable()
   const notification = notifications.first()
+  const existingNotifications = await notifications.count()
 
   const { selectItem } = useIconButtonMenu(undefined, notification)
   await selectItem('Delete')
 
-  const { footer } = useModal()
+  const { footer, closed } = useModal()
   const { button } = useButton('Delete', footer)
 
   await button.click()
+  await closed()
 
-  await expect(notification).not.toBeVisible()
+  const newNotifications = await notifications.count()
+
+  expect(newNotifications).toBe(existingNotifications - 1)
 })
