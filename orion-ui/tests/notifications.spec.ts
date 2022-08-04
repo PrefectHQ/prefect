@@ -1,8 +1,10 @@
 import { expect } from '@playwright/test'
-import { test, useForm, useCombobox, useLabel, useSelect, useTable, useButton, usePageHeading, useLink, pages } from './utilities'
+import { test, useForm, useCombobox, useLabel, useSelect, useTable, useButton, usePageHeading, useLink, pages, useIconButtonMenu, useTag, useModal } from './utilities'
 
-test('Can create a notification', async ({ page }) => {
-  await page.goto('/notifications')
+test.describe.configure({ mode: 'serial' })
+
+test('Can create notification', async ({ page }) => {
+  await page.goto(pages.notifications)
 
   const { table, rows: notifications } = useTable()
   const existingNotifications = await notifications.count()
@@ -33,4 +35,48 @@ test('Can create a notification', async ({ page }) => {
   const newNotifications = await notifications.count()
 
   expect(newNotifications).toBe(existingNotifications + 1)
+})
+
+
+test('Can edit notification', async ({ page }) => {
+  const tagToAdd = 'playwright-edited'
+
+  await page.goto(pages.notifications)
+
+  const { rows: notifications } = useTable()
+  const notification = notifications.first()
+
+  const { selectItem: select } = useIconButtonMenu(undefined, notification)
+  await select('Edit')
+
+  const { control: tags } = useLabel('Tags')
+  const { selectCustomOption } = useCombobox(tags)
+  await selectCustomOption(tagToAdd)
+
+  const { submit } = useForm()
+  await submit()
+
+  const { tag } = useTag(tagToAdd)
+
+  await notification.waitFor()
+  await tag.waitFor()
+
+  await expect(tag).toBeVisible()
+})
+
+test('Can delete notification', async ({ page }) => {
+  await page.goto(pages.notifications)
+
+  const { rows: notifications } = useTable()
+  const notification = notifications.first()
+
+  const { selectItem } = useIconButtonMenu(undefined, notification)
+  await selectItem('Delete')
+
+  const { footer } = useModal()
+  const { button } = useButton('Delete', footer)
+
+  await button.click()
+
+  await expect(notification).not.toBeVisible()
 })
