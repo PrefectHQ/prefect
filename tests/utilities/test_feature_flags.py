@@ -1,15 +1,12 @@
-import json
-
 import pytest
 from flipper import Condition, FeatureFlagClient
-from flipper.flag import FeatureFlag
 
-from prefect.settings import PREFECT_FEATURE_FLAGGING_ENABLED
-from prefect.settings import temporary_settings
+from prefect.settings import PREFECT_FEATURE_FLAGGING_ENABLED, temporary_settings
 from prefect.utilities.feature_flags import (
     create_if_missing,
     flag_is_enabled,
-    list_feature_flags, get_features_client,
+    get_features_client,
+    list_feature_flags,
 )
 
 
@@ -44,11 +41,10 @@ def test_create_ignores_existing_flag():
         flag = create_if_missing("test")
         assert flag.name == "test"
 
-        # Try to create the same flag, but enabled -- this should not
-        # return a new flag but instead use the existing flag, which
-        # is disabled.
+        # Try to create the same flag, but enabled -- this should return a
+        # FeatureFlag instance that reports it is disabled.
         flag = create_if_missing("test")
-        assert flag is None
+        assert flag.is_enabled() is False
 
 
 def test_create_disabled_flag():
