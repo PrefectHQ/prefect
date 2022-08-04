@@ -1,7 +1,7 @@
 import { Locator, Page } from '@playwright/test'
 import { PAGE } from './fixtures'
 
-function locate(stringOrLocator: string | Locator, page: Page = PAGE): Locator {
+function locate(stringOrLocator: string | Locator, page: Page | Locator = PAGE): Locator {
   if (typeof stringOrLocator === 'string') {
     return page.locator(stringOrLocator)
   }
@@ -14,7 +14,7 @@ type UseLabel = {
   control: Locator,
 }
 
-export function useLabel(text: string, page: Page = PAGE): UseLabel {
+export function useLabel(text: string, page: Page | Locator = PAGE): UseLabel {
   const label = page.locator('.p-label', {
     has: page.locator('.p-label__text', {
       hasText: text,
@@ -35,7 +35,7 @@ type UseSelect = {
   click: () => Promise<void>,
 }
 
-export function useSelect(locator: string | Locator, page: Page = PAGE): UseSelect {
+export function useSelect(locator: string | Locator, page: Page | Locator = PAGE): UseSelect {
   const select = locate(locator, page)
 
   const click = async (): Promise<void> => await select.click({
@@ -63,13 +63,13 @@ type UseCombobox = Omit<UseSelect, 'select'> & {
   selectCustomOption: (text: string) => Promise<void>,
 }
 
-export function useCombobox(locator: string | Locator, page: Page = PAGE): UseCombobox {
+export function useCombobox(locator: string | Locator, page: Page | Locator = PAGE): UseCombobox {
   const { select: combobox, click, selectOption } = useSelect(locator, page)
 
   const selectCustomOption = async (text: string): Promise<void> => {
     await click()
     await page.locator('.p-combobox__text-input').fill(text)
-    await page.keyboard.press('Enter')
+    await PAGE.keyboard.press('Enter')
     await click()
   }
 
@@ -85,7 +85,7 @@ type UseButton = {
   button: Locator,
 }
 
-export function useButton(text: string, page: Page = PAGE): UseButton {
+export function useButton(text: string, page: Page | Locator = PAGE): UseButton {
   const button = page.locator('.p-button', {
     has: page.locator('.p-button__content', {
       hasText: text,
@@ -102,7 +102,7 @@ type UseTable = {
   rows: Locator,
 }
 
-export function useTable(locator: string | Locator = '.p-table', page: Page = PAGE): UseTable {
+export function useTable(locator: string | Locator = '.p-table', page: Page | Locator = PAGE): UseTable {
   const table = locate(locator, page)
   const rows = table.locator('.p-table-body .p-table-row')
 
@@ -118,7 +118,7 @@ type UseForm = {
   submit: () => Promise<void>,
 }
 
-export function useForm(locator: string | Locator = '.p-form', page: Page = PAGE): UseForm {
+export function useForm(locator: string | Locator = '.p-form', page: Page | Locator = PAGE): UseForm {
   const form = locate(locator, page)
   const footer = form.locator('.p-form__footer')
   const submit = async (): Promise<void> => await footer.locator('[type="submit"]').click()
@@ -134,7 +134,7 @@ type UsePageHeading = {
   heading: Locator,
 }
 
-export function usePageHeading(text: string = '', page: Page = PAGE): UsePageHeading {
+export function usePageHeading(text: string = '', page: Page | Locator = PAGE): UsePageHeading {
   const heading = page.locator('.page-heading', {
     has: page.locator('.page-heading__crumbs', {
       hasText: text,
@@ -150,7 +150,7 @@ type UseCheckbox = {
   checkbox: Locator,
 }
 
-export function useCheckbox(label: string, page: Page = PAGE): UseCheckbox {
+export function useCheckbox(label: string, page: Page | Locator = PAGE): UseCheckbox {
   const checkbox = page.locator('.p-checkbox', {
     has: page.locator('.p-checkbox__label', {
       hasText: label,
