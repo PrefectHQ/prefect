@@ -161,3 +161,15 @@ export function useCheckbox(label: string, page: Page = PAGE): UseCheckbox {
     checkbox,
   }
 }
+
+type UseLink = {
+  link: Locator,
+}
+
+export function useLink(href: string, page: Page | Locator = PAGE): UseLink {
+  const link = page.locator(`[href="${href}"]`)
+
+  return {
+    link,
+  }
+}
