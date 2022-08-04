@@ -42,6 +42,8 @@ class LocalAgent(Agent):
             be set on each flow run that this agent submits for execution
         - max_polls (int, optional): maximum number of times the agent will poll Prefect Cloud
             for flow runs; defaults to infinite
+        - max_concurrent_runs (int, optional): maximum number of flow runs that will be submitted or
+            running at the same time on this agent.
         - agent_address (str, optional):  Address to serve internal api at. Currently this is
             just health checks for use by an orchestration layer. Leave blank for no api server
             (default).
