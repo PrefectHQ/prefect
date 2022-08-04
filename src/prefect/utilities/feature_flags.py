@@ -164,4 +164,4 @@ def list_feature_flags(
 # `create_if_missing()` like so:
 #
 # ENABLE_COOL_FEATURE = "very-cool-feature"
-# create_if_missing(ENABLE_MY_NEW_FLAG)
+# create_if_missing(ENABLE_COOL_FEATURE)
