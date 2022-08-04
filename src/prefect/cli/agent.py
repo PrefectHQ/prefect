@@ -163,6 +163,12 @@ def local():
     default=True,
     help="Add hostname to the LocalAgent's labels",
 )
+@click.option(
+    "--max-concurrent-flows",
+    default=None,
+    type=int,
+    help="Limit max number of concurrent flows submitted by agent",
+)
 def start(import_paths, **kwargs):
     """Start a local agent"""
     from prefect.agent.local import LocalAgent

@@ -251,6 +251,9 @@ class Agent:
         """
         pass
 
+    def remaining_run_slots(self) -> Optional[int]:
+        return None
+
     # Main work loop -------------------------------------------------------------------
     # We've now entered implementation details of the agent base. Subclasses should
     # not need to worry about how this works.
@@ -325,7 +328,16 @@ class Agent:
         # Get the flow run metadata necessary for deployment in bulk; this also filters
         # flow runs that may have been submitted by another agent in the meantime
         try:
-            flow_runs = self._get_flow_run_metadata(flow_run_ids)
+            remaining = self.remaining_run_slots()
+            if remaining is None:
+                # no limit on concurrent flow runs
+                flow_runs = self._get_flow_run_metadata(flow_run_ids)
+            elif remaining <= 0:
+                # concurrent flow run limit exceeded
+                flow_runs = []
+            else:
+                # only accept first N flow runs to not go over limit
+                flow_runs = self._get_flow_run_metadata(flow_run_ids)[0:remaining]
         except Exception:
             self.logger.error("Failed to query for flow run metadata", exc_info=True)
             return []

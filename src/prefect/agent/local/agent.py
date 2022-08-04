@@ -67,12 +67,14 @@ class LocalAgent(Agent):
         show_flow_logs: bool = False,
         hostname_label: bool = True,
         max_polls: int = None,
+        max_concurrent_runs: int = None,
         agent_address: str = None,
         no_cloud_logs: bool = None,
     ) -> None:
         self.processes = set()
         self.import_paths = import_paths or []
         self.show_flow_logs = show_flow_logs
+        self.max_concurrent_runs = max_concurrent_runs
         super().__init__(
             agent_config_id=agent_config_id,
             name=name,
@@ -105,6 +107,13 @@ class LocalAgent(Agent):
                         f"{process.returncode}!"
                     )
         super().heartbeat()
+    
+    def remaining_run_slots(self):
+        if self.max_concurrent_runs is None:
+            return super().remaining_run_slots()
+
+        current_run_count = len(self.submitting_flow_runs) + len(self.processes)
+        return max(0, self.max_concurrent_runs - current_run_count)
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
@@ -293,7 +302,6 @@ class LocalAgent(Agent):
 
         conf = conf.replace("{{OPTS}}", add_opts)
         return conf
-
 
 if __name__ == "__main__":
     LocalAgent().start()
