@@ -20,7 +20,7 @@ Placeholder
 
 
 @flow(name="demo")
-def main(msg="default message", purpose=default_purpose):
+def demo(msg="default message", purpose=default_purpose):
     logger = get_run_logger()  # All flows should begin by getting a run logger
     logger.info(purpose)  # and then logging the purpose of the flow.
     result_1 = first_task()
@@ -28,4 +28,4 @@ def main(msg="default message", purpose=default_purpose):
 
 
 if __name__ == "__main__":
-    main()
+    demo()

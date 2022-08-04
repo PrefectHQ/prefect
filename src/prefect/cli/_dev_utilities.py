@@ -62,25 +62,36 @@ async def get_qa_storage_block(path, name="qa-storage-block"):
         storage_block = await LocalFileSystem.load(name)
     except ValueError as exc:
         storage_block = LocalFileSystem(basepath=path)
-        await storage_block.save(name)
-
+        # try:
+        await storage_block.save(name, overwrite=True)
+        # except ObjectNotFound as exc:
+        #     await storage_block.save(name)
     return storage_block
 
 
-async def register_deployment_from_yaml(
-    directory_path, deployment_name, yaml_name="main-deployment.yaml"
-):
+async def register_deployment_from_yaml(directory_path, block_slug):
+    """
+    Builds and applies the flow in a given directory to
+    a deployment.
+
+    Expects flows to have the same name as the directory that
+    they are in.
+    """
+    deployment_name = directory_path.name
+    yaml_name = f"{directory_path.name}-deployment.yaml"
     flow_file = [f for f in os.listdir(directory_path) if ".py" in f][0]
     subprocess.run(
         [
             "prefect",
             "deployment",
             "build",
-            f"{flow_file}:main",
+            f"{flow_file}:{directory_path.name}",
             "-n",
             deployment_name,
             "-t",
             PREFECT_DEV_QA_TAG.value(),
+            "-sb",
+            block_slug,
         ]
     )
     with open(f"{directory_path}/{yaml_name}") as f:
@@ -91,20 +102,21 @@ async def register_deployment_from_yaml(
     return deployment_id
 
 
-async def register_deployments(task_status=TASK_STATUS_IGNORED):
+async def register_deployments(app: PrefectTyper, task_status=TASK_STATUS_IGNORED):
     # Create storage
     with tmpchdir(prefect.__root_path__ / "qa/deployments"):
-        await get_qa_storage_block(path=Path.cwd().parent)
+        await get_qa_storage_block(path=Path.cwd().parent / "deployment_storage")
         deployment_ids = []
         dirs = [d for d in os.listdir() if os.path.isdir(d)]
         for directory in dirs:
             with tmpchdir(prefect.__root_path__ / f"qa/deployments/{directory}"):
                 deployment_id = await register_deployment_from_yaml(
-                    directory_path=Path.cwd(), deployment_name=directory
+                    directory_path=Path.cwd(),
+                    block_slug="local-file-system/qa-storage-block",
                 )
                 deployment_ids.append(deployment_id)
 
-    print("Deployment registration complete")
+    app.console.print("Deployment registration complete")
     task_status.started()
     return deployment_ids
 

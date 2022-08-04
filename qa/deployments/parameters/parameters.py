@@ -26,7 +26,7 @@ task should log the parameter 'msg' and the second task should log in the number
 
 
 @flow(name="parameters")
-def main(msg: str = default_str, num: int = 42, purpose=default_purpose):
+def parameters(msg: str = default_str, num: int = 42, purpose=default_purpose):
     logger = get_run_logger()
     logger.info(purpose)
 
@@ -35,4 +35,4 @@ def main(msg: str = default_str, num: int = 42, purpose=default_purpose):
 
 
 if __name__ == "__main__":
-    main()
+    parameters()
