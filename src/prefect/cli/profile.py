@@ -1,6 +1,7 @@
 """
 Command line interface for working with profiles.
 """
+import os
 import textwrap
 from typing import Optional
 
@@ -250,6 +251,17 @@ def rename(name: str, new_name: str):
 
     profiles.add_profile(profiles[name].copy(update={"name": new_name}))
     profiles.remove_profile(name)
+
+    # If the active profile was renamed switch the active profile to the new name.
+    context_profile = prefect.context.get_settings_context().profile
+    if profiles.active_name == name:
+        profiles.set_active(new_name)
+    if os.environ.get("PREFECT_PROFILE") == name:
+        app.console.print(
+            f"You have set your current profile to {name!r} with the "
+            "PREFECT_PROFILE environment variable. You must update this variable to "
+            f"{new_name!r} to continue using the profile."
+        )
 
     prefect.settings.save_profiles(profiles)
     exit_with_success(f"Renamed profile {name!r} to {new_name!r}.")

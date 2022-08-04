@@ -20,6 +20,7 @@ export const routes = {
   workQueues: () => ({ name: 'work-queues' }) as const,
   blocks: () => ({ name: 'blocks' }) as const,
   blocksCatalog: () => ({ name: 'blocks.catalog' }) as const,
+  blocksCatalogView: (blockTypeSlug: string) => ({ name: 'blocks.view', params: { blockTypeSlug } }) as const,
   blocksCatalogCreate: (blockTypeSlug: string) => ({ name: 'blocks.create', params: { blockTypeSlug } }) as const,
   block: (blockDocumentId: string) => ({ name: 'block', params: { blockDocumentId } }) as const,
   blockEdit: (blockDocumentId: string) => ({ name: 'block.edit', params: { blockDocumentId } }) as const,

@@ -201,6 +201,23 @@ When you run this command, Prefect:
 - Creates the the manifest and `catfacts_flow-deployment.yaml` files for your deployment based on your flow code and options.
 - Uploads your flow files to the configured storage location (local by default).
 
+
+### Block indentifiers
+
+You can provide storage (`-sb`) and infrastructure block (`-ib`) identifiers in your `deployment build` command. The required format of a block type consists of the `block-type` and `block-name` in the format `block-type/block-name`. Block name is the name that you provided when creating the block. The block type is the same name as the underlying file system or infrastructure block class, but split into separate words combined with hyphens. Here are some examples that illustrate the pattern:
+
+| Block class name | Block type used in a deployment |
+| ------- | ----------- |
+| `LocalFileSystem` | `local-file-system` |
+| `RemoteFileSystem` | `remote-file-system` |
+| `S3` | `s3` |
+| `GCS` | `gcs` |
+| `Azure` | `azure` |
+| `DockerContainer` | `docker-container` |
+| `KubernetesJob` | `kubernetes-job` |
+| `Process` | `process` |
+
+
 ### Create deployment in API
 
 When you've configured the manifest and `catfacts_flow-deployment.yaml` for a deployment, you can create the deployment on the API. Run the following Prefect CLI command.
@@ -327,6 +344,11 @@ The `prefect deployment` CLI command provides commands for managing and running 
 | `ls`      | View all deployments or deployments for specific flows. |
 | `preview` | Prints a preview of a deployment. |
 | `run`     | Create a flow run for the given flow and deployment. |
+
+!!! tip "`PREFECT_API_URL` setting for agents"
+    You'll need to configure [work queues and agents](/concepts/work-queues/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running. 
+
+    If you want the agent to communicate with Prefect Cloud from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
 ## Examples
 

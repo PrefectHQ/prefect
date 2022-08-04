@@ -594,6 +594,7 @@ async def test_create_then_read_deployment(
     deployment_id = await orion_client.create_deployment(
         flow_id=flow_id,
         name="test-deployment",
+        version="git-commit-hash",
         manifest_path="path/file.json",
         schedule=schedule,
         parameters={"foo": "bar"},
@@ -606,6 +607,7 @@ async def test_create_then_read_deployment(
     lookup = await orion_client.read_deployment(deployment_id)
     assert isinstance(lookup, schemas.core.Deployment)
     assert lookup.name == "test-deployment"
+    assert lookup.version == "git-commit-hash"
     assert lookup.manifest_path == "path/file.json"
     assert lookup.schedule == schedule
     assert lookup.parameters == {"foo": "bar"}
@@ -843,6 +845,17 @@ async def test_read_flows_with_filter(orion_client):
     assert {flow.id for flow in flows} == {flow_id_1, flow_id_2}
 
 
+async def test_read_flow_by_name(orion_client):
+    @flow(name="null-flow")
+    def do_nothing():
+        pass
+
+    flow_id = await orion_client.create_flow(do_nothing)
+    the_flow = await orion_client.read_flow_by_name("null-flow")
+
+    assert the_flow.id == flow_id
+
+
 async def test_create_flow_run_from_deployment(orion_client, deployment):
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
     # Deployment details attached
@@ -859,6 +872,21 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
         .in_seconds()
         < 1
     )
+
+
+async def test_create_flow_run_from_deployment_with_options(orion_client, deployment):
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        deployment.id,
+        name="test-run-name",
+        tags={"foo", "bar"},
+        state=Pending(message="test"),
+        parameters={"foo": "bar"},
+    )
+    assert flow_run.name == "test-run-name"
+    assert set(flow_run.tags) == {"foo", "bar"}.union(deployment.tags)
+    assert flow_run.state.type == StateType.PENDING
+    assert flow_run.state.message == "test"
+    assert flow_run.parameters == {"foo": "bar"}
 
 
 async def test_update_flow_run(orion_client):
