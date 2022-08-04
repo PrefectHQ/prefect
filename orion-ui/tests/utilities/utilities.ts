@@ -87,9 +87,7 @@ type UseButton = {
 
 export function useButton(text: string, page: Page | Locator = PAGE): UseButton {
   const button = page.locator('.p-button', {
-    has: page.locator('.p-button__content', {
-      hasText: text,
-    }),
+    hasText: text,
   })
 
   return {
