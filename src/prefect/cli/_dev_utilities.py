@@ -11,7 +11,7 @@ from anyio import TASK_STATUS_IGNORED
 import prefect
 from prefect.agent import OrionAgent
 from prefect.cli._types import PrefectTyper
-from prefect.cli.deployment import _create_deployment_from_deployment_yaml
+from prefect.cli.deployment import create_deployment_from_deployment_yaml
 from prefect.client import get_client
 from prefect.deployments import DeploymentYAML
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
@@ -98,7 +98,7 @@ async def register_deployment_from_yaml(directory_path, block_slug):
     with open(f"{directory_path}/{yaml_name}") as f:
         deployment = DeploymentYAML(**yaml.safe_load(f))
 
-    deployment_id = await _create_deployment_from_deployment_yaml(deployment=deployment)
+    deployment_id = await create_deployment_from_deployment_yaml(deployment=deployment)
 
     return deployment_id
 

@@ -257,7 +257,7 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
     return specs
 
 
-async def _create_deployment_from_deployment_yaml(deployment: DeploymentYAML) -> UUID:
+async def create_deployment_from_deployment_yaml(deployment: DeploymentYAML) -> UUID:
 
     async with get_client() as client:
         # prep IDs
@@ -312,7 +312,7 @@ async def apply(
     except Exception as exc:
         exit_with_error(f"Provided file did not conform to deployment spec: {exc!r}")
 
-    deployment_id = await _create_deployment_from_deployment_yaml(deployment=deployment)
+    deployment_id = await create_deployment_from_deployment_yaml(deployment=deployment)
     app.console.print(
         f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
         style="green",
