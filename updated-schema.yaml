@@ -1467,6 +1467,11 @@ components:
           example: my-flow
           title: Name
           type: string
+        new_field:
+          default: theres a default so not breaking
+          description: this is a field i added as a test
+          title: New Field
+          type: string
         tags:
           description: A list of flow tags
           example:
@@ -2598,6 +2603,7 @@ components:
       enum:
       - and_
       - or_
+      - bad_
       title: Operator
       type: string
     OrchestrationResult:
@@ -3956,7 +3962,7 @@ components:
       type: object
 info:
   title: Prefect Orion API
-  version: 2.0.1+111.g21198d6b2.dirty
+  version: 2.0.1+115.ge96de8375.dirty
   x-logo:
     url: static/prefect-logo-mark-gradient.png
 openapi: 3.0.2
@@ -6069,12 +6075,6 @@ paths:
         same name already exists, the existing flow is returned.
       operationId: create_flow_flows__post
       parameters:
-      - in: header
-        name: new-param
-        required: true
-        schema:
-          title: New-Param
-          type: integer
       - in: header
         name: x-prefect-api-version
         required: false

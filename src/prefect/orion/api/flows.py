@@ -7,7 +7,7 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from fastapi import Depends, Header, HTTPException, Path, Response, status
+from fastapi import Depends, HTTPException, Path, Response, status
 from fastapi.param_functions import Body
 
 import prefect.orion.api.dependencies as dependencies
@@ -31,7 +31,6 @@ async def my_new_route(
 async def create_flow(
     flow: schemas.actions.FlowCreate,
     response: Response,
-    new_param: int = Header(...),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Flow:
     """Gracefully creates a new flow from the provided schema. If a flow with the

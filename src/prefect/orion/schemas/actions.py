@@ -40,7 +40,7 @@ class NewSchema(PrefectBaseModel):
 class FlowCreate(
     schemas.core.Flow.subclass(
         name="FlowCreate",
-        include_fields=["name", "tags"],
+        include_fields=["name", "tags", "new_field"],
     )
 ):
     """Data used by the Orion API to create a flow."""

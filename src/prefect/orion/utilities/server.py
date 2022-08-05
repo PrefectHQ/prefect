@@ -5,11 +5,13 @@ import functools
 import inspect
 import json
 from contextlib import AsyncExitStack, asynccontextmanager
+from copy import deepcopy
 from typing import Any, Callable, Coroutine, Iterable, List, Set, get_type_hints
 
 import jsondiff
 from fastapi import APIRouter, Request, Response, status
 from fastapi.routing import APIRoute
+from jsonschema.validators import RefResolver
 
 
 def method_paths_from_routes(routes: Iterable[APIRoute]) -> Set[str]:
@@ -145,7 +147,14 @@ def compare_open_api_schemas(base: dict, revision: dict) -> str:
     Changes should include
     - Added routes
     - Deleted routes
-    - Schema changes
+    - Changes in routes
+        1. Changes in response schemas for 200 and 201 response codes
+        2. Changes in request body schemas
+
+    Changes detected in request/response schemas include
+    - Adding a new field
+    - Updating a field type
+    - Deleting a field
 
     Args:
         base: a dictionary representing the prior state of the
@@ -159,18 +168,18 @@ def compare_open_api_schemas(base: dict, revision: dict) -> str:
     """
     base_routes = _get_routes_from_schema(schema=base)
     revised_routes = _get_routes_from_schema(schema=revision)
-    schema_differences, schema_differences_explanations = _get_schema_differences(
-        base=base, revision=revision
+
+    revision_full_schemas = _compile_full_schemas(schema=revision)
+    base_full_schemas = _compile_full_schemas(schema=base)
+    schema_differences = _get_schema_differences(
+        base=base_full_schemas, revision=revision_full_schemas
     )
 
     report = "\n\n".join(
         [
-            _get_added_schemas_report_text(base=base, revision=revision),
-            _get_deleted_schemas_report_text(base=base, revision=revision),
-            _get_schema_differences_report(
-                changed_schemas=schema_differences,
-                changed_schema_explanations=schema_differences_explanations,
-            ),
+            # _get_schema_differences_report(
+            #     schema_differences=schema_differences,
+            # ),
             _get_report_text_for_added_routes(
                 added_routes=_get_added_routes(
                     base_routes=base_routes, revised_routes=revised_routes
@@ -183,7 +192,9 @@ def compare_open_api_schemas(base: dict, revision: dict) -> str:
                 )
             ),
             _get_route_changes_report_text(
-                base_routes=base_routes, revised_routes=revised_routes
+                base_routes=base_routes,
+                revised_routes=revised_routes,
+                schema_differences=schema_differences,
             ),
         ]
     )
@@ -191,91 +202,116 @@ def compare_open_api_schemas(base: dict, revision: dict) -> str:
     print(report)
 
 
-def _get_added_schemas_report_text(base: dict, revision: dict) -> List[str]:
-    """
-    Find schemas that were added to revision.
-    """
-    report_text = "## Added Schemas\n"
-    added_schemas = (
-        revision["components"]["schemas"].keys() - base["components"]["schemas"].keys()
-    )
-    if len(added_schemas) == 0:
-        report_text += "\nNo schemas added."
-        return report_text
-
-    for added_schema in added_schemas:
-        report_text += f"\n**{added_schema}**"
-        report_text += f"\nDescription: {revision['components']['schemas'][added_schema]['description']}"
-        report_text += (
-            f"\nType: {revision['components']['schemas'][added_schema]['type']}"
-        )
-        report_text += f"\nProperties: {revision['components']['schemas'][added_schema]['properties']}"
-    return report_text
-
-
-def _get_deleted_schemas_report_text(base: dict, revision: dict) -> str:
-    """
-    Find schemas that were removed from revision but present in base.
-    """
-    report_text = "## Deleted Schemas\n"
-    deleted_schemas = (
-        base["components"]["schemas"].keys() - revision["components"]["schemas"].keys()
-    )
-    if len(deleted_schemas) == 0:
-        report_text += "\nNo schemas deleted."
-        return report_text
-    report_text += "\n".join(deleted_schemas)
-    return report_text
-
-
-def _get_schema_differences_report(
-    changed_schemas: List[str], changed_schema_explanations: List[str]
-) -> str:
+def _get_schema_differences_report(schema_differences: List[str]) -> str:
     """
     TODO
     """
     report_text = "## Schema updates\n"
-    if len(changed_schemas) == 0:
+    if len(schema_differences.keys()) == 0:
         report_text += "No schema updates found."
         return report_text
-    for schema_name, explanation in zip(changed_schemas, changed_schema_explanations):
+    for schema_name, explanation in schema_differences.items():
         report_text += f"**{schema_name}**\n"
         report_text += f"{explanation}\n"
     return report_text
 
 
-def _get_schema_differences(base: dict, revision: dict):
+def _compile_full_schemas(schema: dict) -> dict:
+    """
+    Given schemas associated with an OpenAPI spec, resolve all
+    references (e.g. '#/components/schemas/ThisIsASchemaName')
+
+    Args:
+        schema: an OpenAPI schema
+
+    Returns:
+        dict: the full OpenAPI schema will references resolved
+    """
+    schema = deepcopy(schema)
+
+    ref_resolver = RefResolver.from_schema(schema)
+    return _resolve_nested_dict_refs(
+        schemas=schema["components"]["schemas"], ref_resolver=ref_resolver
+    )
+
+
+def _resolve_nested_dict_refs(schemas: dict, ref_resolver: RefResolver) -> dict:
+    """
+    Recursively resolve references in `scchemas`
+
+    Args:
+        schemas: a subset of an OpenAPI schema
+        ref_resovler: a json ref resolver used to resolve component schemas
+            (e.g. '#/components/schemas/ThisIsASchemaName')
+    """
+    if not isinstance(schemas, dict):
+        return schemas
+    for k, v in schemas.items():
+        if k == "$ref":
+            schemas[k] = ref_resolver.resolve(v)
+        elif isinstance(v, dict):
+            schemas[k] = _resolve_nested_dict_refs(schemas[k], ref_resolver)
+        elif isinstance(v, list):
+            schemas[k] = [
+                _resolve_nested_dict_refs(val, ref_resolver=ref_resolver)
+                for val in schemas[k]
+            ]
+    return schemas
+
+
+def _get_schema_differences(base: dict, revision: dict) -> dict:
     """
     TODO
+    - should also probably rename args?
     """
-    changed_schemas = []
-    changed_schema_explanations = []
-    # TODO - make sure "nested" changes are picked up
-    # e.g. when State changes, it should track that impact on
-    # Flow.state: State
-    for schema_name, schema in revision["components"]["schemas"].items():
-        if (
-            schema_name in base["components"]["schemas"]
-            and schema != base["components"]["schemas"][schema_name]
-        ):
-            changed_schemas.append(schema_name)
+    schema_differences = dict()
 
-            diff_text = (
-                "The following changes have been made:\n```json"
-                + json.dumps(
-                    jsondiff.diff(
-                        a=base["components"]["schemas"][schema_name],
-                        b=revision["components"]["schemas"][schema_name],
-                        syntax="explicit",
-                        marshal=True,
-                    ),
-                    indent=4,
-                    sort_keys=True,
-                )
-                + "\n```"
+    # make copies and remove things we don't care about
+    base = deepcopy(base)
+    revision = deepcopy(revision)
+
+    for schema_name, schema in revision.items():
+        if schema_name in base and schema != base[schema_name]:
+            schema_differences[schema_name] = _explain_schema_change(
+                base_schema=base[schema_name], revision_schema=revision[schema_name]
             )
-            changed_schema_explanations.append(diff_text)
-    return changed_schemas, changed_schema_explanations
+    return schema_differences
+
+
+def _explain_schema_change(base_schema: dict, revision_schema: dict) -> str:
+    """Generate a human readable explanation for what changed base -> revision"""
+
+    json_diff = jsondiff.diff(
+        a=base_schema,
+        b=revision_schema,
+        syntax="explicit",
+        marshal=True,
+    )
+
+    ignore_keys = {}
+
+    # try:
+
+    #     pass
+    #     # inserted properties
+    #     #
+    #     # updated properties
+    #     # deleted properties
+
+    #     # inserted enum
+
+    # except:
+    diff_text = (
+        "Error generating explanation. The following changes have been made:\n```json"
+        + json.dumps(
+            json_diff,
+            indent=4,
+            sort_keys=True,
+        )
+        + "\n```"
+    )
+
+    return diff_text
 
 
 def _get_report_text_for_deleted_routes(deleted_routes: List[str]) -> str:
@@ -315,27 +351,34 @@ def _get_report_text_for_added_routes(
         report_text += f"**{route}**"
         description = revised_routes[route].get("description", "")
         report_text += f"\nDescription: {description}"
-        report_text += f"\nParameters:\n{_format_parameters(revised_routes[route])}"
+        report_text += f"\nParameters:\n{_format_parameters(revised_routes[route], revised_routes)}"
 
     return report_text
 
 
-def _format_parameters(route: dict) -> str:
+def _format_parameters(route: dict, ignore_headers: bool = True) -> str:
     """
-    Format an OpenAPI route parameter spec in readable text.
+    Format an OpenAPI route parameter spec in human readable text.
+
+    Args:
+        route: json representation of an OpenAPI route spec
+        ignore_headers: if True, ignore any header parameters. Defaults to True.
+
+    Returns:
+        str: a human readable summary of the routes parameters, request body, and response
     """
     parameter_text = ""
     for param in route.get("parameters", []):
-        param_name = param["name"]
-        param_required = param["required"]
-        param_location = param["in"]
-        param_type = param["schema"]["type"]
-
-        parameter_text += f"Name: {param_name}\n"
-        parameter_text += f"Location: {param_location}\n"
-        parameter_text += f"Required?: {param_required}\n"
-        parameter_text += f"Type: {param_type}\n"
-        parameter_text += "\n"
+        if not ignore_headers or param["in"] != "header":
+            param_name = param["name"]
+            param_required = param["required"]
+            param_location = param["in"]
+            param_type = param["schema"]["type"]
+            parameter_text += f"Name: {param_name}\n"
+            parameter_text += f"Location: {param_location}\n"
+            parameter_text += f"Required?: {param_required}\n"
+            parameter_text += f"Type: {param_type}\n"
+            parameter_text += "\n"
 
     # check for body params, note this only
     # checks for application/json types at the moment
@@ -346,6 +389,8 @@ def _format_parameters(route: dict) -> str:
             f"Type: {route['requestBody']['content']['application/json']['schema']}\n"
         )
         parameter_text += "\n"
+
+    # TODO - we should probably include response type in here
     return parameter_text
 
 
@@ -379,32 +424,84 @@ def _get_added_routes(base_routes: dict, revised_routes: dict) -> List[str]:
     return added_routes
 
 
-def _get_route_changes_report_text(base_routes, revised_routes) -> str:
+def _get_route_changes_report_text(
+    base_routes: dict,
+    revised_routes: dict,
+    schema_differences: dict,
+) -> str:
+    """
+    Generates human readable summary of changes to API routes.
+
+    Changes tracked will include
+    - Updates to request body schema
+    - Updates to 200 and/or 201 responses
+
+    Args:
+        TODO
+
+    Returns:
+        str: human readable markdown text explaining updates to routes
+    """
     # TODO - this should check for schema changes too
     report_text = "## Route changes\n"
     changed_routes = {}
     for route in revised_routes:
-        if route in base_routes and base_routes[route] != revised_routes[route]:
-            changed_routes[route] = json.dumps(
-                jsondiff.diff(
-                    a=base_routes[route],
-                    b=revised_routes[route],
-                    syntax="explicit",
-                    marshal=True,
-                ),
-                indent=4,
-                sort_keys=True,
+        if route in base_routes:
+            route_changes = _explain_route_changes(
+                route=revised_routes[route],
+                schema_differences=schema_differences,
             )
+            if route_changes != "":
+                changed_routes[route] = route_changes
 
-    # TODO - be more descriptive about changes
     report_text += "\n".join(
         [
-            f"**{route}**"
-            + "\nThe following changes have been made:"
-            + "\n```json\n"
+            f"**{route}**" + "\nThe following changes have been made:"
+            # + "\n```json\n"
             + str(route_change)
-            + "\n```"
+            # + "\n```"
             for route, route_change in changed_routes.items()
         ]
     )
     return report_text
+
+
+def _explain_route_changes(
+    route: dict,
+    schema_differences: dict,
+) -> str:
+    """
+    Check for changes in schemas associated with a route.
+    """
+    explanation = ""
+    # check for changes in the request body
+    if (
+        route.get("requestBody", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema", {})
+    ):
+        # handle cases where the schema is the request body
+        if route["requestBody"]["content"]["application/json"]["schema"].get("$ref"):
+            request_body_schema = route["requestBody"]["content"]["application/json"][
+                "schema"
+            ]["$ref"][len("#/components/schemas/") :]
+            if request_body_schema in schema_differences:
+                explanation += f"Change in request body schema {request_body_schema}:\n {schema_differences[request_body_schema]}"
+
+        # handle cases where the schema is one item in the request body
+        if (
+            route["requestBody"]["content"]["application/json"]["schema"]
+            .get("items", {})
+            .get("$ref")
+        ):
+            request_body_schema = route["requestBody"]["content"]["application/json"][
+                "schema"
+            ]["items"]["$ref"][len("#/components/schemas/") :]
+            if request_body_schema in schema_differences:
+                explanation += f"Change in request body schema list[{request_body_schema}]:\n {schema_differences[request_body_schema]}"
+
+    # check for changes in the response payload
+    # TODO
+
+    return explanation
