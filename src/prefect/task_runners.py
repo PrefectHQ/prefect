@@ -322,7 +322,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         except BaseException as exc:
             self._results[run_key] = exception_to_crashed_state(exc)
         finally:
-            self._events[run_key].set() # raise event
+            self._events[run_key].set()  # raise event
 
     async def _get_run_result(self, run_key: str, timeout: float = None):
         """
@@ -334,8 +334,8 @@ class ConcurrentTaskRunner(BaseTaskRunner):
             # I would like to use pop to avoid a memory leak here but wait() seems to
             # be called twice sometimes? Not cleaning up task_run results is going to be
             # a problem for flows with lots of tasks or large results
-            #self._events.pop(run_key)
-            #result = self._results.pop(run_key)
+            # self._events.pop(run_key)
+            # result = self._results.pop(run_key)
             result = self._results[run_key]
         return result
 
