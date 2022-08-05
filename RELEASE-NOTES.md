@@ -12,10 +12,14 @@ We've released `prefect-dbt` - a collection of Prefect integrations for working 
 - Azure storage blocks can use `.prefectignore`
 - Resolved bugs and improved interface in the Orion client. 
 - Resolved a bug in Azure storage blocks that would cause uploads to get stuck.
+- Resolved a bug where calling a flow in a separate thread would raise an exception.
+- Resolved issues with loading flows from a deployment.
 - Corrected some erroneous type annotations.
 - Better handling of database errors during state transition validation.
 - Better sanitization of labels for Kubernetes Jobs.
-- Fixes `--manifest-only` flag of `deployment build` command to ensure that using this flag, the manifest gets generated, but the upload to a storage location is skipped.
+- Fixes `--manifest-only` flag of `prefect deployment build` command to ensure that using this flag, the manifest gets generated, but the upload to a storage location is skipped.
+- Added support for multiple YAML deployment paths to the `prefect deployment apply` command.
+
 
 ## 2.0.2
 
