@@ -36,10 +36,6 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache-dependency-path: '**/package-lock.json'
-
-      - name: Install orion-ui dependencies
-        working-directory: ./orion-ui
-        run: npm ci install    
         
       - name: Cache Playwright Browsers
         id: cache-playwright-browsers
