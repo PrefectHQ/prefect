@@ -14,7 +14,7 @@ from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
-from prefect.exceptions import ScriptError
+from prefect.exceptions import ScriptError, exception_traceback
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.importtools import load_script_as_module
 
@@ -91,6 +91,8 @@ async def register(
                 load_script_as_module, str(file_path)
             )
         except ScriptError as exc:
+            app.console.print(exc)
+            app.console.print(exception_traceback(exc.user_exc))
             exit_with_error(
                 f"Unable to load file at {file_path}. Please make sure the file path "
                 "is correct and the file contains valid Python."
