@@ -78,7 +78,7 @@ if not hasattr(sys, "frozen"):
     sys.meta_path = [Prefect1ImportInterceptor()] + sys.meta_path
 
 
-prefect.context.enter_root_settings_context()
+prefect.context.root_settings_context()
 prefect.context.initialize_object_registry()
 
 # The context needs updated references for flows and tasks
