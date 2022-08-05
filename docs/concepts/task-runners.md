@@ -169,7 +169,7 @@ Hello!
 
 ## Using results from submitted tasks
 
-When you use `submit()` to submit a task to a task runner, the task runner creates a [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) for access to the state and result of the task.
+When you use `.submit()` to submit a task to a task runner, the task runner creates a [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) for access to the state and result of the task.
 
 A `PrefectFuture` is an object that provides access to a computation happening in a task runner &mdash; even if that computation is happening on a remote system.
 
@@ -432,7 +432,7 @@ def do_important_stuff():
 @flow
 def hello_world():
     # blocks until `say_hello` has finished
-    future = say_hello.submit("Marvin").result() 
+    result = say_hello.submit("Marvin").result() 
     do_important_stuff.submit()
 
 hello_world()
