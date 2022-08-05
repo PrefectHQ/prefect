@@ -18,11 +18,11 @@ You can add a schedule to any flow [deployment](/concepts/deployments/). The Pre
 
 ## Creating schedules through the UI
 
-You can add, modify, and view schedules by selecting Edit under the three dot menu next to a Deployment in the Deployments tab of the [Prefect Orion UI](ui/overview.md). 
+You can add, modify, and view schedules by selecting **Edit** under the three dot menu next to a Deployment in the **Deployments** tab of the [Prefect UI](ui/overview.md). 
 
 ![Deployment edit button](../img/concepts/edit-schedule-callout.png)
 
-To create a schedule from the UI, select Add. 
+To create a schedule from the UI, select **Add**. 
 
 ![Prefect UI with Add button called out under Scheduling heading](../img/concepts/add-schedule-callout.png)
 
@@ -41,7 +41,7 @@ Prefect supports several types of schedules that cover a wide range of use cases
 
 ## Creating schedules through the deployment YAML file
 
-You create a schedule by including a `schedule` section as part of the [deployment YAML file](/concepts/deployments/#deploymentyaml) for a deployment. Here's an example that uses cron and specifies a timezone. 
+You may create a schedule by including a `schedule` section as part of the [deployment YAML file](/concepts/deployments/#deploymentyaml) for a deployment. Here's an example that uses cron and specifies a timezone. 
 
 ```yaml
 schedule:
