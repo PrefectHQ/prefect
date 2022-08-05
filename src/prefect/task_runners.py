@@ -328,6 +328,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         """
         Block until the run result has been populated.
         """
+        result = None  # result in case of timeout
         with anyio.move_on_after(timeout):
             await self._events[run_key].wait()
             # I would like to use pop to avoid a memory leak here but wait() seems to
