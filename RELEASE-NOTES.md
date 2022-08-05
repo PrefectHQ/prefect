@@ -1,5 +1,23 @@
 # Prefect Release Notes
 
+## 2.0.3
+
+This release contains a number of bug fixes and documentation improvements.
+
+### Introducing `prefect-dbt`
+
+`prefect-dbt` is a collection of Prefect integrations for working with dbt with
+your Prefect flows.
+
+### Improvements and bug fixes
+- Users using Azure storage blocks can have ignored files.
+- Resolved bugs and improved interface in the Orion client. 
+- Resolved a bug in Azure storage blocks that would cause uploads to get stuck.
+- Corrected some erroneous type annotations.
+- Better handling of database errors during state transition validation.
+- Better sanitization of labels for Kubernetes Jobs.
+- Fixes `--manifest-only` flag of `deployment build` command.
+
 ## 2.0.2
 
 This release implements a number of improvements and bug fixes in response to continued engagement by members of our community. Thanks, as always, to all who submitted ideas on how to make Prefect 2 even better.
