@@ -47,18 +47,22 @@ async def ls(
     flow_name: List[str] = None,
     limit: int = 15,
     state_type: List[StateType] = None,
+    state_name: List[str] = None,
 ):
     """
     View recent flow runs or flow runs for specific flows
     """
+
+    state_filter = {}
+    if state_name:
+        state_filter["name"] = {"any_": state_name}
+    if state_type:
+        state_filter["type"] = {"any_": state_type}
+
     async with get_client() as client:
         flow_runs = await client.read_flow_runs(
             flow_filter=FlowFilter(name={"any_": flow_name}) if flow_name else None,
-            flow_run_filter=(
-                FlowRunFilter(state={"type": {"any_": state_type}})
-                if state_type
-                else None
-            ),
+            flow_run_filter=FlowRunFilter(state=state_filter) if state_filter else None,
             limit=limit,
             sort=FlowRunSort.EXPECTED_START_TIME_DESC,
         )
