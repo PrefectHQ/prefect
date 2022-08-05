@@ -13,7 +13,10 @@ async def test_create_deployment_from_deployment_yaml(orion_client):
     def test_flow():
         pass
 
-    storage = await LocalFileSystem.load("local-test")
+    storage_name = "local-test"
+    await LocalFileSystem(_is_anonymous=True)._save(storage_name)
+
+    storage = await LocalFileSystem.load(storage_name)
     deployment_yaml = DeploymentYAML(
         name="Test",
         parameter_openapi_schema=parameter_schema(test_flow),
