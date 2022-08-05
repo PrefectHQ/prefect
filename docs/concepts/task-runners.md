@@ -231,7 +231,7 @@ Hello Marvin!
 ```
 </div>
 
-Futures have a few useful methods. For example, you can get the return value of the task run with  [`result()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result):
+Futures have a few useful methods. For example, you can get the return value of the task run with  [`.result()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result):
 
 ```python
 from prefect import flow, task
