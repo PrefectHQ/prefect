@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@prefecthq/orion-design": "1.0.69",
-    "@prefecthq/prefect-design": "1.0.34",
+    "@prefecthq/prefect-design": "1.0.35",
     "@prefecthq/vue-compositions": "0.1.40",
     "@types/lodash.debounce": "4.0.7",
     "axios": "0.27.2",
