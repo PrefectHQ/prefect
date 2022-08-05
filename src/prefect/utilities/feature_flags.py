@@ -14,7 +14,7 @@ from prefect import settings
 _client: Optional[FeatureFlagClient] = None
 
 
-def get_features_client() -> FeatureFlagClient:
+def get_feature_flag_client() -> FeatureFlagClient:
     global _client
 
     if _client:
@@ -59,7 +59,7 @@ def create_if_missing(
         return
 
     if not client:
-        client = get_features_client()
+        client = get_feature_flag_client()
 
     # If the flag exists in the feature flag store, we'll consider the
     # enabled state, bucketer, and conditions currently saved in the
@@ -110,7 +110,7 @@ def flag_is_enabled(
         return False
 
     if not client:
-        client = get_features_client()
+        client = get_feature_flag_client()
 
     return client.is_enabled(flag_name, default=default, **conditions)
 
@@ -136,7 +136,7 @@ def list_feature_flags(
         return []
 
     if not client:
-        client = get_features_client()
+        client = get_feature_flag_client()
 
     flags = []
     offset = 0
