@@ -27,8 +27,8 @@ from prefect.flows import flow, Flow
 from prefect.tasks import task, Task
 from prefect.context import tags
 from prefect.client import get_client
-from prefect.deployments import Deployment
 from prefect.manifests import Manifest
+from prefect.utilities.annotations import unmapped
 
 # Import modules that register types
 import prefect.serializers
@@ -59,7 +59,6 @@ PREFECT_1_ATTRIBUTES = [
     "prefect.mapped",
     "prefect.models",
     "prefect.resource_manager",
-    "prefect.unmapped",
 ]
 
 
@@ -79,7 +78,7 @@ if not hasattr(sys, "frozen"):
     sys.meta_path = [Prefect1ImportInterceptor()] + sys.meta_path
 
 
-prefect.context.enter_root_settings_context()
+prefect.context.root_settings_context()
 prefect.context.initialize_object_registry()
 
 # The context needs updated references for flows and tasks
@@ -93,7 +92,6 @@ prefect.plugins.load_prefect_collections()
 
 # Declare API
 __all__ = [
-    "Deployment",
     "flow",
     "Flow",
     "get_client",
@@ -103,4 +101,5 @@ __all__ = [
     "tags",
     "task",
     "Task",
+    "unmapped",
 ]

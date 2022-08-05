@@ -48,8 +48,8 @@ Prefect can also use the flow function's docstring as a description.
 from prefect import flow
 
 @flow(name="My Example Flow")
-    """An example flow for a tutorial."""
 def my_flow():
+    """An example flow for a tutorial."""
     # run tasks and subflows
 ```
 
@@ -193,6 +193,11 @@ Metadata such as this allows for a full reconstruction of what happened with you
 [Caching](/concepts/tasks/#caching) refers to the ability of a task run to reflect a finished state without actually running the code that defines the task. This allows you to efficiently reuse results of tasks that may be particularly "expensive" to run with every flow run.  Moreover, Prefect makes it easy to share these states across flows and flow runs using the concept of a "cache key function".
 
 You can specify the cache key function using the `cache_key_fn` argument on a task. 
+
+!!! note "Task results, retries, and caching"
+    Task results are cached in memory during a flow run and peristed to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. As a result, task caching between flow runs is currently limited to flow runs with access to that local storage path.
+
+## Async tasks
 
 ### Task input hash
 

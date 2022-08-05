@@ -370,7 +370,7 @@ class ORMFlowRun(ORMRun):
             UUID,
             sa.ForeignKey("block_document.id", ondelete="CASCADE"),
             nullable=True,
-            index=False,
+            index=True,
         )
 
     @declared_attr
@@ -655,6 +655,7 @@ class ORMDeployment:
     """SQLAlchemy model of a deployment."""
 
     name = sa.Column(sa.String, nullable=False)
+    version = sa.Column(sa.String, nullable=True)
     description = sa.Column(sa.Text(), nullable=True)
     manifest_path = sa.Column(sa.String, nullable=True)
 

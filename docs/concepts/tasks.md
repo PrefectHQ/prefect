@@ -60,7 +60,7 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 | Argument | Description |
 | --- | --- |
 | name | An optional name for the task. If not provided, the name will be inferred from the function name. |
-| description | An optional string description for the task. |
+| description | An optional string description for the task. If not provided, the description will be pulled from the docstring for the decorated function. |
 | tags | An optional set of tags to be associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime. |
 | cache_key_fn | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result will be restored instead of running the task again. |
 | cache_expiration | An optional amount of time indicating how long cached states for this task should be restorable; if not provided, cached states will never expire. |
@@ -71,10 +71,22 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 For example, you can provide a `name` value for the task. Here we've used the optional `description` argument as well.
 
 ```python hl_lines="1"
-@task(name="hello-task", description="This task says hello.")
+@task(name="hello-task", 
+      description="This task says hello.")
 def my_task():
     print("Hello, I'm a task")
 ```
+
+## Task results
+
+Task results are cached in memory during execution of your flow run.
+
+Currently, task results are persisted to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. 
+
+!!! note "Task results, retries, and caching"
+    Since task results are both cached in memory and peristed to `PREFECT_LOCAL_STORAGE_PATH`, results are available within the context of of flow run and task retries use these results.
+    
+    However, [task caching](#caching) between flow runs is currently limited to flow runs with access to that local storage path.
 
 ## Tags
 
@@ -203,7 +215,8 @@ def cached_task():
     return 42
 ```
 
-See the [Flow and task configuration](/tutorials/flow-task-config/#task-caching) tutorial for additional examples of task caching.
+!!! note "Task results, retries, and caching"
+    Task results are cached in memory during a flow run and peristed to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. As a result, task caching between flow runs is currently limited to flow runs with access to that local storage path.
 
 ## Async tasks
 

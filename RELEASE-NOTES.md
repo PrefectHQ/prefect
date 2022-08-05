@@ -1,5 +1,56 @@
 # Prefect Release Notes
 
+## 2.0.3
+
+This release contains a number of bug fixes and documentation improvements.
+
+### Introducing [`prefect-dbt`](https://prefecthq.github.io/prefect-dbt/)
+
+We've released `prefect-dbt` - a collection of Prefect integrations for working with dbt in your Prefect flows. This collection has been built as part of a partnership with dbt Labs to ensure that it follows best practices for working with dbt. 
+
+### Improvements and bug fixes
+- Azure storage blocks can use `.prefectignore`
+- Resolved bugs and improved interface in the Orion client. 
+- Resolved a bug in Azure storage blocks that would cause uploads to get stuck.
+- Resolved a bug where calling a flow in a separate thread would raise an exception.
+- Resolved issues with loading flows from a deployment.
+- Corrected some erroneous type annotations.
+- Better handling of database errors during state transition validation.
+- Better sanitization of labels for Kubernetes Jobs.
+- Fixes `--manifest-only` flag of `prefect deployment build` command to ensure that using this flag, the manifest gets generated, but the upload to a storage location is skipped.
+- Added support for multiple YAML deployment paths to the `prefect deployment apply` command.
+
+
+## 2.0.2
+
+This release implements a number of improvements and bug fixes in response to continued engagement by members of our community. Thanks, as always, to all who submitted ideas on how to make Prefect 2 even better.
+
+### Introducing .prefectignore files
+ .prefectignore files allow users to omit certain files or directories from their deployments. Similar to other .ignore files, the syntax supports pattern matching, so an entry of `*.pyc` will ensure *all* .pyc files are ignored by the deployment call when uploading to remote storage. Prefect provides a default .prefectignore file, but users can customize it to their needs.
+
+### Improvements and bug fixes
+- Users can now leverage Azure storage blocks.
+- Users can now submit bug reports and feature enhancements using our issue templates.
+- Block deletion is now more performant.
+- Inconsistencies in UI button copy have been removed.
+- Error messaging is clearer in the `deployment build` CLI command.
+- Resolved timeout errors that occurred when using async task functions inside synchronous flows.
+
+## 2.0.1
+
+The response to Prefect 2 has been overwhelming in the best way possible. Thank you to the many community members who tried it out and gave us feedback! Thanks in particular to the students at this week's Prefect Associate Certification Course (PACC) in San Jose for their thoughtful recommendations. This release is a compilation of enhancements and fixes that make for a more resilient, performant, and refined Prefect experience.
+
+### Improvements and bug fixes
+- Schedules set via the API or UI are now preserved when building deployments from the CLI
+- JSON types are now coerced to none, following Javascript convention and supporting standards compatibility
+- The `prefect deployment execute` command has been removed to avoid confusion between running a flow locally from a Python script and running it by an agent using `prefect deployment run`
+- This repository now includes templates for pull requests and issues to make bug reports and community contributions easier
+- The `scheduler` and `flow-run-notifications` LoopServices have been made more resilient
+- Log inserts have been made more performant through smaller log batches
+- Local file system blocks created from the UI now point to the right `base_path`
+- Support for unmapped values to Task.map has been added as requested by Club42 members
+- The `deployment build` command now supports an optional output flag to customize the name of the deployment.yaml file, to better support projects with multiple flows
+
 ## 2.0.0
 
 We're thrilled to announce that, with this release, Prefect 2.0 has exited its public beta! Hopefully, this release comes as no surprise. It is the culmination of nearly a year of building in public and incorporating your feedback. Prefect 2.0 is now the default version of the open source `prefect` framework provided [upon installation](https://docs.prefect.io/getting-started/installation/). We will continue enhancing Prefect 2.0 rapidly, but future breaking changes will be less frequent and more notice will be provided.
@@ -645,7 +696,7 @@ Additionally, because flows are not statically registered, we're able to easily 
 
 ### Subflow executors
 
-[Subflow runs](https://docs.prefect.io/concepts/flows/#subflows) are a first-class concept in Orion and this enables new execution patterns.
+[Subflow runs](https://docs.prefect.io/concepts/flows/#composing-flows) are a first-class concept in Orion and this enables new execution patterns.
 For example, consider a flow where most of the tasks can run locally, but for some subset of computationally intensive tasks you need more resources.
 You can move your computationally intensive tasks into their own flow, which uses a `DaskExecutor` to spin up a temporary Dask cluster in the cloud provider of your choice.
 Next, you simply call the flow that uses a `DaskExecutor` from your other, parent flow.

@@ -1,11 +1,11 @@
 import sqlite3
 from abc import ABC, abstractmethod
-from asyncio import get_running_loop
+from asyncio import AbstractEventLoop, get_running_loop
 from functools import partial
-from typing import Hashable, Tuple
+from typing import Dict, Hashable, Tuple
 
 import sqlalchemy as sa
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from typing_extensions import Literal
 
 from prefect.settings import (
@@ -45,11 +45,11 @@ class BaseDatabaseConfiguration(ABC):
         return (self.__class__, self.connection_url)
 
     @abstractmethod
-    async def engine(self) -> sa.engine.Engine:
+    async def engine(self) -> AsyncEngine:
         """Returns a SqlAlchemy engine"""
 
     @abstractmethod
-    async def session(self, engine: sa.engine.Engine) -> AsyncSession:
+    async def session(self, engine: AsyncEngine) -> AsyncSession:
         """
         Retrieves a SQLAlchemy session for an engine.
         """
@@ -69,9 +69,9 @@ class BaseDatabaseConfiguration(ABC):
 
 class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
-    ENGINES = dict()
+    ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
 
-    async def engine(self) -> sa.engine.Engine:
+    async def engine(self) -> AsyncEngine:
         """Retrieves an async SQLAlchemy engine.
 
         Args:
@@ -83,7 +83,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 Defaults to self.timeout
 
         Returns:
-            sa.engine.Engine: a SQLAlchemy engine
+            AsyncEngine: a SQLAlchemy engine
         """
 
         loop = get_running_loop()
@@ -139,7 +139,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
         await add_event_loop_shutdown_callback(partial(dispose_engine, cache_key))
 
-    async def session(self, engine: sa.engine.Engine) -> AsyncSession:
+    async def session(self, engine: AsyncEngine) -> AsyncSession:
         """
         Retrieves a SQLAlchemy session for an engine.
 
@@ -166,10 +166,10 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
 class AioSqliteConfiguration(BaseDatabaseConfiguration):
 
-    ENGINES = dict()
+    ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
     MIN_SQLITE_VERSION = (3, 24, 0)
 
-    async def engine(self) -> sa.engine.Engine:
+    async def engine(self) -> AsyncEngine:
         """Retrieves an async SQLAlchemy engine.
 
         Args:
@@ -181,7 +181,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
                 Defaults to self.timeout
 
         Returns:
-            sa.engine.Engine: a SQLAlchemy engine
+            AsyncEngine: a SQLAlchemy engine
         """
 
         if sqlite3.sqlite_version_info < self.MIN_SQLITE_VERSION:
@@ -262,7 +262,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         conn.execute(sa.text("PRAGMA busy_timeout = 60000;"))  # 60s
         conn.commit()
 
-    async def session(self, engine: sa.engine.Engine) -> AsyncSession:
+    async def session(self, engine: AsyncEngine) -> AsyncSession:
         """
         Retrieves a SQLAlchemy session for an engine.
 

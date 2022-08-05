@@ -36,4 +36,7 @@ The **Parameters** tab displays any parameters specified for the deployment.
 
 ![Viewing parameters of a deployment in the Prefect UI](/img/ui/orion-deployment-params.png)
 
-Currently, you cannot edit the deployment within the UI. To change a deployment, edit the deployment specification and use the `prefect deployment create` CLI command. If a deployment already exists for the specification on the API, it will be updated rather than creating a new deployment. See the [Deployments](/concepts/deployments/) documentation for details.
+!!! note "Editing deployments"
+    You may edit or update an existing deployment within the Prefect UI or via the CLI by applying changes from an edited deployment YAML file. 
+    
+    To change a deployment via the CLI, edit the deployment YAML file, then use the `prefect deployment apply` CLI command. If a deployment already exists, it will be updated rather than creating a new deployment. See the [Deployments](/concepts/deployments/) documentation for details.
