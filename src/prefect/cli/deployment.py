@@ -2,7 +2,6 @@
 Command line interface for working with deployments.
 """
 import json
-import traceback
 from enum import Enum
 from inspect import getdoc
 from pathlib import Path
@@ -22,7 +21,12 @@ from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import DeploymentYAML, load_deployments_from_yaml
-from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError, ScriptError
+from prefect.exceptions import (
+    ObjectNotFound,
+    PrefectHTTPStatusError,
+    ScriptError,
+    exception_traceback,
+)
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.orion.schemas.filters import FlowFilter
@@ -55,14 +59,6 @@ def assert_deployment_name_format(name: str) -> None:
         exit_with_error(
             "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
         )
-
-
-def exception_traceback(exc: Exception) -> str:
-    """
-    Convert an exception to a printable string with a traceback
-    """
-    tb = traceback.TracebackException.from_exception(exc)
-    return "".join(list(tb.format()))
 
 
 async def get_deployment(client, name, deployment_id):
