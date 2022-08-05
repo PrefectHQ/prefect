@@ -185,6 +185,20 @@ You need to install `adlfs` to use it.
 If you leverage `S3`, `GCS`, or `Azure` storage blocks, and you don't explicitly configure credentials on the respective storage block, those credentials will be inferred from the environment. Make sure to set those either explicitly on the block or as environment variables, configuration files, or IAM roles within both the build and runtime environment for your deployments.
 
 
+## Filesystem-specific package dependencies in Docker images
+
+The core package and Prefect base images don't include filesystem-specific package dependencies such as `s3fs`, `gcsfs` or `adlfs`. To solve that problem in dockerized deployments, you can leverage the `EXTRA_PIP_PACKAGES` environment variable. Those dependencies will be installed at runtime within your Docker container or Kubernetes Job before the flow starts running. 
+
+Here is an example showing how you can specify that in your deployment YAML manifest:
+
+```yaml
+infrastructure:
+  type: docker-container
+  env:
+    EXTRA_PIP_PACKAGES: s3fs  # could be gcsfs, adlfs, etc.
+```
+
+
 ## Saving and loading file systems
 
 Configuration for a file system can be saved to the Prefect API. For example:
