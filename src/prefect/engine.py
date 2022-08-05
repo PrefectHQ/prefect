@@ -453,7 +453,7 @@ async def create_and_begin_subflow_run(
                 validation_error = (
                     f"Validation of flow parameters failed with error: {exc!r}"
                 )
-                logger.error(validation_error)
+                logger.exception(validation_error)
                 failed_state = Failed(
                     message=validation_error,
                     data=DataDocument.encode("cloudpickle", exc),
