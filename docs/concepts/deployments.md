@@ -201,6 +201,10 @@ When you run this command, Prefect:
 - Creates the the manifest and `catfacts_flow-deployment.yaml` files for your deployment based on your flow code and options.
 - Uploads your flow files to the configured storage location (local by default).
 
+!!! note "Ignore files or directories from a deployment"
+    If you want to omit certain files or directories from your deployments, add a `.prefectignore` file to the root directory. `.prefectignore` enables users to omit certain files or directories from their deployments. 
+
+    Similar to other `.ignore` files, the syntax supports pattern matching, so an entry of `*.pyc` will ensure all `.pyc` files are ignored by the deployment call when uploading to remote storage. 
 
 ### Block indentifiers
 
