@@ -14,7 +14,7 @@ import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import Manifest
+from prefect import Flow, Manifest
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
@@ -28,7 +28,7 @@ from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.filesystem import set_default_ignore_file
-from prefect.utilities.importtools import load_flow_from_manifest_path
+from prefect.utilities.importtools import import_object
 
 
 def str_presenter(dumper, data):
@@ -427,8 +427,13 @@ async def build(
         else:
             raise exc
     try:
-        flow = load_flow_from_manifest_path(path)
-        app.console.print(f"Found flow {flow.name!r}", style="green")
+        flow = import_object(path)
+        if isinstance(flow, Flow):
+            app.console.print(f"Found flow {flow.name!r}", style="green")
+        else:
+            exit_with_error(
+                f"Found object of unexpected type {type(flow).__name__!r}. Expected 'Flow'."
+            )
     except AttributeError:
         exit_with_error(f"{obj_name!r} not found in {fpath!r}.")
     except FileNotFoundError:
