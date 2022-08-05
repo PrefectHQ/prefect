@@ -39,7 +39,14 @@ jobs:
 
       - name: Install orion-ui dependencies
         working-directory: ./orion-ui
-        run: npm ci install
+        run: npm ci install    
+        
+      - name: Cache Playwright Browsers
+        id: cache-playwright-browsers
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-browsers
 
       - name: Install Playwright Browsers
         working-directory: ./orion-ui
