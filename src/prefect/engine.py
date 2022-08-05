@@ -321,7 +321,7 @@ async def begin_flow_run(
             stack.enter_context(start_blocking_portal()) if flow.isasync else None
         )
 
-        logger.info(
+        logger.debug(
             f"Starting {type(flow.task_runner).__name__!r}; submitted tasks "
             f"will be run {CONCURRENCY_MESSAGES[flow.task_runner.concurrency_type]}..."
         )
