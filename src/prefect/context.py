@@ -5,6 +5,7 @@ These contexts should never be directly mutated by the user.
 """
 import os
 import sys
+import threading
 import warnings
 from collections import defaultdict
 from contextlib import contextmanager
@@ -462,7 +463,11 @@ def use_profile(
         yield ctx
 
 
-GLOBAL_SETTINGS_CM: ContextManager[SettingsContext] = None
+# Stores the settings context per thread
+# We set a global variable because otherwise the context object will be garbage
+# collected which will call __exit__ as soon as the function scope where it is created
+# exits
+GLOBAL_SETTINGS_CMS: Dict[int, ContextManager[SettingsContext]] = {}
 
 
 def enter_root_settings_context():
@@ -475,13 +480,13 @@ def enter_root_settings_context():
     - Profiles file via the 'active' key
 
     This function is safe to call multiple times.
-    """
-    # We set a global variable because otherwise the context object will be garbage
-    # collected which will call __exit__ as soon as this function scope ends.
-    global GLOBAL_SETTINGS_CM
 
-    if GLOBAL_SETTINGS_CM:
-        return  # A global context already has been entered
+    Allocates a new global settings context per thread when called to support cases
+    where Prefect
+    """
+    thread_id = threading.get_ident()
+    if GLOBAL_SETTINGS_CMS.get(thread_id):
+        return  # A global context already has been entered for this thread
 
     profiles = prefect.settings.load_profiles()
     active_name = profiles.active_name
@@ -507,13 +512,15 @@ def enter_root_settings_context():
         )
         active_name = "default"
 
-    GLOBAL_SETTINGS_CM = use_profile(
+    context = use_profile(
         profiles[active_name],
         # Override environment variables if the profile was set by the CLI
         override_environment_variables=profile_source == "by command line argument",
     )
+    settings = context.__enter__()
 
-    GLOBAL_SETTINGS_CM.__enter__()
+    GLOBAL_SETTINGS_CMS[thread_id] = context
+    return settings
 
 
 GLOBAL_OBJECT_REGISTRY: ContextManager[PrefectObjectRegistry] = None

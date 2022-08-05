@@ -47,6 +47,7 @@ from httpx import HTTPStatusError, Response
 from typing_extensions import Self
 
 import prefect
+import prefect.context
 import prefect.exceptions
 import prefect.orion.schemas as schemas
 import prefect.settings
@@ -107,7 +108,11 @@ def inject_client(fn):
 
 
 def get_client(httpx_settings: dict = None) -> "OrionClient":
-    ctx = prefect.context.get_settings_context()
+    # Ensure that the root settings context is active for this thread
+    ctx = (
+        prefect.context.SettingsContext.get()
+        or prefect.context.enter_root_settings_context()
+    )
     return OrionClient(
         PREFECT_API_URL.value() or create_app(ctx.settings, ephemeral=True),
         api_key=PREFECT_API_KEY.value(),
