@@ -988,7 +988,7 @@ class TestDeploymentFlowRun:
         assert state.is_failed()
         assert (
             state.message
-            == "ParameterTypeError('Flow run received invalid parameters:\\n - x: value is not a valid integer')"
+            == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - x: value is not a valid integer')"
         )
         with pytest.raises(ParameterTypeError, match="value is not a valid integer"):
             state.result()
@@ -1081,7 +1081,7 @@ class TestCreateThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert (
             state.message
-            == "ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
+            == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
         )
         assert type(state.data.decode()) == ParameterTypeError
 
@@ -1095,7 +1095,7 @@ class TestCreateThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert (
             state.message
-            == "SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
+            == "Validation of flow parameters failed with error: SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
         )
         assert type(state.data.decode()) == SignatureMismatchError
 
@@ -1119,7 +1119,7 @@ class TestCreateThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert (
             state.message
-            == "Validation of flow parameters failed with an unexpected error: Exception('I am another exception!')"
+            == "Validation of flow parameters failed with error: Exception('I am another exception!')"
         )
         assert type(state.data.decode()) == Exception
 
@@ -1142,7 +1142,7 @@ class TestRetrieveFlowThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert (
             state.message
-            == "ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
+            == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
         )
         assert type(state.data.decode()) == ParameterTypeError
 
@@ -1156,7 +1156,7 @@ class TestRetrieveFlowThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert (
             state.message
-            == "SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
+            == "Validation of flow parameters failed with error: SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
         )
         assert type(state.data.decode()) == SignatureMismatchError
 
@@ -1180,7 +1180,7 @@ class TestRetrieveFlowThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert (
             state.message
-            == "Validation of flow parameters failed with an unexpected error: Exception('I am another exception!')"
+            == "Validation of flow parameters failed with error: Exception('I am another exception!')"
         )
         assert type(state.data.decode()) == Exception
 
@@ -1218,7 +1218,7 @@ class TestCreateAndBeginSubflowRun:
             assert state.type == StateType.FAILED
             assert (
                 state.message
-                == "ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
+                == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
             )
             assert type(state.data.decode()) == ParameterTypeError
 
@@ -1236,7 +1236,7 @@ class TestCreateAndBeginSubflowRun:
             assert state.type == StateType.FAILED
             assert (
                 state.message
-                == "SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
+                == "Validation of flow parameters failed with error: SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
             )
             assert type(state.data.decode()) == SignatureMismatchError
 
@@ -1260,6 +1260,6 @@ class TestCreateAndBeginSubflowRun:
         assert state.type == StateType.FAILED
         assert (
             state.message
-            == "Validation of flow parameters failed with an unexpected error: Exception('I am another exception!')"
+            == "Validation of flow parameters failed with error: Exception('I am another exception!')"
         )
         assert type(state.data.decode()) == Exception
