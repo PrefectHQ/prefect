@@ -53,7 +53,7 @@ This schedule will set flow runs in a deployment every day at midnight Central T
 
 ## Cron
 
-A `CronSchedule` creates new flow runs according to a provided [`cron`](https://en.wikipedia.org/wiki/Cron) pattern. Users may also provide a timezone to enforce DST behaviors.
+A schedule may be specified with a [`cron`](https://en.wikipedia.org/wiki/Cron) pattern. Users may also provide a timezone to enforce DST behaviors.
 
 `Cron` uses [`croniter`](https://github.com/kiorky/croniter) to specify datetime iteration with a `cron`-like format.
 
@@ -78,9 +78,9 @@ The `day_or` property defaults to `True`, matching `cron`, which connects those 
     Longer schedules, such as one that fires at 9am every morning, will adjust for DST automatically.
 
 
-## IntervalSchedule
+## Interval
 
-An `IntervalSchedule` creates new flow runs on a regular interval measured in seconds. Intervals are computed from an optional `anchor_date`. For example, here's the a schedule for every 10 minutes.
+An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed from an optional `anchor_date`. For example, here's the a schedule for every 10 minutes.
 
 ```yaml
 schedule:
@@ -88,7 +88,7 @@ schedule:
   timezone: America/Chicago 
 ```
 
-`IntervalSchedule` properties include:
+`Interval` properties include:
 
 | Property | Description |
 | --- | --- |
@@ -105,11 +105,11 @@ Note that the `anchor_date` does not indicate a "start time" for the schedule, b
     
     For longer intervals, like a daily schedule, the interval schedule will adjust for DST boundaries so that the clock-hour remains constant. This means that a daily schedule that always fires at 9am will observe DST and continue to fire at 9am in the local time zone.
 
-## RRuleSchedule
+## RRule
 
-An `RRuleSchedule` supports [iCal recurrence rules](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html) (RRules), which provide convenient syntax for creating repetitive schedules. Schedules can repeat on a frequency from yearly down to every minute.
+An `RRule` scheduling supports [iCal recurrence rules](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html) (RRules), which provide convenient syntax for creating repetitive schedules. Schedules can repeat on a frequency from yearly down to every minute.
 
-`RRuleSchedule` uses the [dateutil rrule](https://dateutil.readthedocs.io/en/stable/rrule.html) module to specify iCal recurrence rules.
+`RRule` uses the [dateutil rrule](https://dateutil.readthedocs.io/en/stable/rrule.html) module to specify iCal recurrence rules.
 
 RRules are appropriate for any kind of calendar-date manipulation, including simple repetition, irregular intervals, exclusions, week day or day-of-month adjustments, and more. RRules can represent complex logic like: 
 
@@ -118,7 +118,7 @@ RRules are appropriate for any kind of calendar-date manipulation, including sim
 - Every other day of the week
 
 
-`RRuleSchedule` properties include:
+`RRule` properties include:
 
 | Property | Description |
 | --- | --- |
