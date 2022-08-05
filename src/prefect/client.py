@@ -620,9 +620,10 @@ class OrionClient:
     async def update_flow_run(
         self,
         flow_run_id: UUID,
-        flow_version: str = None,
-        parameters: dict = None,
-        name: str = None,
+        flow_version: Optional[str] = None,
+        parameters: Optional[dict] = None,
+        name: Optional[str] = None,
+        tags: Optional[Iterable[str]] = None,
     ) -> None:
         """
         Update a flow run's details.
@@ -643,6 +644,8 @@ class OrionClient:
             params["parameters"] = parameters
         if name is not None:
             params["name"] = name
+        if tags is not None:
+            params["tags"] = tags
 
         flow_run_data = schemas.actions.FlowRunUpdate(**params)
 

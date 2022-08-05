@@ -14,7 +14,7 @@ from httpx import AsyncClient, HTTPStatusError, Request, Response
 
 import prefect.context
 import prefect.exceptions
-from prefect import flow
+from prefect import flow, tags
 from prefect.client import OrionClient, PrefectHttpxClient, get_client
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
@@ -905,12 +905,35 @@ async def test_update_flow_run(orion_client):
 
     # Fields updated when set
     await orion_client.update_flow_run(
-        flow_run.id, flow_version="foo", parameters={"foo": "bar"}, name="test"
+        flow_run.id,
+        flow_version="foo",
+        parameters={"foo": "bar"},
+        name="test",
+        tags=["hello", "world"],
     )
     updated_flow_run = await orion_client.read_flow_run(flow_run.id)
     assert updated_flow_run.flow_version == "foo"
     assert updated_flow_run.parameters == {"foo": "bar"}
     assert updated_flow_run.name == "test"
+    assert updated_flow_run.tags == ["hello", "world"]
+
+
+async def test_update_flow_run_overrides_tags(orion_client):
+    @flow(name="test_update_flow_run_tags__flow")
+    def hello(name):
+        return f"Hello {name}"
+
+    with tags("goodbye", "cruel", "world"):
+        state = hello("Marvin", return_state=True)
+
+    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+
+    await orion_client.update_flow_run(
+        flow_run.id,
+        tags=["hello", "world"],
+    )
+    updated_flow_run = await orion_client.read_flow_run(flow_run.id)
+    assert updated_flow_run.tags == ["hello", "world"]
 
 
 async def test_create_then_read_task_run(orion_client):
