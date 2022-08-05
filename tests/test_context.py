@@ -8,6 +8,7 @@ from pendulum.datetime import DateTime
 import prefect.settings
 from prefect import flow, task
 from prefect.context import (
+    GLOBAL_SETTINGS_CONTEXT,
     ContextModel,
     FlowRunContext,
     SettingsContext,
@@ -122,6 +123,15 @@ async def test_task_run_context(orion_client, flow_run, local_filesystem):
         assert ctx.task_run == task_run
         assert ctx.result_filesystem == local_filesystem
         assert isinstance(ctx.start_time, DateTime)
+
+
+@pytest.fixture
+def remove_existing_settings_context():
+    token = SettingsContext.__var__.set(None)
+    try:
+        yield
+    finally:
+        SettingsContext.__var__.reset(token)
 
 
 async def test_get_run_context(orion_client, local_filesystem):
@@ -348,3 +358,21 @@ class TestSettingsContext:
             "profile 'bar' set by environment variable not found. The default profile will be used instead."
             in err
         )
+
+    @pytest.mark.usefixtures("remove_existing_settings_context")
+    def test_root_settings_context_accessible_in_new_thread(self):
+        from concurrent.futures.thread import ThreadPoolExecutor
+
+        with ThreadPoolExecutor() as executor:
+            result = executor.submit(get_settings_context).result()
+
+        assert result == GLOBAL_SETTINGS_CONTEXT
+
+    @pytest.mark.usefixtures("remove_existing_settings_context")
+    def test_root_settings_context_accessible_in_new_loop(self):
+        from anyio import start_blocking_portal
+
+        with start_blocking_portal() as portal:
+            result = portal.call(get_settings_context)
+
+        assert result == GLOBAL_SETTINGS_CONTEXT

@@ -303,7 +303,7 @@ class SettingsContext(ContextModel):
     @classmethod
     def get(cls) -> "SettingsContext":
         # Return the global context instead of `None` if no context exists
-        return cls.__var__.get(GLOBAL_SETTINGS_CONTEXT)
+        return super().get() or GLOBAL_SETTINGS_CONTEXT
 
 
 def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
