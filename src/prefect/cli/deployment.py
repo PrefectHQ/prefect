@@ -261,7 +261,7 @@ async def create_deployment_from_deployment_yaml(deployment: DeploymentYAML) -> 
 
     async with get_client() as client:
         # prep IDs
-        flow_id = await client.create_flow_from_name(deployment.flow_name)
+        flow_id = await client.create_flow_from_name(flow_name=deployment.flow_name)
 
         deployment.infrastructure = deployment.infrastructure.copy()
         infrastructure_document_id = await deployment.infrastructure._save(

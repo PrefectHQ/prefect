@@ -8,6 +8,7 @@ from uuid import UUID
 import anyio
 import yaml
 from anyio import TASK_STATUS_IGNORED
+from anyio.abc._tasks import TaskStatus
 
 import prefect
 from prefect.agent import OrionAgent
@@ -25,16 +26,18 @@ from prefect.settings import (
 from prefect.utilities.filesystem import tmpchdir
 
 
-async def create_qa_queue(app: PrefectTyper, task_status=TASK_STATUS_IGNORED):
+async def create_qa_queue(
+    app: PrefectTyper, task_status: TaskStatus = TASK_STATUS_IGNORED
+):
     """Create a new work queue for QA deployments"""
     async with prefect.get_client() as client:
         queue_name = PREFECT_DEV_QA_WORK_QUEUE.value()
         try:
-            qa_q = await client.read_work_queue_by_name(queue_name)
+            qa_q = await client.read_work_queue_by_name(name=queue_name)
         except PrefectHTTPStatusError as exc:
             pass  # if the work-queue doesn't exist, we will get a status error
         else:
-            await client.delete_work_queue_by_id(qa_q.id)
+            await client.delete_work_queue_by_id(id=qa_q.id)
         finally:
             q_id = await client.create_work_queue(
                 name=queue_name, tags=[PREFECT_DEV_QA_TAG.value()]
@@ -59,15 +62,15 @@ async def start_agent(app: PrefectTyper):
     print("Agent shutting down...")
 
 
-async def get_qa_storage_block(path: Path, name="qa-storage-block"):
+async def get_qa_storage_block(path: Path, block_name="qa-storage-block"):
     try:
-        storage_block = await LocalFileSystem.load(name)
+        storage_block = await LocalFileSystem.load(name=block_name)
     except ValueError as exc:
         storage_block = LocalFileSystem(basepath=path)
         try:
-            await storage_block.save(name, overwrite=True)
+            await storage_block.save(name=block_name, overwrite=True)
         except ObjectNotFound as exc:
-            await storage_block.save(name)
+            await storage_block.save(name=block_name)
     return storage_block
 
 
@@ -97,14 +100,18 @@ async def register_deployment_from_yaml(directory_path: pathlib.Path, block_slug
         ]
     )
     with open(f"{directory_path}/{yaml_name}") as f:
-        deployment = DeploymentYAML(**yaml.safe_load(f))
+        deployment_yaml = DeploymentYAML(**yaml.safe_load(f))
 
-    deployment_id = await create_deployment_from_deployment_yaml(deployment=deployment)
+    deployment_id = await create_deployment_from_deployment_yaml(
+        deployment=deployment_yaml
+    )
 
     return deployment_id
 
 
-async def register_deployments(app: PrefectTyper, task_status=TASK_STATUS_IGNORED):
+async def register_deployments(
+    app: PrefectTyper, task_status: TaskStatus = TASK_STATUS_IGNORED
+):
     # Create storage
     with tmpchdir(prefect.__root_path__ / "qa/deployments"):
         await get_qa_storage_block(path=Path.cwd().parent / "deployment_storage")
@@ -123,9 +130,12 @@ async def register_deployments(app: PrefectTyper, task_status=TASK_STATUS_IGNORE
     return deployment_ids
 
 
-async def execute_flow_scripts(task_status=TASK_STATUS_IGNORED):
+async def execute_flow_scripts(
+    path_from_root: str = "qa/pure_scripts",
+    task_status: TaskStatus = TASK_STATUS_IGNORED,
+):
     """Run all of the <flow>.py files"""
-    with tmpchdir(prefect.__root_path__ / "qa/pure_scripts"):
+    with tmpchdir(prefect.__root_path__ / path_from_root):
         scripts = os.listdir()
         for script in scripts:
             subprocess.run(["python3", script])
@@ -133,7 +143,9 @@ async def execute_flow_scripts(task_status=TASK_STATUS_IGNORED):
 
 
 async def submit_deployments_for_execution(
-    app: PrefectTyper, deployment_ids: List[UUID], task_status=TASK_STATUS_IGNORED
+    app: PrefectTyper,
+    deployment_ids: List[UUID],
+    task_status: TaskStatus = TASK_STATUS_IGNORED,
 ):
     """Submit all deployments for execution"""
     async with get_client() as client:
