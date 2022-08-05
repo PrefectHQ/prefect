@@ -187,7 +187,9 @@ If you leverage `S3`, `GCS`, or `Azure` storage blocks, and you don't explicitly
 
 ## Handling file-system-specific package dependencies in Docker images
 
-The core package and Prefect base images don't include file-system-specific package dependencies such as `s3fs`, `gcsfs` or `adlfs`. To solve that problem in dockerized deployments, you can leverage the `EXTRA_PIP_PACKAGES` environment variable. This way, those dependencies will be installed at runtime within your Docker container or Kubernetes job before the flow starts running. Here is an example showing how you can specify that in your deployment YAML manifest:
+The core package and Prefect base images don't include filesystem-specific package dependencies such as `s3fs`, `gcsfs` or `adlfs`. To solve that problem in dockerized deployments, you can leverage the `EXTRA_PIP_PACKAGES` environment variable. Those dependencies will be installed at runtime within your Docker container or Kubernetes Job before the flow starts running. 
+
+Here is an example showing how you can specify that in your deployment YAML manifest:
 
 ```yaml
 infrastructure:
