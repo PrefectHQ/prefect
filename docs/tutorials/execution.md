@@ -25,7 +25,7 @@ The default task runner is the `ConcurrentTaskRunner`, which will run submitted 
 All Prefect task runners support asynchronous task execution.
 
 ## Result
-By default, the result of a task is a Python object, which blocks the execution of the next task in a flow. To make sure that the tasks within your flow can run concurrently or in parallel, add `.submit()` to your task run. This method will return a `PrefectFuture` instead of a Python object.
+By default, the result of a task is a Python object, and execution of the task blocks the execution of the next task in a flow. To make sure that the tasks within your flow can run concurrently or in parallel, add `.submit()` to your task run. This method will return a `PrefectFuture` instead of a Python object.
 
 A `PrefectFuture` is an object that provides access to a computation happening in a task runner. Here's an example of using `.submit` in a flow.
 
