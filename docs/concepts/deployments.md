@@ -201,6 +201,23 @@ When you run this command, Prefect:
 - Creates the the manifest and `catfacts_flow-deployment.yaml` files for your deployment based on your flow code and options.
 - Uploads your flow files to the configured storage location (local by default).
 
+
+### Block indentifiers
+
+You can provide storage (`-sb`) and infrastructure block (`-ib`) identifiers in your `deployment build` command. The required format of a block type consists of the `block-type` and `block-name` in the format `block-type/block-name`. Block name is the name that you provided when creating the block. The block type is the same name as the underlying file system or infrastructure block class, but split into separate words combined with hyphens. Here are some examples that illustrate the pattern:
+
+| Block class name | Block type used in a deployment |
+| ------- | ----------- |
+| `LocalFileSystem` | `local-file-system` |
+| `RemoteFileSystem` | `remote-file-system` |
+| `S3` | `s3` |
+| `GCS` | `gcs` |
+| `Azure` | `azure` |
+| `DockerContainer` | `docker-container` |
+| `KubernetesJob` | `kubernetes-job` |
+| `Process` | `process` |
+
+
 ### Create deployment in API
 
 When you've configured the manifest and `catfacts_flow-deployment.yaml` for a deployment, you can create the deployment on the API. Run the following Prefect CLI command.
