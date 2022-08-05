@@ -78,7 +78,7 @@ def my_flow():
 
 The same rule applies for a subflow:
 
-```python hl_lines="3-5"
+```python hl_lines="1-3"
 @flow 
 def subflow():
     return 42 
@@ -92,7 +92,7 @@ def my_flow():
 
 To return a `State` instead, add `return_state=True` as a parameter of your task call.
 
-```python hl_lines="3-5"
+```python hl_lines="3-4"
 @flow 
 def my_flow():
     state = add_one(1, return_state=True) # return State
@@ -100,7 +100,7 @@ def my_flow():
 
 To get data from a `State`, call `.result()`.
 
-```python hl_lines="3-5"
+```python hl_lines="4-5"
 @flow 
 def my_flow():
     state = add_one(1, return_state=True) # return State
@@ -109,7 +109,7 @@ def my_flow():
 
 The same rule applies for a subflow:
 
-```python hl_lines="3-5"
+```python hl_lines="7-8"
 @flow 
 def subflow():
     return 42 
@@ -132,7 +132,7 @@ def my_flow():
 
 To get data from a `PrefectFuture`, call `.result()`.
 
-```python hl_lines="3-5"
+```python hl_lines="4-5"
 @flow 
 def my_flow():
     future = add_one.submit(1) # return PrefectFuture
@@ -141,7 +141,7 @@ def my_flow():
 
 To get a `State` from a `PrefectFuture`, call `.wait()`.
 
-```python hl_lines="3-5"
+```python hl_lines="4-5"
 @flow 
 def my_flow():
     future = add_one.submit(1) # return PrefectFuture

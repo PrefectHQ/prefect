@@ -194,6 +194,11 @@ Metadata such as this allows for a full reconstruction of what happened with you
 
 You can specify the cache key function using the `cache_key_fn` argument on a task. 
 
+!!! note "Task results, retries, and caching"
+    Task results are cached in memory during a flow run and peristed to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. As a result, task caching between flow runs is currently limited to flow runs with access to that local storage path.
+
+## Async tasks
+
 ### Task input hash
 
 One way to use `cache_key_fn` is to cache based on inputs by specifying `task_input_hash`. If the input parameters to the task are the same, Prefect returns the cached results rather than running the task again. 
