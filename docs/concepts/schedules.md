@@ -129,8 +129,9 @@ For example, the following RRule schedule creates flow runs on Monday, Wednesday
 RRule:  TK
     DTSTART:20220411T000000
     RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR;UNTIL=20220630T000000Z    TK
-```
+
     timezone="America/New_York"
+```
 
 !!! info "Daylight saving time considerations"
     Note that as a calendar-oriented standard, `RRuleSchedules` are sensitive to the initial timezone provided. A 9am daily schedule with a DST-aware start date will maintain a local 9am time through DST boundaries. A 9am daily schedule with a UTC start date will maintain a 9am UTC time.
@@ -139,19 +140,30 @@ For more detail, please see the [`RRuleSchedule` API reference][prefect.orion.sc
 -->
 ## The `Scheduler` service
 
-The `Scheduler` service is started automatically when `prefect orion start` is run and is a built-in service of Prefect Cloud. 
+The `Scheduler` service is started automatically when `prefect orion start` is run and it is a built-in service of Prefect Cloud. 
 
-By default, the `Scheduler` service visits deployments on a 60-second loop and attempts to create up to 100 scheduled flow runs up to 100 days in the future. These defaults may be configured via the following Prefect settings:
+By default, the `Scheduler` service visits deployments on a 60-second loop and attempts to create up to 100 scheduled flow runs up to 100 days in the future. These defaults can be shown with the terminal command `prefect config view --show-defaults`:
 
-- `PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS`
-- `PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS`
-- `PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME`
+<div class='terminal'>
+```bash
+PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE='100' 
+PREFECT_ORION_SERVICES_SCHEDULER_ENABLED='True' 
+PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE='500' 
+PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS='60.0' 
+PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS='100' 
+PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME='100 days, 0:00:00' 
+```
+</div>
 
-This means that if a deployment has an hourly schedule, the default settings will create runs for the next 4 days (or 100 hours). If it has a weekly schedule, the default settings will maintain the next 14 runs (up to 100 days in the future).
+See the [Settings docs](settings.md) for more information on altering your settings.
+
+These settings mean that if a deployment has an hourly schedule, the default settings will create runs for the next 4 days (or 100 hours). If it has a weekly schedule, the default settings will maintain the next 14 runs (up to 100 days in the future).
 
 !!! tip "The `Scheduler` does not affect execution"
-    The Prefect Orion `Scheduler` service only creates new flow runs and places them in `Scheduled` states. It is not involved in flow or task execution. Making the `Scheduler` loop faster will not make flows start or run faster.
+    The Prefect Orion `Scheduler` service only creates new flow runs and places them in `Scheduled` states. It is not involved in flow or task execution. 
 
 If you change a schedule, previously scheduled flow runs that have not started are removed, and new scheduled flow runs are created to reflect the new schedule.
 
+<!-- 
 To remove all scheduled runs for a flow deployment, update the deployment with no `schedule` parameter.
+-->
