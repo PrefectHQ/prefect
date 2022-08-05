@@ -26,4 +26,3 @@
   const empty = computed(() => notificationsSubscription.executed && notifications.value.length === 0)
   const loaded = computed(() => notificationsSubscription.executed)
 </script>
-g
