@@ -208,7 +208,7 @@ See the [Flow and task configuration](/tutorials/flow-task-config/#task-caching)
 
 ## Task results
 
-Depending on how you call tasks, they can return different types of result and optionally engage the use of a [task runner](/concepts/task-runners/).
+Depending on how you call tasks, they can return different types of results and optionally engage the use of a [task runner](/concepts/task-runners/).
 
 Any task can return:
 
@@ -222,7 +222,7 @@ See [state returned values](/concepts/task-runners/#using-results-from-submitted
 
 ## Map
 
-Prefect provides a `.map()` implementation that automatically creates a copy of a task for each element of its input data. Mapped tasks represent the computations of many individual children tasks.
+Prefect provides a `.map()` implementation that automatically creates task run for each element of its input data. Mapped tasks represent the computations of many individual children tasks.
 
 The simplest Prefect map takes a tasks and applies it to each element of its inputs.
 
