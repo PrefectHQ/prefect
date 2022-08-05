@@ -15,6 +15,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.exceptions import ScriptError
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.importtools import load_script_as_module
 
 blocks_app = PrefectTyper(name="block", help="Commands for working with blocks.")
@@ -86,7 +87,9 @@ async def register(
                 ".py that contains blocks to be registered."
             )
         try:
-            imported_module = load_script_as_module(str(file_path))
+            imported_module = await run_sync_in_worker_thread(
+                load_script_as_module, str(file_path)
+            )
         except ScriptError as exc:
             exit_with_error(
                 f"Unable to load file at {file_path}. Please make sure the file path "
