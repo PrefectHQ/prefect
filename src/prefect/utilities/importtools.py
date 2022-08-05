@@ -45,7 +45,6 @@ def from_qualified_name(name: str) -> Any:
         >>> obj == random.randint
         True
     """
-
     # Try importing it first so we support "module" or "module.sub_module"
     try:
         module = importlib.import_module(name)
@@ -127,26 +126,84 @@ def load_script_as_module(path: str) -> ModuleType:
     If an exception occurs during execution of the script, a
     `prefect.exceptions.ScriptError` is created to wrap the exception and raised.
 
+    During the duration of this function call, `sys` is modified to support loading.
+    These changes are reverted after completion, but this function is not thread safe
+    and use of it in threaded contexts may result in undesirable behavior.
+
     See https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
     """
-    spec = importlib.util.spec_from_file_location("__prefect_loader__", path)
+    # We will add the parent directory to search locations to support relative imports
+    # during execution of the script
+    parent_path = str(Path(path).resolve().parent)
+    working_directory = os.getcwd()
+
+    spec = importlib.util.spec_from_file_location(
+        "__prefect_loader__",
+        path,
+        # Support explicit relative imports i.e. `from .foo import bar`
+        submodule_search_locations=[parent_path, working_directory],
+    )
     module = importlib.util.module_from_spec(spec)
     sys.modules["__prefect_loader__"] = module
+
+    # Support implicit relative imports i.e. `from foo import bar`
+    sys.path.insert(0, working_directory)
+    sys.path.insert(0, parent_path)
 
     try:
         spec.loader.exec_module(module)
     except Exception as exc:
         raise ScriptError(user_exc=exc, path=path) from exc
+    finally:
+        sys.modules.pop("__prefect_loader__")
+        sys.path.remove(parent_path)
+        sys.path.remove(working_directory)
 
     return module
 
 
-def load_flow_from_manifest_path(path: str):
-    file_path, obj_name = path.rsplit(":", 1)
-    sys.path.insert(0, str(Path(file_path).parent))
-    sys.path.insert(0, str(Path(file_path).parent.parent))
-    flow = runpy.run_path(file_path)[obj_name]
-    return flow
+def load_module(module_name: str) -> ModuleType:
+    """
+    Import a module with support for relative imports within the module.
+    """
+    # Ensure relative imports within the imported module work if the user is in the
+    # correct working directory
+    working_directory = os.getcwd()
+    sys.path.insert(0, working_directory)
+
+    try:
+        return importlib.import_module(module_name)
+    finally:
+        sys.path.remove(working_directory)
+
+
+def import_object(import_path: str):
+    """
+    Load an object from an import path.
+
+    Import paths can be formatted as one of:
+    - module.object
+    - module:object
+    - /path/to/script.py:object
+
+    This function is not thread safe as it modifies the 'sys' module during execution.
+    """
+    if ".py:" in import_path:
+        script_path, object_name = import_path.rsplit(":", 1)
+        module = load_script_as_module(script_path)
+    else:
+        if ":" in import_path:
+            module_name, object_name = import_path.rsplit(":", 1)
+        elif "." in import_path:
+            module_name, object_name = import_path.rsplit(".", 1)
+        else:
+            raise ValueError(
+                f"Invalid format for object import. Received {import_path!r}."
+            )
+
+        module = load_module(module_name)
+
+    return getattr(module, object_name)
 
 
 class DelayedImportErrorModule(ModuleType):

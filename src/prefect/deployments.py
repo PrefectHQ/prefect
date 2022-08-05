@@ -20,7 +20,7 @@ from prefect.orion import schemas
 from prefect.utilities.callables import ParameterSchema
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.filesystem import tmpchdir
-from prefect.utilities.importtools import load_flow_from_manifest_path
+from prefect.utilities.importtools import import_object
 
 
 async def load_flow_from_deployment(deployment: schemas.core.Deployment) -> Flow:
@@ -29,7 +29,7 @@ async def load_flow_from_deployment(deployment: schemas.core.Deployment) -> Flow
     """
     with open(deployment.manifest_path, "r") as f:
         manifest = json.load(f)
-    return load_flow_from_manifest_path(manifest["import_path"])
+    return import_object(manifest["import_path"])
 
 
 @inject_client

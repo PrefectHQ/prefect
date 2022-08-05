@@ -48,6 +48,11 @@ if TYPE_CHECKING:
     from prefect.flows import Flow
     from prefect.tasks import Task
 
+# Define the global settings context variable
+# This will be populated downstream but must be null here to facilitate loading the
+# default settings.
+GLOBAL_SETTINGS_CONTEXT = None
+
 
 class ContextModel(BaseModel):
     """
@@ -295,6 +300,11 @@ class SettingsContext(ContextModel):
 
         return return_value
 
+    @classmethod
+    def get(cls) -> "SettingsContext":
+        # Return the global context instead of `None` if no context exists
+        return super().get() or GLOBAL_SETTINGS_CONTEXT
+
 
 def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
     """
@@ -462,27 +472,15 @@ def use_profile(
         yield ctx
 
 
-GLOBAL_SETTINGS_CM: ContextManager[SettingsContext] = None
-
-
-def enter_root_settings_context():
+def root_settings_context():
     """
-    Enter the profile that will exist as the root context for the module.
+    Return the settings context that will exist as the root context for the module.
 
     The profile to use is determined with the following precedence
     - Command line via 'prefect --profile <name>'
     - Environment variable via 'PREFECT_PROFILE'
     - Profiles file via the 'active' key
-
-    This function is safe to call multiple times.
     """
-    # We set a global variable because otherwise the context object will be garbage
-    # collected which will call __exit__ as soon as this function scope ends.
-    global GLOBAL_SETTINGS_CM
-
-    if GLOBAL_SETTINGS_CM:
-        return  # A global context already has been entered
-
     profiles = prefect.settings.load_profiles()
     active_name = profiles.active_name
     profile_source = "in the profiles file"
@@ -507,15 +505,18 @@ def enter_root_settings_context():
         )
         active_name = "default"
 
-    GLOBAL_SETTINGS_CM = use_profile(
+    with use_profile(
         profiles[active_name],
         # Override environment variables if the profile was set by the CLI
         override_environment_variables=profile_source == "by command line argument",
-    )
+    ) as settings_context:
+        return settings_context
 
-    GLOBAL_SETTINGS_CM.__enter__()
+    # Note the above context is exited and the global settings context is used by
+    # an override in the `SettingsContext.get` method.
 
 
+GLOBAL_SETTINGS_CONTEXT: SettingsContext = root_settings_context()
 GLOBAL_OBJECT_REGISTRY: ContextManager[PrefectObjectRegistry] = None
 
 
