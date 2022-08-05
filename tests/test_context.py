@@ -8,13 +8,14 @@ from pendulum.datetime import DateTime
 import prefect.settings
 from prefect import flow, task
 from prefect.context import (
+    GLOBAL_SETTINGS_CONTEXT,
     ContextModel,
     FlowRunContext,
     SettingsContext,
     TaskRunContext,
-    enter_root_settings_context,
     get_run_context,
     get_settings_context,
+    root_settings_context,
     use_profile,
 )
 from prefect.exceptions import MissingContextError
@@ -122,6 +123,15 @@ async def test_task_run_context(orion_client, flow_run, local_filesystem):
         assert ctx.task_run == task_run
         assert ctx.result_filesystem == local_filesystem
         assert isinstance(ctx.start_time, DateTime)
+
+
+@pytest.fixture
+def remove_existing_settings_context():
+    token = SettingsContext.__var__.set(None)
+    try:
+        yield
+    finally:
+        SettingsContext.__var__.reset(token)
 
 
 async def test_get_run_context(orion_client, local_filesystem):
@@ -268,17 +278,16 @@ class TestSettingsContext:
         save_profiles(ProfilesCollection(profiles=[profile]))
         return profile
 
-    def test_enter_global_profile_default(self, monkeypatch):
+    def test_root_settings_context_default(self, monkeypatch):
         use_profile = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
-        monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
-        enter_root_settings_context()
+        result = root_settings_context()
         use_profile.assert_called_once_with(
             Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
             override_environment_variables=False,
         )
         use_profile().__enter__.assert_called_once_with()
-        assert prefect.context.GLOBAL_SETTINGS_CM is not None
+        assert result is not None
 
     @pytest.mark.parametrize(
         "cli_command",
@@ -289,78 +298,81 @@ class TestSettingsContext:
             ["foobar", "--profile", "test"],
         ],
     )
-    def test_enter_global_profile_default_if_cli_args_do_not_match_format(
+    def test_root_settings_context_default_if_cli_args_do_not_match_format(
         self, monkeypatch, cli_command
     ):
         use_profile = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
-        monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setattr("sys.argv", cli_command)
-        enter_root_settings_context()
+        result = root_settings_context()
         use_profile.assert_called_once_with(
             Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
             override_environment_variables=False,
         )
         use_profile().__enter__.assert_called_once_with()
-        assert prefect.context.GLOBAL_SETTINGS_CM is not None
+        assert result is not None
 
-    def test_enter_global_profile_respects_cli(self, monkeypatch, foo_profile):
+    def test_root_settings_context_respects_cli(self, monkeypatch, foo_profile):
         use_profile = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
-        monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setattr("sys.argv", ["/prefect", "--profile", "foo"])
-        enter_root_settings_context()
+        result = root_settings_context()
         use_profile.assert_called_once_with(
             foo_profile,
             override_environment_variables=True,
         )
         use_profile().__enter__.assert_called_once_with()
-        assert prefect.context.GLOBAL_SETTINGS_CM is not None
+        assert result is not None
 
-    def test_enter_global_profile_respects_environment_variable(
+    def test_root_settings_context_respects_environment_variable(
         self, monkeypatch, foo_profile
     ):
         use_profile = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
-        monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setenv("PREFECT_PROFILE", "foo")
-        enter_root_settings_context()
+        root_settings_context()
         use_profile.assert_called_once_with(
             foo_profile, override_environment_variables=False
         )
 
-    def test_enter_global_profile_missing_cli(self, monkeypatch, capsys):
+    def test_root_settings_context_missing_cli(self, monkeypatch, capsys):
         use_profile = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
-        monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setattr("sys.argv", ["/prefect", "--profile", "bar"])
-        enter_root_settings_context()
+        root_settings_context()
         _, err = capsys.readouterr()
         assert (
             "profile 'bar' set by command line argument not found. The default profile will be used instead."
             in err
         )
 
-    def test_enter_global_profile_missing_environment_variables(
+    def test_root_settings_context_missing_environment_variables(
         self, monkeypatch, capsys
     ):
         use_profile = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
-        monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setenv("PREFECT_PROFILE", "bar")
-        enter_root_settings_context()
+        root_settings_context()
         _, err = capsys.readouterr()
         assert (
             "profile 'bar' set by environment variable not found. The default profile will be used instead."
             in err
         )
 
-    def test_enter_global_profile_is_idempotent(self, monkeypatch):
-        use_profile = MagicMock()
-        monkeypatch.setattr("prefect.context.use_profile", use_profile)
-        monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
-        enter_root_settings_context()
-        enter_root_settings_context()
-        enter_root_settings_context()
-        use_profile.assert_called_once()
-        use_profile().__enter__.assert_called_once()
+    @pytest.mark.usefixtures("remove_existing_settings_context")
+    def test_root_settings_context_accessible_in_new_thread(self):
+        from concurrent.futures.thread import ThreadPoolExecutor
+
+        with ThreadPoolExecutor() as executor:
+            result = executor.submit(get_settings_context).result()
+
+        assert result == GLOBAL_SETTINGS_CONTEXT
+
+    @pytest.mark.usefixtures("remove_existing_settings_context")
+    def test_root_settings_context_accessible_in_new_loop(self):
+        from anyio import start_blocking_portal
+
+        with start_blocking_portal() as portal:
+            result = portal.call(get_settings_context)
+
+        assert result == GLOBAL_SETTINGS_CONTEXT
