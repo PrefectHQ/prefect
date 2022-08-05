@@ -65,7 +65,8 @@ You do not need to specify a task runner for a flow unless your tasks require a 
 To configure your flow to use a specific task runner, import a task runner and assign it as an argument for the flow when the flow is defined.
 
 
-!!! "Remember to call `submit()` when using a task runner"
+!!! warning "Remember to call `submit()` when using a task runner"
+
     Make sure you use `.submit()` to run your task with a task runner. Calling the task from within a flow will run the task sequentially instead of using a task runner.
 
 For example, you can specify the `SequentialTaskRunner` to ensure tasks are executed in order.
