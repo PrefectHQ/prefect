@@ -28,7 +28,6 @@ class Operator(AutoEnum):
 
     and_ = AutoEnum.auto()
     or_ = AutoEnum.auto()
-    bad_ = AutoEnum.auto()
 
 
 class PrefectFilterBaseModel(PrefectBaseModel):

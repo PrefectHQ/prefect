@@ -2603,7 +2603,6 @@ components:
       enum:
       - and_
       - or_
-      - bad_
       title: Operator
       type: string
     OrchestrationResult:
@@ -3962,7 +3961,7 @@ components:
       type: object
 info:
   title: Prefect Orion API
-  version: 2.0.1+115.ge96de8375.dirty
+  version: 2.0.1+116.g79138e343.dirty
   x-logo:
     url: static/prefect-logo-mark-gradient.png
 openapi: 3.0.2

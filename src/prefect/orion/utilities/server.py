@@ -288,30 +288,61 @@ def _explain_schema_change(base_schema: dict, revision_schema: dict) -> str:
         marshal=True,
     )
 
-    ignore_keys = {}
+    try:
+        diff_text = _explain_schema_json_diff(json_diff=json_diff, explanation="")
 
-    # try:
-
-    #     pass
-    #     # inserted properties
-    #     #
-    #     # updated properties
-    #     # deleted properties
-
-    #     # inserted enum
-
-    # except:
-    diff_text = (
-        "Error generating explanation. The following changes have been made:\n```json"
-        + json.dumps(
-            json_diff,
-            indent=4,
-            sort_keys=True,
+    except:
+        diff_text = (
+            "Error generating explanation. The following changes have been made:\n```json"
+            + json.dumps(
+                json_diff,
+                indent=4,
+                sort_keys=True,
+            )
+            + "\n```"
         )
-        + "\n```"
-    )
 
     return diff_text
+
+
+def _explain_schema_json_diff(json_diff: dict, explanation: str = "") -> str:
+    """
+    Given a diff between Orion API schemas, generate a human readable explanation
+    for the changes.
+
+    If an existing explanation text is given, it is assumed this is being called
+    within a recursive explanation. Text will be indented accordingly.
+    """
+    indent = len(explanation.split("\n")[-1])
+
+    def _write_new_indented_text(explanation: str, new_text: str, indent: int = indent):
+        if not explanation.endswith("\n"):
+            explanation += "\n"
+        new_text = new_text.replace("\n", (" " * indent) + "\n")
+        explanation += (" " * indent) + new_text
+        return explanation
+
+    property_updates = json_diff.get("$update", {}).get("properties", {})
+    if property_updates:
+        new_properties = property_updates.get("$insert")
+        # TODO - continue here!
+
+    enum_updates = json_diff.get("$update", {}).get("enum", {})
+    if enum_updates:
+        # enum insert are a list of [insert_position, val]
+        # we just want the vals
+        new_enum_properties = [
+            insert_description[1] for insert_description in enum_updates.get("$insert")
+        ]
+        if new_enum_properties:
+            explanation = _write_new_indented_text(
+                explanation=explanation,
+                new_text=f"new enum values: {','.join(new_enum_properties)}",
+            )
+
+    # inserted properties
+    # updated properties
+    # inserted enum
 
 
 def _get_report_text_for_deleted_routes(deleted_routes: List[str]) -> str:
