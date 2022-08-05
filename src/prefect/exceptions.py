@@ -1,6 +1,7 @@
 """
 Prefect-specific exceptions.
 """
+import traceback
 from types import ModuleType, TracebackType
 from typing import Iterable, Optional, Type
 
@@ -37,6 +38,14 @@ def _trim_traceback(
         tb = tb.tb_next
 
     return tb
+
+
+def exception_traceback(exc: Exception) -> str:
+    """
+    Convert an exception to a printable string with a traceback
+    """
+    tb = traceback.TracebackException.from_exception(exc)
+    return "".join(list(tb.format()))
 
 
 class PrefectException(Exception):
