@@ -26,7 +26,7 @@ pydantic >= 1.8.2
 python-slugify >= 5.0
 pytz >= 2021.1
 pyyaml >= 5.4.1
-readchar >= 3.0.5
+readchar >= 3.0.6
 rich >= 11.0
 slack-sdk>=3.15.1
 sqlalchemy[asyncio] >= 1.4.20, != 1.4.33
