@@ -1,3 +1,4 @@
+autoflake8
 flake8
 flaky
 ipython
