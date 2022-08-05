@@ -20,26 +20,28 @@ You can add a schedule to any flow [deployment](/concepts/deployments/). The Pre
 
 You can add, modify, and view schedules by selecting Edit under the three dot menu next to a Deployment in the Deployments tab of the [Prefect Orion UI](ui/overview.md). 
 
-![Deployment edit button](ui/images/edit-schedule)
+![Deployment edit button](../img/concepts/edit-schedule-callout.png)
 
 To create a schedule from the UI, select Add. 
 
-![Prefect UI with Add button called out under Scheduling heading](ui/images/add-schedule.png)
+![Prefect UI with Add button called out under Scheduling heading](../img/concepts/add-schedule-callout.png)
 
-Select Interval or Cron to create a schedule.
+Select Interval or Cron to create a schedule through the UI.
+
+![Prefect UI with Interval button selected](../img/concepts/interval-schedule.png)
 
 ## Schedule types
 
 Prefect supports several types of schedules that cover a wide range of use cases and offer a large degree of customization:
 
-- [`CronSchedule`](#cronschedule) is most appropriate for users who are already familiar with `cron` from use in other systems.
+- [`CronSchedule`](#cronschedule) is most appropriate for users who are already familiar with `cron` from previous use.
 - [`IntervalSchedule`](#intervalschedule) is best suited for deployments that need to run at some consistent cadence that isn't related to absolute time.
 - [`RRuleSchedule`](#rruleschedule) is best suited for deployments that rely on calendar logic for simple recurring schedules, irregular intervals, exclusions, or day-of-month adjustments.
 
 
 ## Creating schedules through the deployment.yaml file
 
-You create a schedule by including a `schedule` parameter as part of the [deployment.yaml file](/concepts/deployments/) TK link for a deployment.
+You create a schedule by including a `schedule` as part of the [deployment.yaml file](/concepts/deployments/) TK link for a deployment.
 
  TK
 
