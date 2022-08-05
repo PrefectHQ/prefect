@@ -206,6 +206,20 @@ def cached_task():
 
 See the [Flow and task configuration](/tutorials/flow-task-config/#task-caching) tutorial for additional examples of task caching.
 
+## Task results
+
+Depending on how you call tasks, they can return different types of result and optionally engage the use of a [task runner](/concepts/task-runners/).
+
+Any task can return:
+
+- Data , such as `int`, `str`, `dict`, `list`, and so on &mdash;  this is the default behavior any time you call `your_task()`.
+- [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) &mdash;  this is achieved by calling `your_task.submit()`. A `PrefectFuture` contains both _data_ and _State_
+- Prefect [`State`](/api-ref/orion/schemas/states/)  &mdash; anytime you call your task or flow with the argument `return_state=True`, it will directly return a state you can use to build custom behavior based on a state change you care about, such as task or flow failing or retrying.
+
+To run your task with a task runner, you must call the task with `.submit()`.
+
+See [state returned values](/concepts/states/#returned-values) for examples.
+
 ## Async tasks
 
 Coming soon.
