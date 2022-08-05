@@ -52,7 +52,7 @@ If you don't specify a task runner for a flow, and you call a task with `submit(
 
 To configure your flow to use a specific task runner, import a task runner and assign it as an argument for the flow when the flow is defined.
 
-!!! note "Remember to call `submit()` when using a task runner"
+!!! note "Remember to call `.submit()` when using a task runner"
     Make sure you use `.submit()` to run your task with a task runner. Calling the task directly, without `.submit()`, from within a flow will run the task sequentially instead of using a specified task runner.
 
 For example, you can use `ConcurrentTaskRunner` to allow tasks to switch when they would block.
