@@ -344,6 +344,9 @@ The following examples illustrate each of these cases:
 
 ### Raise an exception
 
+!!! note "Prerequisite"    
+    Read the documentation about [states](/concepts/states) before proceeding with this section. 
+
 If an exception is raised within the flow function, the flow is immediately marked as failed.
 
 ```python hl_lines="5"
