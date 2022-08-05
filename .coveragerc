@@ -2,7 +2,6 @@
 branch = True
 
 [report]
-# Regexes for lines to exclude from consideration
 exclude_lines =
     # Don't complain about abstract methods, they aren't run:
     @(abc\.)?abstractmethod
