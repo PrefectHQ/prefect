@@ -272,10 +272,16 @@ async def apply(
             # prep IDs
             flow_id = await client.create_flow_from_name(deployment.flow_name)
 
-            deployment.infrastructure = deployment.infrastructure.copy()
-            infrastructure_document_id = await deployment.infrastructure._save(
-                is_anonymous=True,
-            )
+            if not deployment.infrastructure._block_document_id:
+                # if not building off a block, will create an anonymous block
+                deployment.infrastructure = deployment.infrastructure.copy()
+                infrastructure_document_id = await deployment.infrastructure._save(
+                    is_anonymous=True,
+                )
+            else:
+                infrastructure_document_id = (
+                    deployment.infrastructure._block_document_id
+                )
 
             # we assume storage was already saved
             storage_document_id = deployment.storage._block_document_id
@@ -364,7 +370,7 @@ async def build(
         help="One or more optional tags to apply to the deployment.",
     ),
     infra_type: Infra = typer.Option(
-        "process",
+        None,
         "--infra",
         "-i",
         help="The infrastructure type to use, prepopulated with defaults.",
@@ -467,13 +473,15 @@ async def build(
 
     if infra_block:
         infrastructure = await Block.load(infra_block)
-    else:
+    elif infra_type:
         if infra_type == Infra.kubernetes:
             infrastructure = KubernetesJob()
         elif infra_type == Infra.docker:
             infrastructure = DockerContainer()
-        else:
+        elif infra_type == Infra.process:
             infrastructure = Process()
+    else:
+        infrastructure = None
 
     description = getdoc(flow)
     schedule = None
@@ -486,6 +494,14 @@ async def build(
             description = deployment.description
             schedule = deployment.schedule
             parameters = deployment.parameters
+
+            # if infra was passed, we override the server-side settings
+            if not infrastructure and deployment.infrastructure_document_id:
+                infrastructure = Block._from_block_document(
+                    await client.read_block_document(
+                        deployment.infrastructure_document_id
+                    )
+                )
         except ObjectNotFound:
             pass
 
