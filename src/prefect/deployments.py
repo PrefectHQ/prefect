@@ -76,7 +76,7 @@ def load_deployments_from_yaml(
     return registry
 
 
-class DeploymentYAML(BaseModel):
+class Deployment(BaseModel):
     @property
     def editable_fields(self) -> List[str]:
         editable_fields = [
@@ -129,13 +129,25 @@ class DeploymentYAML(BaseModel):
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
     manifest_path: str = Field(
-        ...,
+        None,
         description="The path to the flow's manifest file, relative to the chosen storage.",
     )
     infrastructure: Union[DockerContainer, KubernetesJob, Process] = Field(
         default_factory=Process
     )
+    infra_overrides: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Overrides to apply to the base infrastructure block at runtime.",
+    )
     storage: Block = Field(default_factory=LocalFileSystem)
+    path: str = Field(
+        None,
+        description="The path to the working directory for the workflow, relative to remote storage or an absolute path.",
+    )
+    entrypoint: str = Field(
+        None,
+        description="The path to the entrypoint for the workflow, relative to the `path`.",
+    )
     parameter_openapi_schema: ParameterSchema = Field(
         ..., description="The parameter schema of the flow, including defaults."
     )
