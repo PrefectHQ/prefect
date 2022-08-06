@@ -46,7 +46,13 @@ async def load_flow_from_flow_run(
     flow_run_logger(flow_run).debug(
         f"Loading flow for deployment {deployment.name!r}..."
     )
-    flow = import_object(deployment.entrypoint)
+
+    # for backwards compat
+    import_path = entrypoint
+    if deployment.manifest_path:
+        with open(deployment.manifest_path, "r") as f:
+            import_path = json.load(f)["import_path"]
+    flow = import_object(import_path)
     return flow
 
 
