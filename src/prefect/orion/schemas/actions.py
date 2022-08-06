@@ -67,7 +67,10 @@ class DeploymentCreate(
             "manifest_path",
             "parameter_openapi_schema",
             "storage_document_id",
+            "path",
+            "entrypoint",
             "infrastructure_document_id",
+            "infra_overrides",
         ],
     )
 ):
