@@ -267,7 +267,7 @@ class FlowRunFilterStateName(PrefectFilterBaseModel):
         return filters
 
 
-class FlowRunFilterState(PrefectFilterBaseModel):
+class FlowRunFilterState(PrefectOperatorFilterBaseModel):
     type: Optional[FlowRunFilterStateType]
     name: Optional[FlowRunFilterStateName]
 
@@ -539,7 +539,7 @@ class TaskRunFilterStateName(PrefectFilterBaseModel):
         return filters
 
 
-class TaskRunFilterState(PrefectFilterBaseModel):
+class TaskRunFilterState(PrefectOperatorFilterBaseModel):
     type: Optional[TaskRunFilterStateType]
     name: Optional[TaskRunFilterStateName]
 
