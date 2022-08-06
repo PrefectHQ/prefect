@@ -1,7 +1,6 @@
 """
 Command line interface for working with deployments.
 """
-import json
 from enum import Enum
 from inspect import getdoc
 from pathlib import Path
@@ -13,7 +12,7 @@ import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import Flow, Manifest
+from prefect import Flow
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
@@ -77,11 +76,6 @@ async def get_deployment(client, name, deployment_id):
     else:
         exit_with_error("Only provide a deployed flow's name or id")
 
-    if not deployment.manifest_path:
-        exit_with_error(
-            f"This deployment has been deprecated. Please see https://orion-docs.prefect.io/concepts/deployments/ to learn how to create a deployment."
-        )
-
     return deployment
 
 
@@ -127,7 +121,6 @@ async def inspect(name: str):
                 },
                 'required': ['name']
             },
-            'manifest_path': 'my-deployment.json',
             'storage_document_id': '63ef008f-1e5d-4e07-a0d4-4535731adb32',
             'infrastructure_document_id': '6702c598-7094-42c8-9785-338d2ec3a028',
             'infrastructure': {
@@ -295,7 +288,10 @@ async def apply(
                 parameters=deployment.parameters,
                 description=deployment.description,
                 tags=deployment.tags,
-                manifest_path=deployment.manifest_path,
+                manifest_path=deployment.manifest_path,  # allows for backwards YAML compat
+                path=deployment.path,
+                entrypoint=deployment.entrypoint,
+                infra_overrides=deployment.infra_overrides,
                 storage_document_id=storage_document_id,
                 infrastructure_document_id=infrastructure_document_id,
                 parameter_openapi_schema=deployment.parameter_openapi_schema.dict(),
@@ -355,9 +351,6 @@ async def build(
         ...,
         help="The path to a flow entrypoint, in the form of `./path/to/file.py:flow_func_name`",
     ),
-    manifest_only: bool = typer.Option(
-        False, "--manifest-only", help="Generate the manifest file only."
-    ),
     name: str = typer.Option(
         None, "--name", "-n", help="The name to give the deployment."
     ),
@@ -386,7 +379,7 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of the storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'local-file-system', 'remote-file-system', 's3', 'gcs', 'azure'",
+        help="The slug of the storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure'",
     ),
     output: str = typer.Option(
         None,
@@ -400,7 +393,7 @@ async def build(
     """
 
     # validate inputs
-    if not name and not manifest_only:
+    if not name:
         exit_with_error(
             "A name for this deployment must be provided with the '--name' flag."
         )
@@ -434,24 +427,12 @@ async def build(
         exit_with_error(f"{obj_name!r} not found in {fpath!r}.")
     except FileNotFoundError:
         exit_with_error(f"{fpath!r} not found.")
-    flow_parameter_schema = parameter_schema(flow)
-    manifest = Manifest(
-        flow_name=flow.name,
-        import_path=path,
-        parameter_openapi_schema=flow_parameter_schema,
-    )
-    manifest_loc = f"{obj_name}-manifest.json"
-    with open(manifest_loc, "w") as f:
-        json.dump(manifest.dict(), f, indent=4)
 
-    app.console.print(
-        f"Manifest created at '{Path(manifest_loc).absolute()!s}'.",
-        style="green",
+    ## process storage, move files around and process path logic
+    deployment_path = None
+    entrypoint = (
+        f"{Path(fpath).parent.absolute().relative_to(Path('.').absolute())}:{obj_name}"
     )
-    if manifest_only:
-        raise typer.Exit(0)
-
-    ## process storage and move files around
     if storage_block:
         template = await Block.load(storage_block)
         storage = template.copy(
@@ -474,6 +455,7 @@ async def build(
     else:
         # default storage, no need to move anything around
         storage = LocalFileSystem(basepath=Path(".").absolute())
+        deployment_path = str(Path(".").absolute())
 
     # persists storage now in case it contains secret values
     await storage._save(is_anonymous=True)
@@ -493,11 +475,15 @@ async def build(
 
     description = getdoc(flow)
     schedule = None
+    parameters = None
+    flow_parameter_schema = parameter_schema(flow)
+
     async with get_client() as client:
         try:
             deployment = await client.read_deployment_by_name(f"{flow.name}/{name}")
             description = deployment.description
             schedule = deployment.schedule
+            parameters = deployment.parameters
         except ObjectNotFound:
             pass
 
@@ -505,11 +491,13 @@ async def build(
         name=name,
         description=description,
         tags=tags or [],
+        parameters=parameters,
         version=version or flow.version,
         flow_name=flow.name,
         schedule=schedule,
-        parameter_openapi_schema=manifest.parameter_openapi_schema,
-        manifest_path=manifest_loc,
+        parameter_openapi_schema=flow_parameter_schema,
+        path=deployment_path,
+        entrypoint=entrypoint,
         storage=storage,
         infrastructure=infrastructure,
     )
