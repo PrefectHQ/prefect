@@ -8,6 +8,11 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+## Add more fields to deployments
+
+SQLite: `296e2665785f`
+Postgres: `97e212ea6545`
+
 ## Add deployment.version
 
 SQLite: `24bb2e4a195c`

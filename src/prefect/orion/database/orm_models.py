@@ -658,6 +658,9 @@ class ORMDeployment:
     version = sa.Column(sa.String, nullable=True)
     description = sa.Column(sa.Text(), nullable=True)
     manifest_path = sa.Column(sa.String, nullable=True)
+    infra_overrides = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    path = sa.Column(sa.String, nullable=True)
+    entrypoint = sa.Column(sa.String, nullable=True)
 
     @declared_attr
     def flow_id(cls):
