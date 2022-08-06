@@ -152,6 +152,7 @@ class OrionAgent:
         )
         infrastructure_block = Block._from_block_document(infra_document)
         # TODO: Here the agent may update the infrastructure with agent-level settings
+        # update with deployment overrides as well
         return infrastructure_block
 
     async def submit_run(self, flow_run: FlowRun) -> None:
