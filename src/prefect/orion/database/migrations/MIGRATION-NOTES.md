@@ -11,7 +11,7 @@ This gives us a history of changes and will create merge conflicts if two migrat
 ## Add more fields to deployments
 
 SQLite: `296e2665785f`
-Postgres: `97e212ea6545`
+Postgres: `60e428f92a75`
 
 ## Add deployment.version
 
