@@ -219,7 +219,6 @@ async def deployment(
             path="./subdir",
             entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id,
-            infra_overrides={"cpu": 42},
         ),
     )
     await session.commit()
