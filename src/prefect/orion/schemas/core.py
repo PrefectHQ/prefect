@@ -339,6 +339,10 @@ class Deployment(ORMBaseModel):
     is_schedule_active: bool = Field(
         True, description="Whether or not the deployment schedule is active."
     )
+    infra_overrides: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Overrides to apply to the base infrastructure block at runtime.",
+    )
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
@@ -353,8 +357,16 @@ class Deployment(ORMBaseModel):
         None,
         description="The parameter schema of the flow, including defaults.",
     )
+    path: str = Field(
+        None,
+        description="The path to the working directory for the workflow, relative to remote storage or an absolute path.",
+    )
+    entrypoint: str = Field(
+        None,
+        description="The path to the entrypoint for the workflow, relative to the `path`.",
+    )
     manifest_path: str = Field(
-        ...,
+        None,
         description="The path to the flow's manifest file, relative to the chosen storage.",
     )
     storage_document_id: Optional[UUID] = Field(
