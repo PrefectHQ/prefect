@@ -375,6 +375,11 @@ async def build(
         "-ib",
         help="The slug of the infrastructure block to use as a template.",
     ),
+    overrides: List[str] = typer.Option(
+        None,
+        "--override",
+        help="One or more optional infrastructure overrides.",
+    ),
     storage_block: str = typer.Option(
         None,
         "--storage-block",
@@ -461,10 +466,7 @@ async def build(
     await storage._save(is_anonymous=True)
 
     if infra_block:
-        template = await Block.load(infra_block)
-        infrastructure = template.copy(
-            exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
-        )
+        infrastructure = await Block.load(infra_block)
     else:
         if infra_type == Infra.kubernetes:
             infrastructure = KubernetesJob()
@@ -487,11 +489,15 @@ async def build(
         except ObjectNotFound:
             pass
 
+    infra_overrides = {}
+    for override in overrides or []:
+        key, value = override.split("=", 1)
+        infra_overrides[key] = value
     deployment = Deployment(
         name=name,
         description=description,
         tags=tags or [],
-        parameters=parameters,
+        parameters=parameters or {},
         version=version or flow.version,
         flow_name=flow.name,
         schedule=schedule,
@@ -500,6 +506,7 @@ async def build(
         entrypoint=entrypoint,
         storage=storage,
         infrastructure=infrastructure,
+        infra_overrides=infra_overrides,
     )
 
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"

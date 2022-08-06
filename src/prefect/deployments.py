@@ -79,6 +79,7 @@ class Deployment(BaseModel):
             "parameters",
             "schedule",
             "infrastructure",
+            "infra_overrides",
         ]
         return editable_fields
 

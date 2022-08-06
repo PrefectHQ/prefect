@@ -151,8 +151,22 @@ class OrionAgent:
             infrastructure_document_id
         )
         infrastructure_block = Block._from_block_document(infra_document)
+
+        for override, value in (deployment.infra_overrides or {}).items():
+            nested_fields = override.split(".")
+            data = infrastructure_block
+            for field in nested_fields[:-1]:
+                if isinstance(data, dict):
+                    data = data[field]
+                else:
+                    data = getattr(data, field)
+
+            if isinstance(data, dict):
+                data[nested_fields[-1]] = value
+            else:
+                setattr(data, nested_fields[-1], value)
+
         # TODO: Here the agent may update the infrastructure with agent-level settings
-        # update with deployment overrides as well
         return infrastructure_block
 
     async def submit_run(self, flow_run: FlowRun) -> None:
