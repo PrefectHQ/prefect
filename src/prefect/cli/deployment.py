@@ -431,7 +431,7 @@ async def build(
     ## process storage, move files around and process path logic
     deployment_path = None
     entrypoint = (
-        f"{Path(fpath).parent.absolute().relative_to(Path('.').absolute())}:{obj_name}"
+        f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
     )
     if storage_block:
         template = await Block.load(storage_block)

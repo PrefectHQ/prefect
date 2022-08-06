@@ -23,15 +23,6 @@ from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.importtools import import_object
 
 
-async def load_flow_from_deployment(deployment: schemas.core.Deployment) -> Flow:
-    """
-    Load a flow from the location/script provided in a deployment's storage document.
-    """
-    with open(deployment.manifest_path, "r") as f:
-        manifest = json.load(f)
-    return import_object(manifest["import_path"])
-
-
 @inject_client
 async def load_flow_from_flow_run(
     flow_run: schemas.core.FlowRun, client: OrionClient
@@ -44,12 +35,13 @@ async def load_flow_from_flow_run(
     storage_block = Block._from_block_document(storage_document)
 
     sys.path.insert(0, ".")
+    # TODO: append deployment.path
     await storage_block.get_directory(from_path=None, local_path=".")
 
     flow_run_logger(flow_run).debug(
         f"Loading flow for deployment {deployment.name!r}..."
     )
-    flow = await load_flow_from_deployment(deployment)
+    flow = import_object(deployment.entrypoint)
     return flow
 
 
