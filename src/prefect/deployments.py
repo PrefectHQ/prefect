@@ -4,7 +4,7 @@ Objects for specifying deployments and utilities for loading flows from deployme
 
 import json
 import sys
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
@@ -31,8 +31,13 @@ async def load_flow_from_flow_run(
     Load a flow from the location/script provided in a deployment's storage document.
     """
     deployment = await client.read_deployment(flow_run.deployment_id)
-    storage_document = await client.read_block_document(deployment.storage_document_id)
-    storage_block = Block._from_block_document(storage_document)
+    if deployment.storage_document_id:
+        storage_document = await client.read_block_document(
+            deployment.storage_document_id
+        )
+        storage_block = Block._from_block_document(storage_document)
+    else:
+        storage_block = LocalFileSystem(basepath=deployment.path)
 
     sys.path.insert(0, ".")
     # TODO: append deployment.path
@@ -98,7 +103,10 @@ class Deployment(BaseModel):
                 }
             )
         )
-        all_fields["storage"]["_block_type_slug"] = self.storage.get_block_type_slug()
+        if all_fields["storage"]:
+            all_fields["storage"][
+                "_block_type_slug"
+            ] = self.storage.get_block_type_slug()
         return all_fields
 
     def editable_fields_dict(self):
@@ -134,7 +142,10 @@ class Deployment(BaseModel):
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",
     )
-    storage: Block = Field(default_factory=LocalFileSystem)
+    storage: Optional[Block] = Field(
+        None,
+        help="The remote storage to use for this workflow.",
+    )
     path: str = Field(
         None,
         description="The path to the working directory for the workflow, relative to remote storage or an absolute path.",

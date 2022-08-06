@@ -26,7 +26,6 @@ from prefect.exceptions import (
     ScriptError,
     exception_traceback,
 )
-from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.utilities.callables import parameter_schema
@@ -284,7 +283,9 @@ async def apply(
                 )
 
             # we assume storage was already saved
-            storage_document_id = deployment.storage._block_document_id
+            storage_document_id = getattr(
+                deployment.storage, "_block_document_id", None
+            )
 
             deployment_id = await client.create_deployment(
                 flow_id=flow_id,
@@ -465,11 +466,12 @@ async def build(
         )
     else:
         # default storage, no need to move anything around
-        storage = LocalFileSystem(basepath=Path(".").absolute())
+        storage = None
         deployment_path = str(Path(".").absolute())
 
     # persists storage now in case it contains secret values
-    await storage._save(is_anonymous=True)
+    if storage and not storage._block_document_id:
+        await storage._save(is_anonymous=True)
 
     if infra_block:
         infrastructure = await Block.load(infra_block)
