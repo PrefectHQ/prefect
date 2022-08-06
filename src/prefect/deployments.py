@@ -78,10 +78,12 @@ class Deployment(BaseModel):
             "tags",
             "parameters",
             "schedule",
-            "infrastructure",
             "infra_overrides",
         ]
-        return editable_fields
+        if self.infrastructure._block_document_id:
+            return editable_fields
+        else:
+            return editable_fields + ["infrastructure"]
 
     @property
     def header(self) -> str:
