@@ -89,9 +89,13 @@ class DeploymentUpdate(
             "is_schedule_active",
             "description",
             "tags",
+            "manifest_path",
+            "path",
+            "entrypoint",
             "parameters",
             "storage_document_id",
             "infrastructure_document_id",
+            "infra_overrides",
         ],
     )
 ):
