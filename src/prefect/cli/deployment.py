@@ -20,7 +20,7 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.deployments import DeploymentYAML, load_deployments_from_yaml
+from prefect.deployments import Deployment, load_deployments_from_yaml
 from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
@@ -270,7 +270,7 @@ async def apply(
 
         # create deployment object
         try:
-            deployment = DeploymentYAML(**data)
+            deployment = Deployment(**data)
             app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
         except Exception as exc:
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
@@ -501,7 +501,7 @@ async def build(
         except ObjectNotFound:
             pass
 
-    deployment = DeploymentYAML(
+    deployment = Deployment(
         name=name,
         description=description,
         tags=tags or [],
