@@ -172,3 +172,20 @@ class Deployment(BaseModel):
             block = lookup_type(Block, value.pop("_block_type_slug"))
             return block(**value)
         return value
+
+    def upload_to_storage(self):
+        pass
+
+    def build_yaml(self, output: str):
+        """
+        Compiles the current deployment into a YAML file at the given location.
+        """
+        with open(output, "w") as f:
+            f.write(self.header)
+            yaml.dump(self.editable_fields_dict(), f, sort_keys=False)
+            do_not_edit_msg = " DO NOT EDIT BELOW THIS LINE "
+            msg_length = len(do_not_edit_msg)
+            f.write(
+                f"###{' ' * msg_length}###\n###{do_not_edit_msg}###\n###{' ' * msg_length}###\n"
+            )
+            yaml.dump(self.immutable_fields_dict(), f, sort_keys=False)
