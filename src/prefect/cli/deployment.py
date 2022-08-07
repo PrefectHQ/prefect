@@ -528,12 +528,7 @@ async def build(
     )
 
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
-    with open(deployment_loc, "w") as f:
-        f.write(deployment.header)
-        yaml.dump(deployment.editable_fields_dict(), f, sort_keys=False)
-        f.write("###\n### DO NOT EDIT BELOW THIS LINE\n###\n")
-        yaml.dump(deployment.immutable_fields_dict(), f, sort_keys=False)
-
+    deployment.build_yaml(deployment_loc)
     exit_with_success(
         f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'."
     )
