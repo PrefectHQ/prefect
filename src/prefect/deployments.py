@@ -4,6 +4,7 @@ Objects for specifying deployments and utilities for loading flows from deployme
 
 import json
 import sys
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import yaml
@@ -37,7 +38,8 @@ async def load_flow_from_flow_run(
         )
         storage_block = Block._from_block_document(storage_document)
     else:
-        storage_block = LocalFileSystem(basepath=deployment.path)
+        basepath = deployment.path or Path(deployment.manifest_path).parent
+        storage_block = LocalFileSystem(basepath=basepath)
 
     sys.path.insert(0, ".")
     # TODO: append deployment.path
@@ -48,7 +50,7 @@ async def load_flow_from_flow_run(
     )
 
     # for backwards compat
-    import_path = entrypoint
+    import_path = deployment.entrypoint
     if deployment.manifest_path:
         with open(deployment.manifest_path, "r") as f:
             import_path = json.load(f)["import_path"]
