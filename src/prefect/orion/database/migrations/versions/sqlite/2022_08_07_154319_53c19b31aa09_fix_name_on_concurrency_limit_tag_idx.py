@@ -24,5 +24,5 @@ def upgrade():
 
 def downgrade():
     with op.batch_alter_table("concurrency_limit", schema=None) as batch_op:
-        batch_op.index("uq_concurrency_limit__tag", type_="unique")
+        batch_op.drop_index("uq_concurrency_limit__tag")
         batch_op.create_index("ix_concurrency_limit__tag", ["tag"], unique=False)
