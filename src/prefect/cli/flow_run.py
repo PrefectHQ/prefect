@@ -6,6 +6,7 @@ from uuid import UUID
 
 import httpx
 import pendulum
+import typer
 from fastapi import status
 from rich.pretty import Pretty
 from rich.table import Table
@@ -44,10 +45,12 @@ async def inspect(id: UUID):
 
 @flow_run_app.command()
 async def ls(
-    flow_name: List[str] = None,
-    limit: int = 15,
-    state: List[str] = None,
-    state_type: List[StateType] = None,
+    flow_name: List[str] = typer.Option(None, help="Name of the Flow"),
+    limit: int = typer.Option(15, help="Maximum number of Flow Run's to list"),
+    state: List[str] = typer.Option(None, help="Name of the Flow Run's state"),
+    state_type: List[StateType] = typer.Option(
+        None, help="Type of the Flow Run's state"
+    ),
 ):
     """
     View recent flow runs or flow runs for specific flows
