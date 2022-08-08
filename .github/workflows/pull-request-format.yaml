@@ -46,4 +46,4 @@ jobs:
           pip install -e .[dev]
 
       - name: Check pull request title
-        run: prefect dev check-pr-title-format ${{ github.event.pull_request.title }}
+        run: prefect dev check-pr-title-format "${{ github.event.pull_request.title }}"
