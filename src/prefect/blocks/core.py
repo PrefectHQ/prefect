@@ -39,61 +39,8 @@ class InvalidBlockRegistration(Exception):
     """
 
 
-def _collect_nested_reference_strings(obj: Dict):
-    """
-    Collects all nested reference strings (e.g. #/definitions/Model) from a given object.
-    """
-    found_reference_strings = []
-    if isinstance(obj, dict):
-        if obj.get("$ref"):
-            found_reference_strings.append(obj.get("$ref"))
-        for value in obj.values():
-            found_reference_strings.extend(_collect_nested_reference_strings(value))
-    if isinstance(obj, list):
-        for item in obj:
-            found_reference_strings.extend(_collect_nested_reference_strings(item))
-    return found_reference_strings
-
-
-def _get_non_block_reference_definitions(object_definition: Dict, definitions: Dict):
-    """
-    Given a definition of an object in a block schema OpenAPI spec and the dictionary
-    of all reference definitions in that same block schema OpenAPI spec, return the
-    definitions for objects that are referenced from the object or any children of
-    the object that do not reference a block.
-    """
-    non_block_definitions = {}
-    reference_strings = _collect_nested_reference_strings(object_definition)
-    for reference_string in reference_strings:
-        definition_key = reference_string.replace("#/definitions/", "")
-        definition = definitions.get(definition_key)
-        if definition and definition.get("block_type_slug") is None:
-            non_block_definitions = {
-                **non_block_definitions,
-                definition_key: definition,
-                **_get_non_block_reference_definitions(definition, definitions),
-            }
-    return non_block_definitions
-
-
 @register_base_type
 class Block(BaseModel, ABC):
-    """
-    A base class for implementing a block that wraps an external service.
-
-    This class can be defined with an arbitrary set of fields and methods, and
-    couples business logic with data contained in an block document.
-    `_block_document_name`, `_block_document_id`, `_block_schema_id`, and
-    `_block_type_id` are reserved by Orion as Block metadata fields, but
-    otherwise a Block can implement arbitrary logic. Blocks can be instantiated
-    without populating these metadata fields, but can only be used interactively,
-    not with the Orion API.
-
-    Instead of the __init__ method, a block implementation allows the
-    definition of a `block_initialization` method that is called after
-    initialization.
-    """
-
     class Config:
         extra = "allow"
 
@@ -106,10 +53,7 @@ class Block(BaseModel, ABC):
             # Ensures args and code examples aren't included in the schema
             description = model.get_description()
             if description:
-                schema["description"] = description
-            else:
-                # Prevent the description of the base class from being included in the schema
-                schema.pop("description", None)
+                schema["description"] = model.get_description()
 
             # create a list of secret field names
             # secret fields include both top-level keys and dot-delimited nested secret keys
@@ -132,21 +76,28 @@ class Block(BaseModel, ABC):
                 if Block.is_block_class(field.type_):
                     refs[field.name] = field.type_._to_block_schema_reference_dict()
                 if get_origin(field.type_) is Union:
+                    refs[field.name] = []
                     for type_ in get_args(field.type_):
                         if Block.is_block_class(type_):
-                            if isinstance(refs.get(field.name), list):
-                                refs[field.name].append(
-                                    type_._to_block_schema_reference_dict()
-                                )
-                            elif isinstance(refs.get(field.name), dict):
-                                refs[field.name] = [
-                                    refs[field.name],
-                                    type_._to_block_schema_reference_dict(),
-                                ]
-                            else:
-                                refs[
-                                    field.name
-                                ] = type_._to_block_schema_reference_dict()
+                            refs[field.name].append(
+                                type_._to_block_schema_reference_dict()
+                            )
+
+    """
+    A base class for implementing a block that wraps an external service.
+
+    This class can be defined with an arbitrary set of fields and methods, and
+    couples business logic with data contained in an block document.
+    `_block_document_name`, `_block_document_id`, `_block_schema_id`, and
+    `_block_type_id` are reserved by Orion as Block metadata fields, but
+    otherwise a Block can implement arbitrary logic. Blocks can be instantiated
+    without populating these metadata fields, but can only be used interactively,
+    not with the Orion API.
+
+    Instead of the __init__ method, a block implementation allows the
+    definition of a `block_initialization` method that is called after
+    initialization.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -233,18 +184,8 @@ class Block(BaseModel, ABC):
             cls.schema() if block_schema_fields is None else block_schema_fields
         )
         fields_for_checksum = remove_nested_keys(
-            ["description", "secret_fields"], block_schema_fields
+            ["description", "definitions", "secret_fields"], block_schema_fields
         )
-        if fields_for_checksum.get("definitions"):
-            non_block_definitions = _get_non_block_reference_definitions(
-                fields_for_checksum, fields_for_checksum["definitions"]
-            )
-            if non_block_definitions:
-                fields_for_checksum["definitions"] = non_block_definitions
-            else:
-                # Pop off definitions entirely instead of empty dict for consistency
-                # with the OpenAPI specification
-                fields_for_checksum.pop("definitions")
         checksum = hash_objects(fields_for_checksum, hash_algo=hashlib.sha256)
         if checksum is None:
             raise ValueError("Unable to compute checksum for block schema")
