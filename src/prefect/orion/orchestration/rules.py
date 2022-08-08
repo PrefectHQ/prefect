@@ -569,9 +569,14 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         if await self.invalid():
             pass
         else:
-            entry_context = self.context.entry_context()
-            await self.before_transition(*entry_context)
-            self.context.rule_signature.append(str(self.__class__))
+            try:
+                entry_context = self.context.entry_context()
+                await self.before_transition(*entry_context)
+                self.context.rule_signature.append(str(self.__class__))
+            except Exception as before_transition_error:
+                self.abort_transition(f"Aborting orchestration due to error in {self.__class__!r}: !{before_transition_error!r}")
+                logger.error(f"Error running before-transition hook in rule {self.__class__!r}: !{before_transition_error!r}")
+
         return self.context
 
     async def __aexit__(
@@ -798,8 +803,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         occur for this run. The proposed state is set to `None`, signaling to the
         `OrchestrationContext` that no state should be written to the database. A
         reason for aborting the transition is also provided. Rules that abort the
-        transition will not fizzle, despite the proposed state type changing. Rules that
-        abort the transition will not fizzle, despite the proposed state type changing.
+        transition will not fizzle, despite the proposed state type changing.
 
         Args:
             reason: The reason for aborting the transition
