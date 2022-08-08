@@ -82,6 +82,10 @@ async def create_deployment(
                         "work_queue_name",
                         "storage_document_id",
                         "infrastructure_document_id",
+                        "manifest_path",
+                        "path",
+                        "entrypoint",
+                        "infra_overrides",
                     },
                 ),
             },
@@ -435,12 +439,7 @@ async def _generate_scheduled_flow_runs(
     # retrieve the deployment
     deployment = await session.get(db.Deployment, deployment_id)
 
-    if (
-        not deployment
-        or not deployment.manifest_path
-        or not deployment.schedule
-        or not deployment.is_schedule_active
-    ):
+    if not deployment or not deployment.schedule or not deployment.is_schedule_active:
         return []
 
     dates = await deployment.schedule.get_dates(
