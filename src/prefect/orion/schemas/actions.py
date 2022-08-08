@@ -61,6 +61,7 @@ class DeploymentCreate(
             "flow_id",
             "schedule",
             "is_schedule_active",
+            "work_queue_name",
             "description",
             "tags",
             "parameters",
@@ -85,6 +86,7 @@ class DeploymentUpdate(
             "schedule",
             "is_schedule_active",
             "description",
+            "work_queue_name",
             "tags",
             "parameters",
             "storage_document_id",
@@ -345,11 +347,12 @@ class WorkQueueCreate(
     schemas.core.WorkQueue.subclass(
         "WorkQueueCreate",
         include_fields=[
-            "filter",
             "name",
             "description",
             "is_paused",
             "concurrency_limit",
+            # filters are deprecated
+            "filter",
         ],
     )
 ):
@@ -363,11 +366,11 @@ class WorkQueueUpdate(
     schemas.core.WorkQueue.subclass(
         "WorkQueueUpdate",
         include_fields=[
-            "filter",
-            "name",
             "description",
             "is_paused",
             "concurrency_limit",
+            # filters are deprecated
+            "filter",
         ],
     )
 ):
@@ -375,8 +378,6 @@ class WorkQueueUpdate(
 
     class Config:
         extra = "forbid"
-
-    name: Optional[str] = Field(None, description="The name of the work queue.")
 
 
 class FlowRunNotificationPolicyCreate(

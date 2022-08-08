@@ -56,6 +56,15 @@ class TestCreateDeployment:
         assert deployment.infrastructure_document_id == infrastructure_document_id
         assert deployment.storage_document_id == storage_document_id
 
+    async def test_default_work_queue_name_is_none(self, session, client, flow):
+
+        data = DeploymentCreate(
+            name="My Deployment", manifest_path="", flow_id=flow.id
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["work_queue_name"] == None
+
     async def test_create_deployment_respects_flow_id_name_uniqueness(
         self,
         session,
@@ -805,6 +814,18 @@ class TestCreateFlowRunFromDeployment:
         assert response.json()["infrastructure_document_id"] == str(
             deployment.infrastructure_document_id
         )
+        assert response.json()["work_queue_name"] is None
+
+    async def test_create_flow_run_from_deployment_uses_work_queue_name(
+        self, deployment, client, session
+    ):
+        await client.patch(
+            f"deployments/{deployment.id}", json=dict(work_queue_name="wq-test")
+        )
+        response = await client.post(
+            f"deployments/{deployment.id}/create_flow_run", json={}
+        )
+        assert response.json()["work_queue_name"] == "wq-test"
 
     async def test_create_flow_run_from_deployment_override_params(
         self, deployment, client

@@ -104,7 +104,7 @@ async def read_work_queue_runs(
     limit: int = dependencies.LimitBody(),
     scheduled_before: DateTimeTZ = Body(
         None,
-        description="Only flow runs scheduled to start before this time will be returned. If not provided, defaults to now.",
+        description="Only flow runs scheduled to start before this time will be returned.",
     ),
     agent_id: Optional[UUID] = Body(
         None,
@@ -115,8 +115,6 @@ async def read_work_queue_runs(
     """
     Get flow runs from the work queue.
     """
-    scheduled_before = scheduled_before or pendulum.now("UTC")
-
     flow_runs = await models.work_queues.get_runs_in_work_queue(
         session=session,
         work_queue_id=work_queue_id,

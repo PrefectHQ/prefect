@@ -352,6 +352,7 @@ class ORMFlowRun(ORMRun):
             UUID(), sa.ForeignKey("deployment.id", ondelete="set null"), index=True
         )
 
+    work_queue_name = sa.Column(sa.String, index=True)
     flow_version = sa.Column(sa.String, index=True)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     idempotency_key = sa.Column(sa.String)
@@ -658,6 +659,7 @@ class ORMDeployment:
     version = sa.Column(sa.String, nullable=True)
     description = sa.Column(sa.Text(), nullable=True)
     manifest_path = sa.Column(sa.String, nullable=True)
+    work_queue_name = sa.Column(sa.String, nullable=True, index=True)
 
     @declared_attr
     def flow_id(cls):
@@ -925,9 +927,9 @@ class ORMWorkQueue:
 
     filter = sa.Column(
         Pydantic(schemas.core.QueueFilter),
-        server_default="{}",
-        default=dict,
-        nullable=False,
+        server_default=None,
+        default=None,
+        nullable=True,
     )
     description = sa.Column(sa.String, nullable=False, default="", server_default="")
     is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)

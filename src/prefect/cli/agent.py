@@ -34,14 +34,14 @@ ascii_name = r"""
 async def start(
     work_queue: str = typer.Argument(
         None,
-        help="A work queue name or ID for the agent to pull from.",
+        help="A work queue name for the agent to pull from. A work queue ID may also be provided.",
         show_default=False,
     ),
     tags: List[str] = typer.Option(
         None,
         "-t",
         "--tag",
-        help="One or more optional tags that will be used to create a work queue",
+        help="DEPRECATED: One or more optional tags that will be used to create a work queue",
     ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     api: str = SettingsOption(PREFECT_API_URL),
@@ -51,15 +51,12 @@ async def start(
     """
     if work_queue is None and not tags:
         exit_with_error(
-            (
-                "[red]No work queue provided![/red]\n\n"
-                "Create one using `prefect work-queue create` or "
-                "Pass one or more tags to `prefect agent start` and we'll create one for you!"
-            ),
+            ("[red]No work queue provided![/red]\n\n"),
             style="dark_orange",
         )
-    if work_queue and tags:
+    elif work_queue and tags:
         exit_with_error("Only one of work_queue or tags can be provided.")
+
     if work_queue is not None:
         try:
             work_queue_id = UUID(work_queue)
@@ -68,21 +65,13 @@ async def start(
             work_queue_id = None
             work_queue_name = work_queue
     elif tags:
-        async with get_client() as client:
-            try:
-                work_queue_name = f"Agent queue {'-'.join(sorted(tags))}"
-                work_queue_id = None
-                result = await client.create_work_queue(
-                    name=work_queue_name,
-                    tags=tags,
-                )
-                app.console.print(
-                    f"Created work queue '{work_queue_name}'", style="green"
-                )
-            except ObjectAlreadyExists:
-                app.console.print(
-                    f"Using work queue '{work_queue_name}'", style="green"
-                )
+        work_queue_name = f"Agent queue {'-'.join(sorted(tags))}"
+        app.console.print(
+            "`tags` are deprecated. For backwards-compatibility, the work queue "
+            f"name '{work_queue_name}' will be used.",
+            style="red",
+        )
+        work_queue_id = None
 
     if not hide_welcome:
         if api:

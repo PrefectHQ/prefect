@@ -11,7 +11,7 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, or_, select
 
-import prefect.orion.schemas as schemas
+from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
@@ -79,6 +79,7 @@ async def create_deployment(
                         "tags",
                         "parameters",
                         "updated",
+                        "work_queue_name",
                         "storage_document_id",
                         "infrastructure_document_id",
                     },
@@ -101,6 +102,11 @@ async def create_deployment(
     )
     result = await session.execute(query)
     model = result.scalar()
+
+    if model.work_queue_name:
+        await models.work_queues._ensure_work_queue_exists(
+            session=session, name=model.work_queue_name, db=db
+        )
 
     # because this could upsert a different schedule, delete any runs from the old
     # deployment
@@ -143,6 +149,12 @@ async def update_deployment(
     await _delete_auto_scheduled_runs(
         session=session, deployment_id=deployment_id, db=db
     )
+
+    # create work queue if it doesn't exist
+    if update_data.get("work_queue_name"):
+        await models.work_queues._ensure_work_queue_exists(
+            session=session, name=update_data["work_queue_name"], db=db
+        )
 
     return result.rowcount > 0
 
@@ -441,6 +453,7 @@ async def _generate_scheduled_flow_runs(
                 "id": uuid4(),
                 "flow_id": deployment.flow_id,
                 "deployment_id": deployment_id,
+                "work_queue_name": deployment.work_queue_name,
                 "parameters": deployment.parameters,
                 "infrastructure_document_id": deployment.infrastructure_document_id,
                 "idempotency_key": f"scheduled {deployment.id} {date}",

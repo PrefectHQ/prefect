@@ -15,7 +15,7 @@ $ python -m asyncio
 ```
 </div>
 """
-
+import warnings
 import copy
 import datetime
 import sys
@@ -817,12 +817,11 @@ class OrionClient:
         Returns:
             UUID: The UUID of the newly created workflow
         """
-        data = WorkQueueCreate(
-            name=name,
-            filter=QueueFilter(
-                tags=tags or None,
-            ),
-        ).dict(json_compatible=True)
+        if tags:
+            filter = QueueFilter(tags=tags)
+        else:
+            filter = None
+        data = WorkQueueCreate(name=name, filter=filter).dict(json_compatible=True)
         try:
             response = await self._client.post("/work_queues/", json=data)
         except httpx.HTTPStatusError as e:
@@ -849,7 +848,14 @@ class OrionClient:
         Returns:
             schemas.core.WorkQueue: a work queue API object
         """
-        response = await self._client.get(f"/work_queues/name/{name}")
+        try:
+            response = await self._client.get(f"/work_queues/name/{name}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
         return schemas.core.WorkQueue.parse_obj(response.json())
 
     async def update_work_queue(self, id: UUID, **kwargs):

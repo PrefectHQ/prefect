@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add work queue name to runs
+SQLite: `575634b7acd4`
+Postgres: `77eb737fc759`
+
 ## Add deployment.version
 
 SQLite: `24bb2e4a195c`

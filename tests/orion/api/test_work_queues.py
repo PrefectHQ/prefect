@@ -28,13 +28,11 @@ class TestCreateWorkQueue:
         client,
     ):
         now = pendulum.now(tz="UTC")
-        data = WorkQueueCreate(
-            name="My WorkQueue", filter=schemas.core.QueueFilter(tags=["foo", "bar"])
-        ).dict(json_compatible=True)
+        data = WorkQueueCreate(name="My WorkQueue").dict(json_compatible=True)
         response = await client.post("/work_queues/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "My WorkQueue"
-        assert response.json()["filter"]["tags"] == ["foo", "bar"]
+        assert response.json()["filter"] is None
         assert pendulum.parse(response.json()["created"]) >= now
         assert pendulum.parse(response.json()["updated"]) >= now
         work_queue_id = response.json()["id"]
@@ -74,9 +72,9 @@ class TestUpdateWorkQueue:
         client,
     ):
         now = pendulum.now(tz="UTC")
-        data = WorkQueueCreate(
-            name="My WorkQueue", filter=schemas.core.QueueFilter(tags=["foo", "bar"])
-        ).dict(json_compatible=True, exclude_unset=True)
+        data = WorkQueueCreate(name="My WorkQueue").dict(
+            json_compatible=True, exclude_unset=True
+        )
         response = await client.post("/work_queues/", json=data)
         work_queue_id = response.json()["id"]
 
@@ -227,6 +225,7 @@ class TestReadWorkQueueRuns:
                 deployment_id=deployment.id,
                 flow_version="0.1",
                 infrastructure_document_id=infrastructure_document_id,
+                tags=["blue"],
             ),
         )
         await models.flow_runs.set_flow_run_state(
@@ -275,6 +274,13 @@ class TestReadWorkQueueRuns:
             str(flow_run_1_id),
             str(flow_run_2_id),
         }
+
+    async def test_read_legacy_work_queue_runs(
+        self, client, legacy_work_queue, flow_run_1_id, flow_run_2_id
+    ):
+        response = await client.post(f"/work_queues/{legacy_work_queue.id}/get_runs")
+        assert response.status_code == status.HTTP_200_OK
+        assert {res["id"] for res in response.json()} == {str(flow_run_1_id)}
 
     async def test_read_work_queue_runs_respects_limit(
         self, client, work_queue, flow_run_2_id
