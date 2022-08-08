@@ -1,6 +1,6 @@
 name: Report a bug with the Prefect UI
 description: Errors and display issues with the Prefect web interface.
-labels: ["status:needs-triage", "ui", "bug"]
+labels: ["status:triage", "ui", "bug"]
 body:
   - type: markdown
     attributes:
