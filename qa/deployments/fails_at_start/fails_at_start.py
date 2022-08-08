@@ -5,7 +5,7 @@ from prefect.context import get_run_context
 
 purpose = """
 The purpose of this flow is to see how Prefect handles a flow
-with multiple tasks if it fails on the final task.
+with multiple tasks if the first task fails.
 
 Expected behavior: TODO
 """
@@ -13,12 +13,12 @@ Expected behavior: TODO
 
 @task
 def parent_task():
-    return 256
+    raise Exception("Parent task intentionally failed for testing purposes")
 
 
 @task
 def first_child(from_parent):
-    return 512
+    return 256
 
 
 @task
@@ -28,11 +28,11 @@ def second_child(from_parent):
 
 @task
 def grand_child(from_child):
-    raise Exception("Grandchild task intentionally failed for testing purposes")
+    return 512
 
 
 @flow
-def fails_at_end_1_body():
+def fails_at_start_body():
     logger = get_run_logger()
     logger.info(purpose)
 
@@ -42,12 +42,12 @@ def fails_at_end_1_body():
     grand_child.submit(c1_res)
 
     ctx = get_run_context()
-    return ctx.flow_run.id
+    return ctx
 
 
 @flow
-async def fails_at_end_1():
-    run_id = fails_at_end_1_body()
+async def fails_at_start():
+    run_id = fails_at_start_body()
     async with get_client() as client:
         flow_run = await client.read_flow_run(flow_run_id=run_id)
 
@@ -55,4 +55,4 @@ async def fails_at_end_1():
 
 
 if __name__ == "__main__":
-    fails_at_end_1()
+    fails_at_start()
