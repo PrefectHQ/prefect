@@ -18,11 +18,14 @@ from prefect.client import get_client
 from prefect.deployments import DeploymentYAML
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
 from prefect.filesystems import LocalFileSystem
+from prefect.logging.loggers import get_run_logger
+from prefect.orion.schemas.states import StateType
 from prefect.settings import (
     PREFECT_AGENT_QUERY_INTERVAL,
     PREFECT_DEV_QA_TAG,
     PREFECT_DEV_QA_WORK_QUEUE,
 )
+from prefect.tasks import task
 from prefect.utilities.filesystem import tmpchdir
 
 
@@ -163,3 +166,22 @@ async def submit_deployments_for_execution(
                 )
 
         task_status.started()
+
+
+# For use in QA flows
+@task
+async def assert_state_type_completed(flow_run_state):
+    logger = get_run_logger()
+    assert (
+        flow_run_state == StateType.COMPLETED
+    ), f"Final flow state was {flow_run_state}, not COMPLETED"
+    logger.info("Assert StateType.COMPLETED was successful")
+
+
+@task
+async def assert_state_type_failed(flow_run_state):
+    logger = get_run_logger()
+    assert (
+        flow_run_state == StateType.FAILED
+    ), f"Final flow state was {flow_run_state}, not FAILED"
+    logger.info("Assert StateType.FAILED was successful")
