@@ -63,6 +63,7 @@ jobs:
           prefect dev write-changelog-entry ${{ steps.pr.outputs.pull_request_number }} "${{ steps.pr.outputs.pull_request_title }}"
           git add .changes/
           git commit -m "changelog-${{ steps.prep.outputs.BUILD_ID }}"
+
           git push --set-upstream origin "changelog-${{ steps.prep.outputs.BUILD_ID }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
