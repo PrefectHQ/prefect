@@ -46,16 +46,16 @@ async def inspect(id: UUID):
 async def ls(
     flow_name: List[str] = None,
     limit: int = 15,
+    state: List[str] = None,
     state_type: List[StateType] = None,
-    state_name: List[str] = None,
 ):
     """
     View recent flow runs or flow runs for specific flows
     """
 
     state_filter = {}
-    if state_name:
-        state_filter["name"] = {"any_": state_name}
+    if state:
+        state_filter["name"] = {"any_": state}
     if state_type:
         state_filter["type"] = {"any_": state_type}
 
