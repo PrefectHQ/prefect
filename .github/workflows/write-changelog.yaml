@@ -45,12 +45,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[dev]
 
-      # update image refs on feature branch & merge to dev
       - name: configure git
         run: |
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
       
+      - name: Get Pull Request Number
+        id: pr
+        run: |
+          echo "::set-output name=pull_request_number::$(gh pr view --json number -q .number || echo "")"
+          echo "::set-output name=pull_request_title::$(gh pr view --json title -q .title || echo "")"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+     
       - name: Create branch to changelog files
         run: |
           git checkout -b "changelog-${{ steps.prep.outputs.BUILD_ID }}"
@@ -58,7 +65,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.MARVIN_GITHUB_TOKEN }}
       
       - name: Write changelog entry
-        run: prefect dev write-changelog-entry ${{ github.event.pull_request.number }} "${{ github.event.pull_request.title }}"
+        run: prefect dev write-changelog-entry ${{ steps.pr.outputs.pull_request_number }} "${{ steps.pr.outputs.pull_request_title }}"
 
       - name: Create and merge PR with changelog entry
         run: |
