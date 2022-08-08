@@ -9,6 +9,7 @@ from prefect.docker import get_prefect_image_name
 from prefect.infrastructure.docker import (
     CONTAINER_LABELS,
     DockerContainer,
+    DockerRegistry,
     ImagePullPolicy,
 )
 from prefect.testing.utilities import assert_does_not_warn
@@ -193,6 +194,46 @@ async def test_uses_env_setting(
         "foo": "FOO",
         "bar": "BAR",
     }
+
+
+async def test_uses_image_registry_setting(
+    mock_docker_client,
+):
+
+    await DockerContainer(
+        image_registry=DockerRegistry(
+            username="foo", password="bar", registry_url="example.test"
+        ),
+        image_pull_policy="ALWAYS",
+    ).run()
+
+    mock_docker_client.login.assert_called_once_with(
+        username="foo", password="bar", registry="example.test", reauth=True
+    )
+
+
+async def test_uses_image_registry_setting_after_save(
+    mock_docker_client,
+):
+    # This test overlaps a bit with blocks test coverage, checking that the loaded
+    # object resolves the nested reference correctly.
+
+    await DockerRegistry(
+        username="foo", password="bar", registry_url="example.test"
+    ).save("test-docker-registry")
+
+    await DockerContainer(
+        image_registry=await DockerRegistry.load("test-docker-registry"),
+        image_pull_policy="ALWAYS",
+    ).save("test-docker-container")
+
+    container = await DockerContainer.load("test-docker-container")
+
+    await container.run()
+
+    mock_docker_client.login.assert_called_once_with(
+        username="foo", password="bar", registry="example.test", reauth=True
+    )
 
 
 @pytest.mark.parametrize("localhost", ["localhost", "127.0.0.1"])
