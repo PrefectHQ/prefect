@@ -117,6 +117,8 @@ def invoke_and_assert(
 
     if expected_line_count is not None:
         line_count = len(result.stdout.splitlines())
-        assert expected_line_count == line_count, f"Expected {expected_line_count} lines of CLI output, only {line_count} lines present"
+        assert (
+            expected_line_count == line_count
+        ), f"Expected {expected_line_count} lines of CLI output, only {line_count} lines present"
 
     return result
