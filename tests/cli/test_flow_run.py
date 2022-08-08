@@ -164,7 +164,7 @@ def test_ls_state_name_filter(
     late_flow_run,
 ):
     result = invoke_and_assert(
-        command=["flow-run", "ls", "--state-name", "Late"],
+        command=["flow-run", "ls", "--state", "Late"],
         expected_code=0,
     )
 
