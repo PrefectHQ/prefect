@@ -54,7 +54,7 @@ class DockerRegistry(Block):
             omitted.
         reauth: If already logged into the registry, should login be performed again?
             This setting defaults to `True` to support common token authentication
-            patterns such as ECS.
+            patterns such as ECR.
     """
 
     _block_type_name = "Docker Registry"
@@ -72,7 +72,9 @@ class DockerRegistry(Block):
             username=self.username,
             password=self.password.get_secret_value(),
             registry=self.registry_url,
-            reauth=True,
+            # See https://github.com/docker/docker-py/issues/2256 for information on
+            # the default value for reauth.
+            reauth=self.reauth,
         )
 
     def _get_client(self):
