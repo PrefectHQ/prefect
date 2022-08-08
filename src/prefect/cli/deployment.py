@@ -385,7 +385,7 @@ async def build(
     overrides: List[str] = typer.Option(
         None,
         "--override",
-        help="One or more optional infrastructure overrides.",
+        help="One or more optional infrastructure overrides provided as a dot delimited path, e.g., `env.env_key=env_value`",
     ),
     storage_block: str = typer.Option(
         None,
