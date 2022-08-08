@@ -201,6 +201,27 @@ When you run this command, Prefect:
 - Creates the the manifest and `catfacts_flow-deployment.yaml` files for your deployment based on your flow code and options.
 - Uploads your flow files to the configured storage location (local by default).
 
+!!! note "Ignore files or directories from a deployment"
+    If you want to omit certain files or directories from your deployments, add a `.prefectignore` file to the root directory. `.prefectignore` enables users to omit certain files or directories from their deployments. 
+
+    Similar to other `.ignore` files, the syntax supports pattern matching, so an entry of `*.pyc` will ensure all `.pyc` files are ignored by the deployment call when uploading to remote storage. 
+
+### Block indentifiers
+
+You can provide storage (`-sb`) and infrastructure block (`-ib`) identifiers in your `deployment build` command. The required format of a block type consists of the `block-type` and `block-name` in the format `block-type/block-name`. Block name is the name that you provided when creating the block. The block type is the same name as the underlying file system or infrastructure block class, but split into separate words combined with hyphens. Here are some examples that illustrate the pattern:
+
+| Block class name | Block type used in a deployment |
+| ------- | ----------- |
+| `LocalFileSystem` | `local-file-system` |
+| `RemoteFileSystem` | `remote-file-system` |
+| `S3` | `s3` |
+| `GCS` | `gcs` |
+| `Azure` | `azure` |
+| `DockerContainer` | `docker-container` |
+| `KubernetesJob` | `kubernetes-job` |
+| `Process` | `process` |
+
+
 ### Create deployment in API
 
 When you've configured the manifest and `catfacts_flow-deployment.yaml` for a deployment, you can create the deployment on the API. Run the following Prefect CLI command.
@@ -337,3 +358,5 @@ The `prefect deployment` CLI command provides commands for managing and running 
 
 - [How to deploy Prefect 2.0 flows to AWS](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-aws/1252)
 - [How to deploy Prefect 2.0 flows to GCP](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-gcp/1251)
+- [How to deploy Prefect 2.0 flows to Azure](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-azure/1312)
+- [How to deploy Prefect 2.0 flows using files stored locally](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-run-as-a-local-process-docker-container-or-a-kubernetes-job/1246)
