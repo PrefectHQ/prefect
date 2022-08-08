@@ -27,39 +27,7 @@ concurrency:
 jobs:
   check-pull-request-title:
     name: Check pull request title
-
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-        python-version:
-          - "3.7"
-          - "3.8"
-          - "3.9"
-          - "3.10"
-        pytest-options:
-          - "--exclude-services"
-          - "--only-services"
-
-        include:
-          # Run 3.7 tests with lower bound pins
-          - python-version: "3.7"
-            lower-bound-requirements: true
-
-          # Include Docker image builds on the service test run, and disallow the test
-          # suite from building images automaticlly in fixtures
-          - pytest-options: "--only-services"
-            build-docker-images: true
-
-      fail-fast: false
-
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
-
     steps:
-      - name: Display current test matrix
-        run: echo '${{ toJSON(matrix) }}'
-
       - uses: actions/checkout@v3
         with:
           persist-credentials: false
@@ -75,7 +43,7 @@ jobs:
       - name: Install packages
         run: |
           python -m pip install --upgrade pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          pip install -e .[dev]
 
       - name: Check pull request title
         run: prefect dev check-pr-title-format ${{ github.event.pull_request.title }}
