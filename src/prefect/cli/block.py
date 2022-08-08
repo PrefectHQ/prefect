@@ -159,7 +159,9 @@ async def list_types():
         table.add_row(
             str(blocktype.name),
             str(blocktype.slug),
-            str(blocktype.description.splitlines()[0].partition(".")[0]) if blocktype.description is not None else "",
+            str(blocktype.description.splitlines()[0].partition(".")[0])
+            if blocktype.description is not None
+            else "",
         )
 
     app.console.print(table)
