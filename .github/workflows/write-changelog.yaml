@@ -57,12 +57,6 @@ jobs:
           echo "::set-output name=pull_request_title::$(gh pr view --json title -q .title || echo "")"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-     
-      - name: Create branch to changelog files
-        run: |
-          git checkout -b "changelog-${{ steps.prep.outputs.BUILD_ID }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.MARVIN_GITHUB_TOKEN }}
       
       - name: Write changelog entry
         run: prefect dev write-changelog-entry ${{ steps.pr.outputs.pull_request_number }} "${{ steps.pr.outputs.pull_request_title }}"
