@@ -58,7 +58,7 @@ class DockerRegistry(Block):
     """
 
     _block_type_name = "Docker Registry"
-    _block_schema_capabilities = ["login"]
+    _block_schema_capabilities = ["docker-login"]
 
     username: str
     password: SecretStr
