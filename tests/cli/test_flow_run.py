@@ -173,3 +173,30 @@ def test_ls_state_name_filter(
         expected=[late_flow_run],
         unexpected=[running_flow_run, scheduled_flow_run, completed_flow_run],
     )
+
+
+def test_ls_limit(
+    scheduled_flow_run,
+    completed_flow_run,
+    running_flow_run,
+    late_flow_run,
+):
+    result = invoke_and_assert(
+        command=["flow-run", "ls", "--limit", "2"],
+        expected_code=0,
+    )
+
+    output = result.stdout.strip()
+
+    found_count = 0
+    for flow_run in [
+        scheduled_flow_run,
+        completed_flow_run,
+        running_flow_run,
+        late_flow_run,
+    ]:
+        id_start = str(flow_run.id)[:20]
+        if id_start in output:
+            found_count += 1
+
+    assert found_count == 2
