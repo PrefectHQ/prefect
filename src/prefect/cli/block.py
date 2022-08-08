@@ -10,17 +10,18 @@ from typing import List, Optional, Type
 import typer
 from rich.table import Table
 
-from prefect.client import get_client
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
+from prefect.client import get_client
 from prefect.exceptions import ScriptError
 from prefect.utilities.importtools import load_script_as_module
 
 blocks_app = PrefectTyper(name="block", help="Commands for working with blocks.")
-blocktypes_app = PrefectTyper(name="types", help="Commands for working with blocks.")
+blocktypes_app = PrefectTyper(name="type", help="Commands for working with blocks.")
 app.add_typer(blocks_app)
+blocks_app.add_typer(blocktypes_app)
 
 
 async def _register_blocks_in_module(module: ModuleType) -> List[Type[Block]]:
@@ -117,7 +118,7 @@ async def ls():
         blocks = await client.read_block_documents()
 
     table = Table(
-        title="Blocks",
+        title="Blocks", caption="List Block Types using `prefect block type ls`"
     )
     table.add_column("ID", style="cyan", no_wrap=True)
     table.add_column("Name", style="blue", no_wrap=True)
@@ -133,7 +134,7 @@ async def ls():
     app.console.print(table)
 
 
-@blocks_app.command('list-types')
+@blocktypes_app.command("ls")
 async def list_types():
     """
     View all Block types.
@@ -142,7 +143,8 @@ async def list_types():
         block_types = await client.read_block_types()
 
     table = Table(
-        title="Block Types", show_lines=True,
+        title="Block Types",
+        show_lines=True,
     )
     table.add_column("Name", style="blue", no_wrap=True)
     table.add_column("Slug", style="italic cyan", no_wrap=True)
@@ -152,7 +154,7 @@ async def list_types():
         table.add_row(
             str(blocktype.name),
             str(blocktype.slug),
-            str(blocktype.description.splitlines()[0].partition('.')[0]),
+            str(blocktype.description.splitlines()[0].partition(".")[0]),
         )
 
     app.console.print(table)
