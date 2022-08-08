@@ -15,7 +15,6 @@ $ python -m asyncio
 ```
 </div>
 """
-import warnings
 import copy
 import datetime
 import sys

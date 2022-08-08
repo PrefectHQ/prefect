@@ -7,7 +7,6 @@ from sqlalchemy.exc import IntegrityError
 
 from prefect.orion import models, schemas
 from prefect.orion.exceptions import ObjectNotFoundError
-
 from prefect.orion.models.deployments import check_work_queues_for_deployment
 
 

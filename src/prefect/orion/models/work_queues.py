@@ -12,10 +12,10 @@ from sqlalchemy import delete, select
 
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
-from prefect.orion.schemas.states import StateType
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.schemas.states import StateType
 
 
 @inject_db

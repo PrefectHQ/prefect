@@ -10,8 +10,6 @@ from prefect.agent import OrionAgent
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
-from prefect.client import get_client
-from prefect.exceptions import ObjectAlreadyExists
 from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL, PREFECT_API_URL
 from prefect.utilities.services import critical_service_loop
 
