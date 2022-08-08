@@ -574,8 +574,13 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
                 await self.before_transition(*entry_context)
                 self.context.rule_signature.append(str(self.__class__))
             except Exception as before_transition_error:
-                self.abort_transition(f"Aborting orchestration due to error in {self.__class__!r}: !{before_transition_error!r}")
-                logger.error(f"Error running before-transition hook in rule {self.__class__!r}: !{before_transition_error!r}")
+                await self.abort_transition(
+                    f"Aborting orchestration due to error in {self.__class__!r}: !{before_transition_error!r}"
+                )
+                logger.error(
+                    f"Error running before-transition hook in rule {self.__class__!r}: !{before_transition_error!r}"
+                )
+                self._invalid_on_entry = True
 
         return self.context
 
