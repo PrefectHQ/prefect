@@ -10,10 +10,12 @@ import sys
 import textwrap
 import time
 from functools import partial
+from pathlib import Path
 from string import Template
 
 import anyio
 import typer
+import yaml
 
 import prefect
 from prefect.cli._types import PrefectTyper, SettingsOption
@@ -392,3 +394,117 @@ def kubernetes_manifest():
         }
     )
     print(manifest)
+
+
+CHANGE_TYPES = {"feat", "enhancement", "fix", "deprecation", "breaking", "migration"}
+
+
+@dev_app.command()
+def check_pr_title_format(pull_request_title: str):
+    """
+    Checks that a pull request title matches the expected format: '<change-type>: <description of change>'
+
+    Valid change types are:
+    - feat
+    - enhancement
+    - fix
+    - deprecation
+    - breaking (for breaking changes)
+
+    Args:
+        pull_request_title: the pull request title to check.
+    """
+    if pull_request_title.split(":")[0] not in CHANGE_TYPES:
+        exit_with_error(
+            f"Invalid pull request title. Title must begin with one of the following: {CHANGE_TYPES}. And match the format: '<change-type>: <description of change>'"
+        )
+
+
+# TODO - add pull request tags to descriptions?
+@dev_app.command()
+def write_changelog_entry(pull_request_number: str, pull_request_title: str):
+    """
+    Writes a change description to `.changes/<pull_request_number>.yaml'.
+
+    Args:
+        pull_request_number: the pull request number.
+        pull_request_title: the title of the pull request. The title is expected
+            to be formatted as '<change-type>: <description of change>'. For
+            example, 'feat: Add this very cool feature'.
+    """
+    change_log = {
+        pull_request_title.split(":")[0]: pull_request_title.split(":")[1].strip()
+        + f"[{pull_request_number}](https://github.com/PrefectHQ/prefect/pull/{pull_request_number})"
+    }
+
+    with open(
+        Path(prefect.__root_path__ / ".changes" / f"{pull_request_number}.yaml"), "w"
+    ) as change_file:
+        yaml.dump(change_log, change_file)
+
+
+@dev_app.command()
+def release_notes():
+    """
+    Updates RELEASE-NOTES.md with all changes in .changes/.
+    """
+    changes_path = Path(prefect.__root_path__ / ".changes")
+    changes = {}
+
+    for file_name in os.listdir(changes_path):
+        if file_name.endswith(".yaml") and file_name != "EXAMPLE.yaml":
+
+            with open(os.path.join(changes_path, file_name), "r") as f:
+                file_changes = yaml.safe_load(f)
+
+            for change_type, change_description in file_changes.items():
+                if change_type in changes:
+                    changes[change_type].append(change_description)
+                else:
+                    changes[change_type] = [change_description]
+
+    if not changes:
+        exit_with_error("No changes found!")
+
+    release_notes_text = "## <VERSION>"
+
+    if changes.get("breaking"):
+        release_notes_text += f"\n### Breaking changes:"
+        for feature_description in changes.get("breaking"):
+            release_notes_text += "\n- " + feature_description
+
+    if changes.get("feat"):
+        release_notes_text += f"\n\n### Features added:"
+        for feature_description in changes.get("feat"):
+            release_notes_text += "\n- " + feature_description
+
+    if changes.get("enhancement"):
+        release_notes_text += f"\n\n### Enhancements:"
+        for feature_description in changes.get("enhancements"):
+            release_notes_text += "\n- " + feature_description
+
+    if changes.get("fix"):
+        release_notes_text += f"\n\n### Fixes:"
+        for feature_description in changes.get("fix"):
+            release_notes_text += "\n- " + feature_description
+
+    if changes.get("deprecation"):
+        release_notes_text += f"\n\n### Deprecated:"
+        for feature_description in changes.get("deprecation"):
+            release_notes_text += "\n- " + feature_description
+
+    release_notes_path = Path(prefect.__root_path__ / "RELEASE-NOTES.md")
+    with open(release_notes_path, "r") as f:
+        existing_notes = f.readlines()
+
+    new_notes = (
+        existing_notes[0:2]
+        + [note + "\n" for note in release_notes_text.split("\n")]
+        + ["\n"]
+        + existing_notes[2:]
+    )
+
+    with open(release_notes_path, "w") as f:
+        f.writelines(new_notes)
+
+    exit_with_success("RELEASE-NOTES.md updated!")

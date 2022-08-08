@@ -1,0 +1,53 @@
+name: Check pull request format
+
+env:
+  # enable colored output
+  # https://github.com/pytest-dev/pytest/issues/7443
+  PY_COLORS: 1
+
+on:
+  pull_request
+
+permissions:
+  contents: read
+
+# Limit concurrency by workflow/branch combination.
+#
+# For pull request builds, pushing additional changes to the
+# branch will cancel prior in-progress and pending builds.
+#
+# For builds triggered on a branch push, additional changes
+# will wait for prior builds to complete before starting.
+#
+# https://docs.github.com/en/actions/using-jobs/using-concurrency
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check-pull-request-title:
+    name: Check pull request title
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
+
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+
+      - name: Check pull request title
+        run: prefect dev check-pr-title-format "${{ github.event.pull_request.title }}"

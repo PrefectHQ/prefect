@@ -1,0 +1,81 @@
+name: Write changelog entry
+
+env:
+  # enable colored output
+  # https://github.com/pytest-dev/pytest/issues/7443
+  PY_COLORS: 1
+
+on:
+  pull_request:
+    branches:
+      - auto-changelog
+    types: [closed]
+
+jobs:
+  write-changelog-entry:
+    name: Write changelog entry
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    if: github.event.pull_request.merged == true
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Generate build ID
+        id: prep
+        run: |
+            sha=${GITHUB_SHA::15}
+            ts=$(date +%F.%H%M%S)
+            echo "::set-output name=BUILD_ID::${sha}-${ts}"
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
+
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+
+      - name: Configure git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Get Pull Request Number
+        id: pr
+        run: |
+          echo ${{ github.event.pull_request }}
+          echo "::set-output name=pull_request_number::$(gh pr view --json number -q .number || echo "")"
+          echo "::set-output name=pull_request_title::$(gh pr view --json title -q .title || echo "")"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Write changelog entry
+        run: |
+          git checkout -b "changelog-${{ steps.prep.outputs.BUILD_ID }}"
+          prefect dev write-changelog-entry ${{ github.event.pull_request.number }} "${{ github.event.pull_request.title }}"
+          git add .changes/
+          git commit -m "changelog-${{ steps.prep.outputs.BUILD_ID }}"
+          git push --set-upstream origin "changelog-${{ steps.prep.outputs.BUILD_ID }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and merge PR with changelog entry
+        run: |
+          gh pr create --base auto-changelog -f
+          gh pr merge --merge --admin --delete-branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

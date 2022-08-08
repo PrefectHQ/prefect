@@ -1,0 +1,17 @@
+# An example changelog entry
+#
+# 1. Choose one (or more if a PR encompasses multiple changes) of the following headers:
+#   - feature
+#   - enhancement
+#   - fix
+#   - deprecation
+#   - breaking (for breaking changes)
+#   - migration (for database migrations)
+#
+# 2. Fill in one (or more) bullet points under the heading, describing the change.
+#    Markdown syntax may be used.
+#
+# Here's an example of a PR that adds an enhancement
+
+enhancement:
+  - "Add enhancement to Prefect - [#1234](https://github.com/PrefectHQ/prefect/pull/1234)"
