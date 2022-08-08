@@ -483,7 +483,7 @@ async def build(
         elif infra_type == Infra.process:
             infrastructure = Process()
     else:
-        infrastructure = None
+        infrastructure = Process()
 
     description = getdoc(flow)
     schedule = None
