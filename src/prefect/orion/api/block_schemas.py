@@ -6,12 +6,16 @@ from uuid import UUID
 
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
+from fastapi.responses import Response
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.models.block_schemas import MissingBlockTypeException
+from prefect.orion.models.block_schemas import (
+    MissingBlockTypeException,
+    calculate_block_schema_checksum,
+)
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/block_schemas", tags=["Block schemas"])
@@ -40,15 +44,17 @@ async def create_block_schema(
             detail="Block schemas for protected block types cannot be created.",
         )
 
+    block_schema_checksum = calculate_block_schema_checksum(block_schema)
+    existing_block_schema = await models.block_schemas.read_block_schema_by_checksum(
+        session=session, checksum=block_schema_checksum
+    )
+    if existing_block_schema:
+        response.status_code = status.HTTP_200_OK
+        return existing_block_schema
     try:
         model = await models.block_schemas.create_block_schema(
             session=session,
             block_schema=block_schema,
-        )
-    except sa.exc.IntegrityError:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            detail="Identical block schema already exists.",
         )
     except MissingBlockTypeException as ex:
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(ex))

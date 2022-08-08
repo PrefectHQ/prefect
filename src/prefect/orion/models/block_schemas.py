@@ -23,6 +23,14 @@ class MissingBlockTypeException(Exception):
     """Raised when the block type corresponding to a block schema cannot be found"""
 
 
+def calculate_block_schema_checksum(
+    block_schema: Union[BlockSchema, BlockSchemaCreate]
+):
+    block_schema_fields = copy(block_schema.fields)
+    block_schema_fields.pop("definitions", None)
+    return Block._calculate_schema_checksum(block_schema_fields)
+
+
 @inject_db
 async def create_block_schema(
     session: sa.orm.Session,
@@ -49,7 +57,7 @@ async def create_block_schema(
         exclude={"block_type", "id", "created", "updated"},
     )
     definitions = definitions or insert_values["fields"].pop("definitions", None)
-    checksum = Block._calculate_schema_checksum(insert_values["fields"])
+    checksum = calculate_block_schema_checksum(block_schema)
 
     # Check for existing block schema based on calculated checksum
     existing_block_schema = await read_block_schema_by_checksum(

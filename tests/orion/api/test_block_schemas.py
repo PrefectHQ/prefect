@@ -125,7 +125,7 @@ class TestCreateBlockSchema:
         )
         assert str(block_schema.id) == block_schema_id
 
-    async def test_create_block_schema_with_existing_checksum_fails(
+    async def test_create_block_schema_is_idempotent(
         self, session, client, block_type_x
     ):
         response_1 = await client.post(
@@ -142,7 +142,7 @@ class TestCreateBlockSchema:
                 json_compatible=True
             ),
         )
-        assert response_2.status_code == 201
+        assert response_2.status_code == 200
         assert response_1.json() == response_2.json()
 
     async def test_create_block_schema_for_system_block_type_fails(
