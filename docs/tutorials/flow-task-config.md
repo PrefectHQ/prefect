@@ -68,6 +68,7 @@ def my_flow():
 If you are using `git` to version control your code, you might use the commit hash as the version. 
 
 ```python
+import os
 from prefect import flow
 
 @flow(name="My Example Flow", 
