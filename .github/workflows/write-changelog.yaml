@@ -63,7 +63,7 @@ jobs:
 
       - name: Create and merge PR with changelog entry
         run: |
-          git checkout "changelog-${{ steps.prep.outputs.BUILD_ID }}"
+          git checkout -b "changelog-${{ steps.prep.outputs.BUILD_ID }}"
           gh pr create --base auto-changelog -f
           gh pr merge --merge --admin --delete-branch
         env:
