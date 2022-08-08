@@ -255,6 +255,10 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         local_path: Optional[str] = None,
         to_path: Optional[str] = None,
         ignore_file: Optional[str] = None,
+        ############################################################################################
+        # Added this parameter as a temp workaround to make this work (see 293 below)
+        ############################################################################################
+        overwrite: bool = True,  # added
     ) -> int:
         """
         Uploads a directory from a given local path to a remote direcotry.
@@ -285,7 +289,15 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
             if Path(f).is_dir():
                 pass
             else:
-                self.filesystem.put_file(f, fpath, overwrite=True)
+                ############################################################################################
+                # Added this if/else to work with "overwrite" over as a temp workaround for make this work
+                # (there is an issue with the smb block where it won't work when "overwrite" is passed here
+                #  at all -- True, None, etc)
+                ############################################################################################
+                if overwrite:
+                    self.filesystem.put_file(f, fpath, overwrite=True)
+                else:
+                    self.filesystem.put_file(f, fpath)
             counter += 1
         return counter
 
@@ -565,6 +577,101 @@ class Azure(ReadableFileSystem, WritableFileSystem):
         """
         return await self.filesystem.put_directory(
             local_path=local_path, to_path=to_path, ignore_file=ignore_file
+        )
+
+    async def read_path(self, path: str) -> bytes:
+        return await self.filesystem.read_path(path)
+
+    async def write_path(self, path: str, content: bytes) -> str:
+        return await self.filesystem.write_path(path=path, content=content)
+
+
+class SMB(ReadableFileSystem, WritableFileSystem):
+    """
+    Store data as a file on a SMB share.
+    Example:
+        Load stored SMB config:
+        ```python
+        from prefect.filesystems import SMB
+        smb_block = SMB.load("BLOCK_NAME")
+        ```
+    """
+
+    _block_type_name = "SMB"
+    _logo_url = (
+        "https://www.wikidancesport.com/Attachments/dances/Samba/Samba-2-crop.jpg?h=250"
+    )
+
+    share_path: str = Field(
+        ...,
+        description="SMB target (requires <SHARE>, followed by <PATH>)",
+        example="/SHARE/dir/subdir",
+    )
+    smb_username: Optional[SecretStr] = Field(
+        None,
+        title="SMB Username",
+        description="Username with access to the target SMB SHARE",
+    )
+    smb_password: Optional[SecretStr] = Field(
+        None,
+        title="SMB Password",
+    )
+    smb_host: str = Field(
+        ..., tile="SMB server/hostname", description="SMB server/hostname"
+    )
+    smb_port: Optional[int] = Field(
+        None, title="SMB port", description="SMB port (default: 445)"
+    )
+
+    _remote_file_system: RemoteFileSystem = None
+
+    @property
+    def basepath(self) -> str:
+        return f"smb://{self.smb_host.rstrip('/')}/{self.share_path.lstrip('/')}"
+
+    @property
+    def filesystem(self) -> RemoteFileSystem:
+        settings = {}
+        if self.smb_username:
+            settings["username"] = self.smb_username.get_secret_value()
+        if self.smb_password:
+            settings["password"] = self.smb_password.get_secret_value()
+        if self.smb_host:
+            settings["host"] = self.smb_host
+        if self.smb_port:
+            settings["port"] = self.smb_port
+        self._remote_file_system = RemoteFileSystem(
+            basepath=f"smb://{self.smb_host.rstrip('/')}/{self.share_path.lstrip('/')}",
+            settings=settings,
+        )
+        return self._remote_file_system
+
+    async def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> bytes:
+        """
+        Downloads a directory from a given remote path to a local direcotry.
+        Defaults to downloading the entire contents of the block's basepath to the current working directory.
+        """
+        return await self.filesystem.get_directory(
+            from_path=from_path, local_path=local_path
+        )
+
+    async def put_directory(
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
+    ) -> int:
+        """
+        Uploads a directory from a given local path to a remote direcotry.
+        Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        """
+        return await self.filesystem.put_directory(
+            local_path=local_path,
+            to_path=to_path,
+            ignore_file=ignore_file,
+            overwrite=False,
         )
 
     async def read_path(self, path: str) -> bytes:
