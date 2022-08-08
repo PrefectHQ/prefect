@@ -1,7 +1,7 @@
 """Add work queue name to runs
 
 Revision ID: 575634b7acd4
-Revises: 24bb2e4a195c
+Revises: 296e2665785f
 Create Date: 2022-08-07 13:41:38.128173
 
 """
@@ -10,7 +10,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "575634b7acd4"
-down_revision = "24bb2e4a195c"
+down_revision = "296e2665785f"
 branch_labels = None
 depends_on = None
 
