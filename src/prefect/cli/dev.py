@@ -506,3 +506,5 @@ def release_notes():
 
     with open(release_notes_path, "w") as f:
         f.writelines(new_notes)
+
+    exit_with_success("RELEASE-NOTES.md updated!")

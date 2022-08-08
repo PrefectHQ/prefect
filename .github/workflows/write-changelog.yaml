@@ -1,0 +1,69 @@
+name: Write changelog entry
+
+env:
+  # enable colored output
+  # https://github.com/pytest-dev/pytest/issues/7443
+  PY_COLORS: 1
+
+on:
+  push:
+    branches:
+      - auto-changelog
+
+permissions:
+  contents: read
+
+jobs:
+  write-changelog-entry:
+    name: Write changelog entry
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Generate build ID
+        id: prep
+        run: |
+            sha=${GITHUB_SHA::15}
+            ts=$(date +%F.%H%M%S)
+            echo "::set-output name=BUILD_ID::${sha}-${ts}"
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
+
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+
+      # update image refs on feature branch & merge to dev
+      - name: configure git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+      
+      - name: Create branch to changelog files
+        run: |
+          git checkout -b "changelog-${{ steps.prep.outputs.BUILD_ID }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.MARVIN_GITHUB_TOKEN }}
+      
+      - name: Write changelog entry
+        run: prefect dev write-changelog-entry ${{ github.event.pull_request.number }} "${{ github.event.pull_request.title }}"
+
+      - name: Create and merge PR with changelog entry
+        run: |
+          git checkout "changelog-${{ steps.prep.outputs.BUILD_ID }}"
+          gh pr create --base auto-changelog -f
+          gh pr merge --merge --admin --delete-branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.MARVIN_GITHUB_TOKEN }}
