@@ -10,12 +10,14 @@ on:
     branches:
       - auto-changelog
 
-permissions:
-  contents: read
-
 jobs:
   write-changelog-entry:
     name: Write changelog entry
+
+    permissions:
+      contents: 'write'
+      id-token: 'write'
+      pull-requests: 'write'
 
     runs-on: ubuntu-latest
     timeout-minutes: 10
