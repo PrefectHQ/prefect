@@ -955,6 +955,10 @@ async def begin_task_run(
         except Abort:
             # Task run already completed, just fetch its state
             task_run = await client.read_task_run(task_run.id)
+            get_run_logger(flow_run_context).debug(
+                f"Task run '{task_run.id}' already finished. "
+                f"Retrieving result for state {task_run.state!r}..."
+            )
             # Hydrate the state data
             task_run.state.data._cache_data(await _retrieve_result(task_run.state))
             return task_run.state
