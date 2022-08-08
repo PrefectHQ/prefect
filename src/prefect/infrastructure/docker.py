@@ -56,7 +56,8 @@ class DockerRegistry(Block):
             This setting defaults to `True` to support common token authentication
             patterns such as ECR.
     """
-_logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/344dda583986d2d0db361c92dd650693/Moby-logo.webp?h=250"
+
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/344dda583986d2d0db361c92dd650693/Moby-logo.webp?h=250"
     _block_type_name = "Docker Registry"
     _block_schema_capabilities = ["docker-login"]
 
