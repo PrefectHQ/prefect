@@ -1,4 +1,10 @@
+import asyncio
+
 from prefect import blocks, flow, get_run_logger
+from prefect.client import get_client
+from prefect.context import get_run_context
+from prefect.orion.schemas.states import StateType
+from prefect.tasks import task
 
 purpose = """
 The purpose of this flow is make sure that the JSON block can be 
@@ -12,7 +18,7 @@ save and re-load.
 
 
 @flow
-def increment_block():
+def increment_json_block():
     logger = get_run_logger()
     logger.info(purpose)
 
@@ -33,6 +39,23 @@ def increment_block():
         f"Value of 'dev-qa-block' after save and re-load: {json_block_reloaded.value['num']}"
     )
 
+    ctx = get_run_context()
+    return ctx.flow_run.id
+
+
+@task
+async def assert_state_type_completed(flow_run_state):
+    assert flow_run_state == StateType.COMPLETED
+
+
+@flow
+async def increment_block():
+    run_id = increment_json_block()
+    async with get_client() as client:
+        flow_run = await client.read_flow_run(flow_run_id=run_id)
+
+    await assert_state_type_completed(flow_run.state_type)
+
 
 if __name__ == "__main__":
-    increment_block()
+    asyncio.run(increment_block())
