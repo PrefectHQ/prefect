@@ -12,7 +12,7 @@ tags:
     - results
     - async
     - asynchronous execution
-    - concurrent execution
+    - map
     - concurrency
     - concurrency limits
     - task concurrency
@@ -213,12 +213,15 @@ Depending on how you call tasks, they can return different types of results and 
 Any task can return:
 
 - Data , such as `int`, `str`, `dict`, `list`, and so on &mdash;  this is the default behavior any time you call `your_task()`.
-- [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) &mdash;  this is achieved by calling `your_task.submit()`. A `PrefectFuture` contains both _data_ and _State_
+- [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) &mdash;  this is achieved by calling [`your_task.submit()`](/concepts/task-runners/#using-a-task-runner). A `PrefectFuture` contains both _data_ and _State_
 - Prefect [`State`](/api-ref/orion/schemas/states/)  &mdash; anytime you call your task or flow with the argument `return_state=True`, it will directly return a state you can use to build custom behavior based on a state change you care about, such as task or flow failing or retrying.
 
 To run your task with a [task runner](/concepts/task-runners/), you must call the task with `.submit()`.
 
 See [state returned values](/concepts/task-runners/#using-results-from-submitted-tasks) for examples.
+
+!!! tip "Task runners are optional"
+    If you just need the result from a task, you can simply call the task from your flow. For most workflows, the default behavior of calling a task directly and receiving a result is all you'll need.
 
 ## Map
 
@@ -290,7 +293,7 @@ async def async_flow():
 asyncio.run(async_flow())
 ```
 
-Note, if you are not using `asyncio.gather`, calling `.submit()` is required for asynchronous execution on the `ConcurrentTaskRunner`.
+Note, if you are not using `asyncio.gather`, calling [`.submit()`](/concepts/task-runners/#using-a-task-runner) is required for asynchronous execution on the `ConcurrentTaskRunner`.
 
 ## Task run concurrency limits
 
@@ -304,8 +307,7 @@ If a task has multiple tags, it will run only if _all_ tags have available concu
 
 Tags without explicit limits are considered to have unlimited concurrency.
 
-!!! note 0 concurrency limit aborts task runs 
-
+!!! note "0 concurrency limit aborts task runs"
     Currently, if the concurrency limit is set to 0 for a tag, any attempt to run a task with that tag will be aborted instead of delayed.
 
 ### Execution behavior
@@ -314,8 +316,7 @@ Task tag limits are checked whenever a task run attempts to enter a [`Running` s
 
 If there are no concurrency slots available for any one of your task's tags, the transition to a `Running` state will be delayed and the client is instructed to try entering a `Running` state again in 30 seconds. 
 
-!!! warning Concurrency limits in subflows
-
+!!! warning "Concurrency limits in subflows"
     Using concurrency limits on task runs in subflows can cause deadlocks. As a best practice, configure your tags and concurrency limits to avoid setting limits on task runs in subflows.
 
 ### Configuring concurrency limits
