@@ -1260,16 +1260,31 @@ def get_state_for_result(obj: Any) -> Optional[State]:
 
 def link_state_to_result(state: State, result: Any) -> None:
     """
-    Stores information about the state on the result or in the global context for
-    relationship tracking.
+    Caches a link between a state and a result using the `id` of the result to map to
+    the state. The cache is persisted to the current flow run context since task
+    relationships are limited to within a flow run.
+
+    This allows dependency tracking to occur when results are passed around.
+
+    We do not hash the result because:
+
+    - If changes are made to the object in the flow between task calls, we can still
+      track that they are related.
+    - Hashing can be expensive.
+    - Not all objects are hashable.
+
+    We do not set an attribute, e.g. `__prefect_state__`, on the result because:
+
+    - Mutating user's objects is dangerous.
+    - Unrelated equality comparisons can break unexpectedly.
+    - The field can be preserved on copy.
+    - We cannot set this attribute on Python built-ins.
     """
+    # We cannot track some Python built-ins since they are singletons and could create
+    # confusing relationships, e.g. `None`
     if type(result) in UNTRACKABLE_TYPES:
         return
 
-    # Cache the state onto the flow_run_context, associated by the id of the
-    # result. This allows a best-effort attempt to get the state from an object
-    # that wouldn't allow the __prefect_state__ attribute to be set. It also
-    # acts as a complete cache of states for reporting in a flow run state.
     flow_run_context = FlowRunContext.get()
     if flow_run_context:
         flow_run_context.task_run_results[id(result)] = state
