@@ -1263,12 +1263,14 @@ def link_state_to_result(state: State, result: Any) -> None:
     This allows dependency tracking to occur when results are passed around.
 
     We do not hash the result because:
+    
     - If changes are made to the object in the flow between task calls, we can still
       track that they are related.
     - Hashing can be expensive.
     - Not all objects are hashable.
 
     We do not set an attribute, e.g. `__prefect_state__`, on the result because:
+    
     - Mutating user's objects is dangerous.
     - Unrelated equality comparisons can break unexpectedly.
     - The field can be preserved on copy.
