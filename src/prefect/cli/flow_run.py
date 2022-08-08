@@ -45,11 +45,11 @@ async def inspect(id: UUID):
 
 @flow_run_app.command()
 async def ls(
-    flow_name: List[str] = typer.Option(None, help="Name of the Flow"),
-    limit: int = typer.Option(15, help="Maximum number of Flow Run's to list"),
-    state: List[str] = typer.Option(None, help="Name of the Flow Run's state"),
+    flow_name: List[str] = typer.Option(None, help="Name of the flow"),
+    limit: int = typer.Option(15, help="Maximum number of flow run's to list"),
+    state: List[str] = typer.Option(None, help="Name of the flow run's state"),
     state_type: List[StateType] = typer.Option(
-        None, help="Type of the Flow Run's state"
+        None, help="Type of the flow run's state"
     ),
 ):
     """
