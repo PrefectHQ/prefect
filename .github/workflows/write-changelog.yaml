@@ -59,7 +59,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Write changelog entry
-        run: prefect dev write-changelog-entry ${{ steps.pr.outputs.pull_request_number }} "${{ steps.pr.outputs.pull_request_title }}"
+        run: |
+          prefect dev write-changelog-entry ${{ steps.pr.outputs.pull_request_number }} "${{ steps.pr.outputs.pull_request_title }}"
+          git commit -am "changelog-${{ steps.prep.outputs.BUILD_ID }}"
+          git push --set-upstream origin "changelog-${{ steps.prep.outputs.BUILD_ID }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create and merge PR with changelog entry
         run: |
