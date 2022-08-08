@@ -59,4 +59,5 @@ dask-worker-space/
 # QA manifest.json and deployment.yaml files
 qa/deployments/*/*.yaml
 qa/deployments/*/*.json
+qa/deployments/*/.prefectignore
 qa/deployment_storage/*
