@@ -67,4 +67,4 @@ jobs:
           gh pr create --base auto-changelog -f
           gh pr merge --merge --admin --delete-branch
         env:
-          GITHUB_TOKEN: ${{ secrets.MARVIN_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
