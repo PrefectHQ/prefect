@@ -25,6 +25,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  runs-on: ubuntu-latest
+  timeout-minutes: 10
   check-pull-request-title:
     name: Check pull request title
     steps:
