@@ -126,14 +126,16 @@ async def ls():
         title="Blocks", caption="List Block Types using `prefect block type ls`"
     )
     table.add_column("ID", style="cyan", no_wrap=True)
-    table.add_column("Name", style="blue", no_wrap=True)
     table.add_column("Type", style="blue", no_wrap=True)
+    table.add_column("Name", style="blue", no_wrap=True)
+    table.add_column("Slug", style="blue", no_wrap=True)
 
     for block in sorted(blocks, key=lambda x: x.block_schema.fields["title"]):
         table.add_row(
             str(block.id),
+            block.block_type.name,
             str(block.name),
-            block.block_schema.fields["title"],
+            f"{block.block_type.slug}/{block.name}",
         )
 
     app.console.print(table)

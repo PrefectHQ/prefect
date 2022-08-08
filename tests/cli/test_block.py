@@ -1,5 +1,6 @@
 import asyncio
 
+from prefect.blocks import system
 from prefect.client import OrionClient
 from prefect.testing.cli import invoke_and_assert
 
@@ -129,8 +130,9 @@ def test_register_fails_on_multiple_options():
 def test_listing_blocks_when_none_are_registered():
     expected_output = (
         "ID",
-        "Name",
         "Type",
+        "Name",
+        "Slug",
     )
 
     invoke_and_assert(
@@ -138,6 +140,25 @@ def test_listing_blocks_when_none_are_registered():
         expected_code=0,
         expected_output_contains=expected_output,
         expected_line_count=6,
+    )
+
+
+def test_listing_blocks_after_saving_a_block():
+    system.JSON(value="a casual test block").save("wildblock")
+
+    expected_output = (
+        "ID",
+        "Type",
+        "Name",
+        "Slug",
+        "wildblock",
+    )
+
+    invoke_and_assert(
+        ["block", "ls"],
+        expected_code=0,
+        expected_output_contains=expected_output,
+        expected_line_count=7,
     )
 
 
