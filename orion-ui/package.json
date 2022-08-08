@@ -17,7 +17,7 @@
     "d3": "^7.6.1",
     "lodash.debounce": "4.0.8",
     "pinia": "2.0.17",
-    "tailwindcss": "3.1.6",
+    "tailwindcss": "3.1.8",
     "vue": "3.2.37",
     "vue-router": "4.1.3"
   },
