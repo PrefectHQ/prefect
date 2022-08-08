@@ -48,7 +48,7 @@ In addition, the following Prefect-developed task runners for parallel or distri
 
 You do not need to specify a task runner for a flow unless your tasks require a specific type of execution. 
 
-If you don't specify a task runner for a flow, and you call a task with `submit()` within the flow, Prefect uses the default `ConcurrentTaskRunner`.
+If you don't specify a task runner for a flow, and you call a task with `.submit()` within the flow, Prefect uses the default `ConcurrentTaskRunner`.
 
 To configure your flow to use a specific task runner, import a task runner and assign it as an argument for the flow when the flow is defined.
 
