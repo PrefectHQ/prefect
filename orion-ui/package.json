@@ -9,7 +9,7 @@
     "lint:fix": "eslint src --fix --debug"
   },
   "dependencies": {
-    "@prefecthq/orion-design": "1.0.69",
+    "@prefecthq/orion-design": "1.0.71",
     "@prefecthq/prefect-design": "1.0.35",
     "@prefecthq/vue-compositions": "0.1.41",
     "@types/lodash.debounce": "4.0.7",

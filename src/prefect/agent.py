@@ -148,7 +148,8 @@ class OrionAgent:
         # this piece of logic applies any overrides that may have been set on the deployment;
         # overrides are defined as dot.delimited paths on possibly nested attributes of the
         # infrastructure block
-        infra_dict = infra_document.dict()
+        doc_dict = infra_document.dict()
+        infra_dict = doc_dict.get("data", {})
         for override, value in (deployment.infra_overrides or {}).items():
             nested_fields = override.split(".")
             data = infra_dict
@@ -159,7 +160,8 @@ class OrionAgent:
             data[nested_fields[-1]] = value
 
         # reconstruct the infra block
-        infra_document = BlockDocument(**infra_dict)
+        doc_dict["data"] = infra_dict
+        infra_document = BlockDocument(**doc_dict)
         infrastructure_block = Block._from_block_document(infra_document)
         # TODO: Here the agent may update the infrastructure with agent-level settings
         return infrastructure_block
