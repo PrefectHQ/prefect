@@ -1,7 +1,7 @@
 """Expand deployment schema for improved ux
 
 Revision ID: 296e2665785f
-Revises: 24bb2e4a195c
+Revises: 53c19b31aa09
 Create Date: 2022-08-06 13:00:09.419944
 
 """
@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "296e2665785f"
-down_revision = "24bb2e4a195c"
+down_revision = "53c19b31aa09"
 branch_labels = None
 depends_on = None
 

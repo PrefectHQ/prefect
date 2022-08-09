@@ -18,7 +18,7 @@ from prefect.exceptions import Abort
 from prefect.infrastructure import Infrastructure, Process
 from prefect.infrastructure.submission import submit_flow_run
 from prefect.logging import get_logger
-from prefect.orion.schemas.core import FlowRun
+from prefect.orion.schemas.core import BlockDocument, FlowRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Failed, Pending
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
@@ -150,22 +150,23 @@ class OrionAgent:
         infra_document = await self.client.read_block_document(
             infrastructure_document_id
         )
-        infrastructure_block = Block._from_block_document(infra_document)
 
+        # this piece of logic applies any overrides that may have been set on the deployment;
+        # overrides are defined as dot.delimited paths on possibly nested attributes of the
+        # infrastructure block
+        infra_dict = infra_document.dict()
         for override, value in (deployment.infra_overrides or {}).items():
             nested_fields = override.split(".")
-            data = infrastructure_block
+            data = infra_dict
             for field in nested_fields[:-1]:
-                if isinstance(data, dict):
-                    data = data[field]
-                else:
-                    data = getattr(data, field)
+                data = data[field]
 
-            if isinstance(data, dict):
-                data[nested_fields[-1]] = value
-            else:
-                setattr(data, nested_fields[-1], value)
+            # once we reach the end, set the value
+            data[nested_fields[-1]] = value
 
+        # reconstruct the infra block
+        infra_document = BlockDocument(**infra_dict)
+        infrastructure_block = Block._from_block_document(infra_document)
         # TODO: Here the agent may update the infrastructure with agent-level settings
         return infrastructure_block
 

@@ -68,6 +68,7 @@ def my_flow():
 If you are using `git` to version control your code, you might use the commit hash as the version. 
 
 ```python
+import os
 from prefect import flow
 
 @flow(name="My Example Flow", 
@@ -78,24 +79,6 @@ def my_flow():
 ```
 
 You don't have to supply a version for your flow. By default, Prefect makes a best effort to compute a stable hash of the `.py` file in which the flow is defined to automatically detect when your code changes.  However, this computation is not always possible and so, depending on your setup, you may see that your flow has a version of `None`.
-
-### Configuring task runners
-
-A more advanced configuration option for flows is [`task_runner`](/concepts/task-runners/), which enables you to specify the execution environment used for task runs within a flow. By default, Prefect runs tasks concurrently using the `ConcurrentTaskRunner` &mdash; you don't need to specify any `task_runner` on your flow to use this task runner. Prefect also includes a built-in `SequentialTaskRunner` if you need to run tasks sequentially.
-
-We'll cover the use cases for more advanced task runners for parallel and distributed execution in the [Dask and Ray task runners](/tutorials/dask-ray-task-runners/) tutorial. 
-
-For now, we'll just demonstrate that you can specify the task runner _almost_ like any other option: the difference is that you need to import the task runner first, then specify you're using it with the `task_runner` option. 
-
-```python
-from prefect import flow
-from prefect.task_runners import SequentialTaskRunner
-
-@flow(name="My Example Flow", 
-      task_runner=SequentialTaskRunner())
-def my_flow():
-    # run tasks sequentially
-```
 
 ## Basic task configuration
 
@@ -339,6 +322,46 @@ For further details on cache key functions, see the [Caching](/concepts/tasks/#c
     Note that, up until now, we have run all of our workflows interactively. This means our metadata store is a SQLite database located at the default database location. This can be configured in various ways, but please note that any cache keys you experiment with will be persisted in this SQLite database until they expire or you clear the database manually!
 
     That is why the examples here include `cache_expiration=timedelta(minutes=1)` so that tutorial cache keys do not remain in your database permanently.
+
+### Configuring task runners
+
+A more advanced configuration option for flows is [`task_runner`](/concepts/task-runners/), which enables you to specify the execution environment used for task runs within a flow. By default, Prefect runs tasks concurrently using the `ConcurrentTaskRunner` &mdash; you don't need to specify any `task_runner` on your flow to use this task runner. Prefect also includes a built-in `SequentialTaskRunner` if you need to run tasks sequentially.
+
+We'll cover the use cases for more advanced task runners for parallel and distributed execution in the [Dask and Ray task runners](/tutorials/dask-ray-task-runners/) tutorial. 
+
+!!! tip "Task runners are optional"
+    If you just need the result from a task, you can simply call the task from your flow. For most workflows, the default behavior of calling a task directly and receiving a result is all you'll need.
+
+For now, we'll just demonstrate that you can specify the task runner _almost_ like any other option. The difference is that you need to: 
+
+- Import the task runner
+- Specify you're using the task runner for tasks within your flow with the `task_runner` setting on the flow. 
+- Call [`.submit()`](/concepts/task-runners/#using-a-task-runner) on your task to submit task execution to the task runner.
+
+```python
+from prefect import flow, task
+from prefect.task_runners import SequentialTaskRunner
+
+@task
+def first_task(num):
+    return num + num
+
+@task
+def second_task(num):
+    return num * num
+
+@flow(name="My Example Flow", 
+      task_runner=SequentialTaskRunner(),
+)
+def my_flow(num):
+    plusnum = first_task.submit(num)
+    sqnum = second_task.submit(plusnum)
+    print(f"add: {plusnum.result()}, square: {sqnum.result()}")
+
+my_flow(5)
+```
+
+See [Task Runners](/concepts/task-runners/) for more details about submitting tasks to a task runner and returning results from a `PrefectFuture`.
 
 !!! tip "Next steps: Flow execution"
     The next step is learning about [flow execution](/tutorials/execution/), the ability to configure many aspects of how your flows and tasks run.
