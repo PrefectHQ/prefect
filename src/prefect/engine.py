@@ -1282,16 +1282,11 @@ def link_state_to_result(state: State, result: Any) -> None:
     - We cannot set this attribute on Python built-ins.
     """
 
-    def link_if_not_untrackable(obj, state, ctx):
-        """Track connection between an object and its associated state if it has a unique ID.
+    def link_if_not_untrackable(obj: Any, state: State, ctx: FlowRunContext) -> None:
+        """Track connection between a task run result and its associated state if it has a unique ID.
 
         We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
         because they are singletons.
-
-        Args:
-            element (_type_): _description_
-            state (_type_): _description_
-            ctx (_type_): _description_
         """
         if (type(obj) in UNTRACKABLE_TYPES) or (
             type(obj) == int and obj in UNTRACKABLE_INTS
