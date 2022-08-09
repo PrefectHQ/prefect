@@ -19,6 +19,7 @@ import copy
 import datetime
 import sys
 import threading
+import warnings
 from collections import defaultdict
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
@@ -38,6 +39,7 @@ from uuid import UUID
 
 import anyio
 import httpx
+import pendulum
 import pydantic
 from anyio import sleep
 from asgi_lifespan import LifespanManager
@@ -806,7 +808,7 @@ class OrionClient:
 
         Args:
             name: a unique name for the work queue
-            tags: an optional list of tags to filter on; only work scheduled with these tags
+            tags: DEPRECATED: an optional list of tags to filter on; only work scheduled with these tags
                 will be included in the queue
 
         Raises:
@@ -817,6 +819,10 @@ class OrionClient:
             UUID: The UUID of the newly created workflow
         """
         if tags:
+            warnings.warn(
+                "The use of tags for creating work queue filters is deprecated.",
+                DeprecationWarning,
+            )
             filter = QueueFilter(tags=tags)
         else:
             filter = None
@@ -905,14 +911,16 @@ class OrionClient:
         Returns:
             List[schemas.core.FlowRun]: a list of FlowRun objects read from the queue
         """
-        json_data = {"limit": limit}
-        if scheduled_before:
-            json_data.update({"scheduled_before": scheduled_before.isoformat()})
+        if scheduled_before is None:
+            scheduled_before = pendulum.now()
 
         try:
             response = await self._client.post(
                 f"/work_queues/{id}/get_runs",
-                json=json_data,
+                json={
+                    "limit": limit,
+                    "scheduled_before": scheduled_before.isoformat(),
+                },
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
