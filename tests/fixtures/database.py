@@ -211,12 +211,13 @@ async def deployment(
             name="My Deployment",
             tags=["test"],
             flow_id=flow.id,
-            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=1),
                 anchor_date=pendulum.datetime(2020, 1, 1),
             ),
             storage_document_id=storage_document_id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id,
         ),
     )
