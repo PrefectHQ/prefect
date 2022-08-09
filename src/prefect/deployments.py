@@ -2,6 +2,7 @@
 Objects for specifying deployments and utilities for loading flows from deployments.
 """
 
+import importlib
 import json
 import sys
 from pathlib import Path
@@ -21,7 +22,7 @@ from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.callables import ParameterSchema
+from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.importtools import import_object
@@ -318,3 +319,35 @@ class Deployment(BaseModel):
             )
 
             return deployment_id
+
+    async def build_from_flow(self, f: Flow, output: str = None):
+        ## first see if an entrypoint can be determined
+        flow_file = getattr(f, "__globals__", {}).get("__file__")
+        mod_name = getattr(f, "__module__", None)
+        if not flow_file:
+            if not mod_name:
+                # todo, check if the file location was manually set already
+                raise ValueError("Could not determine flow's file location.")
+            module = importlib.import_module(mod_name)
+            flow_file = getattr(module, "__file__", None)
+            if not flow_file:
+                raise ValueError("Could not determine flow's file location.")
+
+        self.flow_name = f.name
+        await self.load()
+
+        # set a few attributes for this flow object
+        self.entrypoint = f"{Path(flow_file).absolute()}:{f.__qualname__}"
+        self.parameter_openapi_schema = parameter_schema(f)
+        if not self.version:
+            self.version = f.version
+        if not self.description:
+            self.description = f.description
+
+        # if no storage is set, assume local for now
+        # TODO: revisit with Docker integration
+        # note: this method call sets `self.path`
+        await self.upload_to_storage()
+
+        if output:
+            await self.to_yaml(output)
