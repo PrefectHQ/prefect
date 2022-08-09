@@ -2,6 +2,7 @@ import time
 from contextlib import contextmanager
 from functools import partial
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import anyio
 import pendulum
@@ -11,6 +12,7 @@ from prefect import engine, flow, task
 from prefect.context import FlowRunContext
 from prefect.engine import (
     begin_flow_run,
+    link_state_to_result,
     orchestrate_flow_run,
     orchestrate_task_run,
     retrieve_flow_then_begin_flow_run,
@@ -1034,3 +1036,110 @@ class TestDynamicKeyHandling:
         task_runs = await orion_client.read_task_runs()
 
         assert sorted([int(run.dynamic_key) for run in task_runs]) == [0, 0, 1, 1]
+
+
+class TestLinkStateToResult:
+
+    state = State(id=uuid4(), type=StateType.COMPLETED)
+
+    class MockFlowRunContext:
+        def __init__(self):
+            self.task_run_results = {}
+
+    class RandomTestClass:
+        pass
+
+    @pytest.mark.parametrize(
+        "test_input", [True, False, -5, 0, 1, 256, ..., None, NotImplemented]
+    )
+    def test_link_state_to_result_with_untrackables(self, monkeypatch, test_input):
+        ctx = self.MockFlowRunContext()
+
+        def get():
+            return ctx
+
+        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
+        link_state_to_result(state=self.state, result=test_input)
+        assert ctx.task_run_results == {}
+
+    @pytest.mark.parametrize("test_input", [-6, 257, "Hello", RandomTestClass()])
+    def test_link_state_to_result_with_single_trackables(self, monkeypatch, test_input):
+        ctx = self.MockFlowRunContext()
+
+        def get():
+            return ctx
+
+        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
+
+        input_id = id(test_input)
+        link_state_to_result(state=self.state, result=test_input)
+        assert ctx.task_run_results == {input_id: self.state}
+
+    @pytest.mark.parametrize(
+        "test_inputs",
+        [
+            [-6, 257],
+            [-42, RandomTestClass()],
+            [4200, "Test", RandomTestClass()],
+        ],
+    )
+    def test_link_state_to_result_with_multiple_trackables(
+        self, monkeypatch, test_inputs
+    ):
+        ctx = self.MockFlowRunContext()
+
+        def get():
+            return ctx
+
+        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
+        input_ids = []
+        for test_input in test_inputs:
+            input_ids.append(id(test_input))
+            link_state_to_result(state=self.state, result=test_input)
+        assert ctx.task_run_results == {id: self.state for id in input_ids}
+
+    @pytest.mark.parametrize(
+        "test_input",
+        [
+            [True],
+            (False,),
+            [1, 2, 3],
+            (1, 2, 3),
+        ],
+    )
+    def test_link_state_to_result_with_list_or_tuple_of_untrackables(
+        self, monkeypatch, test_input
+    ):
+        ctx = self.MockFlowRunContext()
+
+        def get():
+            return ctx
+
+        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
+
+        link_state_to_result(state=self.state, result=test_input)
+        assert ctx.task_run_results == {id(test_input): self.state}
+
+    @pytest.mark.parametrize(
+        "test_input",
+        [
+            ["Test", 1, RandomTestClass()],
+            ("Test", 1, RandomTestClass()),
+        ],
+    )
+    def test_link_state_to_result_with_list_or_tuple_of_mixed(
+        self, monkeypatch, test_input
+    ):
+        ctx = self.MockFlowRunContext()
+
+        def get():
+            return ctx
+
+        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
+
+        link_state_to_result(state=self.state, result=test_input)
+        assert ctx.task_run_results == {
+            id(test_input[0]): self.state,
+            id(test_input[2]): self.state,
+            id(test_input): self.state,
+        }
