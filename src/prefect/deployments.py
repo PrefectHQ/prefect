@@ -176,6 +176,12 @@ class Deployment(BaseModel):
             return block(**value)
         return value
 
+    @classmethod
+    def load_from_yaml(cls, path: str):
+        with open(str(path), "r") as f:
+            data = yaml.safe_load(f)
+            return cls(**data)
+
     async def load(self) -> bool:
         """
         Queries the API for a deployment with this name for this flow, and if found, prepopulates
