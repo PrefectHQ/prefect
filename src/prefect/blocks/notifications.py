@@ -1,3 +1,4 @@
+import warnings
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -53,4 +54,12 @@ class SlackWebhook(NotificationBlock):
 
     @sync_compatible
     async def notify(self, body: str, subject: Optional[str] = None):
+        warnings.warn(
+            "The `SlackWebhook` has moved to `prefect-slack`. Install from the "
+            "command line with `pip install prefect-slack` and import with "
+            "`from prefect_slack import SlackWebhook`. "
+            "The `SlackWebhook` you are using will be removed in a future release.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         await self._async_webhook_client.send(text=body)
