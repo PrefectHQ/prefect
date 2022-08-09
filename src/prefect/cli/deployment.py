@@ -371,7 +371,8 @@ async def build(
         "--work-queue",
         help=(
             "The work queue that will handle this deployment's runs. "
-            "It will be created if it doesn't already exist. Defaults to 'global'."
+            "It will be created if it doesn't already exist. Defaults to `None`. "
+            "Note that if a work queue is not set, work will not be scheduled."
         ),
     ),
     infra_type: Infra = typer.Option(
