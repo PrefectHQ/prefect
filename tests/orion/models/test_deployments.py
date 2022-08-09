@@ -7,8 +7,6 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
-from prefect.orion.exceptions import ObjectNotFoundError
-from prefect.orion.models.deployments import check_work_queues_for_deployment
 from prefect.orion.schemas import filters
 from prefect.orion.schemas.states import StateType
 
@@ -35,6 +33,47 @@ class TestCreateDeployment:
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
         assert deployment.infrastructure_document_id == infrastructure_document_id
+
+    async def test_creating_a_deployment_creates_associated_work_queue(
+        self, session, flow
+    ):
+        wq = await models.work_queues.read_work_queue_by_name(
+            session=session, name="wq-1"
+        )
+        assert wq is None
+
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="d1", work_queue_name="wq-1", flow_id=flow.id, manifest_path=""
+            ),
+        )
+        await session.commit()
+
+        wq = await models.work_queues.read_work_queue_by_name(
+            session=session, name="wq-1"
+        )
+        assert wq is not None
+
+    async def test_creating_a_deployment_with_existing_work_queue_is_ok(
+        self, session, flow
+    ):
+
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="d1", work_queue_name="wq-1", flow_id=flow.id, manifest_path=""
+            ),
+        )
+        await session.commit()
+
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="d2", work_queue_name="wq-1", flow_id=flow.id, manifest_path=""
+            ),
+        )
+        await session.commit()
 
     async def test_create_deployment_updates_existing_deployment(
         self,
@@ -570,6 +609,29 @@ class TestScheduledRuns:
             )
             assert run.tags == ["auto-scheduled"] + tags
 
+    async def test_schedule_runs_applies_work_queue(self, flow, flow_function, session):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                manifest_path="file.json",
+                schedule=schemas.schedules.IntervalSchedule(
+                    interval=datetime.timedelta(days=1)
+                ),
+                flow_id=flow.id,
+                work_queue_name="wq-test-runs",
+            ),
+        )
+        scheduled_runs = await models.deployments.schedule_runs(
+            session, deployment_id=deployment.id, max_runs=2
+        )
+        assert len(scheduled_runs) == 2
+        for run_id in scheduled_runs:
+            run = await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=run_id
+            )
+            assert run.work_queue_name == "wq-test-runs"
+
     @pytest.mark.parametrize("parameters", [{}, {"foo": "bar"}])
     async def test_schedule_runs_applies_parameters(
         self, parameters, flow, flow_function, session
@@ -726,257 +788,23 @@ class TestScheduledRuns:
         assert result.scalar() == 0
 
 
-class TestCheckWorkQueuesForDeployment:
-    async def setup_work_queues_and_deployment(
-        self, session, flow, flow_function, tags=[]
+class TestUpdateDeployment:
+    async def test_updating_deployment_creates_associated_work_queue(
+        self, session, deployment
     ):
-        """
-        Create combinations of work queues, and a deployment to make sure that query is working correctly.
-
-        Returns the ID of the deployment that was created and a random ID that was provided to work queues
-        for testing purposes.
-        """
-        deployment = (
-            await models.deployments.create_deployment(
-                session=session,
-                deployment=schemas.core.Deployment(
-                    name="My Deployment",
-                    manifest_path="file.json",
-                    flow_id=flow.id,
-                    tags=tags,
-                ),
-            ),
+        wq = await models.work_queues.read_work_queue_by_name(
+            session=session, name="wq-1"
         )
-        match_id = deployment[0].id
-        miss_id = uuid4()
+        assert wq is None
 
-        tags = [  # "a" and "b" are matches and "y" and "z" are misses
-            [],
-            ["a"],
-            ["z"],
-            ["a", "b"],
-            ["a", "z"],
-            ["y", "z"],
-        ]
-
-        deployments = [
-            [],
-            [match_id],
-            [miss_id],
-            [match_id, miss_id],
-        ]
-
-        # Generate all combinations of work queues
-        for t in tags:
-            for d in deployments:
-
-                await models.work_queues.create_work_queue(
-                    session=session,
-                    work_queue=schemas.core.WorkQueue(
-                        name=f"{t}:{d}",
-                        filter=schemas.core.QueueFilter(tags=t, deployment_ids=d),
-                    ),
-                )
-
-        # return the two IDs needed to compare results
-        return match_id, miss_id
-
-    async def assert_queues_found(self, session, deployment_id, desired_queues):
-        queues = await check_work_queues_for_deployment(
-            session=session, deployment_id=deployment_id
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(work_queue_name="wq-1"),
         )
-        actual_queue_attrs = [[q.filter.tags, q.filter.deployment_ids] for q in queues]
+        await session.commit()
 
-        for q in desired_queues:
-            assert q in actual_queue_attrs
-
-    async def test_object_not_found_error_raised(self, session):
-        with pytest.raises(ObjectNotFoundError):
-            await check_work_queues_for_deployment(
-                session=session, deployment_id=uuid4()
-            )
-
-    # NO TAG DEPLOYMENTS with no-tag queues
-    async def test_no_tag_picks_up_no_filter_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function
+        wq = await models.work_queues.read_work_queue_by_name(
+            session=session, name="wq-1"
         )
-        match_q = [[[], []]]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_no_tag_picks_up_no_tags_no_runners_with_id_match_q(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function
-        )
-        match_q = [
-            [[], [match_id]],
-            [[], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_no_tag_picks_up_no_tags_no_id_with_runners_match(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function
-        )
-        match_q = [
-            [[], []],
-            [[], []],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_no_tag_picks_up_no_tags_with_id_and_runners_match(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function
-        )
-        match_q = [
-            [[], [match_id]],
-            [[], [match_id, miss_id]],
-            [[], [match_id]],
-            [[], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_no_tag_picks_up_only_number_of_expected_queues(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function
-        )
-
-        actual_queues = await check_work_queues_for_deployment(
-            session=session, deployment_id=match_id
-        )
-
-        assert len(actual_queues) == 3
-
-    # ONE TAG DEPLOYMENTS with no-tag queues
-    async def test_one_tag_picks_up_no_filter_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a"]
-        )
-        match_q = [[[], []]]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_one_tag_picks_up_no_tags_with_id_match_q(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a"]
-        )
-        match_q = [
-            [[], [match_id]],
-            [[], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    # ONE TAG DEPLOYMENTS with one-tag queues
-    async def test_one_tag_picks_up_one_tag_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a"]
-        )
-        match_q = [[["a"], []]]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_one_tag_picks_up_one_tag_with_id_match_q(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a"]
-        )
-        match_q = [
-            [["a"], [match_id]],
-            [["a"], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_one_tag_picks_up_only_number_of_expected_queues(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a"]
-        )
-
-        actual_queues = await check_work_queues_for_deployment(
-            session=session, deployment_id=match_id
-        )
-
-        assert len(actual_queues) == 6
-
-    # TWO TAG DEPLOYMENTS with no-tag queues
-    async def test_two_tag_picks_up_no_filter_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [[[], []]]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_two_tag_picks_up_no_tags_with_id_match_q(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [
-            [[], [match_id]],
-            [[], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    # TWO TAG DEPLOYMENTS with one-tag queues
-    async def test_two_tag_picks_up_one_tag_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [[["a"], []]]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_two_tag_picks_up_one_tag_with_id_match_q(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [
-            [["a"], [match_id]],
-            [["a"], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    # TWO TAG DEPLOYMENTS with two-tag queues
-    async def test_two_tag_picks_up_two_tag_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [[["a", "b"], []]]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_two_tag_picks_up_two_tag_with_id_match_q(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [
-            [["a", "b"], [match_id]],
-            [["a", "b"], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_two_tag_picks_up_only_number_of_expected_queues(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-
-        actual_queues = await check_work_queues_for_deployment(
-            session=session, deployment_id=match_id
-        )
-
-        assert len(actual_queues) == 9
+        assert wq is not None
