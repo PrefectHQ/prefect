@@ -15,9 +15,8 @@ jobs:
     name: Write changelog entry
 
     permissions:
-      contents: 'write'
-      id-token: 'write'
-      pull-requests: 'write'
+      contents: write
+      pull-requests: write
 
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -25,7 +24,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          persist-credentials: false
           fetch-depth: 0
 
       - name: Generate build ID
@@ -47,7 +45,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[dev]
 
-      - name: configure git
+      - name: Configure git
         run: |
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"

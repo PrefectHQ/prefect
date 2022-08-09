@@ -1,5 +1,10 @@
 # Prefect Release Notes
 
+## <VERSION>
+
+### Fixes:
+- fixed very cool bug[11](https://github.com/PrefectHQ/prefect/pull/11)
+
 ## 2.0.3
 
 This release contains a number of bug fixes and documentation improvements.
