@@ -257,12 +257,12 @@ async def apply(
     for path in paths:
 
         try:
-            deployment = Deployment.load_from_yaml(path)
+            deployment = async Deployment.load_from_yaml(path)
             app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
         except Exception as exc:
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
 
-        deployment_id = await deployment.create()
+        deployment_id = await deployment.apply()
         app.console.print(
             f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
             style="green",
@@ -436,7 +436,7 @@ async def build(
         infrastructure=infrastructure,
         infra_overrides=infra_overrides or None,
     )
-    deployment.update(**updates, ignore_none=True)
+    await deployment.update(**updates, ignore_none=True)
 
     ## process storage, move files around and process path logic
     if set_default_ignore_file(path="."):
@@ -452,7 +452,7 @@ async def build(
             style="green",
         )
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
-    deployment.build_yaml(deployment_loc)
+    await deployment.to_yaml(deployment_loc)
     exit_with_success(
         f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'."
     )
