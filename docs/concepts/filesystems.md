@@ -193,7 +193,7 @@ The `SMB` file system block enables interaction with SMB shared network storage.
 | smb_host | Hostname or IP address where SMB network share is located. |
 | smb_port | Port for SMB network share (defaults to 445)
 | smb_username | SMB username with read/write permissions. |
-| amb_password | SMB password. |
+| smb_password | SMB password. |
 
 
 To create a block:
