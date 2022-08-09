@@ -56,9 +56,15 @@ The full complement of states and state types includes:
 
 When calling a task or a flow, there are three types of returned values:
 
-- data: A Python object (such as `int`, `str`, `dict`, `list`, and so on)
-- `State`: A Prefect object indicating the state of a flow or task run
-- `PrefectFuture`: A Prefect object that contains both _data_ and _State_
+- Data: A Python object (such as `int`, `str`, `dict`, `list`, and so on).
+- `State`: A Prefect object indicating the state of a flow or task run.
+- [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture): A Prefect object that contains both _data_ and _State_.
+
+Returning data  is the default behavior any time you call `your_task()`.
+
+Returning Prefect [`State`](/api-ref/orion/schemas/states/) occurs anytime you call your task or flow with the argument `return_state=True`.
+
+Returning [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) is achieved by calling `your_task.submit()`.
 
 ### Return Data
 

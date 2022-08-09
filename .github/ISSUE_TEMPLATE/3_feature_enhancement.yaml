@@ -1,6 +1,6 @@
 name: Propose a feature enhancement
 description: Propose a new feature or an enhancement to an existing feature.
-labels: ["status:needs-triage", "enhancement"]
+labels: ["status:triage", "enhancement"]
 body:
   - type: checkboxes
     id: checks
