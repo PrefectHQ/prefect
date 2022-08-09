@@ -15,11 +15,10 @@ from prefect.testing.utilities import AsyncMock
 
 @pytest.fixture
 async def work_queue_id(deployment, orion_client):
-    assert deployment.tags, "Tests are only useful if deployment has non-trivial tags"
-    work_queue_id = await orion_client.create_work_queue(
-        name="testing", tags=deployment.tags
+    work_queue = await orion_client.read_work_queue_by_name(
+        name=deployment.work_queue_name
     )
-    return work_queue_id
+    return work_queue.id
 
 
 async def test_agent_start_will_not_run_without_start():
@@ -396,8 +395,7 @@ async def test_agent_displays_message_on_work_queue_pause(
         await agent.get_and_submit_flow_runs()
 
         assert (
-            f"Work queue 'testing' ({work_queue_id}) is paused."
-            not in prefect_caplog.text
+            f"Work queue 'wq' ({work_queue_id}) is paused." not in prefect_caplog.text
         ), "Message should not be displayed before pausing"
 
         await orion_client.update_work_queue(work_queue_id, is_paused=True)
@@ -405,6 +403,4 @@ async def test_agent_displays_message_on_work_queue_pause(
         # Should emit the paused message
         await agent.get_and_submit_flow_runs()
 
-        assert (
-            f"Work queue 'testing' ({work_queue_id}) is paused." in prefect_caplog.text
-        )
+        assert f"Work queue 'wq' ({work_queue_id}) is paused." in prefect_caplog.text
