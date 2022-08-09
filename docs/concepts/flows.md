@@ -333,6 +333,9 @@ Parameters are validated before a flow is run. If a flow call receives invalid p
 
 ## Final state determination
 
+!!! note "Prerequisite"    
+    Read the documentation about [states](/concepts/states) before proceeding with this section. 
+
 The final state of the flow is determined by its return value.  The following rules apply:
 
 - If an exception is raised directly in the flow function, the flow run is marked as failed.
@@ -343,9 +346,6 @@ The final state of the flow is determined by its return value.  The following ru
 The following examples illustrate each of these cases:
 
 ### Raise an exception
-
-!!! note "Prerequisite"    
-    Read the documentation about [states](/concepts/states) before proceeding with this section. 
 
 If an exception is raised within the flow function, the flow is immediately marked as failed.
 
