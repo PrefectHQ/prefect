@@ -173,8 +173,32 @@ class Deployment(BaseModel):
             return block(**value)
         return value
 
-    def upload_to_storage(self):
-        pass
+    async def upload_to_storage(self, storage_block: Block = None) -> Optional[int]:
+        """
+        Uploads the workflow this deployment represents using a provided storage block;
+        if no block is provided, defaults to configuring self for local storage.
+        """
+        deployment_path = None
+        file_count = None
+        if storage_block:
+            template = await Block.load(storage_block)
+            self.storage = template.copy(
+                exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
+            )
+
+            # upload current directory to storage location
+            file_count = await self.storage.put_directory(ignore_file=".prefectignore")
+        else:
+            # default storage, no need to move anything around
+            self.storage = None
+            deployment_path = str(Path(".").absolute())
+
+        # persists storage now in case it contains secret values
+        if self.storage and not self.storage._block_document_id:
+            await self.storage._save(is_anonymous=True)
+
+        self.path = deployment_path
+        return file_count
 
     def build_yaml(self, output: str):
         """
