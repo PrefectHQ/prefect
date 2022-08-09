@@ -43,6 +43,7 @@
     editNotificationRouteKey,
     editQueueRouteKey,
     flowRouteKey,
+    flowRunCreateRouteKey,
     flowRunRouteKey,
     flowRunsApiKey,
     flowRunsRouteKey,
@@ -100,6 +101,7 @@
   provide(deploymentsRouteKey, routes.deployments)
   provide(editQueueRouteKey, routes.workQueueEdit)
   provide(flowRouteKey, routes.flow)
+  provide(flowRunCreateRouteKey, routes.flowRunCreate)
   provide(flowRunRouteKey, routes.flowRun)
   provide(flowRunsRouteKey, routes.flowRuns)
   provide(flowsRouteKey, routes.flows)

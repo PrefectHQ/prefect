@@ -12,7 +12,7 @@ tags:
     - results
     - async
     - asynchronous execution
-    - concurrent execution
+    - map
     - concurrency
     - concurrency limits
     - task concurrency
@@ -218,9 +218,94 @@ def cached_task():
 !!! note "Task results, retries, and caching"
     Task results are cached in memory during a flow run and peristed to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. As a result, task caching between flow runs is currently limited to flow runs with access to that local storage path.
 
+## Task results
+
+Depending on how you call tasks, they can return different types of results and optionally engage the use of a [task runner](/concepts/task-runners/).
+
+Any task can return:
+
+- Data , such as `int`, `str`, `dict`, `list`, and so on &mdash;  this is the default behavior any time you call `your_task()`.
+- [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) &mdash;  this is achieved by calling [`your_task.submit()`](/concepts/task-runners/#using-a-task-runner). A `PrefectFuture` contains both _data_ and _State_
+- Prefect [`State`](/api-ref/orion/schemas/states/)  &mdash; anytime you call your task or flow with the argument `return_state=True`, it will directly return a state you can use to build custom behavior based on a state change you care about, such as task or flow failing or retrying.
+
+To run your task with a [task runner](/concepts/task-runners/), you must call the task with `.submit()`.
+
+See [state returned values](/concepts/task-runners/#using-results-from-submitted-tasks) for examples.
+
+!!! tip "Task runners are optional"
+    If you just need the result from a task, you can simply call the task from your flow. For most workflows, the default behavior of calling a task directly and receiving a result is all you'll need.
+
+## Map
+
+Prefect provides a `.map()` implementation that automatically creates task run for each element of its input data. Mapped tasks represent the computations of many individual children tasks.
+
+The simplest Prefect map takes a tasks and applies it to each element of its inputs.
+
+```python
+from prefect import flow, task
+
+@task
+def print_nums(n):
+    for n in nums:
+        print(n)
+
+@task
+def square_num(num):
+    return num**2
+
+@flow
+def map_flow(nums):
+    print_nums(nums)
+    squared_nums = square_num.map(nums) 
+    print_nums(squared_nums)
+
+map_flow([1,2,3,5,8,13])
+```
+
+Prefect also supports `unmapped` arguments, allowing to pass static values that don't get mapped over.
+
+```python
+from prefect import flow, task, unmapped
+
+@task
+def add_together(x, y):
+    return x + y
+
+@flow
+def sum_it(numbers, static_value):
+    futures = add_together.map(numbers, static_value)
+    return futures
+
+sum_it([1, 2, 3], unmapped(5))
+```
+
 ## Async tasks
 
-Coming soon.
+Prefect also supports asynchronous task and flow definitions by default. All of [the standard rules of async](https://docs.python.org/3/library/asyncio-task.html) apply:
+
+```python
+import asyncio
+
+from prefect import task, flow
+
+@task
+async def print_values(values):
+    for value in values:
+        await asyncio.sleep(1) # yield
+        print(value, end=" ")
+
+@flow
+async def async_flow():
+    await print_values([1, 2])  # runs immediately
+    coros = [print_values("abcd"), print_values("6789")]
+
+    # asynchronously gather the tasks
+    await asyncio.gather(*coros)
+
+asyncio.run(async_flow())
+```
+
+Note, if you are not using `asyncio.gather`, calling [`.submit()`](/concepts/task-runners/#using-a-task-runner) is required for asynchronous execution on the `ConcurrentTaskRunner`.
 
 ## Task run concurrency limits
 
@@ -234,8 +319,7 @@ If a task has multiple tags, it will run only if _all_ tags have available concu
 
 Tags without explicit limits are considered to have unlimited concurrency.
 
-!!! note 0 concurrency limit aborts task runs 
-
+!!! note "0 concurrency limit aborts task runs"
     Currently, if the concurrency limit is set to 0 for a tag, any attempt to run a task with that tag will be aborted instead of delayed.
 
 ### Execution behavior
@@ -244,8 +328,7 @@ Task tag limits are checked whenever a task run attempts to enter a [`Running` s
 
 If there are no concurrency slots available for any one of your task's tags, the transition to a `Running` state will be delayed and the client is instructed to try entering a `Running` state again in 30 seconds. 
 
-!!! warning Concurrency limits in subflows
-
+!!! warning "Concurrency limits in subflows"
     Using concurrency limits on task runs in subflows can cause deadlocks. As a best practice, configure your tags and concurrency limits to avoid setting limits on task runs in subflows.
 
 ### Configuring concurrency limits

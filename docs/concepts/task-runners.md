@@ -13,79 +13,49 @@ tags:
 
 # Task runners
 
-Calling a task function from within a flow executes the function sequentially. In other words, the task function "blocks" execution of the flow. This means that when you call multiple tasks, they run in order. However, that's not the only way to run tasks!
+Task runners enable you to engage specific executors for Prefect tasks, such as for concurrent, parallel, or distributed execution of tasks.
 
-You can also submit the task to a _task runner_. Using a task runner allows you to control whether tasks run sequentially, concurrently, or in parallel.
+Task runners are not required for task execution. If you call a task function directly, the task executes as a regular Python function, without a task runner, and produces whatever result is returned by the function.
 
-!!! note "Concurrency versus parallelism"
-    The words "concurrency" and "parallelism" may sound the same, but they mean different things in computing.
+## Task runner overview
 
-    **Concurrency** refers to a system that can do more than one thing simultaneously, but not at the _exact_ same time. For example, imagine a restaurant with one employee who is both the cook and waiter. While food cooks on the stove, the employee can take orders, but the employee can't take two orders at the same time.
+Calling a task function from within a flow, using the default task settings, executes the function sequentially. Execution of the task function blocks execution of the flow until the task completes. This means, by default, calling multiple tasks in a flow causes them to run in order. 
 
-    **Parallelism** refers to a system that can do more than one thing at the _exact_ same time. Continuing the restaurant example, if the restaurant has two employees, one employee can take an order at the same time that the other employee takes an order.
+However, that's not the only way to run tasks!
 
-Use the `submit()` method on a task function to submit the task to a task runner:
+You can use the `.submit()` method on a task function to submit the task to a _task runner_. Using a task runner enables you to control whether tasks run sequentially, concurrently, or if you want to take advantage of a parallel or distributed execution libraries such as Dask or Ray.
 
-```python
-from prefect import flow, task
-
-@task
-def task():
-    print("I'm running in a task runner!")
-
-@flow
-def run_with_task_runner():
-    task.submit()
-```
-
-Task runners are responsible for running Prefect tasks. Each flow has a task runner associated with it.
-
-Depending on the task runner you use, the tasks within your flow can run sequentially, concurrently, or in parallel. The default task runner is the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner), which will run submitted tasks concurrently. 
+Using the `.submit()` method to submit a task also causes the task run to return a [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture), a Prefect object that contains both any _data_ returned by the task function and a [`State`](/api-ref/orion/schemas/states/), a Prefect object indicating the state of the task run.
 
 Prefect currently provides the following built-in task runners: 
 
-- [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) can run tasks concurrently, allowing tasks to switch when blocking on IO. Synchronous tasks will be submitted to a thread pool maintained by `anyio`.
 - [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner) can run tasks sequentially. 
+- [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) can run tasks concurrently, allowing tasks to switch when blocking on IO. Tasks will be submitted to a thread pool maintained by `anyio`.
 
 In addition, the following Prefect-developed task runners for parallel or distributed task execution may be installed as [Prefect Collections](/collections/overview/). 
 
 - [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) can run tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
 - [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) can run tasks requiring parallel execution using [Ray](https://www.ray.io/).
 
-!!! warning "Dask and Ray task runner collections"
+!!! note "Concurrency versus parallelism"
+    The words "concurrency" and "parallelism" may sound the same, but they mean different things in computing.
 
-    If you used Dask and Ray task runners with prefect versions below 2.0, note that the Prefect-developed Dask and Ray task runners have moved to [Prefect Collections](/collections/overview/).
+    **Concurrency** refers to a system that can do more than one thing simultaneously, but not at the _exact_ same time. It may be more accurate to think of concurrent execution as non-blocking: within the restrictions of resources available in the execution environment and data dependencies between tasks, execution of one task does not block execution of other tasks in a flow.
 
-    You will need to migrate your flows that use Dask or Ray use [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) or [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) collections. 
+    **Parallelism** refers to a system that can do more than one thing at the _exact_ same time. Again, within the restrictions of resources available, parallel execution can run tasks at the same time, such as for operations mapped across a dataset.
 
 ## Using a task runner
 
-You do not need to specify a task runner for a flow unless your tasks require a specific type of execution. If you don't specify a task runner for a flow, and you call a task with `submit()` within the flow, Prefect uses the default `ConcurrentTaskRunner`.
+You do not need to specify a task runner for a flow unless your tasks require a specific type of execution. 
+
+If you don't specify a task runner for a flow, and you call a task with `.submit()` within the flow, Prefect uses the default `ConcurrentTaskRunner`.
 
 To configure your flow to use a specific task runner, import a task runner and assign it as an argument for the flow when the flow is defined.
 
+!!! note "Remember to call `.submit()` when using a task runner"
+    Make sure you use `.submit()` to run your task with a task runner. Calling the task directly, without `.submit()`, from within a flow will run the task sequentially instead of using a specified task runner.
 
-!!! warning "Remember to call `submit()` when using a task runner"
-
-    Make sure you use `.submit()` to run your task with a task runner. Calling the task from within a flow will run the task sequentially instead of using a task runner.
-
-For example, you can specify the `SequentialTaskRunner` to ensure tasks are executed in order.
-
-```python hl_lines="2 8"
-from prefect import flow, task
-from prefect.task_runners import SequentialTaskRunner
-
-@task
-def stop_at_floor(floor):
-    print(f"elevator stops on floor {floor}")
-
-@flow(task_runner=SequentialTaskRunner())
-def elevator():
-    for floor in range(1,10):
-        stop_at_floor.submit(floor)
-```
-
-Or you can use `ConcurrentTaskRunner` to allow tasks to switch when they would block.
+For example, you can use `ConcurrentTaskRunner` to allow tasks to switch when they would block.
 
 ```python hl_lines="2 11"
 from prefect import flow, task
@@ -168,7 +138,8 @@ if __name__ == "__main__":
     sequential_flow()
 ```
 
-Note that you need to use `if __name__ == "__main__"` to avoid issues with parallel processing. 
+!!! tip "Guarding main"
+    Note that you should guard the `main` function by using `if __name__ == "__main__"` to avoid issues with parallel processing. 
 
 This script outputs the following logs demonstrating the use of the Dask task runner:
 
@@ -198,11 +169,11 @@ Hello!
 
 ## Using results from submitted tasks
 
-When you use `submit()` to submit a task to a task runner, the task runner creates a *future* for access to the state and result of the task.
+When you use `.submit()` to submit a task to a task runner, the task runner creates a [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) for access to the state and result of the task.
 
-A [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) is an object that provides access to a computation happening in a task runner &mdash; even if that computation is happening on a remote system.
+A `PrefectFuture` is an object that provides access to a computation happening in a task runner &mdash; even if that computation is happening on a remote system.
 
-In the following example, we save the return value of calling `submit()` on the task `say_hello` to the variable `future`, and then we print the type of the variable:
+In the following example, we save the return value of calling `.submit()` on the task `say_hello` to the variable `future`, and then we print the type of the variable:
 
 ```python
 from prefect import flow, task
@@ -260,7 +231,7 @@ Hello Marvin!
 ```
 </div>
 
-Futures have a few useful methods. For example, you can get the return value of the task run with  [`result()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result):
+Futures have a few useful methods. For example, you can get the return value of the task run with  [`.result()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result):
 
 ```python
 from prefect import flow, task
@@ -278,7 +249,7 @@ def my_flow():
 my_flow()
 ```
 
-The `result()` method will wait for the task to complete before returning the result to the caller. If the task run fails, `result()` will raise the task run's exception. You may disable this behavior with the `raise_on_failure` option:
+The `.result()` method will wait for the task to complete before returning the result to the caller. If the task run fails, `.result()` will raise the task run's exception. You may disable this behavior with the `raise_on_failure` option:
 
 ```python
 from prefect import flow, task
@@ -299,7 +270,7 @@ def my_flow():
         ...
 ```
 
-You can retrieve the current state of the task run associated with the `PrefectFuture` using [`get_state()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.get_state):
+You can retrieve the current state of the task run associated with the `PrefectFuture` using [`.get_state()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.get_state):
 
 ```python
 @flow
@@ -308,7 +279,7 @@ def my_flow():
     state = future.get_state()
 ```
 
-You can also wait for a task to complete by using the [`wait()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.wait) method:
+You can also wait for a task to complete by using the [`.wait()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.wait) method:
 
 ```python
 @flow
@@ -367,6 +338,7 @@ def my_flow():
 The simplest pattern for writing a flow is either only using tasks or only using pure Python functions. When you need to mix the two, use `.result()`.
 
 Using only tasks:
+
 ```python
 from prefect import flow, task
 
@@ -387,6 +359,7 @@ hello_world()
 ```
 
 Using only Python functions:
+
 ```python
 from prefect import flow, task
 
@@ -398,13 +371,15 @@ def say_nice_to_meet_you(hello_greeting):
 
 @flow
 def hello_world():
-    hello = say_hello("Marvin") # because this is just a Python function, calls will not be tracked
+    # because this is just a Python function, calls will not be tracked
+    hello = say_hello("Marvin") 
     nice_to_meet_you = say_nice_to_meet_you(hello)
 
 hello_world()
 ```
 
-Mixing the two:
+Mixing tasks and Python functions:
+
 ```python
 from prefect import flow, task
 
@@ -456,17 +431,14 @@ def do_important_stuff():
 
 @flow
 def hello_world():
-    future = say_hello.submit("Marvin").result() # blocks until `say_hello` has finished
+    # blocks until `say_hello` has finished
+    result = say_hello.submit("Marvin").result() 
     do_important_stuff.submit()
 
 hello_world()
 ```
 
 ## Running tasks on Dask
-
-!!! warning "Dask task runner is now a collection"
-
-    Note that the Prefect-developed `DaskTaskRunner` is now a [Prefect Collections](/collections/overview/). See the [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) collection documentation for details on installing and using the new `DaskTaskRunner` collection.
 
 The [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) is a parallel task runner that submits tasks to the [`dask.distributed`](http://distributed.dask.org/) scheduler. By default, a temporary Dask cluster is created for the duration of the flow run. If you already have a Dask cluster running, either local or cloud hosted, you can provide the connection URL via the `address` kwarg.
 
@@ -642,10 +614,6 @@ if __name__ == "main":
 ```
 
 ## Running tasks on Ray
-
-!!! warning "Ray task runner is now a collection"
-
-    Note that the Prefect-developed `RayTaskRunner` is now a [Prefect Collections](/collections/overview/). See the [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) collection documentation for details on installing and using the new `RayTaskRunner` collection.
 
 The [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) &mdash; installed separately as a [Prefect Collection](/collections/overview/) &mdash; is a parallel task runner that submits tasks to [Ray](https://www.ray.io/). By default, a temporary Ray instance is created for the duration of the flow run. If you already have a Ray instance running, you can provide the connection URL via an `address` argument.
 
