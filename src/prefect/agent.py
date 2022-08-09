@@ -154,7 +154,7 @@ class OrionAgent:
         # this piece of logic applies any overrides that may have been set on the deployment;
         # overrides are defined as dot.delimited paths on possibly nested attributes of the
         # infrastructure block
-        infra_dict = infra_document.dict()
+        infra_dict = infra_document.dict().get("data", {})
         for override, value in (deployment.infra_overrides or {}).items():
             nested_fields = override.split(".")
             data = infra_dict
