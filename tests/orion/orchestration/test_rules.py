@@ -554,6 +554,8 @@ class TestBaseOrchestrationRule:
             raising_rule = RaisingRule(ctx, *intended_transition)
             ctx = await stack.enter_async_context(raising_rule)
 
+        assert ctx.proposed_state is None, "Proposed state should be None"
+
         assert await minimal_rule.fizzled() is True
 
         assert (
@@ -572,11 +574,6 @@ class TestBaseOrchestrationRule:
             after_transition_hook.call_count == 0
         ), "The after-transition hook should not run"
         assert cleanup_step.call_count == 0
-
-        # Check the task run state
-        task_run_states = await models.task_run_states.read_task_run_states(
-            session=session, task_run_id=task_run.id
-        )
 
     @pytest.mark.parametrize("initial_state_type", ALL_ORCHESTRATION_STATES)
     async def test_rules_enforce_initial_state_validity(
