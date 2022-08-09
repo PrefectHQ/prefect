@@ -15,7 +15,7 @@ from prefect.settings import (
 
 
 class TestCreateDeployment:
-    async def test_create_deployment(
+    async def test_create_oldstyle_deployment(
         self,
         session,
         client,
@@ -56,6 +56,51 @@ class TestCreateDeployment:
         assert deployment.infrastructure_document_id == infrastructure_document_id
         assert deployment.storage_document_id == storage_document_id
 
+    async def test_create_deployment(
+        self,
+        session,
+        client,
+        flow,
+        flow_function,
+        infrastructure_document_id,
+        storage_document_id,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides={"cpu": 24},
+            storage_document_id=storage_document_id,
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["name"] == "My Deployment"
+        assert response.json()["version"] == "mint"
+        assert response.json()["path"] == "/"
+        assert response.json()["entrypoint"] == "/file.py:flow"
+        assert response.json()["storage_document_id"] == str(storage_document_id)
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
+        )
+        assert response.json()["infra_overrides"] == {"cpu": 24}
+        deployment_id = response.json()["id"]
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        assert str(deployment.id) == deployment_id
+        assert deployment.name == "My Deployment"
+        assert deployment.tags == ["foo"]
+        assert deployment.flow_id == flow.id
+        assert deployment.parameters == {"foo": "bar"}
+        assert deployment.infrastructure_document_id == infrastructure_document_id
+        assert deployment.storage_document_id == storage_document_id
+
     async def test_create_deployment_respects_flow_id_name_uniqueness(
         self,
         session,
@@ -67,7 +112,6 @@ class TestCreateDeployment:
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            manifest_path="file.json",
             is_schedule_active=False,
             infrastructure_document_id=infrastructure_document_id,
             storage_document_id=storage_document_id,
@@ -75,14 +119,12 @@ class TestCreateDeployment:
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My Deployment"
-        assert response.json()["manifest_path"] == "file.json"
         deployment_id = response.json()["id"]
 
         # post the same data
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            manifest_path="file.json",
             is_schedule_active=False,
             infrastructure_document_id=infrastructure_document_id,
             storage_document_id=storage_document_id,
@@ -102,7 +144,6 @@ class TestCreateDeployment:
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            manifest_path="file.json",
             is_schedule_active=True,  # CHANGED
             infrastructure_document_id=infrastructure_document_id,
             storage_document_id=storage_document_id,
@@ -126,7 +167,6 @@ class TestCreateDeployment:
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            manifest_path="file.json",
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
@@ -145,7 +185,6 @@ class TestCreateDeployment:
             json=DeploymentCreate(
                 name="My Deployment",
                 flow_id=flow.id,
-                manifest_path="file.json",
                 schedule=schemas.schedules.IntervalSchedule(
                     interval=datetime.timedelta(days=1),
                     anchor_date=pendulum.datetime(2020, 1, 1),
@@ -170,7 +209,6 @@ class TestCreateDeployment:
             json=DeploymentCreate(
                 name="My Deployment",
                 flow_id=flow.id,
-                manifest_path="file.json",
                 is_schedule_active=True,
             ).dict(json_compatible=True),
         )
@@ -210,7 +248,6 @@ class TestCreateDeployment:
             json=schemas.actions.DeploymentCreate(
                 name=deployment.name,
                 flow_id=deployment.flow_id,
-                manifest_path="file.json",
                 schedule=deployment.schedule,
                 is_schedule_active=False,
             ).dict(json_compatible=True),
@@ -253,7 +290,6 @@ class TestCreateDeployment:
             json=schemas.actions.DeploymentCreate(
                 name=deployment.name,
                 flow_id=deployment.flow_id,
-                manifest_path="file.json",
                 schedule=schemas.schedules.IntervalSchedule(
                     interval=datetime.timedelta(seconds=1),
                     anchor_date=pendulum.datetime(2020, 1, 1),
@@ -280,7 +316,6 @@ class TestCreateDeployment:
     ):
         data = DeploymentCreate(
             name="My Deployment",
-            manifest_path="file.json",
             flow_id=flow.id,
             tags=["foo"],
             parameters={"foo": "bar"},
@@ -296,7 +331,6 @@ class TestCreateDeployment:
 
         data = DeploymentCreate(
             name="My Deployment",
-            manifest_path="file.json",
             flow_id=flow.id,
             tags=["foo"],
             parameters={"foo": "bar"},
@@ -376,7 +410,6 @@ class TestReadDeploymentByName:
             json=dict(
                 name=name,
                 flow_id=str(flow.id),
-                manifest_path="file.json",
             ),
         )
         deployment_id = response.json()["id"]
@@ -423,7 +456,6 @@ class TestReadDeployments:
             deployment=schemas.core.Deployment(
                 id=deployment_id_1,
                 name="My Deployment X",
-                manifest_path="file.json",
                 flow_id=flow.id,
                 is_schedule_active=True,
                 infrastructure_document_id=infrastructure_document_id,
@@ -435,7 +467,6 @@ class TestReadDeployments:
             deployment=schemas.core.Deployment(
                 id=deployment_id_2,
                 name="My Deployment Y",
-                manifest_path="file.json",
                 flow_id=flow.id,
                 is_schedule_active=False,
                 infrastructure_document_id=infrastructure_document_id,
@@ -859,7 +890,6 @@ class TestGetDeploymentWorkQueueCheck:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 flow_id=flow.id,
                 tags=["a", "b", "c"],
             ),
