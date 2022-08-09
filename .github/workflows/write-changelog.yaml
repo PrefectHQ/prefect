@@ -58,6 +58,7 @@ jobs:
       - name: Get Pull Request Number
         id: pr
         run: |
+          echo ${{ github.event.pull_request }}
           echo "::set-output name=pull_request_number::$(gh pr view --json number -q .number || echo "")"
           echo "::set-output name=pull_request_title::$(gh pr view --json title -q .title || echo "")"
         env:
