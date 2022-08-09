@@ -88,10 +88,10 @@ class Deployment(BaseModel):
             "name",
             "description",
             "version",
+            "work_queue_name",
             "tags",
             "parameters",
             "schedule",
-            "work_queue_name",
             "infra_overrides",
         ]
         if self.infrastructure._block_document_id:
@@ -138,8 +138,8 @@ class Deployment(BaseModel):
     schedule: schemas.schedules.SCHEDULE_TYPES = None
     flow_name: str = Field(..., description="The name of the flow.")
     work_queue_name: Optional[str] = Field(
-        "global",
-        description="The work queue for the deployment. If no work queue is set, work will not be scheduled.",
+        None,
+        description="The work queue for the deployment.",
     )
 
     # flow data
