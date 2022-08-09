@@ -86,6 +86,49 @@ def load_deployments_from_yaml(
 
 
 class Deployment(BaseModel):
+    """
+    A Prefect Deployment definition, used for specifying and building deployments.
+
+    Args:
+        name: A name for the deployment.
+        version: A new version for the flow.
+        description: A new description for the flow.
+        task_runner: A new task runner for the flow.
+        timeout_seconds: A new number of seconds to fail the flow after if still
+            running.
+        validate_parameters: A new value indicating if flow calls should validate
+            given parameters.
+
+    Examples:
+
+        Create a new deployment using configuration defaults for an imported flow:
+
+        >>> from my_project.flows import my_flow
+        >>> from prefect.deployments import Deployment
+        >>>
+        >>> deployment = Deployment(name="example", version=1, tags=["demo"])
+        >>> deployment.build_from_flow(my_flow)
+        >>> deployment.apply()
+
+        Create a new deployment with custom storage and an infrastructure override:
+
+        >>> from my_project.flows import my_flow
+        >>> from prefect.deployments import Deployment
+        >>> from prefect.filesystems import S3
+
+        >>> storage = S3.load("dev-bucket") # load a pre-defined block
+        >>> deployment = Deployment(
+        ...     name="s3-example",
+        ...     version=2,
+        ...     tags=["aws"],
+        ...     storage=storage,
+        ...     infra_overrides=["env.SOME_IMPORTANT_CONFIG=true"],
+        >>> )
+        >>> deployment.build_from_flow(my_flow)
+        >>> deployment.apply()
+
+    """
+
     class Config:
         validate_assignment = True
 
