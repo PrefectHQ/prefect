@@ -1282,29 +1282,30 @@ def link_state_to_result(state: State, result: Any) -> None:
     - We cannot set this attribute on Python built-ins.
     """
 
-    def link_if_not_untrackable(element, flow_run_context):
+    def link_if_not_untrackable(obj, state, ctx):
         """Track connection between an object and its associated state if it has a unique ID.
 
         We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
         because they are singletons.
+
+        Args:
+            element (_type_): _description_
+            state (_type_): _description_
+            ctx (_type_): _description_
         """
-        if (type(element) in UNTRACKABLE_TYPES) or (
-            type(element) == int and element in UNTRACKABLE_INTS
+        if (type(obj) in UNTRACKABLE_TYPES) or (
+            type(obj) == int and obj in UNTRACKABLE_INTS
         ):
             return
-        flow_run_context.task_run_results[id(result)] = state
+        ctx.task_run_results[id(obj)] = state
 
     flow_run_context = FlowRunContext.get()
     if flow_run_context:
         # handle result unpacking
-        if (isinstance(result, tuple) or isinstance(result, list)) and len(
-            result
-        ) <= 10:
+        if isinstance(result, (tuple, list)) and len(result) <= 10:
             for element in result:
-                link_if_not_untrackable(
-                    element=element, flow_run_context=flow_run_context
-                )
-        link_if_not_untrackable(result)
+                link_if_not_untrackable(obj=element, state=state, ctx=flow_run_context)
+        link_if_not_untrackable(obj=result, state=state, ctx=flow_run_context)
 
 
 def get_default_result_filesystem() -> LocalFileSystem:
