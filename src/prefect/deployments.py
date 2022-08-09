@@ -20,6 +20,7 @@ from prefect.flows import Flow
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
+from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.callables import ParameterSchema
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.filesystem import tmpchdir
@@ -179,11 +180,13 @@ class Deployment(BaseModel):
         return value
 
     @classmethod
-    def load_from_yaml(cls, path: str):
+    @sync_compatible
+    async def load_from_yaml(cls, path: str):
         with open(str(path), "r") as f:
             data = yaml.safe_load(f)
             return cls(**data)
 
+    @sync_compatible
     async def load(self) -> bool:
         """
         Queries the API for a deployment with this name for this flow, and if found, prepopulates
@@ -219,7 +222,8 @@ class Deployment(BaseModel):
                 return False
         return True
 
-    def update(self, ignore_none: bool = False, **kwargs):
+    @sync_compatible
+    async def update(self, ignore_none: bool = False, **kwargs):
         """
         Performs an in-place update with the provided settings.
         """
@@ -233,6 +237,7 @@ class Deployment(BaseModel):
                 continue
             setattr(self, key, value)
 
+    @sync_compatible
     async def upload_to_storage(self, storage_block: Block = None) -> Optional[int]:
         """
         Uploads the workflow this deployment represents using a provided storage block;
@@ -260,7 +265,8 @@ class Deployment(BaseModel):
         self.path = deployment_path
         return file_count
 
-    def build_yaml(self, output: str):
+    @sync_compatible
+    async def to_yaml(self, output: str):
         """
         Compiles the current deployment into a YAML file at the given location.
         """
@@ -274,7 +280,8 @@ class Deployment(BaseModel):
             )
             yaml.dump(self.immutable_fields_dict(), f, sort_keys=False)
 
-    async def create(self) -> UUID:
+    @sync_compatible
+    async def apply(self) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
         """
