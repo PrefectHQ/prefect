@@ -130,7 +130,7 @@ async def ls():
     table.add_column("Name", style="blue", no_wrap=True)
     table.add_column("Slug", style="blue", no_wrap=True)
 
-    for block in sorted(blocks, key=lambda x: x.block_schema.fields["title"]):
+    for block in sorted(blocks, key=lambda x: f"{x.block_type.slug}/{x.name}"):
         table.add_row(
             str(block.id),
             block.block_type.name,
