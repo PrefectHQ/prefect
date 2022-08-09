@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, parse_obj_as, validator
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import PrefectObjectRegistry
+from prefect.exceptions import ObjectNotFound
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
