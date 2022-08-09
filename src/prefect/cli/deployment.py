@@ -2,7 +2,6 @@
 Command line interface for working with deployments.
 """
 from enum import Enum
-from inspect import getdoc
 from pathlib import Path
 from typing import List, Optional
 
@@ -257,7 +256,7 @@ async def apply(
     for path in paths:
 
         try:
-            deployment = async Deployment.load_from_yaml(path)
+            deployment = await Deployment.load_from_yaml(path)
             app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
         except Exception as exc:
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
@@ -422,7 +421,6 @@ async def build(
     deployment = Deployment(name=name, flow_name=flow.name)
     await deployment.load()  # load server-side settings, if any
 
-    description = getdoc(flow)
     flow_parameter_schema = parameter_schema(flow)
     entrypoint = (
         f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
@@ -430,7 +428,7 @@ async def build(
     updates = dict(
         parameter_openapi_schema=flow_parameter_schema,
         entrypoint=entrypoint,
-        description=description,
+        description=flow.description,
         version=version or flow.version,
         tags=tags or None,
         infrastructure=infrastructure,
