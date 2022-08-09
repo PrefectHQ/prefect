@@ -255,9 +255,6 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         local_path: Optional[str] = None,
         to_path: Optional[str] = None,
         ignore_file: Optional[str] = None,
-        ############################################################################################
-        # Added this parameter as a temp workaround to make this work (see 293 below)
-        ############################################################################################
         overwrite: bool = True,  # added
     ) -> int:
         """
@@ -289,11 +286,6 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
             if Path(f).is_dir():
                 pass
             else:
-                ############################################################################################
-                # Added this if/else to work with "overwrite" over as a temp workaround for make this work
-                # (there is an issue with the smb block where it won't work when "overwrite" is passed here
-                #  at all -- True, None, etc)
-                ############################################################################################
                 if overwrite:
                     self.filesystem.put_file(f, fpath, overwrite=True)
                 else:
