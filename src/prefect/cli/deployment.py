@@ -440,38 +440,10 @@ async def build(
     except FileNotFoundError:
         exit_with_error(f"{fpath!r} not found.")
 
-    ## process storage, move files around and process path logic
-    deployment_path = None
-    entrypoint = (
-        f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
-    )
-    if storage_block:
-        template = await Block.load(storage_block)
-        storage = template.copy(
-            exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
-        )
-
-        # process .prefectignore file
-        if set_default_ignore_file(path="."):
-            app.console.print(
-                f"Default '.prefectignore' file written to {(Path('.') / '.prefectignore').absolute()}",
-                style="green",
-            )
-
-        # upload current directory to storage location
-        file_count = await storage.put_directory(ignore_file=".prefectignore")
-        app.console.print(
-            f"Successfully uploaded {file_count} files to {storage.basepath}",
-            style="green",
-        )
-    else:
-        # default storage, no need to move anything around
-        storage = None
-        deployment_path = str(Path(".").absolute())
-
-    # persists storage now in case it contains secret values
-    if storage and not storage._block_document_id:
-        await storage._save(is_anonymous=True)
+    infra_overrides = {}
+    for override in overrides or []:
+        key, value = override.split("=", 1)
+        infra_overrides[key] = value
 
     if infra_block:
         infrastructure = await Block.load(infra_block)
@@ -483,8 +455,11 @@ async def build(
         elif infra_type == Infra.process:
             infrastructure = Process()
     else:
-        infrastructure = Process()
+        # will reset to a default of Process is no infra is present on the
+        # server-side definition of this deployment
+        infrastructure = None
 
+    # set up deployment object
     description = getdoc(flow)
     schedule = None
     parameters = None
@@ -507,10 +482,9 @@ async def build(
         except ObjectNotFound:
             pass
 
-    infra_overrides = {}
-    for override in overrides or []:
-        key, value = override.split("=", 1)
-        infra_overrides[key] = value
+    entrypoint = (
+        f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
+    )
     deployment = Deployment(
         name=name,
         description=description,
@@ -520,13 +494,24 @@ async def build(
         flow_name=flow.name,
         schedule=schedule,
         parameter_openapi_schema=flow_parameter_schema,
-        path=deployment_path,
         entrypoint=entrypoint,
-        storage=storage,
-        infrastructure=infrastructure,
+        infrastructure=infrastructure or Process(),
         infra_overrides=infra_overrides,
     )
 
+    ## process storage, move files around and process path logic
+    if set_default_ignore_file(path="."):
+        app.console.print(
+            f"Default '.prefectignore' file written to {(Path('.') / '.prefectignore').absolute()}",
+            style="green",
+        )
+
+    file_count = await deployment.upload_to_storage(storage_block)
+    if file_count:
+        app.console.print(
+            f"Successfully uploaded {file_count} files to {deployment.storage.basepath}",
+            style="green",
+        )
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
     deployment.build_yaml(deployment_loc)
     exit_with_success(
