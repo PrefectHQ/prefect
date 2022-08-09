@@ -17,6 +17,7 @@ A file system block is an object which allows you to read and write data from pa
 -  [`S3`](#s3)
 -  [`GCS`](#gcs)
 -  [`Azure`](#azure)
+-  [`SMB`](#smb)
 
 Additional file system types are available in [Prefect Collections](/collections/overview/).
 
@@ -178,6 +179,38 @@ prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag 
 ```
 
 You need to install `adlfs` to use it.
+
+
+## SMB
+
+The `SMB` file system block enables interaction with SMB shared network storage. Under the hood, `SMB` uses [`smbprotocol`](https://github.com/jborean93/smbprotocol).
+
+`SMB` properties include:
+
+| Property | Description                                                                                                                  |
+| --- |------------------------------------------------------------------------------------------------------------------------------|
+| basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
+| smb_host | Hostname or IP address where SMB network share is located. |
+| smb_port | Port for SMB network share (defaults to 445)
+| smb_username | SMB username with read/write permissions. |
+| amb_password | SMB password. |
+
+
+To create a block:
+
+```python
+from prefect.filesystems import SMB
+
+block = SMB(basepath="my-share/folder/")
+block.save("dev")
+```
+
+To use it in a deployment:
+```bash
+prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb smb/dev
+```
+
+You need to install `smbprotocol` to use it.
 
 
 ## Handling credentials for cloud object storage services
