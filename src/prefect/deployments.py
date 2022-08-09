@@ -142,7 +142,7 @@ class Deployment(BaseModel):
     version: str = Field(None, description="An optional version for the deployment.")
     tags: List[str] = Field(default_factory=list)
     schedule: schemas.schedules.SCHEDULE_TYPES = None
-    flow_name: str = Field(..., description="The name of the flow.")
+    flow_name: str = Field(None, description="The name of the flow.")
 
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
