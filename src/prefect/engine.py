@@ -97,6 +97,7 @@ EngineReturnType = Literal["future", "state", "result"]
 
 
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
+UNTRACKABLE_INTS = {i for i in range(-5, 257)}
 engine_logger = get_logger("engine")
 
 
@@ -1280,14 +1281,30 @@ def link_state_to_result(state: State, result: Any) -> None:
     - The field can be preserved on copy.
     - We cannot set this attribute on Python built-ins.
     """
-    # We cannot track some Python built-ins since they are singletons and could create
-    # confusing relationships, e.g. `None`
-    if type(result) in UNTRACKABLE_TYPES:
-        return
+
+    def link_if_not_untrackable(element, flow_run_context):
+        """Track connection between an object and its associated state if it has a unique ID.
+
+        We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
+        because they are singletons.
+        """
+        if (type(element) in UNTRACKABLE_TYPES) or (
+            type(element) == int and element in UNTRACKABLE_INTS
+        ):
+            return
+        flow_run_context.task_run_results[id(result)] = state
 
     flow_run_context = FlowRunContext.get()
     if flow_run_context:
-        flow_run_context.task_run_results[id(result)] = state
+        # handle result unpacking
+        if (isinstance(result, tuple) or isinstance(result, list)) and len(
+            result
+        ) <= 10:
+            for element in result:
+                link_if_not_untrackable(
+                    element=element, flow_run_context=flow_run_context
+                )
+        link_if_not_untrackable(result)
 
 
 def get_default_result_filesystem() -> LocalFileSystem:
