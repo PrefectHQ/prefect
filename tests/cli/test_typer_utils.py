@@ -7,9 +7,7 @@ class TestPrefectTyper:
     singular_subcommand = PrefectTyper(name="singular-subcommand")
     pluralized_subcommand = PrefectTyper(name="pluralized-subcommand")
     app.add_typer(singular_subcommand)
-    app.add_typer(
-        pluralized_subcommand, pluralization_string="pluralized-subcommands"
-    )
+    app.add_typer(pluralized_subcommand, pluralization_string="pluralized-subcommands")
 
     def test_pluralized_subcommands_have_multiple_valid_invocations(self):
         invoke_and_assert(["pluralized-subcommand", "--help"], expected_code=0)
