@@ -13,6 +13,11 @@ This gives us a history of changes and will create merge conflicts if two migrat
 SQLite: `296e2665785f`
 Postgres: `60e428f92a75`
 
+## Fix concurrency limit tag index name
+
+SQLite: `53c19b31aa09`
+Postgres: `7737221bf8a4`
+
 ## Add deployment.version
 
 SQLite: `24bb2e4a195c`

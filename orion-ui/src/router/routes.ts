@@ -9,6 +9,7 @@ export const routes = {
   flow: (id: string) => ({ name: 'flow', params: { id } }) as const,
   radar: (id: string) => ({ name: 'radar', params: { id } }) as const,
   flowRun: (id: string) => ({ name: 'flow-run', params: { id } }) as const,
+  flowRunCreate: (deploymentId: string) => ({ name: 'flow-run.create', params: { deploymentId } }) as const,
   flowRuns: () => ({ name: 'flow-runs' }) as const,
   flows: () => ({ name: 'flows' }) as const,
   notifications: () => ({ name: 'notifications' }) as const,
