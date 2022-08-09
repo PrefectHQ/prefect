@@ -91,6 +91,7 @@ class Deployment(BaseModel):
             "tags",
             "parameters",
             "schedule",
+            "work_queue_name",
             "infra_overrides",
         ]
         if self.infrastructure._block_document_id:
@@ -136,6 +137,10 @@ class Deployment(BaseModel):
     tags: List[str] = Field(default_factory=list)
     schedule: schemas.schedules.SCHEDULE_TYPES = None
     flow_name: str = Field(..., description="The name of the flow.")
+    work_queue_name: Optional[str] = Field(
+        "global",
+        description="The work queue for the deployment. If no work queue is set, work will not be scheduled.",
+    )
 
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)

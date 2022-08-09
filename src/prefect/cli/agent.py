@@ -48,12 +48,9 @@ async def start(
     Start an agent process.
     """
     if work_queue is None and not tags:
-        exit_with_error(
-            ("[red]No work queue provided![/red]\n\n"),
-            style="dark_orange",
-        )
+        exit_with_error("No work queue provided!", style="red")
     elif work_queue and tags:
-        exit_with_error("Only one of work_queue or tags can be provided.")
+        exit_with_error("Only one of `work_queue` or `tags` can be provided.")
 
     if work_queue is not None:
         try:
@@ -65,8 +62,8 @@ async def start(
     elif tags:
         work_queue_name = f"Agent queue {'-'.join(sorted(tags))}"
         app.console.print(
-            "`tags` are deprecated. For backwards-compatibility, the work queue "
-            f"name '{work_queue_name}' will be used.",
+            "`tags` are deprecated. For backwards-compatibility with older versions of Prefect, this agent will target a work queue "
+            f"called `{work_queue_name}`.",
             style="red",
         )
         work_queue_id = None

@@ -359,7 +359,6 @@ class Deployment(ORMBaseModel):
         None,
         description="The work queue for the deployment. If no work queue is set, work will not be scheduled.",
     )
-
     parameter_openapi_schema: Dict[str, Any] = Field(
         None,
         description="The parameter schema of the flow, including defaults.",

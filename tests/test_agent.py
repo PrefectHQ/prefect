@@ -8,6 +8,7 @@ from prefect import flow
 from prefect.agent import OrionAgent
 from prefect.blocks.core import Block
 from prefect.exceptions import Abort
+from prefect.orion import models
 from prefect.orion.schemas.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
 
@@ -112,6 +113,16 @@ async def test_agent_with_work_queue(
 
     submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
     assert submitted_flow_run_ids == work_queue_flow_run_ids
+
+
+async def test_agent_creates_work_queue_if_doesnt_exist(session):
+    name = "hello-there"
+    assert not await models.work_queues.read_work_queue_by_name(
+        session=session, name=name
+    )
+    async with OrionAgent(work_queue_name=name) as agent:
+        await agent.get_and_submit_flow_runs()
+    assert await models.work_queues.read_work_queue_by_name(session=session, name=name)
 
 
 async def test_agent_with_work_queue_name_survives_queue_deletion(

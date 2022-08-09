@@ -295,6 +295,7 @@ async def apply(
                 parameters=deployment.parameters,
                 description=deployment.description,
                 tags=deployment.tags,
+                work_queue_name=deployment.work_queue_name,
                 manifest_path=deployment.manifest_path,  # allows for backwards YAML compat
                 path=deployment.path,
                 entrypoint=deployment.entrypoint,
