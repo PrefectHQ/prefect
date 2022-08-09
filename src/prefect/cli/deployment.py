@@ -460,44 +460,24 @@ async def build(
         infrastructure = None
 
     # set up deployment object
+    deployment = Deployment(name=name, flow_name=flow.name)
+    await deployment.load()  # load server-side settings, if any
+
     description = getdoc(flow)
-    schedule = None
-    parameters = None
     flow_parameter_schema = parameter_schema(flow)
-
-    async with get_client() as client:
-        try:
-            deployment = await client.read_deployment_by_name(f"{flow.name}/{name}")
-            description = deployment.description
-            schedule = deployment.schedule
-            parameters = deployment.parameters
-
-            # if infra was passed, we override the server-side settings
-            if not infrastructure and deployment.infrastructure_document_id:
-                infrastructure = Block._from_block_document(
-                    await client.read_block_document(
-                        deployment.infrastructure_document_id
-                    )
-                )
-        except ObjectNotFound:
-            pass
-
     entrypoint = (
         f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
     )
-    deployment = Deployment(
-        name=name,
-        description=description,
-        tags=tags or [],
-        parameters=parameters or {},
-        version=version or flow.version,
-        flow_name=flow.name,
-        schedule=schedule,
+    updates = dict(
         parameter_openapi_schema=flow_parameter_schema,
         entrypoint=entrypoint,
-        infrastructure=infrastructure or Process(),
-        infra_overrides=infra_overrides,
+        description=description,
+        version=version or flow.version,
+        tags=tags or None,
+        infrastructure=infrastructure,
+        infra_overrides=infra_overrides or None,
     )
+    deployment.update(**updates, ignore_none=True)
 
     ## process storage, move files around and process path logic
     if set_default_ignore_file(path="."):

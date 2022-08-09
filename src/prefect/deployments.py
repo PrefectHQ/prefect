@@ -11,7 +11,7 @@ import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from prefect.blocks.core import Block
-from prefect.client import OrionClient, inject_client
+from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import PrefectObjectRegistry
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
@@ -82,6 +82,9 @@ def load_deployments_from_yaml(
 
 
 class Deployment(BaseModel):
+    class Config:
+        validate_assignment = True
+
     @property
     def editable_fields(self) -> List[str]:
         editable_fields = [
@@ -163,7 +166,7 @@ class Deployment(BaseModel):
         description="The path to the entrypoint for the workflow, relative to the `path`.",
     )
     parameter_openapi_schema: ParameterSchema = Field(
-        ..., description="The parameter schema of the flow, including defaults."
+        None, description="The parameter schema of the flow, including defaults."
     )
 
     @validator("storage", pre=True)
@@ -172,6 +175,55 @@ class Deployment(BaseModel):
             block = lookup_type(Block, value.pop("_block_type_slug"))
             return block(**value)
         return value
+
+    async def load(self) -> bool:
+        """
+        Queries the API for a deployment with this name for this flow, and if found, prepopulates
+        settings.  Returns a boolean specifying whether a load was successful or not.
+        """
+        if not self.name and self.flow_name:
+            raise ValueError("Both a deployment name and flow name must be provided.")
+        async with get_client() as client:
+            try:
+                deployment = await client.read_deployment_by_name(
+                    f"{self.flow_name}/{self.name}"
+                )
+                self.description = deployment.description
+                self.tags = deployment.tags
+                self.version = deployment.version
+                self.schedule = deployment.schedule
+                self.parameters = deployment.parameters
+                self.parameter_openapi_schema = deployment.parameter_openapi_schema
+                self.infra_overrides = deployment.infra_overrides
+                self.path = deployment.path
+                self.entrypoint = deployment.entrypoint
+                if deployment.infrastructure_document_id:
+                    self.infrastructure = Block._from_block_document(
+                        await client.read_block_document(
+                            deployment.infrastructure_document_id
+                        )
+                    )
+                if deployment.storage_document_id:
+                    self.storage = Block._from_block_document(
+                        await client.read_block_document(deployment.storage_document_id)
+                    )
+            except ObjectNotFound:
+                return False
+        return True
+
+    def update(self, ignore_none: bool = False, **kwargs):
+        """
+        Performs an in-place update with the provided settings.
+        """
+        unknown_keys = set(kwargs.keys()) - set(self.dict().keys())
+        if unknown_keys:
+            raise ValueError(
+                f"Received unexpected attributes: {', '.join(unknown_keys)}"
+            )
+        for key, value in kwargs.items():
+            if ignore_none and value is None:
+                continue
+            setattr(self, key, value)
 
     async def upload_to_storage(self, storage_block: Block = None) -> Optional[int]:
         """
