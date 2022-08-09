@@ -6,6 +6,7 @@ import json
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+from uuid import UUID
 
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
@@ -271,3 +272,41 @@ class Deployment(BaseModel):
                 f"###{' ' * msg_length}###\n###{do_not_edit_msg}###\n###{' ' * msg_length}###\n"
             )
             yaml.dump(self.immutable_fields_dict(), f, sort_keys=False)
+
+    async def create(self) -> UUID:
+        """
+        Registers this deployment with the API and returns the deployment's ID.
+        """
+        async with get_client() as client:
+            # prep IDs
+            flow_id = await client.create_flow_from_name(self.flow_name)
+
+            infrastructure_document_id = self.infrastructure._block_document_id
+            if not infrastructure_document_id:
+                # if not building off a block, will create an anonymous block
+                self.infrastructure = self.infrastructure.copy()
+                infrastructure_document_id = await self.infrastructure._save(
+                    is_anonymous=True,
+                )
+
+            # we assume storage was already saved
+            storage_document_id = getattr(self.storage, "_block_document_id", None)
+
+            deployment_id = await client.create_deployment(
+                flow_id=flow_id,
+                name=self.name,
+                version=self.version,
+                schedule=self.schedule,
+                parameters=self.parameters,
+                description=self.description,
+                tags=self.tags,
+                manifest_path=self.manifest_path,  # allows for backwards YAML compat
+                path=self.path,
+                entrypoint=self.entrypoint,
+                infra_overrides=self.infra_overrides,
+                storage_document_id=storage_document_id,
+                infrastructure_document_id=infrastructure_document_id,
+                parameter_openapi_schema=self.parameter_openapi_schema.dict(),
+            )
+
+            return deployment_id
