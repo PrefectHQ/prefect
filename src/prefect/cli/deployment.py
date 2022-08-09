@@ -256,13 +256,8 @@ async def apply(
     """
     for path in paths:
 
-        # load the file
-        with open(str(path), "r") as f:
-            data = yaml.safe_load(f)
-
-        # create deployment object
         try:
-            deployment = Deployment(**data)
+            deployment = Deployment.load_from_yaml(path)
             app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
         except Exception as exc:
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
