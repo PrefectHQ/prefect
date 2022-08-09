@@ -1573,7 +1573,6 @@ class TestSecretBlockDocuments:
         # save the block
         orig_block = ListSecretBlock(x=["a", "b"])
         await orig_block.save(name="list-secret")
-        breakpoint()
 
         # load the block
         block = await ListSecretBlock.load("list-secret")
