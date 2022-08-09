@@ -88,6 +88,7 @@ class Deployment(BaseModel):
             "name",
             "description",
             "version",
+            "work_queue_name",
             "tags",
             "parameters",
             "schedule",
@@ -136,6 +137,10 @@ class Deployment(BaseModel):
     tags: List[str] = Field(default_factory=list)
     schedule: schemas.schedules.SCHEDULE_TYPES = None
     flow_name: str = Field(..., description="The name of the flow.")
+    work_queue_name: Optional[str] = Field(
+        None,
+        description="The work queue for the deployment.",
+    )
 
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)

@@ -15,11 +15,11 @@ $ python -m asyncio
 ```
 </div>
 """
-
 import copy
 import datetime
 import sys
 import threading
+import warnings
 from collections import defaultdict
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
@@ -39,6 +39,7 @@ from uuid import UUID
 
 import anyio
 import httpx
+import pendulum
 import pydantic
 from anyio import sleep
 from asgi_lifespan import LifespanManager
@@ -807,7 +808,7 @@ class OrionClient:
 
         Args:
             name: a unique name for the work queue
-            tags: an optional list of tags to filter on; only work scheduled with these tags
+            tags: DEPRECATED: an optional list of tags to filter on; only work scheduled with these tags
                 will be included in the queue
 
         Raises:
@@ -817,12 +818,15 @@ class OrionClient:
         Returns:
             UUID: The UUID of the newly created workflow
         """
-        data = WorkQueueCreate(
-            name=name,
-            filter=QueueFilter(
-                tags=tags or None,
-            ),
-        ).dict(json_compatible=True)
+        if tags:
+            warnings.warn(
+                "The use of tags for creating work queue filters is deprecated.",
+                DeprecationWarning,
+            )
+            filter = QueueFilter(tags=tags)
+        else:
+            filter = None
+        data = WorkQueueCreate(name=name, filter=filter).dict(json_compatible=True)
         try:
             response = await self._client.post("/work_queues/", json=data)
         except httpx.HTTPStatusError as e:
@@ -849,7 +853,14 @@ class OrionClient:
         Returns:
             schemas.core.WorkQueue: a work queue API object
         """
-        response = await self._client.get(f"/work_queues/name/{name}")
+        try:
+            response = await self._client.get(f"/work_queues/name/{name}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
         return schemas.core.WorkQueue.parse_obj(response.json())
 
     async def update_work_queue(self, id: UUID, **kwargs):
@@ -900,14 +911,16 @@ class OrionClient:
         Returns:
             List[schemas.core.FlowRun]: a list of FlowRun objects read from the queue
         """
-        json_data = {"limit": limit}
-        if scheduled_before:
-            json_data.update({"scheduled_before": scheduled_before.isoformat()})
+        if scheduled_before is None:
+            scheduled_before = pendulum.now()
 
         try:
             response = await self._client.post(
                 f"/work_queues/{id}/get_runs",
-                json=json_data,
+                json={
+                    "limit": limit,
+                    "scheduled_before": scheduled_before.isoformat(),
+                },
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -1282,6 +1295,7 @@ class OrionClient:
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         parameters: Dict[str, Any] = None,
         description: str = None,
+        work_queue_name: str = None,
         tags: List[str] = None,
         storage_document_id: UUID = None,
         manifest_path: str = None,
@@ -1318,6 +1332,7 @@ class OrionClient:
             schedule=schedule,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
+            work_queue_name=work_queue_name,
             description=description,
             storage_document_id=storage_document_id,
             path=path,
