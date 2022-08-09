@@ -6,9 +6,11 @@ env:
   PY_COLORS: 1
 
 on:
-  push:
+  pull_request:
     branches:
       - auto-changelog
+    types: [closed]
+
 
 jobs:
   write-changelog-entry:
@@ -21,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    if: github.event.pull_request.merged == true
     steps:
       - uses: actions/checkout@v3
         with:
