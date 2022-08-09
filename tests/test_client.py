@@ -16,7 +16,7 @@ import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
 from prefect.client import OrionClient, PrefectHttpxClient, get_client
-from prefect.orion import models, schemas
+from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.data import DataDocument

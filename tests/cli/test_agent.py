@@ -1,11 +1,4 @@
-from uuid import UUID
-
-import pytest
-
-import prefect.exceptions
-from prefect.orion import models
 from prefect.testing.cli import invoke_and_assert
-from prefect.utilities.asyncutils import sync_compatible
 
 
 def test_start_agent_with_no_args():
