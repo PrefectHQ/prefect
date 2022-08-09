@@ -21,8 +21,8 @@ from prefect.utilities.importtools import load_script_as_module
 
 blocks_app = PrefectTyper(name="block", help="Commands for working with blocks.")
 blocktypes_app = PrefectTyper(name="type", help="Commands for working with blocks.")
-app.add_typer(blocks_app)
-blocks_app.add_typer(blocktypes_app)
+app.add_typer(blocks_app, pluralization_string="blocks")
+blocks_app.add_typer(blocktypes_app, pluralization_string="types")
 
 
 async def _register_blocks_in_module(module: ModuleType) -> List[Type[Block]]:

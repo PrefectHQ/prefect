@@ -10,7 +10,7 @@ from prefect.client import get_client
 from prefect.orion.schemas.sorting import FlowSort
 
 flow_app = PrefectTyper(name="flow", help="Commands for interacting with flows.")
-app.add_typer(flow_app)
+app.add_typer(flow_app, pluralization_string="flows")
 
 
 @flow_app.command()
