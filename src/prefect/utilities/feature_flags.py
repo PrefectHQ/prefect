@@ -46,7 +46,7 @@ def create_if_missing(
         is_enabled: the initial enabled/disabled state of the flag if
                     this function creates it
         client_data: arbitrary data that we should store with the flag
-        bucketer: an optional bucketer from the flipper.bucketing module, e.g.
+        bucketer: an optional bucketer from the `flipper.bucketing` module, e.g.
                   PercentageBucketer, to use when determining if the flag
                   is enabled
         conditions: an optional iterable of Conditions against which we will
