@@ -101,7 +101,7 @@ def flag_is_enabled(
         flag_name: the name of the feature flag
         default: the default return value to use if no feature flag with
                  the given name exists. Defaults to False.
-        client: The FeatureFlagClient instance to use. Defaults to a client
+        client: The `FeatureFlagClient` instance to use. Defaults to a client
                 configured to look at an in-memory feature store.
         conditions: keyword arguments, e.g. is_admin=True, to check
                     against any Conditions on the flag
