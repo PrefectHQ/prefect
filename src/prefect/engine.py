@@ -89,11 +89,7 @@ from prefect.utilities.asyncutils import (
     run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import (
-    Quote,
-    visit_collection,
-    visit_collection_synchronously,
-)
+from prefect.utilities.collections import Quote, visit_collection, visit_collection_sync
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
@@ -1278,22 +1274,21 @@ def _link_if_trackable(obj: Any, state: State, ctx: FlowRunContext) -> None:
 
 def link_state_to_result(state: State, result: Any) -> None:
     """
-    Caches a link between a state and all components of a result using
+    Caches a link between a state and a result and its components using
     the `id` of the components to map to the state. The cache is persisted to the
     current flow run context since task relationships are limited to within a flow run.
 
     This allows dependency tracking to occur when results are passed around.
     Note: Because `id` is used, we cannot cache links between singleton objects.
 
+    We only cache the relationship between components 1-layer deep.
     Example:
         Given the result [1, ["a","b"], ("c",)], the following elements will be
         mapped to the state:
         - [1, ["a","b"], ("c",)]
         - ["a","b"]
         - ("c",)
-        - "a"
-        - "b"
-        - "c"
+
         Note: the int `1` will not be mapped to the state because it is a singleton.
 
     Other Notes:
@@ -1316,8 +1311,7 @@ def link_state_to_result(state: State, result: Any) -> None:
         partial_link_if_not_untrackable = partial(
             _link_if_trackable, state=state, ctx=flow_run_context
         )
-        # in main thread
-        visit_collection_synchronously(
+        visit_collection_sync(
             expr=result, visit_fn=partial_link_if_not_untrackable, max_depth=1
         )
 
