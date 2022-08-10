@@ -7,10 +7,8 @@ from uuid import UUID
 
 import anyio
 import anyio.to_process
-import httpx
 import pendulum
 from anyio.abc import TaskGroup
-from fastapi import status
 
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client
@@ -45,6 +43,7 @@ class OrionAgent:
         self.logger = get_logger("agent")
         self.task_group: Optional[TaskGroup] = None
         self.client: Optional[OrionClient] = None
+        self._cache = {}
 
         if default_infrastructure:
             self.default_infrastructure_document_id = (
@@ -63,6 +62,17 @@ class OrionAgent:
         Loads the work queue objects corresponding to the agent's target work
         queues. If any of them don't exist, they are created.
         """
+
+        # if queues were cached less than 30 seconds ago, yield the cached values
+        now = pendulum.now("UTC")
+        if self._cache.get("ts", now.subtract(seconds=31)) > now.subtract(seconds=30):
+            for queue in self._cache["queues"]:
+                yield queue
+            return
+
+        # otherwise clear the cache and reload the work queues
+        self._cache = dict(ts=now, queues=[])
+
         for name in self.work_queues:
             try:
                 work_queue = await self.client.read_work_queue_by_name(name)
@@ -71,6 +81,7 @@ class OrionAgent:
                 # if the work queue wasn't found, create it
                 try:
                     work_queue = await self.client.create_work_queue(name=name)
+                    self.logger.info(f"Created work queue '{name}'.")
 
                 # if creating it raises an exception, it was probably just
                 # created by some other agent; rather than entering a re-read
@@ -80,6 +91,7 @@ class OrionAgent:
                     self.logger.exception(exc)
                     continue
 
+            self._cache["queues"].append(work_queue)
             yield work_queue
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
@@ -113,13 +125,12 @@ class OrionAgent:
                         id=work_queue.id, limit=10, scheduled_before=before
                     )
                     submittable_runs.extend(queue_runs)
-                except httpx.HTTPStatusError as exc:
-                    if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-                        self.logger.error(
-                            f"Work queue {work_queue.name!r} ({work_queue.id}) not found."
-                        )
-                    else:
-                        self.logger.exception(exc)
+                except ObjectNotFound:
+                    self.logger.error(
+                        f"Work queue {work_queue.name!r} ({work_queue.id}) not found."
+                    )
+                except Exception as exc:
+                    self.logger.exception(exc)
 
         for flow_run in submittable_runs:
             self.logger.info(f"Submitting flow run '{flow_run.id}'")
@@ -259,6 +270,7 @@ class OrionAgent:
         self.task_group = None
         self.client = None
         self.submitting_flow_run_ids = set()
+        self._cache = {}
 
     async def __aenter__(self):
         await self.start()
