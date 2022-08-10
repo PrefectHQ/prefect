@@ -1,6 +1,8 @@
 """
 Feature flag CLI commands
 """
+from typing import List
+
 import typer
 from rich.table import Table
 
@@ -15,7 +17,7 @@ app.add_typer(flags_app)
 flags_client = get_feature_flag_client()
 
 
-def feature_flag_table(header: str, rows: list[list[str]]):
+def feature_flag_table(header: str, rows: List[List[str]]):
     table = Table(title=header, caption_style="red")
     table.add_column("Name", style="cyan", no_wrap=True)
     table.add_column("Enabled?", style="green", no_wrap=True)
