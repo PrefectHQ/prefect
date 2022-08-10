@@ -115,7 +115,7 @@ else:
     ...
 ```
 
-**NOTE**: Passing conditions as input to `flag_is_enabled()` is not required
+Passing conditions as input to `flag_is_enabled()` is not required
 when you check if a flag that has conditions is enabled. If you don't specify
 any conditions to `flag_is_enabled()`, the return value is the current state
 of the flag, e.g. `True` if the flag is enabled.
