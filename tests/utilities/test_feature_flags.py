@@ -5,7 +5,7 @@ from prefect.settings import PREFECT_FEATURE_FLAGGING_ENABLED, temporary_setting
 from prefect.utilities.feature_flags import (
     create_if_missing,
     flag_is_enabled,
-    get_features_client,
+    get_feature_flag_client,
     list_feature_flags,
 )
 
@@ -13,7 +13,7 @@ from prefect.utilities.feature_flags import (
 @pytest.fixture()
 def features() -> FeatureFlagClient:
     """A feature flag client fixture for working with feature flags in the test suite"""
-    return get_features_client()
+    return get_feature_flag_client()
 
 
 @pytest.fixture(autouse=True)

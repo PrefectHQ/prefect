@@ -3,6 +3,7 @@ This module contains code related to feature flagging.
 
 For more guidance, read docs/feature_flags.md.
 """
+import threading
 from typing import Any, Iterable, List, Optional
 
 from flipper import Condition, FeatureFlagClient, MemoryFeatureFlagStore
@@ -12,16 +13,18 @@ from flipper.flag import FeatureFlag
 from prefect import settings
 
 _client: Optional[FeatureFlagClient] = None
+_in_memory_store: Optional[MemoryFeatureFlagStore] = None
 
 
-def get_features_client() -> FeatureFlagClient:
-    global _client
+def get_feature_flag_client() -> FeatureFlagClient:
+    global _client, _in_memory_store
 
     if _client:
         return _client
 
-    store = MemoryFeatureFlagStore()
-    _client = FeatureFlagClient(store)
+    with threading.Lock():
+        _in_memory_store = MemoryFeatureFlagStore()
+        _client = FeatureFlagClient(_in_memory_store)
 
     return _client
 
@@ -59,7 +62,7 @@ def create_if_missing(
         return
 
     if not client:
-        client = get_features_client()
+        client = get_feature_flag_client()
 
     # If the flag exists in the feature flag store, we'll consider the
     # enabled state, bucketer, and conditions currently saved in the
@@ -110,7 +113,7 @@ def flag_is_enabled(
         return False
 
     if not client:
-        client = get_features_client()
+        client = get_feature_flag_client()
 
     return client.is_enabled(flag_name, default=default, **conditions)
 
@@ -136,7 +139,7 @@ def list_feature_flags(
         return []
 
     if not client:
-        client = get_features_client()
+        client = get_feature_flag_client()
 
     flags = []
     offset = 0
