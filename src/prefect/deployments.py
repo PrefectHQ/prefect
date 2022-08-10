@@ -90,14 +90,23 @@ class Deployment(BaseModel):
     A Prefect Deployment definition, used for specifying and building deployments.
 
     Args:
-        name: A name for the deployment.
-        version: A new version for the flow.
-        description: A new description for the flow.
-        task_runner: A new task runner for the flow.
-        timeout_seconds: A new number of seconds to fail the flow after if still
-            running.
-        validate_parameters: A new value indicating if flow calls should validate
-            given parameters.
+        name: A name for the deployment (required).
+        version: An optional version for the deployment; defaults to the flow's version
+        description: An optional description of the deployment; defaults to the flow's description
+        tags: An optional list of tags to associate with this deployment
+        schedule: A schedule to run this deployment on, once registered
+        flow_name: The name of the flow this deployment encapsulates
+        parameters: A dictionary of parameter values to pass to runs created from this deployment
+        infrastructure: An optional infrastructure block used to configure infrastructure for runs;
+            if not provided, will default to running this deployment in Agent subprocesses
+        infra_overrides: A dictionary of dot delimited infrastructure overrides that will be applied at
+            runtime; for example `env.CONFIG_KEY=config_value` or `namespace='prefect'`
+        storage: An optional remote storage block used to store and retrieve this workflow;
+            if not provided, will default to referencing this flow by its local path
+        path: The path to the working directory for the workflow, relative to remote storage or,
+            if stored on a local filesystem, an absolute path
+        entrypoint: The path to the entrypoint for the workflow, always relative to the `path`
+        parameter_openapi_schema: The parameter schema of the flow, including defaults.
 
     Examples:
 
@@ -133,7 +142,7 @@ class Deployment(BaseModel):
         validate_assignment = True
 
     @property
-    def editable_fields(self) -> List[str]:
+    def _editable_fields(self) -> List[str]:
         editable_fields = [
             "name",
             "description",
@@ -152,7 +161,10 @@ class Deployment(BaseModel):
     def header(self) -> str:
         return f"###\n### A complete description of a Prefect Deployment for flow {self.flow_name!r}\n###\n"
 
-    def yaml_dict(self) -> dict:
+    def _yaml_dict(self) -> dict:
+        """
+        Returns a YAML-compatible representation of this deployment as a dictionary.
+        """
         # avoids issues with UUIDs showing up in YAML
         all_fields = json.loads(
             self.json(
@@ -167,15 +179,15 @@ class Deployment(BaseModel):
             ] = self.storage.get_block_type_slug()
         return all_fields
 
-    def editable_fields_dict(self):
+    def _editable_fields_dict(self):
         "Returns YAML compatible dictionary of editable fields, in the correct order"
         all_fields = self.yaml_dict()
-        return {field: all_fields[field] for field in self.editable_fields}
+        return {field: all_fields[field] for field in self._editable_fields}
 
-    def immutable_fields_dict(self):
+    def _immutable_fields_dict(self):
         "Returns YAML compatible dictionary of immutable fields, in the correct order"
         all_fields = self.yaml_dict()
-        return {k: v for k, v in all_fields.items() if k not in self.editable_fields}
+        return {k: v for k, v in all_fields.items() if k not in self._editable_fields}
 
     # top level metadata
     name: str = Field(..., description="The name of the deployment.")
@@ -316,13 +328,13 @@ class Deployment(BaseModel):
         """
         with open(output, "w") as f:
             f.write(self.header)
-            yaml.dump(self.editable_fields_dict(), f, sort_keys=False)
+            yaml.dump(self._editable_fields_dict(), f, sort_keys=False)
             do_not_edit_msg = " DO NOT EDIT BELOW THIS LINE "
             msg_length = len(do_not_edit_msg)
             f.write(
                 f"###{' ' * msg_length}###\n###{do_not_edit_msg}###\n###{' ' * msg_length}###\n"
             )
-            yaml.dump(self.immutable_fields_dict(), f, sort_keys=False)
+            yaml.dump(self._immutable_fields_dict(), f, sort_keys=False)
 
     @sync_compatible
     async def apply(self) -> UUID:
