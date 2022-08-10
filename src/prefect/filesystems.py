@@ -590,9 +590,6 @@ class SMB(ReadableFileSystem, WritableFileSystem):
     """
 
     _block_type_name = "SMB"
-    _logo_url = (
-        "https://www.wikidancesport.com/Attachments/dances/Samba/Samba-2-crop.jpg?h=250"
-    )
 
     share_path: str = Field(
         ...,
