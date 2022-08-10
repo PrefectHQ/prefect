@@ -330,7 +330,7 @@ class Deployment(BaseModel):
     @sync_compatible
     async def to_yaml(self, output: str):
         """
-        Compiles the current deployment into a YAML file at the given location.
+        Compiles the current deployment into a YAML file at the location specified by `output`.
         """
         with open(output, "w") as f:
             f.write(self.header)
@@ -347,6 +347,8 @@ class Deployment(BaseModel):
         """
         Registers this deployment with the API and returns the deployment's ID.
         """
+        if not self.name or not self.flow_name:
+            raise ValueError("Both a deployment name and flow name must be set.")
         async with get_client() as client:
             # prep IDs
             flow_id = await client.create_flow_from_name(self.flow_name)
@@ -383,6 +385,14 @@ class Deployment(BaseModel):
 
     @sync_compatible
     async def build_from_flow(self, f: Flow, output: str = None):
+        """
+        Configure this deployment for a given flow.
+
+        Note that this method loads any settings that may already be configured for this deployment
+        server-side (e.g., schedules, default parameter values, etc.).
+
+        Optionally writes the full specification as a YAML file in the location specified by `output`.
+        """
         ## first see if an entrypoint can be determined
         flow_file = getattr(f, "__globals__", {}).get("__file__")
         mod_name = getattr(f, "__module__", None)
