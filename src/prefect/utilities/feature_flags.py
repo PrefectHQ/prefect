@@ -91,7 +91,7 @@ def flag_is_enabled(
     Check if a feature flag is enabled.
 
     This function always returns False if the setting
-    PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING is false.
+    `PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING` is false.
 
     NOTE: If `flag_is_enabled()` is called for a feature that has conditions,
     but the caller does not give any conditions, the current state of the flag
