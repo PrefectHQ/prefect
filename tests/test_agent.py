@@ -12,6 +12,20 @@ from prefect.orion.schemas.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
 
 
+@pytest.fixture
+def prefect_caplog(caplog):
+    # TODO: Determine a better pattern for this and expose for all tests
+    import logging
+
+    logger = logging.getLogger("prefect")
+    logger.propagate = True
+
+    try:
+        yield caplog
+    finally:
+        logger.propagate = False
+
+
 async def test_agent_start_will_not_run_without_start():
     agent = OrionAgent(work_queues=["foo"])
     mock = AsyncMock()
@@ -93,6 +107,37 @@ async def test_agent_creates_work_queue_if_doesnt_exist(session):
     async with OrionAgent(work_queues=[name]) as agent:
         await agent.get_and_submit_flow_runs()
     assert await models.work_queues.read_work_queue_by_name(session=session, name=name)
+
+
+async def test_agent_gracefully_handles_error_when_creating_work_queue(
+    session, monkeypatch, prefect_caplog
+):
+    """
+    Mimics a race condition in which multiple agents were started against the
+    same (nonexistent) queue. All agents would fail to read the queue and all
+    would attempt to create it, but only one would create it successfully; the
+    others would get an error because it already exists. In that case, we want to handle the error gracefully.
+    """
+    name = "hello-there"
+    assert not await models.work_queues.read_work_queue_by_name(
+        session=session, name=name
+    )
+
+    # prevent work queue creation
+    async def bad_create(self, name):
+        raise ValueError("No!")
+
+    monkeypatch.setattr("prefect.client.OrionClient.create_work_queue", bad_create)
+
+    async with OrionAgent(work_queues=[name]) as agent:
+        await agent.get_and_submit_flow_runs()
+
+    # work queue was not created
+    assert not await models.work_queues.read_work_queue_by_name(
+        session=session, name=name
+    )
+
+    assert "No!" in prefect_caplog.text
 
 
 async def test_agent_with_work_queue_name_survives_queue_deletion(
@@ -389,20 +434,6 @@ class TestInfrastructureIntegration:
             RuntimeError, match="Child exited without calling task_status.started"
         ):
             raise result
-
-
-@pytest.fixture
-def prefect_caplog(caplog):
-    # TODO: Determine a better pattern for this and expose for all tests
-    import logging
-
-    logger = logging.getLogger("prefect")
-    logger.propagate = True
-
-    try:
-        yield caplog
-    finally:
-        logger.propagate = False
 
 
 async def test_agent_displays_message_on_work_queue_pause(

@@ -1180,21 +1180,21 @@ class TestClientWorkQueues:
         return deployment_id
 
     async def test_create_then_read_work_queue(self, orion_client):
-        queue_id = await orion_client.create_work_queue(name="foo")
-        assert isinstance(queue_id, UUID)
+        queue = await orion_client.create_work_queue(name="foo")
+        assert isinstance(queue.id, UUID)
 
-        lookup = await orion_client.read_work_queue(queue_id)
+        lookup = await orion_client.read_work_queue(queue.id)
         assert isinstance(lookup, schemas.core.WorkQueue)
         assert lookup.name == "foo"
 
     async def test_create_then_read_work_queue_by_name(self, orion_client):
-        queue_id = await orion_client.create_work_queue(name="foo")
-        assert isinstance(queue_id, UUID)
+        queue = await orion_client.create_work_queue(name="foo")
+        assert isinstance(queue.id, UUID)
 
         lookup = await orion_client.read_work_queue_by_name("foo")
         assert isinstance(lookup, schemas.core.WorkQueue)
         assert lookup.name == "foo"
-        assert lookup.id == queue_id
+        assert lookup.id == queue.id
 
     async def test_read_nonexistant_work_queue(self, orion_client):
         with pytest.raises(prefect.exceptions.ObjectNotFound):
@@ -1208,9 +1208,7 @@ class TestClientWorkQueues:
         self, session, orion_client, deployment
     ):
         wq_1 = await orion_client.read_work_queue_by_name(name="wq")
-
         wq_2 = await orion_client.create_work_queue(name="wq2")
-        assert isinstance(wq_2, UUID)
 
         run = await orion_client.create_flow_run_from_deployment(deployment)
         assert run.id
@@ -1218,7 +1216,7 @@ class TestClientWorkQueues:
         runs_1 = await orion_client.get_runs_in_work_queue(wq_1.id)
         assert runs_1 == [run]
 
-        runs_2 = await orion_client.get_runs_in_work_queue(wq_2)
+        runs_2 = await orion_client.get_runs_in_work_queue(wq_2.id)
         assert runs_2 == []
 
     async def test_get_runs_from_queue_respects_limit(self, orion_client, deployment):

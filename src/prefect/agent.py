@@ -2,7 +2,7 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
-from typing import List, Optional, Set
+from typing import Iterator, List, Optional, Set
 from uuid import UUID
 
 import anyio
@@ -18,7 +18,7 @@ from prefect.exceptions import Abort, ObjectNotFound
 from prefect.infrastructure import Infrastructure, Process
 from prefect.infrastructure.submission import submit_flow_run
 from prefect.logging import get_logger
-from prefect.orion.schemas.core import BlockDocument, FlowRun
+from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Failed, Pending
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
@@ -58,24 +58,29 @@ class OrionAgent:
             self.default_infrastructure = Process()
             self.default_infrastructure_document_id = None
 
-    async def get_work_queues(self) -> Optional[UUID]:
+    async def get_work_queues(self) -> Iterator[WorkQueue]:
         """
-        Loads the work queue objects corresponding to the agent's target work queues. If any of them don't exist, they are created.
+        Loads the work queue objects corresponding to the agent's target work
+        queues. If any of them don't exist, they are created.
         """
-        work_queues = []
         for name in self.work_queues:
             try:
-                # support IDs and names
-                if isinstance(name, UUID):
-                    work_queue = await self.client.read_work_queue(id=name)
-                else:
-                    work_queue = await self.client.read_work_queue_by_name(name)
+                work_queue = await self.client.read_work_queue_by_name(name)
             except ObjectNotFound:
-                work_queue = await self.client.create_work_queue(
-                    name=name, return_id=False
-                )
-            work_queues.append(work_queue)
-        return work_queues
+
+                # if the work queue wasn't found, create it
+                try:
+                    work_queue = await self.client.create_work_queue(name=name)
+
+                # if creating it raises an exception, it was probably just
+                # created by some other agent; rather than entering a re-read
+                # loop with new error handling, we log the exception and
+                # continue.
+                except Exception as exc:
+                    self.logger.exception(exc)
+                    continue
+
+            yield work_queue
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
         """
@@ -94,7 +99,7 @@ class OrionAgent:
         submittable_runs = []
 
         # load runs from each work queue
-        for work_queue in await self.get_work_queues():
+        async for work_queue in self.get_work_queues():
 
             # print a nice message if the work queue is paused
             if work_queue.is_paused:
