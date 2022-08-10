@@ -87,6 +87,7 @@ from prefect.utilities.asyncutils import (
     run_async_from_worker_thread,
     run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
+    sync_compatible,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import Quote, visit_collection
@@ -1260,16 +1261,29 @@ def get_state_for_result(obj: Any) -> Optional[State]:
         return flow_run_context.task_run_results.get(id(obj))
 
 
-def link_state_to_result(state: State, result: Any) -> None:
+@sync_compatible
+async def link_state_to_result(state: State, result: Any) -> None:
     """
-    Caches a link between a state and a result using the `id` of the result to map to
-    the state. The cache is persisted to the current flow run context since task
-    relationships are limited to within a flow run.
+    Caches a link between a state and all components of a result using
+    the `id` of the components to map to the state. The cache is persisted to the
+    current flow run context since task relationships are limited to within a flow run.
 
     This allows dependency tracking to occur when results are passed around.
+    Note: Because `id` is used, we cannot cache links between singleton objects.
 
+    Example:
+        Given the result [1, ["a","b"], ("c",)], the following elements will be
+        mapped to the state:
+        - [1, ["a","b"], ("c",)]
+        - ["a","b"]
+        - ("c",)
+        - "a"
+        - "b"
+        - "c"
+        Note: the int `1` will not be mapped to the state because it is a singleton.
+
+    Other Notes:
     We do not hash the result because:
-
     - If changes are made to the object in the flow between task calls, we can still
       track that they are related.
     - Hashing can be expensive.
@@ -1283,7 +1297,9 @@ def link_state_to_result(state: State, result: Any) -> None:
     - We cannot set this attribute on Python built-ins.
     """
 
-    def link_if_not_untrackable(obj: Any, state: State, ctx: FlowRunContext) -> None:
+    async def link_if_not_untrackable(
+        obj: Any, state: State, ctx: FlowRunContext
+    ) -> None:
         """Track connection between a task run result and its associated state if it has a unique ID.
 
         We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
@@ -1296,12 +1312,12 @@ def link_state_to_result(state: State, result: Any) -> None:
         ctx.task_run_results[id(obj)] = state
 
     flow_run_context = FlowRunContext.get()
+
     if flow_run_context:
-        # handle result unpacking
-        if isinstance(result, (tuple, list)) and len(result) <= 10:
-            for element in result:
-                link_if_not_untrackable(obj=element, state=state, ctx=flow_run_context)
-        link_if_not_untrackable(obj=result, state=state, ctx=flow_run_context)
+        partial_link_if_not_untrackable = partial(
+            link_if_not_untrackable, state=state, ctx=flow_run_context
+        )
+        await visit_collection(expr=result, visit_fn=partial_link_if_not_untrackable)
 
 
 def get_default_result_filesystem() -> LocalFileSystem:
