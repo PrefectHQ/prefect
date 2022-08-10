@@ -99,6 +99,7 @@ class DockerRegistry(BaseDockerLogin):
             This setting defaults to `True` to support common token authentication
             patterns such as ECR.
     """
+
     _block_type_name = "Docker Registry"
     username: str
     password: SecretStr
