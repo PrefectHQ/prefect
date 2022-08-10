@@ -42,7 +42,7 @@ def create_if_missing(
     already exist.
 
     Args:
-        flag_name: the name of the feature flag
+        flag_name: The name of the feature flag.
         is_enabled: the initial enabled/disabled state of the flag if
                     this function creates it
         client_data: arbitrary data that we should store with the flag
