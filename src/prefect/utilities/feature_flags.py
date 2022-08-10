@@ -56,7 +56,7 @@ def create_if_missing(
                 configured with an in-memory feature store.
 
     Returns:
-        FeatureFlag or None: Returns a created or existing FeatureFlag, or None
+        `FeatureFlag` or None: Returns a created or existing `FeatureFlag`, or None
                              if feature flagging is disabled.
     """
     if not settings.PREFECT_FEATURE_FLAGGING_ENABLED.value():
