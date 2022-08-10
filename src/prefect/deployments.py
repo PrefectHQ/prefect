@@ -261,25 +261,32 @@ class Deployment(BaseModel):
                 deployment = await client.read_deployment_by_name(
                     f"{self.flow_name}/{self.name}"
                 )
-                self.description = deployment.description
-                self.tags = deployment.tags
-                self.version = deployment.version
-                self.schedule = deployment.schedule
-                self.parameters = deployment.parameters
-                self.parameter_openapi_schema = deployment.parameter_openapi_schema
-                self.infra_overrides = deployment.infra_overrides
-                self.path = deployment.path
-                self.entrypoint = deployment.entrypoint
-                if deployment.infrastructure_document_id:
-                    self.infrastructure = Block._from_block_document(
-                        await client.read_block_document(
-                            deployment.infrastructure_document_id
-                        )
-                    )
                 if deployment.storage_document_id:
-                    self.storage = Block._from_block_document(
+                    storage = Block._from_block_document(
                         await client.read_block_document(deployment.storage_document_id)
                     )
+
+                excluded_fields = self.__fields_set__.union(
+                    {"infrastructure", "storage"}
+                )
+                for field in set(self.__fields__.keys()) - excluded_fields:
+                    new_value = getattr(deployment, field)
+                    setattr(self, field, new_value)
+
+                if "infrastructure" not in self.__fields_set__:
+                    if deployment.infrastructure_document_id:
+                        self.infrastructure = Block._from_block_document(
+                            await client.read_block_document(
+                                deployment.infrastructure_document_id
+                            )
+                        )
+                if "storage" not in self.__fields_set__:
+                    if deployment.storage_document_id:
+                        self.storage = Block._from_block_document(
+                            await client.read_block_document(
+                                deployment.storage_document_id
+                            )
+                        )
             except ObjectNotFound:
                 return False
         return True
