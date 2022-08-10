@@ -183,7 +183,7 @@ You need to install `adlfs` to use it.
 
 ## SMB
 
-The `SMB` file system block enables interaction with SMB shared network storage. Under the hood, `SMB` uses [`smbprotocol`](https://github.com/jborean93/smbprotocol). Used to connect to Windows based SMB shares from Linux based Prefect flows.
+The `SMB` file system block enables interaction with SMB shared network storage. Under the hood, `SMB` uses [`smbprotocol`](https://github.com/jborean93/smbprotocol). Used to connect to Windows-based SMB shares from Linux-based Prefect flows.
 
 `SMB` properties include:
 
@@ -191,7 +191,7 @@ The `SMB` file system block enables interaction with SMB shared network storage.
 | --- |------------------------------------------------------------------------------------------------------------------------------|
 | basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
 | smb_host | Hostname or IP address where SMB network share is located. |
-| smb_port | Port for SMB network share (defaults to 445)
+| smb_port | Port for SMB network share (defaults to 445). |
 | smb_username | SMB username with read/write permissions. |
 | smb_password | SMB password. |
 
