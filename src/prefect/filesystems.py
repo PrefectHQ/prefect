@@ -581,11 +581,11 @@ class Azure(ReadableFileSystem, WritableFileSystem):
 class SMB(ReadableFileSystem, WritableFileSystem):
     """
     Store data as a file on a SMB share.
-    
+
     Example:
-    
+
         Load stored SMB config:
-        
+
         ```python
         from prefect.filesystems import SMB
         smb_block = SMB.load("BLOCK_NAME")
