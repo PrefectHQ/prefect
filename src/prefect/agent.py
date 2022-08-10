@@ -114,7 +114,7 @@ class OrionAgent:
                             f"Work queue {work_queue.name!r} ({work_queue.id}) not found."
                         )
                     else:
-                        self.logger.error(exc)
+                        self.logger.exception(exc)
 
         for flow_run in submittable_runs:
             self.logger.info(f"Submitting flow run '{flow_run.id}'")
