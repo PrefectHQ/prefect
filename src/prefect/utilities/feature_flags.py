@@ -1,7 +1,7 @@
 """
 This module contains code related to feature flagging.
 
-For more guidance, read docs/feature_flags.md.
+For more guidance, read the [Feature Flags](/contributing/feature_flags/) documentation.
 """
 import threading
 from typing import Any, Iterable, List, Optional
