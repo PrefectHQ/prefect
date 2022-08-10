@@ -9,7 +9,7 @@
     "lint:fix": "eslint src --fix --debug"
   },
   "dependencies": {
-    "@prefecthq/orion-design": "1.0.69",
+    "@prefecthq/orion-design": "1.0.71",
     "@prefecthq/prefect-design": "1.0.35",
     "@prefecthq/vue-compositions": "0.1.41",
     "@types/lodash.debounce": "4.0.7",
@@ -17,7 +17,7 @@
     "d3": "^7.6.1",
     "lodash.debounce": "4.0.8",
     "pinia": "2.0.17",
-    "tailwindcss": "3.1.6",
+    "tailwindcss": "3.1.8",
     "vue": "3.2.37",
     "vue-router": "4.1.3"
   },

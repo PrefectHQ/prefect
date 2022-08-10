@@ -658,6 +658,9 @@ class ORMDeployment:
     version = sa.Column(sa.String, nullable=True)
     description = sa.Column(sa.Text(), nullable=True)
     manifest_path = sa.Column(sa.String, nullable=True)
+    infra_overrides = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    path = sa.Column(sa.String, nullable=True)
+    entrypoint = sa.Column(sa.String, nullable=True)
 
     @declared_attr
     def flow_id(cls):
@@ -728,13 +731,13 @@ class ORMLog:
 
 @declarative_mixin
 class ORMConcurrencyLimit:
-    tag = sa.Column(sa.String, nullable=False, index=True)
+    tag = sa.Column(sa.String, nullable=False)
     concurrency_limit = sa.Column(sa.Integer, nullable=False)
     active_slots = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     @declared_attr
     def __table_args__(cls):
-        return (sa.UniqueConstraint("tag"),)
+        return (sa.Index("uq_concurrency_limit__tag", "tag", unique=True),)
 
 
 @declarative_mixin
@@ -762,7 +765,7 @@ class ORMBlockType:
 
 @declarative_mixin
 class ORMBlockSchema:
-    checksum = sa.Column(sa.String, nullable=False, index=True)
+    checksum = sa.Column(sa.String, nullable=False)
     fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     capabilities = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
@@ -787,6 +790,7 @@ class ORMBlockSchema:
                 "checksum",
                 unique=True,
             ),
+            sa.Index("ix_block_schema__created", "created"),
         )
 
 

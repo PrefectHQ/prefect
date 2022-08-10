@@ -1142,6 +1142,18 @@ class OrionClient:
             else:
                 raise
 
+    async def read_block_types(self) -> List[schemas.core.BlockType]:
+        """
+        Read all block types
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            List of BlockTypes.
+        """
+        response = await self._client.post(f"/block_types/filter", json={})
+        return pydantic.parse_obj_as(List[schemas.core.BlockType], response.json())
+
     async def read_block_schemas(self) -> List[schemas.core.BlockSchema]:
         """
         Read all block schemas
@@ -1271,9 +1283,12 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         description: str = None,
         tags: List[str] = None,
-        manifest_path: str = None,
         storage_document_id: UUID = None,
+        manifest_path: str = None,
+        path: str = None,
+        entrypoint: str = None,
         infrastructure_document_id: UUID = None,
+        infra_overrides: Dict[str, Any] = None,
         parameter_openapi_schema: dict = None,
     ) -> UUID:
         """
@@ -1304,9 +1319,12 @@ class OrionClient:
             parameters=dict(parameters or {}),
             tags=list(tags or []),
             description=description,
-            manifest_path=manifest_path,
             storage_document_id=storage_document_id,
+            path=path,
+            entrypoint=entrypoint,
+            manifest_path=manifest_path,  # for backwards compat
             infrastructure_document_id=infrastructure_document_id,
+            infra_overrides=infra_overrides or {},
             parameter_openapi_schema=parameter_openapi_schema,
         )
 
