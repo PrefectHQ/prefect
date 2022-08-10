@@ -48,38 +48,40 @@ async def create_flow_run(
     Returns:
         db.FlowRun: the newly-created flow run
     """
-
     now = pendulum.now("UTC")
-    # if there's no idempotency key, just create the run
+
+    flow_run_dict = dict(
+        **flow_run.dict(
+            shallow=True,
+            exclude={
+                "created",
+                "state",
+                "estimated_run_time",
+                "estimated_start_time_delta",
+            },
+            exclude_unset=True,
+        ),
+        created=now,
+    )
+
+    # if no idempotency key was provided, create the run directly
     if not flow_run.idempotency_key:
-        model = db.FlowRun(
-            **flow_run.dict(
-                shallow=True,
-                exclude={
-                    "state",
-                    "estimated_run_time",
-                    "estimated_start_time_delta",
-                },
-            ),
-            state=None,
-        )
+        model = db.FlowRun(**flow_run_dict)
         session.add(model)
         await session.flush()
 
     # otherwise let the database take care of enforcing idempotency
     else:
-        insert_values = flow_run.dict(
-            shallow=True, exclude={"state"}, exclude_unset=True
-        )
-
         insert_stmt = (
             (await db.insert(db.FlowRun))
-            .values(**insert_values)
+            .values(**flow_run_dict)
             .on_conflict_do_nothing(
                 index_elements=db.flow_run_unique_upsert_columns,
             )
         )
         await session.execute(insert_stmt)
+
+        # read the run to see if idempotency was applied or not
         query = (
             sa.select(db.FlowRun)
             .where(
@@ -94,7 +96,9 @@ async def create_flow_run(
         result = await session.execute(query)
         model = result.scalar()
 
-    if model.created >= now and flow_run.state:
+    # if the flow run was created in this function call then we need to set the
+    # state. If it was created idempotently, the created time won't match.
+    if model.created == now and flow_run.state:
         await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=model.id,
