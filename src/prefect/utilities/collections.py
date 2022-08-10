@@ -222,6 +222,7 @@ async def visit_collection(
     expr,
     visit_fn: Callable[[Any], Awaitable[Any]],
     return_data: bool = False,
+    max_depth: int = -1,
 ):
     """
     This function visits every element of an arbitrary Python collection. If an element
@@ -258,6 +259,7 @@ async def visit_collection(
             expr,
             visit_fn=visit_fn,
             return_data=return_data,
+            max_depth=max_depth - 1,
         )
 
     # Visit every expression
@@ -267,6 +269,10 @@ async def visit_collection(
         expr = result
 
     # Then, visit every child of the expression recursively
+
+    # If we have reached the maximum depth, do not perform any recursion
+    if max_depth == 0:
+        return result if return_data else None
 
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)
