@@ -249,6 +249,11 @@ async def visit_collection(
         return_data (bool): if `True`, a copy of `expr` containing data modified
             by `visit_fn` will be returned. This is slower than `return_data=False`
             (the default).
+        max_depth: Controls the depth of recursive visitation. If set to zero, no
+            recursion will occur. If set to a positive integer N, visitation will only
+            descend to N layers deep. If set to any negative integer, no limit will be
+            enforced and recursion will continue until terminal items are reached. By
+            default, recursion is unlimited.
     """
 
     def visit_nested(expr):
