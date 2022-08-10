@@ -450,12 +450,10 @@ def write_changelog_entry(
         pull_request_tags: an optional json formatted string containing a list of tags,
             e.g. "['api', 'database']"
     """
-    change_tags = (
-        str((json.loads(pull_request_tags))) if pull_request_tags is not None else ""
-    )
+    change_tags = json.loads(pull_request_tags) if pull_request_tags is not None else []
     change_log = {
         pull_request_title.split(":")[0]: pull_request_title.split(":")[1].strip()
-        + f"[{pull_request_number}](https://github.com/PrefectHQ/prefect/pull/{pull_request_number}) {change_tags}"
+        + f"[{pull_request_number}](https://github.com/PrefectHQ/prefect/pull/{pull_request_number}) {change_tags if len(change_tags) > 0 else ''}"
     }
 
     with open(
