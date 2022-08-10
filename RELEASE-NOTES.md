@@ -11,7 +11,7 @@ The deployment experience has been refined to remove extraneous artifacts and ma
 -   Infrastructure block values can now be overwritten with the new `infra_overrides` field
 
 ### Start custom flow runs from the UI
-Now, from the deployment page, in addition to triggering an immediate flow run with default parameter arguments, you can also create a custom run. A custom run enables you to configure the run's parameter arguments, start time, name, and more, all while while otherwise using the same deployment configuration. The deployment itself will be unchanged and continue generate runs on its regular schedule.
+Now, from the deployment page, in addition to triggering an immediate flow run with default parameter arguments, you can also create a custom run. A custom run enables you to configure the run's parameter arguments, start time, name, and more, all while otherwise using the same deployment configuration. The deployment itself will be unchanged and continue to generate runs on its regular schedule.
 
 ### Improvements and bug fixes
 - Made timeout errors messages on state changes more intuitive
