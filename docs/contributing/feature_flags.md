@@ -96,7 +96,7 @@ create_if_missing(MY_FLAG, conditions=[is_admin])
 ```
 
 **NOTE**: You won't need to refer to the condition object later. This example
-includes it as a separate variable for ease of reading.
+    includes it as a separate variable for ease of reading.
 
 Then, at runtime, you can check the flag by specifying the condition
 as a keyword argument to `flag_is_enabled()`:
