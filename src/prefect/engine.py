@@ -87,10 +87,13 @@ from prefect.utilities.asyncutils import (
     run_async_from_worker_thread,
     run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
-    sync_compatible,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import Quote, visit_collection
+from prefect.utilities.collections import (
+    Quote,
+    visit_collection,
+    visit_collection_synchronously,
+)
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
@@ -98,7 +101,6 @@ EngineReturnType = Literal["future", "state", "result"]
 
 
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
-UNTRACKABLE_INTS = {i for i in range(-5, 257)}
 engine_logger = get_logger("engine")
 
 
@@ -1261,8 +1263,20 @@ def get_state_for_result(obj: Any) -> Optional[State]:
         return flow_run_context.task_run_results.get(id(obj))
 
 
-@sync_compatible
-async def link_state_to_result(state: State, result: Any) -> None:
+def _link_if_trackable(obj: Any, state: State, ctx: FlowRunContext) -> None:
+    """Track connection between a task run result and its associated state if it has a unique ID.
+
+    We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
+    because they are singletons.
+    """
+    if (type(obj) in UNTRACKABLE_TYPES) or (
+        isinstance(obj, int) and (-5 <= obj <= 256)
+    ):
+        return
+    ctx.task_run_results[id(obj)] = state
+
+
+def link_state_to_result(state: State, result: Any) -> None:
     """
     Caches a link between a state and all components of a result using
     the `id` of the components to map to the state. The cache is persisted to the
@@ -1296,28 +1310,16 @@ async def link_state_to_result(state: State, result: Any) -> None:
     - The field can be preserved on copy.
     - We cannot set this attribute on Python built-ins.
     """
-
-    async def link_if_not_untrackable(
-        obj: Any, state: State, ctx: FlowRunContext
-    ) -> None:
-        """Track connection between a task run result and its associated state if it has a unique ID.
-
-        We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
-        because they are singletons.
-        """
-        if (type(obj) in UNTRACKABLE_TYPES) or (
-            type(obj) == int and obj in UNTRACKABLE_INTS
-        ):
-            return
-        ctx.task_run_results[id(obj)] = state
-
     flow_run_context = FlowRunContext.get()
 
     if flow_run_context:
         partial_link_if_not_untrackable = partial(
-            link_if_not_untrackable, state=state, ctx=flow_run_context
+            _link_if_trackable, state=state, ctx=flow_run_context
         )
-        await visit_collection(expr=result, visit_fn=partial_link_if_not_untrackable)
+        # in main thread
+        visit_collection_synchronously(
+            expr=result, visit_fn=partial_link_if_not_untrackable, max_depth=1
+        )
 
 
 def get_default_result_filesystem() -> LocalFileSystem:
