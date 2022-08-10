@@ -697,7 +697,7 @@ class TestFlowTimeouts:
         def my_flow():
             raise TimeoutError("Oh no!")
 
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         assert state.is_failed()
         assert state.name == "Failed"
         with pytest.raises(TimeoutError, match="Oh no!"):
