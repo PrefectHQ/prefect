@@ -265,7 +265,7 @@ Use `prefect deployment inspect` to display details for a specific deployment.
 
 <div class='terminal'>
 ```bash
-$ prefect deployment inspect 'leonardo_dicapriflow/leo-deployment'
+$ prefect deployment inspect leonardo_dicapriflow/leo-deployment
 {
     'id': '3d2f55a2-46df-4857-ab6f-6cc80ce9cf9c',
     'created': '2022-07-27T00:50:09.624876+00:00',
