@@ -581,8 +581,11 @@ class Azure(ReadableFileSystem, WritableFileSystem):
 class SMB(ReadableFileSystem, WritableFileSystem):
     """
     Store data as a file on a SMB share.
+    
     Example:
+    
         Load stored SMB config:
+        
         ```python
         from prefect.filesystems import SMB
         smb_block = SMB.load("BLOCK_NAME")
@@ -639,7 +642,7 @@ class SMB(ReadableFileSystem, WritableFileSystem):
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
         """
-        Downloads a directory from a given remote path to a local direcotry.
+        Downloads a directory from a given remote path to a local directory.
         Defaults to downloading the entire contents of the block's basepath to the current working directory.
         """
         return await self.filesystem.get_directory(
@@ -653,7 +656,7 @@ class SMB(ReadableFileSystem, WritableFileSystem):
         ignore_file: Optional[str] = None,
     ) -> int:
         """
-        Uploads a directory from a given local path to a remote direcotry.
+        Uploads a directory from a given local path to a remote directory.
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
         return await self.filesystem.put_directory(
