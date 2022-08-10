@@ -131,7 +131,7 @@ class Deployment(BaseModel):
         ...     version="2",
         ...     tags=["aws"],
         ...     storage=storage,
-        ...     infra_overrides=dict(env={"PREFECT_LOGGING_LEVEL": "DEBUG"}),
+        ...     infra_overrides=dict("env.PREFECT_LOGGING_LEVEL"="DEBUG"),
         >>> )
         >>> deployment.build_from_flow(my_flow)
         >>> deployment.apply()
@@ -375,6 +375,7 @@ class Deployment(BaseModel):
 
             return deployment_id
 
+    @sync_compatible
     async def build_from_flow(self, f: Flow, output: str = None):
         ## first see if an entrypoint can be determined
         flow_file = getattr(f, "__globals__", {}).get("__file__")
