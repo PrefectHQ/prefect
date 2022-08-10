@@ -159,6 +159,7 @@ nav:
                 - 'prefect.utilities.processutils': api-ref/prefect/utilities/processutils.md
                 - 'prefect.utilities.callables': api-ref/prefect/utilities/callables.md
                 - 'prefect.utilities.collections': api-ref/prefect/utilities/collections.md
+                - 'prefect.utilities.feature_flags': api-ref/prefect/utilities/feature_flags.md
                 - 'prefect.utilities.filesystem': api-ref/prefect/utilities/filesystem.md
                 - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
         - Orion Python API:
@@ -209,6 +210,7 @@ nav:
         - Overview: contributing/overview.md
         - Style: contributing/style.md
         - Troubleshooting: contributing/common-mistakes.md
+        - Feature Flags: contributing/feature_flags.md
         # - Testing Flow Runners: contributing/testing-flow-runners.md
 
 extra:
