@@ -30,35 +30,41 @@ from prefect.utilities.importtools import import_object
 
 @inject_client
 async def load_flow_from_flow_run(
-    flow_run: schemas.core.FlowRun, client: OrionClient
+    flow_run: schemas.core.FlowRun, client: OrionClient, ignore_storage: bool = False
 ) -> Flow:
     """
     Load a flow from the location/script provided in a deployment's storage document.
     """
     deployment = await client.read_deployment(flow_run.deployment_id)
-    if deployment.storage_document_id:
-        storage_document = await client.read_block_document(
-            deployment.storage_document_id
-        )
-        storage_block = Block._from_block_document(storage_document)
-    else:
-        basepath = deployment.path or Path(deployment.manifest_path).parent
-        storage_block = LocalFileSystem(basepath=basepath)
 
-    sys.path.insert(0, ".")
-    # TODO: append deployment.path
-    await storage_block.get_directory(from_path=None, local_path=".")
+    if not ignore_storage:
+        if deployment.storage_document_id:
+            storage_document = await client.read_block_document(
+                deployment.storage_document_id
+            )
+            storage_block = Block._from_block_document(storage_document)
+        else:
+            basepath = deployment.path or Path(deployment.manifest_path).parent
+            storage_block = LocalFileSystem(basepath=basepath)
+
+        sys.path.insert(0, ".")
+        # TODO: append deployment.path
+        await storage_block.get_directory(from_path=None, local_path=".")
 
     flow_run_logger(flow_run).debug(
         f"Loading flow for deployment {deployment.name!r}..."
     )
 
+    import_path = Path(deployment.path) / deployment.entrypoint
+
     # for backwards compat
-    import_path = deployment.entrypoint
     if deployment.manifest_path:
         with open(deployment.manifest_path, "r") as f:
             import_path = json.load(f)["import_path"]
-    flow = import_object(import_path)
+            import_path = (
+                Path(deployment.manifest_path).parent / import_path
+            ).absolute()
+    flow = import_object(str(import_path))
     return flow
 
 
@@ -248,7 +254,7 @@ class Deployment(BaseModel):
         Queries the API for a deployment with this name for this flow, and if found, prepopulates
         settings.  Returns a boolean specifying whether a load was successful or not.
         """
-        if not self.name and self.flow_name:
+        if not self.name or not self.flow_name:
             raise ValueError("Both a deployment name and flow name must be provided.")
         async with get_client() as client:
             try:
@@ -393,7 +399,7 @@ class Deployment(BaseModel):
         await self.load()
 
         # set a few attributes for this flow object
-        self.entrypoint = f"{Path(flow_file).absolute()}:{f.__qualname__}"
+        self.entrypoint = f"{Path(flow_file).absolute()}:{f.fn.__name__}"
         self.parameter_openapi_schema = parameter_schema(f)
         if not self.version:
             self.version = f.version
