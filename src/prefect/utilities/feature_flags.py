@@ -91,7 +91,7 @@ def flag_is_enabled(
     Check if a feature flag is enabled.
 
     This function always returns False if the setting
-    PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING is false.
+    `PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING` is false.
 
     NOTE: If `flag_is_enabled()` is called for a feature that has conditions,
     but the caller does not give any conditions, the current state of the flag
@@ -101,9 +101,9 @@ def flag_is_enabled(
         flag_name: the name of the feature flag
         default: the default return value to use if no feature flag with
                  the given name exists. Defaults to False.
-        client: The FeatureFlagClient instance to use. Defaults to a client
+        client: The `FeatureFlagClient` instance to use. Defaults to a client
                 configured to look at an in-memory feature store.
-        conditions: keyword arguments, e.g. is_admin=True, to check
+        conditions: keyword arguments, e.g. `is_admin=True`, to check
                     against any Conditions on the flag
 
     Returns:
@@ -125,11 +125,11 @@ def list_feature_flags(
     List all feature flags.
 
     This function always returns an empty list if the setting
-    PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING is false.
+    `PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING` is false.
 
     Args:
         batch_size: batch size of flags to retrieve at a time
-        client: The FeatureFlagClient instance to use. Defaults to a client
+        client: The `FeatureFlagClient` instance to use. Defaults to a client
                 configured to look at an in-memory feature store.
 
     Returns:
