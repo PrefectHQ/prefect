@@ -99,7 +99,7 @@ async def test_agent_with_work_queue(orion_client, deployment):
     assert submitted_flow_run_ids == work_queue_flow_run_ids
 
 
-async def test_agent_creates_work_queue_if_doesnt_exist(session):
+async def test_agent_creates_work_queue_if_doesnt_exist(session, prefect_caplog):
     name = "hello-there"
     assert not await models.work_queues.read_work_queue_by_name(
         session=session, name=name
@@ -107,6 +107,8 @@ async def test_agent_creates_work_queue_if_doesnt_exist(session):
     async with OrionAgent(work_queues=[name]) as agent:
         await agent.get_and_submit_flow_runs()
     assert await models.work_queues.read_work_queue_by_name(session=session, name=name)
+
+    assert f"Created work queue '{name}'." in prefect_caplog.text
 
 
 async def test_agent_gracefully_handles_error_when_creating_work_queue(
@@ -140,9 +142,31 @@ async def test_agent_gracefully_handles_error_when_creating_work_queue(
     assert "No!" in prefect_caplog.text
 
 
+async def test_agent_caches_work_queues(orion_client, deployment, monkeypatch):
+    work_queue = await orion_client.read_work_queue_by_name(deployment.work_queue_name)
+
+    async def read_queue(name):
+        return work_queue
+
+    mock = AsyncMock(side_effect=read_queue)
+    monkeypatch.setattr("prefect.client.OrionClient.read_work_queue_by_name", mock)
+
+    async with OrionAgent(work_queues=[work_queue.name], prefetch_seconds=10) as agent:
+
+        await agent.get_and_submit_flow_runs()
+        mock.assert_awaited_once()
+
+        await agent.get_and_submit_flow_runs()
+        # the mock was not awaited again
+        mock.assert_awaited_once()
+
+        assert agent._cache["queues"][0].id == work_queue.id
+
+
 async def test_agent_with_work_queue_name_survives_queue_deletion(
     orion_client, deployment
 ):
+    """Ensure that cached work queues don't create errors if deleted"""
     work_queue = await orion_client.read_work_queue_by_name(deployment.work_queue_name)
 
     async with OrionAgent(work_queues=[work_queue.name], prefetch_seconds=10) as agent:
@@ -454,6 +478,8 @@ async def test_agent_displays_message_on_work_queue_pause(
 
         await orion_client.update_work_queue(work_queue.id, is_paused=True)
 
+        # clear agent cache
+        agent._cache.clear()
         # Should emit the paused message
         await agent.get_and_submit_flow_runs()
 
