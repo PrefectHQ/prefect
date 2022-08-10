@@ -125,7 +125,7 @@ def list_feature_flags(
     List all feature flags.
 
     This function always returns an empty list if the setting
-    PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING is false.
+    `PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING` is false.
 
     Args:
         batch_size: batch size of flags to retrieve at a time
