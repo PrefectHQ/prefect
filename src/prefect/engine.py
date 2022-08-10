@@ -577,7 +577,7 @@ async def orchestrate_flow_run(
                 # Generic exception in user code
                 message = "Flow run encountered an exception."
                 logger.error(
-                    f"Encountered exception during execution:",
+                    "Encountered exception during execution:",
                     exc_info=True,
                 )
             terminal_state = Failed(
