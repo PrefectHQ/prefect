@@ -1,12 +1,14 @@
 import time
 from contextlib import contextmanager
 from functools import partial
+from typing import List
 from unittest.mock import MagicMock
 from uuid import uuid4
 
 import anyio
 import pendulum
 import pytest
+from pydantic import BaseModel
 
 from prefect import engine, flow, task
 from prefect.context import FlowRunContext
@@ -1049,6 +1051,10 @@ class TestLinkStateToResult:
     class RandomTestClass:
         pass
 
+    class PydanticTestClass(BaseModel):
+        untrackable_num: int
+        list_of_ints: List[int]
+
     @pytest.mark.parametrize(
         "test_input", [True, False, -5, 0, 1, 256, ..., None, NotImplemented]
     )
@@ -1083,7 +1089,7 @@ class TestLinkStateToResult:
             [4200, "Test", RandomTestClass()],
         ],
     )
-    def test_link_state_to_result_with_multiple_trackables(
+    def test_link_state_to_result_with_multiple_unnested_trackables(
         self, monkeypatch, test_inputs
     ):
         ctx = self.MockFlowRunContext()
@@ -1142,4 +1148,43 @@ class TestLinkStateToResult:
             id(test_input[0]): self.state,
             id(test_input[2]): self.state,
             id(test_input): self.state,
+        }
+
+    def test_link_state_to_result_with_nested_list(self, monkeypatch):
+        ctx = self.MockFlowRunContext()
+
+        def get():
+            return ctx
+
+        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
+
+        test_input = [1, [-6, [1, 2, 3]]]
+        link_state_to_result(state=self.state, result=test_input)
+        assert ctx.task_run_results == {
+            id(test_input): self.state,
+            id(test_input[1]): self.state,
+            id(test_input[1][0]): self.state,
+            id(test_input[1][1]): self.state,
+        }
+
+    def test_link_state_to_result_with_nested_pydantic_class(self, monkeypatch):
+        ctx = self.MockFlowRunContext()
+
+        def get():
+            return ctx
+
+        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
+
+        pydantic_instance = self.PydanticTestClass(
+            untrackable_num=42, list_of_ints=[1, 257]
+        )
+
+        test_input = [-7, pydantic_instance, 1]
+        link_state_to_result(state=self.state, result=test_input)
+        assert ctx.task_run_results == {
+            id(test_input): self.state,
+            id(test_input[0]): self.state,
+            id(pydantic_instance): self.state,
+            id(pydantic_instance.list_of_ints): self.state,
+            id(pydantic_instance.list_of_ints[1]): self.state,
         }
