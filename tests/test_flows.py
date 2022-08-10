@@ -692,6 +692,18 @@ class TestFlowTimeouts:
         state = my_flow._run()
         assert state.is_completed()
 
+    def test_user_timeout_is_not_hidden(self):
+        @flow(timeout_seconds=30)
+        def my_flow():
+            raise TimeoutError("Oh no!")
+
+        state = my_flow._run()
+        assert state.is_failed()
+        assert state.name == "Failed"
+        with pytest.raises(TimeoutError, match="Oh no!"):
+            state.result()
+        assert "exceeded timeout" not in state.message
+
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
         """
         Sync flows are cancelled when they change instructions. The flow will return

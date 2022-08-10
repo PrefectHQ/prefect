@@ -560,20 +560,29 @@ async def orchestrate_flow_run(
                     flow_run_context.task_run_futures, client=client
                 )
 
-        except TimeoutError as exc:
-            # TODO: Cancel task runs if feasible
-            terminal_state = Failed(
-                name="TimedOut",
-                message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
-                data=DataDocument.encode("cloudpickle", exc),
-            )
         except Exception as exc:
-            logger.error(
-                f"Encountered exception during execution:",
-                exc_info=True,
-            )
+            name = message = None
+            if (
+                # Flow run timeouts
+                isinstance(exc, TimeoutError)
+                and timeout_scope
+                # Only update the message if the timeout was actually encountered since
+                # this could be a timeout in the user's code
+                and timeout_scope.cancel_called
+            ):
+                # TODO: Cancel task runs if feasible
+                name = "TimedOut"
+                message = f"Flow run exceeded timeout of {flow.timeout_seconds} seconds"
+            else:
+                # Generic exception in user code
+                message = "Flow run encountered an exception."
+                logger.error(
+                    f"Encountered exception during execution:",
+                    exc_info=True,
+                )
             terminal_state = Failed(
-                message="Flow run encountered an exception.",
+                name=name,
+                message=message,
                 data=DataDocument.encode("cloudpickle", exc),
             )
         else:
