@@ -13,7 +13,6 @@ sdist/
 .coverage.*.*
 .prefect-results
 .pytest_cache/
-coverage*/
 
 # Type checking artifacts
 .mypy_cache/
