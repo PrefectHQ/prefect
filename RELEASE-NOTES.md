@@ -3,7 +3,7 @@
 ## 2.0.4
 
 ### Simplified deployments
-The deployemnts experience has been refined to remove extraneous artifacts and make configuration even easier. In particular:
+The deployment experience has been refined to remove extraneous artifacts and make configuration even easier. In particular:
 
 -   `prefect deployment build` no longer generates a  `manifest.json` file. Instead, all of the relevant information is written to the `deployment.yaml` file.
 - Values in the `deployment.yaml` file are more atomic and explicit
