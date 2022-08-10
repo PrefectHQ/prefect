@@ -56,7 +56,7 @@ jobs:
       - name: Write changelog entry
         run: |
           git checkout -b "changelog-${{ steps.prep.outputs.BUILD_ID }}"
-          prefect dev write-changelog-entry ${{ github.event.pull_request.number }} "${{ github.event.pull_request.title }}"
+          prefect dev write-changelog-entry ${{ github.event.pull_request.number }} "${{ github.event.pull_request.title }}" ${{ toJson(github.event.pull_request.labels.*.name) }}
           git add .changes/
           git commit -m "changelog-${{ steps.prep.outputs.BUILD_ID }}"
           git push --set-upstream origin "changelog-${{ steps.prep.outputs.BUILD_ID }}"
