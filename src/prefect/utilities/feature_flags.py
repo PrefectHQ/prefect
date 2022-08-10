@@ -46,13 +46,14 @@ def create_if_missing(
         is_enabled: the initial enabled/disabled state of the flag if
                     this function creates it
         client_data: arbitrary data that we should store with the flag
-        bucketer: an optional bucketer from the `flipper.bucketing` module, e.g.
-                  `PercentageBucketer`, to use when determining if the flag
-                  is enabled
-        conditions: an optional iterable of Conditions against which we will
-                    check input data to determine if a flag is enabled
+        bucketer: an optional "bucketter" from the `flipper` module, e.g.
+                  `PercentageBucketer`, to use when determining if the
+                  flag is enabled
+        conditions: an optional iterable of `Condition` instances from the
+                    `flipper` module against which we will check input data
+                    to determine if a flag is enabled
         client: The `FeatureFlagClient` instance to use. Defaults to a client
-                configured to look at an in-memory feature store.
+                configured with an in-memory feature store.
 
     Returns:
         FeatureFlag or None: Returns a created or existing FeatureFlag, or None
