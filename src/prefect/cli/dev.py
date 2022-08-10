@@ -420,21 +420,42 @@ def check_pr_title_format(pull_request_title: str):
         )
 
 
-# TODO - add pull request tags to descriptions?
 @dev_app.command()
-def write_changelog_entry(pull_request_number: str, pull_request_title: str):
+def write_changelog_entry(
+    pull_request_number: str = typer.Argument(
+        None,
+        help="The pull request number associated with a change.",
+        show_default=False,
+    ),
+    pull_request_title: str = typer.Argument(
+        None,
+        help="The title of the pull request. The title is expected to be formatted as '<change-type>: <description of change>'. For example, 'feat: Add this very cool feature'",
+        show_default=False,
+    ),
+    pull_request_tags: str = typer.Argument(
+        None,
+        help='An optional json formatted string containing a list of pull request tags, e.g. ["api", "database"]',
+        show_default=False,
+    ),
+):
     """
-    Writes a change description to `.changes/<pull_request_number>.yaml'.
+    Writes a change description associated with a pull requset to
+    `.changes/<pull_request_number>.yaml'.
 
     Args:
         pull_request_number: the pull request number.
         pull_request_title: the title of the pull request. The title is expected
             to be formatted as '<change-type>: <description of change>'. For
             example, 'feat: Add this very cool feature'.
+        pull_request_tags: an optional json formatted string containing a list of tags,
+            e.g. "['api', 'database']"
     """
+    change_tags = (
+        str((json.loads(pull_request_tags))) if pull_request_tags is not None else ""
+    )
     change_log = {
         pull_request_title.split(":")[0]: pull_request_title.split(":")[1].strip()
-        + f"[{pull_request_number}](https://github.com/PrefectHQ/prefect/pull/{pull_request_number})"
+        + f"[{pull_request_number}](https://github.com/PrefectHQ/prefect/pull/{pull_request_number}) {change_tags}"
     }
 
     with open(
@@ -454,7 +475,9 @@ def release_notes():
     for file_name in os.listdir(changes_path):
         if file_name.endswith(".yaml") and file_name != "EXAMPLE.yaml":
 
-            with open(os.path.join(changes_path, file_name), "r") as f:
+            # if we find a change file, load it and record the changes made
+            file_path = os.path.join(changes_path, file_name)
+            with open(file_path, "r") as f:
                 file_changes = yaml.safe_load(f)
 
             for change_type, change_description in file_changes.items():
@@ -463,9 +486,14 @@ def release_notes():
                 else:
                     changes[change_type] = [change_description]
 
+            # and remove the file so it is not picked up by
+            # subsequent release notes
+            os.remove(file_path)
+
     if not changes:
         exit_with_error("No changes found!")
 
+    # format all of our changes nicely and write to RELEASE-NOTES.md
     release_notes_text = "## <VERSION>"
 
     if changes.get("breaking"):
@@ -497,6 +525,11 @@ def release_notes():
     with open(release_notes_path, "r") as f:
         existing_notes = f.readlines()
 
+    # insert our new release notes after the first two lines
+    # which are expected to be:
+    # Prefect Release Notes
+    #
+    # ## Prior Version Starts on the Third Line
     new_notes = (
         existing_notes[0:2]
         + [note + "\n" for note in release_notes_text.split("\n")]
