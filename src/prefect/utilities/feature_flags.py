@@ -12,16 +12,17 @@ from flipper.flag import FeatureFlag
 from prefect import settings
 
 _client: Optional[FeatureFlagClient] = None
+_in_memory_store: Optional[MemoryFeatureFlagStore] = None
 
 
 def get_feature_flag_client() -> FeatureFlagClient:
-    global _client
+    global _client, _in_memory_store
 
     if _client:
         return _client
 
-    store = MemoryFeatureFlagStore()
-    _client = FeatureFlagClient(store)
+    _in_memory_store = MemoryFeatureFlagStore()
+    _client = FeatureFlagClient(_in_memory_store)
 
     return _client
 
