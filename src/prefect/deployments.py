@@ -131,7 +131,7 @@ class Deployment(BaseModel):
         ...     version="2",
         ...     tags=["aws"],
         ...     storage=storage,
-        ...     infra_overrides=["env.SOME_IMPORTANT_CONFIG=true"],
+        ...     infra_overrides=dict(env={"PREFECT_LOGGING_LEVEL": "DEBUG"}),
         >>> )
         >>> deployment.build_from_flow(my_flow)
         >>> deployment.apply()
