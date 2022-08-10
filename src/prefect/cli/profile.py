@@ -23,7 +23,7 @@ from prefect.context import use_profile
 profile_app = PrefectTyper(
     name="profile", help="Commands for interacting with your Prefect profiles."
 )
-app.add_typer(profile_app)
+app.add_typer(profile_app, aliases=["profiles"])
 
 
 @profile_app.command()
