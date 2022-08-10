@@ -8,7 +8,7 @@ env:
 on:
   pull_request:
     branches:
-      - auto-changelog
+      - main
     types: [closed]
 
 jobs:
@@ -65,7 +65,7 @@ jobs:
 
       - name: Create and merge PR with changelog entry
         run: |
-          gh pr create --base auto-changelog -f
+          gh pr create --base main -f
           gh pr merge --merge --admin --delete-branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
