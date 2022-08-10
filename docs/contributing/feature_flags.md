@@ -13,7 +13,7 @@ development.
 ## What are feature flags?
 
 _Feature flagging_ is the process of introducing _flags_ that allow
-developers to turn a feature of an application on or off at runtime --
+developers to turn a feature of an application on or off at runtime &mdash;
 without having to deploy code.
 
 ## When to use feature flags
@@ -95,8 +95,9 @@ IS_ADMIN = Condition(is_admin=True)
 create_if_missing(MY_FLAG, conditions=[is_admin])
 ```
 
-**NOTE**: You won't need to refer to the condition object later. This example
-includes it as a separate variable for ease of reading.
+!!! note "Referencing the condition object"
+    You won't need to refer to the condition object later. This example
+    includes it as a separate variable for ease of reading.
 
 Then, at runtime, you can check the flag by specifying the condition
 as a keyword argument to `flag_is_enabled()`:
@@ -115,10 +116,10 @@ else:
     ...
 ```
 
-**NOTE**: Passing conditions as input to `flag_is_enabled()` is not required
+Passing conditions as input to `flag_is_enabled()` is not required
 when you check if a flag that has conditions is enabled. If you don't specify
 any conditions to `flag_is_enabled()`, the return value is the current state
-of the flag, e.g. True if the flag is enabled.
+of the flag, e.g. `True` if the flag is enabled.
 
 ## Turning a flag on and off for specific "buckets"
 

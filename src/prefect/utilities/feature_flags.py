@@ -1,8 +1,9 @@
 """
 This module contains code related to feature flagging.
 
-For more guidance, read docs/feature_flags.md.
+For more guidance, read the [Feature Flags](/contributing/feature_flags/) documentation.
 """
+import threading
 from typing import Any, Iterable, List, Optional
 
 from flipper import Condition, FeatureFlagClient, MemoryFeatureFlagStore
@@ -21,8 +22,9 @@ def get_feature_flag_client() -> FeatureFlagClient:
     if _client:
         return _client
 
-    _in_memory_store = MemoryFeatureFlagStore()
-    _client = FeatureFlagClient(_in_memory_store)
+    with threading.Lock():
+        _in_memory_store = MemoryFeatureFlagStore()
+        _client = FeatureFlagClient(_in_memory_store)
 
     return _client
 
@@ -40,20 +42,21 @@ def create_if_missing(
     already exist.
 
     Args:
-        flag_name: the name of the feature flag
+        flag_name: The name of the feature flag.
         is_enabled: the initial enabled/disabled state of the flag if
                     this function creates it
         client_data: arbitrary data that we should store with the flag
-        bucketer: an optional bucketer from the flipper.bucketing module, e.g.
-                  PercentageBucketer, to use when determining if the flag
-                  is enabled
-        conditions: an optional iterable of Conditions against which we will
-                    check input data to determine if a flag is enabled
-        client: The FeatureFlagClient instance to use. Defaults to a client
-                configured to look at an in-memory feature store.
+        bucketer: an optional "bucketter" from the `flipper` module, e.g.
+                  `PercentageBucketer`, to use when determining if the
+                  flag is enabled
+        conditions: an optional iterable of `Condition` instances from the
+                    `flipper` module against which we will check input data
+                    to determine if a flag is enabled
+        client: The `FeatureFlagClient` instance to use. Defaults to a client
+                configured with an in-memory feature store.
 
     Returns:
-        FeatureFlag or None: Returns a created or existing FeatureFlag, or None
+        `FeatureFlag` or None: Returns a created or existing `FeatureFlag`, or None
                              if feature flagging is disabled.
     """
     if not settings.PREFECT_FEATURE_FLAGGING_ENABLED.value():
@@ -89,7 +92,7 @@ def flag_is_enabled(
     Check if a feature flag is enabled.
 
     This function always returns False if the setting
-    PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING is false.
+    `PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING` is false.
 
     NOTE: If `flag_is_enabled()` is called for a feature that has conditions,
     but the caller does not give any conditions, the current state of the flag
@@ -99,9 +102,9 @@ def flag_is_enabled(
         flag_name: the name of the feature flag
         default: the default return value to use if no feature flag with
                  the given name exists. Defaults to False.
-        client: The FeatureFlagClient instance to use. Defaults to a client
+        client: The `FeatureFlagClient` instance to use. Defaults to a client
                 configured to look at an in-memory feature store.
-        conditions: keyword arguments, e.g. is_admin=True, to check
+        conditions: keyword arguments, e.g. `is_admin=True`, to check
                     against any Conditions on the flag
 
     Returns:
@@ -123,11 +126,11 @@ def list_feature_flags(
     List all feature flags.
 
     This function always returns an empty list if the setting
-    PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING is false.
+    `PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING` is false.
 
     Args:
         batch_size: batch size of flags to retrieve at a time
-        client: The FeatureFlagClient instance to use. Defaults to a client
+        client: The `FeatureFlagClient` instance to use. Defaults to a client
                 configured to look at an in-memory feature store.
 
     Returns:
