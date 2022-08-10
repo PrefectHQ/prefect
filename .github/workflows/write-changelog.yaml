@@ -32,8 +32,7 @@ jobs:
         id: prep
         run: |
             sha=${GITHUB_SHA::15}
-            ts=$(date +%F.%H%M%S)
-            echo "::set-output name=BUILD_ID::${sha}-${ts}"
+            echo "::set-output name=BUILD_ID::${sha}"
 
       - name: Set up Python 3.9
         uses: actions/setup-python@v4
@@ -51,15 +50,6 @@ jobs:
         run: |
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Get Pull Request Number
-        id: pr
-        run: |
-          echo ${{ github.event.pull_request }}
-          echo "::set-output name=pull_request_number::$(gh pr view --json number -q .number || echo "")"
-          echo "::set-output name=pull_request_title::$(gh pr view --json title -q .title || echo "")"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
