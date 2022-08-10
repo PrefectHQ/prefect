@@ -181,12 +181,12 @@ class Deployment(BaseModel):
 
     def _editable_fields_dict(self):
         "Returns YAML compatible dictionary of editable fields, in the correct order"
-        all_fields = self.yaml_dict()
+        all_fields = self._yaml_dict()
         return {field: all_fields[field] for field in self._editable_fields}
 
     def _immutable_fields_dict(self):
         "Returns YAML compatible dictionary of immutable fields, in the correct order"
-        all_fields = self.yaml_dict()
+        all_fields = self._yaml_dict()
         return {k: v for k, v in all_fields.items() if k not in self._editable_fields}
 
     # top level metadata
