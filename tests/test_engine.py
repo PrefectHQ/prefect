@@ -1163,8 +1163,6 @@ class TestLinkStateToResult:
         assert ctx.task_run_results == {
             id(test_input): self.state,
             id(test_input[1]): self.state,
-            id(test_input[1][0]): self.state,
-            id(test_input[1][1]): self.state,
         }
 
     def test_link_state_to_result_with_nested_pydantic_class(self, monkeypatch):
@@ -1184,7 +1182,23 @@ class TestLinkStateToResult:
         assert ctx.task_run_results == {
             id(test_input): self.state,
             id(test_input[0]): self.state,
+            id(test_input[1]): self.state,
+        }
+
+    def test_link_state_to_result_with_pydantic_class(self, monkeypatch):
+        ctx = self.MockFlowRunContext()
+
+        def get():
+            return ctx
+
+        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
+
+        pydantic_instance = self.PydanticTestClass(
+            untrackable_num=42, list_of_ints=[1, 257]
+        )
+
+        link_state_to_result(state=self.state, result=pydantic_instance)
+        assert ctx.task_run_results == {
             id(pydantic_instance): self.state,
             id(pydantic_instance.list_of_ints): self.state,
-            id(pydantic_instance.list_of_ints[1]): self.state,
         }
