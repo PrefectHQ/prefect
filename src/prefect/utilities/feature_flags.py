@@ -129,7 +129,7 @@ def list_feature_flags(
 
     Args:
         batch_size: batch size of flags to retrieve at a time
-        client: The FeatureFlagClient instance to use. Defaults to a client
+        client: The `FeatureFlagClient` instance to use. Defaults to a client
                 configured to look at an in-memory feature store.
 
     Returns:
