@@ -103,7 +103,7 @@ def flag_is_enabled(
                  the given name exists. Defaults to False.
         client: The `FeatureFlagClient` instance to use. Defaults to a client
                 configured to look at an in-memory feature store.
-        conditions: keyword arguments, e.g. is_admin=True, to check
+        conditions: keyword arguments, e.g. `is_admin=True`, to check
                     against any Conditions on the flag
 
     Returns:
