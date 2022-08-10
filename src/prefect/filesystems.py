@@ -255,7 +255,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         local_path: Optional[str] = None,
         to_path: Optional[str] = None,
         ignore_file: Optional[str] = None,
-        overwrite: bool = True,  # added
+        overwrite: bool = True,
     ) -> int:
         """
         Uploads a directory from a given local path to a remote direcotry.
