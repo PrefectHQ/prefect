@@ -13,7 +13,7 @@ development.
 ## What are feature flags?
 
 _Feature flagging_ is the process of introducing _flags_ that allow
-developers to turn a feature of an application on or off at runtime --
+developers to turn a feature of an application on or off at runtime &mdash;
 without having to deploy code.
 
 ## When to use feature flags
