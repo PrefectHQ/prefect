@@ -40,7 +40,12 @@ from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_data
+from prefect.futures import (
+    PrefectFuture,
+    call_repr,
+    collect_futures,
+    get_terminal_states_for_futures,
+)
 from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import OrionHandler
 from prefect.logging.loggers import (
@@ -381,7 +386,7 @@ async def create_and_begin_subflow_run(
     parent_logger = get_run_logger(parent_flow_run_context)
 
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
-    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
+    task_inputs = {k: collect_task_run_inputs(v) for k, v in parameters.items()}
 
     # Generate a task in the parent flow run to represent the result of the subflow run
     dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
@@ -394,7 +399,7 @@ async def create_and_begin_subflow_run(
     )
 
     # Resolve any task futures in the input
-    parameters = await resolve_futures_to_data(parameters)
+    parameters = await resolve_inputs(parameters)
 
     if parent_task_run.state.is_final():
 
@@ -738,7 +743,7 @@ async def begin_task_map(
     return await gather(*task_runs)
 
 
-async def collect_task_run_inputs(
+def collect_task_run_inputs(
     expr: Any,
 ) -> Set[Union[core.TaskRunResult, core.Parameter, core.Constant]]:
     """
@@ -748,14 +753,14 @@ async def collect_task_run_inputs(
 
     Example:
         >>> task_inputs = {
-        >>>    k: await collect_task_run_inputs(v) for k, v in parameters.items()
+        >>>    k: collect_task_run_inputs(v) for k, v in parameters.items()
         >>> }
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
     inputs = set()
 
-    async def add_futures_and_states_to_inputs(obj):
+    def add_futures_and_states_to_inputs(obj):
         if isinstance(obj, PrefectFuture):
             inputs.add(core.TaskRunResult(id=obj.task_run.id))
         elif isinstance(obj, State):
@@ -766,9 +771,7 @@ async def collect_task_run_inputs(
             if state and state.state_details.task_run_id:
                 inputs.add(core.TaskRunResult(id=state.state_details.task_run_id))
 
-    await visit_collection(
-        expr, visit_fn=add_futures_and_states_to_inputs, return_data=False
-    )
+    visit_collection(expr, visit_fn=add_futures_and_states_to_inputs, return_data=False)
 
     return inputs
 
@@ -815,9 +818,9 @@ async def create_task_run(
     dynamic_key: str,
     wait_for: Optional[Iterable[PrefectFuture]],
 ) -> TaskRun:
-    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
+    task_inputs = {k: collect_task_run_inputs(v) for k, v in parameters.items()}
     if wait_for:
-        task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
+        task_inputs["wait_for"] = collect_task_run_inputs(wait_for)
 
     logger = get_run_logger(flow_run_context)
 
@@ -1212,13 +1215,21 @@ async def resolve_inputs(
         UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
 
-    async def visit_fn(expr):
+    futures = collect_futures(parameters)
+    futures_to_states = {
+        future: state
+        for future, state in zip(
+            futures, await get_terminal_states_for_futures(futures)
+        )
+    }
+
+    def resolve_input(expr):
         state = None
 
         if isinstance(expr, Quote):
             return expr.unquote()
         elif isinstance(expr, PrefectFuture):
-            state = await expr._wait()
+            state = futures_to_states[expr]
         elif isinstance(expr, State):
             state = expr
         else:
@@ -1232,9 +1243,9 @@ async def resolve_inputs(
         # Only retrieve the result if requested as it may be expensive
         return state.result() if return_data else None
 
-    return await visit_collection(
+    return visit_collection(
         parameters,
-        visit_fn=visit_fn,
+        visit_fn=resolve_input,
         return_data=return_data,
     )
 
