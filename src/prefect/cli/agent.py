@@ -32,36 +32,55 @@ ascii_name = r"""
 
 @agent_app.command()
 async def start(
+    # deprecated main argument
     work_queue: str = typer.Argument(
-        None,
-        show_default=False,
+        None, show_default=False, help="DEPRECATED: A work queue name or ID"
     ),
+    work_queues: List[str] = typer.Option(
+        None,
+        "-q",
+        "--work-queue",
+        help="One or more work queue names for the agent to pull from.",
+    ),
+    hide_welcome: bool = typer.Option(False, "--hide-welcome"),
+    api: str = SettingsOption(PREFECT_API_URL),
+    # deprecated tags
     tags: List[str] = typer.Option(
         None,
         "-t",
         "--tag",
         help="DEPRECATED: One or more optional tags that will be used to create a work queue",
     ),
-    hide_welcome: bool = typer.Option(False, "--hide-welcome"),
-    api: str = SettingsOption(PREFECT_API_URL),
 ):
     """
-    Start an agent process.
+    Start an agent process to poll one or more work queues for flow runs.
     """
-
-    if work_queue is None and not tags:
-        exit_with_error("No work queue provided!", style="red")
-    elif work_queue and tags:
-        exit_with_error("Only one of `work_queue` or `tags` can be provided.")
+    work_queues = work_queues or []
 
     if work_queue is not None:
+        # try to treat the work_queue as a UUID
         try:
-            work_queue_id = UUID(work_queue)
-            work_queue_name = None
+            async with get_client() as client:
+                q = await client.read_work_queue(UUID(work_queue))
+                work_queue = q.name
+        # otherwise treat it as a string name
         except (TypeError, ValueError):
-            work_queue_id = None
-            work_queue_name = work_queue
-    elif tags:
+            pass
+        work_queues.append(work_queue)
+        app.console.print(
+            "Agents now support multiple work queues. Instead of passing a single argument, provide work queue names "
+            f"with the `-q` or `--work-queue` flag: `prefect agent start -q {work_queue}`",
+            style="blue",
+        )
+
+    if not work_queues and not tags:
+        exit_with_error("No work queues provided!", style="red")
+    elif work_queues and tags:
+        exit_with_error(
+            "`work_queues` and `tags` can not both be provided.", style="red"
+        )
+
+    if tags:
         work_queue_name = f"Agent queue {'-'.join(sorted(tags))}"
         app.console.print(
             "`tags` are deprecated. For backwards-compatibility with old "
@@ -81,7 +100,7 @@ async def start(
                 # to enable legacy (deprecated) tag-matching behavior
                 await client.create_work_queue(name=work_queue_name, tags=tags)
 
-        work_queue_id = None
+        work_queues = [work_queue_name]
 
     if not hide_welcome:
         if api:
@@ -89,15 +108,12 @@ async def start(
         else:
             app.console.print("Starting agent with ephemeral API...")
 
-    async with OrionAgent(
-        work_queue_id=work_queue_id,
-        work_queue_name=work_queue_name,
-    ) as agent:
+    async with OrionAgent(work_queues=work_queues) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
             app.console.print(
                 "Agent started! Looking for work from "
-                f"queue '{work_queue_name or work_queue_id}'..."
+                f"queue(s): {', '.join(work_queues)}..."
             )
 
         await critical_service_loop(

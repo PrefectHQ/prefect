@@ -799,9 +799,7 @@ class OrionClient:
                 raise
 
     async def create_work_queue(
-        self,
-        name: str,
-        tags: List[str] = None,
+        self, name: str, tags: List[str] = None, return_id: bool = True
     ) -> UUID:
         """
         Create a work queue.
@@ -810,6 +808,7 @@ class OrionClient:
             name: a unique name for the work queue
             tags: DEPRECATED: an optional list of tags to filter on; only work scheduled with these tags
                 will be included in the queue
+            return_id: if True, returns an ID; if False, returns the work queue object
 
         Raises:
             prefect.exceptions.ObjectAlreadyExists: If request returns 409
@@ -835,10 +834,13 @@ class OrionClient:
             else:
                 raise
 
-        work_queue_id = response.json().get("id")
-        if not work_queue_id:
-            raise httpx.RequestError(str(response))
-        return UUID(work_queue_id)
+        if return_id:
+            work_queue_id = response.json().get("id")
+            if not work_queue_id:
+                raise httpx.RequestError(str(response))
+            return UUID(work_queue_id)
+        else:
+            return schemas.core.WorkQueue.parse_obj(response.json())
 
     async def read_work_queue_by_name(self, name: str) -> schemas.core.WorkQueue:
         """
