@@ -69,7 +69,7 @@ async def start(
         work_queues.append(work_queue)
         app.console.print(
             "Agents now support multiple work queues. Instead of passing a single argument, provide work queue names "
-            f"with the `-q` or `--work-queue` flag: `prefect agent start -q {work_queue}`",
+            f"with the `-q` or `--work-queue` flag: `prefect agent start -q {work_queue}`\n",
             style="blue",
         )
 
@@ -77,7 +77,7 @@ async def start(
         exit_with_error("No work queues provided!", style="red")
     elif work_queues and tags:
         exit_with_error(
-            "`work_queues` and `tags` can not both be provided.", style="red"
+            "Either `work_queues` or `tags` can be provided, but not both.", style="red"
         )
 
     if tags:
