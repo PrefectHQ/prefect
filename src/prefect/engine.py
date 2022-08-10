@@ -566,6 +566,7 @@ async def orchestrate_flow_run(
             terminal_state = Failed(
                 name="TimedOut",
                 message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
+                data=DataDocument.encode("cloudpickle", exc),
             )
         except Exception as exc:
             logger.error(
