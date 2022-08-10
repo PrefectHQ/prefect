@@ -1,6 +1,8 @@
 """
 Custom Prefect CLI types
 """
+from typing import List
+
 import typer
 import typer.core
 
@@ -47,21 +49,22 @@ class PrefectTyper(typer.Typer):
         typer_instance: "PrefectTyper",
         *args,
         no_args_is_help: bool = True,
-        pluralization_string: str = None,
+        aliases: List[str] = None,
         **kwargs,
     ) -> None:
         """
         This will cause help to be default command for all sub apps unless specifically stated otherwise, opposite of before.
         """
-        if pluralization_string is not None:
-            super().add_typer(
-                typer_instance,
-                *args,
-                name=pluralization_string,
-                no_args_is_help=no_args_is_help,
-                hidden=True,
-                **kwargs,
-            )
+        if aliases:
+            for alias in aliases:
+                super().add_typer(
+                    typer_instance,
+                    *args,
+                    name=alias,
+                    no_args_is_help=no_args_is_help,
+                    hidden=True,
+                    **kwargs,
+                )
 
         return super().add_typer(
             typer_instance, *args, no_args_is_help=no_args_is_help, **kwargs

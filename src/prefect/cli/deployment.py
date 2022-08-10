@@ -49,7 +49,7 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)
 deployment_app = PrefectTyper(
     name="deployment", help="Commands for working with deployments."
 )
-app.add_typer(deployment_app, pluralization_string="deployments")
+app.add_typer(deployment_app, aliases=["deployments"])
 
 
 def assert_deployment_name_format(name: str) -> None:
