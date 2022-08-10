@@ -8,14 +8,12 @@ import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 from fastapi.responses import Response
 
+from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.models.block_schemas import (
-    MissingBlockTypeException,
-    calculate_block_schema_checksum,
-)
+from prefect.orion.models.block_schemas import MissingBlockTypeException
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/block_schemas", tags=["Block schemas"])
@@ -44,7 +42,7 @@ async def create_block_schema(
             detail="Block schemas for protected block types cannot be created.",
         )
 
-    block_schema_checksum = calculate_block_schema_checksum(block_schema)
+    block_schema_checksum = Block._calculate_schema_checksum(block_schema.fields)
     existing_block_schema = await models.block_schemas.read_block_schema_by_checksum(
         session=session, checksum=block_schema_checksum
     )
