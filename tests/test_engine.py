@@ -1150,7 +1150,7 @@ class TestLinkStateToResult:
             id(test_input): self.state,
         }
 
-    def test_link_state_to_result_with_nested_list(self, monkeypatch):
+    async def test_link_state_to_result_with_nested_list(self, monkeypatch):
         ctx = self.MockFlowRunContext()
 
         def get():
