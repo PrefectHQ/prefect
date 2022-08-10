@@ -1,4 +1,4 @@
-<!-- Make sure that your title neatly summarizes the proposed changes -->
+<!-- Make sure that your title neatly summarizes the proposed changes and is correctly formatted. Title must begin with one of the following: "feat", "enhancement", "fix", "deprecation", "breaking", "migration". And match the format: '<change-type>: <description of change>'-->
 
 ### Summary
 <!-- Provide a short overview of the change and the value it adds -->
