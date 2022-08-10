@@ -48,11 +48,19 @@ async def create_block_schema(
         exclude_unset=False,
         exclude={"block_type", "id", "created", "updated"},
     )
-    definitions = definitions or insert_values["fields"].pop("definitions", None)
-    insert_values["checksum"] = Block._calculate_schema_checksum(
-        insert_values["fields"]
-    )
+    checksum = Block._calculate_schema_checksum(block_schema.fields)
 
+    # Check for existing block schema based on calculated checksum
+    existing_block_schema = await read_block_schema_by_checksum(
+        session=session, checksum=checksum
+    )
+    # Return existing block schema if it exists. Allows block schema creation to be called multiple
+    # times for the same schema without errors.
+    if existing_block_schema:
+        return existing_block_schema
+
+    insert_values["checksum"] = checksum
+    definitions = definitions or insert_values["fields"].pop("definitions", None)
     block_schema_references: Dict = insert_values["fields"].pop(
         "block_schema_references", {}
     )
