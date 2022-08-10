@@ -51,7 +51,7 @@ def create_if_missing(
                   is enabled
         conditions: an optional iterable of Conditions against which we will
                     check input data to determine if a flag is enabled
-        client: The FeatureFlagClient instance to use. Defaults to a client
+        client: The `FeatureFlagClient` instance to use. Defaults to a client
                 configured to look at an in-memory feature store.
 
     Returns:
