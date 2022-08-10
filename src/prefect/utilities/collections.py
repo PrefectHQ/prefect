@@ -222,6 +222,7 @@ async def visit_collection(
     expr,
     visit_fn: Callable[[Any], Awaitable[Any]],
     return_data: bool = False,
+    max_depth: int = -1,
 ):
     """
     This function visits every element of an arbitrary Python collection. If an element
@@ -248,6 +249,11 @@ async def visit_collection(
         return_data (bool): if `True`, a copy of `expr` containing data modified
             by `visit_fn` will be returned. This is slower than `return_data=False`
             (the default).
+        max_depth: Controls the depth of recursive visitation. If set to zero, no
+            recursion will occur. If set to a positive integer N, visitation will only
+            descend to N layers deep. If set to any negative integer, no limit will be
+            enforced and recursion will continue until terminal items are reached. By
+            default, recursion is unlimited.
     """
 
     def visit_nested(expr):
@@ -258,6 +264,7 @@ async def visit_collection(
             expr,
             visit_fn=visit_fn,
             return_data=return_data,
+            max_depth=max_depth - 1,
         )
 
     # Visit every expression
@@ -267,6 +274,10 @@ async def visit_collection(
         expr = result
 
     # Then, visit every child of the expression recursively
+
+    # If we have reached the maximum depth, do not perform any recursion
+    if max_depth == 0:
+        return result if return_data else None
 
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)
