@@ -410,6 +410,8 @@ def apply_to_collection(expr, visit_fn: Callable[[Any], Any], max_depth: int = -
         # as well to get all of the relevant attributes
         model_fields = expr.__fields_set__.union(expr.__fields__)
         [visit_nested(getattr(expr, key)) for key in model_fields]
+    else:
+        return
 
 
 def remove_nested_keys(keys_to_remove: List[Hashable], obj):
