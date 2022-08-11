@@ -378,8 +378,6 @@ class WorkQueueUpdate(
             "concurrency_limit",
             # DEPRECATED: filters are deprecated
             "filter",
-            # DEPRECATED: names should not be updated, left for compat
-            "name",
         ],
     )
 ):
@@ -387,6 +385,11 @@ class WorkQueueUpdate(
 
     class Config:
         extra = "forbid"
+
+    # DEPRECATED: names should not be updated, left here only for backwards-compatibility
+    name: Optional[str] = Field(
+        None, description="The name of the work queue.", deprecated=True
+    )
 
 
 class FlowRunNotificationPolicyCreate(
