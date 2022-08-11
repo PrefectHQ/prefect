@@ -19,13 +19,13 @@ importlib_metadata >= 4.4; python_version < '3.10'
 jsonpatch >= 1.32
 kubernetes >= 24.2.0
 packaging >= 21.3
+pathspec >= 0.8.0
 pendulum >= 2.1.2
-pickle5 >= 0.0.11; python_version < '3.8'
 pydantic >= 1.8.2
 python-slugify >= 5.0
 pytz >= 2021.1
 pyyaml >= 5.4.1
-readchar >= 3.0.5
+readchar >= 3.0.6
 rich >= 11.0
 slack-sdk>=3.15.1
 sqlalchemy[asyncio] >= 1.4.20, != 1.4.33

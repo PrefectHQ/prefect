@@ -1,0 +1,101 @@
+name: Report a bug with the Prefect UI
+description: Errors and display issues with the Prefect web interface.
+labels: ["status:triage", "ui", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        **If you are using Prefect 1.x, please report your issue in the [PrefectHQ/ui](https://github.com/PrefectHQ/ui/issues) repository.**
+      
+  - type: markdown
+    attributes:
+      value: >
+        If you are new to Prefect bug reports, please review examples of [well written bug reports](https://github.com/PrefectHQ/prefect/issues?q=label%3A%22great+writeup%22+label%3Aui). 
+        Each of these reports include the following features:
+
+        1. A **succinct description of the problem** - typically a line or two at most
+
+        2. A **succinct list of steps to reproduce the problem**.
+
+        3. The browser console output or screenshots demonstrating the issue.
+
+        4. Additional details that may help us reproduce your issue.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: First check
+      description: Please confirm and check all the following options.
+      options:
+        - label: I added a descriptive title to this issue.
+          required: true
+        - label: I used the GitHub search to find a similar issue and didn't find it.
+          required: true
+        - label: I refreshed the page and this issue still occurred.
+          required: true
+        - label: I checked if this issue was specific to the browser I was using by testing with a different browser.
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Bug summary
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Reproduction
+      description: A list of steps required to reproduce the issue.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Error
+      description: >
+        Provide screenshots of the issue if applicable.
+        Include any errors in the console. For help accessing the console on your browser, see [this article](https://support.airtable.com/hc/en-us/articles/232313848-How-to-open-the-developer-console).
+    validations:
+      required: true
+
+
+  - type: checkboxes
+    attributes:
+      label: Browers
+      description: Which browsers was this bug reproduced on? Please check if your issue is specific to your browser by testing on another browser.
+      options:
+        - label: Chrome
+        - label: Firefox
+        - label: Safari
+        - label: Edge
+
+
+  - type: textarea
+    attributes:
+      label: Prefect version
+      description: >
+        If running the UI yourself, please provide information about host's Prefect version and environment. 
+        The easiest way to retrieve all of the information we require is the `prefect version` command.
+        If you are using Prefect Cloud, you may leave this field blank.
+      value: |
+        ```
+
+        # Copy output of `prefect version` here if hosting your own UI
+
+        ```
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: >
+        Add any other context about the problem here. 
+        If the bug was only reproducible on a single browser please note the other browsers you tested with.
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: "**Happy engineering!**"

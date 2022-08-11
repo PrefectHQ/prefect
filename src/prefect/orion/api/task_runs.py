@@ -17,6 +17,7 @@ from prefect.orion.api.run_history import run_history
 from prefect.orion.orchestration import dependencies as orchestration_dependencies
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/task_runs", tags=["Task Runs"])
@@ -70,10 +71,8 @@ async def count_task_runs(
 
 @router.post("/history")
 async def task_run_history(
-    history_start: datetime.datetime = Body(
-        ..., description="The history's start time."
-    ),
-    history_end: datetime.datetime = Body(..., description="The history's end time."),
+    history_start: DateTimeTZ = Body(..., description="The history's start time."),
+    history_end: DateTimeTZ = Body(..., description="The history's end time."),
     history_interval: datetime.timedelta = Body(
         ...,
         description="The size of each history interval, in seconds. Must be at least 1 second.",

@@ -1,14 +1,12 @@
 repos:
-  - repo: https://github.com/pycqa/autoflake
-    rev: v1.4
+  - repo: https://github.com/fsouza/autoflake8
+    rev: v0.3.2
     hooks:
-      - id: autoflake
+      - id: autoflake8
         language_version: python3
         args: [
           '--in-place', 
-          '--remove-all-unused-imports', 
-          '--ignore-init-module-imports', 
-          '--exclude','*/prefect/utilities/compat.py'
+          '--exclude','*/utilities/compat.py,**__init__.py',
         ]
   - repo: https://github.com/pycqa/isort
     rev: 5.10.1

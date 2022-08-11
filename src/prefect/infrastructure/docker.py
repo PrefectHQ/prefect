@@ -3,6 +3,7 @@ import re
 import sys
 import urllib.parse
 import warnings
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 import packaging.version
@@ -12,10 +13,11 @@ from slugify import slugify
 from typing_extensions import Literal
 
 import prefect
+from prefect.blocks.core import Block, SecretStr
 from prefect.docker import get_prefect_image_name
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.settings import PREFECT_API_URL
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.importtools import lazy_import
 
@@ -39,6 +41,82 @@ class ImagePullPolicy(AutoEnum):
     NEVER = AutoEnum.auto()
 
 
+class BaseDockerLogin(Block, ABC):
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/344dda583986d2d0db361c92dd650693/Moby-logo.webp?h=250"
+    _block_schema_capabilities = ["docker-login"]
+
+    @abstractmethod
+    async def login() -> None:
+        """
+        Log in with `docker login`, persisting credentials.
+        """
+
+    def _login(self, username, password, registry_url, reauth):
+        client = self._get_docker_client()
+
+        return client.login(
+            username=username,
+            password=password,
+            registry=registry_url,
+            # See https://github.com/docker/docker-py/issues/2256 for information on
+            # the default value for reauth.
+            reauth=reauth,
+        )
+
+    def _get_docker_client(self):
+        try:
+
+            with warnings.catch_warnings():
+                # Silence warnings due to use of deprecated methods within dockerpy
+                # See https://github.com/docker/docker-py/pull/2931
+                warnings.filterwarnings(
+                    "ignore",
+                    message="distutils Version classes are deprecated.*",
+                    category=DeprecationWarning,
+                )
+
+                docker_client = docker.from_env()
+
+        except docker.errors.DockerException as exc:
+            raise RuntimeError(f"Could not connect to Docker.") from exc
+
+        return docker_client
+
+
+class DockerRegistry(BaseDockerLogin):
+    """
+    Connects to a Docker registry.
+
+    Requires a Docker Engine to be connectable. Login information is persisted to disk
+    at the Docker default location.
+
+    Attributes:
+        username: The username to log into the registry with.
+        password: The password to log into the registry with.
+        registry_url: The URL to the registry. Generally, "http" or "https" can be
+            omitted.
+        reauth: If already logged into the registry, should login be performed again?
+            This setting defaults to `True` to support common token authentication
+            patterns such as ECR.
+    """
+
+    _block_type_name = "Docker Registry"
+    username: str
+    password: SecretStr
+    registry_url: str
+    reauth: bool = True
+
+    @sync_compatible
+    async def login(self):
+        return await run_sync_in_worker_thread(
+            self._login,
+            self.username,
+            self.password.get_secret_value(),
+            self.registry_url,
+            self.reauth,
+        )
+
+
 class DockerContainerResult(InfrastructureResult):
     """Contains information about a completed Docker container"""
 
@@ -51,23 +129,25 @@ class DockerContainer(Infrastructure):
     the environment.
 
     Attributes:
-        command: A list of strings specifying the command to run in the container.
+        auto_remove: If set, the container will be removed on completion. Otherwise,
+        command: A list of strings specifying the command to run in the container to
+            start the flow run. In most cases you should not override this.
+        env: Environment variables to set for the container.
         image: An optional string specifying the tag of a Docker image to use.
             Defaults to the Prefect image.
         image_pull_policy: Specifies if the image should be pulled. One of 'ALWAYS',
             'NEVER', 'IF_NOT_PRESENT'.
+        labels: An optional dictionary of labels, mapping name to value.
+        name: An optional name for the container.
         network_mode: Set the network mode for the created container. Defaults to 'host'
             if a local API url is detected, otherwise the Docker default of 'bridge' is
             used. If 'networks' is set, this cannot be set.
         networks: An optional list of strings specifying Docker networks to connect the
             container to.
-        labels: An optional dictionary of labels, mapping name to value.
-        name: An optional name for the container.
-        auto_remove: If set, the container will be removed on completion. Otherwise,
             the container will remain after exit for inspection.
+        stream_output: If set, stream output from the container to local standard output.
         volumes: An optional list of volume mount strings in the format of
             "local_path:container_path".
-        stream_output: If set, stream output from the container to local standard output.
 
     ## Connecting to a locally hosted Prefect API
 
@@ -84,6 +164,7 @@ class DockerContainer(Infrastructure):
 
     image: str = Field(default_factory=get_prefect_image_name)
     image_pull_policy: ImagePullPolicy = None
+    image_registry: Optional[DockerRegistry] = None
     networks: List[str] = Field(default_factory=list)
     network_mode: str = None
     auto_remove: bool = False
@@ -278,6 +359,8 @@ class DockerContainer(Infrastructure):
         Pull the image we're going to use to create the container.
         """
         image, tag = self._get_image_and_tag()
+        if self.image_registry:
+            self.image_registry.login()
         return docker_client.images.pull(image, tag)
 
     def _create_container(self, docker_client: "DockerClient", **kwargs) -> "Container":
