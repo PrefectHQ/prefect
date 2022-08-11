@@ -1,5 +1,11 @@
 <p align="center"><img src="https://images.ctfassets.net/gm98wzqotmnx/6rIpC9ZCAewsRGLwOw5BRe/bb17e1ef62f60d1ec32c1ae69487704c/prefect-2-logo-dark.png" width=1000></p>
 
+[![PyPI version](https://badge.fury.io/py/prefect.svg)](https://pypi.python.org/pypi/prefect/)
+[![PyPI pyversions](https://img.shields.io/pypi/pyversions/prefect.svg)](https://pypi.python.org/pypi/prefect/)
+[![Downloads](https://pepy.tech/badge/prefect)](https://pepy.tech/project/prefect)
+[![Stars](https://img.shields.io/github/stars/prefecthq/prefect)](https://github.com/prefecthq/prefect/)
+[![PyPI license](https://img.shields.io/pypi/l/prefect.svg)](https://pypi.python.org/pypi/prefect/)
+
 # Prefect 2.0
 
 Prefect 2.0 is the second-generation dataflow coordination and orchestration platform from [Prefect](https://www.prefect.io).
