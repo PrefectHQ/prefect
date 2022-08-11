@@ -1,7 +1,6 @@
 import atexit
 import logging
 import queue
-import re
 import sys
 import threading
 import time
@@ -12,18 +11,20 @@ from typing import Dict, List, Optional, Union
 import anyio
 import pendulum
 from rich.console import Console
-from rich.logging import get_console
-from rich.text import Text
+from rich.highlighter import Highlighter, NullHighlighter
+from rich.theme import Theme
 
 import prefect.context
 from prefect.client import get_client
 from prefect.exceptions import MissingContextError
+from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.orion.schemas.actions import LogCreate
 from prefect.settings import (
     PREFECT_LOGGING_ORION_BATCH_INTERVAL,
     PREFECT_LOGGING_ORION_BATCH_SIZE,
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
+    PREFECT_LOGGING_STYLED_CONSOLE,
 )
 
 
@@ -360,24 +361,23 @@ class OrionHandler(logging.Handler):
         return super().close()
 
 
-class PrefectHandler(logging.Handler):
-    LEVEL_COLORS = {
-        "DEBUG": "steel_blue",
-        "INFO": "cyan",
-        "WARNING": "bright_yellow",
-        "ERROR": "red3",
-        "CRITICAL": "bright_red",
-    }
-
+class PrefectConsoleHandler(logging.Handler):
     def __init__(
         self,
-        console: Optional[Console] = None,
+        highlighter: Highlighter = PrefectConsoleHighlighter,
+        styles: Dict[str, str] = None,
         level: Union[int, str] = logging.NOTSET,
-        level_colors: Optional[Dict[str, str]] = None,
+        console: Optional[Console] = None,
     ):
+        styled_console = PREFECT_LOGGING_STYLED_CONSOLE.value()
+        if styled_console:
+            highlighter = highlighter()
+            theme = Theme(styles, inherit=False)
+        else:
+            highlighter = NullHighlighter()
+            theme = Theme()
+        self.console = Console(highlighter=highlighter, theme=theme)
         super().__init__(level=level)
-        self.console = console or get_console()
-        self.level_colors = level_colors or self.LEVEL_COLORS
 
     def emit(self, record: logging.LogRecord):
         try:
@@ -387,14 +387,7 @@ class PrefectHandler(logging.Handler):
                 if hasattr(formatter, "usesTime") and formatter.usesTime():
                     record.asctime = formatter.formatTime(record, formatter.datefmt)
                 message = formatter.formatMessage(record)
-
-            message_text = Text(message)
-            level_name = record.levelname
-            level_color = self.level_colors.get(level_name)
-            for match in re.finditer(level_name, message):
-                message_text.stylize(f"{level_color}", match.start(), match.end())
-                break
-            self.console.print(message_text)
+            self.console.print(message)
         except RecursionError:  # See issue 36272
             raise
         except Exception:
