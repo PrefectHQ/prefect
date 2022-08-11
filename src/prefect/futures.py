@@ -11,7 +11,6 @@ from typing import (
     Awaitable,
     Callable,
     Generic,
-    List,
     Optional,
     TypeVar,
     Union,
@@ -22,7 +21,14 @@ from typing import (
 from prefect.client import OrionClient, inject_client
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
-from prefect.utilities.asyncutils import A, Async, Sync, gather, sync
+from prefect.utilities.asyncutils import (
+    A,
+    Async,
+    Sync,
+    run_async_from_worker_thread,
+    run_sync_in_worker_thread,
+    sync,
+)
 from prefect.utilities.collections import visit_collection
 
 if TYPE_CHECKING:
@@ -273,23 +279,6 @@ class PrefectFuture(Generic[R, A]):
         return True
 
 
-def collect_futures(expr):
-    futures = []
-
-    def collect_future(expr):
-        if isinstance(expr, PrefectFuture):
-            futures.append(expr)
-        return expr
-
-    visit_collection(expr, visit_fn=collect_future, return_data=False)
-
-    return futures
-
-
-async def get_terminal_states_for_futures(futures: List[PrefectFuture]) -> List[State]:
-    return await gather(*[future._wait for future in futures])
-
-
 async def resolve_futures_to_data(
     expr: Union[PrefectFuture[R, Any], Any]
 ) -> Union[R, Any]:
@@ -302,25 +291,15 @@ async def resolve_futures_to_data(
     Unsupported object types will be returned without modification.
     """
 
-    futures = collect_futures(expr)
-
-    futures_to_results = {
-        future: result
-        for future, result in zip(
-            futures,
-            (await get_terminal_states_for_futures(futures)).result(
-                raise_on_failure=False
-            ),
-        )
-    }
-
-    def update_future_to_result(expr):
+    def resolve_future(expr):
         if isinstance(expr, PrefectFuture):
-            return futures_to_results[expr]
+            return run_async_from_worker_thread(expr._result)
         else:
             return expr
 
-    return visit_collection(expr, visit_fn=update_future_to_result, return_data=True)
+    return await run_sync_in_worker_thread(
+        visit_collection, expr, visit_fn=resolve_future, return_data=True
+    )
 
 
 async def resolve_futures_to_states(
@@ -333,22 +312,16 @@ async def resolve_futures_to_states(
 
     Unsupported object types will be returned without modification.
     """
-    futures = collect_futures(expr)
 
-    futures_to_states = {
-        future: state
-        for future, state in zip(
-            futures, await get_terminal_states_for_futures(futures)
-        )
-    }
-
-    def update_future_to_state(expr):
+    def resolve_future(expr):
         if isinstance(expr, PrefectFuture):
-            return futures_to_states[expr]
+            return expr.wait()
         else:
             return expr
 
-    return visit_collection(expr, visit_fn=update_future_to_state, return_data=True)
+    return await run_sync_in_worker_thread(
+        visit_collection, expr, visit_fn=resolve_future, return_data=True
+    )
 
 
 def call_repr(__fn: Callable, *args: Any, **kwargs: Any) -> str:
