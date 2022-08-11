@@ -21,8 +21,8 @@ from prefect.flows import Flow
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
-from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.callables import ParameterSchema, parameter_schema
+from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.callables import ParameterSchema
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.importtools import import_object
@@ -64,7 +64,7 @@ async def load_flow_from_flow_run(
             import_path = (
                 Path(deployment.manifest_path).parent / import_path
             ).absolute()
-    flow = import_object(str(import_path))
+    flow = await run_sync_in_worker_thread(import_object, str(import_path))
     return flow
 
 
@@ -163,9 +163,31 @@ class Deployment(BaseModel):
         else:
             return editable_fields + ["infrastructure"]
 
-    @property
-    def header(self) -> str:
-        return f"###\n### A complete description of a Prefect Deployment for flow {self.flow_name!r}\n###\n"
+    def to_yaml(self, path: Path) -> None:
+        yaml_dict = self.yaml_dict()
+        schema = self.schema()
+
+        with open(path, "w") as f:
+            # write header
+            f.write(
+                f"###\n### A complete description of a Prefect Deployment for flow {self.flow_name!r}\n###\n"
+            )
+
+            # write editable fields
+            for field in self._editable_fields:
+                # write any comments
+                if schema["properties"][field].get("yaml_comment"):
+                    f.write(f"# {schema['properties'][field]['yaml_comment']}\n")
+                # write the field
+                yaml.dump({field: yaml_dict[field]}, f, sort_keys=False)
+
+            # write non-editable fields
+            f.write("\n###\n### DO NOT EDIT BELOW THIS LINE\n###\n")
+            yaml.dump(
+                {k: v for k, v in yaml_dict.items() if k not in self._editable_fields},
+                f,
+                sort_keys=False,
+            )
 
     def _yaml_dict(self) -> dict:
         """
@@ -184,16 +206,6 @@ class Deployment(BaseModel):
                 "_block_type_slug"
             ] = self.storage.get_block_type_slug()
         return all_fields
-
-    def _editable_fields_dict(self):
-        "Returns YAML compatible dictionary of editable fields, in the correct order"
-        all_fields = self._yaml_dict()
-        return {field: all_fields[field] for field in self._editable_fields}
-
-    def _immutable_fields_dict(self):
-        "Returns YAML compatible dictionary of immutable fields, in the correct order"
-        all_fields = self._yaml_dict()
-        return {k: v for k, v in all_fields.items() if k not in self._editable_fields}
 
     # top level metadata
     name: str = Field(..., description="The name of the deployment.")
