@@ -12,6 +12,7 @@ import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
+import prefect
 from prefect import Flow
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
@@ -35,7 +36,6 @@ from prefect.orion.schemas.schedules import (
 )
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.filesystem import set_default_ignore_file
-from prefect.utilities.importtools import import_object
 
 
 def str_presenter(dumper, data):
@@ -328,11 +328,15 @@ async def build(
     version: str = typer.Option(
         None, "--version", "-v", help="A version to give the deployment."
     ),
-    tags: List[str] = typer.Option(
+    work_queue_name: str = typer.Option(
         None,
-        "-t",
-        "--tag",
-        help="One or more optional tags to apply to the deployment.",
+        "-q",
+        "--work-queue",
+        help=(
+            "The work queue that will handle this deployment's runs. "
+            "It will be created if it doesn't already exist. Defaults to `None`. "
+            "Note that if a work queue is not set, work will not be scheduled."
+        ),
     ),
     infra_type: Infra = typer.Option(
         None,
@@ -378,6 +382,12 @@ async def build(
         "-o",
         help="An optional filename to write the deployment file to.",
     ),
+    tags: List[str] = typer.Option(
+        None,
+        "-t",
+        "--tag",
+        help="DEPRECATED: One or more optional tags to apply to the deployment.",
+    ),
 ):
     """
     Generate a deployment YAML from /path/to/file.py:flow_function
@@ -387,6 +397,11 @@ async def build(
     if not name:
         exit_with_error(
             "A name for this deployment must be provided with the '--name' flag."
+        )
+    if tags:
+        app.console.print(
+            "Providing tags for deployments is deprecated; use a work queue name instead.",
+            style="red",
         )
     if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
         exit_with_error("Only one schedule type can be provided.")
@@ -409,7 +424,7 @@ async def build(
         else:
             raise exc
     try:
-        flow = import_object(path)
+        flow = prefect.utilities.importtools.import_object(path)
         if isinstance(flow, Flow):
             app.console.print(f"Found flow {flow.name!r}", style="green")
         else:
@@ -465,6 +480,7 @@ async def build(
         infrastructure=infrastructure,
         infra_overrides=infra_overrides or None,
         schedule=schedule,
+        work_queue_name=work_queue_name,
     )
     await deployment.update(**updates, ignore_none=True)
 
