@@ -125,25 +125,25 @@ class TestCreateBlockSchema:
         )
         assert str(block_schema.id) == block_schema_id
 
-    async def test_create_block_schema_with_existing_checksum_fails(
+    async def test_create_block_schema_is_idempotent(
         self, session, client, block_type_x
     ):
-        response = await client.post(
+        response_1 = await client.post(
             "/block_schemas/",
             json=BlockSchemaCreate(fields={}, block_type_id=block_type_x.id).dict(
                 json_compatible=True
             ),
         )
-        assert response.status_code == 201
+        assert response_1.status_code == 201
 
-        response = await client.post(
+        response_2 = await client.post(
             "/block_schemas/",
             json=BlockSchemaCreate(fields={}, block_type_id=block_type_x.id).dict(
                 json_compatible=True
             ),
         )
-        assert response.status_code == 409
-        assert "Identical block schema already exists." in response.json()["detail"]
+        assert response_2.status_code == 200
+        assert response_1.json() == response_2.json()
 
     async def test_create_block_schema_for_system_block_type_fails(
         self, client, system_block_type

@@ -23,7 +23,7 @@ from prefect.orion.schemas.states import StateType
 flow_run_app = PrefectTyper(
     name="flow-run", help="Commands for interacting with flow runs."
 )
-app.add_typer(flow_run_app)
+app.add_typer(flow_run_app, aliases=["flow-runs"])
 
 
 @flow_run_app.command()
