@@ -137,7 +137,7 @@ loggers:
 
 # The root logger: any logger without propagation disabled sends to here as well
 root:
-    # By default, we display .warning_level level logs from any library in the console
+    # By default, we display warning level logs from any library in the console
     # to match Python's default behavior while formatting logs nicely
     level: WARNING
     handlers: [console]
