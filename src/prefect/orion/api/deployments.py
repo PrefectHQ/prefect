@@ -294,6 +294,7 @@ async def create_flow_run_from_deployment(
         infrastructure_document_id=(
             flow_run.infrastructure_document_id or deployment.infrastructure_document_id
         ),
+        work_queue_name=deployment.work_queue_name,
     )
 
     if not flow_run.state:
@@ -306,7 +307,8 @@ async def create_flow_run_from_deployment(
     return model
 
 
-@router.get("/{id}/work_queue_check")
+# DEPRECATED
+@router.get("/{id}/work_queue_check", deprecated=True)
 async def work_queue_check_for_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: AsyncSession = Depends(dependencies.get_session),
