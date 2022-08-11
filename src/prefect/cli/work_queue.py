@@ -17,7 +17,7 @@ from prefect.client import get_client
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 work_app = PrefectTyper(name="work-queue", help="Commands for work queue CRUD.")
-app.add_typer(work_app)
+app.add_typer(work_app, aliases=["work-queues"])
 
 
 @work_app.command()
