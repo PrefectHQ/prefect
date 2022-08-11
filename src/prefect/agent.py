@@ -14,7 +14,7 @@ from fastapi import status
 
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client
-from prefect.exceptions import Abort
+from prefect.exceptions import Abort, ObjectNotFound
 from prefect.infrastructure import Infrastructure, Process
 from prefect.infrastructure.submission import submit_flow_run
 from prefect.logging import get_logger
@@ -77,14 +77,8 @@ class OrionAgent:
         try:
             work_queue = await self.client.read_work_queue_by_name(self.work_queue_name)
             return work_queue.id
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-                self.logger.warning(
-                    f"No work queue found named {self.work_queue_name!r}"
-                )
-                return None
-            else:
-                raise
+        except ObjectNotFound:
+            return await self.client.create_work_queue(name=self.work_queue_name)
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
         """

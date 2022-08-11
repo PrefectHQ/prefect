@@ -156,6 +156,7 @@ class Deployment(BaseModel):
             "name",
             "description",
             "version",
+            "work_queue_name",
             "tags",
             "parameters",
             "schedule",
@@ -220,6 +221,11 @@ class Deployment(BaseModel):
     tags: List[str] = Field(default_factory=list)
     schedule: schemas.schedules.SCHEDULE_TYPES = None
     flow_name: str = Field(None, description="The name of the flow.")
+    work_queue_name: Optional[str] = Field(
+        None,
+        description="The work queue for the deployment.",
+        yaml_comment="The work queue that will handle this deployment's runs",
+    )
 
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
@@ -380,6 +386,7 @@ class Deployment(BaseModel):
             deployment_id = await client.create_deployment(
                 flow_id=flow_id,
                 name=self.name,
+                work_queue_name=self.work_queue_name,
                 version=self.version,
                 schedule=self.schedule,
                 parameters=self.parameters,
