@@ -124,12 +124,34 @@ async def test_early_stop():
     assert service._should_stop is False
 
     dt = pendulum.now("UTC")
-    await service.stop(block=True)
+    await service.stop()
     dt2 = pendulum.now("UTC")
 
     assert service._should_stop is True
     assert service._is_running is False
     assert dt2 - dt < pendulum.duration(seconds=1)
+
+
+@flaky_on_windows
+async def test_stop_block_escapes_deadlock(caplog):
+    """Test that calling a blocking stop inside the service eventually returns"""
+
+    class Service(LoopService):
+        def __init__(self, loop_seconds: float = 0.1):
+            super().__init__(loop_seconds)
+
+        async def run_once(self):
+            # calling a blocking stop inside run_once should create a deadlock
+            await self.stop(block=True)
+
+    service = Service()
+    asyncio.create_task(service.start())
+
+    # sleep for longer than one loop interval
+    await asyncio.sleep(0.2)
+
+    assert service._is_running is False
+    assert "`stop(block=True)` was called on Service but" in caplog.text
 
 
 @pytest.mark.skipif(

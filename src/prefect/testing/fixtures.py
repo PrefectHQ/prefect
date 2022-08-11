@@ -10,6 +10,19 @@ from prefect.settings import PREFECT_API_URL, get_current_settings, temporary_se
 from prefect.utilities.processutils import open_process
 
 
+@pytest.fixture(autouse=True)
+def add_prefect_loggers_to_caplog(caplog):
+    import logging
+
+    logger = logging.getLogger("prefect")
+    logger.propagate = True
+
+    try:
+        yield
+    finally:
+        logger.propagate = False
+
+
 def is_port_in_use(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(("localhost", port)) == 0
