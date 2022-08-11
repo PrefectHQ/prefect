@@ -75,8 +75,13 @@ def extract_flow_from_file(
                 "Provide either `file_path` or `file_contents` but not both."
             )
 
-        with open(file_path, "r") as f:
-            contents = f.read()
+        try:
+            with open(file_path, "r") as f:
+                contents = f.read()
+        except UnicodeDecodeError:
+            with open(file_path, "r", encoding="utf8") as f:
+                contents = f.read()
+
     elif file_contents is not None:
         contents = file_contents
     else:
