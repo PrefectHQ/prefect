@@ -34,7 +34,9 @@ ascii_name = r"""
 async def start(
     # deprecated main argument
     work_queue: str = typer.Argument(
-        None, show_default=False, help="DEPRECATED: A work queue name or ID"
+        None,
+        show_default=False,
+        help="DEPRECATED: A work queue name or ID",
     ),
     work_queues: List[str] = typer.Option(
         None,
