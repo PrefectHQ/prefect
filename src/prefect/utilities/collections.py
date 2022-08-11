@@ -288,10 +288,8 @@ def visit_collection(
 
     elif typ in (dict, OrderedDict):
         assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
-        keys, values = zip(*expr.items()) if expr else ([], [])
-        keys = [visit_nested(k) for k in keys]
-        values = [visit_nested(v) for v in values]
-        result = typ(zip(keys, values)) if return_data else None
+        items = [(visit_nested(k), visit_nested(v)) for k, v in expr.items()]
+        result = typ(items) if return_data else None
 
     elif is_dataclass(expr) and not isinstance(expr, type):
         values = [visit_nested(getattr(expr, f.name)) for f in fields(expr)]
