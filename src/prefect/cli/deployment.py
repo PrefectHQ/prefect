@@ -359,7 +359,7 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure'",
+        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure', 'smb'",
     ),
     cron: str = typer.Option(
         None,
