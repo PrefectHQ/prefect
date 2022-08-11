@@ -236,7 +236,7 @@ If you are [building your own image](#building-your-own-image), you may find it 
 !!! tip "Choose image versions wisely"
     It's a good practice to use Docker images with specific Prefect versions in production.
     
-    Use care when employing images with the "latest" tags (such as `prefecthq/prefect:2-python3.9`).
+    Use care when employing images that automatically update to new versions (such as `prefecthq/prefect:2-python3.9` or `prefecthq/prefect:2-latest`).
 
 ### Image tags
 
