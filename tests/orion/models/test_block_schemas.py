@@ -472,8 +472,8 @@ class TestCreateBlockSchema:
         assert block_schema.checksum == X._calculate_schema_checksum()
         assert block_schema.fields == X.schema()
 
-    async def test_create_block_schema_unique_checksum(self, session, block_type_x):
-        await models.block_schemas.create_block_schema(
+    async def test_create_block_schema_is_idempotent(self, session, block_type_x):
+        first_create_response = await models.block_schemas.create_block_schema(
             session=session,
             block_schema=schemas.actions.BlockSchemaCreate(
                 fields={},
@@ -481,14 +481,61 @@ class TestCreateBlockSchema:
             ),
         )
 
-        with pytest.raises(sa.exc.IntegrityError):
-            await models.block_schemas.create_block_schema(
-                session=session,
-                block_schema=schemas.actions.BlockSchemaCreate(
-                    fields={},
-                    block_type_id=block_type_x.id,
-                ),
-            )
+        # Should not raise
+        second_create_response = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                fields={},
+                block_type_id=block_type_x.id,
+            ),
+        )
+
+        # Should not raise
+        third_create_response = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                fields={},
+                block_type_id=block_type_x.id,
+            ),
+        )
+
+        assert (
+            first_create_response.id
+            == second_create_response.id
+            == third_create_response.id
+        )
+
+    async def test_create_block_schema_is_idempotent_for_nested_blocks(self, session):
+        class Child(Block):
+            age: int
+
+        class Parent(Block):
+            child: Child
+
+        parent_block_type = await models.block_types.create_block_type(
+            session=session, block_type=Parent._to_block_type()
+        )
+        child_block_type = await models.block_types.create_block_type(
+            session=session, block_type=Child._to_block_type()
+        )
+
+        parent_create_response = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Parent._to_block_schema(block_type_id=parent_block_type.id),
+        )
+
+        # Should not raise
+        child_create_response = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Child._to_block_schema(block_type_id=child_block_type.id),
+        )
+
+        assert (
+            parent_create_response.fields["block_schema_references"]["child"][
+                "block_schema_checksum"
+            ]
+            == child_create_response.checksum
+        )
 
 
 class TestReadBlockSchemas:

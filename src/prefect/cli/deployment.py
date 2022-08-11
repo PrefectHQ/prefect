@@ -48,7 +48,7 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)
 deployment_app = PrefectTyper(
     name="deployment", help="Commands for working with deployments."
 )
-app.add_typer(deployment_app)
+app.add_typer(deployment_app, aliases=["deployments"])
 
 
 def assert_deployment_name_format(name: str) -> None:
@@ -450,7 +450,7 @@ async def build(
             style="green",
         )
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
-    await deployment.to_yaml(deployment_loc)
+    await deployment.to_yaml(path=deployment_loc)
     exit_with_success(
         f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'."
     )
