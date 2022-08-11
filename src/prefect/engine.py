@@ -40,12 +40,7 @@ from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
-from prefect.futures import (
-    PrefectFuture,
-    call_repr,
-    collect_futures,
-    get_terminal_states_for_futures,
-)
+from prefect.futures import PrefectFuture, call_repr
 from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import OrionHandler
 from prefect.logging.loggers import (
@@ -1215,21 +1210,13 @@ async def resolve_inputs(
         UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
 
-    futures = collect_futures(parameters)
-    futures_to_states = {
-        future: state
-        for future, state in zip(
-            futures, await get_terminal_states_for_futures(futures)
-        )
-    }
-
     def resolve_input(expr):
         state = None
 
         if isinstance(expr, Quote):
             return expr.unquote()
         elif isinstance(expr, PrefectFuture):
-            state = futures_to_states[expr]
+            state = expr.wait()
         elif isinstance(expr, State):
             state = expr
         else:
@@ -1243,7 +1230,8 @@ async def resolve_inputs(
         # Only retrieve the result if requested as it may be expensive
         return state.result() if return_data else None
 
-    return visit_collection(
+    return await run_sync_in_worker_thread(
+        visit_collection,
         parameters,
         visit_fn=resolve_input,
         return_data=return_data,
