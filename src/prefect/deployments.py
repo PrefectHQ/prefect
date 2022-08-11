@@ -158,6 +158,7 @@ class Deployment(BaseModel):
     work_queue_name: Optional[str] = Field(
         None,
         description="The work queue for the deployment.",
+        yaml_comment="The work queue that will handle this deployment's runs",
     )
 
     # flow data
