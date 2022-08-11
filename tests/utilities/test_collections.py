@@ -77,20 +77,6 @@ async def all_negative_numbers(x):
     return x
 
 
-def negative_even_numbers_sync(x):
-    print("Function called on", x)
-    if isinstance(x, int) and x % 2 == 0:
-        return -x
-    return x
-
-
-def all_negative_numbers_sync(x):
-    print("Function called on", x)
-    if isinstance(x, int):
-        return -x
-    return x
-
-
 EVEN = set()
 
 
@@ -100,24 +86,10 @@ async def visit_even_numbers(x):
     return x
 
 
-def visit_even_numbers_sync(x):
-    if isinstance(x, int) and x % 2 == 0:
-        EVEN.add(x)
-    return x
-
-
 VISITED = list()
 
 
 async def add_to_visited_list(x):
-    VISITED.append(x)
-
-
-def add_to_visited_list_sync(x):
-    VISITED.append(x)
-
-
-def add_to_visited_list_sync(x):
     VISITED.append(x)
 
 
