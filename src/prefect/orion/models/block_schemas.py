@@ -53,6 +53,7 @@ async def create_block_schema(
         exclude={"block_type", "id", "created", "updated"},
     )
 
+    definitions = definitions or block_schema.fields.get("definitions")
     fields_for_checksum = insert_values["fields"]
     if definitions:
         # Ensure definitions are available if this is a nested schema
@@ -71,17 +72,20 @@ async def create_block_schema(
 
     insert_values["checksum"] = checksum
 
-    # Get non block definitions for saving to the DB.
-    non_block_definitions = _get_non_block_reference_definitions(
-        insert_values["fields"], definitions
-    )
-    if non_block_definitions:
-        insert_values["fields"]["definitions"] = _get_non_block_reference_definitions(
+    if definitions:
+        # Get non block definitions for saving to the DB.
+        non_block_definitions = _get_non_block_reference_definitions(
             insert_values["fields"], definitions
         )
-    else:
-        # Prevent storing definitions for blocks. Those are reconstructed on read.
-        insert_values["fields"].pop("definitions", None)
+        if non_block_definitions:
+            insert_values["fields"][
+                "definitions"
+            ] = _get_non_block_reference_definitions(
+                insert_values["fields"], definitions
+            )
+        else:
+            # Prevent storing definitions for blocks. Those are reconstructed on read.
+            insert_values["fields"].pop("definitions", None)
 
     # Prevent saving block schema references in the block_schema table. They have
     # they're own table.
