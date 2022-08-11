@@ -1,6 +1,7 @@
 """
 Prefect-specific exceptions.
 """
+import traceback
 from types import ModuleType, TracebackType
 from typing import Iterable, Optional, Type
 
@@ -39,6 +40,14 @@ def _trim_traceback(
     return tb
 
 
+def exception_traceback(exc: Exception) -> str:
+    """
+    Convert an exception to a printable string with a traceback
+    """
+    tb = traceback.TracebackException.from_exception(exc)
+    return "".join(list(tb.format()))
+
+
 class PrefectException(Exception):
     """
     Base exception type for Prefect errors.
@@ -54,18 +63,6 @@ class MissingFlowError(PrefectException):
 class UnspecifiedFlowError(PrefectException):
     """
     Raised when multiple flows are found in the expected script and no name is given.
-    """
-
-
-class MissingDeploymentError(PrefectException):
-    """
-    Raised when a given deployment name is not found in the expected script.
-    """
-
-
-class UnspecifiedDeploymentError(PrefectException):
-    """
-    Raised when multiple deployments are found in the expected script and no name is given.
     """
 
 

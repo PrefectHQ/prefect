@@ -57,16 +57,21 @@ class DeploymentCreate(
         name="DeploymentCreate",
         include_fields=[
             "name",
+            "version",
             "flow_id",
             "schedule",
             "is_schedule_active",
+            "work_queue_name",
             "description",
             "tags",
             "parameters",
             "manifest_path",
             "parameter_openapi_schema",
             "storage_document_id",
+            "path",
+            "entrypoint",
             "infrastructure_document_id",
+            "infra_overrides",
         ],
     )
 ):
@@ -80,13 +85,19 @@ class DeploymentUpdate(
     schemas.core.Deployment.subclass(
         name="DeploymentUpdate",
         include_fields=[
+            "version",
             "schedule",
             "is_schedule_active",
             "description",
+            "work_queue_name",
             "tags",
+            "manifest_path",
+            "path",
+            "entrypoint",
             "parameters",
             "storage_document_id",
             "infrastructure_document_id",
+            "infra_overrides",
         ],
     )
 ):
@@ -343,11 +354,12 @@ class WorkQueueCreate(
     schemas.core.WorkQueue.subclass(
         "WorkQueueCreate",
         include_fields=[
-            "filter",
             "name",
             "description",
             "is_paused",
             "concurrency_limit",
+            # DEPRECATED: filters are deprecated
+            "filter",
         ],
     )
 ):
@@ -361,11 +373,11 @@ class WorkQueueUpdate(
     schemas.core.WorkQueue.subclass(
         "WorkQueueUpdate",
         include_fields=[
-            "filter",
-            "name",
             "description",
             "is_paused",
             "concurrency_limit",
+            # DEPRECATED: filters are deprecated
+            "filter",
         ],
     )
 ):
@@ -374,7 +386,10 @@ class WorkQueueUpdate(
     class Config:
         extra = "forbid"
 
-    name: Optional[str] = Field(None, description="The name of the work queue.")
+    # DEPRECATED: names should not be updated, left here only for backwards-compatibility
+    name: Optional[str] = Field(
+        None, description="The name of the work queue.", deprecated=True
+    )
 
 
 class FlowRunNotificationPolicyCreate(

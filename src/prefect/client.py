@@ -176,7 +176,9 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
             APP_LIFESPANS_REF_COUNTS[key] += 1
         else:
             # Create a new lifespan manager
-            APP_LIFESPANS[key] = context = LifespanManager(app)
+            APP_LIFESPANS[key] = context = LifespanManager(
+                app, startup_timeout=30, shutdown_timeout=30
+            )
             APP_LIFESPANS_REF_COUNTS[key] = 1
 
             # Ensure we enter the context before releasing the lock so startup hooks
@@ -503,7 +505,7 @@ class OrionClient:
             a fully hydrated [Flow model][prefect.orion.schemas.core.Flow]
         """
         response = await self._client.get(f"/flows/name/{flow_name}")
-        return schemas.core.Deployment.parse_obj(response.json())
+        return schemas.core.Flow.parse_obj(response.json())
 
     async def create_flow_run_from_deployment(
         self,
@@ -512,6 +514,8 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         context: dict = None,
         state: schemas.states.State = None,
+        name: str = None,
+        tags: Iterable[str] = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a deployment.
@@ -533,11 +537,14 @@ class OrionClient:
         parameters = parameters or {}
         context = context or {}
         state = state or Scheduled()
+        tags = tags or []
 
         flow_run_create = schemas.actions.DeploymentFlowRunCreate(
             parameters=parameters,
             context=context,
             state=state,
+            tags=tags,
+            name=name,
         )
 
         response = await self._client.post(
@@ -613,9 +620,10 @@ class OrionClient:
     async def update_flow_run(
         self,
         flow_run_id: UUID,
-        flow_version: str = None,
-        parameters: dict = None,
-        name: str = None,
+        flow_version: Optional[str] = None,
+        parameters: Optional[dict] = None,
+        name: Optional[str] = None,
+        tags: Optional[Iterable[str]] = None,
     ) -> None:
         """
         Update a flow run's details.
@@ -636,6 +644,8 @@ class OrionClient:
             params["parameters"] = parameters
         if name is not None:
             params["name"] = name
+        if tags is not None:
+            params["tags"] = tags
 
         flow_run_data = schemas.actions.FlowRunUpdate(**params)
 
@@ -1132,6 +1142,18 @@ class OrionClient:
             else:
                 raise
 
+    async def read_block_types(self) -> List[schemas.core.BlockType]:
+        """
+        Read all block types
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            List of BlockTypes.
+        """
+        response = await self._client.post(f"/block_types/filter", json={})
+        return pydantic.parse_obj_as(List[schemas.core.BlockType], response.json())
+
     async def read_block_schemas(self) -> List[schemas.core.BlockSchema]:
         """
         Read all block schemas
@@ -1256,13 +1278,17 @@ class OrionClient:
         self,
         flow_id: UUID,
         name: str,
+        version: str = None,
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         parameters: Dict[str, Any] = None,
         description: str = None,
         tags: List[str] = None,
-        manifest_path: str = None,
         storage_document_id: UUID = None,
+        manifest_path: str = None,
+        path: str = None,
+        entrypoint: str = None,
         infrastructure_document_id: UUID = None,
+        infra_overrides: Dict[str, Any] = None,
         parameter_openapi_schema: dict = None,
     ) -> UUID:
         """
@@ -1271,6 +1297,7 @@ class OrionClient:
         Args:
             flow_id: the flow ID to create a deployment for
             name: the name of the deployment
+            version: an optional version string for the deployment
             schedule: an optional schedule to apply to the deployment
             tags: an optional list of tags to apply to the deployment
             storage_document_id: an reference to the storage block document
@@ -1287,13 +1314,17 @@ class OrionClient:
         deployment_create = schemas.actions.DeploymentCreate(
             flow_id=flow_id,
             name=name,
+            version=version,
             schedule=schedule,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
             description=description,
-            manifest_path=manifest_path,
             storage_document_id=storage_document_id,
+            path=path,
+            entrypoint=entrypoint,
+            manifest_path=manifest_path,  # for backwards compat
             infrastructure_document_id=infrastructure_document_id,
+            infra_overrides=infra_overrides or {},
             parameter_openapi_schema=parameter_openapi_schema,
         )
 

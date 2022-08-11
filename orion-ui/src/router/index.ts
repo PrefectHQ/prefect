@@ -58,6 +58,11 @@ const routeRecords: AppRouteRecord[] = [
         path: '',
         component: (): RouteComponent => import('@/pages/Deployment.vue'),
       },
+      {
+        name: 'flow-run.create',
+        path: 'run',
+        component: (): RouteComponent => import('@/pages/FlowRunCreate.vue'),
+      },
     ],
   },
   {
@@ -102,6 +107,11 @@ const routeRecords: AppRouteRecord[] = [
         name: 'blocks.catalog',
         path: 'catalog',
         component: (): RouteComponent => import('@/pages/BlocksCatalog.vue'),
+      },
+      {
+        name: 'blocks.view',
+        path: 'catalog/:blockTypeSlug',
+        component: (): RouteComponent => import('@/pages/BlocksCatalogView.vue'),
       },
       {
         name: 'blocks.create',
