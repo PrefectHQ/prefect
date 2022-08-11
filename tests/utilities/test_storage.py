@@ -63,6 +63,17 @@ class TestExtractFlowFromFile:
         return full_path
 
     @pytest.fixture
+    def emoji_flow_path(self, tmpdir):
+        contents = """from prefect import Flow\nf=Flow(''emoji-flow-❌'')"""
+
+        full_path = os.path.join(tmpdir, "flow.py")
+
+        with open(full_path, "w") as f:
+            f.write(contents)
+
+        return full_path
+
+    @pytest.fixture
     def flow_path_with_additional_file(self, tmpdir):
         contents = """\
         from prefect import Flow
@@ -94,6 +105,11 @@ class TestExtractFlowFromFile:
 
         flow = extract_flow_from_file(file_path=flow_path, flow_name="flow-2")
         assert flow.name == "flow-2"
+
+    def test_extract_emoji_flow_from_file_path(self, emoji_flow_path):
+        flow = extract_flow_from_file(file_path=emoji_flow_path)
+        assert flow.name == "emoji-flow-❌"
+        assert flow.run().is_successful()
 
     def test_extract_flow_from_file_path_can_load_files_from_same_directory(
         self, flow_path_with_additional_file
