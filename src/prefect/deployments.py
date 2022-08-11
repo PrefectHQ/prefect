@@ -34,6 +34,9 @@ async def load_flow_from_flow_run(
 ) -> Flow:
     """
     Load a flow from the location/script provided in a deployment's storage document.
+
+    If `ignore_storage=True` is provided, no pull from remote storage occurs.  This flag
+    is largely for testing, and assumes the flow is already available locally.
     """
     deployment = await client.read_deployment(flow_run.deployment_id)
 
@@ -307,6 +310,9 @@ class Deployment(BaseModel):
     async def update(self, ignore_none: bool = False, **kwargs):
         """
         Performs an in-place update with the provided settings.
+
+        Args:
+            ignore_none: if True, all `None` values are ignored when performing the update
         """
         unknown_keys = set(kwargs.keys()) - set(self.dict().keys())
         if unknown_keys:
