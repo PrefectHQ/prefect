@@ -1225,7 +1225,7 @@ async def resolve_inputs(
         if isinstance(expr, Quote):
             return expr.unquote()
         elif isinstance(expr, PrefectFuture):
-            state = expr.wait()
+            state = run_async_from_worker_thread(expr._wait)
         elif isinstance(expr, State):
             state = expr
         else:

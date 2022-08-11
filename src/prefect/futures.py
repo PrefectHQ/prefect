@@ -315,7 +315,7 @@ async def resolve_futures_to_states(
 
     def resolve_future(expr):
         if isinstance(expr, PrefectFuture):
-            return expr.wait()
+            return run_async_from_worker_thread(expr._wait)
         else:
             return expr
 
