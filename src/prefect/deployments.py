@@ -166,8 +166,9 @@ class Deployment(BaseModel):
         else:
             return editable_fields + ["infrastructure"]
 
-    def to_yaml(self, path: Path) -> None:
-        yaml_dict = self.yaml_dict()
+    @sync_compatible
+    async def to_yaml(self, path: Path) -> None:
+        yaml_dict = self._yaml_dict()
         schema = self.schema()
 
         with open(path, "w") as f:
@@ -353,21 +354,6 @@ class Deployment(BaseModel):
 
         self.path = deployment_path
         return file_count
-
-    @sync_compatible
-    async def to_yaml(self, output: str):
-        """
-        Compiles the current deployment into a YAML file at the location specified by `output`.
-        """
-        with open(output, "w") as f:
-            f.write(self.header)
-            yaml.dump(self._editable_fields_dict(), f, sort_keys=False)
-            do_not_edit_msg = " DO NOT EDIT BELOW THIS LINE "
-            msg_length = len(do_not_edit_msg)
-            f.write(
-                f"###{' ' * msg_length}###\n###{do_not_edit_msg}###\n###{' ' * msg_length}###\n"
-            )
-            yaml.dump(self._immutable_fields_dict(), f, sort_keys=False)
 
     @sync_compatible
     async def apply(self) -> UUID:
