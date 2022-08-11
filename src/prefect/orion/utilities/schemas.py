@@ -132,8 +132,10 @@ class PrefectBaseModel(BaseModel):
         else:
             extra = "ignore"
 
-        pydantic_version = getattr(pydantic, '__version__', None)
-        if pydantic_version is not None and pydantic_version >= "1.9.1":
+        pydantic_version = getattr(pydantic, "__version__", None)
+        if pydantic_version is not None and Version(pydantic_version) >= Version("1.9.2"):
+            copy_on_model_validation = 'none'
+        else:
             copy_on_model_validation = False
 
     @classmethod
