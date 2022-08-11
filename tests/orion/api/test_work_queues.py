@@ -1,6 +1,8 @@
+from typing import List
 from uuid import uuid4
 
 import pendulum
+import pydantic
 import pytest
 from fastapi import status
 
@@ -13,7 +15,7 @@ async def work_queue(session):
     work_queue = await models.work_queues.create_work_queue(
         session=session,
         work_queue=schemas.core.WorkQueue(
-            name="My WorkQueue",
+            name="wq-1",
             description="All about my work queue",
         ),
     )
@@ -28,13 +30,11 @@ class TestCreateWorkQueue:
         client,
     ):
         now = pendulum.now(tz="UTC")
-        data = WorkQueueCreate(
-            name="My WorkQueue", filter=schemas.core.QueueFilter(tags=["foo", "bar"])
-        ).dict(json_compatible=True)
+        data = WorkQueueCreate(name="wq-1").dict(json_compatible=True)
         response = await client.post("/work_queues/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
-        assert response.json()["name"] == "My WorkQueue"
-        assert response.json()["filter"]["tags"] == ["foo", "bar"]
+        assert response.json()["name"] == "wq-1"
+        assert response.json()["filter"] is None
         assert pendulum.parse(response.json()["created"]) >= now
         assert pendulum.parse(response.json()["updated"]) >= now
         work_queue_id = response.json()["id"]
@@ -43,7 +43,7 @@ class TestCreateWorkQueue:
             session=session, work_queue_id=work_queue_id
         )
         assert str(work_queue.id) == work_queue_id
-        assert work_queue.name == "My WorkQueue"
+        assert work_queue.name == "wq-1"
 
     async def test_create_work_queue_raises_error_on_existing_name(
         self, client, work_queue
@@ -74,9 +74,9 @@ class TestUpdateWorkQueue:
         client,
     ):
         now = pendulum.now(tz="UTC")
-        data = WorkQueueCreate(
-            name="My WorkQueue", filter=schemas.core.QueueFilter(tags=["foo", "bar"])
-        ).dict(json_compatible=True, exclude_unset=True)
+        data = WorkQueueCreate(name="wq-1").dict(
+            json_compatible=True, exclude_unset=True
+        )
         response = await client.post("/work_queues/", json=data)
         work_queue_id = response.json()["id"]
 
@@ -105,7 +105,7 @@ class TestReadWorkQueue:
         response = await client.get(f"/work_queues/{work_queue.id}")
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(work_queue.id)
-        assert response.json()["name"] == "My WorkQueue"
+        assert response.json()["name"] == "wq-1"
 
     async def test_read_work_queue_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/work_queues/{uuid4()}")
@@ -164,14 +164,14 @@ class TestReadWorkQueues:
         await models.work_queues.create_work_queue(
             session=session,
             work_queue=schemas.core.WorkQueue(
-                name="My WorkQueue X",
+                name="wq-1 X",
             ),
         )
 
         await models.work_queues.create_work_queue(
             session=session,
             work_queue=schemas.core.WorkQueue(
-                name="My WorkQueue Y",
+                name="wq-1 Y",
             ),
         )
         await session.commit()
@@ -191,7 +191,7 @@ class TestReadWorkQueues:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         # ordered by name by default
-        assert response.json()[0]["name"] == "My WorkQueue Y"
+        assert response.json()[0]["name"] == "wq-1 Y"
 
     async def test_read_work_queues_returns_empty_list(self, client):
         response = await client.post("/work_queues/filter")
@@ -199,116 +199,152 @@ class TestReadWorkQueues:
         assert response.json() == []
 
 
-class TestReadWorkQueueRuns:
+class TestGetRunsInWorkQueue:
     @pytest.fixture
-    async def flow_run_1_id(self):
-        return uuid4()
-
-    @pytest.fixture
-    async def flow_run_2_id(self):
-        return uuid4()
-
-    @pytest.fixture(autouse=True)
-    async def flow_runs(
-        self,
-        session,
-        deployment,
-        flow_run_1_id,
-        flow_run_2_id,
-        infrastructure_document_id,
-    ):
-
-        # flow run 1 is in a SCHEDULED state 5 seconds ago
-        flow_run_1 = await models.flow_runs.create_flow_run(
+    async def work_queue_2(self, session):
+        work_queue = await models.work_queues.create_work_queue(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                id=flow_run_1_id,
-                flow_id=deployment.flow_id,
-                deployment_id=deployment.id,
-                flow_version="0.1",
-                infrastructure_document_id=infrastructure_document_id,
-            ),
-        )
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run_1.id,
-            state=schemas.states.State(
-                type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(seconds=5),
-                state_details=dict(
-                    scheduled_time=pendulum.now("UTC").subtract(seconds=1)
-                ),
-            ),
-        )
-
-        # flow run 2 is in a SCHEDULED state 1 minute ago with tags ["tb12", "goat"]
-        flow_run_2 = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(
-                id=flow_run_2_id,
-                flow_id=deployment.flow_id,
-                deployment_id=deployment.id,
-                flow_version="0.1",
-                tags=["tb12", "goat"],
-                next_scheduled_start_time=pendulum.now("UTC").subtract(minutes=1),
-            ),
-        )
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run_2.id,
-            state=schemas.states.State(
-                type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(minutes=1),
-                state_details=dict(
-                    scheduled_time=pendulum.now("UTC").subtract(minutes=1)
-                ),
-            ),
+            work_queue=schemas.core.WorkQueue(name="wq-2"),
         )
         await session.commit()
+        return work_queue
 
-    async def test_read_work_queue_runs(
-        self, client, work_queue, flow_run_1_id, flow_run_2_id
-    ):
-        response = await client.post(f"/work_queues/{work_queue.id}/get_runs")
-        assert response.status_code == status.HTTP_200_OK
-        assert {res["id"] for res in response.json()} == {
-            str(flow_run_1_id),
-            str(flow_run_2_id),
-        }
+    @pytest.fixture
+    async def scheduled_flow_runs(self, session, deployment, work_queue, work_queue_2):
+        for i in range(3):
+            for wq in [work_queue, work_queue_2]:
+                await models.flow_runs.create_flow_run(
+                    session=session,
+                    flow_run=schemas.core.FlowRun(
+                        flow_id=deployment.flow_id,
+                        deployment_id=deployment.id,
+                        work_queue_name=wq.name,
+                        state=schemas.states.State(
+                            type="SCHEDULED",
+                            timestamp=pendulum.now("UTC").add(minutes=i),
+                            state_details=dict(
+                                scheduled_time=pendulum.now("UTC").add(minutes=i)
+                            ),
+                        ),
+                    ),
+                )
+        await session.commit()
 
-    async def test_read_work_queue_runs_respects_limit(
-        self, client, work_queue, flow_run_2_id
+    @pytest.fixture
+    async def running_flow_runs(self, session, deployment, work_queue, work_queue_2):
+        for i in range(3):
+            for wq in [work_queue, work_queue_2]:
+                await models.flow_runs.create_flow_run(
+                    session=session,
+                    flow_run=schemas.core.FlowRun(
+                        flow_id=deployment.flow_id,
+                        deployment_id=deployment.id,
+                        work_queue_name=wq.name,
+                        state=schemas.states.State(
+                            type="RUNNING" if i == 0 else "PENDING",
+                            timestamp=pendulum.now("UTC").subtract(seconds=10),
+                        ),
+                    ),
+                )
+        await session.commit()
+
+    async def test_get_runs_in_queue(
+        self, client, work_queue, work_queue_2, scheduled_flow_runs, running_flow_runs
     ):
-        response = await client.post(
-            f"/work_queues/{work_queue.id}/get_runs", json=dict(limit=1)
+        response1 = await client.post(f"/work_queues/{work_queue.id}/get_runs")
+        assert response1.status_code == status.HTTP_200_OK
+        response2 = await client.post(f"/work_queues/{work_queue_2.id}/get_runs")
+        assert response2.status_code == status.HTTP_200_OK
+
+        runs_wq1 = pydantic.parse_obj_as(List[schemas.core.FlowRun], response1.json())
+        runs_wq2 = pydantic.parse_obj_as(List[schemas.core.FlowRun], response2.json())
+
+        assert len(runs_wq1) == len(runs_wq2) == 3
+        assert all(r.work_queue_name == work_queue.name for r in runs_wq1)
+        assert all(r.work_queue_name == work_queue_2.name for r in runs_wq2)
+        assert set([r.id for r in runs_wq1]) != set([r.id for r in runs_wq2])
+
+    @pytest.mark.parametrize("limit", [2, 0])
+    async def test_get_runs_in_queue_limit(
+        self,
+        client,
+        work_queue,
+        scheduled_flow_runs,
+        running_flow_runs,
+        limit,
+    ):
+        response1 = await client.post(
+            f"/work_queues/{work_queue.id}/get_runs", json=dict(limit=limit)
         )
-        assert response.status_code == status.HTTP_200_OK
-        assert {res["id"] for res in response.json()} == {
-            str(flow_run_2_id),
-        }
+        runs_wq1 = pydantic.parse_obj_as(List[schemas.core.FlowRun], response1.json())
+        assert len(runs_wq1) == limit
 
-        # limit should still be constrained by Orion settings though
-        response = await client.post(
-            f"/work_queues/{work_queue.id}/get_runs", json=dict(limit=9001)
-        )
-        assert response.status_code == 422
-
-    async def test_read_work_queue_runs_respects_scheduled_before(
-        self, client, work_queue
+    async def test_get_runs_in_queue_scheduled_before(
+        self, client, work_queue, scheduled_flow_runs, running_flow_runs
     ):
-        response = await client.post(
+        response1 = await client.post(
             f"/work_queues/{work_queue.id}/get_runs",
-            json=dict(scheduled_before=str(pendulum.now("UTC").subtract(years=2000))),
+            json=dict(scheduled_before=pendulum.now().isoformat()),
         )
-        assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 0
+        runs_wq1 = pydantic.parse_obj_as(List[schemas.core.FlowRun], response1.json())
+        assert len(runs_wq1) == 1
+
+    async def test_get_runs_in_queue_nonexistant(
+        self, client, work_queue, scheduled_flow_runs, running_flow_runs
+    ):
+        response1 = await client.post(f"/work_queues/{uuid4()}/get_runs")
+        assert response1.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_get_runs_in_queue_paused(
+        self, client, work_queue, scheduled_flow_runs, running_flow_runs
+    ):
+        await client.patch(f"/work_queues/{work_queue.id}", json=dict(is_paused=True))
+
+        response1 = await client.post(f"/work_queues/{work_queue.id}/get_runs")
+        assert response1.json() == []
+
+    @pytest.mark.parametrize("concurrency_limit", [10, 5, 1])
+    async def test_get_runs_in_queue_concurrency_limit(
+        self,
+        client,
+        work_queue,
+        scheduled_flow_runs,
+        running_flow_runs,
+        concurrency_limit,
+    ):
+        await client.patch(
+            f"/work_queues/{work_queue.id}",
+            json=dict(concurrency_limit=concurrency_limit),
+        )
+
+        response1 = await client.post(f"/work_queues/{work_queue.id}/get_runs")
+
+        assert len(response1.json()) == max(0, min(3, concurrency_limit - 3))
+
+    @pytest.mark.parametrize("limit", [10, 1])
+    async def test_get_runs_in_queue_concurrency_limit_and_limit(
+        self,
+        client,
+        work_queue,
+        scheduled_flow_runs,
+        running_flow_runs,
+        limit,
+    ):
+        await client.patch(
+            f"/work_queues/{work_queue.id}",
+            json=dict(concurrency_limit=5),
+        )
+        response1 = await client.post(
+            f"/work_queues/{work_queue.id}/get_runs",
+            json=dict(limit=limit),
+        )
+
+        assert len(response1.json()) == min(limit, 2)
 
     async def test_read_work_queue_runs_updates_agent_last_activity_time(
         self,
         client,
         work_queue,
-        flow_run_1_id,
-        flow_run_2_id,
         session,
     ):
         now = pendulum.now("UTC")
@@ -318,19 +354,11 @@ class TestReadWorkQueueRuns:
             json=dict(agent_id=str(fake_agent_id)),
         )
         assert response.status_code == status.HTTP_200_OK
-        assert {res["id"] for res in response.json()} == {
-            str(flow_run_1_id),
-            str(flow_run_2_id),
-        }
 
         agent = await models.agents.read_agent(session=session, agent_id=fake_agent_id)
         assert agent.id == fake_agent_id
         assert agent.work_queue_id == work_queue.id
         assert agent.last_activity_time >= now
-
-    async def test_read_work_queue_runs_handles_non_existent_work_queue(self, client):
-        response = await client.post(f"/work_queues/{uuid4()}/get_runs")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestDeleteWorkQueue:
