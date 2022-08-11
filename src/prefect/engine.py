@@ -197,6 +197,7 @@ async def create_then_begin_flow_run(
         try:
             parameters = flow.validate_parameters(parameters)
         except Exception as exc:
+            flow_run_logger(flow_run).exception(state.message)
             state = Failed(
                 message=f"Validation of flow parameters failed with error: {exc!r}",
                 data=DataDocument.encode("cloudpickle", exc),
@@ -213,7 +214,6 @@ async def create_then_begin_flow_run(
     engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
 
     if state.is_failed():
-        flow_run_logger(flow_run).error(state.message)
         engine_logger.info(
             f"Flow run {flow_run.name!r} received invalid parameters and is marked as failed."
         )
