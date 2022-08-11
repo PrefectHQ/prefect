@@ -372,22 +372,8 @@ class TestInfrastructureIntegration:
             raise result
 
 
-@pytest.fixture
-def prefect_caplog(caplog):
-    # TODO: Determine a better pattern for this and expose for all tests
-    import logging
-
-    logger = logging.getLogger("prefect")
-    logger.propagate = True
-
-    try:
-        yield caplog
-    finally:
-        logger.propagate = False
-
-
 async def test_agent_displays_message_on_work_queue_pause(
-    orion_client, work_queue_id, prefect_caplog
+    orion_client, work_queue_id, caplog
 ):
     async with OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10) as agent:
         agent.submit_run = AsyncMock()  # do not actually run
@@ -395,7 +381,7 @@ async def test_agent_displays_message_on_work_queue_pause(
         await agent.get_and_submit_flow_runs()
 
         assert (
-            f"Work queue 'wq' ({work_queue_id}) is paused." not in prefect_caplog.text
+            f"Work queue 'wq' ({work_queue_id}) is paused." not in caplog.text
         ), "Message should not be displayed before pausing"
 
         await orion_client.update_work_queue(work_queue_id, is_paused=True)
@@ -403,4 +389,4 @@ async def test_agent_displays_message_on_work_queue_pause(
         # Should emit the paused message
         await agent.get_and_submit_flow_runs()
 
-        assert f"Work queue 'wq' ({work_queue_id}) is paused." in prefect_caplog.text
+        assert f"Work queue 'wq' ({work_queue_id}) is paused." in caplog.text
