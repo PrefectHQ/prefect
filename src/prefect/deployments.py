@@ -4,7 +4,8 @@ Objects for specifying deployments and utilities for loading flows from deployme
 
 import json
 import sys
-from typing import Any, Dict, List, Union
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
@@ -17,19 +18,11 @@ from prefect.flows import Flow
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import ParameterSchema
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.importtools import import_object
-
-
-async def load_flow_from_deployment(deployment: schemas.core.Deployment) -> Flow:
-    """
-    Load a flow from the location/script provided in a deployment's storage document.
-    """
-    with open(deployment.manifest_path, "r") as f:
-        manifest = json.load(f)
-    return import_object(manifest["import_path"])
 
 
 @inject_client
@@ -40,16 +33,29 @@ async def load_flow_from_flow_run(
     Load a flow from the location/script provided in a deployment's storage document.
     """
     deployment = await client.read_deployment(flow_run.deployment_id)
-    storage_document = await client.read_block_document(deployment.storage_document_id)
-    storage_block = Block._from_block_document(storage_document)
+    if deployment.storage_document_id:
+        storage_document = await client.read_block_document(
+            deployment.storage_document_id
+        )
+        storage_block = Block._from_block_document(storage_document)
+    else:
+        basepath = deployment.path or Path(deployment.manifest_path).parent
+        storage_block = LocalFileSystem(basepath=basepath)
 
     sys.path.insert(0, ".")
+    # TODO: append deployment.path
     await storage_block.get_directory(from_path=None, local_path=".")
 
     flow_run_logger(flow_run).debug(
         f"Loading flow for deployment {deployment.name!r}..."
     )
-    flow = await load_flow_from_deployment(deployment)
+
+    # for backwards compat
+    import_path = deployment.entrypoint
+    if deployment.manifest_path:
+        with open(deployment.manifest_path, "r") as f:
+            import_path = json.load(f)["import_path"]
+    flow = await run_sync_in_worker_thread(import_object, import_path)
     return flow
 
 
@@ -76,7 +82,12 @@ def load_deployments_from_yaml(
     return registry
 
 
-class DeploymentYAML(BaseModel):
+class Deployment(BaseModel):
+    """
+    Client-side deployment that can be converted to YAML. To add a YAML comment
+    to any field, pass `yaml_comment=""` to its `Field()` constructor.
+    """
+
     @property
     def editable_fields(self) -> List[str]:
         editable_fields = [
@@ -86,13 +97,38 @@ class DeploymentYAML(BaseModel):
             "tags",
             "parameters",
             "schedule",
-            "infrastructure",
+            "infra_overrides",
         ]
-        return editable_fields
+        if self.infrastructure._block_document_id:
+            return editable_fields
+        else:
+            return editable_fields + ["infrastructure"]
 
-    @property
-    def header(self) -> str:
-        return f"###\n### A complete description of a Prefect Deployment for flow {self.flow_name!r}\n###\n"
+    def to_yaml(self, path: Path) -> None:
+        yaml_dict = self.yaml_dict()
+        schema = self.schema()
+
+        with open(path, "w") as f:
+            # write header
+            f.write(
+                f"###\n### A complete description of a Prefect Deployment for flow {self.flow_name!r}\n###\n"
+            )
+
+            # write editable fields
+            for field in self.editable_fields:
+                # write any comments
+                if schema["properties"][field].get("yaml_comment"):
+                    f.write(f"# {schema['properties'][field]['yaml_comment']}\n")
+                # write the field
+                yaml.dump({field: yaml_dict[field]}, f, sort_keys=False)
+
+            # write non-editable fields
+            f.write("\n###\n### DO NOT EDIT BELOW THIS LINE\n###\n")
+            yaml.dump(
+                {k: v for k, v in yaml_dict.items() if k not in self.editable_fields},
+                f,
+                sort_keys=False,
+            )
 
     def yaml_dict(self) -> dict:
         # avoids issues with UUIDs showing up in YAML
@@ -103,18 +139,11 @@ class DeploymentYAML(BaseModel):
                 }
             )
         )
-        all_fields["storage"]["_block_type_slug"] = self.storage.get_block_type_slug()
+        if all_fields["storage"]:
+            all_fields["storage"][
+                "_block_type_slug"
+            ] = self.storage.get_block_type_slug()
         return all_fields
-
-    def editable_fields_dict(self):
-        "Returns YAML compatible dictionary of editable fields, in the correct order"
-        all_fields = self.yaml_dict()
-        return {field: all_fields[field] for field in self.editable_fields}
-
-    def immutable_fields_dict(self):
-        "Returns YAML compatible dictionary of immutable fields, in the correct order"
-        all_fields = self.yaml_dict()
-        return {k: v for k, v in all_fields.items() if k not in self.editable_fields}
 
     # top level metadata
     name: str = Field(..., description="The name of the deployment.")
@@ -129,13 +158,28 @@ class DeploymentYAML(BaseModel):
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
     manifest_path: str = Field(
-        ...,
+        None,
         description="The path to the flow's manifest file, relative to the chosen storage.",
     )
     infrastructure: Union[DockerContainer, KubernetesJob, Process] = Field(
         default_factory=Process
     )
-    storage: Block = Field(default_factory=LocalFileSystem)
+    infra_overrides: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Overrides to apply to the base infrastructure block at runtime.",
+    )
+    storage: Optional[Block] = Field(
+        None,
+        help="The remote storage to use for this workflow.",
+    )
+    path: str = Field(
+        None,
+        description="The path to the working directory for the workflow, relative to remote storage or an absolute path.",
+    )
+    entrypoint: str = Field(
+        None,
+        description="The path to the entrypoint for the workflow, relative to the `path`.",
+    )
     parameter_openapi_schema: ParameterSchema = Field(
         ..., description="The parameter schema of the flow, including defaults."
     )

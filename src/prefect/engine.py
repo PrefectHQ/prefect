@@ -40,7 +40,7 @@ from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_data
+from prefect.futures import PrefectFuture, call_repr
 from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import OrionHandler
 from prefect.logging.loggers import (
@@ -338,7 +338,7 @@ async def begin_flow_run(
             stack.enter_context(start_blocking_portal()) if flow.isasync else None
         )
 
-        logger.info(
+        logger.debug(
             f"Starting {type(flow.task_runner).__name__!r}; submitted tasks "
             f"will be run {CONCURRENCY_MESSAGES[flow.task_runner.concurrency_type]}..."
         )
@@ -398,7 +398,7 @@ async def create_and_begin_subflow_run(
     parent_logger = get_run_logger(parent_flow_run_context)
 
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
-    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
+    task_inputs = {k: collect_task_run_inputs(v) for k, v in parameters.items()}
 
     # Generate a task in the parent flow run to represent the result of the subflow run
     dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
@@ -411,7 +411,7 @@ async def create_and_begin_subflow_run(
     )
 
     # Resolve any task futures in the input
-    parameters = await resolve_futures_to_data(parameters)
+    parameters = await resolve_inputs(parameters)
 
     if parent_task_run.state.is_final():
 
@@ -582,19 +582,29 @@ async def orchestrate_flow_run(
                     flow_run_context.task_run_futures, client=client
                 )
 
-        except TimeoutError as exc:
-            # TODO: Cancel task runs if feasible
-            terminal_state = Failed(
-                name="TimedOut",
-                message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
-            )
         except Exception as exc:
-            logger.error(
-                f"Encountered exception during execution:",
-                exc_info=True,
-            )
+            name = message = None
+            if (
+                # Flow run timeouts
+                isinstance(exc, TimeoutError)
+                and timeout_scope
+                # Only update the message if the timeout was actually encountered since
+                # this could be a timeout in the user's code
+                and timeout_scope.cancel_called
+            ):
+                # TODO: Cancel task runs if feasible
+                name = "TimedOut"
+                message = f"Flow run exceeded timeout of {flow.timeout_seconds} seconds"
+            else:
+                # Generic exception in user code
+                message = "Flow run encountered an exception."
+                logger.error(
+                    "Encountered exception during execution:",
+                    exc_info=True,
+                )
             terminal_state = Failed(
-                message="Flow run encountered an exception.",
+                name=name,
+                message=message,
                 data=DataDocument.encode("cloudpickle", exc),
             )
         else:
@@ -759,7 +769,7 @@ async def begin_task_map(
     return await gather(*task_runs)
 
 
-async def collect_task_run_inputs(
+def collect_task_run_inputs(
     expr: Any,
 ) -> Set[Union[core.TaskRunResult, core.Parameter, core.Constant]]:
     """
@@ -769,14 +779,14 @@ async def collect_task_run_inputs(
 
     Example:
         >>> task_inputs = {
-        >>>    k: await collect_task_run_inputs(v) for k, v in parameters.items()
+        >>>    k: collect_task_run_inputs(v) for k, v in parameters.items()
         >>> }
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
     inputs = set()
 
-    async def add_futures_and_states_to_inputs(obj):
+    def add_futures_and_states_to_inputs(obj):
         if isinstance(obj, PrefectFuture):
             inputs.add(core.TaskRunResult(id=obj.task_run.id))
         elif isinstance(obj, State):
@@ -787,9 +797,7 @@ async def collect_task_run_inputs(
             if state and state.state_details.task_run_id:
                 inputs.add(core.TaskRunResult(id=state.state_details.task_run_id))
 
-    await visit_collection(
-        expr, visit_fn=add_futures_and_states_to_inputs, return_data=False
-    )
+    visit_collection(expr, visit_fn=add_futures_and_states_to_inputs, return_data=False)
 
     return inputs
 
@@ -836,9 +844,9 @@ async def create_task_run(
     dynamic_key: str,
     wait_for: Optional[Iterable[PrefectFuture]],
 ) -> TaskRun:
-    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
+    task_inputs = {k: collect_task_run_inputs(v) for k, v in parameters.items()}
     if wait_for:
-        task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
+        task_inputs["wait_for"] = collect_task_run_inputs(wait_for)
 
     logger = get_run_logger(flow_run_context)
 
@@ -977,6 +985,10 @@ async def begin_task_run(
         except Abort:
             # Task run already completed, just fetch its state
             task_run = await client.read_task_run(task_run.id)
+            get_run_logger(flow_run_context).debug(
+                f"Task run '{task_run.id}' already finished. "
+                f"Retrieving result for state {task_run.state!r}..."
+            )
             # Hydrate the state data
             task_run.state.data._cache_data(await _retrieve_result(task_run.state))
             return task_run.state
@@ -1229,13 +1241,13 @@ async def resolve_inputs(
         UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
 
-    async def visit_fn(expr):
+    def resolve_input(expr):
         state = None
 
         if isinstance(expr, Quote):
             return expr.unquote()
         elif isinstance(expr, PrefectFuture):
-            state = await expr._wait()
+            state = run_async_from_worker_thread(expr._wait)
         elif isinstance(expr, State):
             state = expr
         else:
@@ -1249,9 +1261,10 @@ async def resolve_inputs(
         # Only retrieve the result if requested as it may be expensive
         return state.result() if return_data else None
 
-    return await visit_collection(
+    return await run_sync_in_worker_thread(
+        visit_collection,
         parameters,
-        visit_fn=visit_fn,
+        visit_fn=resolve_input,
         return_data=return_data,
     )
 
@@ -1278,16 +1291,31 @@ def get_state_for_result(obj: Any) -> Optional[State]:
 
 def link_state_to_result(state: State, result: Any) -> None:
     """
-    Stores information about the state on the result or in the global context for
-    relationship tracking.
+    Caches a link between a state and a result using the `id` of the result to map to
+    the state. The cache is persisted to the current flow run context since task
+    relationships are limited to within a flow run.
+
+    This allows dependency tracking to occur when results are passed around.
+
+    We do not hash the result because:
+
+    - If changes are made to the object in the flow between task calls, we can still
+      track that they are related.
+    - Hashing can be expensive.
+    - Not all objects are hashable.
+
+    We do not set an attribute, e.g. `__prefect_state__`, on the result because:
+
+    - Mutating user's objects is dangerous.
+    - Unrelated equality comparisons can break unexpectedly.
+    - The field can be preserved on copy.
+    - We cannot set this attribute on Python built-ins.
     """
+    # We cannot track some Python built-ins since they are singletons and could create
+    # confusing relationships, e.g. `None`
     if type(result) in UNTRACKABLE_TYPES:
         return
 
-    # Cache the state onto the flow_run_context, associated by the id of the
-    # result. This allows a best-effort attempt to get the state from an object
-    # that wouldn't allow the __prefect_state__ attribute to be set. It also
-    # acts as a complete cache of states for reporting in a flow run state.
     flow_run_context = FlowRunContext.get()
     if flow_run_context:
         flow_run_context.task_run_results[id(result)] = state
