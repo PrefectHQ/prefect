@@ -1,6 +1,7 @@
 """
 Command line interface for working with deployments.
 """
+from datetime import timedelta
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional
@@ -27,6 +28,11 @@ from prefect.exceptions import (
 )
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.orion.schemas.filters import FlowFilter
+from prefect.orion.schemas.schedules import (
+    CronSchedule,
+    IntervalSchedule,
+    RRuleSchedule,
+)
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.filesystem import set_default_ignore_file
 from prefect.utilities.importtools import import_object
@@ -349,7 +355,22 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of the storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure'",
+        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure'",
+    ),
+    cron: str = typer.Option(
+        None,
+        "--cron",
+        help="A cron string that will be used to set a CronSchedule on the deployment.",
+    ),
+    interval: int = typer.Option(
+        None,
+        "--interval",
+        help="An integer specifying an interval (in seconds) that will be used to set an IntervalSchedule on the deployment.",
+    ),
+    rrule: str = typer.Option(
+        None,
+        "--rrule",
+        help="An RRule that will be used to set an RRuleSchedule on the deployment.",
     ),
     output: str = typer.Option(
         None,
@@ -367,6 +388,8 @@ async def build(
         exit_with_error(
             "A name for this deployment must be provided with the '--name' flag."
         )
+    if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
+        exit_with_error("Only one schedule type can be provided.")
 
     output_file = None
     if output:
@@ -417,6 +440,14 @@ async def build(
         # server-side definition of this deployment
         infrastructure = None
 
+    schedule = None
+    if cron:
+        schedule = CronSchedule(cron=cron)
+    elif interval:
+        schedule = IntervalSchedule(interval=timedelta(seconds=interval))
+    elif rrule:
+        schedule = RRuleSchedule(rrule=rrule)
+
     # set up deployment object
     deployment = Deployment(name=name, flow_name=flow.name)
     await deployment.load()  # load server-side settings, if any
@@ -433,6 +464,7 @@ async def build(
         tags=tags or None,
         infrastructure=infrastructure,
         infra_overrides=infra_overrides or None,
+        schedule=schedule,
     )
     await deployment.update(**updates, ignore_none=True)
 
@@ -450,7 +482,7 @@ async def build(
             style="green",
         )
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
-    await deployment.to_yaml(path=deployment_loc)
+    await deployment.to_yaml(deployment_loc)
     exit_with_success(
         f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'."
     )
