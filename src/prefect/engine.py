@@ -89,7 +89,7 @@ from prefect.utilities.asyncutils import (
     run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import Quote, apply_to_collection, visit_collection
+from prefect.utilities.collections import Quote, visit_collection
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
@@ -1319,7 +1319,7 @@ def link_state_to_result(state: State, result: Any) -> None:
         partial_link_if_not_untrackable = partial(
             _link_if_trackable, state=state, ctx=flow_run_context
         )
-        apply_to_collection(
+        visit_collection(
             expr=result, visit_fn=partial_link_if_not_untrackable, max_depth=1
         )
 
