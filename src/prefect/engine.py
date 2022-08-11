@@ -88,7 +88,7 @@ from prefect.utilities.asyncutils import (
     run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
 )
-from prefect.utilities.callables import parameters_to_args_kwargs
+from prefect.utilities.callables import get_call_defaults, parameters_to_args_kwargs
 from prefect.utilities.collections import Quote, visit_collection
 from prefect.utilities.pydantic import PartialModel
 
@@ -733,6 +733,12 @@ async def begin_task_map(
     task_runner: Optional[BaseTaskRunner],
 ) -> List[Union[PrefectFuture, Awaitable[PrefectFuture]]]:
     """Async entrypoint for task mapping"""
+
+    # Implicitly mark default kewyord arguments to the task function as being
+    # unmapped.
+    for key, value in get_call_defaults(task.fn).items():
+        if parameters.get(key) == value:
+            parameters[key] = unmapped(value)
 
     # Resolve any futures / states that are in the parameters as we need to
     # validate the lengths of those values before proceeding.

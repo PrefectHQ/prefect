@@ -2008,3 +2008,16 @@ class TestTaskMap:
 
         futures = my_flow()
         assert [future.result() for future in futures] == [6, 7, 8]
+
+    async def test_default_kwargs_implicitly_unmapped(self):
+        @task
+        def add_some(x, y=5):
+            return x + y
+
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            return add_some.map(numbers)
+
+        futures = my_flow()
+        assert [future.result() for future in futures] == [6, 7, 8]
