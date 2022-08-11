@@ -97,7 +97,7 @@ class LoopService:
             i += 1
             if loops is not None and i == loops:
                 self.logger.debug(f"{self.name} exiting after {loops} loop(s).")
-                await self.stop()
+                await self.stop(block=False)
 
             # next run is every "loop seconds" after each previous run *started*.
             # note that if the loop took unexpectedly long, the "next_run" time
@@ -115,7 +115,7 @@ class LoopService:
 
         await self._on_stop()
 
-    async def stop(self, block=False) -> None:
+    async def stop(self, block=True) -> None:
         """
         Gracefully stops a running LoopService and optionally blocks until the
         service stops.
@@ -129,8 +129,29 @@ class LoopService:
         self._stop()
 
         if block:
+            start_time = pendulum.now("UTC")
+            sleep_time = 0.1
+
+            # if block=True, sleep until the service stops running
             while self._is_running:
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(sleep_time)
+
+                wait_time = (pendulum.now("UTC") - start_time).total_seconds()
+
+                # if we've been waiting more than 2 seconds, don't check so frequently
+                if wait_time > 2:
+                    sleep_time = 0.5
+
+                # if we've been waiting longer than `loop_seconds`, something's wrong
+                # log a warning and exit
+                if wait_time > self.loop_seconds:
+                    self.logger.warning(
+                        f"`stop(block=True)` was called on {self.name} but more than one loop "
+                        f"interval ({self.loop_seconds} seconds) has passed. This usually "
+                        "means something is wrong. If `stop()` was called from inside the "
+                        "loop service, use `stop(block=False)` isntead."
+                    )
+                    return
 
     def _stop(self, *_) -> None:
         """
