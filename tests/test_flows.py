@@ -988,7 +988,7 @@ class TestSubflowTaskInputs:
 
         @flow
         def parent_flow():
-            task_state = child_task._run(1)
+            task_state = child_task._run(257)
             flow_state = child_flow._run(x=task_state)
             return task_state, flow_state
 
@@ -1012,7 +1012,7 @@ class TestSubflowTaskInputs:
 
         @flow
         def parent_flow():
-            task_state = child_task._run(1)
+            task_state = child_task._run(257)
             task_result = task_state.result()
             flow_state = child_flow._run(x=task_result)
             return task_state, flow_state
