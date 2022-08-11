@@ -52,7 +52,7 @@ class StateHighlighter(RegexHighlighter):
 
 
 class PrefectConsoleHighlighter(RegexHighlighter):
-    """Applies style from multipel highlighters."""
+    """Applies style from multiple highlighters."""
 
     base_style = "log."
     highlights = (
