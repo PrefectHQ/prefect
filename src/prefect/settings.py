@@ -379,6 +379,13 @@ PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
     description="""The maximum size in bytes for a single log.""",
 )
 
+PREFECT_LOGGING_STYLED_CONSOLE = Setting(
+    bool,
+    default=True,
+    description="""Whether to style console logs.""",
+    value_callback=debug_mode_log_level,
+)
+
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
     default=5,
