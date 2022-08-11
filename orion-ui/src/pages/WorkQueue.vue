@@ -3,7 +3,7 @@
     <template #header>
       <PageHeadingWorkQueue
         v-if="workQueue"
-        :queue="workQueue"
+        :work-queue="workQueue"
         @update="workQueueSubscription.refresh"
         @delete="routeToQueues"
       />
