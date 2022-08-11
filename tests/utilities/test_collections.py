@@ -8,6 +8,7 @@ import pytest
 
 from prefect.utilities.collections import (
     AutoEnum,
+    apply_to_collection,
     dict_to_flatdict,
     flatdict_to_dict,
     remove_nested_keys,
@@ -76,6 +77,20 @@ async def all_negative_numbers(x):
     return x
 
 
+def negative_even_numbers_sync(x):
+    print("Function called on", x)
+    if isinstance(x, int) and x % 2 == 0:
+        return -x
+    return x
+
+
+def all_negative_numbers_sync(x):
+    print("Function called on", x)
+    if isinstance(x, int):
+        return -x
+    return x
+
+
 EVEN = set()
 
 
@@ -85,10 +100,24 @@ async def visit_even_numbers(x):
     return x
 
 
+def visit_even_numbers_sync(x):
+    if isinstance(x, int) and x % 2 == 0:
+        EVEN.add(x)
+    return x
+
+
 VISITED = list()
 
 
 async def add_to_visited_list(x):
+    VISITED.append(x)
+
+
+def add_to_visited_list_sync(x):
+    VISITED.append(x)
+
+
+def add_to_visited_list_sync(x):
     VISITED.append(x)
 
 
@@ -419,3 +448,59 @@ class TestRemoveKeys:
         assert remove_nested_keys(["foo"], 1) == 1
         assert remove_nested_keys(["foo"], "foo") == "foo"
         assert remove_nested_keys(["foo"], b"foo") == b"foo"
+
+
+class TestApplyToCollection:
+    @pytest.mark.parametrize(
+        "test_input,expected",
+        [
+            (1, [1]),
+            ([1, 2], [[1, 2], 1, 2]),
+            ([1, 2, [3, 4]], [[1, 2, [3, 4]], 1, 2, [3, 4], 3, 4]),
+            ([[[1]]], [[[[1]]], [[1]], [1], 1]),
+        ],
+    )
+    def test_visits_all_elements_no_max_depth_list(self, test_input, expected):
+        my_res = []
+
+        def my_func(input_item):
+            my_res.append(input_item)
+
+        apply_to_collection(expr=test_input, visit_fn=my_func)
+        assert my_res == expected
+
+    @pytest.mark.parametrize(
+        "test_input,expected",
+        [
+            (1, [1]),
+            ([1, 2], [[1, 2]]),
+            ([1, 2, [3, 4]], [[1, 2, [3, 4]]]),
+            ([[[1]]], [[[[1]]]]),
+        ],
+    )
+    def test_visits_elements_max_depth_zero(self, test_input, expected):
+        my_res = []
+
+        def my_func(input_item):
+            my_res.append(input_item)
+
+        apply_to_collection(expr=test_input, visit_fn=my_func, max_depth=0)
+        assert my_res == expected
+
+    @pytest.mark.parametrize(
+        "test_input,expected",
+        [
+            (1, [1]),
+            ([1, 2], [[1, 2], 1, 2]),
+            ([1, 2, [3, 4]], [[1, 2, [3, 4]], 1, 2, [3, 4]]),
+            ([[[1]]], [[[[1]]], [[1]]]),
+        ],
+    )
+    def test_visits_elements_max_depth_one(self, test_input, expected):
+        my_res = []
+
+        def my_func(input_item):
+            my_res.append(input_item)
+
+        apply_to_collection(expr=test_input, visit_fn=my_func, max_depth=1)
+        assert my_res == expected
