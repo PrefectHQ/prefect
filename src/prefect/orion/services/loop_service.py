@@ -5,6 +5,7 @@ import asyncio
 import signal
 from typing import List
 
+import anyio
 import pendulum
 
 from prefect.logging import get_logger
@@ -129,29 +130,21 @@ class LoopService:
         self._stop()
 
         if block:
-            start_time = pendulum.now("UTC")
-            sleep_time = 0.1
 
-            # if block=True, sleep until the service stops running
-            while self._is_running:
-                await asyncio.sleep(sleep_time)
+            # if block=True, sleep until the service stops running,
+            # but no more than `loop_seconds` to avoid a deadlock
+            with anyio.move_on_after(self.loop_seconds):
+                while self._is_running:
+                    await asyncio.sleep(0.1)
 
-                wait_time = (pendulum.now("UTC") - start_time).total_seconds()
-
-                # if we've been waiting more than 2 seconds, don't check so frequently
-                if wait_time > 2:
-                    sleep_time = 0.5
-
-                # if we've been waiting longer than `loop_seconds`, something's wrong
-                # log a warning and exit
-                if wait_time > self.loop_seconds:
-                    self.logger.warning(
-                        f"`stop(block=True)` was called on {self.name} but more than one loop "
-                        f"interval ({self.loop_seconds} seconds) has passed. This usually "
-                        "means something is wrong. If `stop()` was called from inside the "
-                        "loop service, use `stop(block=False)` isntead."
-                    )
-                    return
+            # if the service is still running after `loop_seconds`, something's wrong
+            if self._is_running:
+                self.logger.warning(
+                    f"`stop(block=True)` was called on {self.name} but more than one loop "
+                    f"interval ({self.loop_seconds} seconds) has passed. This usually "
+                    "means something is wrong. If `stop()` was called from inside the "
+                    "loop service, use `stop(block=False)` isntead."
+                )
 
     def _stop(self, *_) -> None:
         """
