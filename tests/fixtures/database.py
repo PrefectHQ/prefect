@@ -219,6 +219,7 @@ async def deployment(
             path="./subdir",
             entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id,
+            work_queue_name="wq",
         ),
     )
     await session.commit()
