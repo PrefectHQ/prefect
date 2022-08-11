@@ -112,6 +112,7 @@ class OrchestrationContext(PrefectBaseModel):
     finalization_signature: List[str] = Field(default_factory=list)
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
     response_details: StateResponseDetails = Field(default_factory=StateAcceptDetails)
+    orchestration_error: Optional[Exception] = Field(default=None)
 
     @property
     def initial_state_type(self) -> Optional[states.StateType]:
@@ -574,13 +575,15 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
                 await self.before_transition(*entry_context)
                 self.context.rule_signature.append(str(self.__class__))
             except Exception as before_transition_error:
-                await self.abort_transition(
-                    f"Aborting orchestration due to error in {self.__class__!r}: !{before_transition_error!r}"
-                )
+                reason = f"Aborting orchestration due to error in {self.__class__!r}: !{before_transition_error!r}"
                 logger.exception(
                     f"Error running before-transition hook in rule {self.__class__!r}: !{before_transition_error!r}"
                 )
-                self._invalid_on_entry = True
+
+                self.context.proposed_state = None
+                self.context.response_status = SetStateStatus.ABORT
+                self.context.response_details = StateAbortDetails(reason=reason)
+                self.context.orchestration_error = before_transition_error
 
         return self.context
 

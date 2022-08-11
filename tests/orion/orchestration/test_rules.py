@@ -559,21 +559,22 @@ class TestBaseOrchestrationRule:
         assert await minimal_rule.fizzled() is True
 
         assert (
-            await raising_rule.invalid() is True
-        ), "Rules that error on entry should be invalid"
-        assert await raising_rule.fizzled() is False
+            await raising_rule.invalid() is False
+        ), "Rules that error on entry should be fizzled so they can try and clean up"
+        assert await raising_rule.fizzled() is True
 
         assert outer_before_transition_hook.call_count == 1
         assert outer_after_transition_hook.call_count == 0
         assert (
             outer_cleanup_step.call_count == 1
-        ), "Outer rules should clean up side effects"
+        ), "All rules should clean up side effects"
 
         assert before_transition_hook.call_count == 1
         assert (
             after_transition_hook.call_count == 0
         ), "The after-transition hook should not run"
-        assert cleanup_step.call_count == 0
+        assert cleanup_step.call_count == 1, "All rules should clean up side effects"
+        assert isinstance(ctx.orchestration_error, RuntimeError)
 
     @pytest.mark.parametrize("initial_state_type", ALL_ORCHESTRATION_STATES)
     async def test_rules_enforce_initial_state_validity(
