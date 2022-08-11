@@ -1,8 +1,8 @@
 """
 Command line interface for working with deployments.
 """
+from datetime import timedelta
 from enum import Enum
-from inspect import getdoc
 from pathlib import Path
 from typing import List, Optional
 
@@ -29,6 +29,11 @@ from prefect.exceptions import (
 )
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.orion.schemas.filters import FlowFilter
+from prefect.orion.schemas.schedules import (
+    CronSchedule,
+    IntervalSchedule,
+    RRuleSchedule,
+)
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.filesystem import set_default_ignore_file
 
@@ -256,55 +261,13 @@ async def apply(
     """
     for path in paths:
 
-        # load the file
-        with open(str(path), "r") as f:
-            data = yaml.safe_load(f)
-
-        # create deployment object
         try:
-            deployment = Deployment(**data)
+            deployment = await Deployment.load_from_yaml(path)
             app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
         except Exception as exc:
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
 
-        async with get_client() as client:
-            # prep IDs
-            flow_id = await client.create_flow_from_name(deployment.flow_name)
-
-            if not deployment.infrastructure._block_document_id:
-                # if not building off a block, will create an anonymous block
-                deployment.infrastructure = deployment.infrastructure.copy()
-                infrastructure_document_id = await deployment.infrastructure._save(
-                    is_anonymous=True,
-                )
-            else:
-                infrastructure_document_id = (
-                    deployment.infrastructure._block_document_id
-                )
-
-            # we assume storage was already saved
-            storage_document_id = getattr(
-                deployment.storage, "_block_document_id", None
-            )
-
-            deployment_id = await client.create_deployment(
-                flow_id=flow_id,
-                name=deployment.name,
-                version=deployment.version,
-                schedule=deployment.schedule,
-                parameters=deployment.parameters,
-                description=deployment.description,
-                tags=deployment.tags,
-                work_queue_name=deployment.work_queue_name,
-                manifest_path=deployment.manifest_path,  # allows for backwards YAML compat
-                path=deployment.path,
-                entrypoint=deployment.entrypoint,
-                infra_overrides=deployment.infra_overrides,
-                storage_document_id=storage_document_id,
-                infrastructure_document_id=infrastructure_document_id,
-                parameter_openapi_schema=deployment.parameter_openapi_schema.dict(),
-            )
-
+        deployment_id = await deployment.apply()
         app.console.print(
             f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
             style="green",
@@ -396,7 +359,22 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of the storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure'",
+        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure'",
+    ),
+    cron: str = typer.Option(
+        None,
+        "--cron",
+        help="A cron string that will be used to set a CronSchedule on the deployment.",
+    ),
+    interval: int = typer.Option(
+        None,
+        "--interval",
+        help="An integer specifying an interval (in seconds) that will be used to set an IntervalSchedule on the deployment.",
+    ),
+    rrule: str = typer.Option(
+        None,
+        "--rrule",
+        help="An RRule that will be used to set an RRuleSchedule on the deployment.",
     ),
     output: str = typer.Option(
         None,
@@ -425,6 +403,9 @@ async def build(
             "Providing tags for deployments is deprecated; use a work queue name instead.",
             style="red",
         )
+
+    if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
+        exit_with_error("Only one schedule type can be provided.")
 
     output_file = None
     if output:
@@ -456,38 +437,10 @@ async def build(
     except FileNotFoundError:
         exit_with_error(f"{fpath!r} not found.")
 
-    ## process storage, move files around and process path logic
-    deployment_path = None
-    entrypoint = (
-        f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
-    )
-    if storage_block:
-        template = await Block.load(storage_block)
-        storage = template.copy(
-            exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
-        )
-
-        # process .prefectignore file
-        if set_default_ignore_file(path="."):
-            app.console.print(
-                f"Default '.prefectignore' file written to {(Path('.') / '.prefectignore').absolute()}",
-                style="green",
-            )
-
-        # upload current directory to storage location
-        file_count = await storage.put_directory(ignore_file=".prefectignore")
-        app.console.print(
-            f"Successfully uploaded {file_count} files to {storage.basepath}",
-            style="green",
-        )
-    else:
-        # default storage, no need to move anything around
-        storage = None
-        deployment_path = str(Path(".").absolute())
-
-    # persists storage now in case it contains secret values
-    if storage and not storage._block_document_id:
-        await storage._save(is_anonymous=True)
+    infra_overrides = {}
+    for override in overrides or []:
+        key, value = override.split("=", 1)
+        infra_overrides[key] = value
 
     if infra_block:
         infrastructure = await Block.load(infra_block)
@@ -499,60 +452,54 @@ async def build(
         elif infra_type == Infra.process:
             infrastructure = Process()
     else:
-        infrastructure = Process()
+        # will reset to a default of Process is no infra is present on the
+        # server-side definition of this deployment
+        infrastructure = None
 
-    description = getdoc(flow)
     schedule = None
-    parameters = None
+    if cron:
+        schedule = CronSchedule(cron=cron)
+    elif interval:
+        schedule = IntervalSchedule(interval=timedelta(seconds=interval))
+    elif rrule:
+        schedule = RRuleSchedule(rrule=rrule)
+
+    # set up deployment object
+    deployment = Deployment(name=name, flow_name=flow.name)
+    await deployment.load()  # load server-side settings, if any
+
     flow_parameter_schema = parameter_schema(flow)
-
-    async with get_client() as client:
-        try:
-            deployment = await client.read_deployment_by_name(f"{flow.name}/{name}")
-            description = deployment.description
-            schedule = deployment.schedule
-            parameters = deployment.parameters
-            work_queue_name = deployment.work_queue_name
-
-            # if infra was passed, we override the server-side settings
-            if not infrastructure and deployment.infrastructure_document_id:
-                infrastructure = Block._from_block_document(
-                    await client.read_block_document(
-                        deployment.infrastructure_document_id
-                    )
-                )
-        except ObjectNotFound:
-            pass
-
-    infra_overrides = {}
-    for override in overrides or []:
-        key, value = override.split("=", 1)
-        infra_overrides[key] = value
-
-    deployment = Deployment(
-        name=name,
-        description=description,
-        work_queue_name=work_queue_name,
-        parameters=parameters or {},
-        version=version or flow.version,
-        flow_name=flow.name,
-        schedule=schedule,
-        tags=tags or [],
-        parameter_openapi_schema=flow_parameter_schema,
-        path=deployment_path,
-        entrypoint=entrypoint,
-        storage=storage,
-        infrastructure=infrastructure,
-        infra_overrides=infra_overrides,
+    entrypoint = (
+        f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
     )
+    updates = dict(
+        parameter_openapi_schema=flow_parameter_schema,
+        entrypoint=entrypoint,
+        description=flow.description,
+        version=version or flow.version,
+        tags=tags or None,
+        infrastructure=infrastructure,
+        infra_overrides=infra_overrides or None,
+        schedule=schedule,
+        work_queue_name=work_queue_name,
+    )
+    await deployment.update(**updates, ignore_none=True)
 
+    ## process storage, move files around and process path logic
+    if set_default_ignore_file(path="."):
+        app.console.print(
+            f"Default '.prefectignore' file written to {(Path('.') / '.prefectignore').absolute()}",
+            style="green",
+        )
+
+    file_count = await deployment.upload_to_storage(storage_block)
+    if file_count:
+        app.console.print(
+            f"Successfully uploaded {file_count} files to {deployment.storage.basepath}",
+            style="green",
+        )
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
-    with open(deployment_loc, "w") as f:
-        f.write(deployment.header)
-        yaml.dump(deployment.editable_fields_dict(), f, sort_keys=False)
-        f.write("###\n### DO NOT EDIT BELOW THIS LINE\n###\n")
-        yaml.dump(deployment.immutable_fields_dict(), f, sort_keys=False)
-
+    await deployment.to_yaml(deployment_loc)
     exit_with_success(
         f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'."
     )
