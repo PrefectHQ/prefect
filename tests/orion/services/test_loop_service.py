@@ -36,20 +36,39 @@ async def test_loop_service_run_once():
         counter = 0
 
         async def run_once(self):
+            assert self._should_stop is False
+            assert self._is_running is True
             self.counter += 1
             if self.counter == 3:
-                self.should_stop = True
+                await self.stop(block=False)
 
     # run the service
     service = Service()
     await service.start()
     assert service.counter == 3
 
-    # services reset their `should_stop` when they exit gracefully
-    assert service.should_stop is False
+    assert service._is_running is False
 
 
 async def test_loop_service_loops_kwarg():
+    class Service(LoopService):
+        loop_seconds = 0
+        counter = 0
+
+        async def run_once(self):
+            assert self._should_stop is False
+            assert self._is_running is True
+            self.counter += 1
+
+    # run the service
+    service = Service()
+    await service.start(loops=3)
+    assert service.counter == 3
+
+    assert service._is_running is False
+
+
+async def test_loop_service_run_multiple_times():
     class Service(LoopService):
         loop_seconds = 0
         counter = 0
@@ -60,31 +79,30 @@ async def test_loop_service_loops_kwarg():
     # run the service
     service = Service()
     await service.start(loops=3)
-    assert service.counter == 3
+    await service.start(loops=2)
+    await service.start(loops=1)
+    assert service.counter == 6
 
-    # services reset their `should_stop` when they exit gracefully
-    assert service.should_stop is False
 
-
-async def test_loop_service_startup_shutdown():
+async def test_loop_service_calls_on_start_on_stop_once():
     class Service(LoopService):
         state = []
         loop_seconds = 0
 
-        async def setup(self):
-            self.state.append("setup")
-            await super().setup()
+        async def _on_start(self):
+            self.state.append("_on_start")
+            await super()._on_start()
 
         async def run_once(self):
             pass
 
-        async def shutdown(self):
-            self.state.append("shutdown")
-            await super().shutdown()
+        async def _on_stop(self):
+            self.state.append("_on_stop")
+            await super()._on_stop()
 
     service = Service()
     await service.start(loops=3)
-    assert service.state == ["setup", "shutdown"]
+    assert service.state == ["_on_start", "_on_stop"]
 
 
 @flaky_on_windows
@@ -102,13 +120,38 @@ async def test_early_stop():
     asyncio.create_task(service.start())
     # yield to let the service start
     await asyncio.sleep(0.1)
+    assert service._is_running is True
+    assert service._should_stop is False
 
     dt = pendulum.now("UTC")
     await service.stop()
     dt2 = pendulum.now("UTC")
 
-    assert service.should_stop is False
+    assert service._should_stop is True
+    assert service._is_running is False
     assert dt2 - dt < pendulum.duration(seconds=1)
+
+
+@flaky_on_windows
+async def test_stop_block_escapes_deadlock(caplog):
+    """Test that calling a blocking stop inside the service eventually returns"""
+
+    class Service(LoopService):
+        def __init__(self, loop_seconds: float = 0.1):
+            super().__init__(loop_seconds)
+
+        async def run_once(self):
+            # calling a blocking stop inside run_once should create a deadlock
+            await self.stop(block=True)
+
+    service = Service()
+    asyncio.create_task(service.start())
+
+    # sleep for longer than one loop interval
+    await asyncio.sleep(0.2)
+
+    assert service._is_running is False
+    assert "`stop(block=True)` was called on Service but" in caplog.text
 
 
 @pytest.mark.skipif(
@@ -118,16 +161,16 @@ class TestSignalHandling:
     @pytest.mark.parametrize("sig", [signal.SIGTERM, signal.SIGINT])
     async def test_handle_signals_to_shutdown(self, sig):
         service = LoopService()
-        assert service.should_stop is False
+        assert service._should_stop is False
         signal.raise_signal(sig)
         # yield so the signal handler can run
         await asyncio.sleep(0.1)
-        assert service.should_stop is True
+        assert service._should_stop is True
 
     async def test_handle_signals_can_be_disabled(self):
         service = LoopService(handle_signals=False)
-        assert service.should_stop is False
+        assert service._should_stop is False
         signal.raise_signal(signal.SIGTERM)
         # yield so the signal handler would have time to run
         await asyncio.sleep(0.1)
-        assert service.should_stop is False
+        assert service._should_stop is False
