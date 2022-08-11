@@ -241,6 +241,31 @@ class FlowRunFilterDeploymentId(PrefectOperatorFilterBaseModel):
         return filters
 
 
+class FlowRunFilterWorkQueueName(PrefectOperatorFilterBaseModel):
+    """Filter by `FlowRun.work_queue_name`."""
+
+    any_: List[str] = Field(
+        None,
+        description="A list of work queue names to include",
+        example=["work_queue_1", "work_queue_2"],
+    )
+    is_null_: bool = Field(
+        None, description="If true, only include flow runs without work queue names"
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.FlowRun.work_queue_name.in_(self.any_))
+        if self.is_null_ is not None:
+            filters.append(
+                db.FlowRun.work_queue_name == None
+                if self.is_null_
+                else db.FlowRun.work_queue_name != None
+            )
+        return filters
+
+
 class FlowRunFilterStateType(PrefectFilterBaseModel):
     """Filter by `FlowRun.state_type`."""
 
@@ -402,6 +427,9 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
     deployment_id: Optional[FlowRunFilterDeploymentId] = Field(
         None, description="Filter criteria for `FlowRun.deployment_id`"
     )
+    work_queue_name: Optional[FlowRunFilterWorkQueueName] = Field(
+        None, description="Filter criteria for `FlowRun.work_queue_name"
+    )
     state: Optional[FlowRunFilterState] = Field(
         None, description="Filter criteria for `FlowRun.state`"
     )
@@ -432,6 +460,8 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.tags.as_sql_filter(db))
         if self.deployment_id is not None:
             filters.append(self.deployment_id.as_sql_filter(db))
+        if self.work_queue_name is not None:
+            filters.append(self.work_queue_name.as_sql_filter(db))
         if self.flow_version is not None:
             filters.append(self.flow_version.as_sql_filter(db))
         if self.state is not None:
@@ -678,6 +708,22 @@ class DeploymentFilterName(PrefectFilterBaseModel):
         return filters
 
 
+class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
+    """Filter by `Deployment.work_queue_name`."""
+
+    any_: List[str] = Field(
+        None,
+        description="A list of work queue names to include",
+        example=["work_queue_1", "work_queue_2"],
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Deployment.work_queue_name.in_(self.any_))
+        return filters
+
+
 class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
     """Filter by `Deployment.is_schedule_active`."""
 
@@ -733,6 +779,9 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
     tags: Optional[DeploymentFilterTags] = Field(
         None, description="Filter criteria for `Deployment.tags`"
     )
+    work_queue_name: Optional[DeploymentFilterWorkQueueName] = Field(
+        None, description="Filter criteria for `Deployment.work_queue_name`"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -745,6 +794,8 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.is_schedule_active.as_sql_filter(db))
         if self.tags is not None:
             filters.append(self.tags.as_sql_filter(db))
+        if self.work_queue_name is not None:
+            filters.append(self.work_queue_name.as_sql_filter(db))
 
         return filters
 
