@@ -29,7 +29,7 @@ def enabled_flag():
 def test_does_not_list_feature_flags_with_flags_disabled_globally(enabled_flag):
     with temporary_settings(updates={PREFECT_FEATURE_FLAGGING_ENABLED: "false"}):
         invoke_and_assert(
-            command=["flags", "ls"],
+            command=["flag", "ls"],
             expected_output=f"""
 Feature flagging is disabled because the PREFECT_FEATURE_FLAGGING_ENABLED setting is false.
         """,
@@ -40,7 +40,7 @@ Feature flagging is disabled because the PREFECT_FEATURE_FLAGGING_ENABLED settin
 def test_lists_enabled_feature_flags(enabled_flag):
     with temporary_settings(updates={PREFECT_FEATURE_FLAGGING_ENABLED: "true"}):
         invoke_and_assert(
-            command=["flags", "ls"],
+            command=["flag", "ls"],
             expected_output=f"""
             Feature Flags:             
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┓
@@ -56,7 +56,7 @@ def test_lists_enabled_feature_flags(enabled_flag):
 def test_lists_disabled_feature_flags(disabled_flag):
     with temporary_settings(updates={PREFECT_FEATURE_FLAGGING_ENABLED: "true"}):
         invoke_and_assert(
-            command=["flags", "ls"],
+            command=["flag", "ls"],
             expected_output=f"""
             Feature Flags:          
 ┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┓

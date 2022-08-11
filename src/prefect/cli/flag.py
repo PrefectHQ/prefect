@@ -3,16 +3,16 @@ Feature flag CLI commands
 """
 from typing import List
 
-import typer
 from rich.table import Table
 
+from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
 from prefect.settings import PREFECT_FEATURE_FLAGGING_ENABLED
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.feature_flags import get_feature_flag_client, list_feature_flags
 
-flags_app = typer.Typer(name="flags", help="Commands for working with feature flags.")
-app.add_typer(flags_app)
+flag_app = PrefectTyper(name="flag", help="Commands for working with feature flags.")
+app.add_typer(flag_app)
 
 flags_client = get_feature_flag_client()
 
@@ -26,7 +26,7 @@ def feature_flag_table(header: str, rows: List[List[str]]):
     return table
 
 
-@flags_app.command(short_help="List feature flags", name="ls")
+@flag_app.command(short_help="List feature flags", name="ls")
 @sync_compatible
 async def list_features():
     """List feature flags."""
