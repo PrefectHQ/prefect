@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 
-from prefect.orion import models, schemas
+from prefect.orion import schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
@@ -489,17 +489,33 @@ class TestBaseOrchestrationRule:
         assert after_transition_hook.call_count == 1
         assert cleanup_step.call_count == 0
 
+    @pytest.mark.parametrize(
+        "intended_transition",
+        list(product([*states.StateType, None], [*states.StateType])),
+        ids=transition_names,
+    )
     async def test_rules_that_raise_exceptions_during_before_transition(
-        self, session, task_run
+        self, session, task_run, intended_transition
     ):
-        # TODO: This test documents undesired behavior: we currently don't handle errors
-        # in the `before_transition` hooks fired by orchestration rules. We probably
-        # want to decide how to proceed in the event of such errors and handle them
-        # accordingly
-
+        outer_before_transition_hook = MagicMock()
         before_transition_hook = MagicMock()
+        outer_after_transition_hook = MagicMock()
         after_transition_hook = MagicMock()
+        outer_cleanup_step = MagicMock()
         cleanup_step = MagicMock()
+
+        class MinimalRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                outer_before_transition_hook()
+
+            async def after_transition(self, initial_state, validated_state, context):
+                outer_after_transition_hook()
+
+            async def cleanup(self, initial_state, validated_state, context):
+                outer_cleanup_step()
 
         class RaisingRule(BaseOrchestrationRule):
             FROM_STATES = ALL_ORCHESTRATION_STATES
@@ -516,9 +532,7 @@ class TestBaseOrchestrationRule:
                 cleanup_step()
 
         # this rule seems valid because the initial and proposed states match the intended transition
-        initial_state_type = states.StateType.PENDING
-        proposed_state_type = states.StateType.RUNNING
-        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state_type, proposed_state_type = intended_transition
         initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
@@ -533,29 +547,34 @@ class TestBaseOrchestrationRule:
             proposed_state=proposed_state,
         )
 
-        raising_rule = RaisingRule(ctx, *intended_transition)
-        with pytest.raises(RuntimeError, match="Test!"):
-            async with raising_rule as ctx:
-                pass
-        assert await raising_rule.invalid() is False
-        assert await raising_rule.fizzled() is False
+        async with contextlib.AsyncExitStack() as stack:
+            minimal_rule = MinimalRule(ctx, *intended_transition)
+            ctx = await stack.enter_async_context(minimal_rule)
 
-        # this rule is valid so before will fire
+            raising_rule = RaisingRule(ctx, *intended_transition)
+            ctx = await stack.enter_async_context(raising_rule)
+
+        assert ctx.proposed_state is None, "Proposed state should be None"
+
+        assert await minimal_rule.fizzled() is True
+
+        assert (
+            await raising_rule.invalid() is False
+        ), "Rules that error on entry should be fizzled so they can try and clean up"
+        assert await raising_rule.fizzled() is True
+
+        assert outer_before_transition_hook.call_count == 1
+        assert outer_after_transition_hook.call_count == 0
+        assert (
+            outer_cleanup_step.call_count == 1
+        ), "All rules should clean up side effects"
+
         assert before_transition_hook.call_count == 1
-
-        # an exception will stop the after transition hook from firing as
-        # `before_transition` is in the `__enter__` method without any error handling.
-        # TODO: We likely desire different behavior than this?
-        assert after_transition_hook.call_count == 0
-        assert cleanup_step.call_count == 0
-
-        # Check the task run state
-        task_run_states = await models.task_run_states.read_task_run_states(
-            session=session, task_run_id=task_run.id
-        )
-
-        assert len(task_run_states) == 1, "No transition was made"
-        assert task_run_states[0].type == states.StateType.PENDING
+        assert (
+            after_transition_hook.call_count == 0
+        ), "The after-transition hook should not run"
+        assert cleanup_step.call_count == 1, "All rules should clean up side effects"
+        assert isinstance(ctx.orchestration_error, RuntimeError)
 
     @pytest.mark.parametrize("initial_state_type", ALL_ORCHESTRATION_STATES)
     async def test_rules_enforce_initial_state_validity(
