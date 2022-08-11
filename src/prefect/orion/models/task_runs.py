@@ -48,7 +48,12 @@ async def create_task_run(
     # if a dynamic key exists, we need to guard against conflicts
     insert_stmt = (
         (await db.insert(db.TaskRun))
-        .values(**task_run.dict(shallow=True, exclude={"state"}, exclude_unset=True))
+        .values(
+            created=now,
+            **task_run.dict(
+                shallow=True, exclude={"state", "created"}, exclude_unset=True
+            ),
+        )
         .on_conflict_do_nothing(
             index_elements=db.task_run_unique_upsert_columns,
         )
@@ -70,7 +75,7 @@ async def create_task_run(
     result = await session.execute(query)
     model = result.scalar()
 
-    if model.created >= now and task_run.state:
+    if model.created == now and task_run.state:
         await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=model.id,

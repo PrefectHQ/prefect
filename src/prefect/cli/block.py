@@ -14,12 +14,15 @@ from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
+from prefect.client import get_client
 from prefect.exceptions import ScriptError, exception_traceback
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.importtools import load_script_as_module
 
 blocks_app = PrefectTyper(name="block", help="Commands for working with blocks.")
-app.add_typer(blocks_app)
+blocktypes_app = PrefectTyper(name="type", help="Commands for working with blocks.")
+app.add_typer(blocks_app, aliases=["blocks"])
+blocks_app.add_typer(blocktypes_app, aliases=["types"])
 
 
 async def _register_blocks_in_module(module: ModuleType) -> List[Type[Block]]:
@@ -109,3 +112,58 @@ async def register(
         "\n To configure the newly registered blocks, "
         "go to the Blocks page in the Prefect UI.\n"
     )
+
+
+@blocks_app.command()
+async def ls():
+    """
+    View all configured Blocks.
+    """
+    async with get_client() as client:
+        blocks = await client.read_block_documents()
+
+    table = Table(
+        title="Blocks", caption="List Block Types using `prefect block type ls`"
+    )
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Type", style="blue", no_wrap=True)
+    table.add_column("Name", style="blue", no_wrap=True)
+    table.add_column("Slug", style="blue", no_wrap=True)
+
+    for block in sorted(blocks, key=lambda x: f"{x.block_type.slug}/{x.name}"):
+        table.add_row(
+            str(block.id),
+            block.block_type.name,
+            str(block.name),
+            f"{block.block_type.slug}/{block.name}",
+        )
+
+    app.console.print(table)
+
+
+@blocktypes_app.command("ls")
+async def list_types():
+    """
+    View all Block types.
+    """
+    async with get_client() as client:
+        block_types = await client.read_block_types()
+
+    table = Table(
+        title="Block Types",
+        show_lines=True,
+    )
+    table.add_column("Name", style="blue", no_wrap=True)
+    table.add_column("Slug", style="italic cyan", no_wrap=True)
+    table.add_column("Description", style="blue", no_wrap=False, justify="right")
+
+    for blocktype in sorted(block_types, key=lambda x: x.name):
+        table.add_row(
+            str(blocktype.name),
+            str(blocktype.slug),
+            str(blocktype.description.splitlines()[0].partition(".")[0])
+            if blocktype.description is not None
+            else "",
+        )
+
+    app.console.print(table)

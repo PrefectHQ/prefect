@@ -48,6 +48,7 @@ def invoke_and_assert(
     expected_output: str = None,
     expected_output_contains: Union[str, Iterable[str]] = None,
     expected_output_does_not_contain: Union[str, Iterable[str]] = None,
+    expected_line_count: int = None,
     expected_code: int = 0,
     echo: bool = True,
     temp_dir: str = None,
@@ -113,5 +114,11 @@ def invoke_and_assert(
         else:
             for contents in expected_output_does_not_contain:
                 check_contains(result, contents, should_contain=False)
+
+    if expected_line_count is not None:
+        line_count = len(result.stdout.splitlines())
+        assert (
+            expected_line_count == line_count
+        ), f"Expected {expected_line_count} lines of CLI output, only {line_count} lines present"
 
     return result
