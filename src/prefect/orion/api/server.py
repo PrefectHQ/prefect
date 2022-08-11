@@ -355,12 +355,10 @@ def create_app(
     async def stop_services():
         """Ensure services are stopped before the Orion API shuts down."""
         if app.state.services:
-            await asyncio.gather(
-                *[service.stop(block=True) for service in app.state.services]
-            )
+            await asyncio.gather(*[service.stop() for service in app.state.services])
             try:
                 await asyncio.gather(
-                    *[task.stop(block=True) for task in app.state.services.values()]
+                    *[task.stop() for task in app.state.services.values()]
                 )
             except Exception as exc:
                 # `on_service_exit` should handle logging exceptions on exit
