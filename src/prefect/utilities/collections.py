@@ -7,10 +7,8 @@ from collections.abc import Iterator as IteratorABC
 from collections.abc import Sequence
 from dataclasses import fields, is_dataclass
 from enum import Enum, auto
-from functools import partial
 from typing import (
     Any,
-    Awaitable,
     Callable,
     Dict,
     Generator,
@@ -29,8 +27,6 @@ from typing import (
 from unittest.mock import Mock
 
 import pydantic
-
-from prefect.utilities.asyncutils import gather
 
 
 class AutoEnum(str, Enum):
@@ -218,9 +214,9 @@ def quote(expr: T) -> Quote[T]:
     return Quote(expr)
 
 
-async def visit_collection(
+def visit_collection(
     expr,
-    visit_fn: Callable[[Any], Awaitable[Any]],
+    visit_fn: Callable[[Any], Any],
     return_data: bool = False,
     max_depth: int = -1,
 ):
@@ -257,10 +253,8 @@ async def visit_collection(
     """
 
     def visit_nested(expr):
-        # Utility for a recursive call, preserving options.
-        # Returns a `partial` for use with `gather`.
-        return partial(
-            visit_collection,
+        # Utility for a recursive call, preserving options and updating the depth.
+        return visit_collection(
             expr,
             visit_fn=visit_fn,
             return_data=return_data,
@@ -268,7 +262,7 @@ async def visit_collection(
         )
 
     # Visit every expression
-    result = await visit_fn(expr)
+    result = visit_fn(expr)
     if return_data:
         # Only mutate the expression while returning data, otherwise it could be null
         expr = result
@@ -289,20 +283,16 @@ async def visit_collection(
         result = expr
 
     elif typ in (list, tuple, set):
-        items = await gather(*[visit_nested(o) for o in expr])
+        items = [visit_nested(o) for o in expr]
         result = typ(items) if return_data else None
 
     elif typ in (dict, OrderedDict):
         assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
-        keys, values = zip(*expr.items()) if expr else ([], [])
-        keys = await gather(*[visit_nested(k) for k in keys])
-        values = await gather(*[visit_nested(v) for v in values])
-        result = typ(zip(keys, values)) if return_data else None
+        items = [(visit_nested(k), visit_nested(v)) for k, v in expr.items()]
+        result = typ(items) if return_data else None
 
     elif is_dataclass(expr) and not isinstance(expr, type):
-        values = await gather(
-            *[visit_nested(getattr(expr, f.name)) for f in fields(expr)]
-        )
+        values = [visit_nested(getattr(expr, f.name)) for f in fields(expr)]
         items = {field.name: value for field, value in zip(fields(expr), values)}
         result = typ(**items) if return_data else None
 
@@ -311,9 +301,7 @@ async def visit_collection(
         # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
         # as well to get all of the relevant attributes
         model_fields = expr.__fields_set__.union(expr.__fields__)
-        items = await gather(
-            *[visit_nested(getattr(expr, key)) for key in model_fields]
-        )
+        items = [visit_nested(getattr(expr, key)) for key in model_fields]
 
         if return_data:
             # Collect fields with aliases so reconstruction can use the correct field name
