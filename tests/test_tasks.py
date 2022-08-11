@@ -1341,7 +1341,7 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            upstream_future = upstream.submit(1)
+            upstream_future = upstream.submit(257)
             upstream_result = upstream_future.result()
             downstream_state = downstream._run(upstream_result)
             upstream_state = upstream_future.wait()
@@ -1421,7 +1421,7 @@ class TestTaskInputs:
             value=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
         )
 
-    @pytest.mark.parametrize("result", ["Fred", 2, 5.1])
+    @pytest.mark.parametrize("result", ["Fred", 5.1])
     async def test_task_inputs_populated_with_basic_result_types_upstream(
         self, result, orion_client, flow_with_upstream_downstream
     ):
@@ -1431,7 +1431,6 @@ class TestTaskInputs:
         task_run = await orion_client.read_task_run(
             downstream_state.state_details.task_run_id
         )
-
         assert task_run.task_inputs == dict(
             value=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
         )
