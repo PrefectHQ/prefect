@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 import pendulum
 import pydantic
+from packaging.version import Version
 from pydantic import BaseModel, Field, SecretBytes, SecretStr
 from pydantic.json import custom_pydantic_encoder
 
@@ -132,13 +133,11 @@ class PrefectBaseModel(BaseModel):
         else:
             extra = "ignore"
 
-        # prevent Pydantic from copying nested models on
-        # validation, otherwise ORMBaseModel.copy() is run
-        # which resets fields like `id`
-        # https://github.com/samuelcolvin/pydantic/pull/2193
-        # TODO: remove once this is the default in pydantic>=2.0
-        if pydantic.__version__ >= '1.9.2':
-            copy_on_model_validation = 'none'
+        pydantic_version = getattr(pydantic, "__version__", None)
+        if pydantic_version is not None and Version(pydantic_version) >= Version(
+            "1.9.2"
+        ):
+            copy_on_model_validation = "none"
         else:
             copy_on_model_validation = False
 
