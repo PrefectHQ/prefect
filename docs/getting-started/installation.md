@@ -2,11 +2,11 @@
 
 The first step to getting started with Prefect is installing the Prefect Python package. 
 
-## Set up Python
+## Use a Virtual Environment with Python 
 
 Prefect requires Python 3.7 or later.
 
-We recommend installing Prefect 2.0 using a Python virtual environment manager such as `pipenv`, `conda`, or `virtualenv`/`venv`.
+We recommend installing Prefect 2.0 into `conda` virtual environment.
 
 ## Install Prefect 
 
