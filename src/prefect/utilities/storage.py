@@ -75,8 +75,9 @@ def extract_flow_from_file(
                 "Provide either `file_path` or `file_contents` but not both."
             )
 
-        with open(file_path, "r") as f:
+        with open(file_path, "rb") as f:
             contents = f.read()
+
     elif file_contents is not None:
         contents = file_contents
     else:
