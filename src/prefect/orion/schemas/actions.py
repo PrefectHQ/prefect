@@ -358,7 +358,7 @@ class WorkQueueCreate(
             "description",
             "is_paused",
             "concurrency_limit",
-            # filters are deprecated
+            # DEPRECATED: filters are deprecated
             "filter",
         ],
     )
@@ -376,7 +376,7 @@ class WorkQueueUpdate(
             "description",
             "is_paused",
             "concurrency_limit",
-            # filters are deprecated
+            # DEPRECATED: filters are deprecated
             "filter",
         ],
     )
@@ -385,6 +385,11 @@ class WorkQueueUpdate(
 
     class Config:
         extra = "forbid"
+
+    # DEPRECATED: names should not be updated, left here only for backwards-compatibility
+    name: Optional[str] = Field(
+        None, description="The name of the work queue.", deprecated=True
+    )
 
 
 class FlowRunNotificationPolicyCreate(
