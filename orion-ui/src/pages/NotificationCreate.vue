@@ -1,9 +1,9 @@
 <template>
-  <p-layout-default>
+  <p-layout-default class="notification-create">
     <template #header>
       <PageHeadingNotificationCreate />
     </template>
-    <NotificationForm v-model:notification="notificationCreate" @submit="submit" @cancel="cancel" />
+    <NotificationForm v-model:notification="notificationCreate" action="Create" @submit="submit" @cancel="cancel" />
   </p-layout-default>
 </template>
 

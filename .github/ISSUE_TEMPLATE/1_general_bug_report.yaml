@@ -1,0 +1,101 @@
+name: Report a bug
+description: Errors and regression reports with complete reproducing test cases and/or stack traces.
+labels: ["status:triage", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Bug reports are often **usage questions, not bugs**. If you do not have a strong understanding 
+        of the interface you are reporting a bug for, please head to our [Community Slack](https://www.prefect.io/slack/)
+        or [Discourse](https://discourse.prefect.io/) and ask there first. You are likely to get a response
+        faster and learn more about the feature you're working with. If the issue is determined to be a bug,
+        we will open an issue here.
+  
+  - type: markdown
+    attributes:
+      value: >
+        If you are new to Prefect bug reports, please review our many examples of [well written bug reports](https://github.com/PrefectHQ/prefect/issues?q=is%3Aissue+label%3A%22great+writeup%22). 
+        Each of these reports include the following features:
+
+        1. A **succinct description of the problem** - typically a line or two at most
+
+        2. A **succinct code example which reproduces the problem**, otherwise known as a [minimal, complete, and verifiable](https://stackoverflow.com/help/mcve) example.
+
+        3. The **complete stack traces for errors - please avoid screenshots, and use formatted text inside issues**
+
+        4. Additional details that may help us reproduce your issue.
+  
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: First check
+      description: Please confirm and check all the following options.
+      options:
+        - label: I added a descriptive title to this issue.
+          required: true
+        - label: I used the GitHub search to find a similar issue and didn't find it.
+          required: true
+        - label: I searched the Prefect documentation for this issue.
+          required: true
+        - label: I checked that this issue is related to Prefect and not one of its dependencies.
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Bug summary
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Reproduction
+      description: >
+        Provide your [minimal, complete, and verifiable](https://stackoverflow.com/help/mcve) example here. 
+        If you need help creating one, you can model yours after the code shared in one of our previous [well written bug reports](https://github.com/PrefectHQ/prefect/issues?q=is%3Aissue+label%3A%22great+writeup%22).
+      placeholder: "# Insert code here"
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Error
+      description: >
+        Provide the full exception tracebacks.
+        If the message is a warning, run your program with the ``-Werror`` flag:   ``python -Werror my_flow.py``
+      placeholder: "# Copy complete stack trace and error message here, including log output if applicable."
+      value: |
+        ```
+
+        # Copy complete stack trace and error message here, including log output if applicable.
+
+        ```
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Versions
+      description: >
+        Provide information about your Prefect version and environment. The easiest way to retrieve all of the information we require is the `prefect version` command.
+        If using Prefect 1.x, it is useful to also include the output of `prefect diagnostics`.
+      value: |
+        ```
+
+        # Copy output of `prefect version` here
+
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Add any other context about the problem here.
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: "**Happy engineering!**"

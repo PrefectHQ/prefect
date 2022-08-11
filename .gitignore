@@ -11,10 +11,8 @@ sdist/
 # Test artifacts
 .coverage
 .coverage.*.*
-.coverage*
 .prefect-results
 .pytest_cache/
-.coverage
 
 # Type checking artifacts
 .mypy_cache/
@@ -41,7 +39,7 @@ site/
 
 # UI artifacts
 src/prefect/orion/ui/*
-orion-ui/node_modules
+**/node_modules
 
 # Databases
 *.db

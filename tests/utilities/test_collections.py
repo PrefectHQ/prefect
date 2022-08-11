@@ -69,6 +69,13 @@ async def negative_even_numbers(x):
     return x
 
 
+async def all_negative_numbers(x):
+    print("Function called on", x)
+    if isinstance(x, int):
+        return -x
+    return x
+
+
 EVEN = set()
 
 
@@ -360,6 +367,22 @@ class TestVisitCollection:
         )
 
         assert result == target_configs
+
+    @pytest.mark.parametrize(
+        "inp,depth,expected",
+        [
+            (1, 0, -1),
+            ([1, [2, [3, [4]]]], 0, [1, [2, [3, [4]]]]),
+            ([1, [2, [3, [4]]]], 1, [-1, [2, [3, [4]]]]),
+            ([1, [2, [3, [4]]]], 2, [-1, [-2, [3, [4]]]]),
+            ([1, 1, 1, [2, 2, 2]], 1, [-1, -1, -1, [2, 2, 2]]),
+        ],
+    )
+    async def test_visit_collection_max_depth(self, inp, depth, expected):
+        result = await visit_collection(
+            inp, visit_fn=all_negative_numbers, return_data=True, max_depth=depth
+        )
+        assert result == expected
 
 
 class TestRemoveKeys:

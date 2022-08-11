@@ -39,6 +39,11 @@ If this JSON value needs to be retrieved later to be used within a flow or task,
 json_block.save(name="life-the-universe-everything")
 ```
 
+!!! tip "Utilizing the UI"
+    Blocks documents can also be created and updated via the [Prefect UI](/ui/blocks/).
+
+### Loading blocks
+
 The name given when saving the value stored in the JSON block can be used to later when retrieving the value during a flow or task run:
 
 ```python hl_lines="6"
@@ -53,20 +58,19 @@ def what_is_the_answer():
 what_is_the_answer() # 42
 ```
 
-### Loading blocks
-
 Blocks can also be loaded with a unique slug which a combination of a block type slug and a block document name.
 
 To load our JSON block document from before, we can run the following:
 
-```python
-from prefect.block.core import Block
+```python hl_lines="3"
+from prefect.blocks.core import Block
 
 json_block = Block.load("json/life-the-universe-everything")
 print(json_block.value["the-answer"]) #42
 ```
 
-Blocks documents can also be created and updated via the [Prefect UI](/ui/blocks/).
+!!! tip "Sharing Blocks"
+    Blocks can also be loaded by fellow Workspace Collaborators, available on [Prefect Cloud](/ui/cloud/).
 
 ## Creating new block types
 

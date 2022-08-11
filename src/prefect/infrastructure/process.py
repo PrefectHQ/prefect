@@ -35,11 +35,12 @@ class Process(Infrastructure):
     variables.
 
     Attributes:
-        command: A list of strings specifying the command to run for the process
+        command: A list of strings specifying the command to run in the container to
+            start the flow run. In most cases you should not override this.
         env: Environment variables to set for the new process.
-        name: A name for the process. For display purposes only.
         labels: Labels for the process. Labels are for metadata purposes only and
             cannot be attached to the process itself.
+        name: A name for the process. For display purposes only.
     """
 
     type: Literal["process"] = "process"
