@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Set, Type, TypeVar
 from uuid import UUID, uuid4
 
 import pendulum
+import pydantic
 from pydantic import BaseModel, Field, SecretBytes, SecretStr
 from pydantic.json import custom_pydantic_encoder
 
@@ -136,7 +137,10 @@ class PrefectBaseModel(BaseModel):
         # which resets fields like `id`
         # https://github.com/samuelcolvin/pydantic/pull/2193
         # TODO: remove once this is the default in pydantic>=2.0
-        copy_on_model_validation = False
+        if pydantic.__version__ >= '1.9.2':
+            copy_on_model_validation = 'none'
+        else:
+            copy_on_model_validation = False
 
     @classmethod
     def subclass(
