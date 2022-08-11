@@ -58,7 +58,6 @@ For example, when creating your deployment files, the supported Prefect infrastr
 ```bash
 $ prefect deployment build ./my_flow.py:my_flow -n my-flow-deployment -t test -i docker-container -sb s3/my-bucket
 Found flow 'my-flow'
-Manifest created at '/Users/terry/test/testflows/infra/my_flow-manifest.json'.
 Successfully uploaded 2 files to s3://bucket-full-of-sunshine
 Deployment YAML created at '/Users/terry/test/flows/infra/deployment.yaml'.
 ```
@@ -234,6 +233,11 @@ Prefect agents rely on Docker images for executing flow runs using `DockerContai
 If you do not specify an image, we will use a Prefect image tag that matches your local Prefect and Python versions. 
 If you are [building your own image](#building-your-own-image), you may find it useful to use one of the Prefect images as a base.
 
+!!! tip "Choose image versions wisely"
+    It's a good practice to use Docker images with specific Prefect versions in production.
+    
+    Use care when employing images with the "latest" tags (such as `prefecthq/prefect:2-python3.9`).
+
 ### Image tags
 
 When a release is published, images are built for all of Prefect's supported Python versions. 
@@ -248,6 +252,7 @@ For example, when release `2.1.1` is published:
 4. For users that want to be on the latest `2.1.x` release, receiving patch updates, we update a tag without the patch version to this release, e.g. `prefect.2.1-python3.7`.
 5. For users that want to be on the latest `2.x.y` release, receiving minor version updates, we update a tag without the minor or patch version to this release, e.g. `prefect.2-python3.7`
 6. Finally, for users who want the latest `2.x.y` release without specifying a Python version, we update `2-latest` to the image for our highest supported Python version, which in this case would be equivalent to `prefect:2.1.1-python3.10`.
+
 #### Standard Python
 
 Standard Python images are based on the official Python `slim` images, e.g. `python:3.10-slim`.
