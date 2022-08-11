@@ -358,7 +358,7 @@ class WorkQueueCreate(
             "description",
             "is_paused",
             "concurrency_limit",
-            # filters are deprecated
+            # DEPRECATED: filters are deprecated
             "filter",
         ],
     )
@@ -376,8 +376,10 @@ class WorkQueueUpdate(
             "description",
             "is_paused",
             "concurrency_limit",
-            # filters are deprecated
+            # DEPRECATED: filters are deprecated
             "filter",
+            # DEPRECATED: names should not be updated, left for compat
+            "name",
         ],
     )
 ):
