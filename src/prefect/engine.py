@@ -1267,19 +1267,6 @@ def get_state_for_result(obj: Any) -> Optional[State]:
         return flow_run_context.task_run_results.get(id(obj))
 
 
-def _link_if_trackable(obj: Any, state: State, ctx: FlowRunContext) -> None:
-    """Track connection between a task run result and its associated state if it has a unique ID.
-
-    We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
-    because they are singletons.
-    """
-    if (type(obj) in UNTRACKABLE_TYPES) or (
-        isinstance(obj, int) and (-5 <= obj <= 256)
-    ):
-        return
-    ctx.task_run_results[id(obj)] = state
-
-
 def link_state_to_result(state: State, result: Any) -> None:
     """
     Caches a link between a state and a result and its components using
@@ -1313,15 +1300,23 @@ def link_state_to_result(state: State, result: Any) -> None:
     - The field can be preserved on copy.
     - We cannot set this attribute on Python built-ins.
     """
+
+    def link_if_trackable(obj: Any) -> None:
+        """Track connection between a task run result and its associated state if it has a unique ID.
+
+        We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
+        because they are singletons.
+        """
+        if (type(obj) in UNTRACKABLE_TYPES) or (
+            isinstance(obj, int) and (-5 <= obj <= 256)
+        ):
+            return
+        flow_run_context.task_run_results[id(obj)] = state
+
     flow_run_context = FlowRunContext.get()
 
     if flow_run_context:
-        partial_link_if_not_untrackable = partial(
-            _link_if_trackable, state=state, ctx=flow_run_context
-        )
-        visit_collection(
-            expr=result, visit_fn=partial_link_if_not_untrackable, max_depth=1
-        )
+        visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
 
 
 def get_default_result_filesystem() -> LocalFileSystem:
