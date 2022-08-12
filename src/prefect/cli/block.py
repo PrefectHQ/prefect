@@ -12,10 +12,10 @@ from rich.table import Table
 
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error
+from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client import get_client
-from prefect.exceptions import ScriptError, exception_traceback
+from prefect.exceptions import ObjectNotFound, ScriptError, exception_traceback
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.importtools import load_script_as_module
 
@@ -139,6 +139,36 @@ async def ls():
         )
 
     app.console.print(table)
+
+
+@blocks_app.command()
+async def delete(
+    slug: Optional[str] = typer.Argument(
+        None, help="A Block slug: <BLOCK_TYPE_SLUG>/<BLOCK_NAME>"
+    ),
+    block_id: Optional[str] = typer.Option(
+        None, "--id", help="A Block id to search for if no slug is given"
+    ),
+):
+    async with get_client() as client:
+        if slug is None and block_id is not None:
+            try:
+                await client.delete_block_document(block_id)
+                exit_with_success(f"Deleted Block '{block_id}'.")
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {block_id!r} not found!")
+        elif slug is not None:
+            block_type_slug, block_document_name = slug.split("/")
+            try:
+                block_document = await client.read_block_document_by_name(
+                    block_document_name, block_type_slug
+                )
+                await client.delete_block_document(block_document.id)
+                exit_with_success(f"Deleted Block '{slug}'.")
+            except ObjectNotFound:
+                exit_with_error(f"Block {slug!r} not found!")
+        else:
+            exit_with_error("Must provide a Block slug or id")
 
 
 @blocktypes_app.command("ls")
