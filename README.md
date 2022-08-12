@@ -1,10 +1,15 @@
 <p align="center"><img src="https://images.ctfassets.net/gm98wzqotmnx/6rIpC9ZCAewsRGLwOw5BRe/bb17e1ef62f60d1ec32c1ae69487704c/prefect-2-logo-dark.png" width=1000></p>
 
-[![PyPI version](https://badge.fury.io/py/prefect.svg)](https://pypi.python.org/pypi/prefect/)
-[![PyPI pyversions](https://img.shields.io/pypi/pyversions/prefect.svg)](https://pypi.python.org/pypi/prefect/)
-[![Downloads](https://pepy.tech/badge/prefect)](https://pepy.tech/project/prefect)
-[![Stars](https://img.shields.io/github/stars/prefecthq/prefect)](https://github.com/prefecthq/prefect/)
-[![PyPI license](https://img.shields.io/pypi/l/prefect.svg)](https://pypi.python.org/pypi/prefect/)
+<p align="center">
+    <a href="https://github.com/prefecthq/prefect/" alt="Stars">
+        <img src="https://img.shields.io/github/stars/prefecthq/prefect" /></a>
+    <a href="https://pepy.tech/badge/prefect/" alt="Downloads">
+        <img src="https://pepy.tech/badge/prefect" /></a>
+    <a href="https://github.com/prefecthq/prefect/pulse" alt="Activity">
+        <img src="https://img.shields.io/github/commit-activity/m/prefecthq/prefect" /></a>
+    <a href="https://github.com/prefecthq/prefect/graphs/contributors" alt="Contributors">
+        <img src="https://img.shields.io/github/contributors/prefecthq/prefect" /></a>
+</p>
 
 # Prefect 2.0
 
