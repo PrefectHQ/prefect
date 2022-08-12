@@ -64,11 +64,11 @@ class TestExtractFlowFromFile:
 
     @pytest.fixture
     def emoji_flow_path(self, tmpdir):
-        contents = """from prefect import Flow\nf=Flow(''emoji-flow-❌'')"""
+        contents = """from prefect import Flow\nf=Flow('emoji-flow-❌')"""
 
         full_path = os.path.join(tmpdir, "flow.py")
 
-        with open(full_path, "w") as f:
+        with open(full_path, "w", encoding='utf8') as f:
             f.write(contents)
 
         return full_path
