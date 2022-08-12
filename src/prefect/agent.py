@@ -92,7 +92,7 @@ class OrionAgent:
                 # loop with new error handling, we log the exception and
                 # continue.
                 except Exception as exc:
-                    self.logger.exception(exc)
+                    self.logger.exception(f"Failed to create work queue {name!r}.")
                     continue
 
             self._work_queue_cache.append(work_queue)
