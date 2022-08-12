@@ -25,6 +25,20 @@ app.add_typer(blocks_app, aliases=["blocks"])
 blocks_app.add_typer(blocktypes_app, aliases=["types"])
 
 
+def block_document_table(block_document):
+    block_slug = f"{block_document.block_type.slug}/{block_document.name}"
+    block_table = Table(title=block_slug, show_header=False, show_footer=False, expand=True)
+    block_table.add_column(style="italic cyan")
+    block_table.add_column(style="blue")
+
+    block_table.add_row("Block Type", block_document.block_type.name)
+    block_table.add_row("Block id", str(block_document.id), end_section=True)
+    for k, v in block_document.data.items():
+        block_table.add_row(k, v)
+
+    return block_table
+
+
 async def _register_blocks_in_module(module: ModuleType) -> List[Type[Block]]:
     registered_blocks = []
     for _, cls in inspect.getmembers(module):
@@ -161,7 +175,7 @@ async def delete(
             block_type_slug, block_document_name = slug.split("/")
             try:
                 block_document = await client.read_block_document_by_name(
-                    block_document_name, block_type_slug
+                    block_document_name, block_type_slug, include_secrets=False
                 )
                 await client.delete_block_document(block_document.id)
                 exit_with_success(f"Deleted Block '{slug}'.")
@@ -169,6 +183,35 @@ async def delete(
                 exit_with_error(f"Block {slug!r} not found!")
         else:
             exit_with_error("Must provide a Block slug or id")
+
+
+@blocks_app.command()
+async def inspect(
+    slug: Optional[str] = typer.Argument(
+        None, help="A Block slug: <BLOCK_TYPE_SLUG>/<BLOCK_NAME>"
+    ),
+    block_id: Optional[str] = typer.Option(
+        None, "--id", help="A Block id to search for if no slug is given"
+    ),
+):
+    async with get_client() as client:
+        if slug is None and block_id is not None:
+            try:
+                block_document = await client.read_block_document(block_id, include_secrets=False)
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {block_id!r} not found!")
+        elif slug is not None:
+            block_type_slug, block_document_name = slug.split("/")
+            try:
+                block_document = await client.read_block_document_by_name(
+                    block_document_name, block_type_slug, include_secrets=False
+                )
+            except ObjectNotFound:
+                exit_with_error(f"Block {slug!r} not found!")
+        else:
+            exit_with_error("Must provide a Block slug or id")
+        block_table = block_document_table(block_document)
+        app.console.print(block_table)
 
 
 @blocktypes_app.command("ls")
