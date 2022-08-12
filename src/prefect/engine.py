@@ -88,7 +88,7 @@ from prefect.utilities.asyncutils import (
     run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
 )
-from prefect.utilities.callables import get_call_parameters, parameters_to_args_kwargs
+from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import Quote, visit_collection
 from prefect.utilities.pydantic import PartialModel
 
@@ -253,18 +253,7 @@ async def retrieve_flow_then_begin_flow_run(
         )
         return state
 
-    try:
-        parameters = get_call_parameters(
-            flow.fn, call_args=(), call_kwargs=flow_run.parameters
-        )
-    except Exception as exc:
-        message = f"Encountered an unexpected error when retrieving flow run parameters: {exc!r}"
-        flow_run_logger(flow_run).exception(message)
-        state = Failed(message=message, data=safe_encode_exception(exc))
-        await client.set_flow_run_state(
-            state=state, flow_run_id=flow_run_id, force=True
-        )
-        return state
+    parameters = flow_run.parameters
 
     await client.update_flow_run(
         flow_run_id=flow_run_id,
