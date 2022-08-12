@@ -1492,7 +1492,7 @@ class TestTaskInputs:
             task_2_input=[TaskRunResult(id=t1_state.state_details.task_run_id)],
         )
 
-    async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_mixed_tackability(
+    async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_mixed_untrackable_types(
         self, orion_client
     ):
         @task
