@@ -261,7 +261,7 @@ async def retrieve_flow_then_begin_flow_run(
     if flow.should_validate_parameters:
         failed_state = None
         try:
-            parameters = flow.validate_parameters(parameters)
+            parameters = flow.validate_parameters(flow_run.parameters)
         except Exception as exc:
             validation_error = (
                 f"Validation of flow parameters failed with error: {exc!r}"
