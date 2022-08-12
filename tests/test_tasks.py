@@ -1536,7 +1536,7 @@ class TestTaskInputs:
             task_2_input=[],
         )
 
-    async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_no_trackables(
+    async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_no_trackable_types(
         self, orion_client
     ):
         @task
