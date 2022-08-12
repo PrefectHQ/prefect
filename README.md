@@ -14,7 +14,7 @@
     <br>
     <a href="https://prefect-community.slack.com" alt="Slack">
         <img src="https://img.shields.io/badge/slack-join_community-red.svg?logo=slack" /></a>
-    <a href="https://discourse.prefect.io/" alt="Slack">
+    <a href="https://discourse.prefect.io/" alt="Discourse">
         <img src="https://img.shields.io/badge/discourse-browse_forum-red.svg?logo=discourse" /></a>
 </p>
 
