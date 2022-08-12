@@ -42,9 +42,10 @@ When you sign up for Prefect Cloud, a personal account is automatically provisio
 - Profile, including profile handle and image
 - API keys
 
-As a personal account owner, you can create [workspaces](#workspaces).
+As a personal account owner, you can create a [workspace](#workspaces) and invite collaborators to your workspace. 
 
-While in the current beta phase, Prefect Cloud allows only one workspace per personal user account. 
+!!! tip "Prefect Cloud plans for teams of every size"
+    See the [Prefect Cloud plans](https://www.prefect.io/pricing/) for details on options for individual users and teams.
 
 ## Workspaces
 
