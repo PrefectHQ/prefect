@@ -257,7 +257,6 @@ async def retrieve_flow_then_begin_flow_run(
         flow_run_id=flow_run_id,
         flow_version=flow.version,
     )
-
     if flow.should_validate_parameters:
         failed_state = None
         try:
@@ -282,7 +281,7 @@ async def retrieve_flow_then_begin_flow_run(
     return await begin_flow_run(
         flow=flow,
         flow_run=flow_run,
-        parameters=parameters,
+        parameters=flow_run.parameters,
         client=client,
     )
 
