@@ -11,6 +11,11 @@
         <img src="https://img.shields.io/github/commit-activity/m/prefecthq/prefect" /></a>
     <a href="https://github.com/prefecthq/prefect/graphs/contributors" alt="Contributors">
         <img src="https://img.shields.io/github/contributors/prefecthq/prefect" /></a>
+    <br>
+    <a href="https://prefect-community.slack.com" alt="Slack">
+        <img src="https://img.shields.io/badge/slack-join_community-red.svg?logo=slack" /></a>
+    <a href="https://discourse.prefect.io/" alt="Slack">
+        <img src="https://img.shields.io/badge/discourse-browse_forum-red.svg?logo=discourse" /></a>
 </p>
 
 # Prefect 2.0
