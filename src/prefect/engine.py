@@ -253,12 +253,9 @@ async def retrieve_flow_then_begin_flow_run(
         )
         return state
 
-    parameters = flow_run.parameters
-
     await client.update_flow_run(
         flow_run_id=flow_run_id,
         flow_version=flow.version,
-        parameters=parameters,
     )
 
     if flow.should_validate_parameters:
