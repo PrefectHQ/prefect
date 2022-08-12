@@ -921,7 +921,7 @@ async def begin_task_run(
     --> `begin_task_run` executes on a different event loop than the flow
     --> Current settings is not set or does not match, settings A is entered
     """
-    flow_run_context = prefect.context.FlowRunContext.get()
+    maybe_flow_run_context = prefect.context.FlowRunContext.get()
 
     async with AsyncExitStack() as stack:
 
@@ -931,13 +931,13 @@ async def begin_task_run(
             stack.enter_context(settings)
             setup_logging()
 
-        if flow_run_context:
+        if maybe_flow_run_context:
             # Accessible if on a worker that is running in the same thread as the flow
-            client = flow_run_context.client
+            client = maybe_flow_run_context.client
             # Only run the task in an interruptible thread if it in the same thread as
             # the flow _and_ the flow run has a timeout attached. If the task is on a
             # worker, the flow run timeout will not be raised in the worker process.
-            interruptible = flow_run_context.timeout_scope is not None
+            interruptible = maybe_flow_run_context.timeout_scope is not None
         else:
             # Otherwise, retrieve a new client
             client = await stack.enter_async_context(get_client())
@@ -963,7 +963,7 @@ async def begin_task_run(
         except Abort:
             # Task run already completed, just fetch its state
             task_run = await client.read_task_run(task_run.id)
-            get_run_logger(flow_run_context).debug(
+            task_run_logger(task_run).debug(
                 f"Task run '{task_run.id}' already finished. "
                 f"Retrieving result for state {task_run.state!r}..."
             )
