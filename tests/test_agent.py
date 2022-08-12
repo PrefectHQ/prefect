@@ -160,7 +160,7 @@ async def test_agent_caches_work_queues(orion_client, deployment, monkeypatch):
         # the mock was not awaited again
         mock.assert_awaited_once()
 
-        assert agent._cache["queues"][0].id == work_queue.id
+        assert agent._work_queue_cache[0].id == work_queue.id
 
 
 async def test_agent_with_work_queue_name_survives_queue_deletion(
@@ -479,7 +479,8 @@ async def test_agent_displays_message_on_work_queue_pause(
         await orion_client.update_work_queue(work_queue.id, is_paused=True)
 
         # clear agent cache
-        agent._cache.clear()
+        agent._work_queue_cache_expiration = pendulum.now()
+
         # Should emit the paused message
         await agent.get_and_submit_flow_runs()
 
