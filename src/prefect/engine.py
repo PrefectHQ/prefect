@@ -277,11 +277,13 @@ async def retrieve_flow_then_begin_flow_run(
                 flow_run_id=flow_run_id,
             )
             return failed_state
+    else:
+        parameters = flow_run.parameters
 
     return await begin_flow_run(
         flow=flow,
         flow_run=flow_run,
-        parameters=flow_run.parameters,
+        parameters=parameters,
         client=client,
     )
 
