@@ -193,7 +193,6 @@ async def create_then_begin_flow_run(
             f"Cannot create flow run. Failed to reach API at {client.api_url}."
         ) from connect_error
     state = Pending()
-    breakpoint()
     if flow.should_validate_parameters:
         try:
             parameters = flow.validate_parameters(parameters)
@@ -214,7 +213,7 @@ async def create_then_begin_flow_run(
     engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
 
     if state.is_failed():
-        flow_run_logger(flow_run).exception(state.message)
+        flow_run_logger(flow_run).error(state.message)
         engine_logger.info(
             f"Flow run {flow_run.name!r} received invalid parameters and is marked as failed."
         )
