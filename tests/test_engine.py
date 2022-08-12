@@ -60,6 +60,26 @@ def mock_client_sleep(monkeypatch):
     return sleep
 
 
+@pytest.fixture
+async def flow_run_context(orion_client, local_filesystem):
+    @flow
+    def foo():
+        pass
+
+    test_task_runner = SequentialTaskRunner()
+    flow_run = await orion_client.create_flow_run(foo)
+
+    ctx = FlowRunContext(
+        flow=foo,
+        flow_run=flow_run,
+        client=orion_client,
+        task_runner=test_task_runner,
+        result_filesystem=local_filesystem,
+    )
+
+    return ctx
+
+
 class TestOrchestrateTaskRun:
     async def test_waits_until_scheduled_start_time(
         self,
@@ -1044,10 +1064,6 @@ class TestLinkStateToResult:
 
     state = State(id=uuid4(), type=StateType.COMPLETED)
 
-    class MockFlowRunContext:
-        def __init__(self):
-            self.task_run_results = {}
-
     class RandomTestClass:
         pass
 
@@ -1058,28 +1074,23 @@ class TestLinkStateToResult:
     @pytest.mark.parametrize(
         "test_input", [True, False, -5, 0, 1, 256, ..., None, NotImplemented]
     )
-    def test_link_state_to_result_with_untrackables(self, monkeypatch, test_input):
-        ctx = self.MockFlowRunContext()
+    async def test_link_state_to_result_with_untrackables(
+        self, test_input, flow_run_context
+    ):
 
-        def get():
-            return ctx
-
-        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
-        link_state_to_result(state=self.state, result=test_input)
-        assert ctx.task_run_results == {}
+        with flow_run_context as ctx:
+            link_state_to_result(state=self.state, result=test_input)
+            assert ctx.task_run_results == {}
 
     @pytest.mark.parametrize("test_input", [-6, 257, "Hello", RandomTestClass()])
-    def test_link_state_to_result_with_single_trackables(self, monkeypatch, test_input):
-        ctx = self.MockFlowRunContext()
-
-        def get():
-            return ctx
-
-        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
-
+    def test_link_state_to_result_with_single_trackables(
+        self, flow_run_context, test_input
+    ):
         input_id = id(test_input)
-        link_state_to_result(state=self.state, result=test_input)
-        assert ctx.task_run_results == {input_id: self.state}
+
+        with flow_run_context as ctx:
+            link_state_to_result(state=self.state, result=test_input)
+            assert ctx.task_run_results == {input_id: self.state}
 
     @pytest.mark.parametrize(
         "test_inputs",
@@ -1090,19 +1101,14 @@ class TestLinkStateToResult:
         ],
     )
     def test_link_state_to_result_with_multiple_unnested_trackables(
-        self, monkeypatch, test_inputs
+        self, flow_run_context, test_inputs
     ):
-        ctx = self.MockFlowRunContext()
-
-        def get():
-            return ctx
-
-        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
         input_ids = []
-        for test_input in test_inputs:
-            input_ids.append(id(test_input))
-            link_state_to_result(state=self.state, result=test_input)
-        assert ctx.task_run_results == {id: self.state for id in input_ids}
+        with flow_run_context as ctx:
+            for test_input in test_inputs:
+                input_ids.append(id(test_input))
+                link_state_to_result(state=self.state, result=test_input)
+            assert ctx.task_run_results == {id: self.state for id in input_ids}
 
     @pytest.mark.parametrize(
         "test_input",
@@ -1114,17 +1120,11 @@ class TestLinkStateToResult:
         ],
     )
     def test_link_state_to_result_with_list_or_tuple_of_untrackables(
-        self, monkeypatch, test_input
+        self, flow_run_context, test_input
     ):
-        ctx = self.MockFlowRunContext()
-
-        def get():
-            return ctx
-
-        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
-
-        link_state_to_result(state=self.state, result=test_input)
-        assert ctx.task_run_results == {id(test_input): self.state}
+        with flow_run_context as ctx:
+            link_state_to_result(state=self.state, result=test_input)
+            assert ctx.task_run_results == {id(test_input): self.state}
 
     @pytest.mark.parametrize(
         "test_input",
@@ -1134,71 +1134,49 @@ class TestLinkStateToResult:
         ],
     )
     def test_link_state_to_result_with_list_or_tuple_of_mixed(
-        self, monkeypatch, test_input
+        self, flow_run_context, test_input
     ):
-        ctx = self.MockFlowRunContext()
+        with flow_run_context as ctx:
+            link_state_to_result(state=self.state, result=test_input)
+            assert ctx.task_run_results == {
+                id(test_input[0]): self.state,
+                id(test_input[2]): self.state,
+                id(test_input): self.state,
+            }
 
-        def get():
-            return ctx
-
-        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
-
-        link_state_to_result(state=self.state, result=test_input)
-        assert ctx.task_run_results == {
-            id(test_input[0]): self.state,
-            id(test_input[2]): self.state,
-            id(test_input): self.state,
-        }
-
-    async def test_link_state_to_result_with_nested_list(self, monkeypatch):
-        ctx = self.MockFlowRunContext()
-
-        def get():
-            return ctx
-
-        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
-
+    async def test_link_state_to_result_with_nested_list(self, flow_run_context):
         test_input = [1, [-6, [1, 2, 3]]]
-        link_state_to_result(state=self.state, result=test_input)
-        assert ctx.task_run_results == {
-            id(test_input): self.state,
-            id(test_input[1]): self.state,
-        }
 
-    def test_link_state_to_result_with_nested_pydantic_class(self, monkeypatch):
-        ctx = self.MockFlowRunContext()
+        with flow_run_context as ctx:
+            link_state_to_result(state=self.state, result=test_input)
+            assert ctx.task_run_results == {
+                id(test_input): self.state,
+                id(test_input[1]): self.state,
+            }
 
-        def get():
-            return ctx
-
-        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
-
+    def test_link_state_to_result_with_nested_pydantic_class(self, flow_run_context):
         pydantic_instance = self.PydanticTestClass(
             untrackable_num=42, list_of_ints=[1, 257]
         )
 
         test_input = [-7, pydantic_instance, 1]
-        link_state_to_result(state=self.state, result=test_input)
-        assert ctx.task_run_results == {
-            id(test_input): self.state,
-            id(test_input[0]): self.state,
-            id(test_input[1]): self.state,
-        }
 
-    def test_link_state_to_result_with_pydantic_class(self, monkeypatch):
-        ctx = self.MockFlowRunContext()
+        with flow_run_context as ctx:
+            link_state_to_result(state=self.state, result=test_input)
+            assert ctx.task_run_results == {
+                id(test_input): self.state,
+                id(test_input[0]): self.state,
+                id(test_input[1]): self.state,
+            }
 
-        def get():
-            return ctx
-
-        monkeypatch.setattr("prefect.engine.FlowRunContext.get", get)
-
+    def test_link_state_to_result_with_pydantic_class(self, flow_run_context):
         pydantic_instance = self.PydanticTestClass(
             untrackable_num=42, list_of_ints=[1, 257]
         )
 
-        link_state_to_result(state=self.state, result=pydantic_instance)
-        assert ctx.task_run_results == {
-            id(pydantic_instance): self.state,
-            id(pydantic_instance.list_of_ints): self.state,
-        }
+        with flow_run_context as ctx:
+            link_state_to_result(state=self.state, result=pydantic_instance)
+            assert ctx.task_run_results == {
+                id(pydantic_instance): self.state,
+                id(pydantic_instance.list_of_ints): self.state,
+            }
