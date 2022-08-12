@@ -43,7 +43,9 @@ class OrionAgent:
         self.logger = get_logger("agent")
         self.task_group: Optional[TaskGroup] = None
         self.client: Optional[OrionClient] = None
-        self._cache = {}
+
+        self._work_queue_cache_expiration: pendulum.DateTime = None
+        self._work_queue_cache: List[WorkQueue] = []
 
         if default_infrastructure:
             self.default_infrastructure_document_id = (
@@ -63,15 +65,17 @@ class OrionAgent:
         queues. If any of them don't exist, they are created.
         """
 
-        # if queues were cached less than 30 seconds ago, yield the cached values
+        # if the queue cache has not expired, yield queues from the cache
         now = pendulum.now("UTC")
-        if self._cache.get("ts", now.subtract(seconds=31)) > now.subtract(seconds=30):
-            for queue in self._cache["queues"]:
+        if (self._work_queue_cache_expiration or now) > now:
+            for queue in self._work_queue_cache:
                 yield queue
             return
 
-        # otherwise clear the cache and reload the work queues
-        self._cache = dict(ts=now, queues=[])
+        # otherwise clear the cache, set the expiration for 30 seconds, and
+        # reload the work queues
+        self._work_queue_cache.clear()
+        self._work_queue_cache_expiration = now.add(seconds=30)
 
         for name in self.work_queues:
             try:
@@ -91,7 +95,7 @@ class OrionAgent:
                     self.logger.exception(exc)
                     continue
 
-            self._cache["queues"].append(work_queue)
+            self._work_queue_cache.append(work_queue)
             yield work_queue
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
@@ -270,7 +274,8 @@ class OrionAgent:
         self.task_group = None
         self.client = None
         self.submitting_flow_run_ids = set()
-        self._cache = {}
+        self._work_queue_cache_expiration = None
+        self._work_queue_cache = []
 
     async def __aenter__(self):
         await self.start()
