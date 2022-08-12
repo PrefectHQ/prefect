@@ -1,6 +1,8 @@
 <p align="center"><img src="https://images.ctfassets.net/gm98wzqotmnx/6rIpC9ZCAewsRGLwOw5BRe/bb17e1ef62f60d1ec32c1ae69487704c/prefect-2-logo-dark.png" width=1000></p>
 
 <p align="center">
+    <a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
+        <img src="https://badge.fury.io/py/prefect.svg" /></a>
     <a href="https://github.com/prefecthq/prefect/" alt="Stars">
         <img src="https://img.shields.io/github/stars/prefecthq/prefect" /></a>
     <a href="https://pepy.tech/badge/prefect/" alt="Downloads">
@@ -72,8 +74,7 @@ Prefect 2.0 was designed to be incrementally adopted into your workflows, and ou
 
 ### Getting started
 
-Begin by [installing Prefect](https://docs.prefect.io/getting-started/installation) on your machine, then follow one of our [friendly tutorials](https://docs.prefect.io/tutorials/first-steps) to learn by example. See the [Getting Started overview](https://docs.prefect.io/getting-started/overview) for more.
-
+Begin by [installing Prefect](https://docs.prefect.io/getting-started/installation) on your machine--Prefect currently supports the following Python versions: 3.7, 3.8, 3.9, 3.10. Then follow one of our [friendly tutorials](https://docs.prefect.io/tutorials/first-steps) to learn by example. See the [Getting Started overview](https://docs.prefect.io/getting-started/overview) for more.
 
 ### Concepts
 
