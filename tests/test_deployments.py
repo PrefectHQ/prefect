@@ -122,9 +122,45 @@ class TestDeploymentUpload:
 
 
 class TestDeploymentBuild:
-    async def test_build_from_flow_sets_flow_name(self, flow_function):
-        d = Deployment(name="foo")
-        assert d.flow_name is None
+    async def test_build_from_flow_requires_name(self, flow_function):
+        with pytest.raises(TypeError, match="required positional argument: 'name'"):
+            d = await Deployment.build_from_flow(flow=flow_function)
 
-        await d.build_from_flow(flow_function)
+        with pytest.raises(ValueError, match="name must be provided"):
+            d = await Deployment.build_from_flow(flow=flow_function, name=None)
+
+    async def test_build_from_flow_sets_flow_name(self, flow_function):
+        d = await Deployment.build_from_flow(flow=flow_function, name="foo")
         assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+
+    async def test_build_from_flow_sets_description_and_version_if_not_set(
+        self, flow_function
+    ):
+        d = await Deployment.build_from_flow(
+            flow=flow_function, name="foo", description="a", version="b"
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.description == "a"
+        assert d.version == "b"
+
+        d = await Deployment.build_from_flow(flow=flow_function, name="foo")
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.description == flow_function.description
+        assert d.version == flow_function.version
+
+    async def test_build_from_flow_sets_provided_attrs(self, flow_function):
+        d = await Deployment.build_from_flow(
+            flow_function,
+            name="foo",
+            tags=["A", "B"],
+            description="foobar",
+            version="12",
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.description == "foobar"
+        assert d.tags == ["A", "B"]
+        assert d.version == "12"
