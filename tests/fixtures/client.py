@@ -13,7 +13,7 @@ async def orion_client(test_database_connection_url):
 
 @pytest.fixture(scope="session")
 def flow_function():
-    @flow
+    @flow(version="test", description="A test function")
     def client_test_flow(param=1):
         return param
 
