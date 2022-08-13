@@ -103,10 +103,6 @@ prefect kubernetes manifest orion | kubectl apply -f -
 
 # Expose port 4205 for the test suite to connect
 kubectl expose service orion --type=LoadBalancer --name=orion-tests --target-port 4200 --port 4205
-
-# wait a moment for everything to start, then create the `kubernetes` work queue for
-# the orion agent sidecar so that it can feel comfortable
-PREFECT_API_URL=http://localhost:4205/api prefect work-queue create kubernetes
 ```
 
 </div>
