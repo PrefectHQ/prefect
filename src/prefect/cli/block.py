@@ -25,9 +25,11 @@ app.add_typer(blocks_app, aliases=["blocks"])
 blocks_app.add_typer(blocktypes_app, aliases=["types"])
 
 
-def block_document_table(block_document):
+def display_block(block_document):
     block_slug = f"{block_document.block_type.slug}/{block_document.name}"
-    block_table = Table(title=block_slug, show_header=False, show_footer=False, expand=True)
+    block_table = Table(
+        title=block_slug, show_header=False, show_footer=False, expand=True
+    )
     block_table.add_column(style="italic cyan")
     block_table.add_column(style="blue")
 
@@ -37,6 +39,27 @@ def block_document_table(block_document):
         block_table.add_row(k, v)
 
     return block_table
+
+
+def display_block_type(block_type):
+    block_type_table = Table(
+        title=block_type.name, show_header=False, show_footer=False, expand=True
+    )
+    block_type_table.add_column(style="italic cyan")
+    block_type_table.add_column(style="blue")
+
+    block_type_table.add_row("Slug", block_type.slug)
+    block_type_table.add_row("Block Type id", str(block_type.id))
+    block_type_table.add_row(
+        "Description",
+        block_type.description.splitlines()[0].partition(".")[0],
+        end_section=True,
+    )
+
+    # for k, v in block_type.data.items():
+    #     block_type_table.add_row(k, v)
+
+    return block_type_table
 
 
 async def _register_blocks_in_module(module: ModuleType) -> List[Type[Block]]:
@@ -197,7 +220,9 @@ async def inspect(
     async with get_client() as client:
         if slug is None and block_id is not None:
             try:
-                block_document = await client.read_block_document(block_id, include_secrets=False)
+                block_document = await client.read_block_document(
+                    block_id, include_secrets=False
+                )
             except ObjectNotFound:
                 exit_with_error(f"Deployment {block_id!r} not found!")
         elif slug is not None:
@@ -210,8 +235,7 @@ async def inspect(
                 exit_with_error(f"Block {slug!r} not found!")
         else:
             exit_with_error("Must provide a Block slug or id")
-        block_table = block_document_table(block_document)
-        app.console.print(block_table)
+        app.console.print(display_block(block_document))
 
 
 @blocktypes_app.command("ls")
@@ -240,3 +264,17 @@ async def list_types():
         )
 
     app.console.print(table)
+
+
+@blocktypes_app.command("inspect")
+async def blocktype_inspect(
+    slug: str = typer.Argument(help="A Block type slug"),
+):
+    async with get_client() as client:
+        try:
+            block_type = await client.read_block_type_by_slug(slug)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {block_id!r} not found!")
+
+        print(block_type)
+        app.console.print(display_block_type(block_type))
