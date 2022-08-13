@@ -272,6 +272,15 @@ class Deployment(BaseModel):
             return block(**value)
         return value
 
+    @validator("parameter_openapi_schema", pre=True)
+    def handle_openapi_schema(cls, value):
+        """
+        This method ensures setting a value of `None` is handled gracefully.
+        """
+        if value is None:
+            return ParameterSchema()
+        return value
+
     @classmethod
     @sync_compatible
     async def load_from_yaml(cls, path: str):
