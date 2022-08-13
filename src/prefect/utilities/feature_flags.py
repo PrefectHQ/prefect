@@ -3,13 +3,26 @@ This module contains feature flagging utilities.
 
 For more guidance, read the [Feature Flags](/contributing/feature_flags/) documentation.
 """
+import threading
+from pathlib import Path
 from typing import Any, Iterable, Iterator, Optional
 
-from flipper import Condition, FeatureFlagClient
+import yaml
+from flipper import Condition, FeatureFlagClient, MemoryFeatureFlagStore
 from flipper.bucketing.base import AbstractBucketer
 from flipper.flag import FeatureFlag
 
 from prefect import settings
+from prefect.settings import PREFECT_FEATURE_FLAGGING_SETTINGS_PATH
+
+# This path will be used if `PREFECT_FEATURE_FLAGGING_SETTINGS_PATH` is null.
+from prefect.utilities.importtools import from_qualified_name
+
+DEFAULT_FEATURE_FLAGGING_SETTINGS_PATH = Path(__file__).parent / "feature_flags.yml"
+
+_in_memory_store: Optional[MemoryFeatureFlagStore] = None
+_flagger: Optional["FeatureFlagger"] = None
+_config: Optional[dict] = None
 
 
 class FeatureFlagger(FeatureFlagClient):
@@ -160,15 +173,64 @@ class FeatureFlagger(FeatureFlagClient):
         return flags
 
 
-# Feature flags currently in use go here.
-#
-# Flags should follow the naming pattern of {ENABLE/DISABLE}_{FEATURE_NAME}.
-# The UI consumes some of these via `/api/flags` so that features can
-# simultaneously be toggled on and off between the API and the UI.
-#
-# For example, to create a new feature flag called "enable-cool_feature",
-# you would add a variable that contains the flag and call
-# `create_if_missing()` like so:
-#
-# ENABLE_COOL_FEATURE = "very-cool-feature"
-# create_if_missing(ENABLE_COOL_FEATURE)
+def get_default_feature_flagger() -> FeatureFlagger:
+    global _in_memory_store
+
+    if not _in_memory_store:
+        with threading.Lock():
+            _in_memory_store = MemoryFeatureFlagStore()
+
+    set_flagger(FeatureFlagger(_in_memory_store))
+
+    return _flagger
+
+
+def set_flagger(flagger: FeatureFlagger):
+    global _flagger
+
+    with threading.Lock():
+        _flagger = flagger
+
+
+def get_flagging_config():
+    global _config
+
+    if _config:
+        return _config
+
+    path = (
+        PREFECT_FEATURE_FLAGGING_SETTINGS_PATH.value()
+        if PREFECT_FEATURE_FLAGGING_SETTINGS_PATH.value().exists()
+        else DEFAULT_FEATURE_FLAGGING_SETTINGS_PATH
+    )
+
+    _config = yaml.safe_load(path.read_text())
+    return _config
+
+
+def get_flagger() -> FeatureFlagger:
+    global _flagger
+
+    if _flagger:
+        return _flagger
+
+    config = get_flagging_config()
+    qualified_flagger_factory = config["flagger_factory"]
+
+    flagger_factory = from_qualified_name(qualified_flagger_factory)
+    flagger = flagger_factory()
+
+    set_flagger(flagger)
+    return flagger
+
+
+def setup_feature_flags():
+    """
+    Loads logging configuration from a path allowing override from the environment
+    """
+    flagger = get_flagger()
+    config = get_flagging_config()
+
+    if config["flags"]:
+        for flag, flag_settings in config["flags"].items():
+            flagger.create(flag, is_enabled=flag_settings["is_enabled"])

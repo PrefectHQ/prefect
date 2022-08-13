@@ -563,7 +563,7 @@ async def test_healthcheck(orion_client):
 
 async def test_healthcheck_failure(orion_client, monkeypatch):
     monkeypatch.setattr(
-        orion_client._client, "get", AsyncMock(side_effect=ValueError("test"))
+        orion_client._flagger, "get", AsyncMock(side_effect=ValueError("test"))
     )
     assert exceptions_equal(await orion_client.api_healthcheck(), ValueError("test"))
 
@@ -1006,7 +1006,7 @@ class TestClientAPIVersionRequests:
     async def test_no_api_version_header_succeeds(self):
         async with get_client() as client:
             # remove default header X-PREFECT-API-VERSION
-            client._client.headers = {}
+            client._flagger.headers = {}
             res = await client.hello()
             assert res.status_code == status.HTTP_200_OK
 
@@ -1092,7 +1092,7 @@ class TestClientAPIKey:
     async def test_client_passes_api_key_as_auth_header(self, test_app):
         api_key = "validAPIkey"
         async with OrionClient(test_app, api_key=api_key) as client:
-            res = await client._client.get("/check_for_auth_header")
+            res = await client._flagger.get("/check_for_auth_header")
         assert res.status_code == status.HTTP_200_OK
         assert res.json() == api_key
 
@@ -1101,7 +1101,7 @@ class TestClientAPIKey:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_403_FORBIDDEN)
             ) as e:
-                await client._client.get("/check_for_auth_header")
+                await client._flagger.get("/check_for_auth_header")
 
     async def test_get_client_includes_api_key_from_context(self):
         with temporary_settings(updates={PREFECT_API_KEY: "test"}):

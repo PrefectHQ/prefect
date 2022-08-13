@@ -6,7 +6,7 @@ from flipper.bucketing import Percentage, PercentageBucketer
 from flipper.contrib.memory import MemoryFeatureFlagStore
 
 from prefect.settings import PREFECT_FEATURE_FLAGGING_ENABLED, temporary_settings
-from prefect.utilities.feature_flags.flagger import FeatureFlagger
+from prefect.utilities.feature_flags import FeatureFlagger
 
 
 @pytest.fixture
