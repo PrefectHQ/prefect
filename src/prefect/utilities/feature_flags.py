@@ -1,5 +1,5 @@
 """
-This module contains feature flagging utilities.
+Support for feature flags enabling experimental behavior in Prefect.
 
 For more guidance, read the [Feature Flags](/contributing/feature_flags/) documentation.
 """
