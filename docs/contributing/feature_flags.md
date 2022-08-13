@@ -64,7 +64,7 @@ application, you'll import the flag name and call `flag_is_enabled()`:
 
 ```python
 
-from prefect.utilities.feature_flags import flagger
+from prefect.utilities import feature_flags
 
 
 def your_function():
@@ -105,7 +105,7 @@ as a keyword argument to `flag_is_enabled()`:
 
 ```python
 
-from prefect.utilities.feature_flags import flagger
+from prefect.utilities.feature_flags import feature_flags
 
 # Note: The difference between this and the last example of using
 # `flag_is_enabled` is that this time, we pass `is_admin=True`.

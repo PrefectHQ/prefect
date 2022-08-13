@@ -17,6 +17,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import with_cli_exception_handling
 from prefect.logging.configuration import setup_logging
 from prefect.settings import PREFECT_CLI_COLORS, PREFECT_CLI_WRAP_LINES
+from prefect.utilities.feature_flags import setup_feature_flags
 
 app = PrefectTyper(add_completion=False, no_args_is_help=True)
 
@@ -71,6 +72,7 @@ def main(
     )
 
     setup_logging()
+    setup_feature_flags()
 
 
 @app.command()
