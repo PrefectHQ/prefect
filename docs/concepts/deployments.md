@@ -24,9 +24,7 @@ Each deployment references a single flow (though that flow may, in turn, call an
 At a high level, you can think of a deployment as configuration for managing flows, whether you run them via the CLI, the UI, or the API.
 
 !!! warning "Deployments have changed since beta"
-    Deployments now rely on deployment YAML files for specifying a deployment of your workflow.
-
-    Deployments based on `Deployment` and `DeploymentSpec` are no longer supported.
+    Deployments based on `DeploymentSpec` are no longer supported. Instead, you can either define those using  `prefect deployment` CLI or the `Deployment` object.
 
 ## Deployments overview
 
@@ -42,21 +40,17 @@ When creating a deployment, a user must answer *two* basic questions:
 A deployment additionally enables you to:
 
 - Schedule flow runs
-- Assign tags for filtering flow runs on work queues and in the Prefect UI
+- Assign `--work-queue` name to delegate flow runs to work queues
+- Assign one or multiple `--tag` flags to organize your deployments and corresponding flow runs created from that deployment based on projects; you can use those assigned tags to filter for those projects in the Prefect UI
 - Assign custom parameter values for flow runs based on the deployment
 - Create ad-hoc flow runs from the API or Prefect UI
 - Upload flow files to a defined storage location for retrieval at run time
 
-Deployments can package your flow code; either Prefect Cloud or a local Prefect Orion server run with `prefect orion start`. 
-
 Deployments are uniquely identified by the combination of: `flow_name/deployment_name`. 
 
-To create a deployment you need:
+With storage blocks, you can package not only your flow code script but also any supporting files, including your custom modules, SQL scripts and any configuration files needed in your project.
 
-- Your flow code script and any supporting files.
-- A deployment YAML file
-
-Optionally, you may reference pre-configured storage and infrastructure blocks that define where flow code and results are stored and how your flow execution environment is configured.
+To define how your flow execution environment should be configured, you may either reference pre-configured infrastructure blocks or let Prefect create those as anonymous blocks automatically for you (this happens when you specify the infrastructure type using `--infra` flag during the build process).
 
 ### Deployments and flows
 
@@ -153,24 +147,31 @@ For example:
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./catfact.py:catfacts_flow -n catfact -t test
+$ prefect deployment build flows/marvin.py:say_hi -n marvin -t test
 ```
 </div>
 
-You may specify additional options to specify storage and infrastructure for the deployment.
+You may specify additional options to further customize your deployment.
 
 | Options | Description |
 | ------- | ----------- |
 | PATH | Path, filename, and flow name of the flow definition. (Required) |
 |  -n, --name TEXT               | The name of the deployment. |
-|  -t, --tag TEXT                | One or more optional tags to apply to the deployment. |
+|  -t, --tag TEXT                | One or more optional tags to apply to the deployment to organize your deployments and flow runs based on projects. |
+|  -v, --version TEXT            | A version to give the deployment. This could be a git commit hash if you use this command from a CI/CD pipeline. |
+|  -o, --output TEXT            | Optional location for the YAML manifest generated as a result of the `build` step. You can version-control that file, but it's not required since the CLI can generate everything you need to define a deployment. |
 |  -i, --infra                   | The infrastructure type to use. (Default is `Process`) |
 |  -ib, --infra-block TEXT       | The infrastructure block to use in `type/name` format. |
+|  --override TEXT       | One or more optional infrastructure overrides provided as a dot delimited path, e.g., `env.env_key=env_value`. |
 |  -sb, --storage-block TEXT     | The storage block to use in `type/name` format. |
+|  -a, --apply     | Set this flag if you want to simultabeously build and apply the deployment within a single command. |
+|  --cron TEXT     | A cron string that will be used to set a CronSchedule on the deployment, e.g. `--cron "*/1 * * * *"` to create flow runs from that deployment every minute. |
+|  --interval INTEGER     | An integer specifying an interval (in seconds) that will be used to set an IntervalSchedule on the deployment, e.g. `--interval 60` to create flow runs from that deployment every minute. |
+|  --rrule TEXT     | An RRule that will be used to set an RRuleSchedule on the deployment, e.g. `--rrule 'FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9,10,11,12,13,14,15,16,17'` to create flow runs from that deployment every hour but only during business hours. |
 
 When you run this command, Prefect: 
 
-- Creates the and `catfacts_flow-deployment.yaml` file for your deployment based on your flow code and options.
+- Creates the and `marvin_flow-deployment.yaml` file for your deployment based on your flow code and options.
 - Uploads your flow files to the configured storage location (local by default).
 
 !!! note "Ignore files or directories from a deployment"
