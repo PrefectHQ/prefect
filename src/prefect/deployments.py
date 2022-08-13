@@ -261,7 +261,8 @@ class Deployment(BaseModel):
         description="The path to the entrypoint for the workflow, relative to the `path`.",
     )
     parameter_openapi_schema: ParameterSchema = Field(
-        None, description="The parameter schema of the flow, including defaults."
+        default_factory=ParameterSchema,
+        description="The parameter schema of the flow, including defaults.",
     )
 
     @validator("storage", pre=True)
@@ -340,10 +341,19 @@ class Deployment(BaseModel):
             setattr(self, key, value)
 
     @sync_compatible
-    async def upload_to_storage(self, storage_block: Block = None) -> Optional[int]:
+    async def upload_to_storage(
+        self, storage_block: str = None, ignore_file: str = ".prefectignore"
+    ) -> Optional[int]:
         """
         Uploads the workflow this deployment represents using a provided storage block;
         if no block is provided, defaults to configuring self for local storage.
+
+        Args:
+            storage_block: a string reference a remote storage block slug `$type/$name`; if provided,
+                used to upload the workflow's project
+            ignore_file: an optional path to a `.prefectignore` file that specifies filename patterns
+                to ignore when uploading to remote storage; if not provided, looks for `.prefectignore`
+                in the current working directory
         """
         deployment_path = None
         file_count = None
@@ -354,7 +364,7 @@ class Deployment(BaseModel):
             )
 
             # upload current directory to storage location
-            file_count = await self.storage.put_directory(ignore_file=".prefectignore")
+            file_count = await self.storage.put_directory(ignore_file=ignore_file)
         elif not self.storage:
             # default storage, no need to move anything around
             self.storage = None
