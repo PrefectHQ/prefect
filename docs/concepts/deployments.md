@@ -40,17 +40,16 @@ When creating a deployment, a user must answer *two* basic questions:
 A deployment additionally enables you to:
 
 - Schedule flow runs
-- Assign `--work-queue` name to delegate flow runs to work queues
-- Assign one or multiple `--tag` flags to organize your deployments and corresponding flow runs created from that deployment based on projects; you can use those assigned tags to filter for those projects in the Prefect UI
+- Assign work queue name to delegate flow runs to work queues
+- Assign one or multiple tags to organize your deployments and corresponding flow runs created from that deployment based on projects; you can use those assigned tags to filter for those projects in the Prefect UI
 - Assign custom parameter values for flow runs based on the deployment
 - Create ad-hoc flow runs from the API or Prefect UI
 - Upload flow files to a defined storage location for retrieval at run time
 
 !!! warning "Flow run and work queue affinity improved starting from 2.0.5"
-    Until Prefect 2.0.4 `tags` were used to delegate flow runs created from deployments to the work queue agents that should pick up those runs. Given the flexibility of tags, it wasn't always clear which runs would be picked up by which work queue agent. To disambiguate this process, the tags now serve purely organizational purposes. To assign deployments to a relevant work-queue, use the `--work-queue` argument on your `prefect deployment build` command, e.g. `--work-queue k8s`. Then, to start an agent which can pick up such deployment, use the command: `prefect agent start k8s`. 
+    Until Prefect 2.0.4 tags were used to delegate flow runs created from deployments to the work queue agents that should pick up those runs. Given the flexibility of tags, it wasn't always clear which runs would be picked up by which work queue agent. To disambiguate this process, the tags now serve purely organizational purposes. To assign deployments to a relevant work queue, use the work queue argument on your deployment. Then, to start an agent which can pick up such deployment, assign the relevant work queue name to your agent startup command. 
     
     Note that **backwards compatibility is maintained**. If your previous deployment used tags such as `--tag k8s`, this run will still be picked up by an agent started with `prefect agent start --tag k8s`. Those work-queues are now considered legacy and we encourage you to use the new behavior.
-
 
 
 Deployments are uniquely identified by the combination of: `flow_name/deployment_name`. 
