@@ -58,7 +58,10 @@ async def load_flow_from_flow_run(
         f"Loading flow for deployment {deployment.name!r}..."
     )
 
-    import_path = Path(deployment.path) / deployment.entrypoint
+    if deployment.path:
+        import_path = Path(deployment.path) / deployment.entrypoint
+    else:
+        import_path = deployment.entrypoint
 
     # for backwards compat
     if deployment.manifest_path:
