@@ -177,7 +177,7 @@ You may specify additional options to further customize your deployment.
 
 When you run this command, Prefect: 
 
-- Creates the and `marvin_flow-deployment.yaml` file for your deployment based on your flow code and options.
+- Creates a `marvin_flow-deployment.yaml` file for your deployment based on your flow code and options.
 - Uploads your flow files to the configured storage location (local by default).
 
 !!! note "Ignore files or directories from a deployment"
