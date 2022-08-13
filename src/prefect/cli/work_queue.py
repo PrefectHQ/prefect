@@ -80,7 +80,7 @@ async def create(
         except ObjectAlreadyExists:
             exit_with_error(f"Work queue with name: {name!r} already exists.")
 
-    tags_message = f"tags - {tags}\n" if tags else ""
+    tags_message = f"tags - {', '.join(sorted(tags))}\n" if tags else ""
 
     output_msg = dedent(
         f"""
