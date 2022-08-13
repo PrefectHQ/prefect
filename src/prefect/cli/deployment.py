@@ -386,7 +386,7 @@ async def build(
         None,
         "-t",
         "--tag",
-        help="DEPRECATED: One or more optional tags to apply to the deployment.",
+        help="One or more optional tags to apply to the deployment. Note: tags are used only for organizational purposes. For delegating work to agents, use the --work-queue flag.",
     ),
 ):
     """

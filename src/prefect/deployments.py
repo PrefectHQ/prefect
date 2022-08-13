@@ -102,8 +102,9 @@ class Deployment(BaseModel):
         name: A name for the deployment (required).
         version: An optional version for the deployment; defaults to the flow's version
         description: An optional description of the deployment; defaults to the flow's description
-        tags: An optional list of tags to associate with this deployment
+        tags: An optional list of tags to associate with this deployment; note that tags are used only for organizational purposes. For delegating work to agents, see `work_queue_name`.
         schedule: A schedule to run this deployment on, once registered
+        work_queue_name: The work queue that will handle this deployment's runs
         flow_name: The name of the flow this deployment encapsulates
         parameters: A dictionary of parameter values to pass to runs created from this deployment
         infrastructure: An optional infrastructure block used to configure infrastructure for runs;
@@ -124,8 +125,12 @@ class Deployment(BaseModel):
         >>> from my_project.flows import my_flow
         >>> from prefect.deployments import Deployment
         >>>
-        >>> deployment = Deployment(name="example", version="1", tags=["demo"])
-        >>> deployment.build_from_flow(my_flow)
+        >>> deployment = Deployment.build_from_flow(
+        ...     flow=my_flow,
+        ...     name="example",
+        ...     version="1",
+        ...     tags=["demo"],
+        >>> )
         >>> deployment.apply()
 
         Create a new deployment with custom storage and an infrastructure override:
@@ -135,14 +140,14 @@ class Deployment(BaseModel):
         >>> from prefect.filesystems import S3
 
         >>> storage = S3.load("dev-bucket") # load a pre-defined block
-        >>> deployment = Deployment(
+        >>> deployment = Deployment.build_from_flow(
+        ...     flow=my_flow,
         ...     name="s3-example",
         ...     version="2",
         ...     tags=["aws"],
         ...     storage=storage,
         ...     infra_overrides=dict("env.PREFECT_LOGGING_LEVEL"="DEBUG"),
         >>> )
-        >>> deployment.build_from_flow(my_flow)
         >>> deployment.apply()
 
     """
@@ -218,7 +223,10 @@ class Deployment(BaseModel):
         None, description="An optional description of the deployment."
     )
     version: str = Field(None, description="An optional version for the deployment.")
-    tags: List[str] = Field(default_factory=list)
+    tags: List[str] = Field(
+        default_factory=list,
+        description="One of more tags to apply to this deployment.",
+    )
     schedule: schemas.schedules.SCHEDULE_TYPES = None
     flow_name: str = Field(None, description="The name of the flow.")
     work_queue_name: Optional[str] = Field(
@@ -403,19 +411,34 @@ class Deployment(BaseModel):
 
             return deployment_id
 
+    @classmethod
     @sync_compatible
-    async def build_from_flow(self, f: Flow, output: str = None):
+    async def build_from_flow(
+        cls,
+        flow: Flow,
+        name: str,
+        output: str = None,
+        **kwargs,
+    ) -> "Deployment":
         """
-        Configure this deployment for a given flow.
+        Configure a deployment for a given flow.
 
-        Note that this method loads any settings that may already be configured for this deployment
+        Note that this method loads any settings that may already be configured for the named deployment
         server-side (e.g., schedules, default parameter values, etc.).
 
-        Optionally writes the full specification as a YAML file in the location specified by `output`.
+        Args:
+            flow: A flow function to deploy
+            name: A name for the deployment
+            output (optional): if provided, the full deployment specification will be written as a YAML
+                file in the location specified by `output`
+            **kwargs: other keyword arguments to pass to the constructor for the `Deployment` class
         """
+        if not name:
+            raise ValueError("A deployment name must be provided.")
+
         ## first see if an entrypoint can be determined
-        flow_file = getattr(f, "__globals__", {}).get("__file__")
-        mod_name = getattr(f, "__module__", None)
+        flow_file = getattr(flow, "__globals__", {}).get("__file__")
+        mod_name = getattr(flow, "__module__", None)
         if not flow_file:
             if not mod_name:
                 # todo, check if the file location was manually set already
@@ -425,21 +448,24 @@ class Deployment(BaseModel):
             if not flow_file:
                 raise ValueError("Could not determine flow's file location.")
 
-        self.flow_name = f.name
-        await self.load()
+        deployment = cls(name=name, **kwargs)
+        deployment.flow_name = flow.name
+        await deployment.load()
 
         # set a few attributes for this flow object
-        self.entrypoint = f"{Path(flow_file).absolute()}:{f.fn.__name__}"
-        self.parameter_openapi_schema = parameter_schema(f)
-        if not self.version:
-            self.version = f.version
-        if not self.description:
-            self.description = f.description
+        deployment.entrypoint = f"{Path(flow_file).absolute()}:{flow.fn.__name__}"
+        deployment.parameter_openapi_schema = parameter_schema(flow)
+        if not deployment.version:
+            deployment.version = flow.version
+        if not deployment.description:
+            deployment.description = flow.description
 
         # if no storage is set, assume local for now
         # TODO: revisit with Docker integration
-        # note: this method call sets `self.path`
-        await self.upload_to_storage()
+        # note: this method call sets `deployment.path`
+        await deployment.upload_to_storage()
 
         if output:
-            await self.to_yaml(output)
+            await deployment.to_yaml(output)
+
+        return deployment
