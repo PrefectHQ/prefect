@@ -17,7 +17,7 @@ In this tutorial we'll work through the steps you'll need to:
 
 - Create a simple flow that runs in a Docker container and logs a message.
 - Create a deployment for the flow so you can run the flow via API.
-- Configure the API URL, a work queue, and an agent to run deployments.
+- Configure the API URL and an agent to run deployments.
 
 ## Requirements
 
@@ -50,7 +50,8 @@ def my_docker_flow():
 Deployment(
     name="docker-example",
     flow=my_docker_flow,
-    flow_runner=DockerFlowRunner()
+    flow_runner=DockerFlowRunner(),
+    work_queue_name="docker-tutorial"
 )
 ```
 
@@ -141,29 +142,16 @@ Set default storage to 'benjamin-bucket'.
 
 We set this storage as the default that Orion will use for flows running in the Docker container. Any flow runs can use the persistent S3 storage for flow code, task results, and flow results rather than relying on local storage that will disappear when the container shuts down.
 
-## Create a work queue and agent
+## Start an agent
 
-Work queues organize work that agents can pick up to execute. Work queues can be configured to make available deployments based on criteria such as tags, flow runners, or even specific deployments. Agents are configured to poll for work from specific work queues. To learn more, see the [Work Queues & Agents](/concepts/work-queues/) documentation.
+Agents are configured to poll for work from specific work queues, which organize flow runs produced by deployments.  To learn more, see the [Work Queues & Agents](/concepts/work-queues/) documentation.
 
-To run orchestrated deployments, you'll need to set up at least one work queue and agent. For this project we'll configure a work queue that works with any deployment and an agent that gets work from that queue.
+To run orchestrated deployments, you'll need to set up at least one agent to poll the `docker-tutorial` work queue that our deployment uses. Don't worry about creating the work queue - it will be generated automatically.
 
-In the terminal, use the `prefect work-queue create` command to create a work queue called "tut-work-queue". We don't pass any other options, so this work queue passes any scheduled flow runs to a waiting agent.
-
-<div class='termy'>
-```
-$ prefect work-queue create tut-work-queue
-UUID('00b05597-aeae-44d8-9b17-56dad9438333')
-```
-</div>
-
-Note that the command returns the ID of the work queue (yours will be a different ID). Copy the ID: we need to provide this ID when we create an agent.
-
-If you don't remember the ID of a work queue, use the `prefect work-queue ls` CLI command to list the available work queues.
-
-Now use the `prefect agent start` command, passing the ID of the work queue you just created, to start an agent that polls for flow runs from that work queue.
+Now use the `prefect agent start` command, passing the name of our work queue, to start an agent that polls for flow runs from that work queue.
 
 ```bash
-$ prefect agent start '00b05597-aeae-44d8-9b17-56dad9438333'
+$ prefect agent start -q docker-tutorial
 Starting agent connected to http://127.0.0.1:4200/api...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____

@@ -314,11 +314,11 @@ In the Prefect UI, you can create a work queue by selecting the **Work Queues** 
 
 However, we can also use a Prefect CLI convenience command: starting your agent with a set of tags will automatically create a work queue for you that serves deployments with those tags. This is handy for quickly standing up a test environment, for example.
 
-In your terminal, run the `prefect agent start` command, passing a `-t test` option that creates a work queue for `test` tags. Remember, we configured this same tag on the deployment at an earlier step.
+In your terminal, run the `prefect agent start` command, passing a `-q test` option that tells it to pull work from the `test` work queue. Remember, we configured the deployment to use this work queue at an earlier step.
 
 <div class="terminal">
 ```bash
-$ prefect agent start -t test
+$ prefect agent start -q test
 Starting agent connected to http://127.0.0.1:4200/api...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
@@ -327,20 +327,14 @@ Starting agent connected to http://127.0.0.1:4200/api...
  |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
 
 
-Agent started! Looking for work from queue 'Agent queue test'...
+Agent started! Looking for work from queue 'test'...
 ```
 </div>
 
 Remember that:
 
-- We specified the `test` tag when building the deployment files.
-- The 'Agent queue test' work queue is defined to serve deployments with a `test` tag.
-- The agent is configured to pick up work from the 'Agent queue test' work queue, so it will only execute flow runs for deployments with a `test` tag.
-
-!!! note "Reference work queues by name or ID"
-    You can reference a work queue by either ID or by name when starting an agent to pull work from a queue. For example: `prefect agent start 'tutorial_queue'`.
-
-    Note, however, that you can edit the name of a work queue after creation, which may cause errors for agents referencing a work queue by name.
+- We specified the `test` work queue when building the deployment files.
+- The agent is configured to pick up work from the `test` work queue, so it will execute flow runs from our deployment (and any others that also point at this queue).
 
 ## Run the deployment locally
 
