@@ -1,5 +1,3 @@
-import os
-
 import pytest
 
 from prefect import flow
@@ -57,10 +55,9 @@ class TestInputValidation:
                 "TEST",
                 "-o",
                 str(tmp_path / "test.yaml"),
-                "--ignore-file",
-                "foobar",
             ],
             expected_code=0,
+            temp_dir=tmp_path,
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
@@ -86,29 +83,10 @@ class TestInputValidation:
                 str(tmp_path / "test.yaml"),
                 "-v",
                 "CLI-version",
-                "--ignore-file",
-                "foobar",
             ],
             expected_code=0,
+            temp_dir=tmp_path,
         )
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
         assert deployment.version == "CLI-version"
-
-
-def test_yaml_comment_for_work_queue(dep_path, patch_import):
-    invoke_and_assert(
-        ["deployment", "build", dep_path + ":flow", "-n", "dog"],
-    )
-    yaml_path = "./flow-deployment.yaml"
-    try:
-        with open(yaml_path, "r") as f:
-            contents = f.readlines()
-
-        comment_index = contents.index(
-            "# The work queue that will handle this deployment's runs\n"
-        )
-        assert contents[comment_index + 1] == "work_queue_name: null\n"
-
-    finally:
-        os.remove(yaml_path)
