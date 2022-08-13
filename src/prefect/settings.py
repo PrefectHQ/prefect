@@ -404,6 +404,15 @@ PREFECT_FEATURE_FLAGGING_ENABLED = Setting(
     Defaults to `False`.""",
 )
 
+PREFECT_FEATURE_FLAGGING_SETTINGS_PATH = Setting(
+    Path,
+    default=Path("${PREFECT_HOME}") / "feature_flags.yml",
+    description=f"""The path to a custom YAML feature flagging configuration 
+    file. If no file is found, the default `feature_flags.yml` is used. 
+    Defaults to feature_flags.yml in the Prefect home directory.""",
+    value_callback=template_with_settings(PREFECT_HOME),
+)
+
 PREFECT_ORION_DATABASE_PASSWORD = Setting(
     str,
     default=None,

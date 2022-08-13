@@ -1,0 +1,18 @@
+# Feature flags configuration goes in this file.
+
+version: 1
+
+# The function Prefect should call to get the `FeatureFlagger` instance
+# to use for flagging.
+flagger_factory: prefect.utilities.feature_flags.get_default_feature_flagger
+
+# Flags should follow the naming pattern of {enable/disable}-{feature-name}.
+# The UI consumes some of these via `/api/flags` so that features can
+# simultaneously be toggled on and off between the API and the UI.
+#
+# For example, to create a new feature flag called "enable-cool-feature",
+# you would add a variable like so:
+#
+#flags:
+#  very-cool-feature:
+#    is_enabled: false

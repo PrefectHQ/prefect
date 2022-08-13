@@ -63,6 +63,7 @@ When you want to check if the flag is enabled from elsewhere in the
 application, you'll import the flag name and call `flag_is_enabled()`:
 
 ```python
+
 from prefect.utilities import feature_flags
 
 
@@ -103,8 +104,8 @@ Then, at runtime, you can check the flag by specifying the condition
 as a keyword argument to `flag_is_enabled()`:
 
 ```python
-from prefect.utilities import feature_flags
 
+from prefect.utilities.feature_flags import feature_flags
 
 # Note: The difference between this and the last example of using
 # `flag_is_enabled` is that this time, we pass `is_admin=True`.
