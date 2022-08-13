@@ -1,5 +1,5 @@
 ---
-description: Learn how to create Prefect flow deployments and run them with work queues and agents.
+description: Learn how to create Prefect flow deployments and run them with agents and work queues.
 tags:
     - Orion
     - work queues
@@ -26,7 +26,7 @@ You need just a few ingredients to turn a flow definition into a deployment:
 That's it. To create flow runs based on the deployment, you need a few more pieces:
 
 - Prefect orchestration engine, either [Prefect Cloud](/ui/cloud/) or a local Prefect Orion server started with `prefect orion start`.
-- A [work queue and agent](/concepts/work-queues/).
+- An [agent and work queue](/concepts/work-queues/).
 
 These all come with Prefect. You just have to configure them and set them to work. You'll see how to configure each component during this tutorial.
 
@@ -120,7 +120,7 @@ So to build deployment files for `leo_flow.py`, we'll use the command:
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./leo_flow.py:leonardo_dicapriflow -n leo-deployment -t test
+$ prefect deployment build ./leo_flow.py:leonardo_dicapriflow -n leo-deployment -q test
 ```
 </div>
 
@@ -129,7 +129,7 @@ What did we do here? Let's break down the command:
 - `prefect deployment build` is the Prefect CLI command that enables you to prepare the settings for a deployment.
 -  `./leo_flow.py:leonardo_dicapriflow` specifies the location of the flow script file and the name of the entrypoint flow function, separated by a colon.
 - `-n leo-deployment` is an option to specify a name for the deployment.
-- `-t test` specifies a tag for the deployment. Tags enable filtering deployment flow runs in the UI and on work queues. 
+- `-q test` specifies a work queue for the deployment. Work queues direct scheduled runs to agents.
 
 Note that you may specify multiple tags by providing a `-t tag` parameter for each tag you want applied to the deployment.
 
@@ -156,8 +156,8 @@ Open the `leonardo_dicapriflow-deployment.yaml` file and add the parameter as `p
 ###
 name: leo-deployment
 description: null
-tags:
-- test
+work_queue_name: test
+tags: []
 schedule: null
 parameters: {'name':'Leo'}
 infrastructure:
@@ -276,7 +276,8 @@ $ prefect deployment inspect leonardo_dicapriflow/leo-deployment
     'schedule': None,
     'is_schedule_active': True,
     'parameters': {'name': 'Leo'},
-    'tags': ['test'],
+    'tags': [],
+    'work_queue_name': 'test',
     'parameter_openapi_schema': {
         'title': 'Parameters',
         'type': 'object',
@@ -298,21 +299,17 @@ $ prefect deployment inspect leonardo_dicapriflow/leo-deployment
 ```
 </div>
 
-## Work queues and agents
+## Agents and work queues
 
-Note that you can't **Run** the deployment from the UI yet. As mentioned at the beginning of this tutorial, you still need two more items to run orchestrated deployments: a work queue and an agent. You'll set those up next.
+Note that you can't **Run** the deployment from the UI yet. As mentioned at the beginning of this tutorial, you still need two more items to run orchestrated deployments: an agent and a work queue. You'll set those up next.
 
-[Work queues and agents](/concepts/work-queues/) are the mechanisms by which the Prefect API orchestrates deployment flow runs in remote execution environments.
+[Agents and work queues](/concepts/work-queues/) are the mechanisms by which the Prefect API orchestrates deployment flow runs in remote execution environments.
 
 Work queues let you organize flow runs into queues for execution. Agents pick up work from queues and execute the flows.
 
-There is no default global work queue or agent, so to orchestrate runs of `leonardo_dicapriflow` you need to configure a work queue and agent. 
+There is no default global agent, so to orchestrate runs of `leonardo_dicapriflow` you need to configure one. 
 
-Next, create a work queue that can distribute your new deployment to agents for execution, and a local agent to pick up the flow run for your 'leonardo_dicapriflow/leonardo-deployment' deployment. 
-
-In the Prefect UI, you can create a work queue by selecting the **Work Queues** page, then creating a new work queue. 
-
-However, we can also use a Prefect CLI convenience command: starting your agent with a set of tags will automatically create a work queue for you that serves deployments with those tags. This is handy for quickly standing up a test environment, for example.
+In the Prefect UI, you can create a work queue by selecting the **Work Queues** page, then creating a new work queue. However, you don't need to manually create a work queue because it was created automatically when you created your deployment. If you hadn't created your deployment yet, it would be created when you start your agent. 
 
 In your terminal, run the `prefect agent start` command, passing a `-q test` option that tells it to pull work from the `test` work queue. Remember, we configured the deployment to use this work queue at an earlier step.
 
