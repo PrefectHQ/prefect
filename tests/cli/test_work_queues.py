@@ -38,7 +38,7 @@ def test_create_work_queue_with_tags():
         command="work-queue create q-name -t blue -t red",
         expected_output_contains=[
             "Supplying `tags` for work queues is deprecated",
-            "tags - ['blue', 'red']",
+            "tags - blue, red",
         ],
         expected_code=0,
     )
