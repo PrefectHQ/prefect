@@ -236,7 +236,7 @@ To demonstrate that your deployment exists, go back to Prefect Cloud and select 
 
 ### Create a work queue and agent
 
-Next, we start an agent that can pick up the flow run from your 'Testing/Test Deployment' deployment. Remember that when we created the deployment, it was configured to send work to a work queue called `test`. Work queues This work queue was automatically created when we created the deployment. In Prefect Cloud, you can view your work queues and create new ones manually by selecting the **Work Queues** page.
+Next, we start an agent that can pick up the flow run from your 'Testing/Test Deployment' deployment. Remember that when we created the deployment, it was configured to send work to a work queue called `test`. This work queue was automatically created when we created the deployment. In Prefect Cloud, you can view your work queues and create new ones manually by selecting the **Work Queues** page.
 
 In your terminal, run the `prefect agent start` command, passing a `-q test` option that tells it to look for work in the `test` work queue.
 
