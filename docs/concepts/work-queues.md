@@ -89,7 +89,7 @@ Agent started! Looking for work from queue(s): my-queue...
 
 In this case, Prefect automatically created a new `my-queue` work queue.
 
-By default, the agent polls its work queue API specified by the `PREFECT_API_URL` environment variable. To configure the agent to poll from a different server location, use the `--api` flag, specifying the URL of the server.
+By default, the agent polls the API specified by the `PREFECT_API_URL` environment variable. To configure the agent to poll from a different server location, use the `--api` flag, specifying the URL of the server.
 
 ## Work queue overview
 
@@ -250,3 +250,11 @@ When using the `prefect work-queue` Prefect CLI command to configure a work queu
 
 - `set-concurrency-limit`  sets a concurrency limit on a work queue.
 - `clear-concurrency-limit` clears any concurrency limits from a work queue.
+
+### Advanced patterns
+
+#### Priority queues
+Work queues can be used to more precisely control the delivery of work to agents. For example, an agent could be started with two work queues, one for high-priority work and one for lower-priority work: `prefect agent start -q high-priority -q low-priority`. In the UI, the low-priority queue could be configured with a low concurrency limit to ensure that its runs don't "crowd out" the high-priority ones. 
+
+#### Local debugging
+As long as your deployment's infrastructure block supports it, you can use work queues to temporarily send runs to an agent running on your local machine for debugging by running `prefect agent start -q my-local-machine` and updating the deployment's work queue to `my-local-machine`.
