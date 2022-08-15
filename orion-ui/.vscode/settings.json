@@ -18,6 +18,7 @@
   "editor.insertSpaces": true,
   "editor.tabSize": 2,
   "cSpell.words": [
+    "Combobox",
     "kubernetes",
     "pinia",
     "prefecthq",
@@ -34,7 +35,9 @@
   "typescript.tsdk": "node_modules/typescript/lib",
   "files.exclude": {
     "node_modules": true,
-    "dist": true
+    "dist": true,
+    "playwright-report": true,
+    "test-results": true,
   },
   "css.customData": [
     "./.vscode/css-data.json"

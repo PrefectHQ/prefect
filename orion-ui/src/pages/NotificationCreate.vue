@@ -1,5 +1,5 @@
 <template>
-  <p-layout-default>
+  <p-layout-default class="notification-create">
     <template #header>
       <PageHeadingNotificationCreate />
     </template>

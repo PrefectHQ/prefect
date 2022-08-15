@@ -23,7 +23,7 @@ from prefect.context import use_profile
 profile_app = PrefectTyper(
     name="profile", help="Commands for interacting with your Prefect profiles."
 )
-app.add_typer(profile_app)
+app.add_typer(profile_app, aliases=["profiles"])
 
 
 @profile_app.command()
@@ -135,7 +135,8 @@ async def check_orion_connection(profile_name):
                         # if the client is using an ephemeral Orion app, inform the user
                         exit_method, msg = (
                             exit_with_success,
-                            f"No Prefect Orion instance specified using profile {profile_name!r}. Flow run metadata will be stored at the locally configured database: f{prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
+                            f"No Prefect Orion instance specified using profile {profile_name!r}. "
+                            f"Flow run metadata will be stored at the locally configured database: {prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
                         )
                     else:
                         exit_method, msg = (
@@ -167,7 +168,8 @@ async def check_orion_connection(profile_name):
                 elif await client.using_ephemeral_app():
                     exit_method, msg = (
                         exit_with_success,
-                        f"No Prefect Orion instance specified using profile {profile_name!r}. Flow run metadata will be stored at the locally configured database: f{prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
+                        f"No Prefect Orion instance specified using profile {profile_name!r}. "
+                        f"Flow run metadata will be stored at the locally configured database: {prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
                     )
                 else:
                     exit_method, msg = (
