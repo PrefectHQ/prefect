@@ -192,14 +192,13 @@ async def create_then_begin_flow_run(
         raise RuntimeError(
             f"Cannot create flow run. Failed to reach API at {client.api_url}."
         ) from connect_error
-
     state = Pending()
     if flow.should_validate_parameters:
         try:
             parameters = flow.validate_parameters(parameters)
         except Exception as exc:
             state = Failed(
-                message="Flow run received invalid parameters.",
+                message=f"Validation of flow parameters failed with error: {exc!r}",
                 data=DataDocument.encode("cloudpickle", exc),
             )
 
@@ -214,6 +213,7 @@ async def create_then_begin_flow_run(
     engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
 
     if state.is_failed():
+        flow_run_logger(flow_run).error(state.message)
         engine_logger.info(
             f"Flow run {flow_run.name!r} received invalid parameters and is marked as failed."
         )
@@ -242,7 +242,6 @@ async def retrieve_flow_then_begin_flow_run(
     - Updates the flow run version
     """
     flow_run = await client.read_flow_run(flow_run_id)
-
     try:
         flow = await load_flow_from_flow_run(flow_run, client=client)
     except Exception as exc:
@@ -258,21 +257,26 @@ async def retrieve_flow_then_begin_flow_run(
         flow_run_id=flow_run_id,
         flow_version=flow.version,
     )
-
     if flow.should_validate_parameters:
+        failed_state = None
         try:
             parameters = flow.validate_parameters(flow_run.parameters)
         except Exception as exc:
-            flow_run_logger(flow_run).exception("Flow run received invalid parameters.")
-            state = Failed(
-                message="Flow run received invalid parameters.",
+            validation_error = (
+                f"Validation of flow parameters failed with error: {exc!r}"
+            )
+            flow_run_logger(flow_run).exception(validation_error)
+            failed_state = Failed(
+                message=validation_error,
                 data=DataDocument.encode("cloudpickle", exc),
             )
+
+        if failed_state is not None:
             await client.propose_state(
-                state=state,
+                state=failed_state,
                 flow_run_id=flow_run_id,
             )
-            return state
+            return failed_state
     else:
         parameters = flow_run.parameters
 
@@ -429,19 +433,25 @@ async def create_and_begin_subflow_run(
         logger = flow_run_logger(flow_run, flow)
 
         if flow.should_validate_parameters:
+            failed_state = None
             try:
                 parameters = flow.validate_parameters(parameters)
             except Exception as exc:
-                state = Failed(
-                    message="Flow run received invalid parameters.",
+                validation_error = (
+                    f"Validation of flow parameters failed with error: {exc!r}"
+                )
+                logger.exception(validation_error)
+                failed_state = Failed(
+                    message=validation_error,
                     data=DataDocument.encode("cloudpickle", exc),
                 )
+
+            if failed_state is not None:
                 await client.propose_state(
-                    state=state,
+                    state=failed_state,
                     flow_run_id=flow_run.id,
                 )
-                logger.error("Received invalid parameters", exc_info=True)
-                return state
+                return failed_state
 
         async with AsyncExitStack() as stack:
             await stack.enter_async_context(
@@ -523,7 +533,6 @@ async def orchestrate_flow_run(
 
         # Update the flow run to the latest data
         flow_run = await client.read_flow_run(flow_run.id)
-
         try:
             with timeout_context as timeout_scope:
                 with partial_flow_run_context.finalize(
