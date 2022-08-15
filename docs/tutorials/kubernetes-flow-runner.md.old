@@ -45,6 +45,7 @@ Deployment(
     name="k8s-example",
     flow=my_kubernetes_flow,
     flow_runner=KubernetesFlowRunner()
+    work_queue_name="k8s-tutorial"
 )
 ```
 
@@ -100,7 +101,6 @@ INFO:     10.1.0.1:2044 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25
 INFO:     10.1.0.1:29042 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
 INFO:     10.1.0.1:29406 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
 INFO:     10.1.0.1:38615 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
-Created kubernetes work queue 48199460-6a55-45c1-a96f-baf849c8c25f.
 Starting agent connected to http://orion:4200/api...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
@@ -110,13 +110,10 @@ Starting agent connected to http://orion:4200/api...
 
 
 Agent started! Looking for work from queue 'kubernetes'...
-19:46:51.179 | WARNING | prefect.agent - No work queue found named 'kubernetes'
 ```
 </div>
 
-This Kubernetes deployment runs the Orion API and UI servers, creates a [work queue](/concepts/work-queues/), and starts and agent &mdash; all within the cluster.
-
-Don't worry about the `No work queue found named 'kubernetes'` warning here. A new Prefect Orion API server does not start with a default work queue from which the agent can pick up work. We'll create the work queue in a future step.
+This Kubernetes deployment runs the Orion API and UI servers and starts an agent &mdash; all within the cluster.
 
 ## Configure the Orion API on Kubernetes
 
@@ -216,22 +213,11 @@ Set default storage to 'benjamin-bucket'.
 
 We set this storage as the default for the server running in Kubernetes, and any flow runs orchestrated by this server can use the persistent S3 storage for flow code, task results, and flow results.
 
-## Create a work queue
+## Start an agent
 
-Work queues organize work that agents can pick up to execute. Work queues can be configured to make available deployments based on criteria such as tags, flow runners, or even specific deployments. Agents are configured to poll for work from specific work queues. To learn more, see the [Work Queues & Agents](/concepts/work-queues/) documentation.
+Agents are configured to poll for work from specific work queues, which organize flow runs produced by deployments.  To learn more, see the [Work Queues & Agents](/concepts/work-queues/) documentation.
 
-To run orchestrated deployments, you'll need to set up at least one work queue and agent. As you saw earlier, there's already an agent running in Kubernetes, looking for a work queue.
-
-For this project we'll configure a work queue that works with any Kubernetes-based agent.
-
-In the terminal, use the `prefect work-queue create` command to create a work queue called "kubernetes". We don't pass any other options, so this work queue passes any scheduled flow runs to the waiting agent.
-
-<div class='termy'>
-```
-$ prefect work-queue create kubernetes
-UUID('3c482650-ea98-4eee-9b8d-c92a4b758d61')
-```
-</div>
+To run orchestrated deployments, you'll need to set up at least one agent to poll the `k8s-tutorial` work queue that our deployment uses. Don't worry about creating the work queue - it will be generated automatically.
 
 ## Create the deployment on Kubernetes
 
