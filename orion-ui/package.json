@@ -26,7 +26,7 @@
     "@playwright/test": "1.24.2",
     "@prefecthq/eslint-config": "1.0.16",
     "@types/d3": "^7.4.0",
-    "@vitejs/plugin-vue": "^2.3.3",
+    "@vitejs/plugin-vue": "^2.3.4",
     "autoprefixer": "10.4.7",
     "date-fns": "^2.29.1",
     "dotenv": "16.0.1",
