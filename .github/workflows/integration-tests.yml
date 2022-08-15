@@ -57,7 +57,7 @@ jobs:
         working-directory: ./orion-ui
         run: npx playwright test
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: playwright-report
