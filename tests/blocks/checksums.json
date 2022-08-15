@@ -10,8 +10,8 @@
     "gcs": "sha256:28a9d16c2589998d5281b0496b25edd76c1a0b159095d0c7fe5eb5dc5ab62549",
     "azure": "sha256:ed12920df72ae97d0b896193634023971f7039486ef85bac6ff596fe246ea507",
     "kubernetes-cluster-config": "sha256:d36db8c8e6ce335f002b18106209d20e8a155f5edbaf7b263e3f8c01f2e7fc2f",
-    "docker-container": "sha256:cc5fd7bf7e129ced2bf2b25cb0fac04e0c0596464bb5a001c699ddf43d05f752",
+    "docker-container": "sha256:470e819f430aadbef7004d7d7b8e85caa280ffd56379dbae1dd276e11fc69aa9",
     "docker-registry": "sha256:1518392919df80ec01dcadae783d7b523c7abf77d2867f212f71f7a8a90ec720",
-    "kubernetes-job": "sha256:c83826fd0967ece4e099e263f9dd6107ea896e6fdd9b6aa0793237d84dc5fd26",
+    "kubernetes-job": "sha256:7a51eaf93a926f2ae7fad0757e0a2f7c1e117b58f8ff9794c785fcb19e30a896",
     "process": "sha256:c496b5facd8b533327c52c57ac010385fd66755995f7f7c6bcedbbc09c0e9361"
 }
