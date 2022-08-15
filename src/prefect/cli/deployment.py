@@ -1,6 +1,7 @@
 """
 Command line interface for working with deployments.
 """
+from datetime import timedelta
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional
@@ -11,6 +12,7 @@ import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
+import prefect
 from prefect import Flow
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
@@ -27,9 +29,13 @@ from prefect.exceptions import (
 )
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
 from prefect.orion.schemas.filters import FlowFilter
+from prefect.orion.schemas.schedules import (
+    CronSchedule,
+    IntervalSchedule,
+    RRuleSchedule,
+)
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.filesystem import set_default_ignore_file
-from prefect.utilities.importtools import import_object
 
 
 def str_presenter(dumper, data):
@@ -322,11 +328,15 @@ async def build(
     version: str = typer.Option(
         None, "--version", "-v", help="A version to give the deployment."
     ),
-    tags: List[str] = typer.Option(
+    work_queue_name: str = typer.Option(
         None,
-        "-t",
-        "--tag",
-        help="One or more optional tags to apply to the deployment.",
+        "-q",
+        "--work-queue",
+        help=(
+            "The work queue that will handle this deployment's runs. "
+            "It will be created if it doesn't already exist. Defaults to `None`. "
+            "Note that if a work queue is not set, work will not be scheduled."
+        ),
     ),
     infra_type: Infra = typer.Option(
         None,
@@ -349,13 +359,34 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of the storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure'",
+        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure', 'smb'",
+    ),
+    cron: str = typer.Option(
+        None,
+        "--cron",
+        help="A cron string that will be used to set a CronSchedule on the deployment.",
+    ),
+    interval: int = typer.Option(
+        None,
+        "--interval",
+        help="An integer specifying an interval (in seconds) that will be used to set an IntervalSchedule on the deployment.",
+    ),
+    rrule: str = typer.Option(
+        None,
+        "--rrule",
+        help="An RRule that will be used to set an RRuleSchedule on the deployment.",
     ),
     output: str = typer.Option(
         None,
         "--output",
         "-o",
         help="An optional filename to write the deployment file to.",
+    ),
+    tags: List[str] = typer.Option(
+        None,
+        "-t",
+        "--tag",
+        help="DEPRECATED: One or more optional tags to apply to the deployment.",
     ),
 ):
     """
@@ -367,6 +398,14 @@ async def build(
         exit_with_error(
             "A name for this deployment must be provided with the '--name' flag."
         )
+    if tags:
+        app.console.print(
+            "Providing tags for deployments is deprecated; use a work queue name instead.",
+            style="red",
+        )
+
+    if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
+        exit_with_error("Only one schedule type can be provided.")
 
     output_file = None
     if output:
@@ -386,7 +425,7 @@ async def build(
         else:
             raise exc
     try:
-        flow = import_object(path)
+        flow = prefect.utilities.importtools.import_object(path)
         if isinstance(flow, Flow):
             app.console.print(f"Found flow {flow.name!r}", style="green")
         else:
@@ -417,6 +456,14 @@ async def build(
         # server-side definition of this deployment
         infrastructure = None
 
+    schedule = None
+    if cron:
+        schedule = CronSchedule(cron=cron)
+    elif interval:
+        schedule = IntervalSchedule(interval=timedelta(seconds=interval))
+    elif rrule:
+        schedule = RRuleSchedule(rrule=rrule)
+
     # set up deployment object
     deployment = Deployment(name=name, flow_name=flow.name)
     await deployment.load()  # load server-side settings, if any
@@ -433,6 +480,8 @@ async def build(
         tags=tags or None,
         infrastructure=infrastructure,
         infra_overrides=infra_overrides or None,
+        schedule=schedule,
+        work_queue_name=work_queue_name,
     )
     await deployment.update(**updates, ignore_none=True)
 
@@ -450,7 +499,7 @@ async def build(
             style="green",
         )
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
-    await deployment.to_yaml(path=deployment_loc)
+    await deployment.to_yaml(deployment_loc)
     exit_with_success(
         f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'."
     )
