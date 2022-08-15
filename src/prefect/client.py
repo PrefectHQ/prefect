@@ -1154,6 +1154,18 @@ class OrionClient:
             else:
                 raise
 
+    async def delete_block_type(self, block_type_id: UUID):
+        """
+        Delete a block type.
+        """
+        try:
+            await self._client.delete(f"/block_types/{block_type_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def read_block_types(self) -> List[schemas.core.BlockType]:
         """
         Read all block types
