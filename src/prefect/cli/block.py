@@ -151,8 +151,8 @@ async def register(
     )
 
 
-@blocks_app.command()
-async def ls():
+@blocks_app.command("ls")
+async def block_ls():
     """
     View all configured Blocks.
     """
@@ -178,8 +178,8 @@ async def ls():
     app.console.print(table)
 
 
-@blocks_app.command()
-async def delete(
+@blocks_app.command("delete")
+async def block_delete(
     slug: Optional[str] = typer.Argument(
         None, help="A Block slug: <BLOCK_TYPE_SLUG>/<BLOCK_NAME>"
     ),
@@ -208,8 +208,8 @@ async def delete(
             exit_with_error("Must provide a Block slug or id")
 
 
-@blocks_app.command()
-async def inspect(
+@blocks_app.command("inspect")
+async def block_inspect(
     slug: Optional[str] = typer.Argument(
         None, help="A Block slug: <BLOCK_TYPE_SLUG>/<BLOCK_NAME>"
     ),
