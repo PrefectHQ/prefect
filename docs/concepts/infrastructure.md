@@ -162,7 +162,7 @@ Current environment variables and Prefect settings will be included in the creat
 | name	| A name for the process. For display purposes only. |
 
 
-## DockerContainer
+### DockerContainer
 
 [`DockerContainer`](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerContainer) infrastructure  executes flow runs in a container.
 
@@ -191,7 +191,7 @@ Requirements for `DockerContainer`:
 
 Prefect automatically sets a Docker image matching the Python and Prefect version you're using at deployment time. You can see all available images at [Docker Hub](https://hub.docker.com/r/prefecthq/prefect/tags?page=1&name=2.0).
 
-## KubernetesJob
+### KubernetesJob
 
 [`KubernetesJob`](/api-ref/prefect/infrastructure/#prefect.infrastructure.kubernetes.KubernetesJob) infrastructure executes flow runs in a Kubernetes Job.
 
@@ -328,7 +328,7 @@ RUN pip install scikit-learn
 ```
 
 
-## Choosing an Image Strategy
+### Choosing an Image Strategy
 
 The options described above have different complexity (and performance)
 characteristics. For choosing a strategy, we provide the following
