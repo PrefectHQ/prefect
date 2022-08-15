@@ -1,21 +1,28 @@
 import time
 from contextlib import contextmanager
 from functools import partial
+from typing import List
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import anyio
 import pendulum
 import pytest
+from pydantic import BaseModel
 
+import prefect.flows
 from prefect import engine, flow, task
 from prefect.context import FlowRunContext
 from prefect.engine import (
     begin_flow_run,
+    create_and_begin_subflow_run,
+    create_then_begin_flow_run,
+    link_state_to_result,
     orchestrate_flow_run,
     orchestrate_task_run,
     retrieve_flow_then_begin_flow_run,
 )
-from prefect.exceptions import ParameterTypeError
+from prefect.exceptions import ParameterTypeError, SignatureMismatchError
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.states import (
@@ -31,6 +38,49 @@ from prefect.task_runners import SequentialTaskRunner
 from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
 from prefect.utilities.collections import quote
 from prefect.utilities.pydantic import PartialModel
+
+
+@pytest.fixture
+async def patch_manifest_load(monkeypatch):
+    async def patch_manifest(f):
+        async def anon(*args, **kwargs):
+            return f
+
+        monkeypatch.setattr(
+            engine,
+            "load_flow_from_flow_run",
+            anon,
+        )
+        return f
+
+    return patch_manifest
+
+
+@pytest.fixture
+def parameterized_flow():
+    @flow
+    def flow_for_tests(dog: str, cat: int):
+        """Flow for testing functions"""
+
+    return flow_for_tests
+
+
+@pytest.fixture
+def flow_run_caplog(caplog):
+    """
+    Capture logging from flow runs to ensure messages are correct.
+    """
+    import logging
+
+    logger = logging.getLogger("prefect.flow_runs")
+    logger2 = logging.getLogger("prefect")
+    logger.propagate = True
+    logger2.propagate = True
+
+    try:
+        yield caplog
+    finally:
+        logger.propagate = False
 
 
 @pytest.fixture
@@ -54,6 +104,26 @@ def mock_client_sleep(monkeypatch):
     monkeypatch.setattr("prefect.client.sleep", sleep)
 
     return sleep
+
+
+@pytest.fixture
+async def flow_run_context(orion_client, local_filesystem):
+    @flow
+    def foo():
+        pass
+
+    test_task_runner = SequentialTaskRunner()
+    flow_run = await orion_client.create_flow_run(foo)
+
+    ctx = FlowRunContext(
+        flow=foo,
+        flow_run=flow_run,
+        client=orion_client,
+        task_runner=test_task_runner,
+        result_filesystem=local_filesystem,
+    )
+
+    return ctx
 
 
 class TestOrchestrateTaskRun:
@@ -859,21 +929,6 @@ class TestTaskRunCrashes:
 
 
 class TestDeploymentFlowRun:
-    @pytest.fixture
-    async def patch_manifest_load(self, monkeypatch):
-        async def patch_manifest(f):
-            async def anon(*args, **kwargs):
-                return f
-
-            monkeypatch.setattr(
-                engine,
-                "load_flow_from_flow_run",
-                anon,
-            )
-            return f
-
-        return patch_manifest
-
     async def create_deployment(self, client, flow):
         flow_id = await client.create_flow(flow)
         return await client.create_deployment(
@@ -955,7 +1010,10 @@ class TestDeploymentFlowRun:
             flow_run.id, client=orion_client
         )
         assert state.is_failed()
-        assert state.message == "Flow run received invalid parameters."
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - x: value is not a valid integer')"
+        )
         with pytest.raises(ParameterTypeError, match="value is not a valid integer"):
             state.result()
 
@@ -1034,3 +1092,320 @@ class TestDynamicKeyHandling:
         task_runs = await orion_client.read_task_runs()
 
         assert sorted([int(run.dynamic_key) for run in task_runs]) == [0, 0, 1, 1]
+
+
+class TestCreateThenBeginFlowRun:
+    async def test_handles_bad_parameter_types(self, orion_client, parameterized_flow):
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"dog": [1, 2], "cat": "not an int"},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
+        )
+        assert type(state.data.decode()) == ParameterTypeError
+
+    async def test_handles_signature_mismatches(self, orion_client, parameterized_flow):
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
+        )
+        assert type(state.data.decode()) == SignatureMismatchError
+
+    async def test_handles_other_errors(
+        self, orion_client, parameterized_flow, monkeypatch
+    ):
+        def raise_unspecified_exception(*args, **kwargs):
+            raise Exception("I am another exception!")
+
+        # Patch validate_parameters to check for other exception case handling
+        monkeypatch.setattr(
+            prefect.flows.Flow, "validate_parameters", raise_unspecified_exception
+        )
+
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: Exception('I am another exception!')"
+        )
+        assert type(state.data.decode()) == Exception
+
+
+class TestRetrieveFlowThenBeginFlowRun:
+    async def test_handles_bad_parameter_types(
+        self, orion_client, patch_manifest_load, parameterized_flow
+    ):
+        await patch_manifest_load(parameterized_flow)
+        flow_id = await orion_client.create_flow(parameterized_flow)
+        dep_id = await orion_client.create_deployment(
+            flow_id,
+            name="test",
+            manifest_path="path/file.json",
+        )
+        new_flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id=dep_id, parameters={"dog": [1], "cat": "not an int"}
+        )
+        state = await retrieve_flow_then_begin_flow_run(flow_run_id=new_flow_run.id)
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
+        )
+        assert type(state.data.decode()) == ParameterTypeError
+
+    async def test_handles_signature_mismatches(self, orion_client, parameterized_flow):
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
+        )
+        assert type(state.data.decode()) == SignatureMismatchError
+
+    async def test_handles_other_errors(
+        self, orion_client, parameterized_flow, monkeypatch
+    ):
+        def raise_unspecified_exception(*args, **kwargs):
+            raise Exception("I am another exception!")
+
+        # Patch validate_parameters to check for other exception case handling
+        monkeypatch.setattr(
+            prefect.flows.Flow, "validate_parameters", raise_unspecified_exception
+        )
+
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: Exception('I am another exception!')"
+        )
+        assert type(state.data.decode()) == Exception
+
+
+class TestCreateAndBeginSubflowRun:
+    async def create_test_context(self, orion_client, local_filesystem):
+        @flow
+        def foo():
+            pass
+
+        test_task_runner = SequentialTaskRunner()
+        flow_run = await orion_client.create_flow_run(foo)
+
+        ctx = FlowRunContext(
+            flow=foo,
+            flow_run=flow_run,
+            client=orion_client,
+            task_runner=test_task_runner,
+            result_filesystem=local_filesystem,
+        )
+
+        return ctx
+
+    async def test_handles_bad_parameter_types(
+        self, orion_client, parameterized_flow, local_filesystem
+    ):
+        ctx = await self.create_test_context(orion_client, local_filesystem)
+        with ctx:
+            state = await create_and_begin_subflow_run(
+                flow=parameterized_flow,
+                parameters={"dog": [1, 2], "cat": "not an int"},
+                return_type="state",
+                client=orion_client,
+            )
+            assert state.type == StateType.FAILED
+            assert (
+                state.message
+                == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
+            )
+            assert type(state.data.decode()) == ParameterTypeError
+
+    async def test_handles_signature_mismatches(
+        self, orion_client, parameterized_flow, local_filesystem
+    ):
+        ctx = await self.create_test_context(orion_client, local_filesystem)
+        with ctx:
+            state = await create_and_begin_subflow_run(
+                flow=parameterized_flow,
+                parameters={"puppy": "a string", "kitty": 42},
+                return_type="state",
+                client=orion_client,
+            )
+            assert state.type == StateType.FAILED
+            assert (
+                state.message
+                == "Validation of flow parameters failed with error: SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
+            )
+            assert type(state.data.decode()) == SignatureMismatchError
+
+    async def test_handles_other_errors(
+        self, orion_client, parameterized_flow, monkeypatch
+    ):
+        def raise_unspecified_exception(*args, **kwargs):
+            raise Exception("I am another exception!")
+
+        # Patch validate_parameters to check for other exception case handling
+        monkeypatch.setattr(
+            prefect.flows.Flow, "validate_parameters", raise_unspecified_exception
+        )
+
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: Exception('I am another exception!')"
+        )
+        assert type(state.data.decode()) == Exception
+
+
+class TestLinkStateToResult:
+
+    state = State(id=uuid4(), type=StateType.COMPLETED)
+
+    class RandomTestClass:
+        pass
+
+    class PydanticTestClass(BaseModel):
+        untrackable_num: int
+        list_of_ints: List[int]
+
+    @pytest.mark.parametrize(
+        "test_input", [True, False, -5, 0, 1, 256, ..., None, NotImplemented]
+    )
+    async def test_link_state_to_result_with_untrackables(
+        self, test_input, flow_run_context
+    ):
+
+        with flow_run_context as ctx:
+            link_state_to_result(state=self.state, result=test_input)
+            assert ctx.task_run_results == {}
+
+    @pytest.mark.parametrize("test_input", [-6, 257, "Hello", RandomTestClass()])
+    def test_link_state_to_result_with_single_trackables(
+        self, flow_run_context, test_input
+    ):
+        input_id = id(test_input)
+
+        with flow_run_context as ctx:
+            link_state_to_result(state=self.state, result=test_input)
+            assert ctx.task_run_results == {input_id: self.state}
+
+    @pytest.mark.parametrize(
+        "test_inputs",
+        [
+            [-6, 257],
+            [-42, RandomTestClass()],
+            [4200, "Test", RandomTestClass()],
+        ],
+    )
+    def test_link_state_to_result_with_multiple_unnested_trackables(
+        self, flow_run_context, test_inputs
+    ):
+        input_ids = []
+        with flow_run_context as ctx:
+            for test_input in test_inputs:
+                input_ids.append(id(test_input))
+                link_state_to_result(state=self.state, result=test_input)
+            assert ctx.task_run_results == {id: self.state for id in input_ids}
+
+    @pytest.mark.parametrize(
+        "test_input",
+        [
+            [True],
+            (False,),
+            [1, 2, 3],
+            (1, 2, 3),
+        ],
+    )
+    def test_link_state_to_result_with_list_or_tuple_of_untrackables(
+        self, flow_run_context, test_input
+    ):
+        with flow_run_context as ctx:
+            link_state_to_result(state=self.state, result=test_input)
+            assert ctx.task_run_results == {id(test_input): self.state}
+
+    @pytest.mark.parametrize(
+        "test_input",
+        [
+            ["Test", 1, RandomTestClass()],
+            ("Test", 1, RandomTestClass()),
+        ],
+    )
+    def test_link_state_to_result_with_list_or_tuple_of_mixed(
+        self, flow_run_context, test_input
+    ):
+        with flow_run_context as ctx:
+            link_state_to_result(state=self.state, result=test_input)
+            assert ctx.task_run_results == {
+                id(test_input[0]): self.state,
+                id(test_input[2]): self.state,
+                id(test_input): self.state,
+            }
+
+    async def test_link_state_to_result_with_nested_list(self, flow_run_context):
+        test_input = [1, [-6, [1, 2, 3]]]
+
+        with flow_run_context as ctx:
+            link_state_to_result(state=self.state, result=test_input)
+            assert ctx.task_run_results == {
+                id(test_input): self.state,
+                id(test_input[1]): self.state,
+            }
+
+    def test_link_state_to_result_with_nested_pydantic_class(self, flow_run_context):
+        pydantic_instance = self.PydanticTestClass(
+            untrackable_num=42, list_of_ints=[1, 257]
+        )
+
+        test_input = [-7, pydantic_instance, 1]
+
+        with flow_run_context as ctx:
+            link_state_to_result(state=self.state, result=test_input)
+            assert ctx.task_run_results == {
+                id(test_input): self.state,
+                id(test_input[0]): self.state,
+                id(test_input[1]): self.state,
+            }
+
+    def test_link_state_to_result_with_pydantic_class(self, flow_run_context):
+        pydantic_instance = self.PydanticTestClass(
+            untrackable_num=42, list_of_ints=[1, 257]
+        )
+
+        with flow_run_context as ctx:
+            link_state_to_result(state=self.state, result=pydantic_instance)
+            assert ctx.task_run_results == {
+                id(pydantic_instance): self.state,
+                id(pydantic_instance.list_of_ints): self.state,
+            }
