@@ -188,3 +188,33 @@ def test_listing_system_block_types():
         expected_code=0,
         expected_output_contains=expected_output,
     )
+
+
+def test_inspecting_a_block():
+    system.JSON(value="a simple json blob").save("jsonblob")
+
+    expected_output = (
+        "Block Type",
+        "Block id",
+        "value",
+    )
+
+    invoke_and_assert(
+        ["block", "inspect", "json/jsonblob"],
+        expected_code=0,
+        expected_output_contains=expected_output,
+    )
+
+
+def test_deleting_a_block():
+    system.JSON(value="don't delete me please").save("pleasedonterase")
+
+    invoke_and_assert(
+        ["block", "delete", "json/pleasedonterase"],
+        expected_code=0,
+    )
+
+    invoke_and_assert(
+        ["block", "inspect", "json/pleasedonterase"],
+        expected_code=1,
+    )
