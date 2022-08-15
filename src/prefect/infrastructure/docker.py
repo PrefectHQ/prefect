@@ -42,7 +42,7 @@ class ImagePullPolicy(AutoEnum):
 
 
 class BaseDockerLogin(Block, ABC):
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/344dda583986d2d0db361c92dd650693/Moby-logo.webp?h=250"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"
     _block_schema_capabilities = ["docker-login"]
 
     @abstractmethod
@@ -172,6 +172,7 @@ class DockerContainer(Infrastructure):
     stream_output: bool = True
 
     _block_type_name = "Docker Container"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"
     type: Literal["docker-container"] = "docker-container"
 
     @validator("labels")
