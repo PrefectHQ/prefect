@@ -1301,6 +1301,8 @@ def link_state_to_result(state: State, result: Any) -> None:
     - We cannot set this attribute on Python built-ins.
     """
 
+    flow_run_context = FlowRunContext.get()
+
     def link_if_trackable(obj: Any) -> None:
         """Track connection between a task run result and its associated state if it has a unique ID.
 
@@ -1312,8 +1314,6 @@ def link_state_to_result(state: State, result: Any) -> None:
         ):
             return
         flow_run_context.task_run_results[id(obj)] = state
-
-    flow_run_context = FlowRunContext.get()
 
     if flow_run_context:
         visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
