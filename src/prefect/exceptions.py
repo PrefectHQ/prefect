@@ -1,10 +1,12 @@
 """
 Prefect-specific exceptions.
 """
+import inspect
 import traceback
 from types import ModuleType, TracebackType
-from typing import Iterable, Optional, Type
+from typing import Callable, Dict, Iterable, List, Optional, Type
 
+import pydantic
 from httpx._exceptions import HTTPStatusError
 from rich.traceback import Traceback
 from typing_extensions import Self
@@ -113,8 +115,50 @@ class FlowScriptError(PrefectException):
 
 class ParameterTypeError(PrefectException):
     """
-    Raised when a value passed as a flow parameter does not pass validation.
+    Raised when a parameter does not pass Pydantic type validation.
     """
+
+    def __init__(self, msg: str):
+        super().__init__(msg)
+
+    @classmethod
+    def from_validation_error(cls, exc: pydantic.ValidationError) -> Self:
+        bad_params = [f'{err["loc"][0]}: {err["msg"]}' for err in exc.errors()]
+        msg = "Flow run received invalid parameters:\n - " + "\n - ".join(bad_params)
+        return cls(msg)
+
+
+class ParameterBindError(TypeError, PrefectException):
+    """
+    Raised when args and kwargs cannot be converted to parameters.
+    """
+
+    def __init__(self, msg: str):
+        super().__init__(msg)
+
+    @classmethod
+    def from_bind_failure(
+        cls, fn: Callable, exc: TypeError, call_args: List, call_kwargs: Dict
+    ) -> Self:
+        fn_signature = str(inspect.signature(fn)).strip("()")
+
+        base = f"Error binding parameters for function '{fn.__name__}': {exc}"
+        signature = f"Function '{fn.__name__}' has signature '{fn_signature}'"
+        received = f"received args: {call_args} and kwargs: {call_kwargs}"
+        msg = f"{base}.\n{signature} but {received}."
+        return cls(msg)
+
+
+class SignatureMismatchError(PrefectException, TypeError):
+    """Raised when parameters passed to a function do not match its signature."""
+
+    def __init__(self, msg: str):
+        super().__init__(msg)
+
+    @classmethod
+    def from_bad_params(cls, expected_params: List[str], provided_params: List[str]):
+        msg = f"Function expects parameters {expected_params} but was provided with parameters {provided_params}"
+        return cls(msg)
 
 
 class ObjectNotFound(PrefectException):

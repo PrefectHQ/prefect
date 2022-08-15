@@ -13,7 +13,7 @@ async def work_queue(session):
     work_queue = await models.work_queues.create_work_queue(
         session=session,
         work_queue=schemas.core.WorkQueue(
-            name="My WorkQueue",
+            name="wq-1",
             description="All about my work queue",
         ),
     )
@@ -25,9 +25,11 @@ class TestCreateWorkQueue:
     async def test_create_work_queue_succeeds(self, session):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(name="My WorkQueue"),
+            work_queue=schemas.core.WorkQueue(name="wq-1"),
         )
-        assert work_queue.name == "My WorkQueue"
+        assert work_queue.name == "wq-1"
+        # deprecated field
+        assert work_queue.filter is None
 
     async def test_create_work_queue_throws_exception_on_name_conflict(
         self,
@@ -93,13 +95,13 @@ class TestReadWorkQueues:
         work_queue_1 = await models.work_queues.create_work_queue(
             session=session,
             work_queue=schemas.core.WorkQueue(
-                name="My WorkQueue 1",
+                name="wq-1 1",
             ),
         )
         work_queue_2 = await models.work_queues.create_work_queue(
             session=session,
             work_queue=schemas.core.WorkQueue(
-                name="My WorkQueue 2",
+                name="wq-1 2",
             ),
         )
         await session.commit()
@@ -131,10 +133,7 @@ class TestUpdateWorkQueue:
         result = await models.work_queues.update_work_queue(
             session=session,
             work_queue_id=work_queue.id,
-            work_queue=schemas.actions.WorkQueueUpdate(
-                name="My Paused Queue",
-                is_paused=True,
-            ),
+            work_queue=schemas.actions.WorkQueueUpdate(is_paused=True),
         )
         assert result
 
@@ -143,7 +142,6 @@ class TestUpdateWorkQueue:
         )
         assert updated_queue.id == work_queue.id
         # relevant attributes should be updated
-        assert updated_queue.name == "My Paused Queue"
         assert updated_queue.is_paused
         # unset attributes should be ignored
         assert updated_queue.description == work_queue.description
@@ -190,462 +188,6 @@ class TestUpdateWorkQueue:
         assert result is False
 
 
-class TestGetRunsInWorkQueue:
-    @pytest.fixture
-    async def tb12_work_queue(self, session):
-        work_queue = await models.work_queues.create_work_queue(
-            session=session,
-            work_queue=schemas.core.WorkQueue(
-                name="TB12",
-                description="The GOAT",
-                filter=schemas.core.QueueFilter(tags=["tb12"]),
-            ),
-        )
-        await session.commit()
-        return work_queue
-
-    @pytest.fixture
-    async def paused_work_queue(self, session):
-        work_queue = await models.work_queues.create_work_queue(
-            session=session,
-            work_queue=schemas.core.WorkQueue(
-                name="Paused",
-                is_paused=True,
-            ),
-        )
-        await session.commit()
-        return work_queue
-
-    @pytest.fixture
-    async def flow_run_1_id(self):
-        return uuid4()
-
-    @pytest.fixture
-    async def flow_run_2_id(self):
-        return uuid4()
-
-    @pytest.fixture
-    async def flow_run_3_id(self):
-        return uuid4()
-
-    @pytest.fixture
-    async def flow_run_4_id(self):
-        return uuid4()
-
-    @pytest.fixture
-    async def flow_run_5_id(self):
-        return uuid4()
-
-    @pytest.fixture
-    async def flow_run_6_id(self):
-        return uuid4()
-
-    @pytest.fixture
-    async def flow_run_7_id(self):
-        return uuid4()
-
-    @pytest.fixture(autouse=True)
-    async def flow_runs(
-        self,
-        session,
-        deployment,
-        infrastructure_document_id,
-        flow_run_1_id,
-        flow_run_2_id,
-        flow_run_3_id,
-        flow_run_4_id,
-        flow_run_5_id,
-        flow_run_6_id,
-        flow_run_7_id,
-    ):
-
-        # flow run 1 is in a SCHEDULED state 5 seconds ago
-        flow_run_1 = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(
-                id=flow_run_1_id,
-                flow_id=deployment.flow_id,
-                deployment_id=deployment.id,
-                flow_version="0.1",
-                infrastructure_document_id=infrastructure_document_id,
-            ),
-        )
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run_1.id,
-            state=schemas.states.State(
-                type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(seconds=5),
-                state_details=dict(
-                    scheduled_time=pendulum.now("UTC").subtract(seconds=1)
-                ),
-            ),
-        )
-
-        # flow run 2 is in a SCHEDULED state 1 minute ago with tags ["tb12", "goat"]
-        flow_run_2 = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(
-                id=flow_run_2_id,
-                flow_id=deployment.flow_id,
-                deployment_id=deployment.id,
-                flow_version="0.1",
-                tags=["tb12", "goat"],
-                next_scheduled_start_time=pendulum.now("UTC").subtract(minutes=1),
-            ),
-        )
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run_2.id,
-            state=schemas.states.State(
-                type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(minutes=1),
-                state_details=dict(
-                    scheduled_time=pendulum.now("UTC").subtract(minutes=1)
-                ),
-            ),
-        )
-
-        # flow run 3 is in a PENDING state with tags ["tb12", "goat"]
-        flow_run_3 = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(
-                id=flow_run_3_id,
-                flow_id=deployment.flow_id,
-                deployment_id=deployment.id,
-                flow_version="0.1",
-                tags=["tb12", "goat"],
-            ),
-        )
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run_3.id,
-            state=schemas.states.State(
-                type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(seconds=5),
-                state_details=dict(
-                    scheduled_time=pendulum.now("UTC").subtract(seconds=1)
-                ),
-            ),
-        )
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run_3.id,
-            state=schemas.states.Pending(),
-        )
-
-        # flow run 4 is in a RUNNING state with no tags
-        flow_run_4 = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(
-                id=flow_run_4_id,
-                flow_id=deployment.flow_id,
-                deployment_id=deployment.id,
-                flow_version="0.1",
-            ),
-        )
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run_4.id,
-            state=schemas.states.State(
-                type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(seconds=5),
-                state_details=dict(
-                    scheduled_time=pendulum.now("UTC").subtract(seconds=1)
-                ),
-            ),
-        )
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run_4.id,
-            state=schemas.states.Pending(),
-        )
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run_4.id,
-            state=schemas.states.Running(),
-        )
-
-        # flow run 5 is in a SCHEDULED state 1 year in the future
-        flow_run_5 = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(
-                id=flow_run_5_id,
-                flow_id=deployment.flow_id,
-                deployment_id=deployment.id,
-                flow_version="0.1",
-            ),
-        )
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run_5.id,
-            state=schemas.states.State(
-                type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(seconds=5),
-                state_details=dict(scheduled_time=pendulum.now("UTC").add(years=1)),
-            ),
-        )
-
-        # flow run 6 is in a SCHEDULED state 5 seconds ago but has no
-        # deployment_id, it should never be returned by the queue
-        flow_run_6 = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(
-                id=flow_run_6_id,
-                flow_id=deployment.flow_id,
-                flow_version="0.1",
-            ),
-        )
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run_6.id,
-            state=schemas.states.State(
-                type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(seconds=5),
-                state_details=dict(
-                    scheduled_time=pendulum.now("UTC").subtract(seconds=1)
-                ),
-            ),
-        )
-
-        # flow run 7 is in a RUNNING state but has no
-        # deployment_id, it should never be returned by the queue
-        # or count against concurrency limits
-        flow_run_7 = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(
-                id=flow_run_7_id,
-                flow_id=deployment.flow_id,
-                flow_version="0.1",
-            ),
-        )
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run_7.id,
-            state=schemas.states.State(
-                type=schemas.states.StateType.SCHEDULED,
-                timestamp=pendulum.now("UTC").subtract(seconds=5),
-                state_details=dict(
-                    scheduled_time=pendulum.now("UTC").subtract(seconds=1)
-                ),
-            ),
-        )
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run_7.id,
-            state=schemas.states.Pending(),
-        )
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run_7.id,
-            state=schemas.states.Running(),
-        )
-        await session.commit()
-
-    async def test_get_runs_in_work_queue_returns_scheduled_runs(
-        self,
-        session,
-        work_queue,
-        flow_run_1_id,
-        flow_run_2_id,
-    ):
-        # should only return SCHEDULED runs before NOW with
-        # a deployment_id
-        runs = await models.work_queues.get_runs_in_work_queue(
-            session=session,
-            work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
-        )
-        assert {run.id for run in runs} == {flow_run_1_id, flow_run_2_id}
-
-        # should respect limit param
-        limited_runs = await models.work_queues.get_runs_in_work_queue(
-            session=session,
-            work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
-            limit=1,
-        )
-        # flow run 2 is scheduled to start before flow run 1
-        assert {run.id for run in limited_runs} == {flow_run_2_id}
-
-        # should respect scheduled before param
-        # (turns out pendulum does not actually let you go back far enough but you get the idea)
-        runs_from_babylon = await models.work_queues.get_runs_in_work_queue(
-            session=session,
-            work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC").subtract(years=2000),
-            limit=1,
-        )
-        assert len(runs_from_babylon) == 0
-
-    async def test_paused_work_queue_returns_empty_list(
-        self, session, paused_work_queue
-    ):
-        assert (
-            await models.work_queues.get_runs_in_work_queue(
-                session=session,
-                work_queue_id=paused_work_queue.id,
-                scheduled_before=pendulum.now("UTC"),
-            )
-        ) == []
-
-    async def test_get_runs_in_work_queue_filters_on_tags(
-        self,
-        session,
-        tb12_work_queue,
-        flow_run_2_id,
-    ):
-        # should only return SCHEDULED runs before NOW with
-        # a deployment_id and tags ["tb12"]
-        runs = await models.work_queues.get_runs_in_work_queue(
-            session=session,
-            work_queue_id=tb12_work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
-        )
-        assert {run.id for run in runs} == {flow_run_2_id}
-
-    async def test_get_runs_in_work_queue_filters_on_deployment_ids(
-        self,
-        session,
-        deployment,
-        flow_run_1_id,
-        flow_run_2_id,
-    ):
-        # should only return SCHEDULED runs before NOW with
-        # the correct deployment_id
-        deployment_work_queue = await models.work_queues.create_work_queue(
-            session=session,
-            work_queue=schemas.core.WorkQueue(
-                name=f"Work Queue for Deployment {deployment.name}",
-                filter=schemas.core.QueueFilter(
-                    deployment_ids=[deployment.id, uuid4()]
-                ),
-            ),
-        )
-        runs = await models.work_queues.get_runs_in_work_queue(
-            session=session,
-            work_queue_id=deployment_work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
-        )
-        assert {run.id for run in runs} == {flow_run_1_id, flow_run_2_id}
-
-        bad_deployment_work_queue = await models.work_queues.create_work_queue(
-            session=session,
-            work_queue=schemas.core.WorkQueue(
-                name=f"Work Queue for Deployment that doesnt exist",
-                filter=schemas.core.QueueFilter(deployment_ids=[uuid4()]),
-            ),
-        )
-        assert (
-            await models.work_queues.get_runs_in_work_queue(
-                session=session,
-                work_queue_id=bad_deployment_work_queue.id,
-                scheduled_before=pendulum.now("UTC"),
-            )
-        ) == []
-
-    async def test_get_runs_in_work_queue_uses_union_of_filter_criteria(self, session):
-        # tags "tb12" will match but the deployment ids should not match any flow runs
-        conflicting_filter_work_queue = await models.work_queues.create_work_queue(
-            session=session,
-            work_queue=schemas.core.WorkQueue(
-                name=f"Work Queue for Deployment that doesnt exist",
-                filter=schemas.core.QueueFilter(
-                    deployment_ids=[uuid4()], tags=["tb12"]
-                ),
-            ),
-        )
-        assert (
-            await models.work_queues.get_runs_in_work_queue(
-                session=session,
-                work_queue_id=conflicting_filter_work_queue.id,
-                scheduled_before=pendulum.now("UTC"),
-            )
-        ) == []
-
-    async def test_get_runs_in_work_queue_respects_concurrency_limit(
-        self,
-        session,
-        work_queue,
-        flow_run_1_id,
-        flow_run_2_id,
-    ):
-        runs = await models.work_queues.get_runs_in_work_queue(
-            session=session,
-            work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
-        )
-        assert {run.id for run in runs} == {flow_run_1_id, flow_run_2_id}
-
-        # add a concurrency limit
-        await models.work_queues.update_work_queue(
-            session=session,
-            work_queue_id=work_queue.id,
-            work_queue=schemas.actions.WorkQueueUpdate(concurrency_limit=2),
-        )
-        # since there is one PENDING and one RUNNING flow run, no runs
-        # should be returned
-        assert (
-            await models.work_queues.get_runs_in_work_queue(
-                session=session,
-                work_queue_id=work_queue.id,
-                scheduled_before=pendulum.now("UTC"),
-            )
-        ) == []
-
-        # since there is one PENDING and one RUNNING flow run, no runs
-        # should be returned, even if a larger limit has been provided
-        assert (
-            await models.work_queues.get_runs_in_work_queue(
-                session=session,
-                work_queue_id=work_queue.id,
-                scheduled_before=pendulum.now("UTC"),
-                limit=9001,
-            )
-        ) == []
-
-        # increase the concurrency limit
-        await models.work_queues.update_work_queue(
-            session=session,
-            work_queue_id=work_queue.id,
-            work_queue=schemas.actions.WorkQueueUpdate(concurrency_limit=3),
-        )
-        # since there is one PENDING and one RUNNING flow run, one
-        # flow run should be returned
-        runs = await models.work_queues.get_runs_in_work_queue(
-            session=session,
-            work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
-        )
-        assert {run.id for run in runs} == {flow_run_2_id}
-
-    async def test_get_runs_in_work_queue_respects_concurrency_limit_of_0(
-        self,
-        session,
-        work_queue,
-    ):
-        # set concurrency limit to 0
-        await models.work_queues.update_work_queue(
-            session=session,
-            work_queue_id=work_queue.id,
-            work_queue=schemas.actions.WorkQueueUpdate(concurrency_limit=0),
-        )
-
-        await models.work_queues.get_runs_in_work_queue(
-            session=session,
-            work_queue_id=work_queue.id,
-            scheduled_before=pendulum.now("UTC"),
-        ) == []
-
-    async def test_get_runs_in_work_queue_raises_object_not_found_error(self, session):
-        with pytest.raises(ObjectNotFoundError):
-            await models.work_queues.get_runs_in_work_queue(
-                session=session,
-                work_queue_id=uuid4(),
-                scheduled_before=pendulum.now("UTC"),
-            )
-
-
 class TestDeleteWorkQueue:
     async def test_delete_work_queue(self, session, work_queue):
         assert await models.work_queues.delete_work_queue(
@@ -663,3 +205,158 @@ class TestDeleteWorkQueue:
             session=session, work_queue_id=str(uuid4())
         )
         assert result is False
+
+
+class TestGetRunsInWorkQueue:
+    @pytest.fixture
+    async def work_queue_2(self, session):
+        work_queue = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.core.WorkQueue(name="wq-2"),
+        )
+        await session.commit()
+        return work_queue
+
+    @pytest.fixture
+    async def scheduled_flow_runs(self, session, deployment, work_queue, work_queue_2):
+        for i in range(3):
+            for wq in [work_queue, work_queue_2]:
+                await models.flow_runs.create_flow_run(
+                    session=session,
+                    flow_run=schemas.core.FlowRun(
+                        flow_id=deployment.flow_id,
+                        deployment_id=deployment.id,
+                        work_queue_name=wq.name,
+                        state=schemas.states.State(
+                            type="SCHEDULED",
+                            timestamp=pendulum.now("UTC").add(minutes=i),
+                            state_details=dict(
+                                scheduled_time=pendulum.now("UTC").add(minutes=i)
+                            ),
+                        ),
+                    ),
+                )
+        await session.commit()
+
+    @pytest.fixture
+    async def running_flow_runs(self, session, deployment, work_queue, work_queue_2):
+        for i in range(3):
+            for wq in [work_queue, work_queue_2]:
+                await models.flow_runs.create_flow_run(
+                    session=session,
+                    flow_run=schemas.core.FlowRun(
+                        flow_id=deployment.flow_id,
+                        deployment_id=deployment.id,
+                        work_queue_name=wq.name,
+                        state=schemas.states.State(
+                            type="RUNNING" if i == 0 else "PENDING",
+                            timestamp=pendulum.now("UTC").subtract(seconds=10),
+                        ),
+                    ),
+                )
+        await session.commit()
+
+    async def test_get_runs_in_queue(
+        self, session, work_queue, work_queue_2, scheduled_flow_runs, running_flow_runs
+    ):
+        runs_wq1 = await models.work_queues.get_runs_in_work_queue(
+            session=session, work_queue_id=work_queue.id
+        )
+        runs_wq2 = await models.work_queues.get_runs_in_work_queue(
+            session=session, work_queue_id=work_queue_2.id
+        )
+
+        assert len(runs_wq1) == len(runs_wq2) == 3
+        assert all(r.work_queue_name == work_queue.name for r in runs_wq1)
+        assert all(r.work_queue_name == work_queue_2.name for r in runs_wq2)
+        assert set([r.id for r in runs_wq1]) != set([r.id for r in runs_wq2])
+
+    @pytest.mark.parametrize("limit", [2, 0])
+    async def test_get_runs_in_queue_limit(
+        self,
+        session,
+        work_queue,
+        scheduled_flow_runs,
+        running_flow_runs,
+        limit,
+    ):
+        runs_wq1 = await models.work_queues.get_runs_in_work_queue(
+            session=session, work_queue_id=work_queue.id, limit=limit
+        )
+        assert len(runs_wq1) == limit
+
+    async def test_get_runs_in_queue_scheduled_before(
+        self, session, work_queue, scheduled_flow_runs, running_flow_runs
+    ):
+        runs_wq1 = await models.work_queues.get_runs_in_work_queue(
+            session=session,
+            work_queue_id=work_queue.id,
+            scheduled_before=pendulum.now(),
+        )
+        assert len(runs_wq1) == 1
+
+    async def test_get_runs_in_queue_nonexistant(
+        self, session, work_queue, scheduled_flow_runs, running_flow_runs
+    ):
+        with pytest.raises(ObjectNotFoundError):
+            await models.work_queues.get_runs_in_work_queue(
+                session=session, work_queue_id=uuid4()
+            )
+
+    async def test_get_runs_in_queue_paused(
+        self, session, work_queue, scheduled_flow_runs, running_flow_runs
+    ):
+        await models.work_queues.update_work_queue(
+            session=session,
+            work_queue_id=work_queue.id,
+            work_queue=schemas.actions.WorkQueueUpdate(is_paused=True),
+        )
+
+        runs_wq1 = await models.work_queues.get_runs_in_work_queue(
+            session=session, work_queue_id=work_queue.id
+        )
+        assert runs_wq1 == []
+
+    @pytest.mark.parametrize("concurrency_limit", [10, 5, 1])
+    async def test_get_runs_in_queue_concurrency_limit(
+        self,
+        session,
+        work_queue,
+        scheduled_flow_runs,
+        running_flow_runs,
+        concurrency_limit,
+    ):
+        await models.work_queues.update_work_queue(
+            session=session,
+            work_queue_id=work_queue.id,
+            work_queue=schemas.actions.WorkQueueUpdate(
+                concurrency_limit=concurrency_limit
+            ),
+        )
+
+        runs_wq1 = await models.work_queues.get_runs_in_work_queue(
+            session=session, work_queue_id=work_queue.id
+        )
+
+        assert len(runs_wq1) == max(0, min(3, concurrency_limit - 3))
+
+    @pytest.mark.parametrize("limit", [10, 1])
+    async def test_get_runs_in_queue_concurrency_limit_and_limit(
+        self,
+        session,
+        work_queue,
+        scheduled_flow_runs,
+        running_flow_runs,
+        limit,
+    ):
+        await models.work_queues.update_work_queue(
+            session=session,
+            work_queue_id=work_queue.id,
+            work_queue=schemas.actions.WorkQueueUpdate(concurrency_limit=5),
+        )
+
+        runs_wq1 = await models.work_queues.get_runs_in_work_queue(
+            session=session, work_queue_id=work_queue.id, limit=limit
+        )
+
+        assert len(runs_wq1) == min(limit, 2)

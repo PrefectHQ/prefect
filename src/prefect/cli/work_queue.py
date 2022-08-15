@@ -17,7 +17,7 @@ from prefect.client import get_client
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 work_app = PrefectTyper(name="work-queue", help="Commands for work queue CRUD.")
-app.add_typer(work_app)
+app.add_typer(work_app, aliases=["work-queues"])
 
 
 @work_app.command()
@@ -41,7 +41,7 @@ async def create(
             )
             if limit is not None:
                 await client.update_work_queue(
-                    id=result,
+                    id=result.id,
                     concurrency_limit=limit,
                 )
         except ObjectAlreadyExists:
@@ -51,15 +51,15 @@ async def create(
         f"""
         Created work queue with properties:
             name - {name!r}
-            uuid - {result}
+            uuid - {result.id}
             tags - {tags or None}
             concurrency limit - {limit}
 
         Start an agent to pick up flows from the created work queue:
-            prefect agent start '{result}'
+            prefect agent start '{result.id}'
 
         Inspect the created work queue:
-            prefect work-queue inspect '{result}'
+            prefect work-queue inspect '{result.id}'
         """
     )
     app.console.print(output_msg)

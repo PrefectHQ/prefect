@@ -256,23 +256,17 @@ class Flow(Generic[P, R]):
             A new dict of parameters that have been cast to the appropriate types
 
         Raises:
-            FlowParameterError: if the provided parameters are not valid
+            ParameterTypeError: if the provided parameters are not valid
         """
         validated_fn = ValidatedFunction(self.fn, config=None)
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
-        validation_err = None
         try:
             model = validated_fn.init_model_instance(*args, **kwargs)
         except pydantic.ValidationError as exc:
             # We capture the pydantic exception and raise our own because the pydantic
             # exception is not picklable when using a cythonized pydantic installation
-            validation_err = ParameterTypeError(str(exc))
-
-        if validation_err:
-            # Raise the valdiation error outside of the `except` so the pydandic
-            # internals are not included
-            raise validation_err
+            raise ParameterTypeError.from_validation_error(exc) from None
 
         # Get the updated parameter dict with cast values from the model
         cast_parameters = {
