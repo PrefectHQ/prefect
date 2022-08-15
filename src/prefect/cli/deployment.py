@@ -403,6 +403,7 @@ async def build(
             "Providing tags for deployments is deprecated; use a work queue name instead.",
             style="red",
         )
+
     if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
         exit_with_error("Only one schedule type can be provided.")
 
