@@ -268,7 +268,7 @@ async def list_types():
 
 @blocktypes_app.command("inspect")
 async def blocktype_inspect(
-    slug: str = typer.Argument(help="A Block type slug"),
+    slug: str = typer.Argument(..., help="A Block type slug"),
 ):
     async with get_client() as client:
         try:
@@ -276,5 +276,18 @@ async def blocktype_inspect(
         except ObjectNotFound:
             exit_with_error(f"Deployment {block_id!r} not found!")
 
-        print(block_type)
         app.console.print(display_block_type(block_type))
+
+
+@blocktypes_app.command("delete")
+async def blocktype_delete(
+    slug: str = typer.Argument(..., help="A Block type slug"),
+):
+    async with get_client() as client:
+        try:
+            block_type = await client.read_block_type_by_slug(slug)
+            await client.delete_block_type(block_type.id)
+            exit_with_success(f"Deleted Block Type '{slug}'.")
+        except ObjectNotFound:
+            exit_with_error(f"Block Type {slug!r} not found!")
+        exit_with_error(f"Cannot delete Block Type {slug!r}!")
