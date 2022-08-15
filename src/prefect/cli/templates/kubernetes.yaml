@@ -21,7 +21,7 @@ spec:
         - containerPort: 4200
       - name: agent
         image: ${image_name}
-        command: ["prefect", "agent", "start", "kubernetes"]
+        command: ["prefect", "agent", "start", "-q", "kubernetes"]
         imagePullPolicy: "IfNotPresent"
         env:
           - name: PREFECT_API_URL
