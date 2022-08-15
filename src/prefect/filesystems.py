@@ -48,7 +48,9 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
     _block_type_name = "Local File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/EVKjxM7fNyi4NGUSkeTEE/95c958c5dd5a56c59ea5033e919c1a63/image1.png?h=250"
 
-    basepath: Optional[str] = None
+    basepath: Optional[str] = Field(
+        None, description="Default local for this block to write to"
+    )
 
     @validator("basepath", pre=True)
     def cast_pathlib(cls, value):
@@ -188,8 +190,15 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
     _block_type_name = "Remote File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CxjycqILlT9S9YchI7o1q/ee62e2089dfceb19072245c62f0c69d2/image12.png?h=250"
 
-    basepath: str
-    settings: dict = Field(default_factory=dict)
+    basepath: str = Field(
+        ...,
+        description="Default local for this block to write to",
+        example="s3://my-bucket/my-folder/",
+    )
+    settings: dict = Field(
+        default_factory=dict,
+        description="Additional settings to pass through to fsspec",
+    )
 
     # Cache for the configured fsspec file system used for access
     _filesystem: fsspec.AbstractFileSystem = None
@@ -348,8 +357,18 @@ class S3(ReadableFileSystem, WritableFileSystem):
     bucket_path: str = Field(
         ..., description="An S3 bucket path", example="my-bucket/a-directory-within"
     )
-    aws_access_key_id: SecretStr = Field(None, title="AWS Access Key ID")
-    aws_secret_access_key: SecretStr = Field(None, title="AWS Secret Access Key")
+    aws_access_key_id: SecretStr = Field(
+        None,
+        title="AWS Access Key ID",
+        description="Equivalent to the AWS_ACCESS_KEY_ID environment variable",
+        example="AKIAIOSFODNN7EXAMPLE",
+    )
+    aws_secret_access_key: SecretStr = Field(
+        None,
+        title="AWS Secret Access Key",
+        description="Equivalent to the AWS_SECRET_ACCESS_KEY environment variable",
+        example="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    )
 
     _remote_file_system: RemoteFileSystem = None
 
@@ -373,7 +392,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
         """
-        Downloads a directory from a given remote path to a local direcotry.
+        Downloads a directory from a given remote path to a local directory.
 
         Defaults to downloading the entire contents of the block's basepath to the current working directory.
         """
@@ -605,8 +624,7 @@ class SMB(ReadableFileSystem, WritableFileSystem):
         description="Username with access to the target SMB SHARE",
     )
     smb_password: Optional[SecretStr] = Field(
-        None,
-        title="SMB Password",
+        None, title="SMB Password", description="Password for SMB access"
     )
     smb_host: str = Field(
         ..., tile="SMB server/hostname", description="SMB server/hostname"

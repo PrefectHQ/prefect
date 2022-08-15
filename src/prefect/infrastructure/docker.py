@@ -101,10 +101,17 @@ class DockerRegistry(BaseDockerLogin):
     """
 
     _block_type_name = "Docker Registry"
-    username: str
-    password: SecretStr
-    registry_url: str
-    reauth: bool = True
+    username: str = Field(..., description="The username to log into the registry with")
+    password: SecretStr = Field(
+        ..., description="The password to log into the registry with"
+    )
+    registry_url: str = Field(
+        ...,
+        description='The URL to the registry. Generally, "http" or "https" can be omitted',
+    )
+    reauth: bool = Field(
+        True, description="Whether or not to reauthenticate on each interaction"
+    )
 
     @sync_compatible
     async def login(self):
@@ -162,8 +169,13 @@ class DockerContainer(Infrastructure):
     necessary and the API is connectable while bound to localhost.
     """
 
-    image: str = Field(default_factory=get_prefect_image_name)
-    image_pull_policy: ImagePullPolicy = None
+    image: str = Field(
+        description="Tag of a Docker image to use. Defaults to the Prefect image.",
+        default_factory=get_prefect_image_name,
+    )
+    image_pull_policy: ImagePullPolicy = Field(
+        None, description="Specifies if the image should be pulled."
+    )
     image_registry: Optional[DockerRegistry] = None
     networks: List[str] = Field(default_factory=list)
     network_mode: str = None
