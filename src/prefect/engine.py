@@ -1269,14 +1269,25 @@ def get_state_for_result(obj: Any) -> Optional[State]:
 
 def link_state_to_result(state: State, result: Any) -> None:
     """
-    Caches a link between a state and a result using the `id` of the result to map to
-    the state. The cache is persisted to the current flow run context since task
-    relationships are limited to within a flow run.
+    Caches a link between a state and a result and its components using
+    the `id` of the components to map to the state. The cache is persisted to the
+    current flow run context since task relationships are limited to within a flow run.
 
     This allows dependency tracking to occur when results are passed around.
+    Note: Because `id` is used, we cannot cache links between singleton objects.
 
+    We only cache the relationship between components 1-layer deep.
+    Example:
+        Given the result [1, ["a","b"], ("c",)], the following elements will be
+        mapped to the state:
+        - [1, ["a","b"], ("c",)]
+        - ["a","b"]
+        - ("c",)
+
+        Note: the int `1` will not be mapped to the state because it is a singleton.
+
+    Other Notes:
     We do not hash the result because:
-
     - If changes are made to the object in the flow between task calls, we can still
       track that they are related.
     - Hashing can be expensive.
@@ -1289,14 +1300,23 @@ def link_state_to_result(state: State, result: Any) -> None:
     - The field can be preserved on copy.
     - We cannot set this attribute on Python built-ins.
     """
-    # We cannot track some Python built-ins since they are singletons and could create
-    # confusing relationships, e.g. `None`
-    if type(result) in UNTRACKABLE_TYPES:
-        return
 
     flow_run_context = FlowRunContext.get()
+
+    def link_if_trackable(obj: Any) -> None:
+        """Track connection between a task run result and its associated state if it has a unique ID.
+
+        We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
+        because they are singletons.
+        """
+        if (type(obj) in UNTRACKABLE_TYPES) or (
+            isinstance(obj, int) and (-5 <= obj <= 256)
+        ):
+            return
+        flow_run_context.task_run_results[id(obj)] = state
+
     if flow_run_context:
-        flow_run_context.task_run_results[id(result)] = state
+        visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
 
 
 def get_default_result_filesystem() -> LocalFileSystem:

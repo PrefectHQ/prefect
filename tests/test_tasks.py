@@ -1341,7 +1341,7 @@ class TestTaskInputs:
 
         @flow
         def test_flow():
-            upstream_future = upstream.submit(1)
+            upstream_future = upstream.submit(257)
             upstream_result = upstream_future.result()
             downstream_state = downstream._run(upstream_result)
             upstream_state = upstream_future.wait()
@@ -1379,10 +1379,6 @@ class TestTaskInputs:
 
         task_run = await orion_client.read_task_run(
             downstream_state.state_details.task_run_id
-        )
-
-        assert task_run.task_inputs == dict(
-            x=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
         )
 
     async def test_task_inputs_populated_with_state_upstream(self, orion_client):
@@ -1425,7 +1421,7 @@ class TestTaskInputs:
             value=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
         )
 
-    @pytest.mark.parametrize("result", ["Fred", 2, 5.1])
+    @pytest.mark.parametrize("result", ["Fred", 5.1])
     async def test_task_inputs_populated_with_basic_result_types_upstream(
         self, result, orion_client, flow_with_upstream_downstream
     ):
@@ -1435,7 +1431,6 @@ class TestTaskInputs:
         task_run = await orion_client.read_task_run(
             downstream_state.state_details.task_run_id
         )
-
         assert task_run.task_inputs == dict(
             value=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
         )
@@ -1452,6 +1447,137 @@ class TestTaskInputs:
         )
 
         assert task_run.task_inputs == dict(value=[])
+
+    async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_trackables(
+        self, orion_client
+    ):
+        @task
+        def task_1():
+            task_3_in = [1, 2, 3]
+            task_2_in = "Woof!"
+            return task_2_in, task_3_in
+
+        @task
+        def task_2(task_2_input):
+            return (task_2_input + " Bark!",)
+
+        @task
+        def task_3(task_3_input):
+            task_3_input.append(4)
+            return task_3_input
+
+        @flow
+        def unpacking_flow():
+            t1_state = task_1._run()
+            t1_res_1, t1_res_2 = t1_state.result()
+            t2_state = task_2._run(t1_res_1)
+            t3_state = task_3._run(t1_res_2)
+            return t1_state, t2_state, t3_state
+
+        t1_state, t2_state, t3_state = unpacking_flow()
+
+        task_3_run = await orion_client.read_task_run(
+            t3_state.state_details.task_run_id
+        )
+
+        assert task_3_run.task_inputs == dict(
+            task_3_input=[TaskRunResult(id=t1_state.state_details.task_run_id)],
+        )
+
+        task_2_run = await orion_client.read_task_run(
+            t2_state.state_details.task_run_id
+        )
+
+        assert task_2_run.task_inputs == dict(
+            task_2_input=[TaskRunResult(id=t1_state.state_details.task_run_id)],
+        )
+
+    async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_mixed_untrackable_types(
+        self, orion_client
+    ):
+        @task
+        def task_1():
+            task_3_in = [1, 2, 3]
+            task_2_in = 2
+            return task_2_in, task_3_in
+
+        @task
+        def task_2(task_2_input):
+            return task_2_input + 1
+
+        @task
+        def task_3(task_3_input):
+            task_3_input.append(4)
+            return task_3_input
+
+        @flow
+        def unpacking_flow():
+            t1_state = task_1._run()
+            t1_res_1, t1_res_2 = t1_state.result()
+            t2_state = task_2._run(t1_res_1)
+            t3_state = task_3._run(t1_res_2)
+            return t1_state, t2_state, t3_state
+
+        t1_state, t2_state, t3_state = unpacking_flow()
+
+        task_3_run = await orion_client.read_task_run(
+            t3_state.state_details.task_run_id
+        )
+
+        assert task_3_run.task_inputs == dict(
+            task_3_input=[TaskRunResult(id=t1_state.state_details.task_run_id)],
+        )
+
+        task_2_run = await orion_client.read_task_run(
+            t2_state.state_details.task_run_id
+        )
+
+        assert task_2_run.task_inputs == dict(
+            task_2_input=[],
+        )
+
+    async def test_task_inputs_populated_with_result_upstream_from_state_with_unpacking_no_trackable_types(
+        self, orion_client
+    ):
+        @task
+        def task_1():
+            task_3_in = True
+            task_2_in = 2
+            return task_2_in, task_3_in
+
+        @task
+        def task_2(task_2_input):
+            return task_2_input + 1
+
+        @task
+        def task_3(task_3_input):
+            return task_3_input
+
+        @flow
+        def unpacking_flow():
+            t1_state = task_1._run()
+            t1_res_1, t1_res_2 = t1_state.result()
+            t2_state = task_2._run(t1_res_1)
+            t3_state = task_3._run(t1_res_2)
+            return t1_state, t2_state, t3_state
+
+        t1_state, t2_state, t3_state = unpacking_flow()
+
+        task_3_run = await orion_client.read_task_run(
+            t3_state.state_details.task_run_id
+        )
+
+        assert task_3_run.task_inputs == dict(
+            task_3_input=[],
+        )
+
+        task_2_run = await orion_client.read_task_run(
+            t2_state.state_details.task_run_id
+        )
+
+        assert task_2_run.task_inputs == dict(
+            task_2_input=[],
+        )
 
 
 class TestTaskWaitFor:
