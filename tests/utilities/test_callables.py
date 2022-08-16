@@ -4,8 +4,10 @@ from typing import Any, Dict, List, Tuple, Union
 
 import pendulum
 import pydantic.version
+import pytest
 from packaging.version import Version
 
+from prefect.exceptions import ParameterBindError
 from prefect.utilities import callables
 
 
@@ -354,3 +356,44 @@ class TestMethodToSchema:
                 },
                 "required": ["x"],
             }
+
+
+class TestGetCallParameters:
+    def test_raises_parameter_bind_with_no_kwargs(self):
+        def dog(x):
+            pass
+
+        with pytest.raises(ParameterBindError):
+            callables.get_call_parameters(dog, call_args=(), call_kwargs={})
+
+    def test_raises_parameter_bind_with_wrong_kwargs_same_number(self):
+        def dog(x, y):
+            pass
+
+        with pytest.raises(ParameterBindError):
+            callables.get_call_parameters(
+                dog, call_args=(), call_kwargs={"x": 2, "a": 42}
+            )
+
+    def test_raises_parameter_bind_with_missing_kwargs(self):
+        def dog(x, y):
+            pass
+
+        with pytest.raises(ParameterBindError):
+            callables.get_call_parameters(dog, call_args=(), call_kwargs={"x": 2})
+
+    def test_raises_parameter_bind_error_with_excess_kwargs(self):
+        def dog(x):
+            pass
+
+        with pytest.raises(ParameterBindError):
+            callables.get_call_parameters(
+                dog, call_args=(), call_kwargs={"x": "y", "a": "b"}
+            )
+
+    def test_raises_parameter_bind_error_with_excess_kwargs_no_args(self):
+        def dog():
+            pass
+
+        with pytest.raises(ParameterBindError):
+            callables.get_call_parameters(dog, call_args=(), call_kwargs={"x": "y"})

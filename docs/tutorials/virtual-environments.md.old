@@ -83,7 +83,7 @@ You may want your flows to run in a different Python environment than the agent.
 - [venv](https://docs.python.org/3/library/venv.html)
 
 
-For example, you can configure the deployment to run in the `prefect-dev` environment described earlier. Save the following to a `example-deployment.py` file:
+For example, you can configure the deployment to run in the `prefect-dev` environment described earlier, using a work queue called `example`. Save the following to a `example-deployment.py` file:
 
 ```python
 import sys
@@ -99,7 +99,8 @@ def my_flow():
 Deployment(
     name="example",
     flow=my_flow,
-    flow_runner=SubprocessFlowRunner(condaenv="prefect-dev", stream_output=True)
+    flow_runner=SubprocessFlowRunner(condaenv="prefect-dev", stream_output=True),
+    work_queue_name="venv-tutorial"
 )
 ```
 
@@ -109,16 +110,10 @@ Create the deployment:
 prefect deployment create example-deployment.py
 ```
 
-Create a work queue named *my_first_work_queue* with the deployment ID returned when you created your deployment:
+Then start an agent that pulls work from the tutorial work queue:
 
 ```bash
- prefect work-queue create my_first_work_queue
-```
-
-Then start an agent:
-
-```bash
-prefect agent start my_first_work_queue
+prefect agent start -q venv-tutorial
 ```
 
 The agent will continue running in your terminal. 

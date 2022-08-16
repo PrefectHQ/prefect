@@ -227,6 +227,19 @@ async def deployment(
 
 
 @pytest.fixture
+async def work_queue(session):
+    work_queue = await models.work_queues.create_work_queue(
+        session=session,
+        work_queue=schemas.core.WorkQueue(
+            name="wq-1",
+            description="All about my work queue",
+        ),
+    )
+    await session.commit()
+    return work_queue
+
+
+@pytest.fixture
 async def block_type_x(session):
     # Ignore warnings caused by block reuse in fixtuer
     warnings.filterwarnings("ignore", category=UserWarning)
