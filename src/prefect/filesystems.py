@@ -49,7 +49,7 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/EVKjxM7fNyi4NGUSkeTEE/95c958c5dd5a56c59ea5033e919c1a63/image1.png?h=250"
 
     basepath: Optional[str] = Field(
-        None, description="Default local for this block to write to"
+        None, description="Default local path for this block to write to"
     )
 
     @validator("basepath", pre=True)
