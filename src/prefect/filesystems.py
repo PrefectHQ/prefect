@@ -195,7 +195,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         description="Default local for this block to write to",
         example="s3://my-bucket/my-folder/",
     )
-    settings: dict = Field(
+    settings: Dict[str, Any] = Field(
         default_factory=dict,
         description="Additional settings to pass through to fsspec",
     )
