@@ -116,11 +116,9 @@ async def set_concurrency_limit(
                 concurrency_limit=limit,
             )
         except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name or queue_id!r}")
+            exit_with_error(f"No work queue found: {name!r}")
 
-    exit_with_success(
-        f"Concurrency limit of {limit} set on work queue {name or queue_id!r}"
-    )
+    exit_with_success(f"Concurrency limit of {limit} set on work queue {name!r}")
 
 
 @work_app.command()
@@ -138,9 +136,9 @@ async def clear_concurrency_limit(
                 concurrency_limit=None,
             )
         except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name or queue_id!r}")
+            exit_with_error(f"No work queue found: {name!r}")
 
-    exit_with_success(f"Concurrency limits removed on work queue {name or queue_id!r}")
+    exit_with_success(f"Concurrency limits removed on work queue {name!r}")
 
 
 @work_app.command()
@@ -159,9 +157,9 @@ async def pause(
                 is_paused=True,
             )
         except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name or queue_id!r}")
+            exit_with_error(f"No work queue found: {name!r}")
 
-    exit_with_success(f"Paused work queue {name or queue_id!r}")
+    exit_with_success(f"Paused work queue {name!r}")
 
 
 @work_app.command()
@@ -180,9 +178,9 @@ async def resume(
                 is_paused=False,
             )
         except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name or queue_id!r}")
+            exit_with_error(f"No work queue found: {name!r}")
 
-    exit_with_success(f"Resumed work queue {name or queue_id!r}")
+    exit_with_success(f"Resumed work queue {name!r}")
 
 
 @work_app.command()
@@ -199,7 +197,7 @@ async def inspect(
         try:
             result = await client.read_work_queue(id=queue_id)
         except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name or queue_id!r}")
+            exit_with_error(f"No work queue found: {name!r}")
 
     app.console.print(Pretty(result))
 
@@ -275,7 +273,7 @@ async def preview(
                 queue_id, limit=10, scheduled_before=window
             )
         except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name or queue_id!r}")
+            exit_with_error(f"No work queue found: {name!r}")
 
     now = pendulum.now("utc")
     sort_by_created_key = lambda r: now - r.created
@@ -311,6 +309,6 @@ async def delete(
         try:
             await client.delete_work_queue_by_id(id=queue_id)
         except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name or queue_id!r}")
+            exit_with_error(f"No work queue found: {name!r}")
 
-    exit_with_success(f"Deleted work queue {name or queue_id!r}")
+    exit_with_success(f"Deleted work queue {name!r}")
