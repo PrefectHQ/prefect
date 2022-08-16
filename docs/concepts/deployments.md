@@ -23,7 +23,7 @@ Each deployment references a single "entrypoint" flow (though that flow may, in 
 At a high level, you can think of a deployment as configuration for managing flows, whether you run them via the CLI, the UI, or the API.
 
 !!! warning "Deployments have changed since beta"
-    Deployments based on `DeploymentSpec` are no longer supported. Instead, you can define deployments by using either the [`prefect deployment` CLI command](#create-a-deployment) or the `Deployment` Python object.
+    Deployments based on `DeploymentSpec` are no longer supported. Instead, you can define deployments by using either the [`prefect deployment` CLI command](#create-a-deployment) or [the `Deployment` Python object](/api-ref/prefect/deployments/).
 
 ## Deployments overview
 
@@ -39,7 +39,7 @@ graph LR
     subgraph Server [Prefect API]
     D(Deployment):::green
     end
-    subgraph Storage
+    subgraph Remote Storage
     B(Flow):::yellow
     end
     subgraph Infrastructure
@@ -75,7 +75,7 @@ A deployment additionally enables you to:
 - Upload flow files to a defined storage location for retrieval at run time.
 - Specify run time infrastructure for flow runs, such as Docker or Kubernetes configuration.
 
-With storage blocks, you can package not only your flow code script but also any supporting files, including your custom modules, SQL scripts and any configuration files needed in your project.
+With remote storage blocks, you can package not only your flow code script but also any supporting files, including your custom modules, SQL scripts and any configuration files needed in your project.
 
 To define how your flow execution environment should be configured, you may either reference pre-configured infrastructure blocks or let Prefect create those automatically for you as anonymous blocks (this happens when you specify the infrastructure type using `--infra` flag during the build process).
 
@@ -111,7 +111,7 @@ This enables you to run a single flow with different parameters, on multiple sch
 
 A _deployment definition_ captures the settings for creating a [deployment object](#deployment-api-representation) on the Prefect API. You can create the deployment definition by:
 
-- Run the [`prefect deployment build` CLI command](#create-a-deployment) CLI command with deployment options to create a [`deployment.yaml`](#deploymentyaml) deployment definition file, then run `prefect deployment apply` to create a deployment on the API using the settings in `deployment.yaml`. 
+- Run the [`prefect deployment build` CLI command](#create-a-deployment) with deployment options to create a [`deployment.yaml`](#deploymentyaml) deployment definition file, then run `prefect deployment apply` to create a deployment on the API using the settings in `deployment.yaml`. 
 - Define a [`Deployment`](/api-ref/prefect/deployments/) Python object, specifying the deployment options as properties of the object, then building and applying the object using methods of `Deployment`.
 
 The minimum required information to create a deployment includes:
@@ -177,7 +177,7 @@ parameter_openapi_schema:
 
 To create a deployment from an existing flow script, there are two steps:
 
-1. Build the deployment definition file `deployment.yaml`. This step includes uploading your flow to its configured storage location, if one is specified.
+1. Build the deployment definition file `deployment.yaml`. This step includes uploading your flow to its configured remote storage location, if one is specified.
 1. Create the deployment on the API.
 
 ### Build the deployment
