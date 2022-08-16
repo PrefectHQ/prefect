@@ -1,7 +1,9 @@
 import asyncio
+import pytest
 
 from prefect.blocks import system
 from prefect.client import OrionClient
+from prefect.exceptions import ObjectNotFound
 from prefect.testing.cli import invoke_and_assert
 
 TEST_BLOCK_CODE = """\
@@ -193,11 +195,7 @@ def test_listing_system_block_types():
 def test_inspecting_a_block():
     system.JSON(value="a simple json blob").save("jsonblob")
 
-    expected_output = (
-        "Block Type",
-        "Block id",
-        "value",
-    )
+    expected_output = ("Block Type", "Block id", "value", "a simple json blob")
 
     invoke_and_assert(
         ["block", "inspect", "json/jsonblob"],
@@ -218,3 +216,59 @@ def test_deleting_a_block():
         ["block", "inspect", "json/pleasedonterase"],
         expected_code=1,
     )
+
+
+def test_inspecting_a_block_type(tmp_path):
+    test_file_path = tmp_path / "test.py"
+
+    with open(test_file_path, "w") as f:
+        f.write(TEST_BLOCK_CODE)
+
+    invoke_and_assert(
+        ["block", "register", "-f", str(test_file_path)],
+        expected_code=0,
+        expected_output_contains="Successfully registered 1 block",
+    )
+
+    expected_output = [
+        "Slug",
+        "Block Type id",
+        "Description",
+        "TestForFileRegister",
+        "testforfileregister",
+    ]
+
+    invoke_and_assert(
+        ["block", "type", "inspect", "testforfileregister"],
+        expected_code=0,
+        expected_output_contains=expected_output,
+    )
+
+
+def test_deleting_a_block_type(tmp_path, orion_client):
+    test_file_path = tmp_path / "test.py"
+
+    with open(test_file_path, "w") as f:
+        f.write(TEST_BLOCK_CODE)
+
+    invoke_and_assert(
+        ["block", "register", "-f", str(test_file_path)],
+        expected_code=0,
+        expected_output_contains="Successfully registered 1 block",
+    )
+
+    expected_output = [
+        "Deleted Block Type",
+        "testforfileregister",
+    ]
+
+    invoke_and_assert(
+        ["block", "type", "delete", "testforfileregister"],
+        expected_code=0,
+        expected_output_contains=expected_output,
+    )
+
+    with pytest.raises(ObjectNotFound):
+        block_type = asyncio.run(
+            orion_client.read_block_type_by_slug(slug="testforfileregister")
+        )
