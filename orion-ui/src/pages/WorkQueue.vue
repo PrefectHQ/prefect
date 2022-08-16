@@ -42,6 +42,7 @@
   import { workQueuesApi } from '@/services/workQueuesApi'
 
   const router = useRouter()
+  const showToast = useToast()
 
   const tabs = computed(() => {
     const values = ['Upcoming Runs']
@@ -69,7 +70,7 @@
 
   watch(workQueue, () => {
     if (workQueue.value?.deprecated) {
-      useToast(localization.info.deprecatedWorkQueue, 'default', { dismissible: false, timeout: false })
+      showToast(localization.info.deprecatedWorkQueue, 'default', { dismissible: false, timeout: false })
     }
   })
 </script>

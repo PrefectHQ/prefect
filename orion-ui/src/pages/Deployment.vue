@@ -54,6 +54,7 @@
 
   const deploymentId = useRouteParam('id')
   const router = useRouter()
+  const showToast = useToast()
 
   const subscriptionOptions = {
     interval: 300000,
@@ -81,7 +82,7 @@
   watch(deployment, () => {
     // If the deployment isn't deprecated and doesn't have a work queue, show the missing work queue message
     if (!deployment.value?.workQueueName && !deployment.value?.deprecated) {
-      useToast(localization.info.deploymentMissingWorkQueue, 'default', { timeout: false })
+      showToast(localization.info.deploymentMissingWorkQueue, 'default', { timeout: false })
     }
   })
 </script>
