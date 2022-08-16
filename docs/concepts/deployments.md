@@ -131,13 +131,16 @@ As a single flow may have multiple deployments created for it, with different sc
 The default `{flow-name}-deployment.yaml` filename may be edited as needed with the `--output` flag to `prefect deployment build`.
 
 ```yaml
+###
+### A complete description of a Prefect Deployment for flow 'Cat Facts'
+###
 name: catfact
 description: null
-version: 94f321d0a24a9f8143495838327fe710
+version: c0fc95308d8137c50d2da51af138aa23
 tags:
 - test
-schedule: null
 parameters: {}
+schedule: null
 infra_overrides: {}
 infrastructure:
   type: process
@@ -155,7 +158,7 @@ infrastructure:
 flow_name: Cat Facts
 manifest_path: null
 storage: null
-path: /Users/terry/test/testflows
+path: /Users/terry/test/testflows/catfact
 entrypoint: catfact.py:catfacts_flow
 parameter_openapi_schema:
   title: Parameters
@@ -171,7 +174,7 @@ parameter_openapi_schema:
 !!! note "Editing deployment.yaml"
     Note the big **DO NOT EDIT** comment in your deployment's YAML: In practice, anything above this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API. 
     
-    That said, we recommend editing most of these fields in the Prefect UI for convenience.
+    We recommend editing most of these fields from the CLI or Prefect UI for convenience.
 
 ## Create a deployment
 
@@ -254,7 +257,7 @@ When you've configured `deployment.yaml` for a deployment, you can create the de
 
 <div class="terminal">
 ```bash
-$ prefect deployment apply `catfacts_flow-deployment.yaml`
+$ prefect deployment apply catfacts_flow-deployment.yaml
 ```
 </div>
 
@@ -313,12 +316,12 @@ Deployment properties include:
 | `description` | A description of the deployment. |
 | `flow_id` | The id of the flow associated with the deployment. |
 | `schedule` | An optional schedule for the deployment. |
-| <span class="no-wrap">`is_schedule_active`</span> | Boolean indicating whether the deployment schedule is active. Default is True. |
+| `is_schedule_active` | Boolean indicating whether the deployment schedule is active. Default is True. |
 | `parameters` | An optional dictionary of parameters for flow runs scheduled by the deployment. |
 | `tags` | An optional list of tags for the deployment. |
 | `parameter_openapi_schema` | JSON schema for flow parameters. |
 | `storage_document_id` | Storage block configured for the deployment. |
-| `infrastructure_document_id` | Infrastructure block configured for the deployment. |
+| <span class="no-wrap">`infrastructure_document_id`</span> | Infrastructure block configured for the deployment. |
 
 
 You can inspect a deployment using the CLI with the `prefect deployment inspect` command, referencing the deployment with `<flow_name>/<deployment_name>`.
@@ -334,6 +337,7 @@ $ prefect deployment inspect 'Cat Facts/catfact'
     'flow_id': '2c7b36d1-0bdb-462e-bb97-f6eb9fef6fd5',
     'schedule': None,
     'is_schedule_active': True,
+    'infra_overrides': {},
     'parameters': {},
     'tags': ['test'],
     'parameter_openapi_schema': {
@@ -342,11 +346,11 @@ $ prefect deployment inspect 'Cat Facts/catfact'
         'properties': {'url': {'title': 'url'}},
         'required': ['url']
     },
-    'path': '/Users/terry/test/testflows',
+    'path': '/Users/terry/test/testflows/catfact',
     'entrypoint': 'catfact.py:catfacts_flow',
     'manifest_path': None,
     'storage_document_id': None,
-    'infrastructure_document_id': '2032f54c-c6e5-402c-a6c5-a6c54612df6c',
+    'infrastructure_document_id': 'f958db1c-b143-4709-846c-321125247e07',
     'infrastructure': {
         'type': 'process',
         'env': {},
@@ -360,7 +364,7 @@ $ prefect deployment inspect 'Cat Facts/catfact'
 
 ## Running deployments
 
-If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect Orion API server and agent is running. Prefect Cloud can create scheduled flow runs automatically as long as an agent is configured to pick up flow runs for the deployment.
+If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect Orion API server and agent is running. Prefect Cloud created scheduled flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
 
 In the [Prefect UI](/ui/deployments/), you can click the **Run** button next to any deployment to execute an ad hoc flow run for that deployment.
 
