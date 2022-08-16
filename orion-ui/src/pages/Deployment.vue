@@ -43,16 +43,18 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentDescription, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable } from '@prefecthq/orion-design'
+  import { DeploymentDescription, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
+  import { useToast } from '@/compositions'
   import { routes } from '@/router'
   import { deploymentsApi } from '@/services/deploymentsApi'
 
   const deploymentId = useRouteParam('id')
   const router = useRouter()
+  const showToast = useToast()
 
   const subscriptionOptions = {
     interval: 300000,
@@ -76,4 +78,11 @@
   function routeToDeployments(): void {
     router.push(routes.deployments())
   }
+
+  watch(deployment, () => {
+    // If the deployment isn't deprecated and doesn't have a work queue, show the missing work queue message
+    if (!deployment.value?.workQueueName && !deployment.value?.deprecated) {
+      showToast(localization.info.deploymentMissingWorkQueue, 'default', { timeout: false })
+    }
+  })
 </script>
