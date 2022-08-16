@@ -3,12 +3,10 @@ import inspect
 import logging
 import warnings
 from abc import ABC
-from functools import wraps
 from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Dict,
     FrozenSet,
     List,
@@ -28,14 +26,13 @@ from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
-from prefect.utilities.asyncutils import Sync, asyncnullcontext, sync_compatible
+from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
 
 if TYPE_CHECKING:
     from prefect.client import OrionClient
-    from prefect.futures import PrefectFuture
 
 R = TypeVar("R")
 P = ParamSpec("P")
@@ -194,21 +191,6 @@ class Block(BaseModel, ABC):
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
     _is_anonymous: Optional[bool] = None
-
-    @staticmethod
-    def task(__func: Callable[P, R]) -> Callable[P, Union[R, "PrefectFuture[R, Sync]"]]:
-        from prefect.context import FlowRunContext, TaskRunContext
-
-        @wraps(__func)
-        def wrapper(*args, **kwargs):
-            flow_run_context = FlowRunContext.get()
-            task_run_context = TaskRunContext.get()
-            if flow_run_context and not task_run_context:
-                return prefect.task(__func)
-            else:
-                return __func
-
-        return wrapper
 
     @classmethod
     def __dispatch_key__(cls):
