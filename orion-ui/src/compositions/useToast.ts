@@ -16,4 +16,4 @@ export function useToast(message: string | Component, type?: ToastType, options?
   })
 
   return toast
-} 
+}
