@@ -15,7 +15,7 @@ import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
-from prefect.orion.orchestration.core_policy import MinimalTaskPolicy
+from prefect.orion.orchestration.core_policy import MinimalTaskPolicy, NoOpTaskPolicy
 from prefect.orion.orchestration.global_policy import GlobalTaskPolicy
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
@@ -76,11 +76,13 @@ async def create_task_run(
     model = result.scalar()
 
     if model.created == now and task_run.state:
+        # creating a run should never involve concurrency limits, so we use a NoOp policy
         await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=model.id,
             state=task_run.state,
             force=True,
+            task_policy=NoOpTaskPolicy(),
         )
     return model
 

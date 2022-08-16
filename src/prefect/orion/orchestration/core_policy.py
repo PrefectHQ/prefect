@@ -57,6 +57,11 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
         ]
 
 
+class NoOpTaskPolicy(BaseOrchestrationPolicy):
+    def priority():
+        return []
+
+
 class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return []
