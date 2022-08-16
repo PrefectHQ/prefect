@@ -1,4 +1,4 @@
-name: Report a bug with the Prefect UI
+name: 🖼️ Report a bug with the Prefect UI
 description: Errors and display issues with the Prefect web interface.
 labels: ["status:triage", "ui", "bug"]
 body:

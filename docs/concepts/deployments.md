@@ -244,7 +244,7 @@ When you run a deployed flow with Prefect Orion, the following happens:
 - An agent picks up the flow run from a work queue and uses an infrastructure block to create infrastructure for the run.
 - The flow run executes within the infrastructure.
 
-[Work queues and agents](/concepts/work-queues/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. There is no default global work queue or agent, so to execute deployment flow runs you need to configure at least one work queue and agent. 
+[Agents and work queues](/concepts/work-queues/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. To execute deployed flow runs you need to configure at least one agent. 
 
 !!! note "Scheduled flow runs"
     Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect API server started with `prefect orion start`. 
@@ -330,7 +330,7 @@ The `prefect deployment` CLI command provides commands for managing and running 
 | `run`     | Create a flow run for the given flow and deployment. |
 
 !!! tip "`PREFECT_API_URL` setting for agents"
-    You'll need to configure [work queues and agents](/concepts/work-queues/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running. 
+    You'll need to configure [agents and work queues](/concepts/work-queues/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running. 
 
     If you want the agent to communicate with Prefect Cloud from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
