@@ -35,7 +35,7 @@
   import { WorkQueueDetails, PageHeadingWorkQueue, WorkQueueFlowRunsList, CodeBanner, localization } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed, watchEffect } from 'vue'
+  import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
   import { routes } from '@/router'
@@ -67,7 +67,7 @@
     router.push(routes.workQueues())
   }
 
-  watchEffect(() => {
+  watch(workQueue, () => {
     if (workQueue.value?.deprecated) {
       useToast(localization.info.deprecatedWorkQueue, 'default', { dismissible: false, timeout: false })
     }
