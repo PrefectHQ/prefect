@@ -4,9 +4,11 @@ import sys
 
 import anyio
 import httpx
+import pendulum
 import pytest
 
 from prefect.settings import PREFECT_API_URL, get_current_settings, temporary_settings
+from prefect.testing.utilities import AsyncMock
 from prefect.utilities.processutils import open_process
 
 
@@ -108,3 +110,29 @@ def use_hosted_orion(hosted_orion_api):
     """
     with temporary_settings({PREFECT_API_URL: hosted_orion_api}):
         yield hosted_orion_api
+
+
+@pytest.fixture
+def mock_anyio_sleep(monkeypatch):
+    """
+    Mock sleep used to not actually sleep but to set the current time to now + sleep
+    delay seconds while still yielding to other tasks in the event loop.
+    """
+    original_now = pendulum.now
+    original_sleep = anyio.sleep
+    time_shift = 0
+
+    async def callback(delay_in_seconds):
+        nonlocal time_shift
+        time_shift += delay_in_seconds
+        # Preserve yield effects of sleep
+        await original_sleep(0)
+
+    monkeypatch.setattr(
+        "pendulum.now", lambda *args: original_now(*args).add(seconds=time_shift)
+    )
+
+    sleep = AsyncMock(side_effect=callback)
+    monkeypatch.setattr("anyio.sleep", sleep)
+
+    return sleep
