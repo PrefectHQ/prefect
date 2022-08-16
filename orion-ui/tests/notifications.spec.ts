@@ -26,7 +26,8 @@ test('Can create notification', async ({ page }) => {
   await button.click()
 
   const { control: webhookUrl } = useLabel('Webhook URL')
-  await webhookUrl.fill('https://slack.test')
+  const input = webhookUrl.locator('input')
+  await input.fill('https://slack.test')
 
   const { submit } = useForm()
   await submit()
