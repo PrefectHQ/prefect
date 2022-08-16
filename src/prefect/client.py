@@ -270,7 +270,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
             else:
                 retry_seconds = 2**retry_count
 
-            await sleep(retry_seconds)
+            await anyio.sleep(retry_seconds)
             response = await super().send(*args, **kwargs)
 
         # Always raise bad responses
