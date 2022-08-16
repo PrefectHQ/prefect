@@ -9,6 +9,10 @@ from typing import Generic, TypeVar, Union, overload
 from uuid import UUID
 
 import pendulum
+
+# TODO: This is imported to avoid mutation when patched elsewhere because timestamps
+#       must be unique per state
+from pendulum import now
 from pydantic import Field, root_validator, validator
 
 from prefect.orion.schemas.data import DataDocument
@@ -56,7 +60,7 @@ class State(IDBaseModel, Generic[R]):
 
     type: StateType
     name: str = None
-    timestamp: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
+    timestamp: DateTimeTZ = Field(default_factory=lambda: now("UTC"))
     message: str = Field(None, example="Run started")
     data: DataDocument[R] = Field(None)
     state_details: StateDetails = Field(default_factory=StateDetails)

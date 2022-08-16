@@ -138,7 +138,7 @@ class TestOrchestrateTaskRun:
             client=orion_client,
         )
 
-        mock_anyio_sleep.assert_awaited_once()
+        mock_anyio_sleep.assert_awaited_with(5 * 60)
         assert state.is_completed()
         assert state.result() == 1
 
@@ -213,10 +213,7 @@ class TestOrchestrateTaskRun:
         assert state.result() == 1
 
         # Assert that the sleep was called
-        # due to network time and rounding, the expected sleep time will be less than
-        # 43 seconds so we test a window
-        mock_anyio_sleep.assert_awaited_once()
-        assert 40 < mock_anyio_sleep.call_args[0][0] < 43
+        mock_anyio_sleep.assert_awaited_with(43)
 
         # Check expected state transitions
         states = await orion_client.read_task_run_states(task_run.id)
@@ -499,10 +496,7 @@ class TestOrchestrateFlowRun:
         assert state.result() == 1
 
         # Assert that the sleep was called
-        # due to network time and rounding, the expected sleep time will be less than
-        # 43 seconds so we test a window
-        mock_anyio_sleep.assert_awaited_once()
-        assert 40 < mock_anyio_sleep.call_args[0][0] < 43
+        mock_anyio_sleep.assert_awaited_with(43)
 
         # Check expected state transitions
         states = await orion_client.read_flow_run_states(flow_run.id)

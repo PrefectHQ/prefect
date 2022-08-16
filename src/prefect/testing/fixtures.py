@@ -128,16 +128,17 @@ def mock_anyio_sleep(monkeypatch):
         # Preserve yield effects of sleep
         await original_sleep(0)
 
-    def fastforward_now(tz=None):
+    def latest_now(tz=None):
         # Fast-forwards the frozen time by the total sleep time
         now = frozen_now.in_timezone(tz) if tz else frozen_now
+
         return now.add(
             # Ensure we retain float precision
             seconds=int(time_shift),
             microseconds=(time_shift - int(time_shift)) * 1000000,
         )
 
-    monkeypatch.setattr("pendulum.now", fastforward_now)
+    monkeypatch.setattr("pendulum.now", latest_now)
 
     sleep = AsyncMock(side_effect=callback)
     monkeypatch.setattr("anyio.sleep", sleep)
