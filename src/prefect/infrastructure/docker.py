@@ -169,23 +169,39 @@ class DockerContainer(Infrastructure):
     necessary and the API is connectable while bound to localhost.
     """
 
+    type: Literal["docker-container"] = Field(
+        "docker-container", description="The type of infrastructure"
+    )
     image: str = Field(
-        description="Tag of a Docker image to use. Defaults to the Prefect image.",
+        description="Tag of a Docker image to use. Defaults to the Prefect image",
         default_factory=get_prefect_image_name,
     )
     image_pull_policy: ImagePullPolicy = Field(
-        None, description="Specifies if the image should be pulled."
+        None, description="Specifies if the image should be pulled"
     )
     image_registry: Optional[DockerRegistry] = None
-    networks: List[str] = Field(default_factory=list)
-    network_mode: str = None
-    auto_remove: bool = False
-    volumes: List[str] = Field(default_factory=list)
-    stream_output: bool = True
+    networks: List[str] = Field(
+        default_factory=list,
+        description="A list of strings specifying Docker networks to connect the container to",
+    )
+    network_mode: Optional[str] = Field(
+        None,
+        description="The network mode for the created container (e.g. host, bridge). If 'networks' is set, this cannot be set.",
+    )
+    auto_remove: bool = Field(
+        False, description="If set, the container will be removed on completion"
+    )
+    volumes: List[str] = Field(
+        default_factory=list,
+        description='A list of volume mount strings in the format of "local_path:container_path"',
+    )
+    stream_output: bool = Field(
+        True,
+        description="If set, the output will be streamed from the container to local standard output",
+    )
 
     _block_type_name = "Docker Container"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"
-    type: Literal["docker-container"] = "docker-container"
 
     @validator("labels")
     def convert_labels_to_docker_format(cls, labels: Dict[str, str]):

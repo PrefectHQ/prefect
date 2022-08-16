@@ -232,9 +232,7 @@ class Block(BaseModel, ABC):
         block_schema_fields = (
             cls.schema() if block_schema_fields is None else block_schema_fields
         )
-        fields_for_checksum = remove_nested_keys(
-            ["description", "secret_fields"], block_schema_fields
-        )
+        fields_for_checksum = remove_nested_keys(["secret_fields"], block_schema_fields)
         if fields_for_checksum.get("definitions"):
             non_block_definitions = _get_non_block_reference_definitions(
                 fields_for_checksum, fields_for_checksum["definitions"]

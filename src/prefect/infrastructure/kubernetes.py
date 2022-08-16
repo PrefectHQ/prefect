@@ -66,30 +66,53 @@ class KubernetesJob(Infrastructure):
         stream_output: If set, stream output from the job to local standard output.
     """
 
+    type: Literal["kubernetes-job"] = Field(
+        "kubernetes-job", description="The type of infrastructure"
+    )
     # shortcuts for the most common user-serviceable settings
-    image: str = Field(default_factory=get_prefect_image_name)
-    namespace: str = "default"
-    service_account_name: Optional[str] = None
-    image_pull_policy: Optional[KubernetesImagePullPolicy] = None
+    image: str = Field(
+        default_factory=get_prefect_image_name,
+        description="The tag of a Docker image to use for the job. Defaults to the Prefect image.",
+    )
+    namespace: str = Field(
+        "default", description="The Kubernetes namespace to use for this job"
+    )
+    service_account_name: Optional[str] = Field(
+        None, description="The Kubernetes service account to use for this job"
+    )
+    image_pull_policy: Optional[KubernetesImagePullPolicy] = Field(
+        None, description="The Kubernetes image pull policy to use for job containers"
+    )
 
     # connection to a cluster
     cluster_config: Optional[KubernetesClusterConfig] = None
 
     # settings allowing full customization of the Job
     job: KubernetesManifest = Field(
-        default_factory=lambda: KubernetesJob.base_job_manifest()
+        default_factory=lambda: KubernetesJob.base_job_manifest(),
+        description="The base manifest for the Kubernetes Job",
+        title="Base Job Manifest",
     )
-    customizations: JsonPatch = Field(default_factory=lambda: JsonPatch([]))
+    customizations: JsonPatch = Field(
+        default_factory=lambda: JsonPatch([]),
+        description="A list of JSON 6902 patches to apply to the base Job manifest",
+    )
 
     # controls the behavior of execution
-    job_watch_timeout_seconds: int = 5
-    pod_watch_timeout_seconds: int = 60
-    stream_output: bool = True
+    job_watch_timeout_seconds: int = Field(
+        5, description="Number of seconds to watch for job creation before timing out"
+    )
+    pod_watch_timeout_seconds: int = Field(
+        60, description="Number of seconds to watch for pod creation before timing out"
+    )
+    stream_output: bool = Field(
+        True,
+        description="If set, output will be streamed from the job to local standard output",
+    )
 
     # internal-use only right now
     _api_dns_name: Optional[str] = None  # Replaces 'localhost' in API URL
 
-    type: Literal["kubernetes-job"] = "kubernetes-job"
     _block_type_name = "Kubernetes Job"
 
     @validator("job")
