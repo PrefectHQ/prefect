@@ -192,7 +192,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
 
     basepath: str = Field(
         ...,
-        description="Default local for this block to write to",
+        description="Default path for this block to write to",
         example="s3://my-bucket/my-folder/",
     )
     settings: Dict[str, Any] = Field(
