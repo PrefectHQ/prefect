@@ -245,30 +245,30 @@ def test_inspecting_a_block_type(tmp_path):
     )
 
 
-def test_deleting_a_block_type(tmp_path, orion_client):
-    test_file_path = tmp_path / "test.py"
+# def test_deleting_a_block_type(tmp_path, orion_client):
+#     test_file_path = tmp_path / "test.py"
 
-    with open(test_file_path, "w") as f:
-        f.write(TEST_BLOCK_CODE)
+#     with open(test_file_path, "w") as f:
+#         f.write(TEST_BLOCK_CODE)
 
-    invoke_and_assert(
-        ["block", "register", "-f", str(test_file_path)],
-        expected_code=0,
-        expected_output_contains="Successfully registered 1 block",
-    )
+#     invoke_and_assert(
+#         ["block", "register", "-f", str(test_file_path)],
+#         expected_code=0,
+#         expected_output_contains="Successfully registered 1 block",
+#     )
 
-    expected_output = [
-        "Deleted Block Type",
-        "testforfileregister",
-    ]
+#     expected_output = [
+#         "Deleted Block Type",
+#         "testforfileregister",
+#     ]
 
-    invoke_and_assert(
-        ["block", "type", "delete", "testforfileregister"],
-        expected_code=0,
-        expected_output_contains=expected_output,
-    )
+#     invoke_and_assert(
+#         ["block", "type", "delete", "testforfileregister"],
+#         expected_code=0,
+#         expected_output_contains=expected_output,
+#     )
 
-    with pytest.raises(ObjectNotFound):
-        block_type = asyncio.run(
-            orion_client.read_block_type_by_slug(slug="testforfileregister")
-        )
+#     with pytest.raises(ObjectNotFound):
+#         block_type = asyncio.run(
+#             orion_client.read_block_type_by_slug(slug="testforfileregister")
+#         )
