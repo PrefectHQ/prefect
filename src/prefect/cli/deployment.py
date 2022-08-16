@@ -328,6 +328,12 @@ async def build(
     version: str = typer.Option(
         None, "--version", "-v", help="A version to give the deployment."
     ),
+    tags: List[str] = typer.Option(
+        None,
+        "-t",
+        "--tag",
+        help="One or more optional tags to apply to the deployment. Note: tags are used only for organizational purposes. For delegating work to agents, use the --work-queue flag.",
+    ),
     work_queue_name: str = typer.Option(
         None,
         "-q",
@@ -359,7 +365,7 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure'",
+        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure', 'smb'",
     ),
     cron: str = typer.Option(
         None,
@@ -382,12 +388,6 @@ async def build(
         "-o",
         help="An optional filename to write the deployment file to.",
     ),
-    tags: List[str] = typer.Option(
-        None,
-        "-t",
-        "--tag",
-        help="DEPRECATED: One or more optional tags to apply to the deployment.",
-    ),
 ):
     """
     Generate a deployment YAML from /path/to/file.py:flow_function
@@ -398,11 +398,7 @@ async def build(
         exit_with_error(
             "A name for this deployment must be provided with the '--name' flag."
         )
-    if tags:
-        app.console.print(
-            "Providing tags for deployments is deprecated; use a work queue name instead.",
-            style="red",
-        )
+
     if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
         exit_with_error("Only one schedule type can be provided.")
 
@@ -474,8 +470,8 @@ async def build(
     updates = dict(
         parameter_openapi_schema=flow_parameter_schema,
         entrypoint=entrypoint,
-        description=flow.description,
-        version=version or flow.version,
+        description=deployment.description or flow.description,
+        version=version or deployment.version or flow.version,
         tags=tags or None,
         infrastructure=infrastructure,
         infra_overrides=infra_overrides or None,
