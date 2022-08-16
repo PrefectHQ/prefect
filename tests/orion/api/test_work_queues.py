@@ -10,19 +10,6 @@ from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import WorkQueueCreate, WorkQueueUpdate
 
 
-@pytest.fixture
-async def work_queue(session):
-    work_queue = await models.work_queues.create_work_queue(
-        session=session,
-        work_queue=schemas.core.WorkQueue(
-            name="wq-1",
-            description="All about my work queue",
-        ),
-    )
-    await session.commit()
-    return work_queue
-
-
 class TestCreateWorkQueue:
     async def test_create_work_queue(
         self,
