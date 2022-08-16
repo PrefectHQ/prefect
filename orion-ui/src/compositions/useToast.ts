@@ -10,8 +10,8 @@ export function useToast(): typeof showToast {
 
   onUnmounted(() => toasts.forEach(toast => toast.dismiss()))
 
-  return (message, type, options) => {
-    const toast = showToast(message, type, options)
+  return (...args: Parameters<typeof showToast>) => {
+    const toast = showToast(...args)
     toasts.push(toast)
     return toast
   }
