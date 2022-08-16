@@ -36,7 +36,7 @@ def display_block(block_document):
     block_table.add_row("Block Type", block_document.block_type.name)
     block_table.add_row("Block id", str(block_document.id), end_section=True)
     for k, v in block_document.data.items():
-        block_table.add_row(k, v)
+        block_table.add_row(k, str(v))
 
     return block_table
 
