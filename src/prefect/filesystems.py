@@ -5,7 +5,7 @@ import shutil
 import sys
 import urllib.parse
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import anyio
 import fsspec
