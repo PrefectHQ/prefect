@@ -192,14 +192,13 @@ async def create_then_begin_flow_run(
         raise RuntimeError(
             f"Cannot create flow run. Failed to reach API at {client.api_url}."
         ) from connect_error
-
     state = Pending()
     if flow.should_validate_parameters:
         try:
             parameters = flow.validate_parameters(parameters)
         except Exception as exc:
             state = Failed(
-                message="Flow run received invalid parameters.",
+                message=f"Validation of flow parameters failed with error: {exc!r}",
                 data=DataDocument.encode("cloudpickle", exc),
             )
 
@@ -214,6 +213,7 @@ async def create_then_begin_flow_run(
     engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
 
     if state.is_failed():
+        flow_run_logger(flow_run).error(state.message)
         engine_logger.info(
             f"Flow run {flow_run.name!r} received invalid parameters and is marked as failed."
         )
@@ -242,7 +242,6 @@ async def retrieve_flow_then_begin_flow_run(
     - Updates the flow run version
     """
     flow_run = await client.read_flow_run(flow_run_id)
-
     try:
         flow = await load_flow_from_flow_run(flow_run, client=client)
     except Exception as exc:
@@ -258,21 +257,26 @@ async def retrieve_flow_then_begin_flow_run(
         flow_run_id=flow_run_id,
         flow_version=flow.version,
     )
-
     if flow.should_validate_parameters:
+        failed_state = None
         try:
             parameters = flow.validate_parameters(flow_run.parameters)
         except Exception as exc:
-            flow_run_logger(flow_run).exception("Flow run received invalid parameters.")
-            state = Failed(
-                message="Flow run received invalid parameters.",
+            validation_error = (
+                f"Validation of flow parameters failed with error: {exc!r}"
+            )
+            flow_run_logger(flow_run).exception(validation_error)
+            failed_state = Failed(
+                message=validation_error,
                 data=DataDocument.encode("cloudpickle", exc),
             )
+
+        if failed_state is not None:
             await client.propose_state(
-                state=state,
+                state=failed_state,
                 flow_run_id=flow_run_id,
             )
-            return state
+            return failed_state
     else:
         parameters = flow_run.parameters
 
@@ -429,19 +433,25 @@ async def create_and_begin_subflow_run(
         logger = flow_run_logger(flow_run, flow)
 
         if flow.should_validate_parameters:
+            failed_state = None
             try:
                 parameters = flow.validate_parameters(parameters)
             except Exception as exc:
-                state = Failed(
-                    message="Flow run received invalid parameters.",
+                validation_error = (
+                    f"Validation of flow parameters failed with error: {exc!r}"
+                )
+                logger.exception(validation_error)
+                failed_state = Failed(
+                    message=validation_error,
                     data=DataDocument.encode("cloudpickle", exc),
                 )
+
+            if failed_state is not None:
                 await client.propose_state(
-                    state=state,
+                    state=failed_state,
                     flow_run_id=flow_run.id,
                 )
-                logger.error("Received invalid parameters", exc_info=True)
-                return state
+                return failed_state
 
         async with AsyncExitStack() as stack:
             await stack.enter_async_context(
@@ -523,7 +533,6 @@ async def orchestrate_flow_run(
 
         # Update the flow run to the latest data
         flow_run = await client.read_flow_run(flow_run.id)
-
         try:
             with timeout_context as timeout_scope:
                 with partial_flow_run_context.finalize(
@@ -1269,14 +1278,25 @@ def get_state_for_result(obj: Any) -> Optional[State]:
 
 def link_state_to_result(state: State, result: Any) -> None:
     """
-    Caches a link between a state and a result using the `id` of the result to map to
-    the state. The cache is persisted to the current flow run context since task
-    relationships are limited to within a flow run.
+    Caches a link between a state and a result and its components using
+    the `id` of the components to map to the state. The cache is persisted to the
+    current flow run context since task relationships are limited to within a flow run.
 
     This allows dependency tracking to occur when results are passed around.
+    Note: Because `id` is used, we cannot cache links between singleton objects.
 
+    We only cache the relationship between components 1-layer deep.
+    Example:
+        Given the result [1, ["a","b"], ("c",)], the following elements will be
+        mapped to the state:
+        - [1, ["a","b"], ("c",)]
+        - ["a","b"]
+        - ("c",)
+
+        Note: the int `1` will not be mapped to the state because it is a singleton.
+
+    Other Notes:
     We do not hash the result because:
-
     - If changes are made to the object in the flow between task calls, we can still
       track that they are related.
     - Hashing can be expensive.
@@ -1289,14 +1309,23 @@ def link_state_to_result(state: State, result: Any) -> None:
     - The field can be preserved on copy.
     - We cannot set this attribute on Python built-ins.
     """
-    # We cannot track some Python built-ins since they are singletons and could create
-    # confusing relationships, e.g. `None`
-    if type(result) in UNTRACKABLE_TYPES:
-        return
 
     flow_run_context = FlowRunContext.get()
+
+    def link_if_trackable(obj: Any) -> None:
+        """Track connection between a task run result and its associated state if it has a unique ID.
+
+        We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
+        because they are singletons.
+        """
+        if (type(obj) in UNTRACKABLE_TYPES) or (
+            isinstance(obj, int) and (-5 <= obj <= 256)
+        ):
+            return
+        flow_run_context.task_run_results[id(obj)] = state
+
     if flow_run_context:
-        flow_run_context.task_run_results[id(result)] = state
+        visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
 
 
 def get_default_result_filesystem() -> LocalFileSystem:
