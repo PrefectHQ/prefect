@@ -52,7 +52,9 @@ def display_block_type(block_type):
     block_type_table.add_row("Block Type id", str(block_type.id))
     block_type_table.add_row(
         "Description",
-        block_type.description.splitlines()[0].partition(".")[0],
+        block_type.description.splitlines()[0].partition(".")[0]
+        if block_type.description is not None
+        else "",
         end_section=True,
     )
 
@@ -274,7 +276,7 @@ async def blocktype_inspect(
         try:
             block_type = await client.read_block_type_by_slug(slug)
         except ObjectNotFound:
-            exit_with_error(f"Deployment {block_id!r} not found!")
+            exit_with_error(f"Block Type {slug!r} not found!")
 
         app.console.print(display_block_type(block_type))
 
