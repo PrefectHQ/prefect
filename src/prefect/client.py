@@ -799,10 +799,8 @@ class OrionClient:
                 raise
 
     async def create_work_queue(
-        self,
-        name: str,
-        tags: List[str] = None,
-    ) -> UUID:
+        self, name: str, tags: List[str] = None
+    ) -> schemas.core.WorkQueue:
         """
         Create a work queue.
 
@@ -834,11 +832,7 @@ class OrionClient:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
-
-        work_queue_id = response.json().get("id")
-        if not work_queue_id:
-            raise httpx.RequestError(str(response))
-        return UUID(work_queue_id)
+        return schemas.core.WorkQueue.parse_obj(response.json())
 
     async def read_work_queue_by_name(self, name: str) -> schemas.core.WorkQueue:
         """

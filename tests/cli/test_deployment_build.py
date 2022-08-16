@@ -1,8 +1,7 @@
-import os
-
 import pytest
 
 from prefect import flow
+from prefect.deployments import Deployment
 from prefect.testing.cli import invoke_and_assert
 
 
@@ -13,7 +12,7 @@ def dep_path():
 
 @pytest.fixture
 def patch_import(monkeypatch):
-    @flow
+    @flow(description="Need a non-trivial description here.", version="A")
     def fn():
         pass
 
@@ -38,26 +37,56 @@ class TestInputValidation:
             expected_code=1,
         )
 
-    def test_providing_tags_is_deprecated(self, dep_path, patch_import):
+    def test_server_side_settings_are_used_if_present(self, patch_import, tmp_path):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+            description="server-side value",
+            version="server",
+        )
+        assert d.apply()
+
         invoke_and_assert(
-            ["deployment", "build", dep_path + ":flow", "-n", "dog", "-t", "blue"],
-            expected_output_contains=["Providing tags for deployments is deprecated"],
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
         )
 
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.description == "server-side value"
+        assert deployment.version == "server"
 
-def test_yaml_comment_for_work_queue(dep_path, patch_import):
-    invoke_and_assert(
-        ["deployment", "build", dep_path + ":flow", "-n", "dog"],
-    )
-    yaml_path = "./flow-deployment.yaml"
-    try:
-        with open(yaml_path, "r") as f:
-            contents = f.readlines()
-
-        comment_index = contents.index(
-            "# The work queue that will handle this deployment's runs\n"
+    def test_version_flag_takes_precedence(self, patch_import, tmp_path):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+            version="server",
         )
-        assert contents[comment_index + 1] == "work_queue_name: null\n"
+        assert d.apply()
 
-    finally:
-        os.remove(yaml_path)
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "-v",
+                "CLI-version",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.version == "CLI-version"

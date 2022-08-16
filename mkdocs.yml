@@ -92,10 +92,10 @@ nav:
         - Infrastructure: concepts/infrastructure.md
         - Task Runners: concepts/task-runners.md
         - Deployments: concepts/deployments.md
+        - Agents & Work Queues: concepts/work-queues.md
         - Storage: concepts/storage.md
         - Blocks: concepts/blocks.md
         - File Systems: concepts/filesystems.md
-        - Work Queues & Agents: concepts/work-queues.md
         - Schedules: concepts/schedules.md
         - Logging: concepts/logs.md
         - Database: concepts/database.md
