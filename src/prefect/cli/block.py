@@ -189,6 +189,9 @@ async def block_delete(
         None, "--id", help="A Block id to search for if no slug is given"
     ),
 ):
+    """
+    Delete a Block by slug or id.
+    """
     async with get_client() as client:
         if slug is None and block_id is not None:
             try:
@@ -219,6 +222,9 @@ async def block_inspect(
         None, "--id", help="A Block id to search for if no slug is given"
     ),
 ):
+    """
+    Displays Block details slug or id.
+    """
     async with get_client() as client:
         if slug is None and block_id is not None:
             try:
@@ -272,6 +278,9 @@ async def list_types():
 async def blocktype_inspect(
     slug: str = typer.Argument(..., help="A Block type slug"),
 ):
+    """
+    Displays Block Type details.
+    """
     async with get_client() as client:
         try:
             block_type = await client.read_block_type_by_slug(slug)
@@ -285,6 +294,9 @@ async def blocktype_inspect(
 # async def blocktype_delete(
 #     slug: str = typer.Argument(..., help="A Block type slug"),
 # ):
+#     """
+#     Delete an unprotected Block Type.
+#     """
 #     async with get_client() as client:
 #         try:
 #             block_type = await client.read_block_type_by_slug(slug)
