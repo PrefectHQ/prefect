@@ -38,6 +38,7 @@ theme:
         - navigation.tabs
         - navigation.tabs.sticky
         - navigation.instant
+        - search.suggest
     font:
         text: Inter
         code: Source Code Pro
