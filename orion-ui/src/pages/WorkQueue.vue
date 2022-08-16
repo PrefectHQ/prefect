@@ -24,7 +24,7 @@
       </p-tabs>
 
       <template #well>
-        <WorkQueueDetails v-if="workQueue" :work-queue="workQueue" />
+        <WorkQueueDetails v-if="workQueue" alternate :work-queue="workQueue" />
       </template>
     </p-layout-well>
   </p-layout-default>
@@ -32,11 +32,12 @@
 
 
 <script lang="ts" setup>
-  import { WorkQueueDetails, PageHeadingWorkQueue, WorkQueueFlowRunsList, CodeBanner } from '@prefecthq/orion-design'
+  import { WorkQueueDetails, PageHeadingWorkQueue, WorkQueueFlowRunsList, CodeBanner, localization } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { computed, watchEffect } from 'vue'
   import { useRouter } from 'vue-router'
+  import { useToast } from '@/compositions'
   import { routes } from '@/router'
   import { workQueuesApi } from '@/services/workQueuesApi'
 
@@ -53,7 +54,7 @@
   })
 
   const workQueueId = useRouteParam('id')
-  const workQueueCliCommand = computed(() => `prefect agent start ${workQueueId.value}`)
+  const workQueueCliCommand = computed(() => `prefect agent start ${workQueue.value ? ` --work-queue "${workQueue.value.name}"` : ''}`)
 
   const subscriptionOptions = {
     interval: 300000,
@@ -65,6 +66,12 @@
   const routeToQueues = (): void => {
     router.push(routes.workQueues())
   }
+
+  watchEffect(() => {
+    if (workQueue.value?.deprecated) {
+      useToast(localization.info.deprecatedWorkQueue, 'default', { dismissible: false, timeout: false })
+    }
+  })
 </script>
 
 <style>
