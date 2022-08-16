@@ -16,7 +16,7 @@ type UseLabel = {
 
 export function useLabel(text: string, page: Page | Locator = PAGE): UseLabel {
   const label = page.locator('.p-label', {
-    has: page.locator('.p-label__text', {
+    has: page.locator('.p-label__label', {
       hasText: text,
     }),
   })
