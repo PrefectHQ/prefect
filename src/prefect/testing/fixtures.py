@@ -118,19 +118,26 @@ def mock_anyio_sleep(monkeypatch):
     Mock sleep used to not actually sleep but to set the current time to now + sleep
     delay seconds while still yielding to other tasks in the event loop.
     """
-    original_now = pendulum.now
+    frozen_now = pendulum.now()
     original_sleep = anyio.sleep
-    time_shift = 0
+    time_shift = 0.0
 
     async def callback(delay_in_seconds):
         nonlocal time_shift
-        time_shift += delay_in_seconds
+        time_shift += float(delay_in_seconds)
         # Preserve yield effects of sleep
         await original_sleep(0)
 
-    monkeypatch.setattr(
-        "pendulum.now", lambda *args: original_now(*args).add(seconds=time_shift)
-    )
+    def fastforward_now(tz=None):
+        # Fast-forwards the frozen time by the total sleep time
+        now = frozen_now.in_timezone(tz) if tz else frozen_now
+        return now.add(
+            # Ensure we retain float precision
+            seconds=int(time_shift),
+            microseconds=(time_shift - int(time_shift)) * 1000000,
+        )
+
+    monkeypatch.setattr("pendulum.now", fastforward_now)
 
     sleep = AsyncMock(side_effect=callback)
     monkeypatch.setattr("anyio.sleep", sleep)
