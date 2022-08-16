@@ -46,7 +46,7 @@
   import { DeploymentDescription, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed, watchEffect } from 'vue'
+  import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
   import { routes } from '@/router'
@@ -78,7 +78,7 @@
     router.push(routes.deployments())
   }
 
-  watchEffect(() => {
+  watch(deployment, () => {
     // If the deployment isn't deprecated and doesn't have a work queue, show the missing work queue message
     if (!deployment.value?.workQueueName && !deployment.value?.deprecated) {
       useToast(localization.info.deploymentMissingWorkQueue, 'default', { timeout: false })
