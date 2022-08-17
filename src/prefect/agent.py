@@ -8,13 +8,14 @@ from uuid import UUID
 import anyio
 import anyio.to_process
 import pendulum
-from anyio.abc import TaskGroup
+from anyio.abc import TaskGroup, TaskStatus
 
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client
 from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
-from prefect.infrastructure import Infrastructure, Process
+from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
+from prefect.infrastructure.submission import submit_flow_run
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
 from prefect.orion.schemas.data import DataDocument
@@ -201,18 +202,40 @@ class OrionAgent:
         if ready_to_submit:
             infrastructure = await self.get_infrastructure(flow_run)
 
-            try:
-                # Wait for submission to be completed. Note that the submission function
-                # may continue to run in the background after this exits.
-                await self.task_group.start(infrastructure.run)
-                self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
-            except Exception as exc:
-                self.logger.exception(
-                    f"Failed to submit flow run '{flow_run.id}' to infrastructure.",
-                )
-                await self._propose_failed_state(flow_run, exc)
+            # Wait for submission to be completed. Note that the submission function
+            # may continue to run in the background after this exits.
+            await self.task_group.start(
+                self._submit_run_and_capture_errors, flow_run, infrastructure
+            )
+            self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
 
         self.submitting_flow_run_ids.remove(flow_run.id)
+
+    async def _submit_run_and_capture_errors(
+        self,
+        flow_run: FlowRun,
+        infrastructure: Infrastructure,
+        task_status: TaskStatus = None,
+    ) -> InfrastructureResult:
+        try:
+            result = await infrastructure.run(task_status=task_status)
+        except Exception as exc:
+            if flow_run.id in self.submitting_flow_run_ids:
+                # This flow run was being submitted and did not start successfully
+                self.logger.exception(
+                    f"Failed to submit flow run '{flow_run.id}' to infrastructure."
+                )
+                await self._propose_failed_state(flow_run, exc)
+            else:
+                self.logger.exception(
+                    f"An error occured while monitoring flow run '{flow_run.id}'. "
+                    "The flow run will not be marked as failed, but an issue may have "
+                    "occured."
+                )
+
+        # TODO: Consider checking the result for a bad exit code and proposing a
+        #       crashed state for the run
+        return result
 
     async def _propose_pending_state(self, flow_run: FlowRun) -> bool:
         state = flow_run.state
