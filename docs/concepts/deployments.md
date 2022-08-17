@@ -49,7 +49,7 @@ graph LR
     D --> E(Agent):::red
     B -.-> E
     A -.-> B
-    E --> G
+    E -.-> G
 
     classDef gold fill:goldenrod,stroke:goldenrod,stroke-width:4px
     classDef yellow fill:gold,stroke:gold,stroke-width:4px
@@ -59,6 +59,11 @@ graph LR
     classDef red fill:red,stroke:red,stroke-width:4px,color:white
     classDef dkgray fill:darkgray,stroke:darkgray,stroke-width:4px,color:white
 ```
+
+!!! info "Your flow code and the Prefect hybrid model"
+    In the diagram above, the dotted line indicates the path of your flow code in the lifecycle of a Prefect deployment, from creation to executing a flow run. Notice that your flow code stays within your storage and execution infrastructure and never lives on the Prefect API or database.
+
+    This is the heart of the Prefect hybrid model: there's always a boundary between your code, your private infrastructure, and the Prefect backend, such as [Prefect Cloud](/ui/cloud/). Even if you're using a self-hosted Prefect Orion API, you only register the deployment metadata on the backend.
 
 When creating a deployment, a user must answer *two* basic questions:
 
