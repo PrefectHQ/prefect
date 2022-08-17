@@ -207,9 +207,8 @@ class OrionAgent:
                 await self.task_group.start(infrastructure.run)
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
             except Exception as exc:
-                self.logger.error(
+                self.logger.exception(
                     f"Failed to submit flow run '{flow_run.id}' to infrastructure.",
-                    exc_info=True,
                 )
                 await self._propose_failed_state(flow_run, exc)
 
