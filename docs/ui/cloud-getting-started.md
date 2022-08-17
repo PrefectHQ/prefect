@@ -67,7 +67,7 @@ $ prefect cloud workspace set --workspace "prefect/workinonit"
 
 API keys enable you to authenticate an a local environment to work with Prefect Cloud. See [Configure execution environment](#configure-execution-environment) for details on how API keys are configured in your execution environment.
 
-To create an API key, select the account icon at the bottom-left corner of the UI and select **Settings**. This displays your account profile.
+To create an API key, select the account icon at the bottom-left corner of the UI and select your account name. This displays your account profile.
 
 Select the **API Keys** tab. This displays a list of previously generated keys and lets you create new API keys or delete keys.
 
