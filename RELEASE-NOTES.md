@@ -24,7 +24,7 @@ Agents and work queues give you control over where and how flow runs are execute
 * Added CLI commands for inspecting and deleting Blocks and Block Types in https://github.com/PrefectHQ/prefect/pull/6422
 * Added a Server Message Block (SMB) file system block in https://github.com/PrefectHQ/prefect/pull/6344 - Special thanks to @darrida for this contribution!
 * Removed explicit type validation from some API routes in https://github.com/PrefectHQ/prefect/pull/6448
-* Improve robustness of streaming output from subprocesses in https://github.com/PrefectHQ/prefect/pull/6445
+* Improved robustness of streaming output from subprocesses in https://github.com/PrefectHQ/prefect/pull/6445
 
 ### New Collections
 - [prefect-monday](https://prefecthq.github.io/prefect-monday/)
