@@ -1,0 +1,5 @@
+fix:
+  - "Added missing imports to the Jira notifications doc - [#6438](https://github.com/PrefectHQ/prefect/pull/6438)"
+
+contributor:
+  - "[Falk Zeh](https://github.com/falkzeh)"
