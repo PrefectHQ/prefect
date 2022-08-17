@@ -10,7 +10,7 @@ Agents and work queues give you control over where and how flow runs are execute
 
 ### Improvements and bug fixes
 * Added three new exceptions to improve errors when parameters are incorrectly supplied to flow runs in https://github.com/PrefectHQ/prefect/pull/6091
-* Fixed a task dependency tracing bug for unpacking and integer singletons in https://github.com/PrefectHQ/prefect/pull/6348
+* Fixed a task dependency issue where unpacked values were not being correctly traced in https://github.com/PrefectHQ/prefect/pull/6348
 * Added the ability to embed `BaseModel` subclasses as fields within blocks, resolving an issue with the ImagePullPolicy field on the KubernetesJob block in https://github.com/PrefectHQ/prefect/pull/6389
 * Added comments support for deployment.yaml to enable inline help in https://github.com/PrefectHQ/prefect/pull/6339
 * Added support for specifying three schedule types - cron, interval and rrule - to the `deployment build` CLI in https://github.com/PrefectHQ/prefect/pull/6387
