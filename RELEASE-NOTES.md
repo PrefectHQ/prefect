@@ -1,5 +1,30 @@
 # Prefect Release Notes
 
+## 2.0.5
+
+### Build Deployments in Python
+The new yaml based deployment definition provided a simple, extensible foundation for our new deployment creation experience. Now, by popular demand, we're extending that experience to enable you to define deployments and build them from within Python. You can do so by defining a `Deployment` Python object, specifying the deployment options as properties of the object, then building and applying the object using methods of `Deployment`. See the [documentation](https://docs.prefect.io/concepts/deployments/) to learn more.
+
+### Simpified Work Queues & Agents
+Work Queues and agents give you control over where and how flow runs are executed. Now, creating a work queue and a corresponding agent is even easier. Work queues now operate strictly by name, not by matching tags. Deployments, and the flow runs they generate, are explicitly linked to a single work queue. A work queues is automatically created whenever a deployment references it, so you don't need to create a new work queue each time you want to want to route a deployment's flow runs separately. Agents can now pull from multiple work queues. These changes are fully backwards compatible. See the [documentation](https://docs.prefect.io/concepts/work-queues/) for more information. 
+
+### Improvements and bug fixes
+* Added three new exceptions to improve errors when parameters are incorrectly supplied to flow runs in https://github.com/PrefectHQ/prefect/pull/6091
+* Fixed a task dependency tracing bug for unpacking and integer singletons in https://github.com/PrefectHQ/prefect/pull/6348
+* Added the ability to embed `BaseModel` subclasses as fields within blocks, resolving an issue with the ImagePullPolicy field on the KubernetesJob block in https://github.com/PrefectHQ/prefect/pull/6389
+* Added comments support for deployment.yaml to enable inline help in https://github.com/PrefectHQ/prefect/pull/6339
+* Added support for specifying three schedule types - cron, interval and rrule - to the `deployment build` CLI in https://github.com/PrefectHQ/prefect/pull/6387
+* Added error handling for exceptions raised during the pre-transition hook fired by an OrchestrationRule during state transitions in https://github.com/PrefectHQ/prefect/pull/6315
+* Updated `visit_collection` to be a synchronous function in https://github.com/PrefectHQ/prefect/pull/6371
+* Revised loop service method names for clarity in https://github.com/PrefectHQ/prefect/pull/6131
+* Modified deployments to load flows in a worker thread in https://github.com/PrefectHQ/prefect/pull/6340
+* Resolved issues with capture of user-raised timeouts in https://github.com/PrefectHQ/prefect/pull/6357
+* Added base class and async compatibility to DockerRegistry in https://github.com/PrefectHQ/prefect/pull/6328
+* Added `max_depth` to `visit_collection`, allowing recursion to be limited in https://github.com/PrefectHQ/prefect/pull/6367
+* Added a Server Message Block (SMB) file system block in https://github.com/PrefectHQ/prefect/pull/6344 - Special thanks to @darrida for this contribution!
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/2.0.4...2.0.5
+
 ## 2.0.4
 
 ### Simplified deployments
