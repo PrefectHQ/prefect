@@ -105,7 +105,8 @@ class Deployment(BaseModel):
         name: A name for the deployment (required).
         version: An optional version for the deployment; defaults to the flow's version
         description: An optional description of the deployment; defaults to the flow's description
-        tags: An optional list of tags to associate with this deployment; note that tags are used only for organizational purposes. For delegating work to agents, see `work_queue_name`.
+        tags: An optional list of tags to associate with this deployment; note that tags are
+            used only for organizational purposes. For delegating work to agents, see `work_queue_name`.
         schedule: A schedule to run this deployment on, once registered
         work_queue_name: The work queue that will handle this deployment's runs
         flow_name: The name of the flow this deployment encapsulates
@@ -233,7 +234,7 @@ class Deployment(BaseModel):
     schedule: schemas.schedules.SCHEDULE_TYPES = None
     flow_name: str = Field(None, description="The name of the flow.")
     work_queue_name: Optional[str] = Field(
-        None,
+        "default",
         description="The work queue for the deployment.",
         yaml_comment="The work queue that will handle this deployment's runs",
     )
