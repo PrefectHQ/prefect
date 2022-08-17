@@ -16,6 +16,7 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import ScriptError, exception_traceback
+from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.importtools import load_script_as_module
 
@@ -156,6 +157,7 @@ async def list_types():
     table.add_column("Name", style="blue", no_wrap=True)
     table.add_column("Slug", style="italic cyan", no_wrap=True)
     table.add_column("Description", style="blue", no_wrap=False, justify="right")
+    table.add_column("", style="blue", no_wrap=False, justify="right")
 
     for blocktype in sorted(block_types, key=lambda x: x.name):
         table.add_row(
@@ -164,6 +166,7 @@ async def list_types():
             str(blocktype.description.splitlines()[0].partition(".")[0])
             if blocktype.description is not None
             else "",
+            f"[link={PREFECT_API_URL.value()}/blocks/catalog/{blocktype.slug}/create]create[/link]",
         )
 
     app.console.print(table)
