@@ -1,6 +1,6 @@
 # Prefect Release Notes
 
-## 2.0.5
+## 2.1.0
 
 ### Build Deployments in Python
 The new, YAML-based deployment definition provides a simple, extensible foundation for our new deployment creation experience. Now, by popular demand, we're extending that experience to enable you to define deployments and build them from within Python. You can do so by defining a `Deployment` Python object, specifying the deployment options as properties of the object, then building and applying the object using methods of `Deployment`. See the [documentation](https://docs.prefect.io/concepts/deployments/) to learn more.
