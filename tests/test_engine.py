@@ -128,17 +128,17 @@ class TestOrchestrateTaskRun:
             ),
         )
 
-        state = await orchestrate_task_run(
-            task=foo,
-            task_run=task_run,
-            parameters={},
-            wait_for=None,
-            result_filesystem=local_filesystem,
-            interruptible=False,
-            client=orion_client,
-        )
+        with mock_anyio_sleep.assert_sleeps_for(5 * 60):
+            state = await orchestrate_task_run(
+                task=foo,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_filesystem=local_filesystem,
+                interruptible=False,
+                client=orion_client,
+            )
 
-        mock_anyio_sleep.assert_awaited_with(5 * 60)
         assert state.is_completed()
         assert state.result() == 1
 
@@ -199,21 +199,19 @@ class TestOrchestrateTaskRun:
         )
 
         # Actually run the task
-        state = await orchestrate_task_run(
-            task=flaky_function,
-            task_run=task_run,
-            parameters={},
-            wait_for=None,
-            result_filesystem=local_filesystem,
-            interruptible=False,
-            client=orion_client,
-        )
+        with mock_anyio_sleep.assert_sleeps_for(43):
+            state = await orchestrate_task_run(
+                task=flaky_function,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_filesystem=local_filesystem,
+                interruptible=False,
+                client=orion_client,
+            )
 
         # Check for a proper final result
         assert state.result() == 1
-
-        # Assert that the sleep was called
-        mock_anyio_sleep.assert_awaited_with(43)
 
         # Check expected state transitions
         states = await orion_client.read_task_run_states(task_run.id)
@@ -421,17 +419,16 @@ class TestOrchestrateFlowRun:
                 ),
             ),
         )
+        with mock_anyio_sleep.assert_sleeps_for(5 * 60):
+            state = await orchestrate_flow_run(
+                flow=foo,
+                flow_run=flow_run,
+                parameters={},
+                client=orion_client,
+                interruptible=False,
+                partial_flow_run_context=partial_flow_run_context,
+            )
 
-        state = await orchestrate_flow_run(
-            flow=foo,
-            flow_run=flow_run,
-            parameters={},
-            client=orion_client,
-            interruptible=False,
-            partial_flow_run_context=partial_flow_run_context,
-        )
-
-        mock_anyio_sleep.assert_awaited_once()
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
@@ -483,20 +480,18 @@ class TestOrchestrateFlowRun:
             flow=flaky_function, state=Pending()
         )
 
-        state = await orchestrate_flow_run(
-            flow=flaky_function,
-            flow_run=flow_run,
-            parameters={},
-            client=orion_client,
-            interruptible=False,
-            partial_flow_run_context=partial_flow_run_context,
-        )
+        with mock_anyio_sleep.assert_sleeps_for(43):
+            state = await orchestrate_flow_run(
+                flow=flaky_function,
+                flow_run=flow_run,
+                parameters={},
+                client=orion_client,
+                interruptible=False,
+                partial_flow_run_context=partial_flow_run_context,
+            )
 
         # Check for a proper final result
         assert state.result() == 1
-
-        # Assert that the sleep was called
-        mock_anyio_sleep.assert_awaited_with(43)
 
         # Check expected state transitions
         states = await orion_client.read_flow_run_states(flow_run.id)

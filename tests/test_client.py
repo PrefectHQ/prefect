@@ -105,11 +105,11 @@ class TestPrefectHttpxClient:
             success_response,
         ]
 
-        response = await client.post(
-            url="fake.url/fake/route", data={"evenmorefake": "data"}
-        )
+        with mock_anyio_sleep.assert_sleeps_for(5):
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
         assert response.status_code == status.HTTP_200_OK
-        mock_anyio_sleep.assert_awaited_once_with(5)
 
     async def test_prefect_httpx_client_falls_back_to_exponential_backoff(
         self, mock_anyio_sleep, monkeypatch
@@ -135,9 +135,10 @@ class TestPrefectHttpxClient:
             success_response,
         ]
 
-        response = await client.post(
-            url="fake.url/fake/route", data={"evenmorefake": "data"}
-        )
+        with mock_anyio_sleep.assert_sleeps_for(2 + 4 + 8):
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
         assert response.status_code == status.HTTP_200_OK
         mock_anyio_sleep.assert_has_awaits([call(2), call(4), call(8)])
 
@@ -169,9 +170,10 @@ class TestPrefectHttpxClient:
             success_response,
         ]
 
-        response = await client.post(
-            url="fake.url/fake/route", data={"evenmorefake": "data"}
-        )
+        with mock_anyio_sleep.assert_sleeps_for(5 + 10 + 2):
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
         assert response.status_code == status.HTTP_200_OK
         mock_anyio_sleep.assert_has_awaits([call(5), call(0), call(10), call(2.0)])
 

@@ -306,9 +306,9 @@ class TestInfrastructureIntegration:
             work_queues=[deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             agent.submitting_flow_run_ids.add(flow_run.id)
-            await agent.submit_run(flow_run)
+            with mock_anyio_sleep.assert_sleeps_for(10):
+                await agent.submit_run(flow_run)
 
-        mock_anyio_sleep.assert_awaited_once_with(10)
         state = (await orion_client.read_flow_run(flow_run.id)).state
         assert state.timestamp >= flow_run.state.state_details.scheduled_time
         assert state.is_pending()

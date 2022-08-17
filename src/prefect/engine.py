@@ -1333,7 +1333,7 @@ async def propose_state(
         raise prefect.exceptions.Abort(response.details.reason)
 
     elif response.status == SetStateStatus.WAIT:
-        client.logger.debug(
+        engine_logger.debug(
             f"Received wait instruction for {response.details.delay_seconds}s: "
             f"{response.details.reason}"
         )

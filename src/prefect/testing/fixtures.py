@@ -1,6 +1,8 @@
 import os
 import socket
 import sys
+from contextlib import contextmanager
+from typing import Union
 
 import anyio
 import httpx
@@ -117,8 +119,11 @@ def mock_anyio_sleep(monkeypatch):
     """
     Mock sleep used to not actually sleep but to set the current time to now + sleep
     delay seconds while still yielding to other tasks in the event loop.
+
+    Provides "assert_sleeps_for" context manager which asserts a sleep time occured
+    within the context while using the actual runtime of the context as a tolerance.
     """
-    frozen_now = pendulum.now()
+    original_now = pendulum.now
     original_sleep = anyio.sleep
     time_shift = 0.0
 
@@ -128,11 +133,9 @@ def mock_anyio_sleep(monkeypatch):
         # Preserve yield effects of sleep
         await original_sleep(0)
 
-    def latest_now(tz=None):
-        # Fast-forwards the frozen time by the total sleep time
-        now = frozen_now.in_timezone(tz) if tz else frozen_now
-
-        return now.add(
+    def latest_now(*args):
+        # Fast-forwards the time by the total sleep time
+        return original_now(*args).add(
             # Ensure we retain float precision
             seconds=int(time_shift),
             microseconds=(time_shift - int(time_shift)) * 1000000,
@@ -142,5 +145,32 @@ def mock_anyio_sleep(monkeypatch):
 
     sleep = AsyncMock(side_effect=callback)
     monkeypatch.setattr("anyio.sleep", sleep)
+
+    @contextmanager
+    def assert_sleeps_for(seconds: Union[int, float]):
+        """
+        Assert that sleep was called for N seconds during the duration of the context.
+        The runtime of the code during the context of the duration is used as a
+        tolerance to account for sleeps that start based on a time. This is less
+        brittle than attempting to freeze the current time.
+
+        If an integer is provided, the tolerance will be rounded up to the nearest
+        integer. If a float is provided, the tolerance will be a float.
+        """
+        run_t0 = original_now().timestamp()
+        sleep_t0 = time_shift
+        yield
+        run_t1 = original_now().timestamp()
+        sleep_t1 = time_shift
+        runtime = run_t1 - run_t0
+        if isinstance(seconds, int):
+            # Round tolerance up to the nearest integer if input is an int
+            runtime = int(runtime) + 1
+        sleeptime = sleep_t1 - sleep_t0
+        assert (
+            sleeptime <= seconds <= sleeptime + runtime
+        ), f"Sleep was called for {sleeptime}; expected {seconds} with tolerance of +{runtime}."
+
+    sleep.assert_sleeps_for = assert_sleeps_for
 
     return sleep
