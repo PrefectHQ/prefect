@@ -15,6 +15,10 @@ class TestDeploymentBasicInterface:
         d = Deployment(name="foo")
         assert isinstance(d.infrastructure, Process)
 
+    async def test_default_work_queue_name(self):
+        d = Deployment(name="foo")
+        assert d.work_queue_name == "default"
+
 
 class TestDeploymentLoad:
     async def test_deployment_load_hydrates_with_server_settings(
