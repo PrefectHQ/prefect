@@ -191,8 +191,12 @@ Create a new deployment using configuration defaults for an imported flow:
 from my_project.flows import my_flow
 from prefect.deployments import Deployment
 
-deployment = Deployment(name="example", version=1, tags=["demo"])
-deployment.build_from_flow(my_flow)
+deployment = Deployment.build_from_flow(
+    flow=my_flow,
+    name="exampl-deployment", 
+    version=1, 
+    tags=["demo"]
+)
 deployment.apply()
 ```
 
@@ -204,21 +208,26 @@ from prefect.deployments import Deployment
 from prefect.filesystems import S3
 
 storage = S3.load("dev-bucket") # load a pre-defined block
-deployment = Deployment(
+
+deployment = Deployment.build_from_flow(
+    flow=my_flow,
     name="s3-example",
     version=2,
     tags=["aws"],
     storage=storage,
     infra_overrides=["env.SOME_IMPORTANT_CONFIG=true"],
 )
-deployment.build_from_flow(my_flow)
+
 deployment.apply()
 ```
 
 If you have settings that you want to share from an existing deployment you can load those settings:
 
 ```python
-deployment = Deployment(name="a-name-you-used", flow_name="name-of-flow")
+deployment = Deployment(
+    name="a-name-you-used", 
+    flow_name="name-of-flow"
+)
 deployment.load() # loads server-side settings
 ```
 
