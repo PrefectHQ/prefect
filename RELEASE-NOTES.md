@@ -27,6 +27,7 @@ Agents and work queues give you control over where and how flow runs are execute
 ### New Collections
 - [prefect-monday](https://prefecthq.github.io/prefect-monday/)
 - [prefect-databricks](https://prefecthq.github.io/prefect-databricks/)
+- [prefect-fugue](https://github.com/fugue-project/prefect-fugue/)
 
 **Full Changelog**: https://github.com/PrefectHQ/prefect/compare/2.0.4...2.0.5
 
