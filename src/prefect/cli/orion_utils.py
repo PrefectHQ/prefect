@@ -1,6 +1,7 @@
 from contextlib import nullcontext
 
-from prefect.cli.cloud import CloudUnauthorizedError
+from prefect.cli.cloud import CloudUnauthorizedError, get_cloud_client
+from prefect.client import get_client
 
 
 async def check_orion_connection(profile_name=None):
@@ -17,17 +18,11 @@ async def check_orion_connection(profile_name=None):
             cloud_client = get_cloud_client(
                 httpx_settings=httpx_settings, infer_cloud_url=True
             )
-            res = await cloud_client.api_healthcheck()
-            exit_method, msg = (
-                exit_with_success,
-                f"Connected to Prefect Cloud using profile {profile_name!r}",
-            )
+            await cloud_client.api_healthcheck()
+            return "cloud"
         except CloudUnauthorizedError:
             # if the Cloud 2.0 API exists and fails to authenticate, notify the user
-            exit_method, msg = (
-                exit_with_error,
-                f"Error authenticating with Prefect Cloud using profile {profile_name!r}",
-            )
+            return "authentication error"
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == status.HTTP_404_NOT_FOUND:
                 # if the route does not exist, attmpt to connect as a hosted Orion instance
@@ -37,10 +32,7 @@ async def check_orion_connection(profile_name=None):
                     client = get_client(httpx_settings=httpx_settings)
                     connect_error = await client.api_healthcheck()
                     if connect_error is not None:
-                        exit_method, msg = (
-                            exit_with_error,
-                            f"Error connecting to Prefect Orion using profile {profile_name!r}",
-                        )
+                        "Orion connection error"
                     elif await client.using_ephemeral_app():
                         # if the client is using an ephemeral Orion app, inform the user
                         exit_method, msg = (
