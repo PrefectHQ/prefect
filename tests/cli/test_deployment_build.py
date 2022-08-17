@@ -37,6 +37,31 @@ class TestInputValidation:
             expected_code=1,
         )
 
+    def test_work_queue_name_is_populated_as_default(self, patch_import, tmp_path):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+            version="server",
+        )
+        assert d.apply()
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.work_queue_name == "default"
+
     def test_server_side_settings_are_used_if_present(self, patch_import, tmp_path):
         d = Deployment(
             name="TEST",

@@ -177,4 +177,4 @@ class TestYAML:
         comment_index = contents.index(
             "# The work queue that will handle this deployment's runs\n"
         )
-        assert contents[comment_index + 1] == "work_queue_name: null\n"
+        assert contents[comment_index + 1] == "work_queue_name: default\n"
