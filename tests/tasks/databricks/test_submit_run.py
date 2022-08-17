@@ -10,7 +10,7 @@ from prefect.tasks.databricks import (
     DatabricksGetJobID,
     DatabricksRunNow,
     DatabricksSubmitRun,
-    DatabricksSubmitMultitaskRun
+    DatabricksSubmitMultitaskRun,
 )
 from tests.tasks.databricks.mocks import (
     DatabricksGetJobIDTestOverride,
@@ -174,11 +174,7 @@ def requests_mock():
 
 @pytest.fixture
 def match_run_sumbission_on_idempotency_token(requests_mock, multi_task_submit_run):
-    expected_idempotency_token = str(
-        id(
-            multi_task_submit_run
-        )
-    )
+    expected_idempotency_token = str(id(multi_task_submit_run))
     requests_mock.add(
         method=responses.POST,
         url="https://cloud.databricks.com/api/2.1/jobs/runs/submit",
