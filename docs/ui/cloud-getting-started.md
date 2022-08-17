@@ -67,7 +67,7 @@ $ prefect cloud workspace set --workspace "prefect/workinonit"
 
 API keys enable you to authenticate an a local environment to work with Prefect Cloud. See [Configure execution environment](#configure-execution-environment) for details on how API keys are configured in your execution environment.
 
-To create an API key, select the account icon at the bottom-left corner of the UI and select **Settings**. This displays your account profile.
+To create an API key, select the account icon at the bottom-left corner of the UI and select your account name. This displays your account profile.
 
 Select the **API Keys** tab. This displays a list of previously generated keys and lets you create new API keys or delete keys.
 
@@ -192,7 +192,6 @@ To run a flow from a deployment with Prefect Cloud, you'll need to:
 
 - Create a flow script
 - Create the deployment using the Prefect CLI
-- Configure a [work queue](/ui/work-queues/) that can allocate your deployment's flow runs to agents
 - Start an agent in your execution environment
 - Run your deployment to create a flow run
 
@@ -202,7 +201,7 @@ Let's go back to your flow code in `basic_flow.py`. In a terminal, run the `pref
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./basic_flow.py:basic_flow -n test-deployment -t test
+$ prefect deployment build ./basic_flow.py:basic_flow -n test-deployment -q test
 ```
 </div>
 
@@ -211,7 +210,7 @@ What did we do here? Let's break down the command:
 - `prefect deployment build` is the Prefect CLI command that enables you to prepare the settings for a deployment.
 -  `./basic_flow.py:basic_flow` specifies the location of the flow script file and the name of the entrypoint flow function, separated by a colon.
 - `-n test-deployment` is an option to specify a name for the deployment.
-- `-t test` specifies a tag for the deployment. Tags enable filtering deployment flow runs in the UI and on work queues.
+- `-q test` specifies a work queue for the deployment. The deployment's runs will be sent to any agents monitoring this work queue.
 
 The command outputs two files: `basic_flow-manifest.json` contains workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters. `deployment.yaml` contains details about the deployment for this flow.
 
@@ -237,18 +236,14 @@ To demonstrate that your deployment exists, go back to Prefect Cloud and select 
 
 ### Create a work queue and agent
 
-Next, create a work queue that can distribute your new deployment to agents for execution, and a local agent to pick up the flow run for your 'Testing/Test Deployment' deployment. 
+Next, we start an agent that can pick up the flow run from your 'Testing/Test Deployment' deployment. Remember that when we created the deployment, it was configured to send work to a work queue called `test`. This work queue was automatically created when we created the deployment. In Prefect Cloud, you can view your work queues and create new ones manually by selecting the **Work Queues** page.
 
-In Prefect Cloud, you can create a work queue by selecting the **Work Queues** page, then creating a new work queue. 
-
-However, we can also use a Prefect CLI convenience command: starting your agent with a set of tags will create a work queue for you that serves deployments with those tags. This is handy for quickly standing up a test environment, for example.
-
-In your terminal, run the `prefect agent start` command, passing a `-t test` option that creates a work queue for `test` tags.
+In your terminal, run the `prefect agent start` command, passing a `-q test` option that tells it to look for work in the `test` work queue.
 
 <div class="terminal">
 ```
 
-$ prefect agent start -t test
+$ prefect agent start -q test
 
 Starting agent connected to https://api.prefect.cloud/api/accounts/...
 
@@ -258,7 +253,7 @@ Starting agent connected to https://api.prefect.cloud/api/accounts/...
  |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
 
 
-Agent started! Looking for work from queue 'Agent queue test'...
+Agent started! Looking for work from queue 'test'...
 ```
 </div>
 
@@ -281,7 +276,7 @@ In the local terminal session where you started the agent, you can see that the 
 
 <div class="terminal">
 ```
-$ prefect agent start 'test-queue'
+$ prefect agent start -q test
 Starting agent connected to https://api.prefect.cloud/api/accounts/...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
