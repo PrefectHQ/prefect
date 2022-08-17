@@ -197,7 +197,6 @@ deployment = Deployment.build_from_flow(
     version=1, 
     tags=["demo"]
 )
-
 deployment.apply()
 ```
 
@@ -229,7 +228,6 @@ deployment = Deployment(
     name="a-name-you-used", 
     flow_name="name-of-flow"
 )
-
 deployment.load() # loads server-side settings
 ```
 
