@@ -25,6 +25,7 @@ Agents and work queues give you control over where and how flow runs are execute
 * Added a Server Message Block (SMB) file system block in https://github.com/PrefectHQ/prefect/pull/6344 - Special thanks to @darrida for this contribution!
 * Removed explicit type validation from some API routes in https://github.com/PrefectHQ/prefect/pull/6448
 * Improved robustness of streaming output from subprocesses in https://github.com/PrefectHQ/prefect/pull/6445
+* Added a default work queue ("default") when creating new deployments from the Python client or CLI in https://github.com/PrefectHQ/prefect/pull/6458
 
 ### New Collections
 - [prefect-monday](https://prefecthq.github.io/prefect-monday/)
