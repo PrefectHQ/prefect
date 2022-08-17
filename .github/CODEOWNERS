@@ -12,6 +12,8 @@
 
 # documentation
 /docs                                @tpdorsey
+mkdocs.yml                           @tpdorsey
+mkdocs.insiders.yml                  @tpdorsey
 
 # orchestration rules / policies
 /src/prefect/orion/orchestration     @anticorrelator
