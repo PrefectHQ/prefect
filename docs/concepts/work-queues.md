@@ -227,19 +227,36 @@ You must start an agent within an environment that can access or create the infr
 
     If you want an agent to communicate with Prefect Cloud or a Prefect Orion API server from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
-Run the following `prefect agent start` CLI command to start an agent. You must pass the [work queue ID](#work-queue-configuration) for the queue the agent should poll for work.
+Run the following `prefect agent start` CLI command to start an agent. You must pass the [work queue name or ID](#work-queue-configuration) for the queue the agent should poll for work.
 
 <div class="terminal">
 ```bash
-$ prefect agent start [OPTIONS] WORK_QUEUE_ID
+$ prefect agent start [OPTIONS] WORK_QUEUE
 ```
 </div>
 
-For example:
+For example, to start an agent with a work queue ID, run:
 
 <div class="terminal">
 ```bash
 $ prefect agent start 'acffbcc8-ae65-4c83-a38a-96e2e5e5b441'
+Starting agent with ephemeral API...
+
+  ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
+ | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
+ |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |
+ |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
+
+
+Agent started!
+```
+</div>
+
+To start your agent with a work queue name, run:
+
+<div class="terminal">
+```bash
+$ prefect agent start 'Agent queue demo'
 Starting agent with ephemeral API...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
