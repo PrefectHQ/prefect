@@ -1094,6 +1094,18 @@ class OrionClient:
             else:
                 raise
 
+    async def delete_block_document(self, block_document_id: UUID):
+        """
+        Delete a block document.
+        """
+        try:
+            await self._client.delete(f"/block_documents/{block_document_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def read_block_type_by_slug(self, slug: str) -> BlockType:
         """
         Read a block type by its slug.
@@ -1145,6 +1157,18 @@ class OrionClient:
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def delete_block_type(self, block_type_id: UUID):
+        """
+        Delete a block type.
+        """
+        try:
+            await self._client.delete(f"/block_types/{block_type_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
