@@ -20,10 +20,10 @@ from prefect.tasks.databricks.models import (
 )
 from tests.tasks.databricks.test_submit_run import (  # noqa
     failed_run,
-    flow_run_id,
     flow_run_name,
     match_run_sumbission_on_idempotency_token,
     match_run_sumbission_on_run_name,
+    multi_task_submit_run,
     requests_mock,
     successful_run_completion,
     successful_run_submission,
@@ -58,7 +58,7 @@ class TestDatabricksSubmitMultitaskRun:
         timeout_seconds=86400,
     )
 
-    def test_requires_at_least_one_task(self, flow_run_name, flow_run_id):
+    def test_requires_at_least_one_task(self,flow_run_name):
         task = DatabricksSubmitMultitaskRun(
             databricks_conn_secret=self.databricks_conn_secret,
             tasks=[],
@@ -77,10 +77,11 @@ class TestDatabricksSubmitMultitaskRun:
 
     def test_default_idempotency_token(
         self,
+        multi_task_submit_run,
         match_run_sumbission_on_idempotency_token,
         successful_run_completion,
     ):
-        task = DatabricksSubmitMultitaskRun(
+        assert multi_task_submit_run.run(
             databricks_conn_secret=self.databricks_conn_secret,
             tasks=[self.test_databricks_task],
             run_name="Test Run",
@@ -90,10 +91,7 @@ class TestDatabricksSubmitMultitaskRun:
                     permission_level=CanManage.CAN_MANAGE,
                 )
             ],
-        )
-
-        # Will fail if expected idempotency token is not used
-        assert task.run() == "12345"
+        ) == "12345"
 
     def test_default_run_name(
         self,
@@ -110,7 +108,7 @@ class TestDatabricksSubmitMultitaskRun:
         assert task.run() == "12345"
 
     def test_failed_run(
-        self, failed_run, successful_run_submission, flow_run_id, flow_run_name
+        self, failed_run, successful_run_submission,flow_run_name
     ):
         with pytest.raises(
             PrefectException,
