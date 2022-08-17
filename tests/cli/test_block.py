@@ -1,10 +1,7 @@
 import asyncio
 
-import pytest
-
 from prefect.blocks import system
 from prefect.client import OrionClient
-from prefect.exceptions import ObjectNotFound
 from prefect.testing.cli import invoke_and_assert
 
 TEST_BLOCK_CODE = """\
