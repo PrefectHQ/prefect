@@ -173,7 +173,7 @@ class DockerContainer(Infrastructure):
         "docker-container", description="The type of infrastructure"
     )
     image: str = Field(
-        description="Tag of a Docker image to use. Defaults to the Prefect image",
+        description="Tag of a Docker image to use. Defaults to the Prefect image.",
         default_factory=get_prefect_image_name,
     )
     image_pull_policy: ImagePullPolicy = Field(
