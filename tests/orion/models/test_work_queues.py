@@ -171,14 +171,6 @@ class TestUpdateWorkQueue:
         assert updated_queue.id == work_queue.id
         assert updated_queue.name == work_queue.name
 
-    async def test_update_work_queue_raises_on_bad_input_data(self, session):
-        with pytest.raises(ValueError):
-            await models.work_queues.update_work_queue(
-                session=session,
-                work_queue_id=str(uuid4()),
-                work_queue=schemas.core.WorkQueue(name="naughty update data"),
-            )
-
     async def test_update_work_queue_returns_false_if_does_not_exist(self, session):
         result = await models.work_queues.update_work_queue(
             session=session,
