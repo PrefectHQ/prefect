@@ -112,6 +112,7 @@ class OrchestrationContext(PrefectBaseModel):
     finalization_signature: List[str] = Field(default_factory=list)
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
     response_details: StateResponseDetails = Field(default_factory=StateAcceptDetails)
+    orchestration_error: Optional[Exception] = Field(default=None)
 
     @property
     def initial_state_type(self) -> Optional[states.StateType]:
@@ -569,9 +570,21 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         if await self.invalid():
             pass
         else:
-            entry_context = self.context.entry_context()
-            await self.before_transition(*entry_context)
-            self.context.rule_signature.append(str(self.__class__))
+            try:
+                entry_context = self.context.entry_context()
+                await self.before_transition(*entry_context)
+                self.context.rule_signature.append(str(self.__class__))
+            except Exception as before_transition_error:
+                reason = f"Aborting orchestration due to error in {self.__class__!r}: !{before_transition_error!r}"
+                logger.exception(
+                    f"Error running before-transition hook in rule {self.__class__!r}: !{before_transition_error!r}"
+                )
+
+                self.context.proposed_state = None
+                self.context.response_status = SetStateStatus.ABORT
+                self.context.response_details = StateAbortDetails(reason=reason)
+                self.context.orchestration_error = before_transition_error
+
         return self.context
 
     async def __aexit__(
@@ -798,8 +811,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         occur for this run. The proposed state is set to `None`, signaling to the
         `OrchestrationContext` that no state should be written to the database. A
         reason for aborting the transition is also provided. Rules that abort the
-        transition will not fizzle, despite the proposed state type changing. Rules that
-        abort the transition will not fizzle, despite the proposed state type changing.
+        transition will not fizzle, despite the proposed state type changing.
 
         Args:
             reason: The reason for aborting the transition

@@ -172,10 +172,10 @@ Created work queue with properties:
     deployment_ids - None
 
 Start an agent to pick up flows from the created work queue:
-    prefect agent start '940f9828-c820-4148-9526-ea8107082bda'
+    prefect agent start -q 'abcde'
 
 Inspect the created work queue:
-    prefect work-queue inspect '940f9828-c820-4148-9526-ea8107082bda'
+    prefect work-queue inspect 'abcde'
 
 ```
 
@@ -206,10 +206,10 @@ output_msg = dedent(
         deployment_ids - {deployment_ids or None}
 
     Start an agent to pick up flows from the created work queue:
-        prefect agent start '{result}'
+        prefect agent start -q {name!r}
 
     Inspect the created work queue:
-        prefect work-queue inspect '{result}'
+        prefect work-queue inspect {name!r}
     """
 )
 ```

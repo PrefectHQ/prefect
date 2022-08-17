@@ -40,7 +40,7 @@ from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_data
+from prefect.futures import PrefectFuture, call_repr
 from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import OrionHandler
 from prefect.logging.loggers import (
@@ -192,14 +192,13 @@ async def create_then_begin_flow_run(
         raise RuntimeError(
             f"Cannot create flow run. Failed to reach API at {client.api_url}."
         ) from connect_error
-
     state = Pending()
     if flow.should_validate_parameters:
         try:
             parameters = flow.validate_parameters(parameters)
         except Exception as exc:
             state = Failed(
-                message="Flow run received invalid parameters.",
+                message=f"Validation of flow parameters failed with error: {exc!r}",
                 data=DataDocument.encode("cloudpickle", exc),
             )
 
@@ -214,6 +213,7 @@ async def create_then_begin_flow_run(
     engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
 
     if state.is_failed():
+        flow_run_logger(flow_run).error(state.message)
         engine_logger.info(
             f"Flow run {flow_run.name!r} received invalid parameters and is marked as failed."
         )
@@ -242,7 +242,6 @@ async def retrieve_flow_then_begin_flow_run(
     - Updates the flow run version
     """
     flow_run = await client.read_flow_run(flow_run_id)
-
     try:
         flow = await load_flow_from_flow_run(flow_run, client=client)
     except Exception as exc:
@@ -258,21 +257,26 @@ async def retrieve_flow_then_begin_flow_run(
         flow_run_id=flow_run_id,
         flow_version=flow.version,
     )
-
     if flow.should_validate_parameters:
+        failed_state = None
         try:
             parameters = flow.validate_parameters(flow_run.parameters)
         except Exception as exc:
-            flow_run_logger(flow_run).exception("Flow run received invalid parameters.")
-            state = Failed(
-                message="Flow run received invalid parameters.",
+            validation_error = (
+                f"Validation of flow parameters failed with error: {exc!r}"
+            )
+            flow_run_logger(flow_run).exception(validation_error)
+            failed_state = Failed(
+                message=validation_error,
                 data=DataDocument.encode("cloudpickle", exc),
             )
+
+        if failed_state is not None:
             await client.propose_state(
-                state=state,
+                state=failed_state,
                 flow_run_id=flow_run_id,
             )
-            return state
+            return failed_state
     else:
         parameters = flow_run.parameters
 
@@ -381,7 +385,7 @@ async def create_and_begin_subflow_run(
     parent_logger = get_run_logger(parent_flow_run_context)
 
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
-    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
+    task_inputs = {k: collect_task_run_inputs(v) for k, v in parameters.items()}
 
     # Generate a task in the parent flow run to represent the result of the subflow run
     dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
@@ -394,7 +398,7 @@ async def create_and_begin_subflow_run(
     )
 
     # Resolve any task futures in the input
-    parameters = await resolve_futures_to_data(parameters)
+    parameters = await resolve_inputs(parameters)
 
     if parent_task_run.state.is_final():
 
@@ -429,19 +433,25 @@ async def create_and_begin_subflow_run(
         logger = flow_run_logger(flow_run, flow)
 
         if flow.should_validate_parameters:
+            failed_state = None
             try:
                 parameters = flow.validate_parameters(parameters)
             except Exception as exc:
-                state = Failed(
-                    message="Flow run received invalid parameters.",
+                validation_error = (
+                    f"Validation of flow parameters failed with error: {exc!r}"
+                )
+                logger.exception(validation_error)
+                failed_state = Failed(
+                    message=validation_error,
                     data=DataDocument.encode("cloudpickle", exc),
                 )
+
+            if failed_state is not None:
                 await client.propose_state(
-                    state=state,
+                    state=failed_state,
                     flow_run_id=flow_run.id,
                 )
-                logger.error("Received invalid parameters", exc_info=True)
-                return state
+                return failed_state
 
         async with AsyncExitStack() as stack:
             await stack.enter_async_context(
@@ -523,7 +533,6 @@ async def orchestrate_flow_run(
 
         # Update the flow run to the latest data
         flow_run = await client.read_flow_run(flow_run.id)
-
         try:
             with timeout_context as timeout_scope:
                 with partial_flow_run_context.finalize(
@@ -560,19 +569,29 @@ async def orchestrate_flow_run(
                     flow_run_context.task_run_futures, client=client
                 )
 
-        except TimeoutError as exc:
-            # TODO: Cancel task runs if feasible
-            terminal_state = Failed(
-                name="TimedOut",
-                message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
-            )
         except Exception as exc:
-            logger.error(
-                f"Encountered exception during execution:",
-                exc_info=True,
-            )
+            name = message = None
+            if (
+                # Flow run timeouts
+                isinstance(exc, TimeoutError)
+                and timeout_scope
+                # Only update the message if the timeout was actually encountered since
+                # this could be a timeout in the user's code
+                and timeout_scope.cancel_called
+            ):
+                # TODO: Cancel task runs if feasible
+                name = "TimedOut"
+                message = f"Flow run exceeded timeout of {flow.timeout_seconds} seconds"
+            else:
+                # Generic exception in user code
+                message = "Flow run encountered an exception."
+                logger.error(
+                    "Encountered exception during execution:",
+                    exc_info=True,
+                )
             terminal_state = Failed(
-                message="Flow run encountered an exception.",
+                name=name,
+                message=message,
                 data=DataDocument.encode("cloudpickle", exc),
             )
         else:
@@ -737,7 +756,7 @@ async def begin_task_map(
     return await gather(*task_runs)
 
 
-async def collect_task_run_inputs(
+def collect_task_run_inputs(
     expr: Any,
 ) -> Set[Union[core.TaskRunResult, core.Parameter, core.Constant]]:
     """
@@ -747,14 +766,14 @@ async def collect_task_run_inputs(
 
     Example:
         >>> task_inputs = {
-        >>>    k: await collect_task_run_inputs(v) for k, v in parameters.items()
+        >>>    k: collect_task_run_inputs(v) for k, v in parameters.items()
         >>> }
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
     inputs = set()
 
-    async def add_futures_and_states_to_inputs(obj):
+    def add_futures_and_states_to_inputs(obj):
         if isinstance(obj, PrefectFuture):
             inputs.add(core.TaskRunResult(id=obj.task_run.id))
         elif isinstance(obj, State):
@@ -765,9 +784,7 @@ async def collect_task_run_inputs(
             if state and state.state_details.task_run_id:
                 inputs.add(core.TaskRunResult(id=state.state_details.task_run_id))
 
-    await visit_collection(
-        expr, visit_fn=add_futures_and_states_to_inputs, return_data=False
-    )
+    visit_collection(expr, visit_fn=add_futures_and_states_to_inputs, return_data=False)
 
     return inputs
 
@@ -814,9 +831,9 @@ async def create_task_run(
     dynamic_key: str,
     wait_for: Optional[Iterable[PrefectFuture]],
 ) -> TaskRun:
-    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
+    task_inputs = {k: collect_task_run_inputs(v) for k, v in parameters.items()}
     if wait_for:
-        task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
+        task_inputs["wait_for"] = collect_task_run_inputs(wait_for)
 
     logger = get_run_logger(flow_run_context)
 
@@ -955,6 +972,10 @@ async def begin_task_run(
         except Abort:
             # Task run already completed, just fetch its state
             task_run = await client.read_task_run(task_run.id)
+            get_run_logger(flow_run_context).debug(
+                f"Task run '{task_run.id}' already finished. "
+                f"Retrieving result for state {task_run.state!r}..."
+            )
             # Hydrate the state data
             task_run.state.data._cache_data(await _retrieve_result(task_run.state))
             return task_run.state
@@ -1207,13 +1228,13 @@ async def resolve_inputs(
         UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
 
-    async def visit_fn(expr):
+    def resolve_input(expr):
         state = None
 
         if isinstance(expr, Quote):
             return expr.unquote()
         elif isinstance(expr, PrefectFuture):
-            state = await expr._wait()
+            state = run_async_from_worker_thread(expr._wait)
         elif isinstance(expr, State):
             state = expr
         else:
@@ -1227,9 +1248,10 @@ async def resolve_inputs(
         # Only retrieve the result if requested as it may be expensive
         return state.result() if return_data else None
 
-    return await visit_collection(
+    return await run_sync_in_worker_thread(
+        visit_collection,
         parameters,
-        visit_fn=visit_fn,
+        visit_fn=resolve_input,
         return_data=return_data,
     )
 
@@ -1256,19 +1278,54 @@ def get_state_for_result(obj: Any) -> Optional[State]:
 
 def link_state_to_result(state: State, result: Any) -> None:
     """
-    Stores information about the state on the result or in the global context for
-    relationship tracking.
-    """
-    if type(result) in UNTRACKABLE_TYPES:
-        return
+    Caches a link between a state and a result and its components using
+    the `id` of the components to map to the state. The cache is persisted to the
+    current flow run context since task relationships are limited to within a flow run.
 
-    # Cache the state onto the flow_run_context, associated by the id of the
-    # result. This allows a best-effort attempt to get the state from an object
-    # that wouldn't allow the __prefect_state__ attribute to be set. It also
-    # acts as a complete cache of states for reporting in a flow run state.
+    This allows dependency tracking to occur when results are passed around.
+    Note: Because `id` is used, we cannot cache links between singleton objects.
+
+    We only cache the relationship between components 1-layer deep.
+    Example:
+        Given the result [1, ["a","b"], ("c",)], the following elements will be
+        mapped to the state:
+        - [1, ["a","b"], ("c",)]
+        - ["a","b"]
+        - ("c",)
+
+        Note: the int `1` will not be mapped to the state because it is a singleton.
+
+    Other Notes:
+    We do not hash the result because:
+    - If changes are made to the object in the flow between task calls, we can still
+      track that they are related.
+    - Hashing can be expensive.
+    - Not all objects are hashable.
+
+    We do not set an attribute, e.g. `__prefect_state__`, on the result because:
+
+    - Mutating user's objects is dangerous.
+    - Unrelated equality comparisons can break unexpectedly.
+    - The field can be preserved on copy.
+    - We cannot set this attribute on Python built-ins.
+    """
+
     flow_run_context = FlowRunContext.get()
+
+    def link_if_trackable(obj: Any) -> None:
+        """Track connection between a task run result and its associated state if it has a unique ID.
+
+        We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
+        because they are singletons.
+        """
+        if (type(obj) in UNTRACKABLE_TYPES) or (
+            isinstance(obj, int) and (-5 <= obj <= 256)
+        ):
+            return
+        flow_run_context.task_run_results[id(obj)] = state
+
     if flow_run_context:
-        flow_run_context.task_run_results[id(result)] = state
+        visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
 
 
 def get_default_result_filesystem() -> LocalFileSystem:

@@ -58,6 +58,11 @@ const routeRecords: AppRouteRecord[] = [
         path: '',
         component: (): RouteComponent => import('@/pages/Deployment.vue'),
       },
+      {
+        name: 'flow-run.create',
+        path: 'run',
+        component: (): RouteComponent => import('@/pages/FlowRunCreate.vue'),
+      },
     ],
   },
   {

@@ -9,7 +9,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingDeploymentEdit, DeploymentForm, IDeploymentRequest } from '@prefecthq/orion-design'
+  import { PageHeadingDeploymentEdit, DeploymentForm, DeploymentUpdate } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -24,7 +24,7 @@
   const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
   const deployment = computed(() => deploymentSubscription.response)
 
-  async function submit(deployment: IDeploymentRequest): Promise<void> {
+  async function submit(deployment: DeploymentUpdate): Promise<void> {
     if (deployment.parameters) {
       Object.keys(deployment.parameters).forEach((key) => {
         const parameter = deployment.parameters?.[key]

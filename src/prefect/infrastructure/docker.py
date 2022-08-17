@@ -3,6 +3,7 @@ import re
 import sys
 import urllib.parse
 import warnings
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 import packaging.version
@@ -12,10 +13,11 @@ from slugify import slugify
 from typing_extensions import Literal
 
 import prefect
+from prefect.blocks.core import Block, SecretStr
 from prefect.docker import get_prefect_image_name
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.settings import PREFECT_API_URL
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.importtools import lazy_import
 
@@ -37,6 +39,82 @@ class ImagePullPolicy(AutoEnum):
     IF_NOT_PRESENT = AutoEnum.auto()
     ALWAYS = AutoEnum.auto()
     NEVER = AutoEnum.auto()
+
+
+class BaseDockerLogin(Block, ABC):
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"
+    _block_schema_capabilities = ["docker-login"]
+
+    @abstractmethod
+    async def login() -> None:
+        """
+        Log in with `docker login`, persisting credentials.
+        """
+
+    def _login(self, username, password, registry_url, reauth):
+        client = self._get_docker_client()
+
+        return client.login(
+            username=username,
+            password=password,
+            registry=registry_url,
+            # See https://github.com/docker/docker-py/issues/2256 for information on
+            # the default value for reauth.
+            reauth=reauth,
+        )
+
+    def _get_docker_client(self):
+        try:
+
+            with warnings.catch_warnings():
+                # Silence warnings due to use of deprecated methods within dockerpy
+                # See https://github.com/docker/docker-py/pull/2931
+                warnings.filterwarnings(
+                    "ignore",
+                    message="distutils Version classes are deprecated.*",
+                    category=DeprecationWarning,
+                )
+
+                docker_client = docker.from_env()
+
+        except docker.errors.DockerException as exc:
+            raise RuntimeError(f"Could not connect to Docker.") from exc
+
+        return docker_client
+
+
+class DockerRegistry(BaseDockerLogin):
+    """
+    Connects to a Docker registry.
+
+    Requires a Docker Engine to be connectable. Login information is persisted to disk
+    at the Docker default location.
+
+    Attributes:
+        username: The username to log into the registry with.
+        password: The password to log into the registry with.
+        registry_url: The URL to the registry. Generally, "http" or "https" can be
+            omitted.
+        reauth: If already logged into the registry, should login be performed again?
+            This setting defaults to `True` to support common token authentication
+            patterns such as ECR.
+    """
+
+    _block_type_name = "Docker Registry"
+    username: str
+    password: SecretStr
+    registry_url: str
+    reauth: bool = True
+
+    @sync_compatible
+    async def login(self):
+        return await run_sync_in_worker_thread(
+            self._login,
+            self.username,
+            self.password.get_secret_value(),
+            self.registry_url,
+            self.reauth,
+        )
 
 
 class DockerContainerResult(InfrastructureResult):
@@ -86,6 +164,7 @@ class DockerContainer(Infrastructure):
 
     image: str = Field(default_factory=get_prefect_image_name)
     image_pull_policy: ImagePullPolicy = None
+    image_registry: Optional[DockerRegistry] = None
     networks: List[str] = Field(default_factory=list)
     network_mode: str = None
     auto_remove: bool = False
@@ -93,6 +172,7 @@ class DockerContainer(Infrastructure):
     stream_output: bool = True
 
     _block_type_name = "Docker Container"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"
     type: Literal["docker-container"] = "docker-container"
 
     @validator("labels")
@@ -280,6 +360,8 @@ class DockerContainer(Infrastructure):
         Pull the image we're going to use to create the container.
         """
         image, tag = self._get_image_and_tag()
+        if self.image_registry:
+            self.image_registry.login()
         return docker_client.images.pull(image, tag)
 
     def _create_container(self, docker_client: "DockerClient", **kwargs) -> "Container":

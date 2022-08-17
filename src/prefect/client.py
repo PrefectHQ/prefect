@@ -15,11 +15,11 @@ $ python -m asyncio
 ```
 </div>
 """
-
 import copy
 import datetime
 import sys
 import threading
+import warnings
 from collections import defaultdict
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
@@ -39,6 +39,7 @@ from uuid import UUID
 
 import anyio
 import httpx
+import pendulum
 import pydantic
 from anyio import sleep
 from asgi_lifespan import LifespanManager
@@ -798,16 +799,14 @@ class OrionClient:
                 raise
 
     async def create_work_queue(
-        self,
-        name: str,
-        tags: List[str] = None,
-    ) -> UUID:
+        self, name: str, tags: List[str] = None
+    ) -> schemas.core.WorkQueue:
         """
         Create a work queue.
 
         Args:
             name: a unique name for the work queue
-            tags: an optional list of tags to filter on; only work scheduled with these tags
+            tags: DEPRECATED: an optional list of tags to filter on; only work scheduled with these tags
                 will be included in the queue
 
         Raises:
@@ -817,12 +816,15 @@ class OrionClient:
         Returns:
             UUID: The UUID of the newly created workflow
         """
-        data = WorkQueueCreate(
-            name=name,
-            filter=QueueFilter(
-                tags=tags or None,
-            ),
-        ).dict(json_compatible=True)
+        if tags:
+            warnings.warn(
+                "The use of tags for creating work queue filters is deprecated.",
+                DeprecationWarning,
+            )
+            filter = QueueFilter(tags=tags)
+        else:
+            filter = None
+        data = WorkQueueCreate(name=name, filter=filter).dict(json_compatible=True)
         try:
             response = await self._client.post("/work_queues/", json=data)
         except httpx.HTTPStatusError as e:
@@ -830,11 +832,7 @@ class OrionClient:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
-
-        work_queue_id = response.json().get("id")
-        if not work_queue_id:
-            raise httpx.RequestError(str(response))
-        return UUID(work_queue_id)
+        return schemas.core.WorkQueue.parse_obj(response.json())
 
     async def read_work_queue_by_name(self, name: str) -> schemas.core.WorkQueue:
         """
@@ -849,7 +847,14 @@ class OrionClient:
         Returns:
             schemas.core.WorkQueue: a work queue API object
         """
-        response = await self._client.get(f"/work_queues/name/{name}")
+        try:
+            response = await self._client.get(f"/work_queues/name/{name}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
         return schemas.core.WorkQueue.parse_obj(response.json())
 
     async def update_work_queue(self, id: UUID, **kwargs):
@@ -900,14 +905,16 @@ class OrionClient:
         Returns:
             List[schemas.core.FlowRun]: a list of FlowRun objects read from the queue
         """
-        json_data = {"limit": limit}
-        if scheduled_before:
-            json_data.update({"scheduled_before": scheduled_before.isoformat()})
+        if scheduled_before is None:
+            scheduled_before = pendulum.now()
 
         try:
             response = await self._client.post(
                 f"/work_queues/{id}/get_runs",
-                json=json_data,
+                json={
+                    "limit": limit,
+                    "scheduled_before": scheduled_before.isoformat(),
+                },
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -1087,6 +1094,18 @@ class OrionClient:
             else:
                 raise
 
+    async def delete_block_document(self, block_document_id: UUID):
+        """
+        Delete a block document.
+        """
+        try:
+            await self._client.delete(f"/block_documents/{block_document_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def read_block_type_by_slug(self, slug: str) -> BlockType:
         """
         Read a block type by its slug.
@@ -1141,6 +1160,30 @@ class OrionClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
+
+    async def delete_block_type(self, block_type_id: UUID):
+        """
+        Delete a block type.
+        """
+        try:
+            await self._client.delete(f"/block_types/{block_type_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def read_block_types(self) -> List[schemas.core.BlockType]:
+        """
+        Read all block types
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            List of BlockTypes.
+        """
+        response = await self._client.post(f"/block_types/filter", json={})
+        return pydantic.parse_obj_as(List[schemas.core.BlockType], response.json())
 
     async def read_block_schemas(self) -> List[schemas.core.BlockSchema]:
         """
@@ -1270,10 +1313,14 @@ class OrionClient:
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         parameters: Dict[str, Any] = None,
         description: str = None,
+        work_queue_name: str = None,
         tags: List[str] = None,
-        manifest_path: str = None,
         storage_document_id: UUID = None,
+        manifest_path: str = None,
+        path: str = None,
+        entrypoint: str = None,
         infrastructure_document_id: UUID = None,
+        infra_overrides: Dict[str, Any] = None,
         parameter_openapi_schema: dict = None,
     ) -> UUID:
         """
@@ -1303,10 +1350,14 @@ class OrionClient:
             schedule=schedule,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
+            work_queue_name=work_queue_name,
             description=description,
-            manifest_path=manifest_path,
             storage_document_id=storage_document_id,
+            path=path,
+            entrypoint=entrypoint,
+            manifest_path=manifest_path,  # for backwards compat
             infrastructure_document_id=infrastructure_document_id,
+            infra_overrides=infra_overrides or {},
             parameter_openapi_schema=parameter_openapi_schema,
         )
 
