@@ -293,6 +293,11 @@ async def read_task_run_dependencies(
 
     for task_run in task_runs:
         inputs = list(set(chain(*task_run.task_inputs.values())))
+        untrackable_result_status = (
+            False
+            if task_run.state is None
+            else task_run.state.state_details.returns_untrackable_result
+        )
         dependency_graph.append(
             {
                 "id": task_run.id,
@@ -303,7 +308,7 @@ async def read_task_run_dependencies(
                 "end_time": task_run.end_time,
                 "total_run_time": task_run.total_run_time,
                 "estimated_run_time": task_run.estimated_run_time,
-                "returns_untrackable_result": task_run.state.state_details.returns_untrackable_result,
+                "returns_untrackable_result": untrackable_result_status,
             }
         )
 
