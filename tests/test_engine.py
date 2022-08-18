@@ -1276,35 +1276,37 @@ class TestCreateAndBeginSubflowRun:
 
 class TestLinkStateToResult:
 
-    state = State(id=uuid4(), type=StateType.COMPLETED)
+    @pytest.fixture
+    def state(self):
+        return State(id=uuid4(), type=StateType.COMPLETED)
 
     class RandomTestClass:
         pass
 
     class PydanticTestClass(BaseModel):
-        untrackable_num: int
+        num: int
         list_of_ints: List[int]
 
     @pytest.mark.parametrize(
         "test_input", [True, False, -5, 0, 1, 256, ..., None, NotImplemented]
     )
     async def test_link_state_to_result_with_untrackables(
-        self, test_input, flow_run_context
+        self, test_input, flow_run_context, state
     ):
 
         with flow_run_context as ctx:
-            link_state_to_result(state=self.state, result=test_input)
+            link_state_to_result(state=state, result=test_input)
             assert ctx.task_run_results == {}
 
     @pytest.mark.parametrize("test_input", [-6, 257, "Hello", RandomTestClass()])
     def test_link_state_to_result_with_single_trackables(
-        self, flow_run_context, test_input
+        self, flow_run_context, test_input, state
     ):
         input_id = id(test_input)
 
         with flow_run_context as ctx:
-            link_state_to_result(state=self.state, result=test_input)
-            assert ctx.task_run_results == {input_id: self.state}
+            link_state_to_result(state=state, result=test_input)
+            assert ctx.task_run_results == {input_id: state}
 
     @pytest.mark.parametrize(
         "test_inputs",
@@ -1315,14 +1317,14 @@ class TestLinkStateToResult:
         ],
     )
     def test_link_state_to_result_with_multiple_unnested_trackables(
-        self, flow_run_context, test_inputs
+        self, flow_run_context, test_inputs, state
     ):
         input_ids = []
         with flow_run_context as ctx:
             for test_input in test_inputs:
                 input_ids.append(id(test_input))
-                link_state_to_result(state=self.state, result=test_input)
-            assert ctx.task_run_results == {id: self.state for id in input_ids}
+                link_state_to_result(state=state, result=test_input)
+            assert ctx.task_run_results == {id: state for id in input_ids}
 
     @pytest.mark.parametrize(
         "test_input",
@@ -1334,11 +1336,11 @@ class TestLinkStateToResult:
         ],
     )
     def test_link_state_to_result_with_list_or_tuple_of_untrackables(
-        self, flow_run_context, test_input
+        self, flow_run_context, test_input, state
     ):
         with flow_run_context as ctx:
-            link_state_to_result(state=self.state, result=test_input)
-            assert ctx.task_run_results == {id(test_input): self.state}
+            link_state_to_result(state=state, result=test_input)
+            assert ctx.task_run_results == {id(test_input): state}
 
     @pytest.mark.parametrize(
         "test_input",
@@ -1348,49 +1350,73 @@ class TestLinkStateToResult:
         ],
     )
     def test_link_state_to_result_with_list_or_tuple_of_mixed(
-        self, flow_run_context, test_input
+        self, flow_run_context, test_input, state
     ):
         with flow_run_context as ctx:
-            link_state_to_result(state=self.state, result=test_input)
+            link_state_to_result(state=state, result=test_input)
             assert ctx.task_run_results == {
-                id(test_input[0]): self.state,
-                id(test_input[2]): self.state,
-                id(test_input): self.state,
+                id(test_input[0]): state,
+                id(test_input[2]): state,
+                id(test_input): state,
             }
 
-    async def test_link_state_to_result_with_nested_list(self, flow_run_context):
+    async def test_link_state_to_result_with_nested_list(self, flow_run_context, state):
         test_input = [1, [-6, [1, 2, 3]]]
 
         with flow_run_context as ctx:
-            link_state_to_result(state=self.state, result=test_input)
+            link_state_to_result(state=state, result=test_input)
             assert ctx.task_run_results == {
-                id(test_input): self.state,
-                id(test_input[1]): self.state,
+                id(test_input): state,
+                id(test_input[1]): state,
             }
 
-    def test_link_state_to_result_with_nested_pydantic_class(self, flow_run_context):
+    def test_link_state_to_result_with_nested_pydantic_class(self, flow_run_context, state):
         pydantic_instance = self.PydanticTestClass(
-            untrackable_num=42, list_of_ints=[1, 257]
+            num=42, list_of_ints=[1, 257]
         )
 
         test_input = [-7, pydantic_instance, 1]
 
         with flow_run_context as ctx:
-            link_state_to_result(state=self.state, result=test_input)
+            link_state_to_result(state=state, result=test_input)
             assert ctx.task_run_results == {
-                id(test_input): self.state,
-                id(test_input[0]): self.state,
-                id(test_input[1]): self.state,
+                id(test_input): state,
+                id(test_input[0]): state,
+                id(test_input[1]): state,
             }
 
-    def test_link_state_to_result_with_pydantic_class(self, flow_run_context):
+    def test_link_state_to_result_with_pydantic_class(self, flow_run_context, state):
         pydantic_instance = self.PydanticTestClass(
-            untrackable_num=42, list_of_ints=[1, 257]
+            num=42, list_of_ints=[1, 257]
         )
 
         with flow_run_context as ctx:
-            link_state_to_result(state=self.state, result=pydantic_instance)
+            link_state_to_result(state=state, result=pydantic_instance)
             assert ctx.task_run_results == {
-                id(pydantic_instance): self.state,
-                id(pydantic_instance.list_of_ints): self.state,
+                id(pydantic_instance): state,
+                id(pydantic_instance.list_of_ints): state,
             }
+
+    @pytest.mark.parametrize(
+        "test_input,expected_status",
+        [
+            (True, True), 
+            (-5, True), 
+            (-6, False),
+            ("Hello", False),
+            (RandomTestClass(), False),
+            ([0, 257], True),
+            ([False, "Test", RandomTestClass()], True),
+            ([-256, RandomTestClass()], False),
+            ([-6, 257], False),
+            ([-42, RandomTestClass()], False),
+            ([4200, "Test", RandomTestClass()], False),
+            (PydanticTestClass(num=42, list_of_ints=[1,2,3]), True),
+            (PydanticTestClass(num=257, list_of_ints=[1,2,3]), False),
+        ]
+    )
+    def test_link_state_to_result_marks_trackability_in_state_details(self, flow_run_context, test_input, expected_status, state):
+        
+        with flow_run_context:
+            link_state_to_result(state=state, result=test_input)
+            assert state.state_details.returns_untrackable_result == expected_status
