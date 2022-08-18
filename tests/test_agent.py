@@ -310,7 +310,12 @@ class TestInfrastructureIntegration:
                 await agent.submit_run(flow_run)
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        assert state.timestamp >= flow_run.state.state_details.scheduled_time
+        # Note that we include a 1 second buffer to account for rounding in the WAIT
+        # instruction
+        assert (
+            state.timestamp.add(seconds=1)
+            >= flow_run.state.state_details.scheduled_time
+        ), "Pending state time should be after the scheduled time"
         assert state.is_pending()
         mock_submit.assert_awaited_once()
 

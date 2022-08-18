@@ -381,7 +381,7 @@ class WaitForScheduledTime(BaseOrchestrationRule):
             raise ValueError("Received state without a scheduled time")
 
         # At this moment, we take the floor of the actual delay as the API schema
-        # specifies an integer return value
+        # specifies an integer return value.
         delay_seconds = (scheduled_time - pendulum.now()).in_seconds()
         if delay_seconds > 0:
             await self.delay_transition(
