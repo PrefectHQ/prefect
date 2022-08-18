@@ -1307,7 +1307,7 @@ async def propose_state(
     if not task_run_id and not flow_run_id:
         raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
 
-    # Handle task and sub-flow tracing 
+    # Handle task and sub-flow tracing
     if state.is_final():
         if state.data is not None:
             link_state_to_result(state, state.data.decode())
