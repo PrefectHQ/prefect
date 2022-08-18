@@ -12,6 +12,7 @@ from anyio.abc import TaskGroup
 
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client
+from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.infrastructure import Infrastructure, Process
 from prefect.infrastructure.submission import submit_flow_run
@@ -209,7 +210,7 @@ class OrionAgent:
     async def _propose_pending_state(self, flow_run: FlowRun) -> bool:
         state = flow_run.state
         try:
-            state = await self.client.propose_state(Pending(), flow_run_id=flow_run.id)
+            state = await propose_state(self.client, Pending(), flow_run_id=flow_run.id)
         except Abort as exc:
             self.logger.info(
                 f"Aborted submission of flow run '{flow_run.id}'. "
@@ -234,7 +235,8 @@ class OrionAgent:
 
     async def _propose_failed_state(self, flow_run: FlowRun, exc: Exception) -> None:
         try:
-            await self.client.propose_state(
+            await propose_state(
+                self.client,
                 Failed(
                     message="Submission failed.",
                     data=DataDocument.encode("cloudpickle", exc),
