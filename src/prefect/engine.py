@@ -1307,6 +1307,11 @@ async def propose_state(
     if not task_run_id and not flow_run_id:
         raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
 
+    # Handle task and sub-flow tracing 
+    if state.is_final():
+        if state.data is not None:
+            link_state_to_result(state, state.data.decode())
+
     # Attempt to set the state
     if task_run_id:
         response = await client.set_task_run_state(
@@ -1420,6 +1425,7 @@ def link_state_to_result(state: State, result: Any) -> None:
         if (type(obj) in UNTRACKABLE_TYPES) or (
             isinstance(obj, int) and (-5 <= obj <= 256)
         ):
+            state.state_details.returns_untrackable_result = True
             return
         flow_run_context.task_run_results[id(obj)] = state
 
