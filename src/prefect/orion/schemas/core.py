@@ -30,6 +30,8 @@ FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_state_message",
 ]
 
+DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
+
 
 def raise_on_invalid_name(name: str) -> None:
     """
@@ -443,24 +445,10 @@ class BlockSchema(ORMBaseModel):
         default_factory=list,
         description="A list of Block capabilities",
     )
-
-
-class BlockSchemaReference(ORMBaseModel):
-    """An ORM representation of a block schema reference."""
-
-    parent_block_schema_id: UUID = Field(
-        ..., description="ID of block schema the reference is nested within"
+    version: str = Field(
+        DEFAULT_BLOCK_SCHEMA_VERSION,
+        description="Human readable identifier for the block schema",
     )
-    parent_block_schema: Optional[BlockSchema] = Field(
-        None, description="The block schema the reference is nested within"
-    )
-    reference_block_schema_id: UUID = Field(
-        ..., description="ID of the nested block schema"
-    )
-    reference_block_schema: Optional[BlockSchema] = Field(
-        None, description="The nested block schema"
-    )
-    name: str = Field(..., description="The name that the reference is nested under")
 
 
 class BlockSchemaReference(ORMBaseModel):

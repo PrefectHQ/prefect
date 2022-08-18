@@ -671,6 +671,7 @@ async def read_block_schema_by_checksum(
     session: sa.orm.Session,
     checksum: str,
     db: OrionDBInterface,
+    version: Optional[str] = None,
 ) -> Optional[BlockSchema]:
     """
     Reads a block_schema by checksum. Will reconstruct the block schema's fields
@@ -679,6 +680,7 @@ async def read_block_schema_by_checksum(
     Args:
         session: A database session
         checksum: a block_schema checksum
+        version: A block_schema version
 
     Returns:
         db.BlockSchema: the block_schema
@@ -686,14 +688,25 @@ async def read_block_schema_by_checksum(
     # Construction of a recursive query which returns the specified block schema
     # along with and nested block schemas coupled with the ID of their parent schema
     # the key that they reside under.
+
+    # The same checksum with different versions can occur in the DB. Return only the
+    # most recently created one.
     root_block_schema_query = (
-        sa.select(db.BlockSchema).filter_by(checksum=checksum).cte("root_block_schema")
+        sa.select(db.BlockSchema)
+        .filter_by(checksum=checksum)
+        .order_by(db.BlockSchema.created.desc())
+        .limit(1)
     )
+
+    if version is not None:
+        root_block_schema_query = root_block_schema_query.filter_by(version=version)
+
+    root_block_schema_cte = root_block_schema_query.cte("root_block_schema")
 
     block_schema_references_query = (
         sa.select(db.BlockSchemaReference)
         .select_from(db.BlockSchemaReference)
-        .filter_by(parent_block_schema_id=root_block_schema_query.c.id)
+        .filter_by(parent_block_schema_id=root_block_schema_cte.c.id)
         .cte("block_schema_references", recursive=True)
     )
     block_schema_references_join = (
@@ -725,7 +738,7 @@ async def read_block_schema_by_checksum(
         )
         .filter(
             sa.or_(
-                db.BlockSchema.id == root_block_schema_query.c.id,
+                db.BlockSchema.id == root_block_schema_cte.c.id,
                 recursive_block_schema_references_cte.c.parent_block_schema_id.is_not(
                     None
                 ),
