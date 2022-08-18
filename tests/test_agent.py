@@ -418,8 +418,8 @@ class TestInfrastructureIntegration:
             await agent.get_and_submit_flow_runs()
 
         mock_submit.assert_awaited_once_with(flow_run, infrastructure, task_status=ANY)
-        agent.logger.error.assert_called_once_with(
-            f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
+        agent.logger.exception.assert_called_once_with(
+            f"Failed to submit flow run '{flow_run.id}' to infrastructure."
         )
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
@@ -447,8 +447,8 @@ class TestInfrastructureIntegration:
             agent.logger = MagicMock()
             await agent.get_and_submit_flow_runs()
 
-        agent.logger.error.assert_called_once_with(
-            f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
+        agent.logger.exception.assert_called_once_with(
+            f"Failed to submit flow run '{flow_run.id}' to infrastructure."
         )
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
