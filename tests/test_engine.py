@@ -1123,6 +1123,25 @@ class TestCreateThenBeginFlowRun:
         )
         assert type(state.data.decode()) == SignatureMismatchError
 
+    async def test_does_not_raise_signature_mismatch_on_missing_default_args(
+        self, orion_client
+    ):
+        @flow
+        def flow_use_and_return_defaults(foo: str = "bar", bar: int = 1):
+            """Flow for testing functions"""
+            assert foo == "bar"
+            assert bar == 1
+            return foo, bar
+
+        state = await create_then_begin_flow_run(
+            flow=flow_use_and_return_defaults,
+            parameters={},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.COMPLETED
+        assert state.data.decode() == ("bar", 1)
+
     async def test_handles_other_errors(
         self, orion_client, parameterized_flow, monkeypatch
     ):
