@@ -47,7 +47,8 @@ def parameters_to_args_kwargs(
     will return an empty tuple and dict.
     """
     function_params = dict(inspect.signature(fn).parameters).keys()
-    if parameters.keys() != function_params:
+    unknown_args = parameters.keys() - function_params
+    if unknown_args:
         raise SignatureMismatchError.from_bad_params(
             list(function_params), list(parameters.keys())
         )

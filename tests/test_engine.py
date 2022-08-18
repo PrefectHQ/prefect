@@ -66,6 +66,15 @@ def parameterized_flow():
 
 
 @pytest.fixture
+def parameterized_flow_with_default_arguments():
+    @flow
+    def flow_for_tests(foo: str = "bar", bar: int = 1):
+        """Flow for testing functions"""
+
+    return flow_for_tests
+
+
+@pytest.fixture
 def flow_run_caplog(caplog):
     """
     Capture logging from flow runs to ensure messages are correct.
@@ -1122,6 +1131,17 @@ class TestCreateThenBeginFlowRun:
             == "Validation of flow parameters failed with error: SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
         )
         assert type(state.data.decode()) == SignatureMismatchError
+
+    async def test_does_not_raise_signature_mismatch_on_missing_default_args(
+        self, orion_client, parameterized_flow_with_default_arguments
+    ):
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow_with_default_arguments,
+            parameters={},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.COMPLETED
 
     async def test_handles_other_errors(
         self, orion_client, parameterized_flow, monkeypatch
