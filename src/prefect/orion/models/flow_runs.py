@@ -303,7 +303,7 @@ async def read_task_run_dependencies(
                 "end_time": task_run.end_time,
                 "total_run_time": task_run.total_run_time,
                 "estimated_run_time": task_run.estimated_run_time,
-                "returns_untrackable_result":task_run.state.state_details.returns_untrackable_result
+                "returns_untrackable_result": task_run.state.state_details.returns_untrackable_result
             }
         )
 
