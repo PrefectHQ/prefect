@@ -1,5 +1,15 @@
 # Prefect Release Notes
 
+## 2.1.1
+
+### Fixes
+
+* Fixed log on abort when the flow run context is not available in https://github.com/PrefectHQ/prefect/pull/6402
+* Fixed error message in `submit_run` in https://github.com/PrefectHQ/prefect/pull/6453
+* Fixed error if default parameters are missing on a deployment flow run in https://github.com/PrefectHQ/prefect/pull/6465
+* Added error message if `get_run_logger` receives context of unknown type in https://github.com/PrefectHQ/prefect/pull/6401
+
+
 ## 2.1.0
 
 ### Build Deployments in Python
