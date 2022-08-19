@@ -90,8 +90,8 @@ class FlowRunPolicy(PrefectBaseModel):
 
     # TODO: Determine how to separate between infrastructure and within-process level
     #       retries
-    max_retries: int = 0
-    retry_delay_seconds: float = 0
+    max_retries: Optional[int] = None
+    retry_delay_seconds: Optional[float] = None
 
 
 class FlowRun(ORMBaseModel):
