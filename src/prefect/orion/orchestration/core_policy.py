@@ -269,11 +269,11 @@ class RetryFailedFlows(BaseOrchestrationRule):
 
         run_settings = context.run_settings
         run_count = context.run.run_count
-        if run_count > run_settings.max_retries:
+        if run_settings.max_retries is None or run_count > run_settings.max_retries:
             return  # Retry count exceeded, allow transition to failed
 
         scheduled_start_time = pendulum.now("UTC").add(
-            seconds=run_settings.retry_delay_seconds
+            seconds=run_settings.retry_delay_seconds or 0
         )
 
         failed_task_runs = await task_runs.read_task_runs(
