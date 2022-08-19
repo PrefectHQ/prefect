@@ -273,6 +273,22 @@ async def apply(
             style="green",
         )
 
+        if deployment.work_queue_name is not None:
+            app.console.print(
+                "\nTo execute flow runs from this deployment, start an agent "
+                f"that pulls work from the the {deployment.work_queue_name!r} work queue:"
+            )
+            app.console.print(
+                f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"
+            )
+        else:
+            app.console.print(
+                "\nThis deployment does not specify a work queue name, which means agents "
+                "will not be able to pick up its runs. To add a work queue, "
+                "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
+                style="red",
+            )
+
 
 @deployment_app.command()
 async def delete(
@@ -328,6 +344,12 @@ async def build(
     version: str = typer.Option(
         None, "--version", "-v", help="A version to give the deployment."
     ),
+    tags: List[str] = typer.Option(
+        None,
+        "-t",
+        "--tag",
+        help="One or more optional tags to apply to the deployment. Note: tags are used only for organizational purposes. For delegating work to agents, use the --work-queue flag.",
+    ),
     work_queue_name: str = typer.Option(
         None,
         "-q",
@@ -382,12 +404,6 @@ async def build(
         "-o",
         help="An optional filename to write the deployment file to.",
     ),
-    tags: List[str] = typer.Option(
-        None,
-        "-t",
-        "--tag",
-        help="DEPRECATED: One or more optional tags to apply to the deployment.",
-    ),
 ):
     """
     Generate a deployment YAML from /path/to/file.py:flow_function
@@ -397,11 +413,6 @@ async def build(
     if not name:
         exit_with_error(
             "A name for this deployment must be provided with the '--name' flag."
-        )
-    if tags:
-        app.console.print(
-            "Providing tags for deployments is deprecated; use a work queue name instead.",
-            style="red",
         )
 
     if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
@@ -475,8 +486,8 @@ async def build(
     updates = dict(
         parameter_openapi_schema=flow_parameter_schema,
         entrypoint=entrypoint,
-        description=flow.description,
-        version=version or flow.version,
+        description=deployment.description or flow.description,
+        version=version or deployment.version or flow.version,
         tags=tags or None,
         infrastructure=infrastructure,
         infra_overrides=infra_overrides or None,
