@@ -63,7 +63,7 @@ async def create_block_schema(
 
     # Check for existing block schema based on calculated checksum
     existing_block_schema = await read_block_schema_by_checksum(
-        session=session, checksum=checksum
+        session=session, checksum=checksum, version=block_schema.version
     )
     # Return existing block schema if it exists. Allows block schema creation to be called multiple
     # times for the same schema without errors.

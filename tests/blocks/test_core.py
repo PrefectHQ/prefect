@@ -10,9 +10,11 @@ from pydantic import Field, SecretBytes, SecretStr
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
+from prefect.blocks.system import Secret
 from prefect.client import OrionClient
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
+from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
 from prefect.orion.utilities.names import obfuscate_string
 from prefect.utilities.dispatch import lookup_type, register_type
 
@@ -497,6 +499,7 @@ class TestAPICompatibility:
         assert (
             block_schema.capabilities == []
         ), "No capabilities should be defined for this Block and defaults to []"
+        assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
 
     def test_create_block_schema_from_block_with_capabilities(
         self, test_block: Type[Block], block_type_x
@@ -508,6 +511,27 @@ class TestAPICompatibility:
         assert (
             block_schema.capabilities == []
         ), "No capabilities should be defined for this Block and defaults to []"
+        assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
+
+    def test_create_block_schema_with_no_version_specified(
+        self, test_block: Type[Block], block_type_x
+    ):
+        block_schema = test_block._to_block_schema(block_type_id=block_type_x.id)
+
+        assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
+
+    def test_create_block_schema_with_version_specified(
+        self, test_block: Type[Block], block_type_x
+    ):
+        test_block._block_schema_version = "1.0.0"
+        block_schema = test_block._to_block_schema(block_type_id=block_type_x.id)
+
+        assert block_schema.version == "1.0.0"
+
+    def test_create_block_schema_uses_prefect_version_for_built_in_blocks(self):
+        Secret.register_type_and_schema()
+        block_schema = Secret._to_block_schema()
+        assert block_schema.version == prefect.__version__
 
     def test_collecting_capabilities(self):
         class CanRun(Block):

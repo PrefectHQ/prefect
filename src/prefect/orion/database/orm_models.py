@@ -1270,7 +1270,7 @@ class BaseORMConfiguration(ABC):
     @property
     def block_schema_unique_upsert_columns(self):
         """Unique columns for upserting a BlockSchema"""
-        return [self.BlockSchema.checksum]
+        return [self.BlockSchema.checksum, self.BlockSchema.version]
 
     @property
     def flow_unique_upsert_columns(self):
