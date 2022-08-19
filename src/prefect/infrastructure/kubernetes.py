@@ -67,7 +67,7 @@ class KubernetesJob(Infrastructure):
     """
 
     type: Literal["kubernetes-job"] = Field(
-        "kubernetes-job", description="The type of infrastructure"
+        "kubernetes-job", description="The type of infrastructure."
     )
     # shortcuts for the most common user-serviceable settings
     image: str = Field(
@@ -75,13 +75,13 @@ class KubernetesJob(Infrastructure):
         description="The tag of a Docker image to use for the job. Defaults to the Prefect image.",
     )
     namespace: str = Field(
-        "default", description="The Kubernetes namespace to use for this job"
+        "default", description="The Kubernetes namespace to use for this job."
     )
     service_account_name: Optional[str] = Field(
-        None, description="The Kubernetes service account to use for this job"
+        None, description="The Kubernetes service account to use for this job."
     )
     image_pull_policy: Optional[KubernetesImagePullPolicy] = Field(
-        None, description="The Kubernetes image pull policy to use for job containers"
+        None, description="The Kubernetes image pull policy to use for job containers."
     )
 
     # connection to a cluster
@@ -90,24 +90,24 @@ class KubernetesJob(Infrastructure):
     # settings allowing full customization of the Job
     job: KubernetesManifest = Field(
         default_factory=lambda: KubernetesJob.base_job_manifest(),
-        description="The base manifest for the Kubernetes Job",
+        description="The base manifest for the Kubernetes Job.",
         title="Base Job Manifest",
     )
     customizations: JsonPatch = Field(
         default_factory=lambda: JsonPatch([]),
-        description="A list of JSON 6902 patches to apply to the base Job manifest",
+        description="A list of JSON 6902 patches to apply to the base Job manifest.",
     )
 
     # controls the behavior of execution
     job_watch_timeout_seconds: int = Field(
-        5, description="Number of seconds to watch for job creation before timing out"
+        5, description="Number of seconds to watch for job creation before timing out."
     )
     pod_watch_timeout_seconds: int = Field(
-        60, description="Number of seconds to watch for pod creation before timing out"
+        60, description="Number of seconds to watch for pod creation before timing out."
     )
     stream_output: bool = Field(
         True,
-        description="If set, output will be streamed from the job to local standard output",
+        description="If set, output will be streamed from the job to local standard output.",
     )
 
     # internal-use only right now

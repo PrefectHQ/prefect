@@ -25,3 +25,6 @@ class BlockStandardTestSuite(ABC):
             assert (
                 field.field_info.description
             ), f"{block.__name__} is missing a description on {name}"
+            assert field.field_info.description.endswith(
+                "."
+            ), f"{name} description on {block.__name__} does not end with a period"

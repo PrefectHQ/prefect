@@ -47,7 +47,7 @@ class SlackWebhook(NotificationBlock):
     url: SecretStr = Field(
         ...,
         title="Webhook URL",
-        description="Slack incoming webhook URL to send notifications to",
+        description="Slack incoming webhook URL used to send notifications.",
         example="https://hooks.slack.com/XXX",
     )
 

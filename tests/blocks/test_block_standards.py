@@ -7,7 +7,9 @@ from prefect.utilities.dispatch import get_registry_for_type
 block_registry = get_registry_for_type(Block) or {}
 
 
-@pytest.mark.parametrize("block", block_registry.values())
+@pytest.mark.parametrize(
+    "block", sorted(block_registry.values(), key=lambda x: x.get_block_type_slug())
+)
 class TestAllBlocksAdhereToStandards(BlockStandardTestSuite):
     @pytest.fixture
     def block(self, block):

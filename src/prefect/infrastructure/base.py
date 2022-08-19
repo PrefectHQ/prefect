@@ -24,14 +24,14 @@ class Infrastructure(Block, abc.ABC):
 
     env: Dict[str, str] = pydantic.Field(
         default_factory=dict,
-        description="Environment variables to set in the configured infrastructure",
+        description="Environment variables to set in the configured infrastructure.",
     )
     labels: Dict[str, str] = pydantic.Field(
         default_factory=dict,
-        description="Labels applied to the infrastructure for metadata purposes",
+        description="Labels applied to the infrastructure for metadata purposes.",
     )
     name: Optional[str] = pydantic.Field(
-        None, description="Display name for the configured infrastructure"
+        None, description="Display name for the configured infrastructure."
     )
     command: List[str] = pydantic.Field(
         ["python", "-m", "prefect.engine"],
