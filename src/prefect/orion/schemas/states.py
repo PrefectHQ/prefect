@@ -46,7 +46,7 @@ class StateDetails(PrefectBaseModel):
     scheduled_time: DateTimeTZ = None
     cache_key: str = None
     cache_expiration: DateTimeTZ = None
-    returns_untrackable_result: bool = False
+    untrackable_result: bool = False
 
 
 class State(IDBaseModel, Generic[R]):
