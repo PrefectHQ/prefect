@@ -255,7 +255,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         local_path: Optional[str] = None,
         to_path: Optional[str] = None,
         ignore_file: Optional[str] = None,
-        overwrite: bool = True,
+        overwrite: bool = False,
     ) -> int:
         """
         Uploads a directory from a given local path to a remote direcotry.
@@ -393,7 +393,10 @@ class S3(ReadableFileSystem, WritableFileSystem):
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
         return await self.filesystem.put_directory(
-            local_path=local_path, to_path=to_path, ignore_file=ignore_file
+            local_path=local_path,
+            to_path=to_path,
+            ignore_file=ignore_file,
+            overwrite=True,
         )
 
     async def read_path(self, path: str) -> bytes:
@@ -474,7 +477,10 @@ class GCS(ReadableFileSystem, WritableFileSystem):
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
         return await self.filesystem.put_directory(
-            local_path=local_path, to_path=to_path, ignore_file=ignore_file
+            local_path=local_path,
+            to_path=to_path,
+            ignore_file=ignore_file,
+            overwrite=True,
         )
 
     async def read_path(self, path: str) -> bytes:
@@ -568,7 +574,10 @@ class Azure(ReadableFileSystem, WritableFileSystem):
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
         return await self.filesystem.put_directory(
-            local_path=local_path, to_path=to_path, ignore_file=ignore_file
+            local_path=local_path,
+            to_path=to_path,
+            ignore_file=ignore_file,
+            overwrite=True,
         )
 
     async def read_path(self, path: str) -> bytes:
