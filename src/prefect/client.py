@@ -624,15 +624,21 @@ class OrionClient:
         parameters: Optional[dict] = None,
         name: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
-    ) -> None:
+        empirical_policy: Optional[schemas.core.FlowRunPolicy] = None,
+    ) -> httpx.Response:
         """
         Update a flow run's details.
 
         Args:
-            flow_run_id: the run ID to update
-            flow_version: a new version string for the flow run
-            parameters: a dictionary of updated parameter values for the run
-            name: a new name for the flow run
+            flow_run_id: The identifier for the flow run to update.
+            flow_version: A new version string for the flow run.
+            parameters: A dictionary of parameter values for the flow run. This will not
+                be merged with any existing parameters.
+            name: A new name for the flow run.
+            empirical_policy: A new flow run orchestration policy. This will not be
+                merged with any existing policy.
+            tags: An iterable of new tags for the flow run. These will not be merged with
+                any existing tags.
 
         Returns:
             an `httpx.Response` object from the PATCH request
@@ -646,6 +652,8 @@ class OrionClient:
             params["name"] = name
         if tags is not None:
             params["tags"] = tags
+        if empirical_policy is not None:
+            params["empirical_policy"] = empirical_policy
 
         flow_run_data = schemas.actions.FlowRunUpdate(**params)
 
