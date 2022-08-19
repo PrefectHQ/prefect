@@ -298,8 +298,12 @@ class DockerContainer(Infrastructure):
 
     def _get_image_and_tag(self) -> Tuple[str, Optional[str]]:
         parts = self.image.split(":")
-        image = parts.pop(0)
-        tag = parts[0] if parts else None
+        try:
+            image = ':'.join(parts[:2]) if '/' in parts[1] else parts[0]
+            tag = parts[2] if '/' in parts[1] else parts[1]
+        except IndexError:
+            image= self.image
+            tag = None
         return image, tag
 
     def _determine_image_pull_policy(self) -> ImagePullPolicy:
