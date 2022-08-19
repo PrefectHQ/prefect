@@ -11,6 +11,7 @@ import typer
 from rich.table import Table
 
 from prefect.blocks.core import Block, InvalidBlockRegistration
+from prefect.cli.orion_utils import check_orion_connection, ui_base_url
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
@@ -150,6 +151,9 @@ async def list_types():
     async with get_client() as client:
         block_types = await client.read_block_types()
 
+    connection_status = await check_orion_connection()
+    ui_url = ui_base_url(connection_status)
+
     table = Table(
         title="Block Types",
         show_lines=True,
@@ -166,7 +170,9 @@ async def list_types():
             str(blocktype.description.splitlines()[0].partition(".")[0])
             if blocktype.description is not None
             else "",
-            f"[link={PREFECT_API_URL.value()}/blocks/catalog/{blocktype.slug}/create]create[/link]",
+            f"[link={ui_url}/blocks/catalog/{blocktype.slug}/create]create[/link]"
+            if ui_url
+            else "",
         )
 
     app.console.print(table)

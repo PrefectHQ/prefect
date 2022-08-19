@@ -7,7 +7,6 @@ from typing import Optional
 
 import httpx
 import typer
-from fastapi import status
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
