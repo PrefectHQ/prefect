@@ -266,7 +266,7 @@ class DependencyResult(PrefectBaseModel):
     end_time: Optional[datetime.datetime]
     total_run_time: Optional[datetime.timedelta]
     estimated_run_time: Optional[datetime.timedelta]
-    returns_untrackable_result: bool
+    untrackable_result: bool
 
 
 async def read_task_run_dependencies(
@@ -296,7 +296,7 @@ async def read_task_run_dependencies(
         untrackable_result_status = (
             False
             if task_run.state is None
-            else task_run.state.state_details.returns_untrackable_result
+            else task_run.state.state_details.untrackable_result
         )
         dependency_graph.append(
             {
@@ -308,7 +308,7 @@ async def read_task_run_dependencies(
                 "end_time": task_run.end_time,
                 "total_run_time": task_run.total_run_time,
                 "estimated_run_time": task_run.estimated_run_time,
-                "returns_untrackable_result": untrackable_result_status,
+                "untrackable_result": untrackable_result_status,
             }
         )
 
