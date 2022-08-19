@@ -386,3 +386,15 @@ class TestReadBlockSchema:
         )
 
         assert block_schema_response.id == block_schema_1.id
+
+        # Read without version. Should return most recently created block schema.
+        response = await client.get(
+            f"/block_schemas/checksum/{block_schema_0.checksum}"
+        )
+        assert response.status_code == 200
+
+        block_schema_response = pydantic.parse_obj_as(
+            schemas.core.BlockSchema, response.json()
+        )
+
+        assert block_schema_response.id == block_schema_1.id
