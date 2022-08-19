@@ -172,7 +172,7 @@ jobs:
           path: /tmp/image-conda.tar
 
   publish-docs:
-    name: Open PR to docs-deploy branch
+    name: Publish documentation
     needs: [build-release, publish-test-release]
     environment: "prod"
     runs-on: ubuntu-latest
@@ -205,6 +205,7 @@ jobs:
             --title "Publish docs from release ${GITHUB_REF#refs/*/}" \
             --body '_automatically created with `gh` cli on merge to `main`_' \
             --base docs-deploy
+          gh pr merge --merge --delete-branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

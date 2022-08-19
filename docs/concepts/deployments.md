@@ -18,7 +18,7 @@ tags:
 
 A deployment is a server-side concept that encapsulates a flow, allowing it to be scheduled and triggered via API. The deployment stores metadata about where your flow's code is stored and how your flow should be run.
 
-Each deployment references a single "entrypoint" flow (though that flow may, in turn, call any number of tasks and subflows). Any single flow, however, may be referenced by any number of deployments. 
+Each deployment references a single "entrypoint" flow (though that flow may, in turn, call any number of tasks and subflows). Any single flow, however, may be referenced by any number of deployments.
 
 At a high level, you can think of a deployment as configuration for managing flows, whether you run them via the CLI, the UI, or the API.
 
@@ -27,9 +27,9 @@ At a high level, you can think of a deployment as configuration for managing flo
 
 ## Deployments overview
 
-All Prefect flow runs are tracked by the API. The API does not require prior registration of flows. With Prefect, you can call a flow locally or on a remote environment and it will be tracked. 
+All Prefect flow runs are tracked by the API. The API does not require prior registration of flows. With Prefect, you can call a flow locally or on a remote environment and it will be tracked.
 
-Creating a _deployment_ for a Prefect workflow means packaging workflow code, settings, and infrastructure configuration so that the workflow can be managed via the Prefect API and run remotely by a Prefect agent.  
+Creating a _deployment_ for a Prefect workflow means packaging workflow code, settings, and infrastructure configuration so that the workflow can be managed via the Prefect API and run remotely by a Prefect agent.
 
 The following diagram provides a high-level overview of the conceptual elements involved in defining a deployment and executing a flow run based on that deployment.
 
@@ -85,15 +85,15 @@ With remote storage blocks, you can package not only your flow code script but a
 To define how your flow execution environment should be configured, you may either reference pre-configured infrastructure blocks or let Prefect create those automatically for you as anonymous blocks (this happens when you specify the infrastructure type using `--infra` flag during the build process).
 
 !!! warning "Work queue affinity improved starting from Prefect 2.0.5"
-    Until Prefect 2.0.4, tags were used to associate flow runs with work queues. Starting in Prefect 2.0.5, tag-based work queues are deprecated. Instead, work queue names are used to explicitly direct flow runs from deployments into queues. 
+    Until Prefect 2.0.4, tags were used to associate flow runs with work queues. Starting in Prefect 2.0.5, tag-based work queues are deprecated. Instead, work queue names are used to explicitly direct flow runs from deployments into queues.
 
     Note that **backward compatibility is maintained** and work queues that use tag-based matching can still be created and will continue to work. However, those work queues are now considered legacy and we encourage you to use the new behavior by specifying work queues explicitly on agents and deployments.
 
 ## Deployments and flows
 
-Each deployment is associated with a single flow, but any given flow can be referenced by multiple deployments. 
+Each deployment is associated with a single flow, but any given flow can be referenced by multiple deployments.
 
-Deployments are uniquely identified by the combination of: `flow_name/deployment_name`. 
+Deployments are uniquely identified by the combination of: `flow_name/deployment_name`.
 
 ```mermaid
 graph LR
@@ -116,7 +116,7 @@ This enables you to run a single flow with different parameters, on multiple sch
 
 A _deployment definition_ captures the settings for creating a [deployment object](#deployment-api-representation) on the Prefect API. You can create the deployment definition by:
 
-- Run the [`prefect deployment build` CLI command](#create-a-deployment) with deployment options to create a [`deployment.yaml`](#deploymentyaml) deployment definition file, then run `prefect deployment apply` to create a deployment on the API using the settings in `deployment.yaml`. 
+- Run the [`prefect deployment build` CLI command](#create-a-deployment) with deployment options to create a [`deployment.yaml`](#deploymentyaml) deployment definition file, then run `prefect deployment apply` to create a deployment on the API using the settings in `deployment.yaml`.
 - Define a [`Deployment`](/api-ref/prefect/deployments/) Python object, specifying the deployment options as properties of the object, then building and applying the object using methods of `Deployment`.
 
 The minimum required information to create a deployment includes:
@@ -177,9 +177,61 @@ parameter_openapi_schema:
 ```
 
 !!! note "Editing deployment.yaml"
-    Note the big **DO NOT EDIT** comment in your deployment's YAML: In practice, anything above this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API. 
-    
+    Note the big **DO NOT EDIT** comment in your deployment's YAML: In practice, anything above this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API.
+
     We recommend editing most of these fields from the CLI or Prefect UI for convenience.
+
+### Deployment Python object
+
+You can also create deployments from Python scripts by using the [`prefect.deployments.Deployment`][prefect.deployments.Deployment] class.
+
+Create a new deployment using configuration defaults for an imported flow:
+
+```python
+from my_project.flows import my_flow
+from prefect.deployments import Deployment
+
+deployment = Deployment.build_from_flow(
+    flow=my_flow,
+    name="exampl-deployment", 
+    version=1, 
+    tags=["demo"]
+)
+deployment.apply()
+```
+
+Create a new deployment with a pre-defined [storage block](/concepts/storage/) and an [infrastructure](/concepts/infrastructure/) override:
+
+```python
+from my_project.flows import my_flow
+from prefect.deployments import Deployment
+from prefect.filesystems import S3
+
+storage = S3.load("dev-bucket") # load a pre-defined block
+
+deployment = Deployment.build_from_flow(
+    flow=my_flow,
+    name="s3-example",
+    version=2,
+    tags=["aws"],
+    storage=storage,
+    infra_overrides=["env.SOME_IMPORTANT_CONFIG=true"],
+)
+
+deployment.apply()
+```
+
+If you have settings that you want to share from an existing deployment you can load those settings:
+
+```python
+deployment = Deployment(
+    name="a-name-you-used", 
+    flow_name="name-of-flow"
+)
+deployment.load() # loads server-side settings
+```
+
+Once the existing deployment settings are loaded, you may update them as needed by changing deployment properties.
 
 ## Create a deployment
 
@@ -208,17 +260,17 @@ $ prefect deployment build flows/marvin.py:say_hi -n marvin -t test
 ```
 </div>
 
-When you run this command, Prefect: 
+When you run this command, Prefect:
 
 - Creates a `marvin_flow-deployment.yaml` file for your deployment based on your flow code and options.
 - Uploads your flow files to the configured storage location (local by default).
 
 !!! tip "Ignore files or directories from a deployment"
-    By default, Prefect uploads _all files_ in the current folder to the configured storage location (local by default) when you build a deployment. 
+    By default, Prefect uploads _all files_ in the current folder to the configured storage location (local by default) when you build a deployment.
 
-    If you want to omit certain files or directories from your deployments, add a `.prefectignore` file to the root directory. `.prefectignore` enables users to omit certain files or directories from their deployments. 
+    If you want to omit certain files or directories from your deployments, add a `.prefectignore` file to the root directory. `.prefectignore` enables users to omit certain files or directories from their deployments.
 
-    Similar to other `.ignore` files, the syntax supports pattern matching, so an entry of `*.pyc` will ensure all `.pyc` files are ignored by the deployment call when uploading to remote storage. 
+    Similar to other `.ignore` files, the syntax supports pattern matching, so an entry of `*.pyc` will ensure all `.pyc` files are ignored by the deployment call when uploading to remote storage.
 
 ### Deployment build options
 
@@ -299,12 +351,12 @@ When you run a deployed flow with Prefect Orion, the following happens:
 - An agent picks up the flow run from a work queue and uses an infrastructure block to create infrastructure for the run.
 - The flow run executes within the infrastructure.
 
-[Agents and work queues](/concepts/work-queues/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. To execute deployed flow runs you need to configure at least one agent. 
+[Agents and work queues](/concepts/work-queues/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. To execute deployed flow runs you need to configure at least one agent.
 
 !!! note "Scheduled flow runs"
-    Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect Orion API server started with `prefect orion start`. 
-    
-    Scheduled flow runs will not run unless an appropriate [agent and work queue](/concepts/work-queues/) are configured.  
+    Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect Orion API server started with `prefect orion start`.
+
+    Scheduled flow runs will not run unless an appropriate [agent and work queue](/concepts/work-queues/) are configured.
 
 ## Deployment API representation
 
@@ -331,7 +383,7 @@ Deployment properties include:
 
 You can inspect a deployment using the CLI with the `prefect deployment inspect` command, referencing the deployment with `<flow_name>/<deployment_name>`.
 
-```bash 
+```bash
 $ prefect deployment inspect 'Cat Facts/catfact'
 {
     'id': '76a9f1ac-4d8c-4a92-8869-615bec502685',
@@ -386,7 +438,7 @@ The `prefect deployment` CLI command provides commands for managing and running 
 | `run`     | Create a flow run for the given flow and deployment. |
 
 !!! tip "`PREFECT_API_URL` setting for agents"
-    You'll need to configure [agents and work queues](/concepts/work-queues/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running. 
+    You'll need to configure [agents and work queues](/concepts/work-queues/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running.
 
     If you want the agent to communicate with Prefect Cloud from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 

@@ -251,6 +251,13 @@ class TestInfrastructureIntegration:
 
         yield mock
 
+    @pytest.fixture
+    def mock_propose_state(self, monkeypatch):
+        mock = AsyncMock()
+        monkeypatch.setattr("prefect.agent.propose_state", mock)
+
+        yield mock
+
     async def test_agent_submits_using_the_retrieved_infrastructure(
         self, orion_client, deployment, mock_submit
     ):
@@ -288,44 +295,33 @@ class TestInfrastructureIntegration:
         mock_submit.assert_awaited_once()
 
     async def test_agent_submit_run_waits_for_scheduled_time_before_submitting(
-        self, orion_client, deployment, monkeypatch, mock_submit
+        self, orion_client, deployment, monkeypatch, mock_submit, mock_anyio_sleep
     ):
-        # TODO: We should abstract this now/sleep pattern into fixtures for resuse
-        #       as there are a few other locations we want to test sleeps without
-        #       actually sleeping
-        now = pendulum.now("utc")
-
-        def get_now(*args):
-            return now
-
-        def move_forward_in_time(seconds):
-            nonlocal now
-            now = now.add(seconds=seconds)
-
-        sleep = AsyncMock(side_effect=move_forward_in_time)
-        monkeypatch.setattr("pendulum.now", get_now)
-        monkeypatch.setattr("prefect.client.sleep", sleep)
-
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
-            state=Scheduled(scheduled_time=now.add(seconds=10)),
+            state=Scheduled(scheduled_time=pendulum.now("utc").add(seconds=10)),
         )
 
         async with OrionAgent(
             work_queues=[deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             agent.submitting_flow_run_ids.add(flow_run.id)
-            await agent.submit_run(flow_run)
+            with mock_anyio_sleep.assert_sleeps_for(10):
+                await agent.submit_run(flow_run)
 
-        sleep.assert_awaited_once_with(10)
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        assert state.timestamp >= flow_run.state.state_details.scheduled_time
+        # Note that we include a 1 second buffer to account for rounding in the WAIT
+        # instruction
+        assert (
+            state.timestamp.add(seconds=1)
+            >= flow_run.state.state_details.scheduled_time
+        ), "Pending state time should be after the scheduled time"
         assert state.is_pending()
         mock_submit.assert_awaited_once()
 
     @pytest.mark.parametrize("return_state", [Scheduled(), Running()])
     async def test_agent_submit_run_aborts_if_server_returns_non_pending_state(
-        self, orion_client, deployment, return_state, mock_submit
+        self, orion_client, deployment, return_state, mock_submit, mock_propose_state
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
@@ -338,7 +334,7 @@ class TestInfrastructureIntegration:
             agent.submitting_flow_run_ids.add(flow_run.id)
             agent.logger = MagicMock()
 
-            agent.client.propose_state = AsyncMock(return_value=return_state)
+            mock_propose_state.return_value = return_state
             await agent.submit_run(flow_run)
 
         mock_submit.assert_not_called()
@@ -374,7 +370,7 @@ class TestInfrastructureIntegration:
         )
 
     async def test_agent_submit_run_aborts_without_raising_if_server_raises_abort(
-        self, orion_client, deployment, mock_submit
+        self, orion_client, deployment, mock_submit, mock_propose_state
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
@@ -386,7 +382,7 @@ class TestInfrastructureIntegration:
         ) as agent:
             agent.submitting_flow_run_ids.add(flow_run.id)
             agent.logger = MagicMock()
-            agent.client.propose_state = AsyncMock(side_effect=Abort("message"))
+            mock_propose_state.side_effect = Abort("message")
 
             await agent.submit_run(flow_run)
 
@@ -418,8 +414,8 @@ class TestInfrastructureIntegration:
             await agent.get_and_submit_flow_runs()
 
         mock_submit.assert_awaited_once_with(flow_run, infrastructure, task_status=ANY)
-        agent.logger.error.assert_called_once_with(
-            f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
+        agent.logger.exception.assert_called_once_with(
+            f"Failed to submit flow run '{flow_run.id}' to infrastructure."
         )
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
@@ -447,8 +443,8 @@ class TestInfrastructureIntegration:
             agent.logger = MagicMock()
             await agent.get_and_submit_flow_runs()
 
-        agent.logger.error.assert_called_once_with(
-            f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
+        agent.logger.exception.assert_called_once_with(
+            f"Failed to submit flow run '{flow_run.id}' to infrastructure."
         )
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
