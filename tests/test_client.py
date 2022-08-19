@@ -908,12 +908,20 @@ async def test_update_flow_run(orion_client):
         parameters={"foo": "bar"},
         name="test",
         tags=["hello", "world"],
+        empirical_policy=schemas.core.FlowRunPolicy(
+            max_retries=1,
+            retry_delay_seconds=2,
+        ),
     )
     updated_flow_run = await orion_client.read_flow_run(flow_run.id)
     assert updated_flow_run.flow_version == "foo"
     assert updated_flow_run.parameters == {"foo": "bar"}
     assert updated_flow_run.name == "test"
     assert updated_flow_run.tags == ["hello", "world"]
+    assert updated_flow_run.empirical_policy == schemas.core.FlowRunPolicy(
+        max_retries=1,
+        retry_delay_seconds=2,
+    )
 
 
 async def test_update_flow_run_overrides_tags(orion_client):
