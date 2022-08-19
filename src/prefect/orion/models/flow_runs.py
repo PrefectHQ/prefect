@@ -126,12 +126,6 @@ async def update_flow_run(
     Returns:
         bool: whether or not matching rows were found to update
     """
-
-    if not isinstance(flow_run, schemas.actions.FlowRunUpdate):
-        raise ValueError(
-            f"Expected parameter flow_run to have type schemas.actions.FlowRunUpdate, got {type(flow_run)!r} instead"
-        )
-
     update_stmt = (
         sa.update(db.FlowRun).where(db.FlowRun.id == flow_run_id)
         # exclude_unset=True allows us to only update values provided by

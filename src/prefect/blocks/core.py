@@ -5,15 +5,25 @@ import sys
 import warnings
 from abc import ABC
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Dict, FrozenSet, List, Optional, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    FrozenSet,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 from uuid import UUID, uuid4
 
-from griffe.dataclasses import Docstring, DocstringSection
-from griffe.docstrings.dataclasses import DocstringSectionKind
+from griffe.dataclasses import Docstring
+from griffe.docstrings.dataclasses import DocstringSection, DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
 from slugify import slugify
-from typing_extensions import Self, get_args, get_origin
+from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
 from prefect.orion.schemas.core import (
@@ -29,6 +39,9 @@ from prefect.utilities.hashing import hash_objects
 
 if TYPE_CHECKING:
     from prefect.client import OrionClient
+
+R = TypeVar("R")
+P = ParamSpec("P")
 
 
 def block_schema_to_key(schema: BlockSchema) -> str:
@@ -257,9 +270,7 @@ class Block(BaseModel, ABC):
         block_schema_fields = (
             cls.schema() if block_schema_fields is None else block_schema_fields
         )
-        fields_for_checksum = remove_nested_keys(
-            ["description", "secret_fields"], block_schema_fields
-        )
+        fields_for_checksum = remove_nested_keys(["secret_fields"], block_schema_fields)
         if fields_for_checksum.get("definitions"):
             non_block_definitions = _get_non_block_reference_definitions(
                 fields_for_checksum, fields_for_checksum["definitions"]

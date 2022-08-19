@@ -280,37 +280,6 @@ class TestAPICompatibility:
             "secret_fields": [],
         }
 
-    @pytest.fixture
-    def OriginalBlock(self):
-        class Original(Block):
-            "This is the original block"
-            x: str = Field(..., description="This is x field")
-            y: str
-            z: str
-
-        return Original
-
-    @pytest.fixture
-    def CloneBlock(self):
-        # Ignore warning of duplicate registration
-        warnings.filterwarnings("ignore", category=UserWarning)
-
-        class Original(Block):
-            "This is the clone block"
-            x: str
-            y: str
-            z: str
-
-        return Original
-
-    def test_block_classes_with_same_fields_but_different_comments_same_checksum(
-        self, OriginalBlock, CloneBlock
-    ):
-        assert (
-            OriginalBlock._calculate_schema_checksum()
-            == CloneBlock._calculate_schema_checksum()
-        )
-
     def test_create_api_block_with_arguments(self, block_type_x):
         with pytest.raises(ValueError, match="(No name provided)"):
             self.MyRegisteredBlock(x="x")._to_block_document()

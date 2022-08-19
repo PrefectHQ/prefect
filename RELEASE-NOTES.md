@@ -1,6 +1,16 @@
 # Prefect Release Notes
 
-## 2.0.5
+## 2.1.1
+
+### Fixes
+
+* Fixed log on abort when the flow run context is not available in https://github.com/PrefectHQ/prefect/pull/6402
+* Fixed error message in `submit_run` in https://github.com/PrefectHQ/prefect/pull/6453
+* Fixed error if default parameters are missing on a deployment flow run in https://github.com/PrefectHQ/prefect/pull/6465
+* Added error message if `get_run_logger` receives context of unknown type in https://github.com/PrefectHQ/prefect/pull/6401
+
+
+## 2.1.0
 
 ### Build Deployments in Python
 The new, YAML-based deployment definition provides a simple, extensible foundation for our new deployment creation experience. Now, by popular demand, we're extending that experience to enable you to define deployments and build them from within Python. You can do so by defining a `Deployment` Python object, specifying the deployment options as properties of the object, then building and applying the object using methods of `Deployment`. See the [documentation](https://docs.prefect.io/concepts/deployments/) to learn more.
@@ -23,13 +33,16 @@ Agents and work queues give you control over where and how flow runs are execute
 * Added `max_depth` to `visit_collection`, allowing recursion to be limited in https://github.com/PrefectHQ/prefect/pull/6367
 * Added CLI commands for inspecting and deleting Blocks and Block Types in https://github.com/PrefectHQ/prefect/pull/6422
 * Added a Server Message Block (SMB) file system block in https://github.com/PrefectHQ/prefect/pull/6344 - Special thanks to @darrida for this contribution!
+* Removed explicit type validation from some API routes in https://github.com/PrefectHQ/prefect/pull/6448
+* Improved robustness of streaming output from subprocesses in https://github.com/PrefectHQ/prefect/pull/6445
+* Added a default work queue ("default") when creating new deployments from the Python client or CLI in https://github.com/PrefectHQ/prefect/pull/6458
 
 ### New Collections
 - [prefect-monday](https://prefecthq.github.io/prefect-monday/)
 - [prefect-databricks](https://prefecthq.github.io/prefect-databricks/)
 - [prefect-fugue](https://github.com/fugue-project/prefect-fugue/)
 
-**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/2.0.4...2.0.5
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/2.0.4...2.1.0
 
 ## 2.0.4
 
