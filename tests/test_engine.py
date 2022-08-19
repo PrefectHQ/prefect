@@ -84,29 +84,6 @@ def flow_run_caplog(caplog):
 
 
 @pytest.fixture
-def mock_client_sleep(monkeypatch):
-    """
-    Mock sleep used by the orion_client to not actually sleep but to set the
-    current time to now + sleep delay seconds.
-    """
-    original_now = pendulum.now
-    time_shift = 0
-
-    async def callback(delay_in_seconds):
-        nonlocal time_shift
-        time_shift += delay_in_seconds
-
-    monkeypatch.setattr(
-        "pendulum.now", lambda *args: original_now(*args).add(seconds=time_shift)
-    )
-
-    sleep = AsyncMock(side_effect=callback)
-    monkeypatch.setattr("prefect.client.sleep", sleep)
-
-    return sleep
-
-
-@pytest.fixture
 async def flow_run_context(orion_client, local_filesystem):
     @flow
     def foo():
@@ -131,7 +108,7 @@ class TestOrchestrateTaskRun:
         self,
         orion_client,
         flow_run,
-        mock_client_sleep,
+        mock_anyio_sleep,
         local_filesystem,
         monkeypatch,
     ):
@@ -151,22 +128,22 @@ class TestOrchestrateTaskRun:
             ),
         )
 
-        state = await orchestrate_task_run(
-            task=foo,
-            task_run=task_run,
-            parameters={},
-            wait_for=None,
-            result_filesystem=local_filesystem,
-            interruptible=False,
-            client=orion_client,
-        )
+        with mock_anyio_sleep.assert_sleeps_for(5 * 60):
+            state = await orchestrate_task_run(
+                task=foo,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_filesystem=local_filesystem,
+                interruptible=False,
+                client=orion_client,
+            )
 
-        mock_client_sleep.assert_awaited_once()
         assert state.is_completed()
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
-        self, orion_client, flow_run, mock_client_sleep, local_filesystem
+        self, orion_client, flow_run, mock_anyio_sleep, local_filesystem
     ):
         @task
         def foo():
@@ -194,12 +171,12 @@ class TestOrchestrateTaskRun:
             client=orion_client,
         )
 
-        mock_client_sleep.assert_not_called()
+        mock_anyio_sleep.assert_not_called()
         assert state.is_completed()
         assert state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
-        self, mock_client_sleep, orion_client, flow_run, local_filesystem
+        self, mock_anyio_sleep, orion_client, flow_run, local_filesystem
     ):
         # Define a task that fails once and then succeeds
         mock = MagicMock()
@@ -222,24 +199,19 @@ class TestOrchestrateTaskRun:
         )
 
         # Actually run the task
-        state = await orchestrate_task_run(
-            task=flaky_function,
-            task_run=task_run,
-            parameters={},
-            wait_for=None,
-            result_filesystem=local_filesystem,
-            interruptible=False,
-            client=orion_client,
-        )
+        with mock_anyio_sleep.assert_sleeps_for(43):
+            state = await orchestrate_task_run(
+                task=flaky_function,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_filesystem=local_filesystem,
+                interruptible=False,
+                client=orion_client,
+            )
 
         # Check for a proper final result
         assert state.result() == 1
-
-        # Assert that the sleep was called
-        # due to network time and rounding, the expected sleep time will be less than
-        # 43 seconds so we test a window
-        mock_client_sleep.assert_awaited_once()
-        assert 40 < mock_client_sleep.call_args[0][0] < 43
 
         # Check expected state transitions
         states = await orion_client.read_task_run_states(task_run.id)
@@ -432,7 +404,7 @@ class TestOrchestrateFlowRun:
         )
 
     async def test_waits_until_scheduled_start_time(
-        self, orion_client, mock_client_sleep, partial_flow_run_context
+        self, orion_client, mock_anyio_sleep, partial_flow_run_context
     ):
         @flow
         def foo():
@@ -447,21 +419,20 @@ class TestOrchestrateFlowRun:
                 ),
             ),
         )
+        with mock_anyio_sleep.assert_sleeps_for(5 * 60):
+            state = await orchestrate_flow_run(
+                flow=foo,
+                flow_run=flow_run,
+                parameters={},
+                client=orion_client,
+                interruptible=False,
+                partial_flow_run_context=partial_flow_run_context,
+            )
 
-        state = await orchestrate_flow_run(
-            flow=foo,
-            flow_run=flow_run,
-            parameters={},
-            client=orion_client,
-            interruptible=False,
-            partial_flow_run_context=partial_flow_run_context,
-        )
-
-        mock_client_sleep.assert_awaited_once()
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
-        self, orion_client, mock_client_sleep, partial_flow_run_context
+        self, orion_client, mock_anyio_sleep, partial_flow_run_context
     ):
         @flow
         def foo():
@@ -487,11 +458,11 @@ class TestOrchestrateFlowRun:
                 partial_flow_run_context=partial_flow_run_context,
             )
 
-        mock_client_sleep.assert_not_called()
+        mock_anyio_sleep.assert_not_called()
         assert state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
-        self, orion_client, mock_client_sleep, partial_flow_run_context
+        self, orion_client, mock_anyio_sleep, partial_flow_run_context
     ):
         flow_run_count = 0
 
@@ -509,23 +480,18 @@ class TestOrchestrateFlowRun:
             flow=flaky_function, state=Pending()
         )
 
-        state = await orchestrate_flow_run(
-            flow=flaky_function,
-            flow_run=flow_run,
-            parameters={},
-            client=orion_client,
-            interruptible=False,
-            partial_flow_run_context=partial_flow_run_context,
-        )
+        with mock_anyio_sleep.assert_sleeps_for(43):
+            state = await orchestrate_flow_run(
+                flow=flaky_function,
+                flow_run=flow_run,
+                parameters={},
+                client=orion_client,
+                interruptible=False,
+                partial_flow_run_context=partial_flow_run_context,
+            )
 
         # Check for a proper final result
         assert state.result() == 1
-
-        # Assert that the sleep was called
-        # due to network time and rounding, the expected sleep time will be less than
-        # 43 seconds so we test a window
-        mock_client_sleep.assert_awaited_once()
-        assert 40 < mock_client_sleep.call_args[0][0] < 43
 
         # Check expected state transitions
         states = await orion_client.read_flow_run_states(flow_run.id)
@@ -661,7 +627,7 @@ class TestFlowRunCrashes:
         self, flow_run, orion_client, monkeypatch, interrupt_type
     ):
         monkeypatch.setattr(
-            "prefect.client.OrionClient.propose_state",
+            "prefect.engine.propose_state",
             MagicMock(side_effect=interrupt_type()),
         )
 
@@ -1122,6 +1088,25 @@ class TestCreateThenBeginFlowRun:
             == "Validation of flow parameters failed with error: SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
         )
         assert type(state.data.decode()) == SignatureMismatchError
+
+    async def test_does_not_raise_signature_mismatch_on_missing_default_args(
+        self, orion_client
+    ):
+        @flow
+        def flow_use_and_return_defaults(foo: str = "bar", bar: int = 1):
+            """Flow for testing functions"""
+            assert foo == "bar"
+            assert bar == 1
+            return foo, bar
+
+        state = await create_then_begin_flow_run(
+            flow=flow_use_and_return_defaults,
+            parameters={},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.COMPLETED
+        assert state.data.decode() == ("bar", 1)
 
     async def test_handles_other_errors(
         self, orion_client, parameterized_flow, monkeypatch

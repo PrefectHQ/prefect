@@ -82,9 +82,9 @@ class TestPrefectHttpxClient:
         # 5 retries + 1 first attempt
         assert base_client_send.call_count == 6
 
-    async def test_prefect_httpx_client_respects_retry_header(self, monkeypatch):
-        sleep = AsyncMock()
-        monkeypatch.setattr("prefect.client.sleep", sleep)
+    async def test_prefect_httpx_client_respects_retry_header(
+        self, monkeypatch, mock_anyio_sleep
+    ):
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
@@ -105,17 +105,15 @@ class TestPrefectHttpxClient:
             success_response,
         ]
 
-        response = await client.post(
-            url="fake.url/fake/route", data={"evenmorefake": "data"}
-        )
+        with mock_anyio_sleep.assert_sleeps_for(5):
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
         assert response.status_code == status.HTTP_200_OK
-        sleep.assert_awaited_once_with(5)
 
     async def test_prefect_httpx_client_falls_back_to_exponential_backoff(
-        self, monkeypatch
+        self, mock_anyio_sleep, monkeypatch
     ):
-        sleep = AsyncMock()
-        monkeypatch.setattr("prefect.client.sleep", sleep)
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
@@ -137,17 +135,16 @@ class TestPrefectHttpxClient:
             success_response,
         ]
 
-        response = await client.post(
-            url="fake.url/fake/route", data={"evenmorefake": "data"}
-        )
+        with mock_anyio_sleep.assert_sleeps_for(2 + 4 + 8):
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
         assert response.status_code == status.HTTP_200_OK
-        sleep.assert_has_awaits([call(2), call(4), call(8)])
+        mock_anyio_sleep.assert_has_awaits([call(2), call(4), call(8)])
 
     async def test_prefect_httpx_client_respects_retry_header_per_response(
-        self, monkeypatch
+        self, mock_anyio_sleep, monkeypatch
     ):
-        sleep = AsyncMock()
-        monkeypatch.setattr("prefect.client.sleep", sleep)
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
@@ -173,11 +170,12 @@ class TestPrefectHttpxClient:
             success_response,
         ]
 
-        response = await client.post(
-            url="fake.url/fake/route", data={"evenmorefake": "data"}
-        )
+        with mock_anyio_sleep.assert_sleeps_for(5 + 10 + 2):
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
         assert response.status_code == status.HTTP_200_OK
-        sleep.assert_has_awaits([call(5), call(0), call(10), call(2.0)])
+        mock_anyio_sleep.assert_has_awaits([call(5), call(0), call(10), call(2.0)])
 
 
 class TestGetClient:

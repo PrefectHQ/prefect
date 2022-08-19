@@ -909,6 +909,11 @@ def test_run_logger_fails_outside_context():
         get_run_logger()
 
 
+async def test_run_logger_with_explicit_context_of_invalid_type():
+    with pytest.raises(TypeError, match="Received unexpected type 'str' for context."):
+        get_run_logger("my man!")
+
+
 async def test_run_logger_with_explicit_context(
     orion_client, flow_run, local_filesystem
 ):

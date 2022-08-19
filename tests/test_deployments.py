@@ -15,6 +15,10 @@ class TestDeploymentBasicInterface:
         d = Deployment(name="foo")
         assert isinstance(d.infrastructure, Process)
 
+    async def test_default_work_queue_name(self):
+        d = Deployment(name="foo")
+        assert d.work_queue_name == "default"
+
 
 class TestDeploymentLoad:
     async def test_deployment_load_hydrates_with_server_settings(
@@ -177,4 +181,4 @@ class TestYAML:
         comment_index = contents.index(
             "# The work queue that will handle this deployment's runs\n"
         )
-        assert contents[comment_index + 1] == "work_queue_name: null\n"
+        assert contents[comment_index + 1] == "work_queue_name: default\n"

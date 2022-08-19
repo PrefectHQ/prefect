@@ -131,11 +131,6 @@ async def update_work_queue(
     Returns:
         bool: whether or not the WorkQueue was updated
     """
-    if not isinstance(work_queue, schemas.actions.WorkQueueUpdate):
-        raise ValueError(
-            f"Expected parameter flow to have type schemas.actions.WorkQueueUpdate, got {type(work_queue)!r} instead"
-        )
-
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
     update_data = work_queue.dict(shallow=True, exclude_unset=True)
