@@ -16,6 +16,7 @@ import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.cloud import CloudUnauthorizedError, get_cloud_client
+from prefect.cli.orion_utils import ConnectionStatus, check_orion_connection
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.context import use_profile
@@ -99,99 +100,42 @@ def create(
     )
 
 
-async def check_orion_connection(profile_name):
-    with use_profile(profile_name, include_current_context=False):
-        httpx_settings = dict(timeout=3)
-        try:
-            # attempt to infer Cloud 2.0 API from the connection URL
-            cloud_client = get_cloud_client(
-                httpx_settings=httpx_settings, infer_cloud_url=True
-            )
-            res = await cloud_client.api_healthcheck()
-            exit_method, msg = (
-                exit_with_success,
-                f"Connected to Prefect Cloud using profile {profile_name!r}",
-            )
-        except CloudUnauthorizedError:
-            # if the Cloud 2.0 API exists and fails to authenticate, notify the user
-            exit_method, msg = (
-                exit_with_error,
-                f"Error authenticating with Prefect Cloud using profile {profile_name!r}",
-            )
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-                # if the route does not exist, attmpt to connect as a hosted Orion instance
-                try:
-                    # inform the user if Prefect Orion endpoints exist, but there are
-                    # connection issues
-                    client = get_client(httpx_settings=httpx_settings)
-                    connect_error = await client.api_healthcheck()
-                    if connect_error is not None:
-                        exit_method, msg = (
-                            exit_with_error,
-                            f"Error connecting to Prefect Orion using profile {profile_name!r}",
-                        )
-                    elif await client.using_ephemeral_app():
-                        # if the client is using an ephemeral Orion app, inform the user
-                        exit_method, msg = (
-                            exit_with_success,
-                            f"No Prefect Orion instance specified using profile {profile_name!r}. "
-                            f"Flow run metadata will be stored at the locally configured database: {prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
-                        )
-                    else:
-                        exit_method, msg = (
-                            exit_with_success,
-                            f"Connected to Prefect Orion using profile {profile_name!r}",
-                        )
-                except Exception as exc:
-                    exit_method, msg = (
-                        exit_with_error,
-                        f"Error connecting to Prefect Orion using profile {profile_name!r}",
-                    )
-            else:
-                exit_method, msg = (
-                    exit_with_error,
-                    f"Error connecting to Prefect Cloud: {exc!r}",
-                )
-        except TypeError:
-            # if no Prefect Orion API URL has been set, httpx will throw a TypeError
-            try:
-                # try to connect with the client anyway, it will likely use an
-                # ephemeral Orion instance
-                client = get_client(httpx_settings=httpx_settings)
-                connect_error = await client.api_healthcheck()
-                if connect_error is not None:
-                    exit_method, msg = (
-                        exit_with_error,
-                        f"Error connecting to Prefect Orion using profile {profile_name!r}",
-                    )
-                elif await client.using_ephemeral_app():
-                    exit_method, msg = (
-                        exit_with_success,
-                        f"No Prefect Orion instance specified using profile {profile_name!r}. "
-                        f"Flow run metadata will be stored at the locally configured database: {prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
-                    )
-                else:
-                    exit_method, msg = (
-                        exit_with_success,
-                        f"Connected to Prefect Orion using profile {profile_name!r}",
-                    )
-            except Exception as exc:
-                exit_method, msg = (
-                    exit_with_error,
-                    f"Error connecting to Prefect Orion using profile {profile_name!r}",
-                )
-        except (httpx.ConnectError, httpx.UnsupportedProtocol) as exc:
-            exit_method, msg = exit_with_error, "Invalid Prefect API URL"
-
-    return exit_method, msg
-
-
 @profile_app.command()
 async def use(name: str):
     """
     Set the given profile to active.
     """
+    status_messages = {
+        ConnectionStatus.CLOUD_CONNECTED: (
+            exit_with_success,
+            f"Connected to Prefect Cloud using profile {name!r}",
+        ),
+        ConnectionStatus.CLOUD_ERROR: (
+            exit_with_error,
+            f"Error authenticating with Prefect Cloud using profile {name!r}",
+        ),
+        ConnectionStatus.CLOUD_UNAUTHORIZED: (
+            exit_with_error,
+            f"Error authenticating with Prefect Cloud using profile {name!r}",
+        ),
+        ConnectionStatus.ORION_CONNECTED: (
+            exit_with_success,
+            f"Connected to Prefect Orion using profile {name!r}",
+        ),
+        ConnectionStatus.ORION_ERROR: (
+            exit_with_error,
+            f"Error connecting to Prefect Orion using profile {name!r}",
+        ),
+        ConnectionStatus.EPHEMERAL: (
+            exit_with_success,
+            f"No Prefect Orion instance specified using profile {name!r}. Flow run metadata will be stored at the locally configured database: {prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
+        ),
+        ConnectionStatus.INVALID_API: (
+            exit_with_error,
+            f"Error connecting to Prefect Cloud",
+        ),
+    }
+
     profiles = prefect.settings.load_profiles()
     if name not in profiles.names:
         exit_with_error(f"Profile {name!r} not found.")
@@ -209,7 +153,11 @@ async def use(name: str):
             description="Connecting...",
             total=None,
         )
-        exit_method, msg = await check_orion_connection(name)
+
+        with use_profile(name, include_current_context=False):
+            connection_status = await check_orion_connection()
+
+        exit_method, msg = status_messages[connection_status]
 
     exit_method(msg)
 
