@@ -1418,4 +1418,4 @@ class TestLinkStateToResult:
 
         with flow_run_context:
             link_state_to_result(state=state, result=test_input)
-            assert state.state_details.returns_untrackable_result == expected_status
+            assert state.state_details.untrackable_result == expected_status

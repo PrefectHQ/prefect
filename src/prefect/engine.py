@@ -1421,11 +1421,15 @@ def link_state_to_result(state: State, result: Any) -> None:
 
         We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
         because they are singletons.
+
+        This function will mutate the State if the object is an untrackable type by setting the value
+        for `State.state_details.untrackable_result` to `True`.
+
         """
         if (type(obj) in UNTRACKABLE_TYPES) or (
             isinstance(obj, int) and (-5 <= obj <= 256)
         ):
-            state.state_details.returns_untrackable_result = True
+            state.state_details.untrackable_result = True
             return
         flow_run_context.task_run_results[id(obj)] = state
 
