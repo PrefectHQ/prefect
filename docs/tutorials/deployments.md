@@ -30,119 +30,152 @@ That's it. To create flow runs based on the deployment, you need a few more piec
 
 These all come with Prefect. You just have to configure them and set them to work. You'll see how to configure each component during this tutorial.
 
-Optionally, you can configure [storage](/concepts/storage/) for packaging and saving your flow code, dependencies and requirements, parameters, and infrastructure. All of these will be covered in more advanced tutorials.
+Optionally, you can configure [storage](/concepts/storage/) for packaging and saving your flow code and dependencies. 
+
+## Setting up
+
+First, create a new folder that will contain all of the files and dependencies needed by your flow deployment. This is a best practice for developing and deploying flows.
+
+<div class="terminal">
+```bash
+$ mkdir prefect-tutorial
+$ cd prefect-tutorial
+```
+</div>
+
+You may organize your flow scripts and dependencies in any way that suits for team's needs and standards. For this tutorial, we'll keep files within this directory.
 
 ## From flow to deployment
 
 As noted earlier, the first ingredient of a deployment is a flow script. You've seen a few of these already, and perhaps have written a few if you've been following the tutorials. 
 
-Let's start with a simple example:
+Let's start with a simple example. This flow contains a single flow function `log_flow()`, and a single task `log_task` that logs messages based on a parameter input and your installed Prefect version:
 
 ```python
+import prefect
 from prefect import flow, task, get_run_logger
 
 @task
-def log_message(name):
+def log_task(name):
     logger = get_run_logger()
     logger.info(f"Hello {name}!")
-    return
+    logger.info("Prefect Version = %s 🚀", prefect.__version__)
 
-@flow(name="leonardo_dicapriflow")
-def leonardo_dicapriflow(name: str):
-    log_message(name)
-    return
+@flow()
+def log_flow(name: str):
+    log_task(name)
 
-leonardo_dicapriflow("Leo")
+log_flow("Marvin")
 ```
 
-Save this in a file `leo_flow.py` and run it as a Python script. You'll see output like this:
+Save this in a file `log_flow.py` and run it as a Python script. You'll see output like this:
 
 <div class="terminal">
 ```bash
-$ python leo_flow.py
-12:14:30.012 | INFO    | prefect.engine - Created flow run 'certain-cormorant' for flow 
-'leonardo_dicapriflow'
-12:14:30.013 | INFO    | Flow run 'certain-cormorant' - Using task runner 'ConcurrentTaskRunner'
-12:14:30.090 | INFO    | Flow run 'certain-cormorant' - Created task run 'log_message-dd6ef374-0' 
-for task 'log_message'
-12:14:30.143 | INFO    | Task run 'log_message-dd6ef374-0' - Hello Leo!
-12:14:30.191 | INFO    | Task run 'log_message-dd6ef374-0' - Finished in state Completed(None)
-12:14:30.459 | INFO    | Flow run 'certain-cormorant' - Finished in state Completed('All states 
-completed.')
+$ python log_flow.py
+22:00:16.419 | INFO    | prefect.engine - Created flow run 'vehement-eagle' for flow 'log-flow'
+22:00:16.570 | INFO    | Flow run 'vehement-eagle' - Created task run 'log_task-82fbd1c0-0' for task 'log_task'
+22:00:16.570 | INFO    | Flow run 'vehement-eagle' - Executing 'log_task-82fbd1c0-0' immediately...
+22:00:16.599 | INFO    | Task run 'log_task-82fbd1c0-0' - Hello Marvin!
+22:00:16.600 | INFO    | Task run 'log_task-82fbd1c0-0' - Prefect Version = 2.1.0 🚀
+22:00:16.626 | INFO    | Task run 'log_task-82fbd1c0-0' - Finished in state Completed()
+22:00:16.659 | INFO    | Flow run 'vehement-eagle' - Finished in state Completed('All states completed.')
 ```
 </div>
 
 Like previous flow examples, this is still a script that you have to run locally. 
 
-In the rest of this tutorial, you'll turn this into a deployment that can create flow runs. You'll create the deployment by doing the following: 
+In the this tutorial, you'll use this flow script to create a deployment on the Prefect API. With a deployment, you can trigger ad-hoc flow runs. You could also schedule automatic flow runs that run on remote infrastructure. 
 
-- Creating deployment manifest and deployment YAML file that specify your flow details and deployment settings.
-- Applying the deployment YAML settings to create a deployment on the server.
-- Inspecting the deployment with the CLI and Prefect UI.
-- Starting an ad hoc flow run based on the deployment.
+You'll create the deployment for this flow by doing the following: 
+
+- Build a deployment YAML file that specifies settings for flow runs.
+- Copy the flow script to a specified storage location from which it can be retrieved for API-triggered flow runs.
+- Apply the deployment YAML settings to create a deployment on the Prefect API.
+- Inspect the deployment with the Prefect CLI and Prefect UI.
+- Start an ad hoc flow run based on the deployment.
 
 ## Edit the flow
 
-In the flow definition `leo_flow.py` that you created earlier, comment out or remove the last line `leonardo_dicapriflow("Leo")`, the call to the flow function. You don't need that anymore because Prefect will call it directly with the specified parameters when it executes the deployment.
+In the flow definition `log_flow.py` that you created earlier, comment out or remove the last line `log_flow("Marvin")`, the call to the flow function. You don't need that anymore because Prefect will call it directly with the specified parameters when it executes your deployment.
 
 ```python hl_lines="14"
+import prefect
 from prefect import flow, task, get_run_logger
 
 @task
-def log_message(name):
+def log_task(name):
     logger = get_run_logger()
     logger.info(f"Hello {name}!")
-    return
+    logger.info("Prefect Version = %s 🚀", prefect.__version__)
 
-@flow(name="leonardo_dicapriflow")
-def leonardo_dicapriflow(name: str):
-    log_message(name)
-    return
+@flow()
+def log_flow(name: str):
+    log_task(name)
 
-# leonardo_dicapriflow("Leo")
+# log_flow("Marvin")
 ```
 
-## Build a deployment
+## Deployment creation steps
 
 To create a deployment from an existing flow script, there are just a few steps:
 
-1. Use the `prefect deployment build` Prefect CLI command to build a deployment manifest and a deployment YAML file. These describe the files and settings needed to create your deployment.
-1. If you needed to add customizations to the manifest or the deployment YAML file, you would do so now. 
-1. Use the `prefect deployment apply` Prefect CLI command to create the deployment on the API based on the settings in the deployment manifest and deployment YAML.
+1. Use the `prefect deployment build` Prefect CLI command to build a deployment definition YAML file that settings needed to create your deployment and execute flow runs from it.
+1. Optionally, you can edit the deployment YAML file to include additional settings that are not easily specified via CLI flags. 
+1. Use the `prefect deployment apply` Prefect CLI command to create the deployment on the API based on the settings in the deployment YAML file.
+
+## Build deployment definition
 
 What you need for the first step, building the deployment artifacts, is:
 
-- The path and filename of the flow script
-- The name of the flow function that is the entrypoint to the flow
-- A name for the deployment
+- The path and filename of the flow script.
+- The name of the flow function that is the entrypoint to the flow.
+- A name for the deployment.
 
-So to build deployment files for `leo_flow.py`, we'll use the command:
+!!! note "Entrypoint flow function"
+    What do we mean by "entrypoint" flow function?
+
+    A flow script file may contain definitions for multiple flow (`@flow`) and task (`@task`) functions. The entrypoint flow is the flow function that is called to _begin the workflow_, and other task and flow functions may be called from that entrypoint flow to complete your workflow. 
+
+You can provide additional settings &mdash; we'll demonstrate that in a future step &mdash; but this is the minimum required information to create a deployment.
+
+To build deployment files for `log_flow.py`, use the following command:
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./leo_flow.py:leonardo_dicapriflow -n leo-deployment -q test
+$ prefect deployment build ./log_flow.py:log_flow -n log-simple -q test
 ```
 </div>
 
 What did we do here? Let's break down the command:
 
 - `prefect deployment build` is the Prefect CLI command that enables you to prepare the settings for a deployment.
--  `./leo_flow.py:leonardo_dicapriflow` specifies the location of the flow script file and the name of the entrypoint flow function, separated by a colon.
-- `-n leo-deployment` is an option to specify a name for the deployment.
+-  `./log_flow.py:log_flow` specifies the location of the flow script file and the name of the entrypoint flow function, separated by a colon.
+- `-n log-simple` specifies a name for the deployment.
 - `-q test` specifies a work queue for the deployment. Work queues direct scheduled runs to agents.
 
-Note that you may specify multiple tags by providing a `-t tag` parameter for each tag you want applied to the deployment.
+You can pass other option flags. For example, you may specify multiple tags by providing a `-t tag` parameter for each tag you want applied to the deployment. Options are described in the [Deployments](/concepts/deployments/#deployment-build-options) documentation or via the `prefect deployment build --help` command.
 
-The command outputs two files: `leonardo_dicapriflow-manifest.json` contains workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters. `leonardo_dicapriflow-deployment.yaml` contains details about the deployment for this flow.
+What happens when you run `prefect deployment build`? 
 
 <div class="terminal">
 ```bash
-Found flow 'leonardo_dicapriflow'
-Manifest created at
-'/Users/terry/test/testflows/leo_flow/leonardo_dicapriflow-manifest.json'.
-Deployment YAML created at '/Users/terry/test/testflows/leo_flow/leonardo_dicapriflow-deployment.yaml'.
+$ prefect deployment build ./log_flow.py:log_flow -n log-simple -q test
+Found flow 'log-flow'
+Default '.prefectignore' file written to
+/Users/terry/prefect-tutorial/.prefectignore
+Deployment YAML created at
+'/Users/terry/prefect-tutorial/log_flow-deployment.yaml'.
 ```
 </div>
+
+First, the `build` command checks that a valid flow script and entrypoint flow function exist.
+
+Next, it writes a `.prefectignore` to the same location as the flow script. `.prefectignore` enables you to specify files that should be ignored by the deployment creation process. The syntax follows [`.gitignore`](https://git-scm.com/docs/gitignore) patterns.
+
+two files: `leonardo_dicapriflow-manifest.json` contains workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters. `leonardo_dicapriflow-deployment.yaml` contains details about the deployment for this flow.
+
+
 
 ## Configure the deployment
 
