@@ -164,7 +164,7 @@ class DockerContainer(Infrastructure):
 
     image: str = Field(default_factory=get_prefect_image_name)
     image_pull_policy: ImagePullPolicy = None
-    image_registry: Optional[DockerRegistry] = None
+    image_registry: Optional[BaseDockerLogin] = None
     networks: List[str] = Field(default_factory=list)
     network_mode: str = None
     auto_remove: bool = False
