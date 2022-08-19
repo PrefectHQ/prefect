@@ -9,12 +9,20 @@
       </p-label>
     </div>
     <div class="flow-runs-filter__meta-filters">
-      <StateSelect v-model:selected="states" empty-message="All run states" />
-      <FlowCombobox v-model:selected="flows" empty-message="All flows" />
-      <DeploymentCombobox v-model:selected="deployments" empty-message="All deployments" />
-      <PTagsInput v-model="tags" empty-message="All Tags" inline />
+      <p-label :label="media.md ? '' : 'States'">
+        <StateSelect v-model:selected="states" empty-message="All run states" />
+      </p-label>
+      <p-label :label="media.md ? '' : 'Flows'">
+        <FlowCombobox v-model:selected="flows" empty-message="All flows" />
+      </p-label>
+      <p-label :label="media.md ? '' : 'Deployments'">
+        <DeploymentCombobox v-model:selected="deployments" empty-message="All deployments" />
+      </p-label>
+      <p-label :label="media.md ? '' : 'Tags'">
+        <p-tags-input v-model="tags" empty-message="All tags" />
+      </p-label>
       <template v-if="!media.md">
-        <SearchInput v-model="name" placeholder="Search by run name" label="Search by run name" />
+        <SearchInput v-model="name" placeholder="Search by flow run name" label="Search by flow run name" />
       </template>
     </div>
   </div>
