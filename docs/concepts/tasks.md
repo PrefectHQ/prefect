@@ -55,7 +55,7 @@ Tasks are uniquely identified by a task key, which is a hash composed of the tas
 
     To be clear, there's nothing stopping you from putting all of your code in a single task &mdash; Prefect will happily run it! However, if any line of code fails, the entire task will fail and must be retried from the beginning. This can be avoided by splitting the code into multiple dependent tasks.
 
-**Calling a task from another task**
+**Calling a task's function from another task**
 
 A task can be called from another task by use of the `.fn()` method. Pass any arguments to `fn`. 
 
@@ -76,7 +76,7 @@ def my_flow():
 
 ```
 
-
+Note that in the example above you are only calling the task's function without actually generating a task run. This pattern has a negative effect on your observability. Prefect won't track task execution in your Prefect backend if you call the task function this way.
 
 ## Task arguments
 
