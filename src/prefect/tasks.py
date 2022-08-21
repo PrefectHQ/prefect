@@ -90,6 +90,7 @@ class Task(Generic[P, R]):
     "Returns" respectively.
 
     Args:
+        fn: The function defining the task.
         name: An optional name for the task; if not provided, the name will be inferred
             from the given function.
         description: An optional string description for the task.
