@@ -258,10 +258,21 @@ async def retrieve_flow_then_begin_flow_run(
         )
         return state
 
+    # Update the flow run policy defaults to match settings on the flow
+    # Note: Mutating the flow run object prevents us from performing another read
+    #       operation if these properties are used by the client downstream
+    if flow_run.empirical_policy.retry_delay_seconds is None:
+        flow_run.empirical_policy.retry_delay_seconds = flow.retry_delay_seconds
+
+    if flow_run.empirical_policy.max_retries is None:
+        flow_run.empirical_policy.max_retries = flow.retries
+
     await client.update_flow_run(
         flow_run_id=flow_run_id,
         flow_version=flow.version,
+        empirical_policy=flow_run.empirical_policy,
     )
+
     if flow.should_validate_parameters:
         failed_state = None
         try:
@@ -277,7 +288,8 @@ async def retrieve_flow_then_begin_flow_run(
             )
 
         if failed_state is not None:
-            await client.propose_state(
+            await propose_state(
+                client,
                 state=failed_state,
                 flow_run_id=flow_run_id,
             )
@@ -452,7 +464,8 @@ async def create_and_begin_subflow_run(
                 )
 
             if failed_state is not None:
-                await client.propose_state(
+                await propose_state(
+                    client,
                     state=failed_state,
                     flow_run_id=flow_run.id,
                 )
@@ -531,7 +544,7 @@ async def orchestrate_flow_run(
     )
     flow_run_context = None
 
-    state = await client.propose_state(Running(), flow_run_id=flow_run.id)
+    state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
     while state.is_running():
         waited_for_task_runs = False
@@ -627,7 +640,8 @@ async def orchestrate_flow_run(
         # from being sent to the Orion API and stored in the Orion database.
         # state.data is left as is, otherwise we would have to load
         # the data from block storage again after storing.
-        state = await client.propose_state(
+        state = await propose_state(
+            client,
             state=terminal_state,
             flow_run_id=flow_run.id,
             backend_state_data=(
@@ -654,7 +668,7 @@ async def orchestrate_flow_run(
                 extra={"send_to_orion": False},
             )
             # Attempt to enter a running state again
-            state = await client.propose_state(Running(), flow_run_id=flow_run.id)
+            state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
     if state.data is not None and state.data.encoding == "result":
         state.data = DataDocument.parse_raw(
@@ -1034,7 +1048,8 @@ async def orchestrate_task_run(
         # Resolve futures in any non-data dependencies to ensure they are ready
         await resolve_inputs(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
-        return await client.propose_state(
+        return await propose_state(
+            client,
             Pending(name="NotReady", message=str(upstream_exc)),
             task_run_id=task_run.id,
         )
@@ -1047,7 +1062,8 @@ async def orchestrate_task_run(
     )
 
     # Transition from `PENDING` -> `RUNNING`
-    state = await client.propose_state(
+    state = await propose_state(
+        client,
         Running(state_details=StateDetails(cache_key=cache_key)),
         task_run_id=task_run.id,
     )
@@ -1102,7 +1118,8 @@ async def orchestrate_task_run(
         # from being sent to the Orion API and stored in the Orion database.
         # terminal_state.data is left as is, otherwise we would have to load
         # the data from block storage again after storing.
-        state = await client.propose_state(
+        state = await propose_state(
+            client,
             terminal_state,
             task_run_id=task_run.id,
             backend_state_data=(
@@ -1128,7 +1145,7 @@ async def orchestrate_task_run(
                 extra={"send_to_orion": False},
             )
             # Attempt to enter a running state again
-            state = await client.propose_state(Running(), task_run_id=task_run.id)
+            state = await propose_state(client, Running(), task_run_id=task_run.id)
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = repr(state) if PREFECT_DEBUG_MODE else str(state)
@@ -1259,6 +1276,99 @@ async def resolve_inputs(
         visit_fn=resolve_input,
         return_data=return_data,
     )
+
+
+async def propose_state(
+    client: OrionClient,
+    state: State,
+    backend_state_data: DataDocument = None,
+    task_run_id: UUID = None,
+    flow_run_id: UUID = None,
+) -> State:
+    """
+    Propose a new state for a flow run or task run, invoking Orion orchestration logic.
+
+    If the proposed state is accepted, the provided `state` will be augmented with
+     details and returned.
+
+    If the proposed state is rejected, a new state returned by the Orion API will be
+    returned.
+
+    If the proposed state results in a WAIT instruction from the Orion API, the
+    function will sleep and attempt to propose the state again.
+
+    If the proposed state results in an ABORT instruction from the Orion API, an
+    error will be raised.
+
+    Args:
+        state: a new state for the task or flow run
+        backend_state_data: an optional document to store with the state in the
+            database instead of its local data field. This allows the original
+            state object to be retained while storing a pointer to persisted data
+            in the database.
+        task_run_id: an optional task run id, used when proposing task run states
+        flow_run_id: an optional flow run id, used when proposing flow run states
+
+    Returns:
+        a [State model][prefect.orion.State] representation of the flow or task run
+            state
+
+    Raises:
+        ValueError: if neither task_run_id or flow_run_id is provided
+        prefect.exceptions.Abort: if an ABORT instruction is received from
+            the Orion API
+    """
+
+    # Determine if working with a task run or flow run
+    if not task_run_id and not flow_run_id:
+        raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
+
+    # Attempt to set the state
+    if task_run_id:
+        response = await client.set_task_run_state(
+            task_run_id, state, backend_state_data=backend_state_data
+        )
+    elif flow_run_id:
+        response = await client.set_flow_run_state(
+            flow_run_id, state, backend_state_data=backend_state_data
+        )
+    else:
+        raise ValueError(
+            "Neither flow run id or task run id were provided. At least one must "
+            "be given."
+        )
+
+    # Parse the response to return the new state
+    if response.status == SetStateStatus.ACCEPT:
+        # Update the state with the details if provided
+        if response.state.state_details:
+            state.state_details = response.state.state_details
+        return state
+
+    elif response.status == SetStateStatus.ABORT:
+        raise prefect.exceptions.Abort(response.details.reason)
+
+    elif response.status == SetStateStatus.WAIT:
+        engine_logger.debug(
+            f"Received wait instruction for {response.details.delay_seconds}s: "
+            f"{response.details.reason}"
+        )
+        await anyio.sleep(response.details.delay_seconds)
+        return await propose_state(
+            client,
+            state,
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_id,
+            backend_state_data=backend_state_data,
+        )
+
+    elif response.status == SetStateStatus.REJECT:
+        return response.state
+
+    else:
+        raise ValueError(
+            f"Received unexpected `SetStateStatus` from server: {response.status!r}"
+        )
 
 
 def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:

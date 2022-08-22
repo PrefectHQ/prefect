@@ -269,11 +269,11 @@ class RetryFailedFlows(BaseOrchestrationRule):
 
         run_settings = context.run_settings
         run_count = context.run.run_count
-        if run_count > run_settings.max_retries:
+        if run_settings.max_retries is None or run_count > run_settings.max_retries:
             return  # Retry count exceeded, allow transition to failed
 
         scheduled_start_time = pendulum.now("UTC").add(
-            seconds=run_settings.retry_delay_seconds
+            seconds=run_settings.retry_delay_seconds or 0
         )
 
         failed_task_runs = await task_runs.read_task_runs(
@@ -380,6 +380,8 @@ class WaitForScheduledTime(BaseOrchestrationRule):
         if not scheduled_time:
             raise ValueError("Received state without a scheduled time")
 
+        # At this moment, we take the floor of the actual delay as the API schema
+        # specifies an integer return value.
         delay_seconds = (scheduled_time - pendulum.now()).in_seconds()
         if delay_seconds > 0:
             await self.delay_transition(

@@ -158,6 +158,7 @@ class Deployment(BaseModel):
 
     class Config:
         validate_assignment = True
+        extra = "forbid"
 
     @property
     def _editable_fields(self) -> List[str]:
