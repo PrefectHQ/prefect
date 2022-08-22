@@ -491,6 +491,7 @@ async def create_and_begin_subflow_run(
                     sync_portal=parent_flow_run_context.sync_portal,
                     result_filesystem=parent_flow_run_context.result_filesystem,
                     task_runner=task_runner,
+                    background_tasks=parent_flow_run_context.background_tasks,
                 ),
             )
 
