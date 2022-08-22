@@ -116,24 +116,6 @@ def calculate_cube_surface_area(cube_name):
 calculate_cube_surface_area("rubiks-cube") # 30.375
 ```
 
-### Registering blocks
-
-Once a block has been created in a `.py` file, the block can be registered with the CLI command:
-
-```bash
-$ prefect block register --file my_block.py
-```
-
-The registered block will then be available in the [Prefect UI](/ui/blocks/) for configuration.
-
-Blocks can also be registered from a Python module available in the current virtual environment with a CLI command like this:
-
-```bash
-$ prefect block register --module prefect_aws.credentials
-```
-
-This command is useful for registering all blocks found in the credentials module within [Prefect Collections](/collections/overview).
-
 ### Secret fields
 
 All block values are encrypted before being stored, but if you have values that you would not like visible in the UI or in logs, then you can use the `SecretStr` field type provided by Pydantic to automatically obfuscate those values. This can be useful for fields that are used to store credentials like passwords and API tokens.
@@ -264,3 +246,22 @@ my_s3_bucket.save("my_s3_bucket")
 ```
 
 In the above example, the values for `AWSCredentials` are saved with `my_s3_bucket` and will not be usable with any other blocks.
+
+## Registering blocks to display on Prefect Cloud
+
+Once a block has been created in a `.py` file, the block can be registered with the CLI command:
+
+```bash
+$ prefect block register --file my_block.py
+```
+
+The registered block will then be available in the [Prefect UI](/ui/blocks/) for configuration.
+
+Blocks can also be registered from a Python module available in the current virtual environment with a CLI command like this:
+
+```bash
+$ prefect block register --module prefect_aws.credentials
+```
+
+This command is useful for registering all blocks found in the credentials module within [Prefect Collections](/collections/overview).
+
