@@ -5,7 +5,7 @@ import shutil
 import sys
 import urllib.parse
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import anyio
 import fsspec
@@ -48,7 +48,9 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
     _block_type_name = "Local File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/EVKjxM7fNyi4NGUSkeTEE/95c958c5dd5a56c59ea5033e919c1a63/image1.png?h=250"
 
-    basepath: Optional[str] = None
+    basepath: Optional[str] = Field(
+        None, description="Default local path for this block to write to."
+    )
 
     @validator("basepath", pre=True)
     def cast_pathlib(cls, value):
@@ -188,8 +190,15 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
     _block_type_name = "Remote File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CxjycqILlT9S9YchI7o1q/ee62e2089dfceb19072245c62f0c69d2/image12.png?h=250"
 
-    basepath: str
-    settings: dict = Field(default_factory=dict)
+    basepath: str = Field(
+        ...,
+        description="Default path for this block to write to.",
+        example="s3://my-bucket/my-folder/",
+    )
+    settings: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional settings to pass through to fsspec.",
+    )
 
     # Cache for the configured fsspec file system used for access
     _filesystem: fsspec.AbstractFileSystem = None
@@ -346,10 +355,20 @@ class S3(ReadableFileSystem, WritableFileSystem):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1jbV4lceHOjGgunX15lUwT/db88e184d727f721575aeb054a37e277/aws.png?h=250"
 
     bucket_path: str = Field(
-        ..., description="An S3 bucket path", example="my-bucket/a-directory-within"
+        ..., description="An S3 bucket path.", example="my-bucket/a-directory-within"
     )
-    aws_access_key_id: SecretStr = Field(None, title="AWS Access Key ID")
-    aws_secret_access_key: SecretStr = Field(None, title="AWS Secret Access Key")
+    aws_access_key_id: SecretStr = Field(
+        None,
+        title="AWS Access Key ID",
+        description="Equivalent to the AWS_ACCESS_KEY_ID environment variable.",
+        example="AKIAIOSFODNN7EXAMPLE",
+    )
+    aws_secret_access_key: SecretStr = Field(
+        None,
+        title="AWS Secret Access Key",
+        description="Equivalent to the AWS_SECRET_ACCESS_KEY environment variable.",
+        example="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    )
 
     _remote_file_system: RemoteFileSystem = None
 
@@ -373,7 +392,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
         """
-        Downloads a directory from a given remote path to a local direcotry.
+        Downloads a directory from a given remote path to a local directory.
 
         Defaults to downloading the entire contents of the block's basepath to the current working directory.
         """
@@ -419,7 +438,7 @@ class GCS(ReadableFileSystem, WritableFileSystem):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CD4wwbiIKPkZDt4U3TEuW/c112fe85653da054b6d5334ef662bec4/gcp.png?h=250"
 
     bucket_path: str = Field(
-        ..., description="A GCS bucket path", example="my-bucket/a-directory-within"
+        ..., description="A GCS bucket path.", example="my-bucket/a-directory-within"
     )
     service_account_info: Optional[SecretStr] = Field(
         None, description="The contents of a service account keyfile as a JSON string."
@@ -502,23 +521,23 @@ class Azure(ReadableFileSystem, WritableFileSystem):
 
     bucket_path: str = Field(
         ...,
-        description="An Azure storage bucket path",
+        description="An Azure storage bucket path.",
         example="my-bucket/a-directory-within",
     )
     azure_storage_connection_string: Optional[SecretStr] = Field(
         None,
         title="Azure storage connection string",
-        description="Equivalent to the AZURE_STORAGE_CONNECTION_STRING environment variable",
+        description="Equivalent to the AZURE_STORAGE_CONNECTION_STRING environment variable.",
     )
     azure_storage_account_name: Optional[SecretStr] = Field(
         None,
         title="Azure storage account name",
-        description="Equivalent to the AZURE_STORAGE_ACCOUNT_NAME environment variable",
+        description="Equivalent to the AZURE_STORAGE_ACCOUNT_NAME environment variable.",
     )
     azure_storage_account_key: Optional[SecretStr] = Field(
         None,
         title="Azure storage account key",
-        description="Equivalent to the AZURE_STORAGE_ACCOUNT_KEY environment variable",
+        description="Equivalent to the AZURE_STORAGE_ACCOUNT_KEY environment variable.",
     )
     _remote_file_system: RemoteFileSystem = None
 
@@ -596,23 +615,22 @@ class SMB(ReadableFileSystem, WritableFileSystem):
 
     share_path: str = Field(
         ...,
-        description="SMB target (requires <SHARE>, followed by <PATH>)",
+        description="SMB target (requires <SHARE>, followed by <PATH>).",
         example="/SHARE/dir/subdir",
     )
     smb_username: Optional[SecretStr] = Field(
         None,
         title="SMB Username",
-        description="Username with access to the target SMB SHARE",
+        description="Username with access to the target SMB SHARE.",
     )
     smb_password: Optional[SecretStr] = Field(
-        None,
-        title="SMB Password",
+        None, title="SMB Password", description="Password for SMB access."
     )
     smb_host: str = Field(
-        ..., tile="SMB server/hostname", description="SMB server/hostname"
+        ..., tile="SMB server/hostname", description="SMB server/hostname."
     )
     smb_port: Optional[int] = Field(
-        None, title="SMB port", description="SMB port (default: 445)"
+        None, title="SMB port", description="SMB port (default: 445)."
     )
 
     _remote_file_system: RemoteFileSystem = None
