@@ -249,15 +249,7 @@ In the above example, the values for `AWSCredentials` are saved with `my_s3_buck
 
 ## Registering blocks to display on Prefect Cloud
 
-Once a block has been created in a `.py` file, the block can be registered with the CLI command:
-
-```bash
-$ prefect block register --file my_block.py
-```
-
-The registered block will then be available in the [Prefect UI](/ui/blocks/) for configuration.
-
-Blocks can also be registered from a Python module available in the current virtual environment with a CLI command like this:
+Blocks can be registered from a Python module available in the current virtual environment with a CLI command like this:
 
 ```bash
 $ prefect block register --module prefect_aws.credentials
@@ -265,3 +257,10 @@ $ prefect block register --module prefect_aws.credentials
 
 This command is useful for registering all blocks found in the credentials module within [Prefect Collections](/collections/overview).
 
+Or, if a block has been created in a `.py` file, the block can also be registered with the CLI command:
+
+```bash
+$ prefect block register --file my_block.py
+```
+
+The registered block will then be available in the [Prefect UI](/ui/blocks/) for configuration.
