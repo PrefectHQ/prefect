@@ -12,7 +12,7 @@ import fsspec
 from pydantic import Field, SecretStr, validator
 
 from prefect.blocks.core import Block
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.filesystem import filter_files
 
 
@@ -80,6 +80,7 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
 
         return path
 
+    @sync_compatible
     async def get_directory(
         self, from_path: str = None, local_path: str = None
     ) -> None:
@@ -111,6 +112,7 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
 
         return ignore_func
 
+    @sync_compatible
     async def put_directory(
         self, local_path: str = None, to_path: str = None, ignore_file: str = None
     ) -> None:
@@ -141,6 +143,7 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
                     local_path, to_path, dirs_exist_ok=True, ignore=ignore_func
                 )
 
+    @sync_compatible
     async def read_path(self, path: str) -> bytes:
         path: Path = self._resolve_path(path)
 
@@ -157,6 +160,7 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
 
         return content
 
+    @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         path: Path = self._resolve_path(path)
 
@@ -243,6 +247,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
 
         return f"{self.basepath.rstrip('/')}/{urlpath.lstrip('/')}"
 
+    @sync_compatible
     async def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
@@ -259,6 +264,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
 
         return self.filesystem.get(from_path, local_path, recursive=True)
 
+    @sync_compatible
     async def put_directory(
         self,
         local_path: Optional[str] = None,
@@ -302,6 +308,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
             counter += 1
         return counter
 
+    @sync_compatible
     async def read_path(self, path: str) -> bytes:
         path = self._resolve_path(path)
 
@@ -310,6 +317,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
 
         return content
 
+    @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         path = self._resolve_path(path)
         dirpath = path[: path.rindex("/")]
@@ -388,6 +396,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
         )
         return self._remote_file_system
 
+    @sync_compatible
     async def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
@@ -400,6 +409,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
             from_path=from_path, local_path=local_path
         )
 
+    @sync_compatible
     async def put_directory(
         self,
         local_path: Optional[str] = None,
@@ -415,9 +425,11 @@ class S3(ReadableFileSystem, WritableFileSystem):
             local_path=local_path, to_path=to_path, ignore_file=ignore_file
         )
 
+    @sync_compatible
     async def read_path(self, path: str) -> bytes:
         return await self.filesystem.read_path(path)
 
+    @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
 
@@ -469,6 +481,7 @@ class GCS(ReadableFileSystem, WritableFileSystem):
         )
         return remote_file_system
 
+    @sync_compatible
     async def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
@@ -481,6 +494,7 @@ class GCS(ReadableFileSystem, WritableFileSystem):
             from_path=from_path, local_path=local_path
         )
 
+    @sync_compatible
     async def put_directory(
         self,
         local_path: Optional[str] = None,
@@ -496,9 +510,11 @@ class GCS(ReadableFileSystem, WritableFileSystem):
             local_path=local_path, to_path=to_path, ignore_file=ignore_file
         )
 
+    @sync_compatible
     async def read_path(self, path: str) -> bytes:
         return await self.filesystem.read_path(path)
 
+    @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
 
@@ -563,6 +579,7 @@ class Azure(ReadableFileSystem, WritableFileSystem):
         )
         return self._remote_file_system
 
+    @sync_compatible
     async def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
@@ -575,6 +592,7 @@ class Azure(ReadableFileSystem, WritableFileSystem):
             from_path=from_path, local_path=local_path
         )
 
+    @sync_compatible
     async def put_directory(
         self,
         local_path: Optional[str] = None,
@@ -590,9 +608,11 @@ class Azure(ReadableFileSystem, WritableFileSystem):
             local_path=local_path, to_path=to_path, ignore_file=ignore_file
         )
 
+    @sync_compatible
     async def read_path(self, path: str) -> bytes:
         return await self.filesystem.read_path(path)
 
+    @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
 
@@ -656,6 +676,7 @@ class SMB(ReadableFileSystem, WritableFileSystem):
         )
         return self._remote_file_system
 
+    @sync_compatible
     async def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
@@ -667,6 +688,7 @@ class SMB(ReadableFileSystem, WritableFileSystem):
             from_path=from_path, local_path=local_path
         )
 
+    @sync_compatible
     async def put_directory(
         self,
         local_path: Optional[str] = None,
@@ -683,9 +705,11 @@ class SMB(ReadableFileSystem, WritableFileSystem):
             ignore_file=ignore_file,
             overwrite=False,
         )
-
+    
+    @sync_compatible
     async def read_path(self, path: str) -> bytes:
         return await self.filesystem.read_path(path)
-
+    
+    @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
