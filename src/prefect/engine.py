@@ -403,7 +403,7 @@ async def create_and_begin_subflow_run(
     parent_logger = get_run_logger(parent_flow_run_context)
 
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
-    task_inputs = {k: collect_task_run_inputs(v) for k, v in parameters.items()}
+    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
 
     # Generate a task in the parent flow run to represent the result of the subflow run
     dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
@@ -777,7 +777,7 @@ async def begin_task_map(
     return await gather(*task_runs)
 
 
-def collect_task_run_inputs(
+async def collect_task_run_inputs(
     expr: Any,
 ) -> Set[Union[core.TaskRunResult, core.Parameter, core.Constant]]:
     """
@@ -787,8 +787,8 @@ def collect_task_run_inputs(
 
     Example:
         >>> task_inputs = {
-        >>>    k: collect_task_run_inputs(v) for k, v in parameters.items()
-        >>> }
+        >>>    k: await collect_task_run_inputs(v) for k, v in parameters.items()
+    >>> }
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
@@ -796,6 +796,7 @@ def collect_task_run_inputs(
 
     def add_futures_and_states_to_inputs(obj):
         if isinstance(obj, PrefectFuture):
+            run_async_from_worker_thread(obj._wait_for_submission)
             inputs.add(core.TaskRunResult(id=obj.task_run.id))
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
@@ -805,7 +806,12 @@ def collect_task_run_inputs(
             if state and state.state_details.task_run_id:
                 inputs.add(core.TaskRunResult(id=state.state_details.task_run_id))
 
-    visit_collection(expr, visit_fn=add_futures_and_states_to_inputs, return_data=False)
+    await run_sync_in_worker_thread(
+        visit_collection,
+        expr,
+        visit_fn=add_futures_and_states_to_inputs,
+        return_data=False,
+    )
 
     return inputs
 
@@ -924,7 +930,7 @@ async def create_task_run(
     dynamic_key: str,
     wait_for: Optional[Iterable[PrefectFuture]],
 ) -> TaskRun:
-    task_inputs = {k: collect_task_run_inputs(v) for k, v in parameters.items()}
+    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
     if wait_for:
         task_inputs["wait_for"] = collect_task_run_inputs(wait_for)
 
