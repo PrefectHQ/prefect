@@ -125,14 +125,6 @@ async def update_flow_run_notification_policy(
     Returns:
         bool: whether or not the FlowRunNotificationPolicy was updated
     """
-    if not isinstance(
-        flow_run_notification_policy, schemas.actions.FlowRunNotificationPolicyUpdate
-    ):
-        raise ValueError(
-            "Expected parameter flow_run_notification_policy to have type "
-            f"schemas.actions.FlowRunNotificationPolicyUpdate, got {type(flow_run_notification_policy)!r} instead"
-        )
-
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
     update_data = flow_run_notification_policy.dict(shallow=True, exclude_unset=True)

@@ -1,5 +1,5 @@
 ---
-description: Learn how to create Prefect flow deployments and run them with work queues and agents.
+description: Learn how to create Prefect flow deployments and run them with agents and work queues.
 tags:
     - Orion
     - work queues
@@ -26,7 +26,7 @@ You need just a few ingredients to turn a flow definition into a deployment:
 That's it. To create flow runs based on the deployment, you need a few more pieces:
 
 - Prefect orchestration engine, either [Prefect Cloud](/ui/cloud/) or a local Prefect Orion server started with `prefect orion start`.
-- A [work queue and agent](/concepts/work-queues/).
+- An [agent and work queue](/concepts/work-queues/).
 
 These all come with Prefect. You just have to configure them and set them to work. You'll see how to configure each component during this tutorial.
 
@@ -76,8 +76,8 @@ Like previous flow examples, this is still a script that you have to run locally
 
 In the rest of this tutorial, you'll turn this into a deployment that can create flow runs. You'll create the deployment by doing the following: 
 
-- Creating deployment manifest and `deployment.yaml` file that specify your flow details and deployment settings.
-- Applying the `deployment.yaml` settings to create a deployment on the server.
+- Creating deployment manifest and deployment YAML file that specify your flow details and deployment settings.
+- Applying the deployment YAML settings to create a deployment on the server.
 - Inspecting the deployment with the CLI and Prefect UI.
 - Starting an ad hoc flow run based on the deployment.
 
@@ -106,9 +106,9 @@ def leonardo_dicapriflow(name: str):
 
 To create a deployment from an existing flow script, there are just a few steps:
 
-1. Use the `prefect deployment build` Prefect CLI command to build a deployment manifest and `deployment.yaml` file. These describe the files and settings needed to create your deployment.
-1. If you needed to add customizations to the manifest or `deployment.yaml` file, you would do so now. 
-1. Use the `prefect deployment apply` Prefect CLI command to create the deployment on the API based on the settings in the deployment manifest and `deployment.yaml`.
+1. Use the `prefect deployment build` Prefect CLI command to build a deployment manifest and a deployment YAML file. These describe the files and settings needed to create your deployment.
+1. If you needed to add customizations to the manifest or the deployment YAML file, you would do so now. 
+1. Use the `prefect deployment apply` Prefect CLI command to create the deployment on the API based on the settings in the deployment manifest and deployment YAML.
 
 What you need for the first step, building the deployment artifacts, is:
 
@@ -120,7 +120,7 @@ So to build deployment files for `leo_flow.py`, we'll use the command:
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./leo_flow.py:leonardo_dicapriflow -n leo-deployment -t test
+$ prefect deployment build ./leo_flow.py:leonardo_dicapriflow -n leo-deployment -q test
 ```
 </div>
 
@@ -129,18 +129,18 @@ What did we do here? Let's break down the command:
 - `prefect deployment build` is the Prefect CLI command that enables you to prepare the settings for a deployment.
 -  `./leo_flow.py:leonardo_dicapriflow` specifies the location of the flow script file and the name of the entrypoint flow function, separated by a colon.
 - `-n leo-deployment` is an option to specify a name for the deployment.
-- `-t test` specifies a tag for the deployment. Tags enable filtering deployment flow runs in the UI and on work queues. 
+- `-q test` specifies a work queue for the deployment. Work queues direct scheduled runs to agents.
 
 Note that you may specify multiple tags by providing a `-t tag` parameter for each tag you want applied to the deployment.
 
-The command outputs two files: `leonardo_dicapriflow-manifest.json` contains workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters. `deployment.yaml` contains details about the deployment for this flow.
+The command outputs two files: `leonardo_dicapriflow-manifest.json` contains workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters. `leonardo_dicapriflow-deployment.yaml` contains details about the deployment for this flow.
 
 <div class="terminal">
 ```bash
 Found flow 'leonardo_dicapriflow'
 Manifest created at
 '/Users/terry/test/testflows/leo_flow/leonardo_dicapriflow-manifest.json'.
-Deployment YAML created at '/Users/terry/test/testflows/leo_flow/deployment.yaml'.
+Deployment YAML created at '/Users/terry/test/testflows/leo_flow/leonardo_dicapriflow-deployment.yaml'.
 ```
 </div>
 
@@ -148,7 +148,7 @@ Deployment YAML created at '/Users/terry/test/testflows/leo_flow/deployment.yaml
 
 Note that our flow needs a `name` parameter, but we didn't specify one when building the deployment files.
 
-Open the `deployment.yaml` file and add the parameter as `parameters: {'name':'Leo'}`:
+Open the `leonardo_dicapriflow-deployment.yaml` file and add the parameter as `parameters: {'name':'Leo'}`:
 
 ```yaml hl_lines="9"
 ###
@@ -156,8 +156,8 @@ Open the `deployment.yaml` file and add the parameter as `parameters: {'name':'L
 ###
 name: leo-deployment
 description: null
-tags:
-- test
+work_queue_name: test
+tags: []
 schedule: null
 parameters: {'name':'Leo'}
 infrastructure:
@@ -232,13 +232,13 @@ To review, we have three files that make up the artifacts for this particular de
 
 - The flow code in `leo_flow.py`
 - The manifest `leonardo_dicapriflow-manifest.json`
-- The deployment settings `deployment.yaml`
+- The deployment settings `leonardo_dicapriflow-deployment.yaml`
 
-Now use the `prefect deployment apply` command to create the deployment on the Prefect Orion server, specifying the name of the `deployment.yaml` file.
+Now use the `prefect deployment apply` command to create the deployment on the Prefect Orion server, specifying the name of the `leonardo_dicapriflow-deployment.yaml` file.
 
 <div class="terminal">
 ```bash
-$ prefect deployment apply deployment.yaml
+$ prefect deployment apply leonardo_dicapriflow-deployment.yaml
 Successfully loaded 'leo-deployment'
 Deployment '3d2f55a2-46df-4857-ab6f-6cc80ce9cf9c' successfully created.
 ```
@@ -265,7 +265,7 @@ Use `prefect deployment inspect` to display details for a specific deployment.
 
 <div class='terminal'>
 ```bash
-$ prefect deployment inspect 'leonardo_dicapriflow/leo-deployment'
+$ prefect deployment inspect leonardo_dicapriflow/leo-deployment
 {
     'id': '3d2f55a2-46df-4857-ab6f-6cc80ce9cf9c',
     'created': '2022-07-27T00:50:09.624876+00:00',
@@ -276,7 +276,8 @@ $ prefect deployment inspect 'leonardo_dicapriflow/leo-deployment'
     'schedule': None,
     'is_schedule_active': True,
     'parameters': {'name': 'Leo'},
-    'tags': ['test'],
+    'tags': [],
+    'work_queue_name': 'test',
     'parameter_openapi_schema': {
         'title': 'Parameters',
         'type': 'object',
@@ -298,27 +299,23 @@ $ prefect deployment inspect 'leonardo_dicapriflow/leo-deployment'
 ```
 </div>
 
-## Work queues and agents
+## Agents and work queues
 
-Note that you can't **Run** the deployment from the UI yet. As mentioned at the beginning of this tutorial, you still need two more items to run orchestrated deployments: a work queue and an agent. You'll set those up next.
+Note that you can't **Run** the deployment from the UI yet. As mentioned at the beginning of this tutorial, you still need two more items to run orchestrated deployments: an agent and a work queue. You'll set those up next.
 
-[Work queues and agents](/concepts/work-queues/) are the mechanisms by which the Prefect API orchestrates deployment flow runs in remote execution environments.
+[Agents and work queues](/concepts/work-queues/) are the mechanisms by which the Prefect API orchestrates deployment flow runs in remote execution environments.
 
 Work queues let you organize flow runs into queues for execution. Agents pick up work from queues and execute the flows.
 
-There is no default global work queue or agent, so to orchestrate runs of `leonardo_dicapriflow` you need to configure a work queue and agent. 
+There is no default global agent, so to orchestrate runs of `leonardo_dicapriflow` you need to configure one. 
 
-Next, create a work queue that can distribute your new deployment to agents for execution, and a local agent to pick up the flow run for your 'leonardo_dicapriflow/leonardo-deployment' deployment. 
+In the Prefect UI, you can create a work queue by selecting the **Work Queues** page, then creating a new work queue. However, you don't need to manually create a work queue because it was created automatically when you created your deployment. If you hadn't created your deployment yet, it would be created when you start your agent. 
 
-In the Prefect UI, you can create a work queue by selecting the **Work Queues** page, then creating a new work queue. 
-
-However, we can also use a Prefect CLI convenience command: starting your agent with a set of tags will automatically create a work queue for you that serves deployments with those tags. This is handy for quickly standing up a test environment, for example.
-
-In your terminal, run the `prefect agent start` command, passing a `-t test` option that creates a work queue for `test` tags. Remember, we configured this same tag on the deployment at an earlier step.
+In your terminal, run the `prefect agent start` command, passing a `-q test` option that tells it to pull work from the `test` work queue. Remember, we configured the deployment to use this work queue at an earlier step.
 
 <div class="terminal">
 ```bash
-$ prefect agent start -t test
+$ prefect agent start -q test
 Starting agent connected to http://127.0.0.1:4200/api...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
@@ -327,20 +324,14 @@ Starting agent connected to http://127.0.0.1:4200/api...
  |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
 
 
-Agent started! Looking for work from queue 'Agent queue test'...
+Agent started! Looking for work from queue 'test'...
 ```
 </div>
 
 Remember that:
 
-- We specified the `test` tag when building the deployment files.
-- The 'Agent queue test' work queue is defined to serve deployments with a `test` tag.
-- The agent is configured to pick up work from the 'Agent queue test' work queue, so it will only execute flow runs for deployments with a `test` tag.
-
-!!! note "Reference work queues by name or ID"
-    You can reference a work queue by either ID or by name when starting an agent to pull work from a queue. For example: `prefect agent start 'tutorial_queue'`.
-
-    Note, however, that you can edit the name of a work queue after creation, which may cause errors for agents referencing a work queue by name.
+- We specified the `test` work queue when building the deployment files.
+- The agent is configured to pick up work from the `test` work queue, so it will execute flow runs from our deployment (and any others that also point at this queue).
 
 ## Run the deployment locally
 

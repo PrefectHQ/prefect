@@ -6,22 +6,42 @@ import datetime
 import json
 import os
 from functools import partial
-from typing import Any, Dict, List, Set, TypeVar
+from typing import Any, Dict, List, Set, Type, TypeVar
 from uuid import UUID, uuid4
 
 import pendulum
+import pydantic
+from packaging.version import Version
 from pydantic import BaseModel, Field, SecretBytes, SecretStr
 from pydantic.json import custom_pydantic_encoder
 
 T = TypeVar("T")
 
 
+class DateTimeTZ(pendulum.DateTime):
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        if isinstance(v, str):
+            return pendulum.parse(v)
+        elif isinstance(v, datetime.datetime):
+            return pendulum.instance(v)
+        else:
+            raise ValueError("Unrecognized datetime.")
+
+
+B = TypeVar("B", bound=BaseModel)
+
+
 def pydantic_subclass(
-    base: BaseModel,
+    base: Type[B],
     name: str = None,
     include_fields: List[str] = None,
     exclude_fields: List[str] = None,
-) -> BaseModel:
+) -> Type[B]:
     """Creates a subclass of a Pydantic model that excludes certain fields.
     Pydantic models use the __fields__ attribute of their parent class to
     determine inherited fields, so to create a subclass without fields, we
@@ -113,20 +133,21 @@ class PrefectBaseModel(BaseModel):
         else:
             extra = "ignore"
 
-        # prevent Pydantic from copying nested models on
-        # validation, otherwise ORMBaseModel.copy() is run
-        # which resets fields like `id`
-        # https://github.com/samuelcolvin/pydantic/pull/2193
-        # TODO: remove once this is the default in pydantic>=2.0
-        copy_on_model_validation = False
+        pydantic_version = getattr(pydantic, "__version__", None)
+        if pydantic_version is not None and Version(pydantic_version) >= Version(
+            "1.9.2"
+        ):
+            copy_on_model_validation = "none"
+        else:
+            copy_on_model_validation = False
 
     @classmethod
     def subclass(
-        cls,
+        cls: Type[B],
         name: str = None,
         include_fields: List[str] = None,
         exclude_fields: List[str] = None,
-    ) -> BaseModel:
+    ) -> Type[B]:
         """Creates a subclass of this model containing only the specified fields.
 
         See `pydantic_subclass()`.
@@ -268,9 +289,13 @@ class PrefectBaseModel(BaseModel):
             # Simplify the display of some common fields
             if field.type_ == UUID and value:
                 value = str(value)
-            elif field.type_ == datetime.datetime and name == "timestamp" and value:
+            elif (
+                isinstance(field.type_, datetime.datetime)
+                and name == "timestamp"
+                and value
+            ):
                 value = pendulum.instance(value).isoformat()
-            elif field.type_ == datetime.datetime and value:
+            elif isinstance(field.type_, datetime.datetime) and value:
                 value = pendulum.instance(value).diff_for_humans()
 
             yield name, value, field.get_default()
@@ -301,8 +326,8 @@ class ORMBaseModel(IDBaseModel):
     class Config:
         orm_mode = True
 
-    created: datetime.datetime = Field(None, repr=False)
-    updated: datetime.datetime = Field(None, repr=False)
+    created: DateTimeTZ = Field(None, repr=False)
+    updated: DateTimeTZ = Field(None, repr=False)
 
     def _reset_fields(self) -> Set[str]:
         return super()._reset_fields().union({"created", "updated"})

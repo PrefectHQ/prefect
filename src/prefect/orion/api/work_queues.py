@@ -2,17 +2,16 @@
 Routes for interacting with work queue objects.
 """
 
-import datetime
 from typing import List, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, status
 
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
+from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/work_queues", tags=["Work Queues"])
@@ -102,9 +101,9 @@ async def read_work_queue(
 async def read_work_queue_runs(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     limit: int = dependencies.LimitBody(),
-    scheduled_before: datetime.datetime = Body(
+    scheduled_before: DateTimeTZ = Body(
         None,
-        description="Only flow runs scheduled to start before this time will be returned. If not provided, defaults to now.",
+        description="Only flow runs scheduled to start before this time will be returned.",
     ),
     agent_id: Optional[UUID] = Body(
         None,
@@ -115,8 +114,6 @@ async def read_work_queue_runs(
     """
     Get flow runs from the work queue.
     """
-    scheduled_before = scheduled_before or pendulum.now("UTC")
-
     flow_runs = await models.work_queues.get_runs_in_work_queue(
         session=session,
         work_queue_id=work_queue_id,

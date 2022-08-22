@@ -15,7 +15,7 @@ tags:
 
 Storage lets you configure how flow code for deployments is persisted and retrieved by [Prefect agents](/concepts/work-queues). Anytime you build a deployment, a storage block is used to upload the entire directory containing your workflow code (along with supporting files) to its configured location.  This helps ensure portability of your relative imports, configuration files, and more.  Note that your environment dependencies (for example, external Python packages) still need to be managed separately.
 
-If no storage is explicitly configured, Prefect will use `LocalFileSystem` storage by default. Local storage works fine for many local flow run scenarios, especially when testing and getting started. However, due to the inherit lack of portability, many use cases are better served by using remote storage such as S3 or Google Cloud Storage.
+If no storage is explicitly configured, Prefect will use `LocalFileSystem` storage by default. Local storage works fine for many local flow run scenarios, especially when testing and getting started. However, due to the inherent lack of portability, many use cases are better served by using remote storage such as S3 or Google Cloud Storage.
 
 Prefect 2.0 supports creating multiple storage configurations and switching between storage as needed.
 
@@ -60,7 +60,7 @@ block.save("example-block")
 This block configuration is now available to be used by anyone with appropriate access to your Prefect API.  We can use this block to build a deployment by passing its slug to the `prefect deployment build` command as follows:
 
 ```
-prefect deployment build ./flows/my_flow.py:my_flow --name "Example Deployment --storage-block s3/example-block
+prefect deployment build ./flows/my_flow.py:my_flow --name "Example Deployment" --storage-block s3/example-block
 ```
 
 This command will first create a flow manifest file, and then proceed to upload the contents of your flow's directory to the designated storage location. Once complete, the full deployment specification will be persisted to a newly created `deployment.yaml` file.  For more information, see [Deployments](/concepts/deployments).

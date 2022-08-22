@@ -1,6 +1,7 @@
 """
 Command line interface for working with profiles.
 """
+import os
 import textwrap
 from typing import Optional
 
@@ -22,7 +23,7 @@ from prefect.context import use_profile
 profile_app = PrefectTyper(
     name="profile", help="Commands for interacting with your Prefect profiles."
 )
-app.add_typer(profile_app)
+app.add_typer(profile_app, aliases=["profiles"])
 
 
 @profile_app.command()
@@ -134,7 +135,8 @@ async def check_orion_connection(profile_name):
                         # if the client is using an ephemeral Orion app, inform the user
                         exit_method, msg = (
                             exit_with_success,
-                            f"No Prefect Orion instance specified using profile {profile_name!r}. Flow run metadata will be stored at the locally configured database: f{prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
+                            f"No Prefect Orion instance specified using profile {profile_name!r}. "
+                            f"Flow run metadata will be stored at the locally configured database: {prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
                         )
                     else:
                         exit_method, msg = (
@@ -166,7 +168,8 @@ async def check_orion_connection(profile_name):
                 elif await client.using_ephemeral_app():
                     exit_method, msg = (
                         exit_with_success,
-                        f"No Prefect Orion instance specified using profile {profile_name!r}. Flow run metadata will be stored at the locally configured database: f{prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
+                        f"No Prefect Orion instance specified using profile {profile_name!r}. "
+                        f"Flow run metadata will be stored at the locally configured database: {prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
                     )
                 else:
                     exit_method, msg = (
@@ -250,6 +253,17 @@ def rename(name: str, new_name: str):
 
     profiles.add_profile(profiles[name].copy(update={"name": new_name}))
     profiles.remove_profile(name)
+
+    # If the active profile was renamed switch the active profile to the new name.
+    context_profile = prefect.context.get_settings_context().profile
+    if profiles.active_name == name:
+        profiles.set_active(new_name)
+    if os.environ.get("PREFECT_PROFILE") == name:
+        app.console.print(
+            f"You have set your current profile to {name!r} with the "
+            "PREFECT_PROFILE environment variable. You must update this variable to "
+            f"{new_name!r} to continue using the profile."
+        )
 
     prefect.settings.save_profiles(profiles)
     exit_with_success(f"Renamed profile {name!r} to {new_name!r}.")
