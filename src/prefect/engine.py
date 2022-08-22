@@ -20,7 +20,7 @@ import sys
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 import pendulum
@@ -90,6 +90,7 @@ from prefect.utilities.asyncutils import (
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import Quote, visit_collection
+from prefect.utilities.hashing import stable_hash
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
@@ -706,7 +707,7 @@ def enter_task_run_engine(
         raise TimeoutError("Flow run timed out")
 
     begin_run = partial(
-        begin_task_map if mapped else create_task_run_then_submit,
+        begin_task_map if mapped else get_task_call_return_value,
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
@@ -762,7 +763,7 @@ async def begin_task_map(
         call_parameters = {key: value[i] for key, value in parameters.items()}
         task_runs.append(
             partial(
-                create_task_run_then_submit,
+                get_task_call_return_value,
                 task=task,
                 flow_run_context=flow_run_context,
                 parameters=call_parameters,
@@ -808,29 +809,20 @@ def collect_task_run_inputs(
     return inputs
 
 
-async def create_task_run_then_submit(
+async def get_task_call_return_value(
     task: Task,
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
-) -> Union[PrefectFuture, State]:
-    task_run = await create_task_run(
+):
+    future = create_task_run_future(
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
-        dynamic_key=_dynamic_key_for_task_run(flow_run_context, task),
         wait_for=wait_for,
-    )
-
-    future = await submit_task_run(
-        task=task,
-        flow_run_context=flow_run_context,
-        parameters=parameters,
-        task_run=task_run,
-        wait_for=wait_for,
-        task_runner=task_runner or flow_run_context.task_runner,
+        task_runner=task_runner,
     )
 
     if return_type == "future":
@@ -843,8 +835,89 @@ async def create_task_run_then_submit(
         raise ValueError(f"Invalid return type for task engine {return_type!r}.")
 
 
+def create_task_run_future(
+    task: Task,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
+    task_runner: Optional[BaseTaskRunner],
+) -> PrefectFuture:
+    # Default to the flow run's task runner
+    task_runner = task_runner or flow_run_context.task_runner
+
+    # Generate a name for the future
+    dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
+    task_run_name = f"{task.name}-{stable_hash(task.task_key)[:8]}-{dynamic_key}"
+
+    # Generate a future
+    future = PrefectFuture(
+        name=task_run_name,
+        key=uuid4(),
+        task_runner=task_runner,
+        asynchronous=task.isasync and flow_run_context.flow.isasync,
+    )
+
+    # Create and submit the task run in the background
+    flow_run_context.background_tasks.start_soon(
+        partial(
+            create_task_run_then_submit,
+            task=task,
+            task_run_name=task_run_name,
+            task_run_dynamic_key=dynamic_key,
+            future=future,
+            flow_run_context=flow_run_context,
+            parameters=parameters,
+            wait_for=wait_for,
+            task_runner=task_runner,
+        )
+    )
+
+    # Track the task run future in the flow run context
+    flow_run_context.task_run_futures.append(future)
+
+    # Return the future without waiting for task run creation or submission
+    return future
+
+
+async def create_task_run_then_submit(
+    task: Task,
+    task_run_name: str,
+    task_run_dynamic_key: str,
+    future: PrefectFuture,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
+    task_runner: BaseTaskRunner,
+) -> None:
+
+    task_run = await create_task_run(
+        task=task,
+        name=task_run_name,
+        flow_run_context=flow_run_context,
+        parameters=parameters,
+        dynamic_key=task_run_dynamic_key,
+        wait_for=wait_for,
+    )
+
+    # Attach the task run to the future to support `get_state` operations
+    future.task_run = task_run
+
+    await submit_task_run(
+        task=task,
+        future=future,
+        flow_run_context=flow_run_context,
+        parameters=parameters,
+        task_run=task_run,
+        wait_for=wait_for,
+        task_runner=task_runner,
+    )
+
+    future._submitted.set()
+
+
 async def create_task_run(
     task: Task,
+    name: str,
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     dynamic_key: str,
@@ -858,6 +931,7 @@ async def create_task_run(
 
     task_run = await flow_run_context.client.create_task_run(
         task=task,
+        name=name,
         flow_run_id=flow_run_context.flow_run.id,
         dynamic_key=dynamic_key,
         state=Pending(),
@@ -872,29 +946,25 @@ async def create_task_run(
 
 async def submit_task_run(
     task: Task,
+    future: PrefectFuture,
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     task_run: TaskRun,
     wait_for: Optional[Iterable[PrefectFuture]],
     task_runner: BaseTaskRunner,
 ) -> PrefectFuture:
-    """
-    Async entrypoint for task calls.
-
-    Tasks must be called within a flow. When tasks are called, they create a task run
-    and submit orchestration of the run to the flow run's task runner. The task runner
-    returns a future that is returned immediately.
-    """
     logger = get_run_logger(flow_run_context)
 
     if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
         logger.info(f"Executing {task_run.name!r} immediately...")
 
     future = await task_runner.submit(
-        task_run=task_run,
-        run_key=f"{task_run.name}-{task_run.id.hex}-{flow_run_context.flow_run.run_count}",
-        run_fn=begin_task_run,
-        run_kwargs=dict(
+        key=future.key,
+        # Need to configure this as an idempotency key
+        # run_key=f"{task_run.name}-{task_run.id.hex}-{flow_run_context.flow_run.run_count}",
+        # Include the name as well for Dask... todo
+        call=partial(
+            begin_task_run,
             task=task,
             task_run=task_run,
             parameters=parameters,
@@ -902,14 +972,10 @@ async def submit_task_run(
             result_filesystem=flow_run_context.result_filesystem,
             settings=prefect.context.SettingsContext.get().copy(),
         ),
-        asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
 
     if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
         logger.info(f"Submitted task run {task_run.name!r} for execution.")
-
-    # Track the task run future in the flow run context
-    flow_run_context.task_run_futures.append(future)
 
     return future
 
@@ -1195,11 +1261,11 @@ async def wait_for_task_runs_and_report_crashes(
         )
         if result.status == SetStateStatus.ACCEPT:
             engine_logger.debug(
-                f"Reported crashed task run {future.run_key!r} successfully."
+                f"Reported crashed task run {future.name!r} successfully."
             )
         else:
             engine_logger.warning(
-                f"Failed to report crashed task run {future.run_key!r}. "
+                f"Failed to report crashed task run {future.name!r}. "
                 f"Orchestrator did not accept state: {result!r}"
             )
 
