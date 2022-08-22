@@ -247,7 +247,7 @@ my_s3_bucket.save("my_s3_bucket")
 
 In the above example, the values for `AWSCredentials` are saved with `my_s3_bucket` and will not be usable with any other blocks.
 
-## Registering blocks to display on Prefect Cloud
+## Registering blocks for use in Prefect Cloud
 
 Blocks can be registered from a Python module available in the current virtual environment with a CLI command like this:
 
