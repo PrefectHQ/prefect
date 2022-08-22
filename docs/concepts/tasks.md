@@ -57,7 +57,7 @@ Tasks are uniquely identified by a task key, which is a hash composed of the tas
 
 **Calling a task's function from another task**
 
-A task can be called from another task by use of the `.fn()` method. Pass any arguments to `fn`. 
+Prefect does not allow execution of tasks within other tasks. If you would like to call your task's function directly, you can access it at `task.fn`. You may then call it without any Prefect orchestration or observation.
 
 ```python hl_lines="9"
 from prefect import flow, task
