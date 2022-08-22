@@ -418,6 +418,11 @@ async def build(
     if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
         exit_with_error("Only one schedule type can be provided.")
 
+    if infra_block and infra_type:
+        exit_with_error(
+            "Only one of `infra` or `infra_block` can be provided, please choose one."
+        )
+
     output_file = None
     if output:
         output_file = Path(output)
