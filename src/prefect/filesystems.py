@@ -705,11 +705,11 @@ class SMB(ReadableFileSystem, WritableFileSystem):
             ignore_file=ignore_file,
             overwrite=False,
         )
-    
+
     @sync_compatible
     async def read_path(self, path: str) -> bytes:
         return await self.filesystem.read_path(path)
-    
+
     @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
