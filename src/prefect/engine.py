@@ -141,7 +141,7 @@ def enter_flow_run_engine_from_flow_call(
         # Sync subflow run
         if is_subflow_run and not parent_flow_run_context.flow.isasync:
             return run_async_from_worker_thread(begin_run)
-        # Async subflow run
+        # Async flow run
         else:
             return begin_run()  # Return a coroutine for the user to await
 
