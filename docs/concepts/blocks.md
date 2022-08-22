@@ -33,7 +33,7 @@ json_block = JSON(value={"the_answer": 42})
 
 ### Saving blocks
 
-If this JSON value needs to be retrieved later to be used within a flow or task, we can use the `.save()` method on the blocks to store the value in a block document on the Orion DB for retrieval later:
+If this JSON value needs to be retrieved later to be used within a flow or task, we can use the `.save()` method on the block to store the value in a block document on the Orion DB for retrieval later:
 
 ```python
 json_block.save(name="life-the-universe-everything")
@@ -44,7 +44,7 @@ json_block.save(name="life-the-universe-everything")
 
 ### Loading blocks
 
-The name given when saving the value stored in the JSON block can be used to later when retrieving the value during a flow or task run:
+The name given when saving the value stored in the JSON block can be used when retrieving the value during a flow or task run:
 
 ```python hl_lines="6"
 from prefect import flow
@@ -58,7 +58,7 @@ def what_is_the_answer():
 what_is_the_answer() # 42
 ```
 
-Blocks can also be loaded with a unique slug which a combination of a block type slug and a block document name.
+Blocks can also be loaded with a unique slug that is a combination of a block type slug and a block document name.
 
 To load our JSON block document from before, we can run the following:
 
@@ -126,7 +126,7 @@ $ prefect block register --file my_block.py
 
 The registered block will then be available in the [Prefect UI](/ui/blocks/) for configuration.
 
-Blocks can also be registered from a Python module available in the current virtual environment with the CLI command:
+Blocks can also be registered from a Python module available in the current virtual environment with a CLI command like this:
 
 ```bash
 $ prefect block register --module prefect_aws.credentials
