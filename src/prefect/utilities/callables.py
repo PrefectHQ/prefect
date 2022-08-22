@@ -37,17 +37,6 @@ def get_call_parameters(
     return dict(bound_signature.arguments)
 
 
-def get_call_defaults(fn: Callable) -> Dict[str, Any]:
-    defaults = {}
-
-    signature = inspect.signature(fn)
-    for name, parameter in signature.parameters.items():
-        if parameter.default != inspect.Signature.empty:
-            defaults[name] = parameter.default
-
-    return defaults
-
-
 def parameters_to_args_kwargs(
     fn: Callable, parameters: Dict[str, Any]
 ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
