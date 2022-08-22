@@ -106,8 +106,13 @@ async def create_block_schema(
         .where(
             db.BlockSchema.checksum == insert_values["checksum"],
         )
+        .order_by(db.BlockSchema.created.desc())
+        .limit(1)
         .execution_options(populate_existing=True)
     )
+
+    if block_schema.version is not None:
+        query = query.where(db.BlockSchema.version == block_schema.version)
 
     result = await session.execute(query)
     created_block_schema = copy(result.scalar())

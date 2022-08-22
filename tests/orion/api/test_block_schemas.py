@@ -362,39 +362,40 @@ class TestReadBlockSchema:
         await session.commit()
 
         assert block_schema_0.checksum == block_schema_1.checksum
+        assert block_schema_0.id != block_schema_1.id
 
         # Read first version with version query parameter
-        response = await client.get(
+        response_1 = await client.get(
             f"/block_schemas/checksum/{block_schema_0.checksum}?version=1.0.1"
         )
-        assert response.status_code == 200
+        assert response_1.status_code == 200
 
-        block_schema_response = pydantic.parse_obj_as(
-            schemas.core.BlockSchema, response.json()
+        block_schema_response_1 = pydantic.parse_obj_as(
+            schemas.core.BlockSchema, response_1.json()
         )
 
-        assert block_schema_response.id == block_schema_0.id
+        assert block_schema_response_1.id == block_schema_0.id
 
         # Read second version with version query parameter
-        response = await client.get(
+        response_2 = await client.get(
             f"/block_schemas/checksum/{block_schema_1.checksum}?version=1.1.0"
         )
-        assert response.status_code == 200
+        assert response_2.status_code == 200
 
-        block_schema_response = pydantic.parse_obj_as(
-            schemas.core.BlockSchema, response.json()
+        block_schema_response_2 = pydantic.parse_obj_as(
+            schemas.core.BlockSchema, response_2.json()
         )
 
-        assert block_schema_response.id == block_schema_1.id
+        assert block_schema_response_2.id == block_schema_1.id
 
         # Read without version. Should return most recently created block schema.
-        response = await client.get(
+        response_3 = await client.get(
             f"/block_schemas/checksum/{block_schema_0.checksum}"
         )
-        assert response.status_code == 200
+        assert response_3.status_code == 200
 
-        block_schema_response = pydantic.parse_obj_as(
-            schemas.core.BlockSchema, response.json()
+        block_schema_response_3 = pydantic.parse_obj_as(
+            schemas.core.BlockSchema, response_3.json()
         )
 
-        assert block_schema_response.id == block_schema_1.id
+        assert block_schema_response_3.id == block_schema_1.id
