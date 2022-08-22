@@ -25,7 +25,7 @@ Let's start with the basics, defining the central components of Prefect workflow
 
 A [flow](/concepts/flows/) is the basis of all Prefect workflows. A flow is a Python function decorated with a `@flow` decorator. 
 
-A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represents distinct pieces of work executed within a flow. 
+A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent distinct pieces of work executed within a flow. 
 
 All Prefect workflows are defined within the context of a flow. Every Prefect workflow must contain at least one flow function that serves as the entrypoint for execution of the flow. 
 
@@ -196,7 +196,7 @@ All cats have three sets of long hairs that are sensitive to pressure - whiskers
 
 ## Run a flow within a flow
 
-Not only can you call task functions within a flow, but you can also call other flow functions! Child flows are called [subflows](/concepts/flows/#subflows) and allow you to efficiently manage, track, and version common multi-task logic. See the [Subflows](/concepts/flows/#subflows) section of the Flows documentation for details.
+Not only can you call task functions within a flow, but you can also call other flow functions! Child flows are called [subflows](/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic. See the [Composing flows](/concepts/flows/#composing-flows) section of the Flows documentation for details.
 
 Consider the following simple example:
 

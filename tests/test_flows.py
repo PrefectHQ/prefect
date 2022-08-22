@@ -668,6 +668,8 @@ class TestFlowTimeouts:
         state = my_flow._run()
         assert state.is_failed()
         assert state.name == "TimedOut"
+        with pytest.raises(TimeoutError):
+            state.result()
         assert "exceeded timeout of 0.1 seconds" in state.message
 
     async def test_async_flows_fail_with_timeout(self):
@@ -678,6 +680,8 @@ class TestFlowTimeouts:
         state = await my_flow._run()
         assert state.is_failed()
         assert state.name == "TimedOut"
+        with pytest.raises(TimeoutError):
+            state.result()
         assert "exceeded timeout of 0.1 seconds" in state.message
 
     def test_timeout_only_applies_if_exceeded(self):
@@ -687,6 +691,18 @@ class TestFlowTimeouts:
 
         state = my_flow._run()
         assert state.is_completed()
+
+    def test_user_timeout_is_not_hidden(self):
+        @flow(timeout_seconds=30)
+        def my_flow():
+            raise TimeoutError("Oh no!")
+
+        state = my_flow(return_state=True)
+        assert state.is_failed()
+        assert state.name == "Failed"
+        with pytest.raises(TimeoutError, match="Oh no!"):
+            state.result()
+        assert "exceeded timeout" not in state.message
 
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
         """
@@ -984,7 +1000,7 @@ class TestSubflowTaskInputs:
 
         @flow
         def parent_flow():
-            task_state = child_task._run(1)
+            task_state = child_task._run(257)
             flow_state = child_flow._run(x=task_state)
             return task_state, flow_state
 
@@ -1008,7 +1024,7 @@ class TestSubflowTaskInputs:
 
         @flow
         def parent_flow():
-            task_state = child_task._run(1)
+            task_state = child_task._run(257)
             task_result = task_state.result()
             flow_state = child_flow._run(x=task_result)
             return task_state, flow_state

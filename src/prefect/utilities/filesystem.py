@@ -7,8 +7,44 @@ from contextlib import contextmanager
 from typing import Union
 
 import fsspec
+import pathspec
 from fsspec.core import OpenFile
 from fsspec.implementations.local import LocalFileSystem
+
+
+def set_default_ignore_file(path: str) -> bool:
+    """
+    Creates default ignore file in the provided path if one does not already exist; returns boolean specifying
+    whether a file was created.
+    """
+    path = pathlib.Path(path)
+    if (path / ".prefectignore").exists():
+        return False
+    default_file = pathlib.Path(__file__).parent / ".." / ".prefectignore"
+    with open(path / ".prefectignore", "w") as f:
+        f.write(default_file.read_text())
+    return True
+
+
+def filter_files(
+    root: str = ".", ignore_patterns: list = None, include_dirs: bool = True
+) -> list:
+    """
+    This function accepts a root directory path and a list of file patterns to ignore, and returns
+    a list of files that excludes those that should be ignored.
+
+    The specification matches that of [.gitignore files](https://git-scm.com/docs/gitignore).
+    """
+    if ignore_patterns is None:
+        ignore_patterns = []
+    spec = pathspec.PathSpec.from_lines("gitwildmatch", ignore_patterns)
+    ignored_files = {p.path for p in spec.match_tree_entries(root)}
+    if include_dirs:
+        all_files = {p.path for p in pathspec.util.iter_tree_entries(root)}
+    else:
+        all_files = set(pathspec.util.iter_tree_files(root))
+    included_files = all_files - ignored_files
+    return included_files
 
 
 @contextmanager

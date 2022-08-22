@@ -73,6 +73,11 @@ def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logge
             flow_run_context = context
         elif isinstance(context, prefect.context.TaskRunContext):
             task_run_context = context
+        else:
+            raise TypeError(
+                f"Received unexpected type {type(context).__name__!r} for context. "
+                "Expected one of 'None', 'FlowRunContext', or 'TaskRunContext'."
+            )
 
     # Determine if this is a task or flow run logger
     if task_run_context:

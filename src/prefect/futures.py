@@ -21,7 +21,14 @@ from typing import (
 from prefect.client import OrionClient, inject_client
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
-from prefect.utilities.asyncutils import A, Async, Sync, sync
+from prefect.utilities.asyncutils import (
+    A,
+    Async,
+    Sync,
+    run_async_from_worker_thread,
+    run_sync_in_worker_thread,
+    sync,
+)
 from prefect.utilities.collections import visit_collection
 
 if TYPE_CHECKING:
@@ -284,13 +291,15 @@ async def resolve_futures_to_data(
     Unsupported object types will be returned without modification.
     """
 
-    async def visit_fn(expr):
+    def resolve_future(expr):
         if isinstance(expr, PrefectFuture):
-            return (await expr._wait()).result(raise_on_failure=False)
+            return run_async_from_worker_thread(expr._result)
         else:
             return expr
 
-    return await visit_collection(expr, visit_fn=visit_fn, return_data=True)
+    return await run_sync_in_worker_thread(
+        visit_collection, expr, visit_fn=resolve_future, return_data=True
+    )
 
 
 async def resolve_futures_to_states(
@@ -304,13 +313,15 @@ async def resolve_futures_to_states(
     Unsupported object types will be returned without modification.
     """
 
-    async def visit_fn(expr):
+    def resolve_future(expr):
         if isinstance(expr, PrefectFuture):
-            return await expr._wait()
+            return run_async_from_worker_thread(expr._wait)
         else:
             return expr
 
-    return await visit_collection(expr, visit_fn=visit_fn, return_data=True)
+    return await run_sync_in_worker_thread(
+        visit_collection, expr, visit_fn=resolve_future, return_data=True
+    )
 
 
 def call_repr(__fn: Callable, *args: Any, **kwargs: Any) -> str:

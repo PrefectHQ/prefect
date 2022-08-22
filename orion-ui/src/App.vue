@@ -26,6 +26,7 @@
 <script lang="ts" setup>
   import {
     blockCapabilitiesApiKey,
+    blockCatalogViewRouteKey,
     blockCatalogCreateRouteKey,
     blockCatalogRouteKey,
     blockDocumentsApiKey,
@@ -42,6 +43,7 @@
     editNotificationRouteKey,
     editQueueRouteKey,
     flowRouteKey,
+    flowRunCreateRouteKey,
     flowRunRouteKey,
     flowRunsApiKey,
     flowRunsRouteKey,
@@ -88,6 +90,7 @@
 
   provide(canKey, can)
 
+  provide(blockCatalogViewRouteKey, routes.blocksCatalogView)
   provide(blockCatalogCreateRouteKey, routes.blocksCatalogCreate)
   provide(blockCatalogRouteKey, routes.blocksCatalog)
   provide(blockEditRouteKey, routes.blockEdit)
@@ -98,6 +101,7 @@
   provide(deploymentsRouteKey, routes.deployments)
   provide(editQueueRouteKey, routes.workQueueEdit)
   provide(flowRouteKey, routes.flow)
+  provide(flowRunCreateRouteKey, routes.flowRunCreate)
   provide(flowRunRouteKey, routes.flowRun)
   provide(flowRunsRouteKey, routes.flowRuns)
   provide(flowsRouteKey, routes.flows)

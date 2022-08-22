@@ -327,7 +327,7 @@ Now run `ray_flow.py` `RayTaskRunner` automatically creates a local Ray instance
 
 Many workflows include a variety of tasks, and not all of them benefit from parallel execution. You'll most likely want to use the Dask or Ray task runners and spin up their respective resources only for those tasks that need them.
 
-Because task runners are specified on flows, you can assign different task runners to tasks by using [subflows](/concepts/flows/#subflows) to organize those tasks.
+Because task runners are specified on flows, you can assign different task runners to tasks by using [subflows](/concepts/flows/#composing-flows) to organize those tasks.
 
 This example uses the same tasks as the previous examples, but on the parent flow `greetings()` we use the default `ConcurrentTaskRunner`. Then we call a `ray_greetings()` subflow that uses the `RayTaskRunner` to execute the same tasks in a Ray instance. 
 

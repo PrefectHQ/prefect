@@ -1,6 +1,6 @@
 import contextlib
 import random
-from itertools import product
+from itertools import permutations, product
 from unittest.mock import MagicMock
 
 import pendulum
@@ -14,6 +14,7 @@ from prefect.orion.orchestration.rules import (
     BaseUniversalTransform,
     OrchestrationContext,
     OrchestrationResult,
+    TaskOrchestrationContext,
 )
 from prefect.orion.schemas import states
 from prefect.orion.schemas.responses import (
@@ -22,6 +23,7 @@ from prefect.orion.schemas.responses import (
     StateRejectDetails,
     StateWaitDetails,
 )
+from prefect.testing.utilities import AsyncMock
 
 # Convert constant from set to list for deterministic ordering of tests
 ALL_ORCHESTRATION_STATES = list(
@@ -486,6 +488,93 @@ class TestBaseOrchestrationRule:
         assert before_transition_hook.call_count == 1
         assert after_transition_hook.call_count == 1
         assert cleanup_step.call_count == 0
+
+    @pytest.mark.parametrize(
+        "intended_transition",
+        list(product([*states.StateType, None], [*states.StateType])),
+        ids=transition_names,
+    )
+    async def test_rules_that_raise_exceptions_during_before_transition(
+        self, session, task_run, intended_transition
+    ):
+        outer_before_transition_hook = MagicMock()
+        before_transition_hook = MagicMock()
+        outer_after_transition_hook = MagicMock()
+        after_transition_hook = MagicMock()
+        outer_cleanup_step = MagicMock()
+        cleanup_step = MagicMock()
+
+        class MinimalRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                outer_before_transition_hook()
+
+            async def after_transition(self, initial_state, validated_state, context):
+                outer_after_transition_hook()
+
+            async def cleanup(self, initial_state, validated_state, context):
+                outer_cleanup_step()
+
+        class RaisingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                before_transition_hook()
+                raise RuntimeError("Test!")
+
+            async def after_transition(self, initial_state, validated_state, context):
+                after_transition_hook()
+
+            async def cleanup(self, initial_state, validated_state, context):
+                cleanup_step()
+
+        # this rule seems valid because the initial and proposed states match the intended transition
+        initial_state_type, proposed_state_type = intended_transition
+        initial_state = await commit_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
+        )
+
+        ctx = TaskOrchestrationContext(
+            session=session,
+            run=task_run,
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            minimal_rule = MinimalRule(ctx, *intended_transition)
+            ctx = await stack.enter_async_context(minimal_rule)
+
+            raising_rule = RaisingRule(ctx, *intended_transition)
+            ctx = await stack.enter_async_context(raising_rule)
+
+        assert ctx.proposed_state is None, "Proposed state should be None"
+
+        assert await minimal_rule.fizzled() is True
+
+        assert (
+            await raising_rule.invalid() is False
+        ), "Rules that error on entry should be fizzled so they can try and clean up"
+        assert await raising_rule.fizzled() is True
+
+        assert outer_before_transition_hook.call_count == 1
+        assert outer_after_transition_hook.call_count == 0
+        assert (
+            outer_cleanup_step.call_count == 1
+        ), "All rules should clean up side effects"
+
+        assert before_transition_hook.call_count == 1
+        assert (
+            after_transition_hook.call_count == 0
+        ), "The after-transition hook should not run"
+        assert cleanup_step.call_count == 1, "All rules should clean up side effects"
+        assert isinstance(ctx.orchestration_error, RuntimeError)
 
     @pytest.mark.parametrize("initial_state_type", ALL_ORCHESTRATION_STATES)
     async def test_rules_enforce_initial_state_validity(
@@ -1238,3 +1327,124 @@ class TestOrchestrationContext:
         await ctx.validate_proposed_state()
         assert ctx.run.state.id == ctx.validated_state.id
         assert ctx.validated_state.id == ctx.proposed_state.id
+
+    @pytest.mark.parametrize(
+        "intended_transition",
+        list(permutations([*states.StateType, None], 2)),
+        ids=transition_names,
+    )
+    async def test_context_state_validation_encounters_multiple_exceptions(
+        self, session, run_type, intended_transition, initialize_orchestration
+    ):
+        initial_state_type, proposed_state_type = intended_transition
+        before_transition_hook = MagicMock()
+        after_transition_hook = MagicMock()
+        cleanup_hook = MagicMock()
+
+        class MockRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                before_transition_hook(initial_state, proposed_state, context)
+
+            async def after_transition(self, initial_state, validated_state, context):
+                after_transition_hook(initial_state, validated_state, context)
+
+            async def cleanup(self, initial_state, validated_state, context):
+                cleanup_hook(initial_state, validated_state, context)
+
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+
+        # Bypass pydantic mutation protection, inject a one-time error
+        side_effects = [
+            RuntimeError("Something's wrong with the database!"),
+            RuntimeError("Something's really wrong with the database..."),
+        ]
+        object.__setattr__(ctx.session, "flush", AsyncMock(side_effect=side_effects))
+
+        async with contextlib.AsyncExitStack() as stack:
+            mock_rule = MockRule(ctx, *intended_transition)
+            ctx = await stack.enter_async_context(mock_rule)
+            await ctx.validate_proposed_state()
+
+        if ctx.initial_state is None:
+            assert ctx.run.state is None, "The run state should remain unchanged"
+        else:
+            assert (
+                ctx.run.state.type == ctx.initial_state.type
+            ), "The run state should remain unchanged"
+
+        before_transition_hook.assert_called_once()
+        if proposed_state_type is not None:
+            after_transition_hook.assert_not_called()
+            cleanup_hook.assert_called_once(), "Cleanup should be called when trasition is aborted"
+        else:
+            after_transition_hook.assert_called_once(), "Rule expected no transition"
+            cleanup_hook.assert_not_called()
+
+        @pytest.mark.parametrize(
+            "intended_transition",
+            list(permutations([*states.StateType, None], 2)),
+            ids=transition_names,
+        )
+        async def test_context_state_validation_encounters_intermittent_exception(
+            self, session, run_type, intended_transition, initialize_orchestration
+        ):
+            initial_state_type, proposed_state_type = intended_transition
+            before_transition_hook = MagicMock()
+            after_transition_hook = MagicMock()
+            cleanup_hook = MagicMock()
+
+            class MockRule(BaseOrchestrationRule):
+                FROM_STATES = ALL_ORCHESTRATION_STATES
+                TO_STATES = ALL_ORCHESTRATION_STATES
+
+                async def before_transition(
+                    self, initial_state, proposed_state, context
+                ):
+                    before_transition_hook(initial_state, proposed_state, context)
+
+                async def after_transition(
+                    self, initial_state, validated_state, context
+                ):
+                    after_transition_hook(initial_state, validated_state, context)
+
+                async def cleanup(self, initial_state, validated_state, context):
+                    cleanup_hook(initial_state, validated_state, context)
+
+            ctx = await initialize_orchestration(
+                session, run_type, *intended_transition
+            )
+
+            # Bypass pydantic mutation protection, inject a one-time error
+            working_flush = ctx.session.flush
+            side_effects = [RuntimeError("One time error!"), working_flush]
+            object.__setattr__(
+                ctx.session, "flush", AsyncMock(side_effect=side_effects)
+            )
+
+            async with contextlib.AsyncExitStack() as stack:
+                mock_rule = MockRule(ctx, *intended_transition)
+                ctx = await stack.enter_async_context(mock_rule)
+                await ctx.validate_proposed_state()
+
+            if ctx.proposed_state is not None:
+                assert (
+                    ctx.run.state.id == ctx.proposed_state.id
+                ), "The run state was not set to the proposed state after validation"
+                assert (
+                    ctx.run.state.id == ctx.validated_state.id
+                ), "The run state does not match the validated state"
+            elif ctx.initial_state is None:
+                assert (
+                    ctx.run.state is None
+                ), "No state should be set if the proposed state is None"
+            else:
+                assert (
+                    ctx.run.state.type == ctx.initial_state.type
+                ), "No state should be set if the proposed state is None"
+
+            before_transition_hook.assert_called_once()
+            after_transition_hook.assert_called_once()
+            cleanup_hook.assert_not_called()

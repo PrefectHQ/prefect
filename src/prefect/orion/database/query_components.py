@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Hashable, List, Tuple
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.ext.asyncio import AsyncSession
 
 if TYPE_CHECKING:
     from prefect.orion.database.interface import OrionDBInterface
@@ -72,7 +73,7 @@ class BaseQueryComponents(ABC):
 
     @abstractmethod
     async def get_flow_run_notifications_from_queue(
-        self, session: sa.orm.Session, db: "OrionDBInterface", limit: int
+        self, session: AsyncSession, db: "OrionDBInterface", limit: int
     ):
         """Database-specific implementation of reading notifications from the queue and deleting them"""
 
@@ -150,7 +151,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         return stmt
 
     async def get_flow_run_notifications_from_queue(
-        self, session: sa.orm.Session, db: "OrionDBInterface", limit: int
+        self, session: AsyncSession, db: "OrionDBInterface", limit: int
     ) -> List:
 
         queued_notifications = (
@@ -320,7 +321,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         return stmt
 
     async def get_flow_run_notifications_from_queue(
-        self, session: sa.orm.Session, db: "OrionDBInterface", limit: int
+        self, session: AsyncSession, db: "OrionDBInterface", limit: int
     ) -> List:
         """
         Sqlalchemy has no support for DELETE RETURNING in sqlite (as of May 2022)
