@@ -10,16 +10,20 @@ tags:
 
 # File systems
 
-A file system is an object which allows you to read and write data from paths. Prefect provides two built-in file system types that cover a wide range of use cases. 
+A file system block is an object which allows you to read and write data from paths. Prefect provides multiple built-in file system types that cover a wide range of use cases. 
 
 -  [`LocalFileSystem`](#local-file-system)
 -  [`RemoteFileSystem`](#remote-file-system)
+-  [`S3`](#s3)
+-  [`GCS`](#gcs)
+-  [`Azure`](#azure)
+-  [`SMB`](#smb)
 
 Additional file system types are available in [Prefect Collections](/collections/overview/).
 
 ## Local file system
 
-The `LocalFileSystem` enables interaction with the files in your current development environment. 
+The `LocalFileSystem` block enables interaction with the files in your current development environment. 
 
 `LocalFileSystem` properties include:
 
@@ -40,7 +44,7 @@ fs = LocalFileSystem(basepath="/foo/bar")
 
 ## Remote file system
 
-The `RemoteFileSystem` enables interaction with arbitrary remote file systems. Under the hood, `RemoteFileSystem` uses [`fsspec`](https://filesystem-spec.readthedocs.io/en/latest/) and supports any file system that `fsspec` supports. 
+The `RemoteFileSystem` block enables interaction with arbitrary remote file systems. Under the hood, `RemoteFileSystem` uses [`fsspec`](https://filesystem-spec.readthedocs.io/en/latest/) and supports any file system that `fsspec` supports. 
 
 `RemoteFileSystem` properties include:
 
@@ -49,14 +53,19 @@ The `RemoteFileSystem` enables interaction with arbitrary remote file systems. U
 | basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
 | settings | Dictionary containing extra [parameters](https://filesystem-spec.readthedocs.io/en/latest/features.html#configuration) required to access the remote file system. |
 
-The file system is specified using a protocol. For example, `s3://my-bucket/my-folder/` will use S3.
+The file system is specified using a protocol:
 
-For example, you can use the remote file system type to connect to S3-compatible storage:
+- `s3://my-bucket/my-folder/` will use S3
+- `gcs://my-bucket/my-folder/` will use GCS
+- `az://my-bucket/my-folder/` will use Azure
+
+For example, to use it with Amazon S3:
 
 ```python
 from prefect.filesystems import RemoteFileSystem
 
-RemoteFileSystem(basepath="s3://my-bucket/folder/")
+block = RemoteFileSystem(basepath="s3://my-bucket/folder/")
+block.save("dev")
 ```
 
 You may need to install additional libraries to use some remote storage types.
@@ -67,29 +76,161 @@ How can we use `RemoteFileSystem` to store our flow code?
 The following is a use case where we use [MinIO](https://min.io/) as a storage backend:
 
 ```python
-minio_file_packager = FilePackager(
-    filesystem=RemoteFileSystem(
-        basepath="s3://my-bucket",
-        settings={
-            "key": MINIO_ROOT_USER,
-            "secret": MINIO_ROOT_PASSWORD,
-            "client_kwargs": {"endpoint_url": "http://localhost:9000"}
-        }
-    )
-)
-```
+from prefect.filesystems import RemoteFileSystem
 
-Now let's look at how we can use `RemoteFileSystem` with AWS S3:
-
-```python
-aws_s3_file_packager = FilePackager(filesystem=RemoteFileSystem(
+minio_block = RemoteFileSystem(
     basepath="s3://my-bucket",
     settings={
-        "key": AWS_ACCESS_KEY_ID,
-        "secret": AWS_SECRET_ACCESS_KEY
-    }
-))
+        "key": "MINIO_ROOT_USER",
+        "secret": "MINIO_ROOT_PASSWORD",
+        "client_kwargs": {"endpoint_url": "http://localhost:9000"},
+    },
+)
+minio_block.save("minio")
 ```
+
+
+## S3
+
+The `S3` file system block enables interaction with Amazon S3. Under the hood, `S3` uses [`s3fs`](https://s3fs.readthedocs.io/en/latest/).
+
+`S3` properties include:
+
+| Property | Description |
+| --- | --- |
+| basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
+| aws_access_key_id | AWS Access Key ID |
+| aws_secret_access_key | AWS Secret Access Key |
+
+
+To create a block:
+
+```python
+from prefect.filesystems import S3
+
+block = S3(basepath="my-bucket/folder/")
+block.save("dev")
+```
+
+To use it in a deployment:
+```bash
+prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb s3/dev
+```
+
+You need to install `s3fs`to use it.
+
+
+## GCS
+
+The `GCS` file system block enables interaction with Google Cloud Storage. Under the hood, `GCS` uses [`gcsfs`](https://gcsfs.readthedocs.io/en/latest/).
+
+`GCS` properties include:
+
+| Property | Description                                                                                                                  |
+| --- |------------------------------------------------------------------------------------------------------------------------------|
+| basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
+| service_account_info | The contents of a service account keyfile as a JSON string.                                                                  |
+| project | The project the GCS bucket resides in. If not provided, the project will be inferred from the credentials or environment.    |
+
+
+To create a block:
+
+```python
+from prefect.filesystems import GCS
+
+block = GCS(basepath="my-bucket/folder/")
+block.save("dev")
+```
+
+To use it in a deployment:
+```bash
+prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb gcs/dev
+```
+
+You need to install `gcsfs`to use it.
+
+
+## Azure
+
+The `Azure` file system block enables interaction with Azure Datalake and Azure Blob Storage. Under the hood, `Azure` uses [`adlfs`](https://github.com/fsspec/adlfs).
+
+`Azure` properties include:
+
+| Property | Description                                                                                                                  |
+| --- |------------------------------------------------------------------------------------------------------------------------------|
+| basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
+| azure_storage_connection_string | Azure storage connection string. |
+| azure_storage_account_name | Azure storage account name. |
+| azure_storage_account_key | Azure storage account key. |
+
+
+To create a block:
+
+```python
+from prefect.filesystems import Azure
+
+block = Azure(basepath="my-bucket/folder/")
+block.save("dev")
+```
+
+To use it in a deployment:
+```bash
+prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb az/dev
+```
+
+You need to install `adlfs` to use it.
+
+
+## SMB
+
+The `SMB` file system block enables interaction with SMB shared network storage. Under the hood, `SMB` uses [`smbprotocol`](https://github.com/jborean93/smbprotocol). Used to connect to Windows-based SMB shares from Linux-based Prefect flows. The SMB file system block is able to copy files, but cannot create directories.
+
+`SMB` properties include:
+
+| Property | Description                                                                                                                  |
+| --- |------------------------------------------------------------------------------------------------------------------------------|
+| basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
+| smb_host | Hostname or IP address where SMB network share is located. |
+| smb_port | Port for SMB network share (defaults to 445). |
+| smb_username | SMB username with read/write permissions. |
+| smb_password | SMB password. |
+
+
+To create a block:
+
+```python
+from prefect.filesystems import SMB
+
+block = SMB(basepath="my-share/folder/")
+block.save("dev")
+```
+
+To use it in a deployment:
+```bash
+prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb smb/dev
+```
+
+You need to install `smbprotocol` to use it.
+
+
+## Handling credentials for cloud object storage services
+
+If you leverage `S3`, `GCS`, or `Azure` storage blocks, and you don't explicitly configure credentials on the respective storage block, those credentials will be inferred from the environment. Make sure to set those either explicitly on the block or as environment variables, configuration files, or IAM roles within both the build and runtime environment for your deployments.
+
+
+## Filesystem-specific package dependencies in Docker images
+
+The core package and Prefect base images don't include filesystem-specific package dependencies such as `s3fs`, `gcsfs` or `adlfs`. To solve that problem in dockerized deployments, you can leverage the `EXTRA_PIP_PACKAGES` environment variable. Those dependencies will be installed at runtime within your Docker container or Kubernetes Job before the flow starts running. 
+
+Here is an example showing how you can specify that in your deployment YAML manifest:
+
+```yaml
+infrastructure:
+  type: docker-container
+  env:
+    EXTRA_PIP_PACKAGES: s3fs  # could be gcsfs, adlfs, etc.
+```
+
 
 ## Saving and loading file systems
 

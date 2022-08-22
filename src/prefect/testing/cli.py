@@ -1,3 +1,4 @@
+import contextlib
 import textwrap
 from typing import Iterable, List, Union
 
@@ -47,8 +48,10 @@ def invoke_and_assert(
     expected_output: str = None,
     expected_output_contains: Union[str, Iterable[str]] = None,
     expected_output_does_not_contain: Union[str, Iterable[str]] = None,
+    expected_line_count: int = None,
     expected_code: int = 0,
     echo: bool = True,
+    temp_dir: str = None,
 ) -> Result:
     """
     Test utility for the Prefect CLI application, asserts exact match with CLI output.
@@ -65,10 +68,17 @@ def invoke_and_assert(
             contain the string or strings.
         expected_code: 0 if we expect the app to exit cleanly, else 1 if we expect
             the app to exit with an error.
+        temp_dir: if provided, the CLI command will be run with this as its present
+            working directory.
     """
 
     runner = CliRunner()
-    result = runner.invoke(app, command, catch_exceptions=False, input=user_input)
+    if temp_dir:
+        ctx = runner.isolated_filesystem(temp_dir=temp_dir)
+    else:
+        ctx = contextlib.nullcontext()
+    with ctx:
+        result = runner.invoke(app, command, catch_exceptions=False, input=user_input)
 
     if echo:
         print("------ CLI output ------")
@@ -104,5 +114,11 @@ def invoke_and_assert(
         else:
             for contents in expected_output_does_not_contain:
                 check_contains(result, contents, should_contain=False)
+
+    if expected_line_count is not None:
+        line_count = len(result.stdout.splitlines())
+        assert (
+            expected_line_count == line_count
+        ), f"Expected {expected_line_count} lines of CLI output, only {line_count} lines present"
 
     return result

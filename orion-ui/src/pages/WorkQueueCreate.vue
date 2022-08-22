@@ -4,12 +4,12 @@
       <PageHeadingWorkQueueCreate />
     </template>
 
-    <WorkQueueForm @submit="createQueue" @cancel="goToQueues" />
+    <WorkQueueCreateForm action="Create" @submit="createQueue" @cancel="goToQueues" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { WorkQueueForm, PageHeadingWorkQueueCreate, IWorkQueueRequest } from '@prefecthq/orion-design'
+  import { WorkQueueCreateForm, PageHeadingWorkQueueCreate, WorkQueueCreate } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouter } from 'vue-router'
   import { routes } from '@/router'
@@ -21,7 +21,7 @@
     router.push(routes.workQueues())
   }
 
-  const createQueue = async (workQueue: IWorkQueueRequest): Promise<void> => {
+  const createQueue = async (workQueue: WorkQueueCreate): Promise<void> => {
     try {
       const { id } = await workQueuesApi.createWorkQueue(workQueue)
       showToast('Work queue has been created', 'success')

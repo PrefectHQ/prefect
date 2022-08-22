@@ -33,13 +33,18 @@ json_block = JSON(value={"the_answer": 42})
 
 ### Saving blocks
 
-If this JSON value needs to be retrieved later to be used within a flow or task, we can use the `.save()` method on the blocks to store the value in a block document on the Orion DB for retrieval later:
+If this JSON value needs to be retrieved later to be used within a flow or task, we can use the `.save()` method on the block to store the value in a block document on the Orion DB for retrieval later:
 
 ```python
 json_block.save(name="life-the-universe-everything")
 ```
 
-The name given when saving the value stored in the JSON block can be used to later when retrieving the value during a flow or task run:
+!!! tip "Utilizing the UI"
+    Blocks documents can also be created and updated via the [Prefect UI](/ui/blocks/).
+
+### Loading blocks
+
+The name given when saving the value stored in the JSON block can be used when retrieving the value during a flow or task run:
 
 ```python hl_lines="6"
 from prefect import flow
@@ -53,20 +58,19 @@ def what_is_the_answer():
 what_is_the_answer() # 42
 ```
 
-### Loading blocks
-
-Blocks can also be loaded with a unique slug which a combination of a block type slug and a block document name.
+Blocks can also be loaded with a unique slug that is a combination of a block type slug and a block document name.
 
 To load our JSON block document from before, we can run the following:
 
-```python
+```python hl_lines="3"
 from prefect.blocks.core import Block
 
 json_block = Block.load("json/life-the-universe-everything")
 print(json_block.value["the-answer"]) #42
 ```
 
-Blocks documents can also be created and updated via the [Prefect UI](/ui/blocks/).
+!!! tip "Sharing Blocks"
+    Blocks can also be loaded by fellow Workspace Collaborators, available on [Prefect Cloud](/ui/cloud/).
 
 ## Creating new block types
 
@@ -111,24 +115,6 @@ def calculate_cube_surface_area(cube_name):
 
 calculate_cube_surface_area("rubiks-cube") # 30.375
 ```
-
-### Registering blocks
-
-Once a block has been created in a `.py` file, the block can be registered with the CLI command:
-
-```bash
-$ prefect block register --file my_block.py
-```
-
-The registered block will then be available in the [Prefect UI](/ui/blocks/) for configuration.
-
-Blocks can also be registered from a Python module available in the current virtual environment with the CLI command:
-
-```bash
-$ prefect block register --module prefect_aws.credentials
-```
-
-This command is useful for registering all blocks found in the credentials module within [Prefect Collections](/collections/overview).
 
 ### Secret fields
 
@@ -260,3 +246,21 @@ my_s3_bucket.save("my_s3_bucket")
 ```
 
 In the above example, the values for `AWSCredentials` are saved with `my_s3_bucket` and will not be usable with any other blocks.
+
+## Registering blocks for use in Prefect Cloud
+
+Blocks can be registered from a Python module available in the current virtual environment with a CLI command like this:
+
+```bash
+$ prefect block register --module prefect_aws.credentials
+```
+
+This command is useful for registering all blocks found in the credentials module within [Prefect Collections](/collections/overview).
+
+Or, if a block has been created in a `.py` file, the block can also be registered with the CLI command:
+
+```bash
+$ prefect block register --file my_block.py
+```
+
+The registered block will then be available in the [Prefect UI](/ui/blocks/) for configuration.

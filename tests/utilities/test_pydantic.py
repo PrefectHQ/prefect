@@ -8,6 +8,7 @@ from typing_extensions import Literal
 
 from prefect.utilities.dispatch import register_type
 from prefect.utilities.pydantic import (
+    JsonPatch,
     PartialModel,
     add_cloudpickle_reduction,
     add_type_dispatch,
@@ -299,3 +300,24 @@ class TestTypeDispatchField:
             @add_type_dispatch
             class Base(pydantic.BaseModel):
                 type: int
+
+
+class TestJsonPatch:
+    class PatchModel(pydantic.BaseModel):
+        class Config:
+            arbitrary_types_allowed = True
+
+        patch: JsonPatch = pydantic.Field(default_factory=lambda: JsonPatch([]))
+
+    def test_json_schema(self):
+        schema = TestJsonPatch.PatchModel().schema()
+
+        assert schema["properties"]["patch"] == {
+            "title": "Patch",
+            "type": "array",
+            "format": "rfc6902",
+            "items": {
+                "type": "object",
+                "additionalProperties": {"type": "string"},
+            },
+        }

@@ -37,7 +37,7 @@ Creating and running _orchestrated_ workflows takes advantage of some additional
 - [Prefect database](#prefect-database) provides a persistent metadata store that holds flow and task run history.
 - [Prefect UI](#prefect-ui-and-prefect-cloud) provides a control plane for monitoring, configuring, analyzing, and coordinating runs of your workflows.
 - [Storage](#storage-for-flow-and-task-data) for flow and task data lets you configure a persistent store for flow code and flow and task results.
-- [Work queues and agents](#work-queues-and-agents) bridge the Prefect orchestration engine with a your execution environments, organizing work that agents can pick up to execute.
+- [Agents and work queues](#work-queues-and-agents) bridge the Prefect orchestration engine with a your execution environments, organizing work that agents can pick up to execute.
 
 These Prefect components and services enable you to form what we call a dedicated _coordination and orchestration environment_. The same components and services enable you to coordinate flows with either the open-source Prefect Orion API server and orchestration engine or Prefect Cloud.
 
@@ -87,7 +87,7 @@ When the Prefect API server is running (either in a local environment or using P
 
 - Creating [deployments](/concepts/deployments/)
 - [Scheduling](/concepts/schedules/) flow runs
-- Configuring [work queues and agents](/concepts/work-queues/)
+- Configuring [agents and work queues](/concepts/work-queues/)
 - Executing [ad hoc flow runs from deployments](/tutorials/deployments/)
 
 During normal operation, we don't expect that most users will need to interact with the Prefect API directly, as this is handled for you automatically by the Prefect Python client and the [Prefect UI](#the-prefect-ui-and-dashboard). Most users will spin up everything all at once with `prefect orion start`.
@@ -175,9 +175,9 @@ If you don't configure other storage, Prefect uses temporary local storage. Temp
 
 Prefect [blocks](/concepts/blocks/) enable you to create storage configurations for a wide variety of common storage types and cloud services. You can configure storage blocks through the [Prefect UI Blocks page](/ui/blocks/) or programmatically via the [Python API](/api-ref/prefect/blocks/core/).
 
-## Work queues and agents
+## Agents and work queues
 
-Work queues and agents bridge the Prefect Orion orchestration engine and API with your local execution environments.
+Agents and work queues bridge the Prefect Orion orchestration engine and API with your local execution environments.
 
 - Work queues are configured on the server. They contain logic that determines which flow runs a given queue will serve to waiting agents. 
 - Agents run in a local execution environment. They pick up work from a specific work queue and execute those flow runs.

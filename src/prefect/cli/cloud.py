@@ -33,7 +33,7 @@ cloud_app = PrefectTyper(
 workspace_app = PrefectTyper(
     name="workspace", help="Commands for interacting with Prefect Cloud Workspaces"
 )
-cloud_app.add_typer(workspace_app)
+cloud_app.add_typer(workspace_app, aliases=["workspaces"])
 app.add_typer(cloud_app)
 
 
@@ -293,6 +293,10 @@ async def login(
     cloud_profile_name = app.console.input(
         "Creating a profile for this Prefect Cloud login. Please specify a profile name: "
     )
+
+    cloud_profile_name = cloud_profile_name.strip()
+    if cloud_profile_name == "":
+        exit_with_error("Please provide a non-empty profile name.")
 
     if cloud_profile_name in profiles:
         exit_with_error(f"Profile {cloud_profile_name!r} already exists.")
