@@ -920,6 +920,37 @@ class TestDeploymentFlowRun:
         )
         assert state.result() == 1
 
+    async def test_retries_loaded_from_flow_definition(
+        self, orion_client, patch_manifest_load, mock_anyio_sleep
+    ):
+        @flow(retries=2, retry_delay_seconds=3)
+        def my_flow(x: int):
+            raise ValueError()
+
+        await patch_manifest_load(my_flow)
+        deployment_id = await self.create_deployment(orion_client, my_flow)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"x": 1}
+        )
+        assert flow_run.empirical_policy.max_retries == None
+        assert flow_run.empirical_policy.retry_delay_seconds == None
+
+        with mock_anyio_sleep.assert_sleeps_for(
+            my_flow.retries * my_flow.retry_delay_seconds,
+            # Allow an extra second tolerance per retry to account for rounding
+            extra_tolerance=my_flow.retries,
+        ):
+            state = await retrieve_flow_then_begin_flow_run(
+                flow_run.id, client=orion_client
+            )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.empirical_policy.max_retries == 2
+        assert flow_run.empirical_policy.retry_delay_seconds == 3
+        assert state.is_failed()
+        assert flow_run.run_count == 3
+
     async def test_failed_run(self, orion_client, patch_manifest_load):
         @flow
         def my_flow(x: int):
