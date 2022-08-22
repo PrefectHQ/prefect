@@ -133,6 +133,12 @@ class TestDeploymentBuild:
         with pytest.raises(ValueError, match="name must be provided"):
             d = await Deployment.build_from_flow(flow=flow_function, name=None)
 
+    async def test_build_from_flow_raises_on_bad_inputs(self, flow_function):
+        with pytest.raises(ValidationError, match="extra fields not permitted"):
+            d = await Deployment.build_from_flow(
+                flow=flow_function, name="foo", typo_attr="bar"
+            )
+
     async def test_build_from_flow_sets_flow_name(self, flow_function):
         d = await Deployment.build_from_flow(flow=flow_function, name="foo")
         assert d.flow_name == flow_function.name
