@@ -14,6 +14,7 @@ from pydantic import Field, SecretStr, validator
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import filter_files
+from prefect.utilities.processutils import run_process
 
 
 class ReadableFileSystem(Block, abc.ABC):
@@ -689,3 +690,42 @@ class SMB(ReadableFileSystem, WritableFileSystem):
 
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
+
+
+class GitHub(ReadableFileSystem):
+    """
+    Interact with files stored on GitHub.
+    """
+
+    _block_type_name = "GitHub"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/EVKjxM7fNyi4NGUSkeTEE/95c958c5dd5a56c59ea5033e919c1a63/image1.png?h=250"
+
+    repository: Optional[str] = Field(
+        None,
+        description="The URL of a GitHub repository to read from, in either HTTPS or SSH format.",
+    )
+    reference: Optional[str] = Field(
+        None,
+        description="An optional reference to pin to; can be a branch name, tag or commit hash.",
+    )
+
+    async def get_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> None:
+        """
+        Clones a GitHub project specified in `from_path` to the provided `local_path`; defaults to cloning
+        the repository reference configured on the Block to the present working directory.
+        """
+        cmd = "git clone"
+        if from_path is None:
+            cmd += (
+                f" {self.repository}" + f" -b {self.reference} --depth 1"
+                if self.reference
+                else ""
+            )
+
+        if local_path is None:
+            local_path = Path(".").absolute()
+
+        cmd += f" {local_path}"
+        await run_process(cmd)
