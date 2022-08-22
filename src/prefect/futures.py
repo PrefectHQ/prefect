@@ -120,6 +120,9 @@ class PrefectFuture(Generic[R, A]):
         self._exception: Optional[Exception] = None
         self._task_runner = task_runner
         self._submitted = anyio.Event()
+        import asyncio
+
+        self._loop = asyncio.get_running_loop()
 
     @overload
     def wait(
@@ -166,7 +169,16 @@ class PrefectFuture(Generic[R, A]):
         """
         Async implementation for `wait`
         """
-        await self._submitted.wait()
+        import asyncio
+
+        # TODO: This spin lock is not performant but is necessary for cases where a
+        #       future is created in a separate event loop i.e. when a sync task is
+        #       called in an async flow
+        if not asyncio.get_running_loop() == self._loop:
+            while not self.task_run:
+                await anyio.sleep(0)
+        else:
+            await self._submitted.wait()
 
         if self._final_state:
             return self._final_state
