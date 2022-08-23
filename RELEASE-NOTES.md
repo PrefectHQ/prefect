@@ -1,5 +1,33 @@
 # Prefect Release Notes
 
+## 2.2.0
+
+### Exciting New Features 🎉
+* Added automatic detection of static arguments to `Task.map` in #6513
+* Using new orion-design flow-run-filter composition in #6483
+
+### Fixes
+* Updated deployment flow run retry settings with runtime values in #6489
+* Updated media queries for flow-run-filter in #6484
+* Added `empirical_policy` to flow run update route in #6486
+* Updated flow run policy retry settings to be nullable in #6488
+* Disallowed extra attribute initialization on Deployments in #6505
+* Updated `deployment build` to raise an informative error if two infrastructure configs are provided in #6504
+* Fixed calling async subflows from sync parents in #6514
+
+### Documentation
+* Removed references to 2.0.5 in #6473
+* Updated deployment concepts to reflect changes in 2.1.1 in #6490
+* Fixed typos in blocks.md in #6508
+* Fixed typos in README in #6498
+* Moved registering blocks to its own heading in #6512
+* Revised deployments tutorial in #6515
+
+## New Contributors
+* @stackoverfloweth made their first contribution in #6483
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/2.1.1...2.2.0
+
 ## 2.1.1
 
 ### Fixes
@@ -8,7 +36,6 @@
 * Fixed error message in `submit_run` in https://github.com/PrefectHQ/prefect/pull/6453
 * Fixed error if default parameters are missing on a deployment flow run in https://github.com/PrefectHQ/prefect/pull/6465
 * Added error message if `get_run_logger` receives context of unknown type in https://github.com/PrefectHQ/prefect/pull/6401
-
 
 ## 2.1.0
 
