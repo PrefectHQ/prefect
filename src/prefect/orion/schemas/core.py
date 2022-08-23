@@ -106,6 +106,21 @@ class FlowRunPolicy(PrefectBaseModel):
         None, description="The delay time between retries, in seconds."
     )
 
+    @root_validator
+    def populate_deprecated_fields(cls, values):
+        """
+        If deprecated fields are provided, populate the corresponding new fields
+        to preserve orchestration behavior.
+        """
+        if not values.get("retries", None) and values.get("max_retries", 0) != 0:
+            values["retries"] = values["max_retries"]
+        if (
+            not values.get("retry_delay", None)
+            and values.get("retry_delay_seconds", 0) != 0
+        ):
+            values["retry_delay"] = values["retry_delay_seconds"]
+        return values
+
 
 class FlowRun(ORMBaseModel):
     """An ORM representation of flow run data."""
@@ -238,6 +253,21 @@ class TaskRunPolicy(PrefectBaseModel):
     retry_delay: Optional[int] = Field(
         None, description="The delay time between retries, in seconds."
     )
+
+    @root_validator
+    def populate_deprecated_fields(cls, values):
+        """
+        If deprecated fields are provided, populate the corresponding new fields
+        to preserve orchestration behavior.
+        """
+        if not values.get("retries", None) and values.get("max_retries", 0) != 0:
+            values["retries"] = values["max_retries"]
+        if (
+            not values.get("retry_delay", None)
+            and values.get("retry_delay_seconds", 0) != 0
+        ):
+            values["retry_delay"] = values["retry_delay_seconds"]
+        return values
 
 
 class TaskRunInput(PrefectBaseModel):
