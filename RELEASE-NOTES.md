@@ -10,7 +10,7 @@
 * Updated media queries for flow-run-filter in #6484
 * Added `empirical_policy` to flow run update route in #6486
 * Updated flow run policy retry settings to be nullable in #6488
-* Disallowed extra attribute initialization on Deployments in #6505
+* Disallowed extra attribute initialization on `Deployment` objects in #6505
 * Updated `deployment build` to raise an informative error if two infrastructure configs are provided in #6504
 * Fixed calling async subflows from sync parents in #6514
 
