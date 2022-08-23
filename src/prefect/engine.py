@@ -811,7 +811,7 @@ async def collect_task_run_inputs(
     Example:
         >>> task_inputs = {
         >>>    k: await collect_task_run_inputs(v) for k, v in parameters.items()
-    >>> }
+        >>> }
     """
     # TODO: This function needs to be updated to detect parameters and constants
 
