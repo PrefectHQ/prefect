@@ -73,9 +73,9 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
             path = basepath / path
         else:
             path = path.resolve()
-            if not basepath in path.parents:
+            if not basepath in path.parents and (basepath != path):
                 raise ValueError(
-                    f"Attempted to write to path {path} outside of the base path {basepath}."
+                    f"Provided path {path} is outside of the base path {basepath}."
                 )
 
         return path
@@ -253,6 +253,8 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         """
         if from_path is None:
             from_path = str(self.basepath)
+        else:
+            from_path = self._resolve_path(from_path)
 
         if local_path is None:
             local_path = Path(".").absolute()
@@ -273,6 +275,8 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         """
         if to_path is None:
             to_path = str(self.basepath)
+        else:
+            to_path = self._resolve_path(to_path)
 
         if local_path is None:
             local_path = "."
