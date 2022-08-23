@@ -273,6 +273,8 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         """
         if to_path is None:
             to_path = str(self.basepath)
+        else:
+            to_path = self._resolve_path(to_path)
 
         if local_path is None:
             local_path = "."
