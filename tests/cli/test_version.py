@@ -5,12 +5,6 @@ import pytest
 from prefect.settings import PREFECT_API_URL, PREFECT_CLOUD_URL, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
-# @pytest.fixture(autouse=True)
-# def temporary_profiles_path(tmp_path):
-#     path = tmp_path / "profiles.toml"
-#     with temporary_settings({PREFECT_PROFILES_PATH: path}):
-#         yield path
-
 
 def test_version_ephemeral_server_type():
     invoke_and_assert(
