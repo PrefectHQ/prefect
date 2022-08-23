@@ -23,7 +23,6 @@ from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
-from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.importtools import import_object
 
