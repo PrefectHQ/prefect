@@ -266,6 +266,16 @@ class Deployment(BaseModel):
         description="The parameter schema of the flow, including defaults.",
     )
 
+    @validator("infrastructure", pre=True)
+    def infrastructure_must_have_capabilities(cls, block):
+        if block is None:
+            return block
+        if "run-infrastructure" not in block.get_block_capabilities():
+            raise ValueError(
+                "Infrastructure block must have 'run-infrastructure' capabilities."
+            )
+        return block
+
     @validator("storage", pre=True)
     def cast_storage_to_block_type(cls, value):
         if isinstance(value, dict):
