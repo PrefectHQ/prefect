@@ -28,6 +28,13 @@ class TestLocalFileSystem:
         with pytest.raises(ValueError, match="not a file"):
             await fs.read_path(tmp_path / "folder")
 
+    async def test_resolve_path(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+
+        assert fs._resolve_path(tmp_path) == tmp_path
+        assert fs._resolve_path(tmp_path / "subdirectory") == tmp_path / "subdirectory"
+        assert fs._resolve_path("subdirectory") == tmp_path / "subdirectory"
+
 
 class TestRemoteFileSystem:
     def test_must_contain_scheme(self):
@@ -72,6 +79,14 @@ class TestRemoteFileSystem:
         fs = RemoteFileSystem(basepath="memory://root")
         with pytest.raises(FileNotFoundError):
             await fs.read_path("foo/bar")
+
+    async def test_resolve_path(self):
+        base = "memory://root"
+        fs = RemoteFileSystem(basepath=base)
+
+        assert fs._resolve_path(base) == base + "/"
+        assert fs._resolve_path(f"{base}/subdir") == f"{base}/subdir"
+        assert fs._resolve_path("subdirectory") == f"{base}/subdirectory"
 
 
 class TestGitHub:

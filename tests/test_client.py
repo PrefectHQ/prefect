@@ -909,8 +909,8 @@ async def test_update_flow_run(orion_client):
         name="test",
         tags=["hello", "world"],
         empirical_policy=schemas.core.FlowRunPolicy(
-            max_retries=1,
-            retry_delay_seconds=2,
+            retries=1,
+            retry_delay=2,
         ),
     )
     updated_flow_run = await orion_client.read_flow_run(flow_run.id)
@@ -919,8 +919,8 @@ async def test_update_flow_run(orion_client):
     assert updated_flow_run.name == "test"
     assert updated_flow_run.tags == ["hello", "world"]
     assert updated_flow_run.empirical_policy == schemas.core.FlowRunPolicy(
-        max_retries=1,
-        retry_delay_seconds=2,
+        retries=1,
+        retry_delay=2,
     )
 
 

@@ -545,8 +545,9 @@ class Task(Generic[P, R]):
         Must be called within a flow function. If writing an async task, this
         call must be awaited.
 
-        Must be called with an iterable per task function argument. All
-        iterables must be the same length.
+        Must be called with at least one iterable and all iterables must be
+        the same length. Any arguments that are not iterable will be treated as
+        a static value and each task run will recieve the same value.
 
         Will create as many task runs as the length of the iterable(s) in the
         backing API and submit the task runs to the flow's task runner. This
@@ -557,10 +558,11 @@ class Task(Generic[P, R]):
         for sync tasks and they are fully resolved on submission.
 
         Args:
-            *args: Iterable arguments to run the tasks with
+            *args: Iterable and static arguments to run the tasks with
             return_state: Return a list of Prefect States that wrap the results
-                of each task run.
-            wait_for: Upstream task futures to wait for before starting the task
+              of each task run.
+            wait_for: Upstream task futures to wait for before starting the
+              task
             **kwargs: Keyword iterable arguments to run the task with
 
         Returns:
@@ -616,6 +618,25 @@ class Task(Generic[P, R]):
             >>>
             >>>     # task 2 will wait for task_1 to complete
             >>>     y = task_2.map([1, 2, 3], wait_for=[x])
+
+            Use static arguments
+            >>> @task
+            >>> def add_y(x, y):
+            >>>    return x + y
+            >>>
+            >>> @flow
+            >>> def my_flow():
+            >>>     futures = add_something.map([1, 2, 3], 5)
+            >>>
+            >>>     # collect results
+            >>>     result = []
+            >>>     for future in futures:
+            >>>         result.append(future.result())
+            >>>     return result
+            >>>
+            >>> my_flow()
+            [6, 7, 8]
+
         """
 
         from prefect.engine import enter_task_run_engine

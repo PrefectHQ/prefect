@@ -90,8 +90,36 @@ class FlowRunPolicy(PrefectBaseModel):
 
     # TODO: Determine how to separate between infrastructure and within-process level
     #       retries
-    max_retries: Optional[int] = None
-    retry_delay_seconds: Optional[float] = None
+    max_retries: int = Field(
+        0,
+        description="The maximum number of retries. Field is not used. Please use `retries` instead.",
+        deprecated=True,
+    )
+    retry_delay_seconds: float = Field(
+        0,
+        description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
+        deprecated=True,
+    )
+
+    retries: Optional[int] = Field(None, description="The number of retries.")
+    retry_delay: Optional[int] = Field(
+        None, description="The delay time between retries, in seconds."
+    )
+
+    @root_validator
+    def populate_deprecated_fields(cls, values):
+        """
+        If deprecated fields are provided, populate the corresponding new fields
+        to preserve orchestration behavior.
+        """
+        if not values.get("retries", None) and values.get("max_retries", 0) != 0:
+            values["retries"] = values["max_retries"]
+        if (
+            not values.get("retry_delay", None)
+            and values.get("retry_delay_seconds", 0) != 0
+        ):
+            values["retry_delay"] = values["retry_delay_seconds"]
+        return values
 
 
 class FlowRun(ORMBaseModel):
@@ -210,8 +238,36 @@ class FlowRun(ORMBaseModel):
 class TaskRunPolicy(PrefectBaseModel):
     """Defines of how a task run should retry."""
 
-    max_retries: int = 0
-    retry_delay_seconds: float = 0
+    max_retries: int = Field(
+        0,
+        description="The maximum number of retries. Field is not used. Please use `retries` instead.",
+        deprecated=True,
+    )
+    retry_delay_seconds: float = Field(
+        0,
+        description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
+        deprecated=True,
+    )
+
+    retries: Optional[int] = Field(None, description="The number of retries.")
+    retry_delay: Optional[int] = Field(
+        None, description="The delay time between retries, in seconds."
+    )
+
+    @root_validator
+    def populate_deprecated_fields(cls, values):
+        """
+        If deprecated fields are provided, populate the corresponding new fields
+        to preserve orchestration behavior.
+        """
+        if not values.get("retries", None) and values.get("max_retries", 0) != 0:
+            values["retries"] = values["max_retries"]
+        if (
+            not values.get("retry_delay", None)
+            and values.get("retry_delay_seconds", 0) != 0
+        ):
+            values["retry_delay"] = values["retry_delay_seconds"]
+        return values
 
 
 class TaskRunInput(PrefectBaseModel):
