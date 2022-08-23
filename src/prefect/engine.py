@@ -37,7 +37,12 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
-from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
+from prefect.exceptions import (
+    Abort,
+    MappingLengthMismatch,
+    MappingMissingIterable,
+    UpstreamTaskError,
+)
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr
@@ -89,7 +94,7 @@ from prefect.utilities.asyncutils import (
     run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import Quote, visit_collection
+from prefect.utilities.collections import Quote, isiterable, visit_collection
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
@@ -737,24 +742,39 @@ async def begin_task_map(
     # Resolve any futures / states that are in the parameters as we need to
     # validate the lengths of those values before proceeding.
     parameters.update(await resolve_inputs(parameters))
-    parameter_lengths = {
-        key: len(val)
-        for key, val in parameters.items()
-        if not isinstance(val, unmapped)
-    }
 
-    lengths = set(parameter_lengths.values())
-    if len(lengths) > 1:
-        raise MappingLengthMismatch(
-            "Received parameters with different lengths. Parameters for map "
-            f"must all be the same length. Got lengths: {parameter_lengths}"
+    iterable_parameters = {}
+    static_parameters = {}
+    for key, val in parameters.items():
+        if isinstance(val, unmapped):
+            static_parameters[key] = val.value
+        elif isiterable(val):
+            iterable_parameters[key] = val
+        else:
+            static_parameters[key] = val
+
+    if not len(iterable_parameters):
+        raise MappingMissingIterable(
+            "No iterable parameters were received. Parameters for map must "
+            f"include at least one iterable. Parameters: {parameters}"
         )
 
-    map_length = list(lengths)[0] if lengths else 1
+    iterable_parameter_lengths = {
+        key: len(val) for key, val in iterable_parameters.items()
+    }
+    lengths = set(iterable_parameter_lengths.values())
+    if len(lengths) > 1:
+        raise MappingLengthMismatch(
+            "Received iterable parameters with different lengths. Parameters "
+            f"for map must all be the same length. Got lengths: {iterable_parameter_lengths}"
+        )
+
+    map_length = list(lengths)[0]
 
     task_runs = []
     for i in range(map_length):
-        call_parameters = {key: value[i] for key, value in parameters.items()}
+        call_parameters = {key: value[i] for key, value in iterable_parameters.items()}
+        call_parameters.update({key: value for key, value in static_parameters.items()})
         task_runs.append(
             partial(
                 create_task_run_then_submit,
