@@ -14,16 +14,6 @@
 * Updated `deployment build` to raise an informative error if two infrastructure configs are provided in #6504
 * Fixed calling async subflows from sync parents in #6514
 
-### Documentation
-* Removed references to 2.0.5 in #6473
-* Updated deployment concepts to reflect changes in 2.1.1 in #6490
-* Fixed typos in blocks.md in #6508
-* Fixed typos in README in #6498
-* Moved registering blocks to its own heading in #6512
-* Revised deployments tutorial in #6515
-
-**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/2.1.1...2.2.0
-
 ## 2.1.1
 
 ### Fixes
