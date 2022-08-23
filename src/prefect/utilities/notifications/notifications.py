@@ -360,21 +360,20 @@ def snowflake_logger(
     function is curried meaning that it can be called multiple times to partially bind any
     keyword arguments (see example below).
     Args:
-        - tracked_obj (Task or Flow): Task or Flow object the handler is
-            registered with
-        - old_state (State): previous state of tracked object
-        - new_state (State): new state of tracked object
-        - ignore_states ([State], optional): list of `State` classes to ignore, e.g.,
+        - tracked_obj (Task or Flow): Task or Flow object the handler is registered with.
+        - old_state (State): Previous state of tracked object.
+        - new_state (State): New state of tracked object.
+        - ignore_states ([State], optional): List of `State` classes to ignore, e.g.,
             `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states,
             no notification will occur.
-        - only_states ([State], optional): similar to `ignore_states`, but instead _only_
+        - only_states ([State], optional): Similar to `ignore_states`, but instead _only_
             notifies you if the Task / Flow is in a state from the provided list of `State`
             classes
-        - snowflake_secret (str, optional): the name of the Prefect Secret that stores your Snowflake
-            credentials; defaults to `"SNOWFLAKE_CREDS"`
-        - snowflake_log_table_name (str, optional): the fully qualified Snowflake log table name
-            e.g. DB.SCHEMA.TABLE
-        - test_env (bool): Only used for testing and defaults to False
+        - snowflake_secret (str, optional): The name of the Prefect Secret that stores your Snowflake
+            credentials; defaults to `"SNOWFLAKE_CREDS"`.
+        - snowflake_log_table_name (str, optional): The fully qualified Snowflake log table name
+            e.g. DB.SCHEMA.TABLE.
+        - test_env (bool): Only used for testing and defaults to False.
     Example:
         ```python
         from prefect import task
