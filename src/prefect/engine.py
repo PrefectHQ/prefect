@@ -256,11 +256,11 @@ async def retrieve_flow_then_begin_flow_run(
     # Update the flow run policy defaults to match settings on the flow
     # Note: Mutating the flow run object prevents us from performing another read
     #       operation if these properties are used by the client downstream
-    if flow_run.empirical_policy.retry_delay_seconds is None:
-        flow_run.empirical_policy.retry_delay_seconds = flow.retry_delay_seconds
+    if flow_run.empirical_policy.retry_delay is None:
+        flow_run.empirical_policy.retry_delay = flow.retry_delay_seconds
 
-    if flow_run.empirical_policy.max_retries is None:
-        flow_run.empirical_policy.max_retries = flow.retries
+    if flow_run.empirical_policy.retries is None:
+        flow_run.empirical_policy.retries = flow.retries
 
     await client.update_flow_run(
         flow_run_id=flow_run_id,

@@ -90,8 +90,21 @@ class FlowRunPolicy(PrefectBaseModel):
 
     # TODO: Determine how to separate between infrastructure and within-process level
     #       retries
-    max_retries: int = 0
-    retry_delay_seconds: float = 0
+    max_retries: int = Field(
+        0,
+        description="The maximum number of retries. Field is not used. Please use `retries` instead.",
+        deprecated=True,
+    )
+    retry_delay_seconds: float = Field(
+        0,
+        description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
+        deprecated=True,
+    )
+
+    retries: Optional[int] = Field(None, description="The number of retries.")
+    retry_delay: Optional[int] = Field(
+        None, description="The delay time between retries, in seconds."
+    )
 
 
 class FlowRun(ORMBaseModel):
@@ -210,8 +223,21 @@ class FlowRun(ORMBaseModel):
 class TaskRunPolicy(PrefectBaseModel):
     """Defines of how a task run should retry."""
 
-    max_retries: int = 0
-    retry_delay_seconds: float = 0
+    max_retries: int = Field(
+        0,
+        description="The maximum number of retries. Field is not used. Please use `retries` instead.",
+        deprecated=True,
+    )
+    retry_delay_seconds: float = Field(
+        0,
+        description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
+        deprecated=True,
+    )
+
+    retries: Optional[int] = Field(None, description="The number of retries.")
+    retry_delay: Optional[int] = Field(
+        None, description="The delay time between retries, in seconds."
+    )
 
 
 class TaskRunInput(PrefectBaseModel):
