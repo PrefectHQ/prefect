@@ -3,9 +3,11 @@ import { test, useForm, useCombobox, useLabel, useSelect, useTable, useButton, u
 
 test.describe.configure({ mode: 'serial' })
 
-test('Can create notification', async ({ page }) => {
+test.beforeEach(async ({ page }) => {
   await page.goto(pages.notifications)
+})
 
+test('Can create notification', async () => {
   const { table, rows: notifications } = useTable()
   const existingNotifications = await notifications.count()
 
@@ -38,10 +40,8 @@ test('Can create notification', async ({ page }) => {
   expect(newNotifications).toBe(existingNotifications + 1)
 })
 
-test('Can edit notification', async ({ page }) => {
+test('Can edit notification', async () => {
   const tagToAdd = 'playwright-edited'
-
-  await page.goto(pages.notifications)
 
   const { rows: notifications } = useTable()
   const notification = notifications.first()
@@ -64,9 +64,7 @@ test('Can edit notification', async ({ page }) => {
   await expect(tag).toBeVisible()
 })
 
-test('Can delete notification', async ({ page }) => {
-  await page.goto(pages.notifications)
-
+test('Can delete notification', async () => {
   const { rows: notifications } = useTable()
   const notification = notifications.first()
   const existingNotifications = await notifications.count()
