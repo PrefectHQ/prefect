@@ -3,6 +3,7 @@ from pydantic.error_wrappers import ValidationError
 
 from prefect.blocks.core import Block
 from prefect.deployments import Deployment
+from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import Process
 
 
@@ -10,6 +11,12 @@ class TestDeploymentBasicInterface:
     async def test_that_name_is_required(self):
         with pytest.raises(ValidationError, match="field required"):
             Deployment()
+
+    async def test_that_infra_block_capabilities_are_validated(self):
+        infra = LocalFileSystem(basepath=".")
+
+        with pytest.raises(ValueError, match="'run-infrastructure' capabilities"):
+            Deployment(name="foo", infrastructure=infra)
 
     async def test_that_infrastructure_defaults_to_process(self):
         d = Deployment(name="foo")
