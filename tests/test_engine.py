@@ -83,27 +83,6 @@ def flow_run_caplog(caplog):
         logger.propagate = False
 
 
-# @pytest.fixture
-# async def flow_run_context(orion_client, local_filesystem):
-#     @flow
-#     def foo():
-#         pass
-
-#     test_task_runner = SequentialTaskRunner()
-#     flow_run = await orion_client.create_flow_run(foo)
-
-#     ctx = FlowRunContext(
-#         flow=foo,
-#         flow_run=flow_run,
-#         client=orion_client,
-#         task_runner=test_task_runner,
-#         result_filesystem=local_filesystem,
-#         background_tasks=None,  # this must be set within the test itself
-#     )
-
-#     return ctx
-
-
 @pytest.fixture
 async def get_flow_run_context(orion_client, local_filesystem):
     partial_ctx = PartialModel(FlowRunContext)
@@ -1267,7 +1246,6 @@ class TestCreateAndBeginSubflowRun:
         parameterized_flow,
         get_flow_run_context,
     ):
-        # ctx = await self.create_test_context(orion_client, local_filesystem)
         with await get_flow_run_context() as ctx:
             state = await create_and_begin_subflow_run(
                 flow=parameterized_flow,
