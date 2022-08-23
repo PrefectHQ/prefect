@@ -1,15 +1,15 @@
 <template>
   <p-layout-default>
     <template #header>
-      <PageHeadingWorkQueueEdit />
+      <PageHeadingWorkQueueEdit :work-queue="workQueueDetails" />
     </template>
 
-    <WorkQueueForm :work-queue="workQueueDetails" @submit="updateQueue" @cancel="goBack" />
+    <WorkQueueEditForm :work-queue="workQueueDetails" @submit="updateQueue" @cancel="goBack" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { WorkQueueForm, PageHeadingWorkQueueEdit, IWorkQueueRequest } from '@prefecthq/orion-design'
+  import { WorkQueueEditForm, PageHeadingWorkQueueEdit, WorkQueueEdit } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import router from '@/router'
@@ -23,7 +23,7 @@
     router.back()
   }
 
-  const updateQueue = async (workQueue: IWorkQueueRequest): Promise<void> => {
+  const updateQueue = async (workQueue: WorkQueueEdit): Promise<void> => {
     try {
       await workQueuesApi.updateWorkQueue(workQueueId.value, workQueue)
       showToast(`${workQueueDetails.name} updated`, 'success')

@@ -6,6 +6,7 @@ from uuid import UUID
 
 import httpx
 import pendulum
+import typer
 from fastapi import status
 from rich.pretty import Pretty
 from rich.table import Table
@@ -22,7 +23,7 @@ from prefect.orion.schemas.states import StateType
 flow_run_app = PrefectTyper(
     name="flow-run", help="Commands for interacting with flow runs."
 )
-app.add_typer(flow_run_app)
+app.add_typer(flow_run_app, aliases=["flow-runs"])
 
 
 @flow_run_app.command()
@@ -44,21 +45,27 @@ async def inspect(id: UUID):
 
 @flow_run_app.command()
 async def ls(
-    flow_name: List[str] = None,
-    limit: int = 15,
-    state_type: List[StateType] = None,
+    flow_name: List[str] = typer.Option(None, help="Name of the flow"),
+    limit: int = typer.Option(15, help="Maximum number of flow runs to list"),
+    state: List[str] = typer.Option(None, help="Name of the flow run's state"),
+    state_type: List[StateType] = typer.Option(
+        None, help="Type of the flow run's state"
+    ),
 ):
     """
     View recent flow runs or flow runs for specific flows
     """
+
+    state_filter = {}
+    if state:
+        state_filter["name"] = {"any_": state}
+    if state_type:
+        state_filter["type"] = {"any_": state_type}
+
     async with get_client() as client:
         flow_runs = await client.read_flow_runs(
             flow_filter=FlowFilter(name={"any_": flow_name}) if flow_name else None,
-            flow_run_filter=(
-                FlowRunFilter(state={"type": {"any_": state_type}})
-                if state_type
-                else None
-            ),
+            flow_run_filter=FlowRunFilter(state=state_filter) if state_filter else None,
             limit=limit,
             sort=FlowRunSort.EXPECTED_START_TIME_DESC,
         )

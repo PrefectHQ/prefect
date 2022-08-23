@@ -352,6 +352,7 @@ class ORMFlowRun(ORMRun):
             UUID(), sa.ForeignKey("deployment.id", ondelete="set null"), index=True
         )
 
+    work_queue_name = sa.Column(sa.String, index=True)
     flow_version = sa.Column(sa.String, index=True)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     idempotency_key = sa.Column(sa.String)
@@ -370,7 +371,7 @@ class ORMFlowRun(ORMRun):
             UUID,
             sa.ForeignKey("block_document.id", ondelete="CASCADE"),
             nullable=True,
-            index=False,
+            index=True,
         )
 
     @declared_attr
@@ -655,8 +656,13 @@ class ORMDeployment:
     """SQLAlchemy model of a deployment."""
 
     name = sa.Column(sa.String, nullable=False)
+    version = sa.Column(sa.String, nullable=True)
     description = sa.Column(sa.Text(), nullable=True)
     manifest_path = sa.Column(sa.String, nullable=True)
+    work_queue_name = sa.Column(sa.String, nullable=True, index=True)
+    infra_overrides = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    path = sa.Column(sa.String, nullable=True)
+    entrypoint = sa.Column(sa.String, nullable=True)
 
     @declared_attr
     def flow_id(cls):
@@ -727,13 +733,13 @@ class ORMLog:
 
 @declarative_mixin
 class ORMConcurrencyLimit:
-    tag = sa.Column(sa.String, nullable=False, index=True)
+    tag = sa.Column(sa.String, nullable=False)
     concurrency_limit = sa.Column(sa.Integer, nullable=False)
     active_slots = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     @declared_attr
     def __table_args__(cls):
-        return (sa.UniqueConstraint("tag"),)
+        return (sa.Index("uq_concurrency_limit__tag", "tag", unique=True),)
 
 
 @declarative_mixin
@@ -761,7 +767,7 @@ class ORMBlockType:
 
 @declarative_mixin
 class ORMBlockSchema:
-    checksum = sa.Column(sa.String, nullable=False, index=True)
+    checksum = sa.Column(sa.String, nullable=False)
     fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     capabilities = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
@@ -786,6 +792,7 @@ class ORMBlockSchema:
                 "checksum",
                 unique=True,
             ),
+            sa.Index("ix_block_schema__created", "created"),
         )
 
 
@@ -924,9 +931,9 @@ class ORMWorkQueue:
 
     filter = sa.Column(
         Pydantic(schemas.core.QueueFilter),
-        server_default="{}",
-        default=dict,
-        nullable=False,
+        server_default=None,
+        default=None,
+        nullable=True,
     )
     description = sa.Column(sa.String, nullable=False, default="", server_default="")
     is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)

@@ -211,17 +211,32 @@ async def deployment(
             name="My Deployment",
             tags=["test"],
             flow_id=flow.id,
-            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=1),
                 anchor_date=pendulum.datetime(2020, 1, 1),
             ),
             storage_document_id=storage_document_id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id,
+            work_queue_name="wq",
         ),
     )
     await session.commit()
     return deployment
+
+
+@pytest.fixture
+async def work_queue(session):
+    work_queue = await models.work_queues.create_work_queue(
+        session=session,
+        work_queue=schemas.core.WorkQueue(
+            name="wq-1",
+            description="All about my work queue",
+        ),
+    )
+    await session.commit()
+    return work_queue
 
 
 @pytest.fixture
