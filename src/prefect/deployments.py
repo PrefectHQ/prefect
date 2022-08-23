@@ -378,13 +378,17 @@ class Deployment(BaseModel):
             )
 
             # upload current directory to storage location
-            file_count = await self.storage.put_directory(ignore_file=ignore_file)
+            file_count = await self.storage.put_directory(
+                ignore_file=ignore_file, to_path=self.path
+            )
         elif not self.storage:
             # default storage, no need to move anything around
             self.storage = None
             deployment_path = str(Path(".").absolute())
         else:
-            file_count = await self.storage.put_directory(ignore_file=".prefectignore")
+            file_count = await self.storage.put_directory(
+                ignore_file=ignore_file, to_path=self.path
+            )
 
         # persists storage now in case it contains secret values
         if self.storage and not self.storage._block_document_id:
