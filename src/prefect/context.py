@@ -25,7 +25,6 @@ from typing import (
 
 import pendulum
 from anyio.abc import BlockingPortal, CancelScope, TaskGroup
-from pendulum.datetime import DateTime
 from pydantic import BaseModel, Field, PrivateAttr
 
 import prefect.logging
