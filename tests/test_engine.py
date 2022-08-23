@@ -968,8 +968,8 @@ class TestDeploymentFlowRun:
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment_id, parameters={"x": 1}
         )
-        assert flow_run.empirical_policy.max_retries == None
-        assert flow_run.empirical_policy.retry_delay_seconds == None
+        assert flow_run.empirical_policy.retries == None
+        assert flow_run.empirical_policy.retry_delay == None
 
         with mock_anyio_sleep.assert_sleeps_for(
             my_flow.retries * my_flow.retry_delay_seconds,
@@ -981,8 +981,8 @@ class TestDeploymentFlowRun:
             )
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
-        assert flow_run.empirical_policy.max_retries == 2
-        assert flow_run.empirical_policy.retry_delay_seconds == 3
+        assert flow_run.empirical_policy.retries == 2
+        assert flow_run.empirical_policy.retry_delay == 3
         assert state.is_failed()
         assert flow_run.run_count == 3
 

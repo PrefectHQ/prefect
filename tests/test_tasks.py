@@ -9,7 +9,11 @@ import pytest
 from prefect import flow, get_run_logger, tags
 from prefect.context import PrefectObjectRegistry
 from prefect.engine import get_state_for_result
-from prefect.exceptions import MappingLengthMismatch, ReservedArgumentError
+from prefect.exceptions import (
+    MappingLengthMismatch,
+    MappingMissingIterable,
+    ReservedArgumentError,
+)
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
@@ -1967,6 +1971,14 @@ class TestTaskMap:
         futures = my_flow()
         assert [future.result() for future in futures] == [5, 7, 9]
 
+    def test_missing_iterable_argument(self):
+        @flow
+        def my_flow():
+            return TestTaskMap.add_together.map(5, 6)
+
+        with pytest.raises(MappingMissingIterable):
+            assert my_flow()
+
     def test_mismatching_input_lengths(self):
         @flow
         def my_flow():
@@ -2007,6 +2019,19 @@ class TestTaskMap:
             numbers = [1, 2, 3]
             other = unmapped(5)
             return TestTaskMap.add_together.map(numbers, other)
+
+        futures = my_flow()
+        assert [future.result() for future in futures] == [6, 7, 8]
+
+    async def test_with_default_kwargs(self):
+        @task
+        def add_some(x, y=5):
+            return x + y
+
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            return add_some.map(numbers)
 
         futures = my_flow()
         assert [future.result() for future in futures] == [6, 7, 8]
