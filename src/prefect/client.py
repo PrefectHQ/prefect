@@ -602,8 +602,8 @@ class OrionClient:
             parent_task_run_id=parent_task_run_id,
             state=state,
             empirical_policy=schemas.core.FlowRunPolicy(
-                max_retries=flow.retries,
-                retry_delay_seconds=flow.retry_delay_seconds,
+                retries=flow.retries,
+                retry_delay=flow.retry_delay_seconds,
             ),
         )
 
@@ -1683,8 +1683,8 @@ class OrionClient:
             tags=list(tags),
             task_version=task.version,
             empirical_policy=schemas.core.TaskRunPolicy(
-                max_retries=task.retries,
-                retry_delay_seconds=task.retry_delay_seconds,
+                retries=task.retries,
+                retry_delay=task.retry_delay_seconds,
             ),
             state=state,
             task_inputs=task_inputs or {},
