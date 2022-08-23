@@ -23,9 +23,6 @@
 * Moved registering blocks to its own heading in #6512
 * Revised deployments tutorial in #6515
 
-## New Contributors
-* @stackoverfloweth made their first contribution in #6483
-
 **Full Changelog**: https://github.com/PrefectHQ/prefect/compare/2.1.1...2.2.0
 
 ## 2.1.1
