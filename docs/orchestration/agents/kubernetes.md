@@ -139,6 +139,8 @@ configured per-flow (on the
 `run_config`), or on the Agent as a default for flows that don't provide their
 own template.
 
+As an example, providing a custom job template will allow you to customize the Kubernetes Job name prefix from `prefect-job` to something more descriptive for each flow and its associated workload. The prefix is specified in the job template's `metadata.name` field.
+
 For reference, the default template packaged with Prefect can be found
 [here](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agent/kubernetes/job_template.yaml).
 

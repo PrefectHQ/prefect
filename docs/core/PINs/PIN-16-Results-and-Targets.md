@@ -21,9 +21,9 @@ Currently, Prefect tracks all data explicitly returned by tasks for downstream c
 While most of this can technically still be achieved within Prefect, the popularity of these patterns along with the lack of an obvious "correct" way to achieve them in Prefect leaves room for improving Prefect's API to accommodate such patterns in a first-class way.
 
 ## Proposal
-The current proposal seeks to address all use cases listed above with a common underlying implementation.  In particular, we will extend the current [`Result` class API](https://docs.prefect.io/core/PINs/PIN-04-Result-Objects.html) with the following new methods and settings:
+The current proposal seeks to address all use cases listed above with a common underlying implementation.  In particular, we will extend the current [`Result` class API](/core/PINs/PIN-04-Result-Objects.html) with the following new methods and settings:
 - we will introduce new `Result` types which correspond to different storage backends for data (e.g., `LocalFileResult`, `S3Result`, etc.)
-- new `read` / `write` methods which mimic the current [`ResultHandler` implementations](https://docs.prefect.io/core/PINs/PIN-02-Result-Handlers.html) and will supercede the need for result handlers altogether
+- new `read` / `write` methods which mimic the current [`ResultHandler` implementations](/core/PINs/PIN-02-Result-Handlers.html) and will supercede the need for result handlers altogether
 - the initialization of `Result` objects will allow for setting a configurable and templatable location (e.g., a templatable file name), along with a collection of validation functions which will optionally be called on the underlying object
 - a new `exists` method for determining whether data exists in a given location
 - a new `validate` method which accepts an optional list of validators; both the provided validators along with those set at initialization will then be called on the underlying data to validate it in customizable ways

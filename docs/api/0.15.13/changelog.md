@@ -1002,7 +1002,7 @@ Released on December 16, 2020.
 
 ### Features
 
-- New flow run configuration system based on `RunConfig` types, see [here](https://docs.prefect.io/orchestration/flow_config/overview.html) for more info
+- New flow run configuration system based on `RunConfig` types, see [here](/orchestration/flow_config/overview.html) for more info
 
 ### Enhancements
 
@@ -2180,7 +2180,7 @@ Released on May 14, 2020.
 
 ### Features
 
-- Introducing new [Results](https://docs.prefect.io/core/concepts/results.html) interface for working with task results - [#2507](https://github.com/PrefectHQ/prefect/pull/2507)
+- Introducing new [Results](/core/concepts/results.html) interface for working with task results - [#2507](https://github.com/PrefectHQ/prefect/pull/2507)
 
 ### Enhancements
 
@@ -2188,8 +2188,8 @@ Released on May 14, 2020.
 - Support using `case` for control flow with the imperative api - [#2546](https://github.com/PrefectHQ/prefect/pull/2546)
 - `flow.visualize` is now able to accept a `format` argument to specify the output file type - [#2447](https://github.com/PrefectHQ/prefect/issues/2447)
 - Docker storage now writes flows to `/opt` dir to remove need for root permissions - [#2025](https://github.com/PrefectHQ/prefect/issues/2025)
-- Add option to [set secrets on Storage objects](https://docs.prefect.io/orchestration/recipes/third_party_auth.html#declaring-secrets-on-storage) - [#2507](https://github.com/PrefectHQ/prefect/pull/2507)
-- Add reserved [default Secret names](https://docs.prefect.io/orchestration/recipes/third_party_auth.html#list-of-default-secret-names) and formats for working with cloud platforms - [#2507](https://github.com/PrefectHQ/prefect/pull/2507)
+- Add option to [set secrets on Storage objects](/orchestration/recipes/third_party_auth.html#declaring-secrets-on-storage) - [#2507](https://github.com/PrefectHQ/prefect/pull/2507)
+- Add reserved [default Secret names](/orchestration/recipes/third_party_auth.html#list-of-default-secret-names) and formats for working with cloud platforms - [#2507](https://github.com/PrefectHQ/prefect/pull/2507)
 - Add unique naming option to the jobs created by the `KubernetesJobEnvironment` - [#2553](https://github.com/PrefectHQ/prefect/pull/2553)
 - Use `ast.literal_eval` for configuration values - [#2536](https://github.com/PrefectHQ/prefect/issues/2536)
 - Prevent local cycles even if flow validation is deferred - [#2565](https://github.com/PrefectHQ/prefect/pull/2565)

@@ -32,7 +32,7 @@ Prefect provides various key / value pairs in context that are always available 
 | `tomorrow` | tomorrow's date formatted as `YYYY-MM-DD`|
 | `tomorrow_nodash` | tomorrow's date formatted as `YYYYMMDD`|
 | `logger` | the logger for the current task |
-| `config` | the complete [Prefect configuration](https://docs.prefect.io/core/concepts/configuration.html) object that is being used during this run |
+| `config` | the complete [Prefect configuration](/core/concepts/configuration.html) object that is being used during this run |
 | `flow_name` | the name of the current flow |
 | `scheduled_start_time` | a datetime object representing the scheduled start time for the flow run; falls back to `now` for unscheduled runs |
 | `parameters` | a dictionary of parameter values for the current flow run |
@@ -60,7 +60,7 @@ In addition, Prefect Cloud supplies some additional context variables:
 
 Users can also provide values to context at runtime. For more information, see
 the [Context concept
-doc](https://docs.prefect.io/core/concepts/execution.html#context).
+doc](/core/concepts/execution.html#context).
  ## Context
  <div class='class-sig' id='prefect-utilities-context-context'><p class="prefect-sig">class </p><p class="prefect-class">prefect.utilities.context.Context</p>(*args, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/utilities/context.py#L73">[source]</a></span></div>
 

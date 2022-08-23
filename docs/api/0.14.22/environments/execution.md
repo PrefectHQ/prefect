@@ -7,14 +7,13 @@ editLink: false
 Execution environments encapsulate the logic for where your Flow should execute in Prefect Cloud.
 
 DEPRECATED: Environment based configuration is deprecated, please transition to
-configuring `flow.run_config` instead of `flow.environment`. See
-https://docs.prefect.io/orchestration/flow_config/overview.html for more info.
+configuring `flow.run_config` instead of `flow.environment`. See [Flow configuration](/orchestration/flow_config/overview.html) for more info.
  ## DaskKubernetesEnvironment
  <div class='class-sig' id='prefect-environments-execution-dask-k8s-daskkubernetesenvironment'><p class="prefect-sig">class </p><p class="prefect-class">prefect.environments.execution.dask.k8s.DaskKubernetesEnvironment</p>(min_workers=1, max_workers=2, work_stealing=True, scheduler_logs=False, private_registry=False, docker_secret=None, labels=None, on_start=None, on_exit=None, metadata=None, scheduler_spec_file=None, worker_spec_file=None, image_pull_secret=None, log_k8s_errors=False)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/environments/execution/dask/k8s.py#L19">[source]</a></span></div>
 
 DaskKubernetesEnvironment is an environment which deploys your flow on Kubernetes by spinning up a temporary Dask Cluster (using [dask-kubernetes](https://kubernetes.dask.org/en/latest/)) and running the Prefect `DaskExecutor` on this cluster.
 
-DEPRECATED: Environment based configuration is deprecated, please transition to configuring `flow.run_config` instead of `flow.environment`. See https://docs.prefect.io/orchestration/flow_config/overview.html for more info.
+DEPRECATED: Environment based configuration is deprecated, please transition to configuring `flow.run_config` instead of `flow.environment`. See [Flow configuration](/orchestration/flow_config/overview.html) for more info.
 
 When running your flows that are registered with a private container registry, you should either specify the name of an `image_pull_secret` on the flow's `DaskKubernetesEnvironment` or directly set the `imagePullSecrets` on your custom worker/scheduler specs.
 
@@ -43,7 +42,7 @@ Note: the logging attributes are only populated if they are not already provided
 
 DaskCloudProviderEnvironment creates Dask clusters using the Dask Cloud Provider project.
 
-DEPRECATED: Environment based configuration is deprecated, please transition to configuring `flow.run_config` instead of `flow.environment`. See https://docs.prefect.io/orchestration/flow_config/overview.html for more info.
+DEPRECATED: Environment based configuration is deprecated, please transition to configuring `flow.run_config` instead of `flow.environment`. See [Flow configuration](/orchestration/flow_config/overview.html) for more info.
 
 For each flow run, a new Dask cluster will be dynamically created and the flow will run using a `DaskExecutor` with the Dask scheduler address from the newly created Dask cluster. You can specify the number of Dask workers manually (for example, passing the kwarg `n_workers`) or enable adaptive mode by passing `adaptive_min_workers` and, optionally, `adaptive_max_workers`. This environment aims to provide a very easy path to Dask scalability for users of cloud platforms, like AWS.
 
@@ -68,7 +67,7 @@ For each flow run, a new Dask cluster will be dynamically created and the flow w
 
 FargateTaskEnvironment is an environment which deploys your flow as a Fargate task.
 
-DEPRECATED: Environment based configuration is deprecated, please transition to configuring `flow.run_config` instead of `flow.environment`. See https://docs.prefect.io/orchestration/flow_config/overview.html for more info.
+DEPRECATED: Environment based configuration is deprecated, please transition to configuring `flow.run_config` instead of `flow.environment`. See [Flow configuration](/orchestration/flow_config/overview.html) for more info.
 
 This environment requires AWS credentials and extra boto3 kwargs which are used in the creation and running of the Fargate task. When providing a custom container definition spec the first container in the spec must be the container that the flow runner will be executed on.
 
@@ -107,7 +106,7 @@ The secrets and kwargs that are provided at initialization time of this environm
 
 KubernetesJobEnvironment is an environment which deploys your flow as a Kubernetes job. This environment allows (and requires) a custom job YAML spec to be provided.
 
-DEPRECATED: Environment based configuration is deprecated, please transition to configuring `flow.run_config` instead of `flow.environment`. See https://docs.prefect.io/orchestration/flow_config/overview.html for more info.
+DEPRECATED: Environment based configuration is deprecated, please transition to configuring `flow.run_config` instead of `flow.environment`. See [Flow configuration](/orchestration/flow_config/overview.html) for more info.
 
 When providing a custom YAML job spec the first container in the spec must be the container that the flow runner will be executed on.
 
@@ -132,7 +131,7 @@ Additionally, the following command will be applied to the first container: `$ /
 
 A LocalEnvironment class for executing a flow in the local process.
 
-DEPRECATED: Environment based configuration is deprecated, please transition to configuring `flow.run_config` instead of `flow.environment`. See https://docs.prefect.io/orchestration/flow_config/overview.html for more info.
+DEPRECATED: Environment based configuration is deprecated, please transition to configuring `flow.run_config` instead of `flow.environment`. See [Flow configuration](/orchestration/flow_config/overview.html) for more info.
 
 **Args**:     <ul class="args"><li class="args">`executor (Executor, optional)`: the executor to run the flow with. If not provided, the         default executor will be used.     </li><li class="args">`labels (List[str], optional)`: a list of labels, which are arbitrary string         identifiers used by Prefect Agents when polling for work     </li><li class="args">`on_start (Callable, optional)`: a function callback which will be called before the         flow begins to run     </li><li class="args">`on_exit (Callable, optional)`: a function callback which will be called after the flow         finishes its run     </li><li class="args">`metadata (dict, optional)`: extra metadata to be set and serialized on this         environment</li></ul>
 

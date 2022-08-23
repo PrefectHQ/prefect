@@ -42,7 +42,7 @@ Generally speaking, there are two preferred methods for creating your own Prefec
 
 #### Subclassing the `Task` class
 
-Subclassing the `Task` class is the preferred method for creating Tasks when you want a reusable, parametrizable Task interface (for example, when adding a Task to the [Prefect Task Library](https://docs.prefect.io/core/task_library/)). All of your runtime logic is implemented inside of the Task's `run` method:
+Subclassing the `Task` class is the preferred method for creating Tasks when you want a reusable, parametrizable Task interface (for example, when adding a Task to the [Prefect Task Library](/core/task_library/)). All of your runtime logic is implemented inside of the Task's `run` method:
 
 ```python
 from prefect import Task
@@ -75,7 +75,7 @@ add_task # <Task: Add>
 Here we have created an equivalent Task to the one above - the `@task` decorator essentially assigns this function as the `run` method of the underlying Task class for us. A few observations are in order:
 
 - the `@task` decorator _instantiates_ a Prefect Task automatically
-- all [Task initialization keywords](https://docs.prefect.io/api/latest/core/task.html#task-2) can be provided to the decorator
+- all [Task initialization keywords](/api/latest/core/task.html#task-2) can be provided to the decorator
 - if you choose not to provide a name, the function name will be used as the Task name
 
 ::: warning Call signatures cannot be arbitrary
@@ -118,7 +118,7 @@ def log_hello():
     logger.info("Hello!")
 ```
 
-Note that context is only populated _within a Flow run_. This is important to be aware of when testing your task outside of a Flow run. For a complete list of information available in Prefect Context, [see the API documentation](https://docs.prefect.io/api/latest/utilities/context.html). For more information on how context works, see the associated [Concept Doc](https://docs.prefect.io/core/concepts/execution.html#context). Note that `context` has a graceful `.get` method for accessing keys which are not guaranteed to exist.
+Note that context is only populated _within a Flow run_. This is important to be aware of when testing your task outside of a Flow run. For a complete list of information available in Prefect Context, [see the API documentation](/api/latest/utilities/context.html). For more information on how context works, see the associated [Concept Doc](/core/concepts/execution.html#context). Note that `context` has a graceful `.get` method for accessing keys which are not guaranteed to exist.
 
 ## Running Tasks
 
@@ -165,7 +165,7 @@ assert state.is_successful()
 assert state.result == 42
 ```
 
-In this case, the `TaskRunner` doesn't actually return the value of the Task's `run` method, but instead returns a [Prefect `Success` state](https://docs.prefect.io/api/latest/engine/state.html#success) which has the return value stored in its `result` attribute.
+In this case, the `TaskRunner` doesn't actually return the value of the Task's `run` method, but instead returns a [Prefect `Success` state](/api/latest/engine/state.html#success) which has the return value stored in its `result` attribute.
 
 We can now begin to do more interesting things, such as provide upstream states to test our trigger logic:
 
@@ -190,10 +190,10 @@ This brings you into Prefect implementation details very quickly, but the import
 
 If you are interested in pursuing this further, the following API reference documents may be useful:
 
-- [Edges](https://docs.prefect.io/api/latest/core/edge.html)
-- [TaskRunner](https://docs.prefect.io/api/latest/engine/task_runner.html#taskrunner-2)
-- [States](https://docs.prefect.io/api/latest/engine/state.html#state-2)
-- [Triggers](https://docs.prefect.io/core/concepts/execution.html#triggers)
+- [Edges](/api/latest/core/edge.html)
+- [TaskRunner](/api/latest/engine/task_runner.html#taskrunner-2)
+- [States](/api/latest/engine/state.html#state-2)
+- [Triggers](/core/concepts/execution.html#triggers)
 
 ::: tip Flows have runners, too
 In addition to `TaskRunner`s, Prefect also has a concept of a `FlowRunner`, which is the object responsible for making a _single_ pass through your Flow and its task states. The keyword arguments on the `run` method of both Task and Flow runners are useful to explore when testing your Flows.
@@ -288,7 +288,7 @@ This can be useful for overriding Task triggers, tags, names, etc.
 
 :::
 
-To see some of these subtleties in action, let's work out a more complicated example using our `add_task` Task created above. First, let's use the [`set_dependencies` method](https://docs.prefect.io/api/latest/core/flow.html#prefect-core-flow-flow-set-dependencies) of the imperative API:
+To see some of these subtleties in action, let's work out a more complicated example using our `add_task` Task created above. First, let's use the [`set_dependencies` method](/api/latest/core/flow.html#prefect-core-flow-flow-set-dependencies) of the imperative API:
 
 ```python
 f = Flow("add-example")
@@ -399,7 +399,7 @@ with Flow("functional-example") as flow:
 
 ## Mapping
 
-[Mapping](https://docs.prefect.io/core/concepts/mapping.html) is a unique feature of Prefect, which allows users to _dynamically_ spawn multiple copies of a given Task in response to an upstream Task's output. When a task is mapped, Prefect automatically creates a copy of the task for each element of its input data. The copy -- referred to as a "child" task -- is applied only to that element. This means that mapped tasks actually represent the computations of many individual children tasks.
+[Mapping](/core/concepts/mapping.html) is a unique feature of Prefect, which allows users to _dynamically_ spawn multiple copies of a given Task in response to an upstream Task's output. When a task is mapped, Prefect automatically creates a copy of the task for each element of its input data. The copy -- referred to as a "child" task -- is applied only to that element. This means that mapped tasks actually represent the computations of many individual children tasks.
 
 If a "normal" (non-mapped) task depends on a mapped task, Prefect automatically applies a reduce operation to gather the mapped results and pass them to the downstream task.
 
@@ -567,7 +567,7 @@ with Flow("add-with-default") as f:
     result_two = add_task(x=0, y=10)
 ```
 
-We've found this pattern of setting defaults which are optionally overwritten at runtime to be so common, we created a [utility function to minimize boilerplate](https://docs.prefect.io/api/latest/utilities/tasks.html#prefect-utilities-tasks-defaults-from-attrs). In addition, subclassing allows you to write custom class methods that are organized in one place.
+We've found this pattern of setting defaults which are optionally overwritten at runtime to be so common, we created a [utility function to minimize boilerplate](/api/latest/utilities/tasks.html#prefect-utilities-tasks-defaults-from-attrs). In addition, subclassing allows you to write custom class methods that are organized in one place.
 
 ::: warning Always call the parent Task initialization method
 Anytime you subclass `Task`, _make sure to call the parent initialization method_! This ensures Prefect will recognize your custom Task as an actual Task. In addition, we highly recommend always allowing for arbitrary keyword arguments (i.e., `**kwargs`) which are passed to the Task `__init__` method. This ensures that you can still set things such as Task tags, custom names, results, etc.
