@@ -1,5 +1,6 @@
 import abc
 import glob
+import io
 import json
 import shutil
 import sys
@@ -709,6 +710,9 @@ class GitHub(ReadableFileSystem):
         description="An optional reference to pin to; can be a branch name, tag or commit hash.",
     )
 
+    async def read_path(self, **kwargs):
+        pass
+
     async def get_directory(
         self, from_path: str = None, local_path: str = None
     ) -> None:
@@ -728,4 +732,10 @@ class GitHub(ReadableFileSystem):
             local_path = Path(".").absolute()
 
         cmd += f" {local_path}"
-        await run_process(cmd)
+
+        err_stream = io.StringIO()
+        out_stream = io.StringIO()
+        process = await run_process(cmd, stream_output=(out_stream, err_stream))
+        if process.returncode != 0:
+            err_stream.seek(0)
+            raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
