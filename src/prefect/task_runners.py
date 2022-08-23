@@ -273,7 +273,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
         return await self._get_run_result(key, timeout)
 
-    async def _run_and_store_result(self, key: UUID, call):
+    async def _run_and_store_result(self, key: UUID, call: Callable[[], Awaitable[State[R]]]):
         """
         Simple utility to store the orchestration result in memory on completion
 
