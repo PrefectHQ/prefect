@@ -73,9 +73,9 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
             path = basepath / path
         else:
             path = path.resolve()
-            if not basepath in path.parents:
+            if not basepath in path.parents and (basepath != path):
                 raise ValueError(
-                    f"Attempted to write to path {path} outside of the base path {basepath}."
+                    f"Provided path {path} is outside of the base path {basepath}."
                 )
 
         return path
