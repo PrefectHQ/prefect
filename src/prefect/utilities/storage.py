@@ -5,7 +5,7 @@ import sys
 import warnings
 from operator import attrgetter
 from typing import TYPE_CHECKING, Dict, Any
-from distutils.version import LooseVersion
+from packaging.version import parse
 
 import cloudpickle
 
@@ -156,10 +156,10 @@ def extract_flow_from_module(module_str: str, flow_name: str = None) -> "Flow":
             return flows.popitem()[1]
         elif len(flows) > 1:
             raise ValueError(
-                "Multiple flows found in {module_str!r}, please provide `flow_name` to select one."
+                f"Multiple flows found in {module_str!r}, please provide `flow_name` to select one."
             )
         else:
-            raise ValueError("No flows found in {module_str!r}")
+            raise ValueError(f"No flows found in {module_str!r}")
 
 
 def flow_to_bytes_pickle(flow: "Flow") -> bytes:
@@ -215,7 +215,7 @@ def flow_from_bytes_pickle(data: bytes) -> "Flow":
         for name, v1 in sorted(reg_versions.items()):
             if name in run_versions:
                 v2 = run_versions[name]
-                if LooseVersion(v1) != v2:
+                if parse(v1) != parse(v2):
                     mismatches.append(
                         f"  - {name}: (flow built with {v1!r}, currently running with {v2!r})"
                     )
@@ -238,7 +238,7 @@ def flow_from_bytes_pickle(data: bytes) -> "Flow":
 
     run_prefect = run_versions["prefect"]
     reg_prefect = reg_versions.get("prefect")
-    if reg_prefect and LooseVersion(reg_prefect) != run_prefect:
+    if reg_prefect and parse(reg_prefect) != parse(run_prefect):
         # If we didn't error above, still check that the prefect versions match
         # and warn if they don't. Prefect version mismatches *may* work, but
         # they may also error later leading to confusing behavior.

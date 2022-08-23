@@ -314,7 +314,10 @@ classes = ["BlobStorageDownload",
            "BlobStorageUpload",
            "CosmosDBCreateItem",
            "CosmosDBReadItems",
-           "CosmosDBQueryItems"]
+           "CosmosDBQueryItems",
+           "DatafactoryCreate",
+           "PipelineCreate",
+           "PipelineRun"]
 
 [pages.tasks.azureml]
 title = "Azure ML Service Tasks"
@@ -464,6 +467,7 @@ classes = [
         "BigQueryLoadGoogleCloudStorage",
         "BigQueryLoadFile"
         ]
+verified_task = true
 
 [pages.tasks.great_expectations]
 title = "Great Expectations Task"
@@ -550,7 +554,8 @@ classes = ["SecretBase", "PrefectSecret", "EnvVarSecret"]
 [pages.tasks.snowflake]
 title = "Snowflake Tasks"
 module = "prefect.tasks.snowflake"
-classes = ["SnowflakeQuery"]
+classes = ["SnowflakeQuery", "SnowflakeQueriesFromFile"]
+verified_task = true
 
 [pages.tasks.sodasql]
 title = "SodaSQL Tasks"
@@ -571,6 +576,7 @@ classes = ["MixpanelExportTask"]
 title = "Databricks Tasks"
 module = "prefect.tasks.databricks"
 classes = ["DatabricksSubmitRun", "DatabricksRunNow", "DatabricksSubmitMultitaskRun", "DatabricksGetJobID"]
+verified_task = true
 
 [pages.tasks.spacy]
 title = "spaCy Tasks"
@@ -581,6 +587,7 @@ classes = ["SpacyNLP", "SpacyTagger", "SpacyParser", "SpacyNER", "SpacyComponent
 title = "SQLite Tasks"
 module = "prefect.tasks.database"
 classes = ["SQLiteQuery", "SQLiteScript"]
+verified_task = true
 
 [pages.tasks.function]
 title = "Function Tasks"
@@ -783,3 +790,34 @@ classes = ["ZendeskTicketsIncrementalExportTask"]
 title = "Neo4j Tasks"
 module = "prefect.tasks.neo4j"
 classes = ["Neo4jRunCypherQueryTask"]
+
+[pages.tasks.Transform]
+title = "Transform Tasks"
+module = "prefect.tasks.transform"
+classes = ["TransformCreateMaterialization"]
+verified_task = true
+
+[pages.tasks.Hightouch]
+title = "Hightouch Tasks"
+module = "prefect.tasks.hightouch"
+classes = ["HightouchRunSync"]
+
+[pages.tasks.sftp]
+title = "SFTP Tasks"
+module = "prefect.tasks.sftp.sftp"
+classes = ["SftpDownload", "SftpUpload"]
+
+[pages.tasks.toloka]
+title = "Toloka Tasks"
+module = "prefect.tasks.toloka"
+functions = ["create_project",
+             "create_exam_pool",
+             "create_pool",
+             "create_tasks",
+             "open_pool",
+             "open_exam_pool",
+             "wait_pool",
+             "get_assignments",
+             "get_assignments_df",
+             "accept_assignment",
+             "reject_assignment"]

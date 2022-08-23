@@ -69,13 +69,14 @@ class Test_read_bytes_from_path:
         assert requests_get.call_args[0] == (url,)
         assert res == b"testing"
 
-    def test_read_gcs(self, monkeypatch):
+    @pytest.mark.parametrize("scheme", ["gcs", "gs"])
+    def test_read_gcs(self, monkeypatch, scheme):
         pytest.importorskip("prefect.utilities.gcp")
         client = MagicMock()
         monkeypatch.setattr(
             "prefect.utilities.gcp.get_storage_client", MagicMock(return_value=client)
         )
-        res = read_bytes_from_path("gcs://mybucket/path/to/thing.yaml")
+        res = read_bytes_from_path(f"{scheme}://mybucket/path/to/thing.yaml")
         assert client.bucket.call_args[0] == ("mybucket",)
         bucket = client.bucket.return_value
         assert bucket.get_blob.call_args[0] == ("path/to/thing.yaml",)

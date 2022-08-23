@@ -11,6 +11,7 @@ Prefect flow.
 from typing import Optional
 
 import great_expectations as ge
+from great_expectations.core import RunIdentifier
 from great_expectations.checkpoint import Checkpoint
 from packaging import version
 
@@ -226,7 +227,7 @@ class RunGreatExpectationsValidation(Task):
         """
 
         if version.parse(ge.__version__) < version.parse("0.13.8"):
-            self.logger.warn(
+            self.logger.warning(
                 f"You are using great_expectations version {ge.__version__} which may cause"
                 "errors in this task. Please upgrade great_expections to 0.13.8 or later."
             )
@@ -266,7 +267,7 @@ class RunGreatExpectationsValidation(Task):
             ge_checkpoint = ge_checkpoint or context.get_checkpoint(checkpoint_name)
             results = ge_checkpoint.run(
                 evaluation_parameters=evaluation_parameters,
-                run_id={"run_name": run_name or prefect.context.get("task_slug")},
+                run_id=RunIdentifier(run_name or prefect.context.get("task_slug")),
                 **checkpoint_kwargs,
             )
         else:
@@ -281,7 +282,7 @@ class RunGreatExpectationsValidation(Task):
             results = context.run_validation_operator(
                 validation_operator,
                 assets_to_validate=assets_to_validate,
-                run_id={"run_name": run_name or prefect.context.get("task_slug")},
+                run_id=RunIdentifier(run_name or prefect.context.get("task_slug")),
                 evaluation_parameters=evaluation_parameters,
             )
 

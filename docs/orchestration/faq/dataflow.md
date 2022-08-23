@@ -8,7 +8,7 @@ Note additionally that when metadata does arrive in Prefect Cloud, it is accessi
 
 ## How is data persisted?
 
-The beauty of Prefect is that output can be handled on a task-by-task basis. This is achieved through the use of a subclass of [Result](https://docs.prefect.io/core/concepts/results.html), a Python class with a read / write interface responsible for persisting output.
+The beauty of Prefect is that output can be handled on a task-by-task basis. This is achieved through the use of a subclass of [Result](/core/concepts/results.html), a Python class with a read / write interface responsible for persisting output.
 
 It's worth noting that a result's `location` attribute is sent to Prefect Cloud, making this one of the few scenarios in which your data can be sent to Prefect Cloud. If you wish to secure this field more, consider a custom `Result` subclass that utilizes encryption secrets to format the `location` attribute of your result.
 

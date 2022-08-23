@@ -58,19 +58,63 @@ Every release of Prefect comes with a few built-in images. These images are all
 named [prefecthq/prefect](https://hub.docker.com/r/prefecthq/prefect), but have
 a few different tag options:
 
-| Tag              |     Prefect Version      | Python Version |
-| ---------------- | :----------------------: | -------------: |
-| latest           | most recent PyPi version |            3.7 |
-| master           |       master build       |            3.7 |
-| latest-python3.9 | most recent PyPi version |            3.9 |
-| latest-python3.8 | most recent PyPi version |            3.8 |
-| latest-python3.7 | most recent PyPi version |            3.7 |
-| X.Y.Z            |          X.Y.Z           |            3.7 |
-| X.Y.Z-python3.9  |          X.Y.Z           |            3.9 |
-| X.Y.Z-python3.8  |          X.Y.Z           |            3.8 |
-| X.Y.Z-python3.7  |          X.Y.Z           |            3.7 |
-| core             | most recent PyPi version |            3.8 |
-| core-X.Y.Z       |          X.Y.Z           |            3.8 |
+### Prefect 2.x
+
+#### Standard Python
+
+| Tag                   |       Prefect Version       | Python Version  |
+| --------------------- | :-------------------------: | -------------:  |
+| 2-latest              | most recent v2 PyPi version |            3.10 |
+| 2-python3.10          | most recent v2 PyPi version |            3.10 |
+| 2-python3.9           | most recent v2 PyPi version |            3.9  |
+| 2-python3.8           | most recent v2 PyPi version |            3.8  |
+| 2-python3.7           | most recent v2 PyPi version |            3.7  |
+| 2.X-python3.10        |             2.X             |            3.10 |
+| 2.X-python3.9         |             2.X             |            3.9  |
+| 2.X-python3.8         |             2.X             |            3.8  |
+| 2.X-python3.7         |             2.X             |            3.7  |
+| sha-<hash>-python3.10 |            <hash>           |            3.10 |
+| sha-<hash>-python3.9  |            <hash>           |            3.9  |
+| sha-<hash>-python3.8  |            <hash>           |            3.8  |
+| sha-<hash>-python3.7  |            <hash>           |            3.7  |
+| sha-<hash>-python3.7  |            <hash>           |            3.7  |
+
+#### Conda Flavored Python
+
+| Tag                         |       Prefect Version       | Python Version  |
+| --------------------------- | :-------------------------: | -------------:  |
+| 2-latest-conda              | most recent v2 PyPi version |            3.10 |
+| 2-python3.10-conda          | most recent v2 PyPi version |            3.10 |
+| 2-python3.9-conda           | most recent v2 PyPi version |            3.9  |
+| 2-python3.8-conda           | most recent v2 PyPi version |            3.8  |
+| 2-python3.7-conda           | most recent v2 PyPi version |            3.7  |
+| 2.X-python3.10-conda        |             2.X             |            3.10 |
+| 2.X-python3.9-conda         |             2.X             |            3.9  |
+| 2.X-python3.8-conda         |             2.X             |            3.8  |
+| 2.X-python3.7-conda         |             2.X             |            3.7  |
+| sha-<hash>-python3.10-conda |            <hash>           |            3.10 |
+| sha-<hash>-python3.9-conda  |            <hash>           |            3.9  |
+| sha-<hash>-python3.8-conda  |            <hash>           |            3.8  |
+| sha-<hash>-python3.7-conda  |            <hash>           |            3.7  |
+| sha-<hash>-python3.7-conda  |            <hash>           |            3.7  |
+
+### Prefect 1.x
+
+| Tag               |     Prefect Version         | Python Version  |
+| ----------------  | :-------------------------: | -------------:  |
+| latest            | most recent v1 PyPi version |            3.7  |
+| master            |       master build          |            3.7  |
+| latest-python3.10 | most recent v1 PyPi version |            3.10 |
+| latest-python3.9  | most recent v1 PyPi version |            3.9  |
+| latest-python3.8  | most recent v1 PyPi version |            3.8  |
+| latest-python3.7  | most recent v1 PyPi version |            3.7  |
+| 1.X.Y             |            1.X.Y            |            3.7  |
+| 1.X.Y-python3.10  |            1.X.Y            |            3.10 |
+| 1.X.Y-python3.9   |            1.X.Y            |            3.9  |
+| 1.X.Y-python3.8   |            1.X.Y            |            3.8  |
+| 1.X.Y-python3.7   |            1.X.Y            |            3.7  |
+| core              | most recent v1 PyPi version |            3.8  |
+| core-1.X.Y        |            1.X.Y            |            3.8  |
 
 The images can be broken into a few categories:
 

@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Optional
 
 from google.cloud import secretmanager
 
@@ -36,7 +36,7 @@ class GCPSecret(SecretBase):
         project_id: Union[str, int] = None,
         secret_id: str = None,
         version_id: Union[str, int] = "latest",
-        credentials: dict = None,
+        credentials: Optional[dict] = None,
         **kwargs,
     ):
         self.project_id = project_id
@@ -51,7 +51,7 @@ class GCPSecret(SecretBase):
         project_id: Union[str, int] = None,
         secret_id: str = None,
         version_id: Union[str, int] = "latest",
-        credentials: dict = None,
+        credentials: Optional[dict] = None,
     ) -> str:
         """
         Task run method.

@@ -101,7 +101,7 @@ class TestTransformCreateMaterialization:
     def test_run_raises_on_create_materialization_async(self, mock_mql_client):
         error_msg = "Error while creating async materialization!"
 
-        class mockMQLClient:
+        class MockMQLClient:
             def create_materialization(
                 materialization_name: str,
                 start_time: Optional[str] = None,
@@ -120,9 +120,10 @@ class TestTransformCreateMaterialization:
                     result=None,
                     result_primary_time_granularity=None,
                     result_source=None,
+                    warnings=[],
                 )
 
-        mock_mql_client.return_value = mockMQLClient
+        mock_mql_client.return_value = MockMQLClient
         transform_task = TransformCreateMaterialization()
 
         msg_match = (
@@ -140,7 +141,7 @@ class TestTransformCreateMaterialization:
     def test_run_raises_on_create_materialization_sync(self, mock_mql_client):
         error_msg = "Error while creating sync materialization!"
 
-        class mockMQLClient:
+        class MockMQLClient:
             def materialize(
                 materialization_name: str,
                 start_time: Optional[str] = None,
@@ -152,7 +153,7 @@ class TestTransformCreateMaterialization:
             ):
                 raise QueryRuntimeException(query_id="xyz", msg=error_msg)
 
-        mock_mql_client.return_value = mockMQLClient
+        mock_mql_client.return_value = MockMQLClient
         transform_task = TransformCreateMaterialization()
 
         msg_match = (
@@ -167,7 +168,7 @@ class TestTransformCreateMaterialization:
     def test_run_on_create_materialization_async_successful_status(
         self, mock_mql_client
     ):
-        class mockMQLClient:
+        class MockMQLClient:
             def create_materialization(
                 materialization_name: str,
                 start_time: Optional[str] = None,
@@ -186,9 +187,10 @@ class TestTransformCreateMaterialization:
                     result=None,
                     result_primary_time_granularity=None,
                     result_source=None,
+                    warnings=[],
                 )
 
-        mock_mql_client.return_value = mockMQLClient
+        mock_mql_client.return_value = MockMQLClient
         transform_task = TransformCreateMaterialization()
 
         response = transform_task.run(
@@ -204,7 +206,7 @@ class TestTransformCreateMaterialization:
 
     @mock.patch("prefect.tasks.transform.transform_tasks.MQLClient")
     def test_run_on_create_materialization_async_pending_status(self, mock_mql_client):
-        class mockMQLClient:
+        class MockMQLClient:
             def create_materialization(
                 materialization_name: str,
                 start_time: Optional[str] = None,
@@ -223,9 +225,10 @@ class TestTransformCreateMaterialization:
                     result=None,
                     result_primary_time_granularity=None,
                     result_source=None,
+                    warnings=[],
                 )
 
-        mock_mql_client.return_value = mockMQLClient
+        mock_mql_client.return_value = MockMQLClient
         transform_task = TransformCreateMaterialization()
 
         response = transform_task.run(
@@ -241,7 +244,7 @@ class TestTransformCreateMaterialization:
 
     @mock.patch("prefect.tasks.transform.transform_tasks.MQLClient")
     def test_run_on_create_materialization_async_running_status(self, mock_mql_client):
-        class mockMQLClient:
+        class MockMQLClient:
             def create_materialization(
                 materialization_name: str,
                 start_time: Optional[str] = None,
@@ -260,9 +263,10 @@ class TestTransformCreateMaterialization:
                     result=None,
                     result_primary_time_granularity=None,
                     result_source=None,
+                    warnings=[],
                 )
 
-        mock_mql_client.return_value = mockMQLClient
+        mock_mql_client.return_value = MockMQLClient
         transform_task = TransformCreateMaterialization()
 
         response = transform_task.run(
@@ -278,7 +282,7 @@ class TestTransformCreateMaterialization:
 
     @mock.patch("prefect.tasks.transform.transform_tasks.MQLClient")
     def test_run_on_create_materialization_sync(self, mock_mql_client):
-        class mockMQLClient:
+        class MockMQLClient:
             def materialize(
                 materialization_name: str,
                 start_time: Optional[str] = None,
@@ -292,7 +296,7 @@ class TestTransformCreateMaterialization:
                     schema="schema", table="table", query_id="xyz"
                 )
 
-        mock_mql_client.return_value = mockMQLClient
+        mock_mql_client.return_value = MockMQLClient
         transform_task = TransformCreateMaterialization()
 
         response = transform_task.run(

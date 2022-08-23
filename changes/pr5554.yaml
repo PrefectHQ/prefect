@@ -1,5 +1,0 @@
-fix:
-  - 'Fixes bug where the FlowRunView could fail to initialize when the backend has no state data - [#5554](https://github.com/PrefectHQ/prefect/pull/5554)'
-
-contributor:
-  - '[Emre Akgün](https://github.com/Fraznist)'

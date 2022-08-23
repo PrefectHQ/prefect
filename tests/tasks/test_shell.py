@@ -8,6 +8,7 @@ import pytest
 
 from prefect import Flow
 from prefect.tasks.shell import ShellTask
+from prefect.tasks.powershell.powershell import PowershellTask
 from prefect.utilities.debug import raise_on_exception
 
 
@@ -275,5 +276,25 @@ def test_shell_task_accepts_helper_script():
     with Flow("test") as f:
         res = task(command="ls", helper_script=helper)
 
+    out = f.run()
+    assert out.is_successful()
+
+
+@pytest.mark.skipif(not bool(shutil.which("pwsh")), reason="pwsh not installed.")
+def test_shell_runs_pwsh():
+    with Flow(name="test") as f:
+        task = PowershellTask(shell="pwsh")(command=r"dir")
+    out = f.run()
+    assert out.is_successful()
+
+
+@pytest.mark.skipif(
+    not bool(shutil.which("powershell")), reason="legacy powershell not installed."
+)
+def test_shell_runs_powershell():
+    with Flow(name="test") as f:
+        task = PowershellTask(shell="powershell")(
+            command=r"echo This is a Windows Powershell test"
+        )
     out = f.run()
     assert out.is_successful()

@@ -31,13 +31,25 @@
 
 </p>
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2.0</a> release? Prefect 2.0 and <a href="https://app.prefect.cloud">Prefect Cloud 2.0</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
+Prefect 1.0 Core, Server, and Cloud are our first-generation workflow and orchestration tools. You can continue to use them and we'll continue to support them while migrating users to Prefect 2.0.
+
+If you're ready to start migrating your workflows to Prefect 2.0, see our [migration guide](https://docs.prefect.io/migration-guide/).
+
+If you are unsure which Prefect version to choose for your specific use case, [this Prefect Discourse page](https://discourse.prefect.io/t/should-i-start-with-prefect-2-0-orion-skipping-prefect-1-0/544) may help you decide.
+
+
+
 ## Hello, world! 👋
 
 We've rebuilt data engineering for the data science era.
 
 Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
 
-Read the [docs](https://docs.prefect.io); get the [code](#installation); ask us [anything](https://www.prefect.io/slack); chat with the community via [Prefect Discourse](https://discourse.prefect.io/)!
+Read the [docs](https://docs-v1.prefect.io); get the [code](#installation); ask us [anything](https://www.prefect.io/slack); chat with the community via [Prefect Discourse](https://discourse.prefect.io/)!
 
 ### Welcome to Workflows
 
@@ -61,7 +73,7 @@ flow.run(name='world') # "Hello, world!"
 flow.run(name='Marvin') # "Hello, Marvin!"
 ```
 
-For more detail, please see the [Core docs](https://docs.prefect.io/core/)
+For more detail, please see the [Core docs](https://docs-v1.prefect.io/core/)
 
 ### UI and Server
 
@@ -93,7 +105,7 @@ $ prefect server start
 
 Once all components are running, you can view the UI by visiting [http://localhost:8080](http://localhost:8080).
 
-**Tip:** Check our [troubleshooting guide](https://docs.prefect.io/orchestration/server/troubleshooting.html) if you run into any issues starting the server.
+**Tip:** Check our [troubleshooting guide](https://docs-v1.prefect.io/orchestration/server/troubleshooting.html) if you run into any issues starting the server.
 
 
 Please note that executing flows from the server requires at least one Prefect Agent to be running. For example, to start the local Agent, run the following command: 
@@ -102,7 +114,7 @@ Please note that executing flows from the server requires at least one Prefect A
 $ prefect agent local start
 ```
 
-Finally, to [register any flow](https://docs.prefect.io/orchestration/concepts/flows.html#registration) with the server, call `flow.register(project_name="<project_name>")` within your flow using the name of your project. For more detail, please see the [orchestration docs](https://docs.prefect.io/orchestration/).
+Finally, to [register any flow](https://docs-v1.prefect.io/orchestration/concepts/flows.html#registration) with the server, call `flow.register(project_name="<project_name>")` within your flow using the name of your project. For more detail, please see the [orchestration docs](https://docs-v1.prefect.io/orchestration/).
 
 ## "...Prefect?"
 
@@ -114,96 +126,23 @@ It also happens to be the name of a roving researcher for that wholly remarkable
 
 Thanks to Prefect's growing task library and deep ecosystem integrations, building data applications is easier than ever.
 
-Something missing? Open a [feature request](https://github.com/PrefectHQ/prefect/issues/new/choose) or [contribute a PR](https://docs.prefect.io/core/development/overview.html)! Prefect was designed to make adding new functionality extremely easy, whether you build on top of the open-source package or maintain an internal task library for your team.
+Something missing? Open a [feature request](https://github.com/PrefectHQ/prefect/issues/new/choose) or [contribute a PR](https://docs-v1.prefect.io/core/development/overview.html)! Prefect was designed to make adding new functionality extremely easy, whether you build on top of the open-source package or maintain an internal task library for your team.
 
 ### Task Library
 
-The Prefect task library is a constantly growing list of pre-defined tasks that provide off-the-shelf functionality for working with a wide range of tools anywhere from shell script execution to Kubernetes job management to sending tweets.
-
-<table>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/assets/verified_logo.png"><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/airbyte.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/airbyte.html">Airbyte</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/airtable.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/airtable.html">Airtable</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/asana_logo.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/asana.html">Asana</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/aws.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/aws.html">AWS</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/azure.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/azure.html">Azure</a></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/azure_ml.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/azureml.html">Azure ML</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/assets/verified_logo.png"><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/census.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/census.html">Census</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/cubejs.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/cubejs.html">CubeJS</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/databricks.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/databricks.html">Databricks</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/assets/verified_logo.png"><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/dbt.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/dbt.html">dbt</a></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/docker.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/docker.html">Docker</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/dremio.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/dremio.html">Dremio</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/dropbox.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/dropbox.html">Dropbox</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/email.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/notifications.html#emailtask">Email</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/assets/verified_logo.png"><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/firebolt.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/firebolt.html">Firebolt</a></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/assets/verified_logo.png"><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/fivetran.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/fivetran.html">Fivetran</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/github.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/github.html">GitHub</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/google_cloud.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/gcp.html">Google Cloud</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/sheets.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/gsheets.html">Google Sheets</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/assets/verified_logo.png"><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/ge.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/great_expectations.html">Great Expectations</a></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/jira.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/jira.html">Jira</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/jupyter.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/jupyter.html">Jupyter</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/kubernetes.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/kubernetes.html">Kubernetes</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/mixpanel.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/mixpanel.html">Mixpanel</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/monday.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/monday.html">Monday</a></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/assets/verified_logo.png"><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/monte_carlo.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/monte_carlo.html">Monte Carlo</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/mysql.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/mysql.html">MySQL</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/postgres.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/postgres.html">PostgreSQL</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/prometheus.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/prometheus.html">Prometheus</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/pushbullet.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/notifications.html#pushbullettask">Pushbullet</a></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/python.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/function.html">Python</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/redis.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/redis.html">Redis</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/rlogo.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/rss.html">RSS</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/sendgrid.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/sendgrid.html">SendGrid</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/shell.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/shell.html">Shell</a></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/slack.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/notifications.html#slacktask">Slack</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/snowflake.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/snowflake.html">Snowflake</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/spacy.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/spacy.html">spaCy</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/sqlserverlogo.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/sql_server.html">SQL Server</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/sqlite.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/sqlite.html">SQLite</a></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/trello.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/trello.html">Trello</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/tlogo.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/twitter.html">Twitter</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/zendesk.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/zendesk.html">Zendesk</a></td>
-    <td></td>
-    <td></td>
-  </tr>
-</table>
-
-### Deployment & Execution
-
-| &nbsp; | &nbsp; | &nbsp; | &nbsp; | &nbsp; |
-| ------ | ------ | ------ | ------ | ------ |
-| <img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/azure.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Azure</p>](https://azure.microsoft.com/en-us/) | <img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/aws.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>AWS</p>](https://aws.amazon.com/) | <img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/dask.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Dask</p>](https://dask.org/) | <img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/docker.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Docker</p>](https://www.docker.com/) | <img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/google_cloud.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Google Cloud</p>](https://cloud.google.com/)                                                          |
-| <img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/kubernetes.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Kubernetes</p>](https://kubernetes.io/)   |                                                                                                                                                                                                                    |                                                                                                                                                                                                                |                                                                                                                                                                                                                          | <img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/shell.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> [<p>Universal Deploy</p>](https://medium.com/the-prefect-blog/introducing-prefect-universal-deploy-7992283e5911) |
+The Prefect [Task Library](https://docs-v1.prefect.io/core/task_library/overview.html) is a constantly growing list of pre-defined tasks that provide off-the-shelf functionality for working with a wide range of tools anywhere from shell script execution to Kubernetes job management to sending tweets.
 
 ## Resources
 
 Prefect provides a variety of resources to help guide you to a successful outcome.
 
-We are committed to ensuring a positive environment, and all interactions are governed by our [Code of Conduct](https://docs.prefect.io/core/code_of_conduct.html).
+We are committed to ensuring a positive environment, and all interactions are governed by our [Code of Conduct](https://docs-v1.prefect.io/core/code_of_conduct.html).
 
 ### Documentation
 
-Prefect's documentation -- including concepts, tutorials, and a full API reference -- is always available at [docs.prefect.io](https://docs.prefect.io).
+Prefect's documentation -- including concepts, tutorials, and a full API reference -- is always available at [docs.prefect.io](https://docs-v1.prefect.io).
 
-Instructions for contributing to documentation can be found in the [development guide](https://docs.prefect.io/core/development/documentation.html).
+Instructions for contributing to documentation can be found in the [development guide](https://docs-v1.prefect.io/core/development/documentation.html).
 
 ### Prefect Discourse
 
@@ -223,7 +162,7 @@ Prefect offers a variety of community and premium [support options](https://www.
 
 ### Contributing
 
-Read about Prefect's [community](https://docs.prefect.io/core/community.html) or dive in to the [development guides](https://docs.prefect.io/core/development/overview.html) for information about contributions, documentation, code style, and testing.
+Read about Prefect's [community](https://docs-v1.prefect.io/core/community.html) or dive in to the [development guides](https://docs-v1.prefect.io/core/development/overview.html) for information about contributions, documentation, code style, and testing.
 
 ## Installation
 
@@ -233,22 +172,24 @@ Prefect requires Python 3.7+. If you're new to Python, we recommend installing t
 
 ### Latest Release
 
+**Note:** with the general availability of [Prefect 2.0](https://docs.prefect.io/getting-started/installation/), you will need to specify the Prefect version when installing or updating Prefect 1.0 via a package manager.
+
 To install Prefect, run:
 
 ```bash
-pip install prefect
+pip install "prefect==1.*"
 ```
 
-or, if you prefer to use `conda`:
+If you prefer to use `conda`:
 
 ```bash
-conda install -c conda-forge prefect
+conda install -c conda-forge "prefect>=1.24,<2"
 ```
 
-or `pipenv`:
+If you use `pipenv`:
 
 ```bash
-pipenv install --pre prefect
+pip install "prefect==1.*"
 ```
 
 ### Bleeding Edge

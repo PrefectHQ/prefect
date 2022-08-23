@@ -195,7 +195,7 @@ jobs:
           command: pytest tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   # ----------------------------------
-  # Run unit tests in Python 3.7-3.9
+  # Run unit tests in Python 3.7-3.10
   # ----------------------------------
 
   test_37:
@@ -258,7 +258,7 @@ jobs:
 
   test_39:
     docker:
-      - image: python:3.9.0
+      - image: python:3.9
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
@@ -288,6 +288,38 @@ jobs:
           name: Run tests
           command: pytest tests --ignore=tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
+  test_310:
+    docker:
+      - image: python:3.10
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+
+      - run:
+          name: Install graphviz
+          command: apt-get update && apt-get install -y graphviz
+
+      - run:
+          name: Upgrade pip
+          command: pip install "pip==20.2.4"
+
+      - run:
+          name: Install Prefect
+          # All extras cannot be tested because they do not support 3.10 yet, until then
+          # we will just guarantee that we pass the core test suite
+          # See https://github.com/PrefectHQ/prefect/pull/3441#issuecomment-708419324
+          command: pip install ".[test]"
+
+      - run:
+          name: Run tests
+          command: pytest tests --ignore=tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
+
   build_docker_image:
     docker:
       - image: docker
@@ -309,13 +341,13 @@ jobs:
     steps:
       - checkout
       - run:
-          # since this job is kicked off on *any* tag, we want to bail if this commit is not on master.
-          # todo: is there a better way to ensure that this is a commit on master?
-          name: Master branch check
+          # since this job is kicked off on *any* tag, we want to bail if this commit is not on 1.x
+          name: 1.x branch check
           command: |
             apk add git
-            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
-              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+            git branch 1.x origin/1.x
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at 1.x | grep 1.x | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the 1.x branch"
               exit 1
             fi
       - setup_remote_docker:
@@ -344,7 +376,7 @@ jobs:
       - run:
           name: Test image
           command: |
-            docker run -dit prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+            docker run -dit prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/1.x/examples/retries_with_mapping.py | python'
       - run:
           name: Push versioned tags
           command: |
@@ -360,7 +392,7 @@ jobs:
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
                   docker push prefecthq/prefect:latest
                   docker push prefecthq/prefect:${CIRCLE_TAG}
-  build_master_docker_image:
+  build_dev_docker_image:
     docker:
       - image: docker
         auth:
@@ -377,11 +409,12 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Master branch check
+          name: 1.x branch check
           command: |
             apk add git
-            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
-              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+            git branch 1.x origin/1.x
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at 1.x | grep 1.x | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the 1.x branch"
               exit 1
             fi
       - setup_remote_docker:
@@ -396,18 +429,18 @@ jobs:
               --build-arg PREFECT_VERSION=$CIRCLE_SHA1 \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
               --build-arg EXTRAS=$EXTRAS \
-              -t prefecthq/prefect:master \
+              -t prefecthq/prefect:1-dev \
               .
       - run:
           name: Test image
           command: |
-            docker run -dit prefecthq/prefect:master /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+            docker run -dit prefecthq/prefect:1-dev /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/1.x/examples/retries_with_mapping.py | python'
       - run:
-          name: Push master tag
+          name: Push 1-dev tag
           command: |
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-            docker push prefecthq/prefect:master
-            
+            docker push prefecthq/prefect:1-dev
+
   build_core_docker_image:
     docker:
       - image: docker
@@ -425,11 +458,12 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Master branch check
+          name: 1.x branch check
           command: |
             apk add git
-            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
-              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+            git branch 1.x origin/1.x
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at 1.x | grep 1.x | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the 1.x branch"
               exit 1
             fi
       - setup_remote_docker:
@@ -449,7 +483,7 @@ jobs:
       - run:
           name: Test image
           command: |
-            docker run -dit prefecthq/prefect:core-${CIRCLE_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
+            docker run -dit prefecthq/prefect:core-${CIRCLE_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/1.x/examples/retries_with_mapping.py | python'
       - run:
           name: Push core tag
           command: |
@@ -463,7 +497,7 @@ jobs:
                 command: |
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
                   docker push prefecthq/prefect:core
-                  
+
   promote_server_artifacts:
     docker:
       - image: docker
@@ -495,12 +529,12 @@ jobs:
 
       - run:
           # since this job is kicked off on *any* tag (that matches the version pattern), we want to bail if this
-          # commit is not on master.
-          # todo: is there a better way to ensure that this is a commit on master?
-          name: Master branch check
+          # commit is not on 1.x.
+          name: 1.x branch check
           command: |
-            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at master | grep master | wc -l) -ne 1 ]]; then
-              echo "commit $CIRCLE_SHA1 is not a member of the master branch"
+            git branch 1.x origin/1.x
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at 1.x | grep 1.x | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the 1.x branch"
               exit 1
             fi
       - run:
@@ -531,6 +565,7 @@ workflows:
       - test_37
       - test_38
       - test_39
+      - test_310
       - test_lower_prefect
       - test_vanilla_prefect
       - test_task_library
@@ -542,12 +577,12 @@ workflows:
 
   'Build and publish development artifacts':
     jobs:
-      - build_master_docker_image:
+      - build_dev_docker_image:
           python_version: '3.7'
           extras: 'all_orchestration_extras'
           filters:
             branches:
-              only: master
+              only: '1.x'
 
   'Build and publish release artifacts':
     jobs:
@@ -576,6 +611,14 @@ workflows:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - build_docker_image:
+          python_version: '3.10'
+          extras: 'all_orchestration_extras'
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - release_to_pypi:
           filters:
             branches:
@@ -584,6 +627,14 @@ workflows:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_core_docker_image:
           python_version: '3.9'
+          tag_latest: true
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - build_core_docker_image:
+          python_version: '3.10'
           tag_latest: true
           filters:
             branches:
@@ -623,6 +674,14 @@ workflows:
               ignore: /.*/
             tags:
               only: /^1.0rc[0-9]$/
+      - build_docker_image:
+          python_version: '3.10'
+          extras: 'all_orchestration_extras'
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^1.0rc[0-9]$/
       - release_to_pypi:
           filters:
             branches:
@@ -631,6 +690,13 @@ workflows:
               only: /^1.0rc[0-9]$/
       - build_core_docker_image:
           python_version: '3.9'
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^1.0rc[0-9]$/
+      - build_core_docker_image:
+          python_version: '3.10'
           filters:
             branches:
               ignore: /.*/

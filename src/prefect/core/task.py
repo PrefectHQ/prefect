@@ -16,8 +16,10 @@ from typing import (
     List,
     Mapping,
     Optional,
+    Set,
     Union,
     Tuple,
+    Type,
 )
 from collections import defaultdict
 
@@ -28,6 +30,7 @@ import prefect.triggers
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.edges import EdgeAnnotation
+from prefect.utilities.tasks import as_task
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -240,6 +243,9 @@ class Task(metaclass=TaskMetaclass):
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
+        - retry_on (Union[Exception, Iterable[Type[Exception]]], optional): Exception types that will
+            allow retry behavior to occur. If not set, all exceptions will allow retries. If set,
+            retries will only occur if the exception is a subtype of the exception types provided.
         - timeout (Union[int, timedelta], optional): The amount of time (in seconds) to wait while
             running this task before a timeout occurs; note that sub-second
             resolution is not supported, even when passing in a timedelta.
@@ -306,6 +312,7 @@ class Task(metaclass=TaskMetaclass):
     Raises:
         - TypeError: if `tags` is of type `str`
         - TypeError: if `timeout` is not of type `int`
+        - TypeError: if positional-only parameters are present in task's signature
     """
 
     def __init__(
@@ -315,6 +322,7 @@ class Task(metaclass=TaskMetaclass):
         tags: Iterable[str] = None,
         max_retries: int = None,
         retry_delay: timedelta = None,
+        retry_on: Union[Type[Exception], Iterable[Type[Exception]]] = None,
         timeout: Union[int, timedelta] = None,
         trigger: "Callable[[Dict[Edge, State]], bool]" = None,
         skip_on_upstream_skip: bool = True,
@@ -342,6 +350,18 @@ class Task(metaclass=TaskMetaclass):
         self.name = name or type(self).__name__
         self.slug = slug
 
+        positional_args = [
+            name
+            for name, parameter in self.__signature__.parameters.items()
+            if parameter.kind == inspect.Parameter.POSITIONAL_ONLY
+        ]
+        if positional_args:
+            raise TypeError(
+                "Found positional-only parameters in the function signature for "
+                f"task {self.name}: {positional_args}. Prefect passes arguments "
+                "using keywords and does not support positional-only parameters."
+            )
+
         self.logger = logging.get_logger(self.name)
 
         # avoid silently iterating over a string
@@ -368,6 +388,28 @@ class Task(metaclass=TaskMetaclass):
             raise ValueError(
                 "A datetime.timedelta `retry_delay` must be provided if max_retries > 0"
             )
+        if retry_on and not max_retries > 0:
+            raise ValueError(
+                "A number of `max_retries` must be provided if `retry_on` is set."
+            )
+
+        self.retry_on: Optional[Set[Type[Exception]]] = None
+        if retry_on:
+            if not isinstance(retry_on, Iterable):
+                self.retry_on = {retry_on}
+            else:
+                self.retry_on = set(retry_on)
+            for v in self.retry_on:
+                if not isinstance(v, type):
+                    raise TypeError(
+                        f"Invalid `retry_on` value {v!r}. "
+                        f"Expected an exception type but got an instance of {type(v).__name__}"
+                    )
+                if not issubclass(v, Exception):
+                    raise TypeError(
+                        f"Invalid `retry_on` value {v!r}. Expected an exception subclass."
+                    )
+
         # specify not max retries because the default is false
         if retry_delay is not None and not max_retries:
             raise ValueError(
@@ -630,6 +672,18 @@ class Task(metaclass=TaskMetaclass):
             - Task: a new Task instance
         """
         new = self.copy(**(task_args or {}))
+
+        positional_args = [
+            name
+            for name, parameter in inspect.signature(new).parameters.items()
+            if parameter.kind == inspect.Parameter.POSITIONAL_ONLY
+        ]
+        if positional_args:
+            raise TypeError(
+                "Prefect passes arguments to task as keyword arguments. "
+                f"Positional-Only arguments found : {positional_args}"
+            )
+
         new.bind(
             *args, mapped=mapped, upstream_tasks=upstream_tasks, flow=flow, **kwargs
         )
@@ -907,7 +961,9 @@ class Task(metaclass=TaskMetaclass):
             return_annotation = Any
         return return_annotation
 
-    def pipe(_prefect_self, _prefect_task: "Task", **kwargs: Any) -> "Task":
+    def pipe(
+        _prefect_self, _prefect_task: Union[Type[EdgeAnnotation], "Task"], **kwargs: Any
+    ) -> "Task":
         """
         "Pipes" the result of this task through another task. ``some_task().pipe(other_task)`` is
         equivalent to ``other_task(some_task())``, but can result in more readable code when used in a
@@ -922,7 +978,12 @@ class Task(metaclass=TaskMetaclass):
         """
         if "self" in kwargs:
             raise ValueError('You cannot use the keyword argument "self" in .pipe.')
-        return _prefect_task(_prefect_self, **kwargs)
+
+        if inspect.isclass(_prefect_task) and issubclass(_prefect_task, EdgeAnnotation):  # type: ignore
+            return as_task(_prefect_task(_prefect_self))
+        else:
+            # mypy<0.900 doesn't infer type as Task due to Union type
+            return _prefect_task(_prefect_self, **kwargs)  # type: ignore
 
     # Serialization ------------------------------------------------------------
 

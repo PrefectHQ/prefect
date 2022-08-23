@@ -6,16 +6,7 @@ import time
 import uuid
 import warnings
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    List,
-    Mapping,
-    NamedTuple,
-    Optional,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, NamedTuple, Optional, Union
 from urllib.parse import urljoin, urlparse
 
 # if simplejson is installed, `requests` defaults to using it instead of json
@@ -33,8 +24,8 @@ import prefect
 from prefect.exceptions import (
     AuthorizationError,
     ClientError,
-    VersionLockMismatchSignal,
     ObjectNotFoundError,
+    VersionLockMismatchSignal,
 )
 from prefect.run_configs import RunConfig
 from prefect.utilities.graphql import (
@@ -289,7 +280,7 @@ class Client:
 
     @tenant_id.setter
     def tenant_id(self, tenant_id: Union[str, uuid.UUID, None]) -> None:
-        if tenant_id is None:
+        if not tenant_id:
             self._tenant_id = None
             return
 
@@ -531,16 +522,30 @@ class Client:
             )
 
         # custom logic when encountering an API rate limit:
-        # each time we encounter a rate limit, we sleep for
+        # each time we encounter a rate limit, by default we sleep for
         # 3 minutes + random amount, where the random amount
         # is uniformly sampled from (0, 10 * 2 ** rate_limit_counter)
         # up to (0, 640), at which point an error is raised if the limit
-        # is still being hit
+        # is still being hit.
+        #
+        # sleep/backoff times can be customized in prefect.config.cloud.rate_limiting
         rate_limited = response.status_code == 429
-        if rate_limited and rate_limit_counter <= 6:
-            jitter = random.random() * 10 * (2**rate_limit_counter)
-            naptime = 3 * 60 + jitter  # 180 second sleep + increasing jitter
-            self.logger.debug(f"Rate limit encountered; sleeping for {naptime}s...")
+        if (
+            rate_limited
+            and rate_limit_counter <= prefect.config.cloud.rate_limiting.max_retries
+        ):
+            jitter = (
+                random.random()
+                * prefect.config.cloud.rate_limiting.backoff_multiplier
+                * (
+                    prefect.config.cloud.rate_limiting.backoff_exponent
+                    ** rate_limit_counter
+                )
+            )
+            naptime = prefect.config.cloud.rate_limiting.backoff_s + jitter
+            self.logger.warning(
+                f"Rate limit encountered (attempt {rate_limit_counter}); sleeping for {naptime}s..."
+            )
             time.sleep(naptime)
             response = self._send_request(
                 session=session,
@@ -643,6 +648,7 @@ class Client:
             allowed_methods=["DELETE", "GET", "POST"],  # type: ignore
         )
         session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
+        session.mount("http://", requests.adapters.HTTPAdapter(max_retries=retries))
         response = self._send_request(
             session=session, method=method, url=url, params=params, headers=headers
         )
@@ -1256,17 +1262,26 @@ class Client:
                 version=tr.version,
                 task_id=tr.task.id,
                 task_slug=tr.task.slug,
-                state=State.deserialize(tr.serialized_state),
+                state=State.deserialize(tr.serialized_state)
+                if tr.serialized_state
+                else prefect.engine.state.Pending(),
             )
             for tr in result.task_runs
         ]
+
+        state = (
+            prefect.engine.state.State.deserialize(result.serialized_state)
+            if result.serialized_state
+            else prefect.engine.state.Pending()
+        )
+
         return FlowRunInfoResult(
             id=result.id,
             name=result.name,
             flow_id=result.flow_id,
             version=result.version,
             task_runs=task_runs,
-            state=State.deserialize(result.serialized_state),
+            state=state,
             scheduled_start_time=pendulum.parse(result.scheduled_start_time),  # type: ignore
             project=ProjectInfo(
                 id=result.flow.project.id, name=result.flow.project.name
@@ -1496,7 +1511,12 @@ class Client:
 
         task_run_info = result.data.get_or_create_task_run_info
 
-        state = prefect.engine.state.State.deserialize(task_run_info.serialized_state)
+        state = (
+            prefect.engine.state.State.deserialize(task_run_info.serialized_state)
+            if task_run_info.serialized_state
+            else prefect.engine.state.Pending()
+        )
+
         return TaskRunInfoResult(
             id=task_run_info.id,
             task_id=task_id,

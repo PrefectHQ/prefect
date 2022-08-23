@@ -226,6 +226,8 @@ def cloud_mocks(monkeypatch):
         ('"foo"', "foo"),
         ("0foo", "0foo"),  # auto-quote when starting with a number
         ('{"key": "value"}', {"key": "value"}),
+        ('{"key": "=value"}', {"key": "=value"}),
+        ('{"key": "foo=foo"}', {"key": "foo=foo"}),
     ],
 )
 def test_load_json_key_values(input, output):

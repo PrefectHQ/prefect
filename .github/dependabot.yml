@@ -9,3 +9,9 @@ updates:
     timezone: America/New_York
   open-pull-requests-limit: 10
   rebase-strategy: disabled
+- package-ecosystem: "github-actions"
+  directory: "/"
+  schedule: 
+   interval: weekly
+  open-pull-requests-limit: 10
+  rebase-strategy: disabled

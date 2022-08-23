@@ -898,6 +898,27 @@ class TestK8sAgentRunConfig:
         job = self.agent.generate_job_spec(flow_run)
         assert job["metadata"]["labels"]["TEST"] == "VALUE"
 
+    def test_generate_job_spec_uses_job_template_name_provided_in_run_config(self):
+        template = self.read_default_template()
+        template.setdefault("metadata", {})["name"] = "custom-job-name"
+
+        flow_run = self.build_flow_run(KubernetesRun(job_template=template))
+        job = self.agent.generate_job_spec(flow_run)
+        assert re.match(r"custom-job-name-[a-f0-9]{8}", job["metadata"]["name"])
+
+    def test_generate_job_spec_truncates_job_template_name_provided_in_run_config(self):
+        template = self.read_default_template()
+        template.setdefault("metadata", {})[
+            "name"
+        ] = "custom-job-name-that-has-a-lot-of-characters-and-will-truncate"
+
+        flow_run = self.build_flow_run(KubernetesRun(job_template=template))
+        job = self.agent.generate_job_spec(flow_run)
+        assert re.match(
+            r"custom-job-name-that-has-a-lot-of-characters-and-[a-f0-9]{8}",
+            job["metadata"]["name"],
+        )
+
     def test_generate_job_spec_uses_job_template_path_provided_in_run_config(
         self, tmpdir, monkeypatch
     ):
@@ -1054,7 +1075,6 @@ class TestK8sAgentRunConfig:
             # Backwards compatibility variable for containers on Prefect <0.15.0
             "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.agent.log_to_cloud).lower(),
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             "PREFECT__LOGGING__LEVEL": prefect.config.logging.level,
             "CUSTOM1": "VALUE1",
             "CUSTOM2": "OVERRIDE2",  # Agent env-vars override those in template

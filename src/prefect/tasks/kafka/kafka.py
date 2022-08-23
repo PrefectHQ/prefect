@@ -112,7 +112,7 @@ class KafkaBatchConsume(Task):
                             == confluent_kafka.KafkaError._PARTITION_EOF
                         ):
                             # End of partition event, exit consumer
-                            self.logger.warn(
+                            self.logger.warning(
                                 f"{message.topic()} [{message.partition()}] "
                                 f"reached end at offset {message.offset()}"
                             )

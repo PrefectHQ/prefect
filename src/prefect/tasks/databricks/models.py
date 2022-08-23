@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import Dict, Optional, List, Any, Union
+from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Extra, Field, validator
 
 
 class TaskDependency(BaseModel):
@@ -66,11 +66,11 @@ class InitScriptInfo(BaseModel):
     S3: Optional[S3StorageInfo] = None
 
 
-class NewCluster(BaseModel):
-    autoscale: AutoScale
+class NewCluster(BaseModel, extra=Extra.allow):
     spark_version: str
     node_type_id: str
     spark_conf: Dict = Field(default_factory=dict)
+    autoscale: Optional[AutoScale] = None
     num_workers: Optional[int] = None
     aws_attributes: Optional[AwsAttributes] = None
     driver_node_type_id: Optional[str] = None
@@ -82,6 +82,9 @@ class NewCluster(BaseModel):
     enable_elastic_disk: Optional[bool] = None
     driver_instance_pool_id: Optional[str] = None
     instance_pool_id: Optional[str] = None
+    policy_id: Optional[str] = None
+    data_security_mode: Optional[str] = None
+    single_user_name: Optional[str] = None
 
 
 class NotebookTask(BaseModel):
@@ -196,14 +199,48 @@ class PermissionLevelForGroup(BaseModel):
 
 
 class AccessControlRequestForUser(BaseModel):
+    class Config:
+        use_enum_values = True
+
     user_name: str
-    permission_level: PermissionLevel
+    permission_level: Union[CanManage, CanManageRun, CanView, IsOwner]
 
 
 class AccessControlRequestForGroup(BaseModel):
+    class Config:
+        use_enum_values = True
+
     group_name: str
-    permission_level: PermissionLevelForGroup
+    permission_level: Union[CanManage, CanManageRun, CanView]
 
 
 class AccessControlRequest(BaseModel):
     __root__: Union[AccessControlRequestForUser, AccessControlRequestForGroup]
+
+
+class GitSource(BaseModel, extra=Extra.allow):
+    git_url: str
+    git_provider: str
+    git_branch: Optional[str] = None
+    git_tag: Optional[str] = None
+    git_commit: Optional[str] = None
+
+    @validator("git_tag", always=True)
+    def branch_or_tag(cls, v, values):
+        if "git_branch" in values is not None and v:
+            raise ValueError("Cannot specify git tag if git branch has been specified")
+        return v
+
+    @validator("git_branch", always=True)
+    def commit_or_branch(cls, v, values):
+        if "git_commit" in values is not None and v:
+            raise ValueError(
+                "Cannot specify git branch if git commit has been specified"
+            )
+        return v
+
+    @validator("git_commit", always=True)
+    def tag_or_commit(cls, v, values):
+        if "git_tag" in values is not None and v:
+            raise ValueError("Cannot specify git commit if git tag has been specified")
+        return v

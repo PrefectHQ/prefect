@@ -374,7 +374,7 @@ def task(
     Usage:
 
     ```
-    @task(name='hello', retries=3)
+    @task(name='hello', max_retries=3, retry_delay=1)
     def hello(name):
         print('hello, {}'.format(name))
 

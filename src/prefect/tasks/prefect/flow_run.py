@@ -245,6 +245,7 @@ def wait_for_flow_run(
     stream_states: bool = True,
     stream_logs: bool = False,
     raise_final_state: bool = False,
+    max_duration: timedelta = timedelta(hours=12),
 ) -> "FlowRunView":
     """
     Task to wait for a flow run to finish executing, streaming state and log information
@@ -256,6 +257,7 @@ def wait_for_flow_run(
             ignored
         - raise_final_state: If set, the state of this task will be set to the final
             state of the child flow run on completion.
+        - max_duration: Duration to wait for flow run to complete. Defaults to 12 hours.
 
     Returns:
         FlowRunView: A view of the flow run after completion
@@ -264,7 +266,10 @@ def wait_for_flow_run(
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
 
     for log in watch_flow_run(
-        flow_run_id, stream_states=stream_states, stream_logs=stream_logs
+        flow_run_id,
+        stream_states=stream_states,
+        stream_logs=stream_logs,
+        max_duration=max_duration,
     ):
         message = f"Flow {flow_run.name!r}: {log.message}"
         prefect.context.logger.log(log.level, message)
@@ -308,6 +313,8 @@ class StartFlowRun(Task):
             for; if not provided, defaults to now
         - poll_interval (timedelta): the time to wait between each check if the flow is finished.
                 Has to be >= 3 seconds. Used only if `wait=True`. Defaults to 10 seconds.
+        - create_link_artifact (bool, optional): whether to create a link artifact
+            to the child flow run page.  Defaults to `True`.
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
@@ -322,6 +329,7 @@ class StartFlowRun(Task):
         run_name: str = None,
         scheduled_start_time: datetime.datetime = None,
         poll_interval: timedelta = timedelta(seconds=10),
+        create_link_artifact: bool = True,
         **kwargs: Any,
     ):
         self.flow_name = flow_name
@@ -350,6 +358,7 @@ class StartFlowRun(Task):
                 f"(poll_interval == {poll_interval.total_seconds()} seconds)!"
             )
         self.poll_interval = poll_interval
+        self.create_link_artifact = create_link_artifact
         if flow_name:
             kwargs.setdefault("name", f"Flow {flow_name}")
         super().__init__(**kwargs)
@@ -467,7 +476,8 @@ class StartFlowRun(Task):
 
         self.logger.debug(f"Creating link artifact for Flow Run {flow_run_id}.")
         run_link = client.get_cloud_url("flow-run", flow_run_id)
-        create_link_artifact(urlparse(run_link).path)
+        if self.create_link_artifact:
+            create_link_artifact(urlparse(run_link).path)
         self.logger.info(f"Flow Run: {run_link}")
 
         if not self.wait:

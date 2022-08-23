@@ -41,6 +41,19 @@ def test_serialize_flow_sorts_nested_schemas():
     assert [task["slug"] for task in serialized["reference_tasks"]] == ["c-1", "d-1"]
 
 
+def test_serialize_flow_sorts_by_key():
+    @prefect.task()
+    def task1(p1, p2, p3, p4):
+        return p1, p2
+
+    with Flow("flow1") as flow:
+        param1 = Parameter("param1")
+        t1 = task1(param1, param1, param1, param1)
+
+    serialized = flow.serialize()
+    assert [edge["key"] for edge in serialized["edges"]] == ["p1", "p2", "p3", "p4"]
+
+
 def test_deserialize_flow():
     serialized = FlowSchema().dump(Flow(name="n"))
     deserialized = FlowSchema().load(serialized)

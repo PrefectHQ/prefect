@@ -413,7 +413,7 @@ def run_with_multiprocess_timeout(
         pickled_result = queue.get(block=True, timeout=timeout)
         logger.debug(f"{name}: Result received from subprocess, unpickling...")
         result = cloudpickle.loads(pickled_result)
-        if isinstance(result, Exception):
+        if isinstance(result, (Exception, PrefectSignal)):
             raise result
         return result
     except Empty:
