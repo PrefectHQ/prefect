@@ -10,6 +10,7 @@ from prefect.tasks.databricks import (
     DatabricksGetJobID,
     DatabricksRunNow,
     DatabricksSubmitRun,
+    DatabricksSubmitMultitaskRun,
 )
 from tests.tasks.databricks.mocks import (
     DatabricksGetJobIDTestOverride,
@@ -153,11 +154,8 @@ def get_jobid_task_template(databricks_list_api_response_success):
 
 
 @pytest.fixture
-def flow_run_id():
-    flow_run_id = "a1b2c3d4"
-    prefect.context.flow_run_id = flow_run_id
-    yield flow_run_id
-    del prefect.context.flow_run_id
+def multi_task_submit_run():
+    return DatabricksSubmitMultitaskRun()
 
 
 @pytest.fixture
@@ -175,12 +173,13 @@ def requests_mock():
 
 
 @pytest.fixture
-def match_run_sumbission_on_idempotency_token(requests_mock, flow_run_id):
+def match_run_sumbission_on_idempotency_token(requests_mock, multi_task_submit_run):
+    expected_idempotency_token = str(id(multi_task_submit_run))
     requests_mock.add(
         method=responses.POST,
         url="https://cloud.databricks.com/api/2.1/jobs/runs/submit",
         json={"run_id": "12345"},
-        match=[body_entry_matcher("idempotency_token", flow_run_id)],
+        match=[body_entry_matcher("idempotency_token", expected_idempotency_token)],
     )
 
 
