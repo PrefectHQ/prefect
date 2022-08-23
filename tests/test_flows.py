@@ -541,6 +541,34 @@ class TestSubflowCalls:
 
         assert await parent(1, 2) == 6
 
+    def test_sync_flow_with_async_subflow(self):
+        result = "a string, not a coroutine"
+
+        @flow
+        async def async_child():
+            return result
+
+        @flow
+        def parent():
+            return async_child()
+
+        assert parent() == result
+
+    def test_sync_flow_with_async_subflow_and_async_task(self):
+        @task
+        async def compute(x, y, z):
+            return x + y + z
+
+        @flow(version="foo")
+        async def child(x, y, z):
+            return await compute(x, y, z)
+
+        @flow(version="bar")
+        def parent(x, y=2, z=3):
+            return child(x, y, z)
+
+        assert parent(1, 2) == 6
+
     async def test_subflow_with_invalid_parameters_is_failed(self, orion_client):
         @flow
         def child(x: int):
