@@ -141,13 +141,12 @@ def enter_flow_run_engine_from_flow_call(
         return_type=return_type,
     )
 
-    # Async flow run
-    if flow.isasync:
-        return begin_run()  # Return a coroutine for the user to await
-
-    # Sync flow run
     if not is_subflow_run:
-        if in_async_main_thread():
+        # Async flow run
+        if flow.isasync:
+            return begin_run()  # Return a coroutine for the user to await
+        # Sync flow run
+        elif in_async_main_thread():
             # An event loop is already running and we must create a blocking portal to
             # run async code from this synchronous context
             with start_blocking_portal() as portal:
@@ -156,10 +155,14 @@ def enter_flow_run_engine_from_flow_call(
             # An event loop is not running so we will create one
             return anyio.run(begin_run)
 
-    # Sync subflow run
     if not parent_flow_run_context.flow.isasync:
+        # Async subflow run in sync flow run
         return run_async_from_worker_thread(begin_run)
+    elif parent_flow_run_context.flow.isasync and flow.isasync:
+        # Async subflow run in async flow run
+        return begin_run()
     else:
+        # Sync subflow run in async flow run
         return parent_flow_run_context.sync_portal.call(begin_run)
 
 
