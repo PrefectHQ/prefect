@@ -172,7 +172,7 @@ jobs:
           path: /tmp/image-conda.tar
 
   publish-docs:
-    name: Open PR to docs branch
+    name: Publish documentation
     needs: [build-release, publish-test-release]
     environment: "prod"
     runs-on: ubuntu-latest
@@ -189,7 +189,7 @@ jobs:
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
       - name: Checkout current docs
-        run: git checkout docs --
+        run: git checkout docs-deploy --
 
       - name: Create a temporary branch
         # the release tag is parsed from the ref
@@ -204,7 +204,8 @@ jobs:
           gh pr create \
             --title "Publish docs from release ${GITHUB_REF#refs/*/}" \
             --body '_automatically created with `gh` cli on merge to `main`_' \
-            --base docs
+            --base docs-deploy
+          gh pr merge --merge --delete-branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

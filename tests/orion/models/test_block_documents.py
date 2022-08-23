@@ -1,4 +1,5 @@
 import string
+from typing import List
 from uuid import uuid4
 
 import pytest
@@ -1564,3 +1565,17 @@ class TestSecretBlockDocuments:
 
         # x was NOT overwritten
         assert block2.data["x"] != obfuscate_string(X)
+
+    async def test_block_with_list_of_secrets(self, session):
+        class ListSecretBlock(Block):
+            x: List[SecretStr]
+
+        # save the block
+        orig_block = ListSecretBlock(x=["a", "b"])
+        await orig_block.save(name="list-secret")
+
+        # load the block
+        block = await ListSecretBlock.load("list-secret")
+
+        assert block.x[0].get_secret_value() == "a"
+        assert block.x[1].get_secret_value() == "b"

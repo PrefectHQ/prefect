@@ -15,11 +15,11 @@ $ python -m asyncio
 ```
 </div>
 """
-
 import copy
 import datetime
 import sys
 import threading
+import warnings
 from collections import defaultdict
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
@@ -39,8 +39,8 @@ from uuid import UUID
 
 import anyio
 import httpx
+import pendulum
 import pydantic
-from anyio import sleep
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI, status
 from httpx import HTTPStatusError, Response
@@ -176,7 +176,9 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
             APP_LIFESPANS_REF_COUNTS[key] += 1
         else:
             # Create a new lifespan manager
-            APP_LIFESPANS[key] = context = LifespanManager(app)
+            APP_LIFESPANS[key] = context = LifespanManager(
+                app, startup_timeout=30, shutdown_timeout=30
+            )
             APP_LIFESPANS_REF_COUNTS[key] = 1
 
             # Ensure we enter the context before releasing the lock so startup hooks
@@ -268,7 +270,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
             else:
                 retry_seconds = 2**retry_count
 
-            await sleep(retry_seconds)
+            await anyio.sleep(retry_seconds)
             response = await super().send(*args, **kwargs)
 
         # Always raise bad responses
@@ -503,7 +505,7 @@ class OrionClient:
             a fully hydrated [Flow model][prefect.orion.schemas.core.Flow]
         """
         response = await self._client.get(f"/flows/name/{flow_name}")
-        return schemas.core.Deployment.parse_obj(response.json())
+        return schemas.core.Flow.parse_obj(response.json())
 
     async def create_flow_run_from_deployment(
         self,
@@ -512,6 +514,8 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         context: dict = None,
         state: schemas.states.State = None,
+        name: str = None,
+        tags: Iterable[str] = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a deployment.
@@ -533,11 +537,14 @@ class OrionClient:
         parameters = parameters or {}
         context = context or {}
         state = state or Scheduled()
+        tags = tags or []
 
         flow_run_create = schemas.actions.DeploymentFlowRunCreate(
             parameters=parameters,
             context=context,
             state=state,
+            tags=tags,
+            name=name,
         )
 
         response = await self._client.post(
@@ -613,18 +620,25 @@ class OrionClient:
     async def update_flow_run(
         self,
         flow_run_id: UUID,
-        flow_version: str = None,
-        parameters: dict = None,
-        name: str = None,
-    ) -> None:
+        flow_version: Optional[str] = None,
+        parameters: Optional[dict] = None,
+        name: Optional[str] = None,
+        tags: Optional[Iterable[str]] = None,
+        empirical_policy: Optional[schemas.core.FlowRunPolicy] = None,
+    ) -> httpx.Response:
         """
         Update a flow run's details.
 
         Args:
-            flow_run_id: the run ID to update
-            flow_version: a new version string for the flow run
-            parameters: a dictionary of updated parameter values for the run
-            name: a new name for the flow run
+            flow_run_id: The identifier for the flow run to update.
+            flow_version: A new version string for the flow run.
+            parameters: A dictionary of parameter values for the flow run. This will not
+                be merged with any existing parameters.
+            name: A new name for the flow run.
+            empirical_policy: A new flow run orchestration policy. This will not be
+                merged with any existing policy.
+            tags: An iterable of new tags for the flow run. These will not be merged with
+                any existing tags.
 
         Returns:
             an `httpx.Response` object from the PATCH request
@@ -636,6 +650,10 @@ class OrionClient:
             params["parameters"] = parameters
         if name is not None:
             params["name"] = name
+        if tags is not None:
+            params["tags"] = tags
+        if empirical_policy is not None:
+            params["empirical_policy"] = empirical_policy
 
         flow_run_data = schemas.actions.FlowRunUpdate(**params)
 
@@ -788,16 +806,14 @@ class OrionClient:
                 raise
 
     async def create_work_queue(
-        self,
-        name: str,
-        tags: List[str] = None,
-    ) -> UUID:
+        self, name: str, tags: List[str] = None
+    ) -> schemas.core.WorkQueue:
         """
         Create a work queue.
 
         Args:
             name: a unique name for the work queue
-            tags: an optional list of tags to filter on; only work scheduled with these tags
+            tags: DEPRECATED: an optional list of tags to filter on; only work scheduled with these tags
                 will be included in the queue
 
         Raises:
@@ -807,12 +823,15 @@ class OrionClient:
         Returns:
             UUID: The UUID of the newly created workflow
         """
-        data = WorkQueueCreate(
-            name=name,
-            filter=QueueFilter(
-                tags=tags or None,
-            ),
-        ).dict(json_compatible=True)
+        if tags:
+            warnings.warn(
+                "The use of tags for creating work queue filters is deprecated.",
+                DeprecationWarning,
+            )
+            filter = QueueFilter(tags=tags)
+        else:
+            filter = None
+        data = WorkQueueCreate(name=name, filter=filter).dict(json_compatible=True)
         try:
             response = await self._client.post("/work_queues/", json=data)
         except httpx.HTTPStatusError as e:
@@ -820,11 +839,7 @@ class OrionClient:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
-
-        work_queue_id = response.json().get("id")
-        if not work_queue_id:
-            raise httpx.RequestError(str(response))
-        return UUID(work_queue_id)
+        return schemas.core.WorkQueue.parse_obj(response.json())
 
     async def read_work_queue_by_name(self, name: str) -> schemas.core.WorkQueue:
         """
@@ -839,7 +854,14 @@ class OrionClient:
         Returns:
             schemas.core.WorkQueue: a work queue API object
         """
-        response = await self._client.get(f"/work_queues/name/{name}")
+        try:
+            response = await self._client.get(f"/work_queues/name/{name}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
         return schemas.core.WorkQueue.parse_obj(response.json())
 
     async def update_work_queue(self, id: UUID, **kwargs):
@@ -890,14 +912,16 @@ class OrionClient:
         Returns:
             List[schemas.core.FlowRun]: a list of FlowRun objects read from the queue
         """
-        json_data = {"limit": limit}
-        if scheduled_before:
-            json_data.update({"scheduled_before": scheduled_before.isoformat()})
+        if scheduled_before is None:
+            scheduled_before = pendulum.now()
 
         try:
             response = await self._client.post(
                 f"/work_queues/{id}/get_runs",
-                json=json_data,
+                json={
+                    "limit": limit,
+                    "scheduled_before": scheduled_before.isoformat(),
+                },
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -1077,6 +1101,18 @@ class OrionClient:
             else:
                 raise
 
+    async def delete_block_document(self, block_document_id: UUID):
+        """
+        Delete a block document.
+        """
+        try:
+            await self._client.delete(f"/block_documents/{block_document_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def read_block_type_by_slug(self, slug: str) -> BlockType:
         """
         Read a block type by its slug.
@@ -1131,6 +1167,30 @@ class OrionClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
+
+    async def delete_block_type(self, block_type_id: UUID):
+        """
+        Delete a block type.
+        """
+        try:
+            await self._client.delete(f"/block_types/{block_type_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def read_block_types(self) -> List[schemas.core.BlockType]:
+        """
+        Read all block types
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            List of BlockTypes.
+        """
+        response = await self._client.post(f"/block_types/filter", json={})
+        return pydantic.parse_obj_as(List[schemas.core.BlockType], response.json())
 
     async def read_block_schemas(self) -> List[schemas.core.BlockSchema]:
         """
@@ -1256,13 +1316,18 @@ class OrionClient:
         self,
         flow_id: UUID,
         name: str,
+        version: str = None,
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         parameters: Dict[str, Any] = None,
         description: str = None,
+        work_queue_name: str = None,
         tags: List[str] = None,
-        manifest_path: str = None,
         storage_document_id: UUID = None,
+        manifest_path: str = None,
+        path: str = None,
+        entrypoint: str = None,
         infrastructure_document_id: UUID = None,
+        infra_overrides: Dict[str, Any] = None,
         parameter_openapi_schema: dict = None,
     ) -> UUID:
         """
@@ -1271,6 +1336,7 @@ class OrionClient:
         Args:
             flow_id: the flow ID to create a deployment for
             name: the name of the deployment
+            version: an optional version string for the deployment
             schedule: an optional schedule to apply to the deployment
             tags: an optional list of tags to apply to the deployment
             storage_document_id: an reference to the storage block document
@@ -1287,13 +1353,18 @@ class OrionClient:
         deployment_create = schemas.actions.DeploymentCreate(
             flow_id=flow_id,
             name=name,
+            version=version,
             schedule=schedule,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
+            work_queue_name=work_queue_name,
             description=description,
-            manifest_path=manifest_path,
             storage_document_id=storage_document_id,
+            path=path,
+            entrypoint=entrypoint,
+            manifest_path=manifest_path,  # for backwards compat
             infrastructure_document_id=infrastructure_document_id,
+            infra_overrides=infra_overrides or {},
             parameter_openapi_schema=parameter_openapi_schema,
         )
 
@@ -1684,98 +1755,6 @@ class OrionClient:
         }
         response = await self._client.post(f"/task_runs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.TaskRun], response.json())
-
-    async def propose_state(
-        self,
-        state: schemas.states.State,
-        backend_state_data: DataDocument = None,
-        task_run_id: UUID = None,
-        flow_run_id: UUID = None,
-    ) -> schemas.states.State:
-        """
-        Propose a new state for a flow run or task run, invoking Orion
-        orchestration logic.
-
-        If the proposed state is accepted, the provided `state` will be
-        augmented with details and returned.
-
-        If the proposed state is rejected, a new state returned by the
-        Orion API will be returned.
-
-        If the proposed state results in a WAIT instruction from the Orion
-        API, the function will sleep and attempt to propose the state again.
-
-        If the proposed state results in an ABORT instruction from the Orion
-        API, an error will be raised.
-
-        Args:
-            state: a new state for the task or flow run
-            backend_state_data: an optional document to store with the state in the
-                database instead of its local data field. This allows the original
-                state object to be retained while storing a pointer to persisted data
-                in the database.
-            task_run_id: an optional task run id, used when proposing task run states
-            flow_run_id: an optional flow run id, used when proposing flow run states
-
-        Returns:
-            a [State model][prefect.orion.schemas.states.State] representation of the
-                flow or task run state
-
-        Raises:
-            ValueError: if neither task_run_id or flow_run_id is provided
-            prefect.exceptions.Abort: if an ABORT instruction is received from
-                the Orion API
-        """
-
-        # Determine if working with a task run or flow run
-        if not task_run_id and not flow_run_id:
-            raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
-
-        # Attempt to set the state
-        if task_run_id:
-            response = await self.set_task_run_state(
-                task_run_id, state, backend_state_data=backend_state_data
-            )
-        elif flow_run_id:
-            response = await self.set_flow_run_state(
-                flow_run_id, state, backend_state_data=backend_state_data
-            )
-        else:
-            raise ValueError(
-                "Neither flow run id or task run id were provided. At least one must "
-                "be given."
-            )
-
-        # Parse the response to return the new state
-        if response.status == schemas.responses.SetStateStatus.ACCEPT:
-            # Update the state with the details if provided
-            if response.state.state_details:
-                state.state_details = response.state.state_details
-            return state
-
-        elif response.status == schemas.responses.SetStateStatus.ABORT:
-            raise prefect.exceptions.Abort(response.details.reason)
-
-        elif response.status == schemas.responses.SetStateStatus.WAIT:
-            self.logger.debug(
-                f"Received wait instruction for {response.details.delay_seconds}s: "
-                f"{response.details.reason}"
-            )
-            await sleep(response.details.delay_seconds)
-            return await self.propose_state(
-                state,
-                task_run_id=task_run_id,
-                flow_run_id=flow_run_id,
-                backend_state_data=backend_state_data,
-            )
-
-        elif response.status == schemas.responses.SetStateStatus.REJECT:
-            return response.state
-
-        else:
-            raise ValueError(
-                f"Received unexpected `SetStateStatus` from server: {response.status!r}"
-            )
 
     async def set_task_run_state(
         self,

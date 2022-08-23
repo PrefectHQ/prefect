@@ -23,6 +23,10 @@ from prefect.settings import (
 from prefect.utilities.collections import batched_iterable
 
 
+class TryAgain(Exception):
+    """Internal control-flow exception used to retry the Scheduler's main loop"""
+
+
 class Scheduler(LoopService):
     """
     A loop service that schedules flow runs from deployments.
@@ -61,9 +65,9 @@ class Scheduler(LoopService):
         - Generating the next set of flow runs based on each deployments schedule
         - Inserting all scheduled flow runs into the database
 
-        All inserted flow runs are committed to the database at the termination of the loop.
+        All inserted flow runs are committed to the database at the termination of the
+        loop.
         """
-        now = pendulum.now("UTC")
         total_inserted_runs = 0
 
         session = await db.session()
@@ -81,24 +85,12 @@ class Scheduler(LoopService):
                     deployment_ids = result.scalars().unique().all()
 
                     # collect runs across all deployments
-                    runs_to_insert = []
-                    for deployment_id in deployment_ids:
-                        # guard against erroneously configured schedules
-                        try:
-                            runs_to_insert.extend(
-                                await self._generate_scheduled_flow_runs(
-                                    session=session,
-                                    deployment_id=deployment_id,
-                                    start_time=now,
-                                    end_time=now + self.max_scheduled_time,
-                                    max_runs=self.max_runs,
-                                )
-                            )
-                        except Exception as exc:
-                            self.logger.error(
-                                f"Error scheduling deployment {deployment_id!r}.",
-                                exc_info=True,
-                            )
+                    try:
+                        runs_to_insert = await self._collect_flow_runs(
+                            session=session, deployment_ids=deployment_ids
+                        )
+                    except TryAgain:
+                        continue
 
                     # bulk insert the runs based on batch size setting
                     for batch in batched_iterable(
@@ -109,7 +101,7 @@ class Scheduler(LoopService):
                         )
                         total_inserted_runs += len(inserted_runs)
 
-                # if no deployments were found, exit the loop
+                # if this is the last page of deployments, exit the loop
                 if len(deployment_ids) < self.deployment_batch_size:
                     break
                 else:
@@ -134,6 +126,51 @@ class Scheduler(LoopService):
         )
         return query
 
+    async def _collect_flow_runs(
+        self,
+        session: sa.orm.Session,
+        deployment_ids: List[UUID],
+    ) -> List[Dict]:
+        runs_to_insert = []
+        for deployment_id in deployment_ids:
+            now = pendulum.now("UTC")
+            # guard against erroneously configured schedules
+            try:
+                runs_to_insert.extend(
+                    await self._generate_scheduled_flow_runs(
+                        session=session,
+                        deployment_id=deployment_id,
+                        start_time=now,
+                        end_time=now + self.max_scheduled_time,
+                        max_runs=self.max_runs,
+                    )
+                )
+            except Exception:
+                self.logger.exception(
+                    f"Error scheduling deployment {deployment_id!r}.",
+                )
+            finally:
+                connection = await session.connection()
+                if connection.invalidated:
+                    # If the error we handled above was the kind of database error that
+                    # causes underlying transaction to rollback and the connection to
+                    # become invalidated, rollback this session.  Errors that may cause
+                    # this are connection drops, database restarts, and things of the
+                    # sort.
+                    #
+                    # This rollback _does not rollback a transaction_, since that has
+                    # actually already happened due to the error above.  It brings the
+                    # Python session in sync with underlying connection so that when we
+                    # exec the outer with block, the context manager will not attempt to
+                    # commit the session.
+                    #
+                    # Then, raise TryAgain to break out of these nested loops, back to
+                    # the outer loop, where we'll begin a new transaction with
+                    # session.begin() in the next loop iteration.
+                    await session.rollback()
+                    raise TryAgain()
+        return runs_to_insert
+
     @inject_db
     async def _generate_scheduled_flow_runs(
         self,
@@ -145,8 +182,8 @@ class Scheduler(LoopService):
         db: OrionDBInterface,
     ) -> List[Dict]:
         """
-        Given a `deployment_id` and schedule params, generates a list of flow run objects and
-        associated scheduled states that represent scheduled flow runs.
+        Given a `deployment_id` and schedule params, generates a list of flow run
+        objects and associated scheduled states that represent scheduled flow runs.
 
         Pass-through method for overrides.
         """
@@ -166,9 +203,9 @@ class Scheduler(LoopService):
         db: OrionDBInterface,
     ) -> List[UUID]:
         """
-        Given a list of flow runs to schedule, as generated by `_generate_scheduled_flow_runs`,
-        inserts them into the database. Note this is a separate method to facilitate batch
-        operations on many scheduled runs.
+        Given a list of flow runs to schedule, as generated by
+        `_generate_scheduled_flow_runs`, inserts them into the database. Note this is a
+        separate method to facilitate batch operations on many scheduled runs.
 
         Pass-through method for overrides.
         """

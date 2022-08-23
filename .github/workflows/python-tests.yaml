@@ -144,7 +144,7 @@ jobs:
           # Parallelize tests by scope to reduce expensive service fixture duplication
           # Do not allow the test suite to build images, as we want the prebuilt images to be tested
           # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests -vv --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 ${{ matrix.pytest-options }}
+          pytest tests --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 ${{ matrix.pytest-options }}
 
   run-tests-postgres:
     name: Test with Postgres
@@ -205,4 +205,4 @@ jobs:
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost/orion"
         run: |
-          pytest tests -vv --numprocesses auto --dist loadscope ${{ matrix.pytest-options }}
+          pytest tests --numprocesses auto --dist loadscope ${{ matrix.pytest-options }}
