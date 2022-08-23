@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from prefect.filesystems import LocalFileSystem, RemoteFileSystem
+from prefect.filesystems import LocalFileSystem, RemoteFileSystem, GitHub
 
 
 class TestLocalFileSystem:
@@ -72,3 +72,12 @@ class TestRemoteFileSystem:
         fs = RemoteFileSystem(basepath="memory://root")
         with pytest.raises(FileNotFoundError):
             await fs.read_path("foo/bar")
+
+
+class TestGitHub:
+    async def test_subprocess_errors_are_surfaced(self):
+        g = GitHub(repository="incorrect-url-scheme")
+        with pytest.raises(
+            OSError, match="already exists and is not an empty directory"
+        ):
+            await g.get_directory()
