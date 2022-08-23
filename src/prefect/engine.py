@@ -37,7 +37,12 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
-from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
+from prefect.exceptions import (
+    Abort,
+    MappingLengthMismatch,
+    MappingMissingIterable,
+    UpstreamTaskError,
+)
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr
@@ -89,7 +94,7 @@ from prefect.utilities.asyncutils import (
     run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import Quote, visit_collection
+from prefect.utilities.collections import Quote, isiterable, visit_collection
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
@@ -134,15 +139,15 @@ def enter_flow_run_engine_from_flow_call(
         flow=flow,
         parameters=parameters,
         return_type=return_type,
+        client=parent_flow_run_context.client if is_subflow_run else None,
     )
 
-    # Async flow run
-    if flow.isasync:
-        return begin_run()  # Return a coroutine for the user to await
-
-    # Sync flow run
     if not is_subflow_run:
-        if in_async_main_thread():
+        # Async flow run
+        if flow.isasync:
+            return begin_run()  # Return a coroutine for the user to await
+        # Sync flow run
+        elif in_async_main_thread():
             # An event loop is already running and we must create a blocking portal to
             # run async code from this synchronous context
             with start_blocking_portal() as portal:
@@ -151,10 +156,14 @@ def enter_flow_run_engine_from_flow_call(
             # An event loop is not running so we will create one
             return anyio.run(begin_run)
 
-    # Sync subflow run
     if not parent_flow_run_context.flow.isasync:
+        # Async subflow run in sync flow run
         return run_async_from_worker_thread(begin_run)
+    elif parent_flow_run_context.flow.isasync and flow.isasync:
+        # Async subflow run in async flow run
+        return begin_run()
     else:
+        # Sync subflow run in async flow run
         return parent_flow_run_context.sync_portal.call(begin_run)
 
 
@@ -256,11 +265,11 @@ async def retrieve_flow_then_begin_flow_run(
     # Update the flow run policy defaults to match settings on the flow
     # Note: Mutating the flow run object prevents us from performing another read
     #       operation if these properties are used by the client downstream
-    if flow_run.empirical_policy.retry_delay_seconds is None:
-        flow_run.empirical_policy.retry_delay_seconds = flow.retry_delay_seconds
+    if flow_run.empirical_policy.retry_delay is None:
+        flow_run.empirical_policy.retry_delay = flow.retry_delay_seconds
 
-    if flow_run.empirical_policy.max_retries is None:
-        flow_run.empirical_policy.max_retries = flow.retries
+    if flow_run.empirical_policy.retries is None:
+        flow_run.empirical_policy.retries = flow.retries
 
     await client.update_flow_run(
         flow_run_id=flow_run_id,
@@ -737,24 +746,39 @@ async def begin_task_map(
     # Resolve any futures / states that are in the parameters as we need to
     # validate the lengths of those values before proceeding.
     parameters.update(await resolve_inputs(parameters))
-    parameter_lengths = {
-        key: len(val)
-        for key, val in parameters.items()
-        if not isinstance(val, unmapped)
-    }
 
-    lengths = set(parameter_lengths.values())
-    if len(lengths) > 1:
-        raise MappingLengthMismatch(
-            "Received parameters with different lengths. Parameters for map "
-            f"must all be the same length. Got lengths: {parameter_lengths}"
+    iterable_parameters = {}
+    static_parameters = {}
+    for key, val in parameters.items():
+        if isinstance(val, unmapped):
+            static_parameters[key] = val.value
+        elif isiterable(val):
+            iterable_parameters[key] = val
+        else:
+            static_parameters[key] = val
+
+    if not len(iterable_parameters):
+        raise MappingMissingIterable(
+            "No iterable parameters were received. Parameters for map must "
+            f"include at least one iterable. Parameters: {parameters}"
         )
 
-    map_length = list(lengths)[0] if lengths else 1
+    iterable_parameter_lengths = {
+        key: len(val) for key, val in iterable_parameters.items()
+    }
+    lengths = set(iterable_parameter_lengths.values())
+    if len(lengths) > 1:
+        raise MappingLengthMismatch(
+            "Received iterable parameters with different lengths. Parameters "
+            f"for map must all be the same length. Got lengths: {iterable_parameter_lengths}"
+        )
+
+    map_length = list(lengths)[0]
 
     task_runs = []
     for i in range(map_length):
-        call_parameters = {key: value[i] for key, value in parameters.items()}
+        call_parameters = {key: value[i] for key, value in iterable_parameters.items()}
+        call_parameters.update({key: value for key, value in static_parameters.items()})
         task_runs.append(
             partial(
                 create_task_run_then_submit,
