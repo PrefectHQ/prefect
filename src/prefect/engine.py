@@ -970,9 +970,6 @@ async def submit_task_run(
 
     future = await task_runner.submit(
         key=future.key,
-        # Need to configure this as an idempotency key
-        # run_key=f"{task_run.name}-{task_run.id.hex}-{flow_run_context.flow_run.run_count}",
-        # Include the name as well for Dask... todo
         call=partial(
             begin_task_run,
             task=task,
