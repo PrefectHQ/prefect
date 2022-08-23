@@ -127,6 +127,83 @@ The minimum required information to create a deployment includes:
 
 You may provide additional settings for the deployment. Any settings you do not explicitly specify are inferred from defaults.
 
+
+## Create a deployment on the CLI
+
+To create a deployment on the CLI, there are two steps:
+
+1. Build the deployment definition file `deployment.yaml`. This step includes uploading your flow to its configured remote storage location, if one is specified.
+1. Create the deployment on the API.
+
+
+### Build the deployment
+
+To build the deployment definition file `deployment.yaml`, run the `prefect deployment build` Prefect CLI command from the folder containing your flow script and any dependencies of the script.
+
+<div class="terminal">
+```bash
+$ prefect deployment build [OPTIONS] PATH
+```
+</div>
+
+Path to the flow is specified in the format `path-to-script:flow-function-name` &mdash; The path and filename of the flow script file, a colon, then the name of the entrypoint flow function.
+
+For example:
+
+<div class="terminal">
+```bash
+$ prefect deployment build flows/marvin.py:say_hi -n marvin -q test
+```
+</div>
+
+When you run this command, Prefect:
+
+- Creates a `marvin_flow-deployment.yaml` file for your deployment based on your flow code and options.
+- Uploads your flow files to the configured storage location (local by default).
+- Submit your deployment to the work queue `test`. The work queue `test` will be created if it doesn't exist.
+
+!!! tip "Ignore files or directories from a deployment"
+    By default, Prefect uploads _all files_ in the current folder to the configured storage location (local by default) when you build a deployment.
+
+    If you want to omit certain files or directories from your deployments, add a `.prefectignore` file to the root directory. `.prefectignore` enables users to omit certain files or directories from their deployments.
+
+    Similar to other `.ignore` files, the syntax supports pattern matching, so an entry of `*.pyc` will ensure all `.pyc` files are ignored by the deployment call when uploading to remote storage.
+
+### Deployment build options
+
+You may specify additional options to further customize your deployment.
+
+| Options | Description |
+| ------- | ----------- |
+| PATH | Path, filename, and flow name of the flow definition. (Required) |
+|  `-v`, `--version TEXT`            | An optional version for the deployment. This could be a git commit hash if you use this command from a CI/CD pipeline. |
+|  `-n`, `--name TEXT`               | The name of the deployment. |
+|  `-t`, `--tag TEXT`                | One or more optional tags to apply to the deployment. |
+|  `-q`. `--work-queue TEXT`        |  The work queue that will handle this deployment's runs. It will be created if it doesn't already exist. Defaults to `None`. Note that if a work queue is not set, work will not be scheduled.
+|  `-o`, `--output TEXT`            | Optional location for the YAML manifest generated as a result of the `build` step. You can version-control that file, but it's not required since the CLI can generate everything you need to define a deployment. |
+|  `-i`, `--infra`                   | The [infrastructure type](/concepts/infrastructure/) to use. (Default is `Process`) |
+|  `-ib`, `--infra-block TEXT`       | The [infrastructure block](#block-indentifiers) to use, in `type/name` format. |
+|  `--override TEXT`       | One or more optional infrastructure overrides provided as a dot delimited path. For example, `env.env_key=env_value`. |
+|  <span class="no-wrap">`-sb`, `--storage-block TEXT`</span>    | The [storage block](#block-indentifiers) to use in `type/name` format. |
+|  `--cron TEXT`    | A cron string that will be used to set a [`CronSchedule`](/concepts/schedules/) on the deployment. For example, `--cron "*/1 * * * *"` to create flow runs from that deployment every minute. |
+|  `--interval INTEGER`     | An integer specifying an interval (in seconds) that will be used to set an [`IntervalSchedule`](/concepts/schedules/) on the deployment. For example, `--interval 60` to create flow runs from that deployment every minute. |
+|  `--rrule TEXT`     | An `RRule` that will be used to set an [`RRuleSchedule`](/concepts/schedules/) on the deployment. For example, `--rrule 'FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9,10,11,12,13,14,15,16,17'` to create flow runs from that deployment every hour but only during business hours. |
+
+### Block indentifiers
+
+You can provide storage (`-sb`) and infrastructure block (`-ib`) identifiers in your `deployment build` command. The required format of a block type consists of the `block-type` and `block-name` in the format `block-type/block-name`. Block name is the name that you provided when creating the block. The block type is the same name as the underlying file system or infrastructure block class, but split into separate words combined with hyphens. Here are some examples that illustrate the pattern:
+
+| Block class name | Block type used in a deployment |
+| ------- | ----------- |
+| `LocalFileSystem` | `local-file-system` |
+| `RemoteFileSystem` | `remote-file-system` |
+| `S3` | `s3` |
+| `GCS` | `gcs` |
+| `Azure` | `azure` |
+| `DockerContainer` | `docker-container` |
+| `KubernetesJob` | `kubernetes-job` |
+| `Process` | `process` |
+
 ### deployment.yaml
 
 A deployment's YAML file configures additional settings needed to create a deployment on the server.
@@ -142,8 +219,9 @@ The default `{flow-name}-deployment.yaml` filename may be edited as needed with 
 name: catfact
 description: null
 version: c0fc95308d8137c50d2da51af138aa23
-tags:
-- test
+# The work queue that will handle this deployment's runs
+work_queue_name: test
+tags: []
 parameters: {}
 schedule: null
 infra_overrides: {}
@@ -180,133 +258,6 @@ parameter_openapi_schema:
     Note the big **DO NOT EDIT** comment in your deployment's YAML: In practice, anything above this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API.
 
     We recommend editing most of these fields from the CLI or Prefect UI for convenience.
-
-### Deployment Python object
-
-You can also create deployments from Python scripts by using the [`prefect.deployments.Deployment`][prefect.deployments.Deployment] class.
-
-Create a new deployment using configuration defaults for an imported flow:
-
-```python
-from my_project.flows import my_flow
-from prefect.deployments import Deployment
-
-deployment = Deployment.build_from_flow(
-    flow=my_flow,
-    name="exampl-deployment", 
-    version=1, 
-    tags=["demo"]
-)
-deployment.apply()
-```
-
-Create a new deployment with a pre-defined [storage block](/concepts/storage/) and an [infrastructure](/concepts/infrastructure/) override:
-
-```python
-from my_project.flows import my_flow
-from prefect.deployments import Deployment
-from prefect.filesystems import S3
-
-storage = S3.load("dev-bucket") # load a pre-defined block
-
-deployment = Deployment.build_from_flow(
-    flow=my_flow,
-    name="s3-example",
-    version=2,
-    tags=["aws"],
-    storage=storage,
-    infra_overrides=["env.SOME_IMPORTANT_CONFIG=true"],
-)
-
-deployment.apply()
-```
-
-If you have settings that you want to share from an existing deployment you can load those settings:
-
-```python
-deployment = Deployment(
-    name="a-name-you-used", 
-    flow_name="name-of-flow"
-)
-deployment.load() # loads server-side settings
-```
-
-Once the existing deployment settings are loaded, you may update them as needed by changing deployment properties.
-
-## Create a deployment
-
-To create a deployment from an existing flow script, there are two steps:
-
-1. Build the deployment definition file `deployment.yaml`. This step includes uploading your flow to its configured remote storage location, if one is specified.
-1. Create the deployment on the API.
-
-### Build the deployment
-
-To build the deployment definition file `deployment.yaml`, run the `prefect deployment build` Prefect CLI command from the folder containing your flow script and any dependencies of the script.
-
-<div class="terminal">
-```bash
-$ prefect deployment build [OPTIONS] PATH
-```
-</div>
-
-Path to the flow is specified in the format `path-to-script:flow-function-name` &mdash; The path and filename of the flow script file, a colon, then the name of the entrypoint flow function.
-
-For example:
-
-<div class="terminal">
-```bash
-$ prefect deployment build flows/marvin.py:say_hi -n marvin -t test
-```
-</div>
-
-When you run this command, Prefect:
-
-- Creates a `marvin_flow-deployment.yaml` file for your deployment based on your flow code and options.
-- Uploads your flow files to the configured storage location (local by default).
-
-!!! tip "Ignore files or directories from a deployment"
-    By default, Prefect uploads _all files_ in the current folder to the configured storage location (local by default) when you build a deployment.
-
-    If you want to omit certain files or directories from your deployments, add a `.prefectignore` file to the root directory. `.prefectignore` enables users to omit certain files or directories from their deployments.
-
-    Similar to other `.ignore` files, the syntax supports pattern matching, so an entry of `*.pyc` will ensure all `.pyc` files are ignored by the deployment call when uploading to remote storage.
-
-### Deployment build options
-
-You may specify additional options to further customize your deployment.
-
-| Options | Description |
-| ------- | ----------- |
-| PATH | Path, filename, and flow name of the flow definition. (Required) |
-|  `-n`, `--name TEXT`               | The name of the deployment. |
-|  `-t`, `--tag TEXT`                | One or more optional tags to apply to the deployment to organize your deployments and flow runs based on projects. |
-|  `-v`, `--version TEXT`            | An optional version for the deployment. This could be a git commit hash if you use this command from a CI/CD pipeline. |
-|  `-o`, `--output TEXT`            | Optional location for the YAML manifest generated as a result of the `build` step. You can version-control that file, but it's not required since the CLI can generate everything you need to define a deployment. |
-|  `-i`, `--infra`                   | The [infrastructure type](/concepts/infrastructure/) to use. (Default is `Process`) |
-|  `-ib`, `--infra-block TEXT`       | The [infrastructure block](#block-indentifiers) to use, in `type/name` format. |
-|  `--override TEXT`       | One or more optional infrastructure overrides provided as a dot delimited path. For example, `env.env_key=env_value`. |
-|  <span class="no-wrap">`-sb`, `--storage-block TEXT`</span>    | The [storage block](#block-indentifiers) to use in `type/name` format. |
-|  `-a`, `--apply`     | Optional flag specifying that you want to simultaneously build and apply the deployment within a single command. |
-|  `--cron TEXT`    | A cron string that will be used to set a [`CronSchedule`](/concepts/schedules/) on the deployment. For example, `--cron "*/1 * * * *"` to create flow runs from that deployment every minute. |
-|  `--interval INTEGER`     | An integer specifying an interval (in seconds) that will be used to set an [`IntervalSchedule`](/concepts/schedules/) on the deployment. For example, `--interval 60` to create flow runs from that deployment every minute. |
-|  `--rrule TEXT`     | An `RRule` that will be used to set an [`RRuleSchedule`](/concepts/schedules/) on the deployment. For example, `--rrule 'FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9,10,11,12,13,14,15,16,17'` to create flow runs from that deployment every hour but only during business hours. |
-
-### Block indentifiers
-
-You can provide storage (`-sb`) and infrastructure block (`-ib`) identifiers in your `deployment build` command. The required format of a block type consists of the `block-type` and `block-name` in the format `block-type/block-name`. Block name is the name that you provided when creating the block. The block type is the same name as the underlying file system or infrastructure block class, but split into separate words combined with hyphens. Here are some examples that illustrate the pattern:
-
-| Block class name | Block type used in a deployment |
-| ------- | ----------- |
-| `LocalFileSystem` | `local-file-system` |
-| `RemoteFileSystem` | `remote-file-system` |
-| `S3` | `s3` |
-| `GCS` | `gcs` |
-| `Azure` | `azure` |
-| `DockerContainer` | `docker-container` |
-| `KubernetesJob` | `kubernetes-job` |
-| `Process` | `process` |
-
 
 ### Create deployment in API
 
@@ -358,6 +309,58 @@ When you run a deployed flow with Prefect Orion, the following happens:
 
     Scheduled flow runs will not run unless an appropriate [agent and work queue](/concepts/work-queues/) are configured.
 
+## Create a Deployment from a Python object
+
+You can also create deployments from Python scripts by using the [`prefect.deployments.Deployment`][prefect.deployments.Deployment] class.
+
+Create a new deployment using configuration defaults for an imported flow:
+
+```python
+from my_project.flows import my_flow
+from prefect.deployments import Deployment
+
+deployment = Deployment.build_from_flow(
+    flow=my_flow,
+    name="example-deployment", 
+    version=1, 
+    work_queue_name="demo",
+)
+deployment.apply()
+```
+
+Create a new deployment with a pre-defined [storage block](/concepts/storage/) and an [infrastructure](/concepts/infrastructure/) override:
+
+```python
+from my_project.flows import my_flow
+from prefect.deployments import Deployment
+from prefect.filesystems import S3
+
+storage = S3.load("dev-bucket") # load a pre-defined block
+
+deployment = Deployment.build_from_flow(
+    flow=my_flow,
+    name="s3-example",
+    version=2,
+    work_queue_name="aws",
+    storage=storage,
+    infra_overrides=["env.SOME_IMPORTANT_CONFIG=true"],
+)
+
+deployment.apply()
+```
+
+If you have settings that you want to share from an existing deployment you can load those settings:
+
+```python
+deployment = Deployment(
+    name="a-name-you-used", 
+    flow_name="name-of-flow"
+)
+deployment.load() # loads server-side settings
+```
+
+Once the existing deployment settings are loaded, you may update them as needed by changing deployment properties.
+
 ## Deployment API representation
 
 In Prefect Orion, when you create a deployment, it is constructed from deployment definition data you provide and additional properties calculated by client-side utilities.
@@ -370,13 +373,18 @@ Deployment properties include:
 | `created` | A `datetime` timestamp indicating when the deployment was created. |
 | `updated` | A `datetime` timestamp indicating when the deployment was last changed. |
 | `name` | The name of the deployment. |
+| `version` | The version of the deployment
 | `description` | A description of the deployment. |
 | `flow_id` | The id of the flow associated with the deployment. |
 | `schedule` | An optional schedule for the deployment. |
 | `is_schedule_active` | Boolean indicating whether the deployment schedule is active. Default is True. |
+| `infra_overrides` | One or more optional infrastructure overrides
 | `parameters` | An optional dictionary of parameters for flow runs scheduled by the deployment. |
 | `tags` | An optional list of tags for the deployment. |
+| `work_queue_name` | The optional work queue that will handle the deployment's run |
 | `parameter_openapi_schema` | JSON schema for flow parameters. |
+| `path` | The path to the deployment.yaml file |
+| `entrypoint` | The path to a flow entry point |
 | `storage_document_id` | Storage block configured for the deployment. |
 | <span class="no-wrap">`infrastructure_document_id`</span> | Infrastructure block configured for the deployment. |
 
@@ -390,13 +398,15 @@ $ prefect deployment inspect 'Cat Facts/catfact'
     'created': '2022-07-26T03:48:14.723328+00:00',
     'updated': '2022-07-26T03:50:02.043238+00:00',
     'name': 'catfact',
+    'version': '899b136ebc356d58562f48d8ddce7c19',
     'description': None,
     'flow_id': '2c7b36d1-0bdb-462e-bb97-f6eb9fef6fd5',
     'schedule': None,
     'is_schedule_active': True,
     'infra_overrides': {},
     'parameters': {},
-    'tags': ['test'],
+    'tags': [],
+    'work_queue_name': 'test',
     'parameter_openapi_schema': {
         'title': 'Parameters',
         'type': 'object',
