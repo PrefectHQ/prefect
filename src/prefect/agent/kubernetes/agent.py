@@ -479,7 +479,10 @@ class KubernetesAgent(Agent):
 
         identifier = uuid.uuid4().hex[:8]
 
-        job_name = f"prefect-job-{identifier}"
+        job_name = _get_or_create(job, "metadata.name", "prefect-job")
+        # 63 max length - 9 identifier - 6 pod identifier
+        job_name = job_name[:48]
+        job_name = f"{job_name}-{identifier}"
 
         # Populate job metadata for identification
         k8s_labels = {
@@ -577,7 +580,6 @@ class KubernetesAgent(Agent):
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
                 "PREFECT__CONTEXT__IMAGE": image,
                 "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-                "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
                 # Backwards compatibility variable for containers on Prefect <0.15.0
                 "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
                 # Backwards compatibility variable for containers on Prefect <1.0.0

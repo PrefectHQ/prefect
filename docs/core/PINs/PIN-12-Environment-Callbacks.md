@@ -7,7 +7,7 @@ Author: Josh Meek
 Accepted
 
 # Context
-Prefect Environments currently support a `setup` and `execute` paradigm when it comes to creation of the environment and using it to execute a flow (outlined in  [PIN-3](https://docs.prefect.io/core/PINs/PIN-03-Agent-Environment.html#process-details)). These two primary functions are key for infrastructure related processes which may arise during the execution of a flow. While they mainly deal with infrastructure creation there is another request which has arisen through use of the system in the form of pre/post-processing of the flow execution itself from the environment level.
+Prefect Environments currently support a `setup` and `execute` paradigm when it comes to creation of the environment and using it to execute a flow (outlined in  [PIN-3](/core/PINs/PIN-03-Agent-Environment.html#process-details)). These two primary functions are key for infrastructure related processes which may arise during the execution of a flow. While they mainly deal with infrastructure creation there is another request which has arisen through use of the system in the form of pre/post-processing of the flow execution itself from the environment level.
 
 # Proposal
 Implement `on_start` and `on_exit` callback options to environments which users can use to provide _optional_ functions which execute before the flow is run and after the run has ended (or the job has exited). These functions will provide a mechanism for users to create custom hooks and notifications for their environment execution. The callbacks are meant more as a tool for execution and are not intended to replace aspects such as state handlers.

@@ -219,7 +219,6 @@ class LocalAgent(Agent):
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
                 "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
                 "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-                "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             }
         )
 

@@ -640,6 +640,26 @@ class TestCronClockDaylightSavingsTime:
         ]
         assert [t.start_time.in_tz("UTC").hour for t in next_4] == [13, 13, 14, 14]
 
+    @pytest.mark.parametrize("serialize", [True, False])
+    def test_cron_clock_santiago(self, serialize):
+        """
+        On 9/4/2022, at 12am, America/Santiago switches clocks back an hour.
+
+        Croniter gets stuck in an infinite loop at midnight
+        """
+        dt = pendulum.datetime(2022, 8, 21, 10, tz="America/Santiago")
+        c = clocks.CronClock("0 0 * * 0", dt)
+        if serialize:
+            c = ClockSchema().load(ClockSchema().dump(c))
+        next_4 = islice(c.events(after=dt), 4)
+        # no infinite loop on the 4th
+        assert [t.start_time.in_tz("America/Santiago").day for t in next_4] == [
+            28,
+            4,
+            11,
+            18,
+        ]
+
 
 class TestDatesClock:
     def test_create_dates_clock_one_date(self):

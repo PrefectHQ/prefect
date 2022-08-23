@@ -16,7 +16,7 @@ Checkpointing must be enabled for the pipeline to write a result. You must enabl
 
 For Core-only users, you must:
 
-- Opt-in to checkpointing globally by setting the `prefect.config.flows.checkpointing` to "True" via [your preferred Prefect configuration](https://docs.prefect.io/core/concepts/configuration.html)
+- Opt-in to checkpointing globally by setting the `prefect.config.flows.checkpointing` to "True" via [your preferred Prefect configuration](/core/concepts/configuration.html)
 - Specify the result your tasks will use for at least one level of specificity (flow-level or task-level)
 
 For Prefect Core server or Prefect Cloud users:

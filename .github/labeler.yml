@@ -1,0 +1,8 @@
+# any PR to this branch gets the v1 label (note **/* syntax doesn't appear to work)
+v1:
+- '*'
+- src/**/*
+- tests/**/*
+- docs/**/*
+- examples/**/*
+- .github/**/*

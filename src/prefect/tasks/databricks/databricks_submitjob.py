@@ -13,6 +13,7 @@ from prefect.tasks.databricks.models import (
     AccessControlRequest,
     AccessControlRequestForGroup,
     AccessControlRequestForUser,
+    GitSource,
     JobTaskSettings,
 )
 from prefect.utilities.tasks import defaults_from_attrs
@@ -764,7 +765,7 @@ class DatabricksSubmitMultitaskRun(Task):
         - run_name (str, optional): An optional name for the run.
             The default value is "Job run created by Prefect flow run {flow_run_name}".
         - idempotency_token (str, optional): An optional token that can be used to guarantee
-            the idempotency of job run requests. Defaults to the flow run ID.
+            the idempotency of job run requests. Defaults to the Python object id.
         - access_control_list (List[AccessControlRequest]): List of permissions to set on the job.
         - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
             this run. By default the task will poll every 30 seconds.
@@ -772,6 +773,8 @@ class DatabricksSubmitMultitaskRun(Task):
             unreachable. Its value must be greater than or equal to 1.
         - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
             might be a floating point number).
+        - git_source (GitSource): A git source for the source code of the jobs (see
+            https://databricks.com/blog/2022/06/21/build-reliable-production-data-and-ml-pipelines-with-git-support-for-databricks-workflows.html)
         - **kwargs (dict, optional): Additional keyword arguments to pass to the
             Task constructor
 
@@ -875,6 +878,7 @@ class DatabricksSubmitMultitaskRun(Task):
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: float = 1,
+        git_source: GitSource = None,
         **kwargs,
     ):
         self.databricks_conn_secret = databricks_conn_secret
@@ -886,6 +890,7 @@ class DatabricksSubmitMultitaskRun(Task):
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
+        self.git_source = git_source
         super().__init__(**kwargs)
 
     @staticmethod
@@ -978,10 +983,11 @@ class DatabricksSubmitMultitaskRun(Task):
 
         if input.get("access_control_list"):
             kwargs["access_control_list"] = parse_obj_as(
-                List[AccessControlRequest],
+                List[Union[AccessControlRequestForUser, AccessControlRequestForGroup]],
                 input["access_control_list"],
             )
-
+        if input.get("git_source"):
+            kwargs["git_source"] = parse_obj_as(GitSource, input["git_source"])
         return kwargs
 
     @defaults_from_attrs(
@@ -994,6 +1000,7 @@ class DatabricksSubmitMultitaskRun(Task):
         "polling_period_seconds",
         "databricks_retry_limit",
         "databricks_retry_delay",
+        "git_source",
     )
     def run(
         self,
@@ -1006,6 +1013,7 @@ class DatabricksSubmitMultitaskRun(Task):
         polling_period_seconds: int = None,
         databricks_retry_limit: int = None,
         databricks_retry_delay: float = None,
+        git_source: GitSource = None,
     ):
         """
         Task run method. Any values passed here will overwrite the values used when initializing the
@@ -1027,7 +1035,7 @@ class DatabricksSubmitMultitaskRun(Task):
             - run_name (str, optional): An optional name for the run.
                 The default value is "Job run created by Prefect flow run {flow_run_name}".
             - idempotency_token (str, optional): An optional token that can be used to guarantee
-                the idempotency of job run requests. Defaults to the flow run ID.
+                the idempotency of job run requests. Defaults to the Python object id.
             - access_control_list (List[AccessControlRequest]): List of permissions to set on the job.
             - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
                 this run. By default the task will poll every 30 seconds.
@@ -1035,6 +1043,8 @@ class DatabricksSubmitMultitaskRun(Task):
                 unreachable. Its value must be greater than or equal to 1.
             - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
                 might be a floating point number).
+            - git_source (GitSource): A git source for the source code of the jobs (see
+                https://databricks.com/blog/2022/06/21/build-reliable-production-data-and-ml-pipelines-with-git-support-for-databricks-workflows.html)
 
         Returns:
             - run_id (str): Run id of the submitted run
@@ -1053,7 +1063,7 @@ class DatabricksSubmitMultitaskRun(Task):
             or f"Job run created by Prefect flow run {prefect.context.flow_run_name}"
         )
         # Ensures that multiple job runs are not created on retries
-        idempotency_token = idempotency_token or prefect.context.flow_run_id
+        idempotency_token = idempotency_token or id(self)
 
         # Set polling_period_seconds on task because _handle_databricks_task_execution expects it
         if polling_period_seconds:
@@ -1064,7 +1074,10 @@ class DatabricksSubmitMultitaskRun(Task):
             retry_limit=databricks_retry_limit,
             retry_delay=databricks_retry_delay,
         )
-
+        if git_source:
+            git_source_json = git_source.dict()
+        else:
+            git_source_json = None
         # Set json on task instance because _handle_databricks_task_execution expects it
         self.json = _deep_string_coerce(
             dict(
@@ -1073,8 +1086,9 @@ class DatabricksSubmitMultitaskRun(Task):
                 timeout_seconds=timeout_seconds,
                 idempotency_token=idempotency_token,
                 access_control_list=[
-                    entry.json() for entry in access_control_list or []
+                    entry.dict() for entry in access_control_list or []
                 ],
+                git_source=git_source_json,
             )
         )
 
