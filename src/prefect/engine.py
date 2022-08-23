@@ -824,14 +824,13 @@ async def get_task_call_return_value(
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
 ):
-    future = create_task_run_future(
+    future = await create_task_run_future(
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
         wait_for=wait_for,
         task_runner=task_runner,
     )
-
     if return_type == "future":
         return future
     elif return_type == "state":
@@ -842,7 +841,7 @@ async def get_task_call_return_value(
         raise ValueError(f"Invalid return type for task engine {return_type!r}.")
 
 
-def create_task_run_future(
+async def create_task_run_future(
     task: Task,
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
@@ -884,6 +883,9 @@ def create_task_run_future(
 
     # Track the task run future in the flow run context
     flow_run_context.task_run_futures.append(future)
+
+    if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
+        await future._wait()
 
     # Return the future without waiting for task run creation or submission
     return future
