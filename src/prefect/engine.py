@@ -20,7 +20,7 @@ import sys
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import anyio
 import pendulum
@@ -855,11 +855,14 @@ def create_task_run_future(
     # Generate a name for the future
     dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
     task_run_name = f"{task.name}-{stable_hash(task.task_key)[:8]}-{dynamic_key}"
+    task_run_unique_key = (
+        f"{flow_run_context.flow_run.id}-{task.task_key}-{dynamic_key}"
+    )
 
     # Generate a future
     future = PrefectFuture(
         name=task_run_name,
-        key=uuid4(),
+        key=task_run_unique_key,
         task_runner=task_runner,
         asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
