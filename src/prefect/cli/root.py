@@ -80,7 +80,11 @@ async def version():
 
     from prefect.orion.api.server import ORION_API_VERSION
     from prefect.orion.utilities.database import get_dialect
-    from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
+    from prefect.settings import (
+        PREFECT_API_URL,
+        PREFECT_CLOUD_URL,
+        PREFECT_ORION_DATABASE_CONNECTION_URL,
+    )
 
     version_info = {
         "Version": prefect.__version__,
@@ -101,7 +105,15 @@ async def version():
     except Exception as exc:
         version_info["Server type"] = "<client error>"
     else:
-        version_info["Server type"] = "ephemeral" if is_ephemeral else "hosted"
+        version_info["Server type"] = (
+            "ephemeral"
+            if is_ephemeral
+            else (
+                "cloud"
+                if PREFECT_API_URL.value().startswith(PREFECT_CLOUD_URL.value())
+                else "hosted"
+            )
+        )
 
     # TODO: Consider adding an API route to retrieve this information?
     if is_ephemeral:
