@@ -6,6 +6,7 @@ from typing import Optional
 
 import sniffio
 from anyio.abc import TaskStatus
+from pydantic import Field
 from typing_extensions import Literal
 
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
@@ -35,15 +36,21 @@ class Process(Infrastructure):
     variables.
 
     Attributes:
-        command: A list of strings specifying the command to run for the process
+        command: A list of strings specifying the command to run in the container to
+            start the flow run. In most cases you should not override this.
         env: Environment variables to set for the new process.
-        name: A name for the process. For display purposes only.
         labels: Labels for the process. Labels are for metadata purposes only and
             cannot be attached to the process itself.
+        name: A name for the process. For display purposes only.
     """
 
-    type: Literal["process"] = "process"
-    stream_output: bool = True
+    type: Literal["process"] = Field(
+        "process", description="The type of infrastructure."
+    )
+    stream_output: bool = Field(
+        True,
+        description="If set, output will be streamed from the process to local standard output.",
+    )
 
     async def run(
         self,
