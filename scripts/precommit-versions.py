@@ -36,6 +36,6 @@ precommit_config = yaml.safe_load(open(path))
 rev_by_id = {item["hooks"][0]["id"]: item["rev"] for item in precommit_config["repos"]}
 
 for hook in hooks:
-    print(f"{hook}=={rev_by_id[hook]}", end=" ")
+    print(f"{hook}=={rev_by_id[hook].lstrip('v')}", end=" ")
 
 print()
