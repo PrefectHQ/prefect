@@ -51,17 +51,13 @@ async def load_flow_from_flow_run(
             storage_block = LocalFileSystem(basepath=basepath)
 
         sys.path.insert(0, ".")
-        # TODO: append deployment.path
-        await storage_block.get_directory(from_path=None, local_path=".")
+        await storage_block.get_directory(from_path=deployment.path, local_path=".")
 
     flow_run_logger(flow_run).debug(
         f"Loading flow for deployment {deployment.name!r}..."
     )
 
-    if deployment.path:
-        import_path = Path(deployment.path) / deployment.entrypoint
-    else:
-        import_path = deployment.entrypoint
+    import_path = deployment.entrypoint
 
     # for backwards compat
     if deployment.manifest_path:
@@ -384,7 +380,7 @@ class Deployment(BaseModel):
         elif not self.storage:
             # default storage, no need to move anything around
             self.storage = None
-            deployment_path = str(Path(".").absolute())
+            self.path = str(Path(".").absolute())
         else:
             file_count = await self.storage.put_directory(
                 ignore_file=ignore_file, to_path=self.path
@@ -394,7 +390,6 @@ class Deployment(BaseModel):
         if self.storage and not self.storage._block_document_id:
             await self.storage._save(is_anonymous=True)
 
-        self.path = deployment_path
         return file_count
 
     @sync_compatible
