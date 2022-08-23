@@ -277,11 +277,15 @@ class Deployment(BaseModel):
         return block
 
     @validator("storage", pre=True)
-    def cast_storage_to_block_type(cls, value):
-        if isinstance(value, dict):
-            block = lookup_type(Block, value.pop("_block_type_slug"))
-            return block(**value)
-        return value
+    def storage_must_have_capabilities(cls, block):
+        if block is None:
+            return block
+        capabilities = block.get_block_capabilities()
+        if "get-directory" not in capabilities and "put-directory" not in capabilities:
+            raise ValueError(
+                "Remote Storage block must have both 'get-directory' and 'put-directory' capabilities."
+            )
+        return block
 
     @validator("parameter_openapi_schema", pre=True)
     def handle_openapi_schema(cls, value):
