@@ -47,7 +47,7 @@ You may organize your flow scripts and dependencies in any way that suits for te
 
 ## From flow to deployment
 
-As noted earlier, the first ingredient of a deployment is a flow script. You've seen a few of these already, and perhaps have written a few if you've been following the tutorials. 
+As noted earlier, the first ingredient of a deployment is a flow script. You've seen a few of these already, and perhaps have written a few, if you've been following the tutorials. 
 
 Let's start with a simple example. This flow contains a single flow function `log_flow()`, and a single task `log_task` that logs messages based on a parameter input and your installed Prefect version:
 
@@ -58,7 +58,7 @@ from prefect import flow, task, get_run_logger
 @task
 def log_task(name):
     logger = get_run_logger()
-    logger.info(f"Hello {name}!")
+    logger.info("Hello %s!", name)
     logger.info("Prefect Version = %s 🚀", prefect.__version__)
 
 @flow()
@@ -106,7 +106,7 @@ from prefect import flow, task, get_run_logger
 @task
 def log_task(name):
     logger = get_run_logger()
-    logger.info(f"Hello {name}!")
+    logger.info("Hello %s!", name)
     logger.info("Prefect Version = %s 🚀", prefect.__version__)
 
 @flow()
@@ -122,7 +122,7 @@ To create a deployment from an existing flow script, there are just a few steps:
 
 1. Use the `prefect deployment build` Prefect CLI command to build a deployment definition YAML file that settings needed to create your deployment and execute flow runs from it. This step also uploads your flow script and any supporting files to storage, if you've specified storage for the deployment.
 1. Optionally, you can edit the deployment YAML file to include additional settings that are not easily specified via CLI flags. 
-1. Use the `prefect deployment apply` Prefect CLI command to create the deployment on the API based on the settings in the deployment YAML file.
+1. Use the `prefect deployment apply` Prefect CLI command to create the deployment with the Prefect Orion server based on the settings in the deployment YAML file.
 
 !!! tip "Ignoring files with `.prefectignore`"
     `prefect deployment build` automatically uploads your flow script and any supporting files in the same folder to storage, if you've specified storage for the deployment.
@@ -246,7 +246,7 @@ parameter_openapi_schema:
   definitions: null
 ```
 
-Note that the YAML configuration includes the ability to add a description, a default work queue, tags, as schedule, and more. 
+Note that the YAML configuration includes the ability to add a description, a default work queue, tags, a schedule, and more. 
 
 ## Run a Prefect Orion server
 
@@ -389,7 +389,7 @@ There is no default global agent, so to orchestrate runs of `log_flow` you need 
 
 In the Prefect UI, you can create a work queue by selecting the **Work Queues** page, then creating a new work queue. However, you don't need to manually create a work queue because it was created automatically when you created your deployment. If you hadn't created your deployment yet, it would be created when you start your agent. 
 
-Open a third terminal session, then run the `prefect agent start` command, passing a `-q test` option that tells it to pull work from the `test` work queue. Remember, we configured the deployment to use this work queue at an earlier step.
+Open an additional terminal session, then run the `prefect agent start` command, passing a `-q test` option that tells it to pull work from the `test` work queue. Remember, we configured the deployment to use this work queue at an earlier step.
 
 <div class="terminal">
 ```bash
