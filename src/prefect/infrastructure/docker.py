@@ -298,6 +298,8 @@ class DockerContainer(Infrastructure):
 
     def _get_image_and_tag(self) -> Tuple[str, Optional[str]]:
         parts = self.image.split(":")
+        if len(parts) > 2 and re.search(r'\d\d\d\d', parts[1]):
+            parts = [f"{parts[0]}:{parts[1]}", parts[2]]
         image = parts.pop(0)
         tag = parts[0] if parts else None
         return image, tag
