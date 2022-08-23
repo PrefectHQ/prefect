@@ -263,3 +263,9 @@ class MappingLengthMismatch(PrefectException):
     """
     Raised when attempting to call Task.map with arguments of different lengths.
     """
+
+
+class MappingMissingIterable(PrefectException):
+    """
+    Raised when attempting to call Task.map with all static arguments
+    """
