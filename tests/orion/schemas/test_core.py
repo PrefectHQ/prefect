@@ -4,6 +4,7 @@ import pydantic
 import pytest
 
 from prefect.orion import schemas
+from prefect.orion.utilities.schemas import PrefectBaseModel
 
 
 @pytest.mark.parametrize(
@@ -91,3 +92,51 @@ class TestFlowRunNotificationPolicy:
                 block_document_id=uuid4(),
                 message_template="This contains {flow_run_id} and {bad_variable} and {another_bad_variable}",
             )
+
+
+class TestFlowRunPolicy:
+    async def test_flow_run_policy_is_backwards_compatible(self):
+        """
+        In version 2.1.1 and prior, the FlowRunPolicy schema required two properties,
+        `max_retries` and `retry_delay_seconds`. These properties are deprecated.
+
+        This test ensures old clients can load new FlowRunPolicySchemas. It can be removed
+        when the corresponding properties are removed.
+        """
+
+        class OldFlowRunPolicy(PrefectBaseModel):
+            # Schemas ignore extras during normal execution, but raise errors during tests if not explicitly ignored.
+            class Config:
+                extra = "ignore"
+
+            max_retries: int = 0
+            retry_delay_seconds: float = 0
+
+        empty_new_policy = schemas.core.FlowRunPolicy()
+
+        # should not raise an error
+        OldFlowRunPolicy(**empty_new_policy.dict())
+
+
+class TestTaskRunPolicy:
+    async def test_task_run_policy_is_backwards_compatible(self):
+        """
+        In version 2.1.1 and prior, the TaskRunPolicy schema required two properties,
+        `max_retries` and `retry_delay_seconds`. These properties are deprecated.
+
+        This test ensures old clients can load new FlowRunPolicySchemas. It can be removed
+        when the corresponding properties are removed.
+        """
+
+        class OldTaskRunPolicy(PrefectBaseModel):
+            # Schemas ignore extras during normal execution, but raise errors during tests if not explicitly ignored.
+            class Config:
+                extra = "ignore"
+
+            max_retries: int = 0
+            retry_delay_seconds: float = 0
+
+        empty_new_policy = schemas.core.TaskRunPolicy()
+
+        # should not raise an error
+        OldTaskRunPolicy(**empty_new_policy.dict())
