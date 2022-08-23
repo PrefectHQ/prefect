@@ -4,7 +4,6 @@
 
 ### Exciting New Features 🎉
 * Added automatic detection of static arguments to `Task.map` in #6513
-* Using new orion-design flow-run-filter composition in #6483
 
 ### Fixes
 * Updated deployment flow run retry settings with runtime values in #6489
