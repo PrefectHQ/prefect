@@ -100,8 +100,8 @@ Work queues organize work that [agents](#agent-overview) pick up for execution. 
 
 In addition, users can control aspects of work queue behavior like how many runs the queue allows to be run concurrently or pausing delivery entirely. These options can be modified at any time, and any agent processes requesting work for a specific queue will only see matching flow runs.
 
-!!! warning "Work queue affinity improved starting from Prefect 2.0.5"
-    Until Prefect 2.0.4, tags were used to associate flow runs with work queues. Given the flexibility of tags, it wasn't always clear which runs would be picked up by which work queues. Starting in Prefect 2.0.5, tag-based work queues are deprecated. Instead, work queue names are used to explicitly direct flow runs from deployments into queues. 
+!!! warning "Work queue affinity improved starting from Prefect 2.1.0"
+    Until Prefect 2.1.0, tags were used to associate flow runs with work queues. Given the flexibility of tags, it wasn't always clear which runs would be picked up by which work queues. Starting in Prefect 2.1.0, tag-based work queues are deprecated. Instead, work queue names are used to explicitly direct flow runs from deployments into queues. 
 
     Note that **backward compatibility is maintained** and work queues that use tag-based matching can still be created and will continue to work. However, those work queues are now considered legacy and we encourage you to use the new behavior by specifying work queues explicitly on agents and deployments.
 
