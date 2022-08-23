@@ -13,10 +13,16 @@ class TestDeploymentBasicInterface:
             Deployment()
 
     async def test_that_infra_block_capabilities_are_validated(self):
-        infra = LocalFileSystem(basepath=".")
+        bad_infra = LocalFileSystem(basepath=".")
 
         with pytest.raises(ValueError, match="'run-infrastructure' capabilities"):
-            Deployment(name="foo", infrastructure=infra)
+            Deployment(name="foo", infrastructure=bad_infra)
+
+    async def test_that_storage_block_capabilities_are_validated(self):
+        bad_storage = Process()
+
+        with pytest.raises(ValueError, match="capabilities"):
+            Deployment(name="foo", storage=bad_storage)
 
     async def test_that_infrastructure_defaults_to_process(self):
         d = Deployment(name="foo")
