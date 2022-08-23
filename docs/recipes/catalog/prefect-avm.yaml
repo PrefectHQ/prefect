@@ -1,8 +1,8 @@
-recipeName: Azure VM
+recipeName: Prefect Agent on Azure VM
 author: Prefect
 authorUrl: https://prefect.io
-description: Deploys a Prefect agent on an Azure VM.
-repo: https://github.com/PrefectHQ/prefect-recipes/tree/main/azure/prefect-2/prefect-agent-on-avm
+description: Set up an Azure VM and run a Prefect agent.
+repo: https://github.com/PrefectHQ/prefect-recipes/tree/main/devops/infrastructure-as-code/azure/prefect-agent-on-avm
 iconUrl: 
   - /img/collections/azure.png
   - /img/collections/terraform.png

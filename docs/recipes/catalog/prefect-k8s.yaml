@@ -1,8 +1,0 @@
-recipeName: Kubernetes
-author: Prefect
-authorUrl: https://prefect.io
-description: Deploys a Prefect Orion server on a Kubernetes cluster.
-repo: https://github.com/PrefectHQ/prefect-recipes/tree/main/k8s/terraform/orion-server
-iconUrl: 
-  - /img/collections/kubernetes.png
-  - /img/collections/terraform.png

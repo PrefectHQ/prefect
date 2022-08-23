@@ -85,7 +85,7 @@ nav:
             - tutorials/testing.md
             - Prefect Cloud: ui/cloud-getting-started.md
         - Migration Guide: migration-guide.md
-        - Recipes: recipes/recipes.md
+        - Prefect Recipes: recipes/recipes.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
