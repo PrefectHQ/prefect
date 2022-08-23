@@ -190,6 +190,27 @@ class TestDeploymentBuild:
 
 
 class TestYAML:
+    def test_deployment_yaml_roundtrip(self, tmp_path):
+        storage = LocalFileSystem(basepath=".")
+        infrastructure = Process()
+
+        d = Deployment(
+            name="yaml",
+            flow_name="test",
+            storage=storage,
+            infrastructure=infrastructure,
+            tags=["A", "B"],
+        )
+        yaml_path = str(tmp_path / "dep.yaml")
+        d.to_yaml(yaml_path)
+
+        new_d = Deployment.load_from_yaml(yaml_path)
+        assert new_d.name == "yaml"
+        assert new_d.tags == ["A", "B"]
+        assert new_d.flow_name == "test"
+        assert new_d.storage == storage
+        assert new_d.infrastructure == infrastructure
+
     def test_yaml_comment_for_work_queue(self, tmp_path):
         d = Deployment(name="yaml", flow_name="test")
         yaml_path = str(tmp_path / "dep.yaml")
