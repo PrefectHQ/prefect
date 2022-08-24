@@ -334,7 +334,7 @@ class Infra(str, Enum):
 
 @deployment_app.command()
 async def build(
-    path: str = typer.Argument(
+    entrypoint: str = typer.Argument(
         ...,
         help="The path to a flow entrypoint, in the form of `./path/to/file.py:flow_func_name`",
     ),
@@ -398,6 +398,11 @@ async def build(
         "--rrule",
         help="An RRule that will be used to set an RRuleSchedule on the deployment.",
     ),
+    path: str = typer.Option(
+        None,
+        "--path",
+        help="An optional path to specify a subdirectory of remote storage to upload to.",
+    ),
     output: str = typer.Option(
         None,
         "--output",
@@ -418,6 +423,11 @@ async def build(
     if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
         exit_with_error("Only one schedule type can be provided.")
 
+    if infra_block and infra_type:
+        exit_with_error(
+            "Only one of `infra` or `infra_block` can be provided, please choose one."
+        )
+
     output_file = None
     if output:
         output_file = Path(output)
@@ -428,15 +438,15 @@ async def build(
 
     # validate flow
     try:
-        fpath, obj_name = path.rsplit(":", 1)
+        fpath, obj_name = entrypoint.rsplit(":", 1)
     except ValueError as exc:
         if str(exc) == "not enough values to unpack (expected 2, got 1)":
-            missing_flow_name_msg = f"Your flow path must include the name of the function that is the entrypoint to your flow.\nTry {path}:<flow_name> for your flow path."
+            missing_flow_name_msg = f"Your flow entrypoint must include the name of the function that is the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
             exit_with_error(missing_flow_name_msg)
         else:
             raise exc
     try:
-        flow = prefect.utilities.importtools.import_object(path)
+        flow = prefect.utilities.importtools.import_object(entrypoint)
         if isinstance(flow, Flow):
             app.console.print(f"Found flow {flow.name!r}", style="green")
         else:
@@ -475,6 +485,17 @@ async def build(
     elif rrule:
         schedule = RRuleSchedule(rrule=rrule)
 
+    # parse storage_block
+    if storage_block:
+        block_type, block_name, *block_path = storage_block.split("/")
+        if block_path and path:
+            exit_with_error(
+                "Must provide a `path` explicitly or provide one on the storage block specification, but not both."
+            )
+        elif not path:
+            path = "/".join(block_path)
+        storage_block = f"{block_type}/{block_name}"
+
     # set up deployment object
     deployment = Deployment(name=name, flow_name=flow.name)
     await deployment.load()  # load server-side settings, if any
@@ -484,6 +505,7 @@ async def build(
         f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
     )
     updates = dict(
+        path=path,
         parameter_openapi_schema=flow_parameter_schema,
         entrypoint=entrypoint,
         description=deployment.description or flow.description,
@@ -505,8 +527,15 @@ async def build(
 
     file_count = await deployment.upload_to_storage(storage_block)
     if file_count:
+        location = (
+            deployment.storage.basepath + "/"
+            if not deployment.storage.basepath.endswith("/")
+            else ""
+        )
+        if path:
+            location += path
         app.console.print(
-            f"Successfully uploaded {file_count} files to {deployment.storage.basepath}",
+            f"Successfully uploaded {file_count} files to {location}",
             style="green",
         )
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"

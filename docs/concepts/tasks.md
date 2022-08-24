@@ -290,7 +290,7 @@ map_flow([1,2,3,5,8,13])
 Prefect also supports `unmapped` arguments, allowing you to pass static values that don't get mapped over.
 
 ```python
-from prefect import flow, task, unmapped
+from prefect import flow, task
 
 @task
 def add_together(x, y):
@@ -301,7 +301,24 @@ def sum_it(numbers, static_value):
     futures = add_together.map(numbers, static_value)
     return futures
 
-sum_it([1, 2, 3], unmapped(5))
+sum_it([1, 2, 3], 5)
+```
+
+If your static argument is an iterable, you'll need to wrap it with `unmapped` to tell Prefect that it should be treated as a static value.
+
+```python
+from prefect import flow, task, unmapped
+
+@task
+def sum_plus(x, static_iterable):
+    return x + sum(static_iterable)
+
+@flow
+def sum_it(numbers, static_iterable):
+    futures = sum_plus.map(numbers, static_iterable)
+    return futures
+
+sum_it([4, 5, 6], unmapped([1, 2, 3]))
 ```
 
 ## Async tasks

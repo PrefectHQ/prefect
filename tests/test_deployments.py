@@ -3,6 +3,7 @@ from pydantic.error_wrappers import ValidationError
 
 from prefect.blocks.core import Block
 from prefect.deployments import Deployment
+from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import Process
 
 
@@ -10,6 +11,18 @@ class TestDeploymentBasicInterface:
     async def test_that_name_is_required(self):
         with pytest.raises(ValidationError, match="field required"):
             Deployment()
+
+    async def test_that_infra_block_capabilities_are_validated(self):
+        bad_infra = LocalFileSystem(basepath=".")
+
+        with pytest.raises(ValueError, match="'run-infrastructure' capabilities"):
+            Deployment(name="foo", infrastructure=bad_infra)
+
+    async def test_that_storage_block_capabilities_are_validated(self):
+        bad_storage = Process()
+
+        with pytest.raises(ValueError, match="capabilities"):
+            Deployment(name="foo", storage=bad_storage)
 
     async def test_that_infrastructure_defaults_to_process(self):
         d = Deployment(name="foo")
@@ -133,6 +146,12 @@ class TestDeploymentBuild:
         with pytest.raises(ValueError, match="name must be provided"):
             d = await Deployment.build_from_flow(flow=flow_function, name=None)
 
+    async def test_build_from_flow_raises_on_bad_inputs(self, flow_function):
+        with pytest.raises(ValidationError, match="extra fields not permitted"):
+            d = await Deployment.build_from_flow(
+                flow=flow_function, name="foo", typo_attr="bar"
+            )
+
     async def test_build_from_flow_sets_flow_name(self, flow_function):
         d = await Deployment.build_from_flow(flow=flow_function, name="foo")
         assert d.flow_name == flow_function.name
@@ -171,6 +190,27 @@ class TestDeploymentBuild:
 
 
 class TestYAML:
+    def test_deployment_yaml_roundtrip(self, tmp_path):
+        storage = LocalFileSystem(basepath=".")
+        infrastructure = Process()
+
+        d = Deployment(
+            name="yaml",
+            flow_name="test",
+            storage=storage,
+            infrastructure=infrastructure,
+            tags=["A", "B"],
+        )
+        yaml_path = str(tmp_path / "dep.yaml")
+        d.to_yaml(yaml_path)
+
+        new_d = Deployment.load_from_yaml(yaml_path)
+        assert new_d.name == "yaml"
+        assert new_d.tags == ["A", "B"]
+        assert new_d.flow_name == "test"
+        assert new_d.storage == storage
+        assert new_d.infrastructure == infrastructure
+
     def test_yaml_comment_for_work_queue(self, tmp_path):
         d = Deployment(name="yaml", flow_name="test")
         yaml_path = str(tmp_path / "dep.yaml")
