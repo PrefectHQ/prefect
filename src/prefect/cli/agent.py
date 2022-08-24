@@ -106,19 +106,20 @@ async def start(
         work_queues = [work_queue_name]
 
     if not hide_welcome:
-        app.console.print(
-            f"Starting agent running Prefect version {prefect.__version__}..."
-        )
         if api:
-            app.console.print(f"Starting agent connected to {api}...")
+            app.console.print(
+                f"Starting v{prefect.__version__} agent connected to {api}..."
+            )
         else:
-            app.console.print("Starting agent with ephemeral API...")
+            app.console.print(
+                f"Starting v{prefect.__version__} agent with ephemeral API..."
+            )
 
     async with OrionAgent(work_queues=work_queues) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
             app.console.print(
-                "Agent started! Looking for work from "
+                f"Agent started! Looking for work from "
                 f"queue(s): {', '.join(work_queues)}..."
             )
 
