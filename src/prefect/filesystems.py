@@ -735,8 +735,8 @@ class GitHub(ReadableDeploymentStorage):
     _block_type_name = "GitHub"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/187oCWsD18m5yooahq1vU0/ace41e99ab6dc40c53e5584365a33821/github.png?h=250"
 
-    repository: Optional[str] = Field(
-        None,
+    repository: str = Field(
+        ...,
         description="The URL of a GitHub repository to read from, in either HTTPS or SSH format.",
     )
     reference: Optional[str] = Field(
