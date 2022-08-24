@@ -128,7 +128,6 @@ extras["task_library_ci"] = [
     and not r.startswith("pyodbc")
     and not r.startswith("soda")
 ]
-print(extras["task_library_ci"])
 
 extras["base_library_ci"] = (
     extras["all_orchestration_extras"]
