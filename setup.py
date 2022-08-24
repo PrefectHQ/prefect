@@ -114,15 +114,15 @@ if sys.version_info < (3, 6):
 if sys.version_info < (3, 7):
     del extras["toloka"]
 
-extras["all_extras"] = sum(
-    (extra for name, extra in extras.items() if name not in ["sodasql"]), []
-)
+extras["all_extras"] = sum(extras.values(), [])
 
 # Extras for docker image builds to include for orchestration
 extras["all_orchestration_extras"] = sum(orchestration_extras.values(), [])
 
 # CI extras to control dependencies for tests
-extras["task_library_ci"] = sum(extras.values(), [])
+extras["task_library_ci"] = sum(
+    (extra for name, extra in extras.items() if name not in ["sodasql"]), []
+)
 extras["task_library_ci"] = [
     r
     for r in extras["task_library_ci"]
