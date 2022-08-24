@@ -216,6 +216,10 @@ class Deployment(BaseModel):
             all_fields["storage"][
                 "_block_type_slug"
             ] = self.storage.get_block_type_slug()
+        if all_fields["infrastructure"]:
+            all_fields["infrastructure"][
+                "_block_type_slug"
+            ] = self.infrastructure.get_block_type_slug()
         return all_fields
 
     # top level metadata
@@ -266,12 +270,38 @@ class Deployment(BaseModel):
         description="The parameter schema of the flow, including defaults.",
     )
 
-    @validator("storage", pre=True)
-    def cast_storage_to_block_type(cls, value):
+    @validator("infrastructure", pre=True)
+    def infrastructure_must_have_capabilities(cls, value):
         if isinstance(value, dict):
-            block = lookup_type(Block, value.pop("_block_type_slug"))
-            return block(**value)
-        return value
+            block_type = lookup_type(Block, value.pop("_block_type_slug"))
+            block = block_type(**value)
+        elif value is None:
+            return value
+        else:
+            block = value
+
+        if "run-infrastructure" not in block.get_block_capabilities():
+            raise ValueError(
+                "Infrastructure block must have 'run-infrastructure' capabilities."
+            )
+        return block
+
+    @validator("storage", pre=True)
+    def storage_must_have_capabilities(cls, value):
+        if isinstance(value, dict):
+            block_type = lookup_type(Block, value.pop("_block_type_slug"))
+            block = block_type(**value)
+        elif value is None:
+            return value
+        else:
+            block = value
+
+        capabilities = block.get_block_capabilities()
+        if "get-directory" not in capabilities and "put-directory" not in capabilities:
+            raise ValueError(
+                "Remote Storage block must have both 'get-directory' and 'put-directory' capabilities."
+            )
+        return block
 
     @validator("parameter_openapi_schema", pre=True)
     def handle_openapi_schema(cls, value):
