@@ -168,6 +168,9 @@ class Deployment(BaseModel):
             "schedule",
             "infra_overrides",
         ]
+
+        # if infrastructure is baked as a pre-saved block, then
+        # editing its fields will not update anything
         if self.infrastructure._block_document_id:
             return editable_fields
         else:
@@ -398,10 +401,7 @@ class Deployment(BaseModel):
         deployment_path = None
         file_count = None
         if storage_block:
-            template = await Block.load(storage_block)
-            self.storage = template.copy(
-                exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
-            )
+            self.storage = await Block.load(storage_block)
 
             # upload current directory to storage location
             file_count = await self.storage.put_directory(
