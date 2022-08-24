@@ -139,7 +139,8 @@ def build_image(
 
     if not context:
         raise ValueError("context required to build an image")
-    if not context.exists():
+
+    if not Path(context).exists():
         raise ValueError(f"Context path {context} does not exist")
 
     image_id = None
