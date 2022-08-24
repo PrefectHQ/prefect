@@ -36,7 +36,10 @@ LOWER_BOUND_RE = re.compile(
     .*                  # Ignore any non-lower bound version specifications
     (?:>=|==|~=)        # Begin parsing a version with a lower bound like equality
     \s*                 # Allow arbitrary whitespace between the equality and version
-    ([\d*\.?]+)         # Capture versions of arbitrary length X.Y.Z...
+    (
+        [\d*\.?]+       # Capture versions of arbitrary length X.Y.Z...
+        (\w+\d*)?      # Capture following alpha/beta/rc designations
+    )
     """,
     re.VERBOSE,
 )
