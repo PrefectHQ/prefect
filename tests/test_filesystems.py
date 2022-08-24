@@ -93,6 +93,6 @@ class TestGitHub:
     async def test_subprocess_errors_are_surfaced(self):
         g = GitHub(repository="incorrect-url-scheme")
         with pytest.raises(
-            OSError, match="already exists and is not an empty directory"
+            OSError, match="fatal: repository 'incorrect-url-scheme' does not exist"
         ):
             await g.get_directory()
