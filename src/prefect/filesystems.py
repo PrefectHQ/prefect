@@ -753,11 +753,11 @@ class GitHub(ReadableDeploymentStorage):
         """
         cmd = "git clone"
         if from_path is None:
-            cmd += (
-                f" {self.repository}" + f" -b {self.reference} --depth 1"
-                if self.reference
-                else ""
-            )
+            cmd += f" {self.repository}"
+            if self.reference:
+                cmd += f" -b {self.reference} --depth 1"
+        else:
+            cmd += f" {from_path}"
 
         if local_path is None:
             local_path = Path(".").absolute()
@@ -770,6 +770,3 @@ class GitHub(ReadableDeploymentStorage):
         if process.returncode != 0:
             err_stream.seek(0)
             raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
-        else:
-            out_stream.seek(0)
-            raise ValueError(out_stream.read())
