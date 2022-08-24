@@ -166,7 +166,7 @@ async def read_flow_runs(
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
-):
+) -> List[schemas.core.FlowRun]:
     """
     Query for flow runs.
     """
@@ -189,7 +189,7 @@ async def read_flow_runs(
         schemas.core.FlowRun.from_orm(fr).dict(json_compatible=True)
         for fr in db_flow_runs
     ]
-    return encoded
+    return ORJSONResponse(content=encoded)
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
