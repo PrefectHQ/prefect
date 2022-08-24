@@ -82,9 +82,9 @@ class TestPrefectHttpxClient:
         # 5 retries + 1 first attempt
         assert base_client_send.call_count == 6
 
-    async def test_prefect_httpx_client_respects_retry_header(self, monkeypatch):
-        sleep = AsyncMock()
-        monkeypatch.setattr("prefect.client.sleep", sleep)
+    async def test_prefect_httpx_client_respects_retry_header(
+        self, monkeypatch, mock_anyio_sleep
+    ):
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
@@ -105,17 +105,15 @@ class TestPrefectHttpxClient:
             success_response,
         ]
 
-        response = await client.post(
-            url="fake.url/fake/route", data={"evenmorefake": "data"}
-        )
+        with mock_anyio_sleep.assert_sleeps_for(5):
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
         assert response.status_code == status.HTTP_200_OK
-        sleep.assert_awaited_once_with(5)
 
     async def test_prefect_httpx_client_falls_back_to_exponential_backoff(
-        self, monkeypatch
+        self, mock_anyio_sleep, monkeypatch
     ):
-        sleep = AsyncMock()
-        monkeypatch.setattr("prefect.client.sleep", sleep)
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
@@ -137,17 +135,16 @@ class TestPrefectHttpxClient:
             success_response,
         ]
 
-        response = await client.post(
-            url="fake.url/fake/route", data={"evenmorefake": "data"}
-        )
+        with mock_anyio_sleep.assert_sleeps_for(2 + 4 + 8):
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
         assert response.status_code == status.HTTP_200_OK
-        sleep.assert_has_awaits([call(2), call(4), call(8)])
+        mock_anyio_sleep.assert_has_awaits([call(2), call(4), call(8)])
 
     async def test_prefect_httpx_client_respects_retry_header_per_response(
-        self, monkeypatch
+        self, mock_anyio_sleep, monkeypatch
     ):
-        sleep = AsyncMock()
-        monkeypatch.setattr("prefect.client.sleep", sleep)
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
@@ -173,11 +170,12 @@ class TestPrefectHttpxClient:
             success_response,
         ]
 
-        response = await client.post(
-            url="fake.url/fake/route", data={"evenmorefake": "data"}
-        )
+        with mock_anyio_sleep.assert_sleeps_for(5 + 10 + 2):
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
         assert response.status_code == status.HTTP_200_OK
-        sleep.assert_has_awaits([call(5), call(0), call(10), call(2.0)])
+        mock_anyio_sleep.assert_has_awaits([call(5), call(0), call(10), call(2.0)])
 
 
 class TestGetClient:
@@ -910,12 +908,20 @@ async def test_update_flow_run(orion_client):
         parameters={"foo": "bar"},
         name="test",
         tags=["hello", "world"],
+        empirical_policy=schemas.core.FlowRunPolicy(
+            retries=1,
+            retry_delay=2,
+        ),
     )
     updated_flow_run = await orion_client.read_flow_run(flow_run.id)
     assert updated_flow_run.flow_version == "foo"
     assert updated_flow_run.parameters == {"foo": "bar"}
     assert updated_flow_run.name == "test"
     assert updated_flow_run.tags == ["hello", "world"]
+    assert updated_flow_run.empirical_policy == schemas.core.FlowRunPolicy(
+        retries=1,
+        retry_delay=2,
+    )
 
 
 async def test_update_flow_run_overrides_tags(orion_client):
@@ -1174,95 +1180,68 @@ class TestClientWorkQueues:
             manifest_path="file.json",
             schedule=schedule,
             parameters={"foo": "bar"},
-            tags=["bing", "bang"],
+            work_queue_name="wq",
             infrastructure_document_id=infrastructure_document_id,
         )
         return deployment_id
 
     async def test_create_then_read_work_queue(self, orion_client):
-        queue_id = await orion_client.create_work_queue(name="foo")
-        assert isinstance(queue_id, UUID)
+        queue = await orion_client.create_work_queue(name="foo")
+        assert isinstance(queue.id, UUID)
 
-        lookup = await orion_client.read_work_queue(queue_id)
+        lookup = await orion_client.read_work_queue(queue.id)
         assert isinstance(lookup, schemas.core.WorkQueue)
         assert lookup.name == "foo"
 
     async def test_create_then_read_work_queue_by_name(self, orion_client):
-        queue_id = await orion_client.create_work_queue(name="foo")
-        assert isinstance(queue_id, UUID)
+        queue = await orion_client.create_work_queue(name="foo")
+        assert isinstance(queue.id, UUID)
 
         lookup = await orion_client.read_work_queue_by_name("foo")
         assert isinstance(lookup, schemas.core.WorkQueue)
         assert lookup.name == "foo"
-        assert lookup.id == queue_id
+        assert lookup.id == queue.id
 
     async def test_read_nonexistant_work_queue(self, orion_client):
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
             await orion_client.read_work_queue_by_name("foo")
 
-    async def test_get_runs_from_queue_includes(self, orion_client, deployment):
-        blank_queue_id = await orion_client.create_work_queue(name="blank")
-        assert isinstance(blank_queue_id, UUID)
+    async def test_create_work_queue_with_tags_deprecated(self, orion_client):
+        with pytest.deprecated_call():
+            await orion_client.create_work_queue(name="test-queue", tags=["a"])
 
-        tagged_queue_id = await orion_client.create_work_queue(
-            name="tagged", tags=["bing", "bang"]
-        )
-        assert isinstance(tagged_queue_id, UUID)
-
-        run = await orion_client.create_flow_run_from_deployment(deployment)
-        assert run.id
-
-        blank_output = await orion_client.get_runs_in_work_queue(blank_queue_id)
-        assert blank_output == [run]
-
-        tagged_output = await orion_client.get_runs_in_work_queue(tagged_queue_id)
-        assert tagged_output == [run]
-
-    async def test_get_runs_from_queue_excludes(self, orion_client, deployment):
-        blank_queue_id = await orion_client.create_work_queue(name="blank")
-        assert isinstance(blank_queue_id, UUID)
-
-        tagged_queue_id = await orion_client.create_work_queue(
-            name="tagged", tags=["bing", "bazz"]
-        )
-        assert isinstance(tagged_queue_id, UUID)
-
-        deploy_queue_id = await orion_client.create_work_queue(
-            name="deploy", tags=["nonsensical"]
-        )
-        assert isinstance(deploy_queue_id, UUID)
+    async def test_get_runs_from_queue_includes(
+        self, session, orion_client, deployment
+    ):
+        wq_1 = await orion_client.read_work_queue_by_name(name="wq")
+        wq_2 = await orion_client.create_work_queue(name="wq2")
 
         run = await orion_client.create_flow_run_from_deployment(deployment)
         assert run.id
 
-        blank_output = await orion_client.get_runs_in_work_queue(blank_queue_id)
-        assert blank_output == [run]
+        runs_1 = await orion_client.get_runs_in_work_queue(wq_1.id)
+        assert runs_1 == [run]
 
-        tagged_output = await orion_client.get_runs_in_work_queue(tagged_queue_id)
-        assert tagged_output == []
-
-        deploy_output = await orion_client.get_runs_in_work_queue(deploy_queue_id)
-        assert deploy_output == []
+        runs_2 = await orion_client.get_runs_in_work_queue(wq_2.id)
+        assert runs_2 == []
 
     async def test_get_runs_from_queue_respects_limit(self, orion_client, deployment):
-        queue_id = await orion_client.create_work_queue(
-            name="deploy", tags=["bing", "bang"]
-        )
+        queue = await orion_client.read_work_queue_by_name(name="wq")
 
         runs = []
         for _ in range(10):
             run = await orion_client.create_flow_run_from_deployment(deployment)
             runs.append(run)
 
-        output = await orion_client.get_runs_in_work_queue(queue_id, limit=1)
+        output = await orion_client.get_runs_in_work_queue(queue.id, limit=1)
         assert len(output) == 1
         assert output[0].id in [r.id for r in runs]
 
-        output = await orion_client.get_runs_in_work_queue(queue_id, limit=8)
+        output = await orion_client.get_runs_in_work_queue(queue.id, limit=8)
         assert len(output) == 8
         assert {o.id for o in output} < {r.id for r in runs}
 
-        output = await orion_client.get_runs_in_work_queue(queue_id, limit=20)
+        output = await orion_client.get_runs_in_work_queue(queue.id, limit=20)
         assert len(output) == 10
         assert {o.id for o in output} == {r.id for r in runs}
 

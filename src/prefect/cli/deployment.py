@@ -12,6 +12,7 @@ import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
+import prefect
 from prefect import Flow
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
@@ -35,7 +36,6 @@ from prefect.orion.schemas.schedules import (
 )
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.filesystem import set_default_ignore_file
-from prefect.utilities.importtools import import_object
 
 
 def str_presenter(dumper, data):
@@ -273,6 +273,22 @@ async def apply(
             style="green",
         )
 
+        if deployment.work_queue_name is not None:
+            app.console.print(
+                "\nTo execute flow runs from this deployment, start an agent "
+                f"that pulls work from the the {deployment.work_queue_name!r} work queue:"
+            )
+            app.console.print(
+                f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"
+            )
+        else:
+            app.console.print(
+                "\nThis deployment does not specify a work queue name, which means agents "
+                "will not be able to pick up its runs. To add a work queue, "
+                "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
+                style="red",
+            )
+
 
 @deployment_app.command()
 async def delete(
@@ -318,7 +334,7 @@ class Infra(str, Enum):
 
 @deployment_app.command()
 async def build(
-    path: str = typer.Argument(
+    entrypoint: str = typer.Argument(
         ...,
         help="The path to a flow entrypoint, in the form of `./path/to/file.py:flow_func_name`",
     ),
@@ -332,7 +348,17 @@ async def build(
         None,
         "-t",
         "--tag",
-        help="One or more optional tags to apply to the deployment.",
+        help="One or more optional tags to apply to the deployment. Note: tags are used only for organizational purposes. For delegating work to agents, use the --work-queue flag.",
+    ),
+    work_queue_name: str = typer.Option(
+        None,
+        "-q",
+        "--work-queue",
+        help=(
+            "The work queue that will handle this deployment's runs. "
+            "It will be created if it doesn't already exist. Defaults to `None`. "
+            "Note that if a work queue is not set, work will not be scheduled."
+        ),
     ),
     infra_type: Infra = typer.Option(
         None,
@@ -355,7 +381,7 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure'",
+        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure', 'smb'",
     ),
     cron: str = typer.Option(
         None,
@@ -371,6 +397,11 @@ async def build(
         None,
         "--rrule",
         help="An RRule that will be used to set an RRuleSchedule on the deployment.",
+    ),
+    path: str = typer.Option(
+        None,
+        "--path",
+        help="An optional path to specify a subdirectory of remote storage to upload to.",
     ),
     output: str = typer.Option(
         None,
@@ -388,8 +419,14 @@ async def build(
         exit_with_error(
             "A name for this deployment must be provided with the '--name' flag."
         )
+
     if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
         exit_with_error("Only one schedule type can be provided.")
+
+    if infra_block and infra_type:
+        exit_with_error(
+            "Only one of `infra` or `infra_block` can be provided, please choose one."
+        )
 
     output_file = None
     if output:
@@ -401,15 +438,15 @@ async def build(
 
     # validate flow
     try:
-        fpath, obj_name = path.rsplit(":", 1)
+        fpath, obj_name = entrypoint.rsplit(":", 1)
     except ValueError as exc:
         if str(exc) == "not enough values to unpack (expected 2, got 1)":
-            missing_flow_name_msg = f"Your flow path must include the name of the function that is the entrypoint to your flow.\nTry {path}:<flow_name> for your flow path."
+            missing_flow_name_msg = f"Your flow entrypoint must include the name of the function that is the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
             exit_with_error(missing_flow_name_msg)
         else:
             raise exc
     try:
-        flow = import_object(path)
+        flow = prefect.utilities.importtools.import_object(entrypoint)
         if isinstance(flow, Flow):
             app.console.print(f"Found flow {flow.name!r}", style="green")
         else:
@@ -448,6 +485,17 @@ async def build(
     elif rrule:
         schedule = RRuleSchedule(rrule=rrule)
 
+    # parse storage_block
+    if storage_block:
+        block_type, block_name, *block_path = storage_block.split("/")
+        if block_path and path:
+            exit_with_error(
+                "Must provide a `path` explicitly or provide one on the storage block specification, but not both."
+            )
+        elif not path:
+            path = "/".join(block_path)
+        storage_block = f"{block_type}/{block_name}"
+
     # set up deployment object
     deployment = Deployment(name=name, flow_name=flow.name)
     await deployment.load()  # load server-side settings, if any
@@ -457,14 +505,16 @@ async def build(
         f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
     )
     updates = dict(
+        path=path,
         parameter_openapi_schema=flow_parameter_schema,
         entrypoint=entrypoint,
-        description=flow.description,
-        version=version or flow.version,
+        description=deployment.description or flow.description,
+        version=version or deployment.version or flow.version,
         tags=tags or None,
         infrastructure=infrastructure,
         infra_overrides=infra_overrides or None,
         schedule=schedule,
+        work_queue_name=work_queue_name,
     )
     await deployment.update(**updates, ignore_none=True)
 
@@ -477,8 +527,15 @@ async def build(
 
     file_count = await deployment.upload_to_storage(storage_block)
     if file_count:
+        location = (
+            deployment.storage.basepath + "/"
+            if not deployment.storage.basepath.endswith("/")
+            else ""
+        )
+        if path:
+            location += path
         app.console.print(
-            f"Successfully uploaded {file_count} files to {deployment.storage.basepath}",
+            f"Successfully uploaded {file_count} files to {location}",
             style="green",
         )
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"

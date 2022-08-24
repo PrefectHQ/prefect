@@ -15,6 +15,10 @@ class TestDeploymentBasicInterface:
         d = Deployment(name="foo")
         assert isinstance(d.infrastructure, Process)
 
+    async def test_default_work_queue_name(self):
+        d = Deployment(name="foo")
+        assert d.work_queue_name == "default"
+
 
 class TestDeploymentLoad:
     async def test_deployment_load_hydrates_with_server_settings(
@@ -122,9 +126,65 @@ class TestDeploymentUpload:
 
 
 class TestDeploymentBuild:
-    async def test_build_from_flow_sets_flow_name(self, flow_function):
-        d = Deployment(name="foo")
-        assert d.flow_name is None
+    async def test_build_from_flow_requires_name(self, flow_function):
+        with pytest.raises(TypeError, match="required positional argument: 'name'"):
+            d = await Deployment.build_from_flow(flow=flow_function)
 
-        await d.build_from_flow(flow_function)
+        with pytest.raises(ValueError, match="name must be provided"):
+            d = await Deployment.build_from_flow(flow=flow_function, name=None)
+
+    async def test_build_from_flow_raises_on_bad_inputs(self, flow_function):
+        with pytest.raises(ValidationError, match="extra fields not permitted"):
+            d = await Deployment.build_from_flow(
+                flow=flow_function, name="foo", typo_attr="bar"
+            )
+
+    async def test_build_from_flow_sets_flow_name(self, flow_function):
+        d = await Deployment.build_from_flow(flow=flow_function, name="foo")
         assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+
+    async def test_build_from_flow_sets_description_and_version_if_not_set(
+        self, flow_function
+    ):
+        d = await Deployment.build_from_flow(
+            flow=flow_function, name="foo", description="a", version="b"
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.description == "a"
+        assert d.version == "b"
+
+        d = await Deployment.build_from_flow(flow=flow_function, name="foo")
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.description == flow_function.description
+        assert d.version == flow_function.version
+
+    async def test_build_from_flow_sets_provided_attrs(self, flow_function):
+        d = await Deployment.build_from_flow(
+            flow_function,
+            name="foo",
+            tags=["A", "B"],
+            description="foobar",
+            version="12",
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.description == "foobar"
+        assert d.tags == ["A", "B"]
+        assert d.version == "12"
+
+
+class TestYAML:
+    def test_yaml_comment_for_work_queue(self, tmp_path):
+        d = Deployment(name="yaml", flow_name="test")
+        yaml_path = str(tmp_path / "dep.yaml")
+        d.to_yaml(yaml_path)
+        with open(yaml_path, "r") as f:
+            contents = f.readlines()
+
+        comment_index = contents.index(
+            "# The work queue that will handle this deployment's runs\n"
+        )
+        assert contents[comment_index + 1] == "work_queue_name: default\n"

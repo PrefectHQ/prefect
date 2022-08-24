@@ -3,12 +3,18 @@
 The first step to getting started with Prefect is installing the Prefect Python package. 
 
 ## Set up Python
+<a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
+    <img src="https://img.shields.io/pypi/pyversions/prefect.svg" /></a>
 
 Prefect requires Python 3.7 or later.
+
 
 We recommend installing Prefect 2.0 using a Python virtual environment manager such as `pipenv`, `conda`, or `virtualenv`/`venv`.
 
 ## Install Prefect 
+
+<a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
+    <img src="https://badge.fury.io/py/prefect.svg" /></a>
 
 The following sections describe how to install Prefect in your development or execution environment.
 

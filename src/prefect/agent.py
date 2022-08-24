@@ -2,23 +2,22 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
-from typing import List, Optional
+from typing import Iterator, List, Optional, Set
 from uuid import UUID
 
 import anyio
 import anyio.to_process
-import httpx
 import pendulum
 from anyio.abc import TaskGroup
-from fastapi import status
 
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client
-from prefect.exceptions import Abort
+from prefect.engine import propose_state
+from prefect.exceptions import Abort, ObjectNotFound
 from prefect.infrastructure import Infrastructure, Process
 from prefect.infrastructure.submission import submit_flow_run
 from prefect.logging import get_logger
-from prefect.orion.schemas.core import BlockDocument, FlowRun
+from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Failed, Pending
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
@@ -27,32 +26,27 @@ from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 class OrionAgent:
     def __init__(
         self,
-        work_queue_id: UUID = None,
-        work_queue_name: str = None,
+        work_queues: List[str],
         prefetch_seconds: int = None,
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
     ) -> None:
-        if not work_queue_id and not work_queue_name:
-            raise ValueError(
-                "Either work_queue_id or work_queue_name must be provided."
-            )
-        if work_queue_id and work_queue_name:
-            raise ValueError("Provide only one of work_queue_id and work_queue_name.")
 
         if default_infrastructure and default_infrastructure_document_id:
             raise ValueError(
                 "Provide only one of 'default_infrastructure' and 'default_infrastructure_document_id'."
             )
 
-        self.work_queue_id = work_queue_id
-        self.work_queue_name = work_queue_name
+        self.work_queues: Set[str] = set(work_queues)
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
         self.started = False
         self.logger = get_logger("agent")
         self.task_group: Optional[TaskGroup] = None
         self.client: Optional[OrionClient] = None
+
+        self._work_queue_cache_expiration: pendulum.DateTime = None
+        self._work_queue_cache: List[WorkQueue] = []
 
         if default_infrastructure:
             self.default_infrastructure_document_id = (
@@ -66,25 +60,44 @@ class OrionAgent:
             self.default_infrastructure = Process()
             self.default_infrastructure_document_id = None
 
-    async def work_queue_id_from_name(self) -> Optional[UUID]:
+    async def get_work_queues(self) -> Iterator[WorkQueue]:
         """
-        For agents that were provided a work_queue_name, rather than a work_queue_id,
-        this function will retrieve the work queue ID corresponding to that name.
-        If no matching queue is found, a warning is logged and `None` is returned.
+        Loads the work queue objects corresponding to the agent's target work
+        queues. If any of them don't exist, they are created.
         """
-        if not self.work_queue_name:
-            raise ValueError("No work queue name provided.")
-        try:
-            work_queue = await self.client.read_work_queue_by_name(self.work_queue_name)
-            return work_queue.id
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-                self.logger.warning(
-                    f"No work queue found named {self.work_queue_name!r}"
-                )
-                return None
-            else:
-                raise
+
+        # if the queue cache has not expired, yield queues from the cache
+        now = pendulum.now("UTC")
+        if (self._work_queue_cache_expiration or now) > now:
+            for queue in self._work_queue_cache:
+                yield queue
+            return
+
+        # otherwise clear the cache, set the expiration for 30 seconds, and
+        # reload the work queues
+        self._work_queue_cache.clear()
+        self._work_queue_cache_expiration = now.add(seconds=30)
+
+        for name in self.work_queues:
+            try:
+                work_queue = await self.client.read_work_queue_by_name(name)
+            except ObjectNotFound:
+
+                # if the work queue wasn't found, create it
+                try:
+                    work_queue = await self.client.create_work_queue(name=name)
+                    self.logger.info(f"Created work queue '{name}'.")
+
+                # if creating it raises an exception, it was probably just
+                # created by some other agent; rather than entering a re-read
+                # loop with new error handling, we log the exception and
+                # continue.
+                except Exception as exc:
+                    self.logger.exception(f"Failed to create work queue {name!r}.")
+                    continue
+
+            self._work_queue_cache.append(work_queue)
+            yield work_queue
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
         """
@@ -100,30 +113,29 @@ class OrionAgent:
             seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
         )
 
-        # Use the work queue id or load one from the name
-        work_queue_id = self.work_queue_id or await self.work_queue_id_from_name()
-        if not work_queue_id:
-            return []
+        submittable_runs = []
 
-        try:
-            submittable_runs = await self.client.get_runs_in_work_queue(
-                id=work_queue_id, limit=10, scheduled_before=before
-            )
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise ValueError(
-                    f"No work queue found with id '{work_queue_id}'"
-                ) from None
-            else:
-                raise
+        # load runs from each work queue
+        async for work_queue in self.get_work_queues():
 
-        # Check for a paused work queue for display purposes
-        if not submittable_runs:
-            work_queue = await self.client.read_work_queue(work_queue_id)
+            # print a nice message if the work queue is paused
             if work_queue.is_paused:
                 self.logger.info(
                     f"Work queue {work_queue.name!r} ({work_queue.id}) is paused."
                 )
+
+            else:
+                try:
+                    queue_runs = await self.client.get_runs_in_work_queue(
+                        id=work_queue.id, limit=10, scheduled_before=before
+                    )
+                    submittable_runs.extend(queue_runs)
+                except ObjectNotFound:
+                    self.logger.error(
+                        f"Work queue {work_queue.name!r} ({work_queue.id}) not found."
+                    )
+                except Exception as exc:
+                    self.logger.exception(exc)
 
         for flow_run in submittable_runs:
             self.logger.info(f"Submitting flow run '{flow_run.id}'")
@@ -137,6 +149,7 @@ class OrionAgent:
                 self.submit_run,
                 flow_run,
             )
+
         return submittable_runs
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
@@ -187,9 +200,8 @@ class OrionAgent:
                 await self.task_group.start(submit_flow_run, flow_run, infrastructure)
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
             except Exception as exc:
-                self.logger.error(
-                    f"Flow runner failed to submit flow run '{flow_run.id}'",
-                    exc_info=True,
+                self.logger.exception(
+                    f"Failed to submit flow run '{flow_run.id}' to infrastructure.",
                 )
                 await self._propose_failed_state(flow_run, exc)
 
@@ -198,7 +210,7 @@ class OrionAgent:
     async def _propose_pending_state(self, flow_run: FlowRun) -> bool:
         state = flow_run.state
         try:
-            state = await self.client.propose_state(Pending(), flow_run_id=flow_run.id)
+            state = await propose_state(self.client, Pending(), flow_run_id=flow_run.id)
         except Abort as exc:
             self.logger.info(
                 f"Aborted submission of flow run '{flow_run.id}'. "
@@ -223,7 +235,8 @@ class OrionAgent:
 
     async def _propose_failed_state(self, flow_run: FlowRun, exc: Exception) -> None:
         try:
-            await self.client.propose_state(
+            await propose_state(
+                self.client,
                 Failed(
                     message="Submission failed.",
                     data=DataDocument.encode("cloudpickle", exc),
@@ -262,6 +275,8 @@ class OrionAgent:
         self.task_group = None
         self.client = None
         self.submitting_flow_run_ids = set()
+        self._work_queue_cache_expiration = None
+        self._work_queue_cache = []
 
     async def __aenter__(self):
         await self.start()
