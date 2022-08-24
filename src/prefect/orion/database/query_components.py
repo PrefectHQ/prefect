@@ -7,6 +7,10 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.orion import schemas
+from prefect.orion.utilities.database import UUID as UUIDTypeDecorator
+from prefect.orion.utilities.database import json_has_any_key
+
 if TYPE_CHECKING:
     from prefect.orion.database.interface import OrionDBInterface
 
@@ -76,6 +80,15 @@ class BaseQueryComponents(ABC):
         self, session: AsyncSession, db: "OrionDBInterface", limit: int
     ):
         """Database-specific implementation of reading notifications from the queue and deleting them"""
+
+    @abstractmethod
+    async def queue_flow_run_notifications(
+        self,
+        session: sa.orm.session,
+        flow_run: schemas.core.FlowRun,
+        db: "OrionDBInterface",
+    ):
+        """Database-specific implementation of queueing notifications for a flow run"""
 
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
@@ -215,6 +228,52 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
 
         result = await session.execute(notification_details_stmt)
         return result.fetchall()
+
+    async def queue_flow_run_notifications(
+        self,
+        session: sa.orm.session,
+        flow_run: schemas.core.FlowRun,
+        db: "OrionDBInterface",
+    ):
+        """Database-specific implementation of queueing notifications for a flow run"""
+        # insert a <policy, state> pair into the notification queue
+        stmt = (await db.insert(db.FlowRunNotificationQueue)).from_select(
+            [
+                db.FlowRunNotificationQueue.flow_run_notification_policy_id,
+                db.FlowRunNotificationQueue.flow_run_state_id,
+            ],
+            # ... by selecting from any notification policy that matches the criteria
+            sa.select(
+                db.FlowRunNotificationPolicy.id,
+                sa.cast(sa.literal(str(flow_run.state_id)), UUIDTypeDecorator),
+            )
+            .select_from(db.FlowRunNotificationPolicy)
+            .where(
+                sa.and_(
+                    # the policy is active
+                    db.FlowRunNotificationPolicy.is_active.is_(True),
+                    # the policy state names aren't set or match the current state name
+                    sa.or_(
+                        db.FlowRunNotificationPolicy.state_names == [],
+                        json_has_any_key(
+                            db.FlowRunNotificationPolicy.state_names,
+                            [flow_run.state_name],
+                        ),
+                    ),
+                    # the policy tags aren't set, or the tags match the flow run tags
+                    sa.or_(
+                        db.FlowRunNotificationPolicy.tags == [],
+                        json_has_any_key(
+                            db.FlowRunNotificationPolicy.tags, flow_run.tags
+                        ),
+                    ),
+                )
+            ),
+            # don't send python defaults as part of the insert statement, because they are
+            # evaluated once per statement and create unique constraint violations on each row
+            include_defaults=False,
+        )
+        await session.execute(stmt)
 
 
 class AioSqliteQueryComponents(BaseQueryComponents):
@@ -387,3 +446,49 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         await session.execute(delete_stmt)
 
         return notifications
+
+    async def queue_flow_run_notifications(
+        self,
+        session: sa.orm.session,
+        flow_run: schemas.core.FlowRun,
+        db: "OrionDBInterface",
+    ):
+        """Database-specific implementation of queueing notifications for a flow run"""
+        # insert a <policy, state> pair into the notification queue
+        stmt = (await db.insert(db.FlowRunNotificationQueue)).from_select(
+            [
+                db.FlowRunNotificationQueue.flow_run_notification_policy_id,
+                db.FlowRunNotificationQueue.flow_run_state_id,
+            ],
+            # ... by selecting from any notification policy that matches the criteria
+            sa.select(
+                db.FlowRunNotificationPolicy.id,
+                sa.cast(sa.literal(str(flow_run.state_id)), UUIDTypeDecorator),
+            )
+            .select_from(db.FlowRunNotificationPolicy)
+            .where(
+                sa.and_(
+                    # the policy is active
+                    db.FlowRunNotificationPolicy.is_active.is_(True),
+                    # the policy state names aren't set or match the current state name
+                    sa.or_(
+                        db.FlowRunNotificationPolicy.state_names == [],
+                        json_has_any_key(
+                            db.FlowRunNotificationPolicy.state_names,
+                            [flow_run.state_name],
+                        ),
+                    ),
+                    # the policy tags aren't set, or the tags match the flow run tags
+                    sa.or_(
+                        db.FlowRunNotificationPolicy.tags == [],
+                        json_has_any_key(
+                            db.FlowRunNotificationPolicy.tags, flow_run.tags
+                        ),
+                    ),
+                )
+            ),
+            # don't send python defaults as part of the insert statement, because they are
+            # evaluated once per statement and create unique constraint violations on each row
+            include_defaults=False,
+        )
+        await session.execute(stmt)
