@@ -168,6 +168,9 @@ class Deployment(BaseModel):
             "schedule",
             "infra_overrides",
         ]
+
+        # if infrastructure is baked as a pre-saved block, then
+        # editing its fields will not update anything
         if self.infrastructure._block_document_id:
             return editable_fields
         else:
