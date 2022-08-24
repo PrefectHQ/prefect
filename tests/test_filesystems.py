@@ -2,7 +2,9 @@ from pathlib import Path
 
 import pytest
 
+import prefect
 from prefect.filesystems import GitHub, LocalFileSystem, RemoteFileSystem
+from prefect.testing.utilities import AsyncMock
 
 
 class TestLocalFileSystem:
@@ -96,3 +98,44 @@ class TestGitHub:
             OSError, match="fatal: repository 'incorrect-url-scheme' does not exist"
         ):
             await g.get_directory()
+
+    async def test_repository_default(self, monkeypatch):
+        class p:
+            returncode = 0
+
+        expected_path = Path(".").absolute()
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect.filesystems, "run_process", mock)
+        g = GitHub(repository="prefect")
+        await g.get_directory()
+
+        assert mock.await_count == 1
+        assert mock.await_args[0][0] == f"git clone prefect {expected_path}"
+
+    async def test_reference_default(self, monkeypatch):
+        class p:
+            returncode = 0
+
+        expected_path = Path(".").absolute()
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect.filesystems, "run_process", mock)
+        g = GitHub(repository="prefect", reference="2.0.0")
+        await g.get_directory()
+
+        assert mock.await_count == 1
+        assert (
+            mock.await_args[0][0]
+            == f"git clone prefect -b 2.0.0 --depth 1 {expected_path}"
+        )
+
+    async def test_get_directory_accepts_inputs(self, monkeypatch):
+        class p:
+            returncode = 0
+
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect.filesystems, "run_process", mock)
+        g = GitHub(repository="prefect", reference="2.0.0")
+        await g.get_directory(from_path="prefect-aws", local_path="/my/tmp/place")
+
+        assert mock.await_count == 1
+        assert mock.await_args[0][0] == f"git clone prefect-aws /my/tmp/place"
