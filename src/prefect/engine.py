@@ -961,7 +961,7 @@ async def create_task_run(
 ) -> TaskRun:
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
     if wait_for:
-        task_inputs["wait_for"] = collect_task_run_inputs(wait_for)
+        task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
 
     logger = get_run_logger(flow_run_context)
 

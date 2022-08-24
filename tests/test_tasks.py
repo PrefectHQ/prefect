@@ -558,9 +558,9 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function.submit()
-            return future.wait()
+            return future.wait(), ...
 
-        task_run_state = test_flow()
+        task_run_state, _ = test_flow()
         task_run_id = task_run_state.state_details.task_run_id
 
         if always_fail:
