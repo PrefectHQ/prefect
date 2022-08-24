@@ -120,14 +120,15 @@ extras["all_extras"] = sum(extras.values(), [])
 extras["all_orchestration_extras"] = sum(orchestration_extras.values(), [])
 
 # CI extras to control dependencies for tests
-extras["task_library_ci"] = sum(
-    (extra for name, extra in extras.items() if name not in ["sodasql"]), []
-)
+extras["task_library_ci"] = sum(extras.values(), [])
 extras["task_library_ci"] = [
     r
     for r in extras["task_library_ci"]
-    if not r.startswith("dask_cloudprovider") and not r.startswith("pyodbc")
+    if not r.startswith("dask_cloudprovider")
+    and not r.startswith("pyodbc")
+    and not r.startswith("soda")
 ]
+print(extras["task_library_ci"])
 
 extras["base_library_ci"] = (
     extras["all_orchestration_extras"]
