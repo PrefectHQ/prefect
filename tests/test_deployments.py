@@ -137,6 +137,43 @@ class TestDeploymentUpload:
         await d.upload_to_storage()
         assert d.path
 
+    async def test_uploading_with_unsaved_storage_creates_anon_block(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+
+        async def do_nothing(**kwargs):
+            pass
+
+        fs.put_directory = do_nothing
+
+        d = Deployment(name="foo", flow_name="bar", storage=fs)
+
+        assert d.storage._is_anonymous is None
+        assert d.storage._block_document_id is None
+
+        await d.upload_to_storage(ignore_file=None)
+
+        assert d.storage._is_anonymous is True
+        assert d.storage._block_document_id
+
+    async def test_uploading_with_saved_storage_does_not_copy(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+        await fs.save(name="save-test")
+
+        async def do_nothing(**kwargs):
+            pass
+
+        fs.put_directory = do_nothing
+
+        d = Deployment(name="foo", flow_name="bar", storage=fs)
+
+        assert d.storage._is_anonymous is False
+        old_id = d.storage._block_document_id
+
+        await d.upload_to_storage(ignore_file=None)
+
+        assert d.storage._is_anonymous is False
+        assert d.storage._block_document_id == old_id
+
 
 class TestDeploymentBuild:
     async def test_build_from_flow_requires_name(self, flow_function):
