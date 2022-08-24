@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from prefect.filesystems import LocalFileSystem, RemoteFileSystem, GitHub
+from prefect.filesystems import GitHub, LocalFileSystem, RemoteFileSystem
 
 
 class TestLocalFileSystem:
