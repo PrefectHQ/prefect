@@ -727,7 +727,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
         return await self.filesystem.write_path(path=path, content=content)
 
 
-class GitHub(ReadableFileSystem):
+class GitHub(ReadableDeploymentStorage):
     """
     Interact with files stored on GitHub.
     """
@@ -743,9 +743,6 @@ class GitHub(ReadableFileSystem):
         None,
         description="An optional reference to pin to; can be a branch name, tag or commit hash.",
     )
-
-    async def read_path(self, **kwargs):
-        pass
 
     async def get_directory(
         self, from_path: str = None, local_path: str = None
