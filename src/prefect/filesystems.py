@@ -741,7 +741,7 @@ class GitHub(ReadableDeploymentStorage):
     )
     reference: Optional[str] = Field(
         None,
-        description="An optional reference to pin to; can be a branch name, tag or commit hash.",
+        description="An optional reference to pin to; can be a branch name or tag.",
     )
 
     async def get_directory(
