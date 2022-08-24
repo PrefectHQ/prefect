@@ -29,8 +29,8 @@ class TestInputValidation:
         invoke_and_assert(
             ["deployment", "build", dep_path, "-n", "dog-deployment"],
             expected_output_contains=[
-                "Your flow path must include the name of the function that is the entrypoint to your flow.",
-                f"Try {dep_path}:<flow_name> for your flow path.",
+                "Your flow entrypoint must include the name of the function that is the entrypoint to your flow.",
+                f"Try {dep_path}:<flow_name>",
             ],
             expected_code=1,
         )
