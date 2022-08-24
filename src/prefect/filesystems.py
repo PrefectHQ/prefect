@@ -729,11 +729,11 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
 
 class GitHub(ReadableDeploymentStorage):
     """
-    Interact with files stored on GitHub.
+    Interact with files stored on public GitHub repositories.
     """
 
     _block_type_name = "GitHub"
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/EVKjxM7fNyi4NGUSkeTEE/95c958c5dd5a56c59ea5033e919c1a63/image1.png?h=250"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/187oCWsD18m5yooahq1vU0/ace41e99ab6dc40c53e5584365a33821/github.png?h=250"
 
     repository: Optional[str] = Field(
         None,
