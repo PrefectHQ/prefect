@@ -383,6 +383,11 @@ async def build(
         "-sb",
         help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure', 'smb'",
     ),
+    skip_upload: bool = typer.Option(
+        False,
+        "--skip-upload",
+        help="A flag that, when provided, skips uploading this deployment's files to remote storage.",
+    ),
     cron: str = typer.Option(
         None,
         "--cron",
@@ -495,6 +500,9 @@ async def build(
         elif not path:
             path = "/".join(block_path)
         storage_block = f"{block_type}/{block_name}"
+        storage = await Block.load(storage_block)
+    else:
+        storage = None
 
     # set up deployment object
     deployment = Deployment(name=name, flow_name=flow.name)
@@ -511,6 +519,7 @@ async def build(
         description=deployment.description or flow.description,
         version=version or deployment.version or flow.version,
         tags=tags or None,
+        storage=storage,
         infrastructure=infrastructure,
         infra_overrides=infra_overrides or None,
         schedule=schedule,
@@ -525,19 +534,21 @@ async def build(
             style="green",
         )
 
-    file_count = await deployment.upload_to_storage(storage_block)
-    if file_count:
-        location = (
-            deployment.storage.basepath + "/"
-            if not deployment.storage.basepath.endswith("/")
-            else ""
-        )
-        if path:
-            location += path
-        app.console.print(
-            f"Successfully uploaded {file_count} files to {location}",
-            style="green",
-        )
+    if not skip_upload:
+        file_count = await deployment.upload_to_storage()
+        if file_count and deployment.storage:
+            location = (
+                deployment.storage.basepath + "/"
+                if not deployment.storage.basepath.endswith("/")
+                else ""
+            )
+            if path:
+                location += path
+            app.console.print(
+                f"Successfully uploaded {file_count} files to {location}",
+                style="green",
+            )
+
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
     await deployment.to_yaml(deployment_loc)
     exit_with_success(
