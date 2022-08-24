@@ -119,7 +119,7 @@ async def start(
         if not hide_welcome:
             app.console.print(ascii_name)
             app.console.print(
-                f"Agent started! Looking for work from "
+                "Agent started! Looking for work from "
                 f"queue(s): {', '.join(work_queues)}..."
             )
 
