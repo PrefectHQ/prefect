@@ -140,6 +140,7 @@ def enter_flow_run_engine_from_flow_call(
         flow=flow,
         parameters=parameters,
         return_type=return_type,
+        client=parent_flow_run_context.client if is_subflow_run else None,
     )
 
     if not is_subflow_run:
