@@ -262,12 +262,6 @@ class OrionAgent:
         await self.client.__aenter__()
         await self.task_group.__aenter__()
 
-        # Convert the passed default infrastructure to an id
-        if self.default_infrastructure and not self.default_infrastructure_document_id:
-            self.default_infrastructure_document_id = (
-                await self.default_infrastructure._save(is_anonymous=True)
-            )
-
     async def shutdown(self, *exc_info):
         self.started = False
         await self.task_group.__aexit__(*exc_info)
