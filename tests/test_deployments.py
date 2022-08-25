@@ -3,6 +3,7 @@ from pydantic.error_wrappers import ValidationError
 
 from prefect.blocks.core import Block
 from prefect.deployments import Deployment
+from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import Process
 
 
@@ -10,6 +11,18 @@ class TestDeploymentBasicInterface:
     async def test_that_name_is_required(self):
         with pytest.raises(ValidationError, match="field required"):
             Deployment()
+
+    async def test_that_infra_block_capabilities_are_validated(self):
+        bad_infra = LocalFileSystem(basepath=".")
+
+        with pytest.raises(ValueError, match="'run-infrastructure' capabilities"):
+            Deployment(name="foo", infrastructure=bad_infra)
+
+    async def test_that_storage_block_capabilities_are_validated(self):
+        bad_storage = Process()
+
+        with pytest.raises(ValueError, match="capabilities"):
+            Deployment(name="foo", storage=bad_storage)
 
     async def test_that_infrastructure_defaults_to_process(self):
         d = Deployment(name="foo")
@@ -124,6 +137,43 @@ class TestDeploymentUpload:
         await d.upload_to_storage()
         assert d.path
 
+    async def test_uploading_with_unsaved_storage_creates_anon_block(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+
+        async def do_nothing(**kwargs):
+            pass
+
+        fs.put_directory = do_nothing
+
+        d = Deployment(name="foo", flow_name="bar", storage=fs)
+
+        assert d.storage._is_anonymous is None
+        assert d.storage._block_document_id is None
+
+        await d.upload_to_storage(ignore_file=None)
+
+        assert d.storage._is_anonymous is True
+        assert d.storage._block_document_id
+
+    async def test_uploading_with_saved_storage_does_not_copy(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+        await fs.save(name="save-test")
+
+        async def do_nothing(**kwargs):
+            pass
+
+        fs.put_directory = do_nothing
+
+        d = Deployment(name="foo", flow_name="bar", storage=fs)
+
+        assert d.storage._is_anonymous is False
+        old_id = d.storage._block_document_id
+
+        await d.upload_to_storage(ignore_file=None)
+
+        assert d.storage._is_anonymous is False
+        assert d.storage._block_document_id == old_id
+
 
 class TestDeploymentBuild:
     async def test_build_from_flow_requires_name(self, flow_function):
@@ -161,6 +211,15 @@ class TestDeploymentBuild:
         assert d.description == flow_function.description
         assert d.version == flow_function.version
 
+    async def test_build_from_flow_sets_correct_entrypoint(self, flow_function):
+        """
+        Entrypoints are *always* relative to {storage.basepath / path}
+        """
+        d = await Deployment.build_from_flow(
+            flow=flow_function, name="foo", description="a", version="b"
+        )
+        d.entrypoint == "tests/fixtures/client.py:client_test_flow"
+
     async def test_build_from_flow_sets_provided_attrs(self, flow_function):
         d = await Deployment.build_from_flow(
             flow_function,
@@ -177,6 +236,27 @@ class TestDeploymentBuild:
 
 
 class TestYAML:
+    def test_deployment_yaml_roundtrip(self, tmp_path):
+        storage = LocalFileSystem(basepath=".")
+        infrastructure = Process()
+
+        d = Deployment(
+            name="yaml",
+            flow_name="test",
+            storage=storage,
+            infrastructure=infrastructure,
+            tags=["A", "B"],
+        )
+        yaml_path = str(tmp_path / "dep.yaml")
+        d.to_yaml(yaml_path)
+
+        new_d = Deployment.load_from_yaml(yaml_path)
+        assert new_d.name == "yaml"
+        assert new_d.tags == ["A", "B"]
+        assert new_d.flow_name == "test"
+        assert new_d.storage == storage
+        assert new_d.infrastructure == infrastructure
+
     def test_yaml_comment_for_work_queue(self, tmp_path):
         d = Deployment(name="yaml", flow_name="test")
         yaml_path = str(tmp_path / "dep.yaml")
