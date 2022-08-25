@@ -507,6 +507,7 @@ class Deployment(BaseModel):
         entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
         deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
         deployment.parameter_openapi_schema = parameter_schema(flow)
+
         if not deployment.version:
             deployment.version = flow.version
         if not deployment.description:
