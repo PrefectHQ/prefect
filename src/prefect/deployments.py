@@ -511,6 +511,7 @@ class Deployment(BaseModel):
         name: str,
         output: str = None,
         skip_upload: bool = False,
+        apply: bool = False,
         **kwargs,
     ) -> "Deployment":
         """
@@ -525,6 +526,7 @@ class Deployment(BaseModel):
             output (optional): if provided, the full deployment specification will be written as a YAML
                 file in the location specified by `output`
             skip_upload: if True, deployment files are not automatically uploaded to remote storage
+            apply: if True, the deployment is automatically registered with the API
             **kwargs: other keyword arguments to pass to the constructor for the `Deployment` class
         """
         if not name:
@@ -571,5 +573,8 @@ class Deployment(BaseModel):
 
         if output:
             await deployment.to_yaml(output)
+
+        if apply:
+            await deployment.apply()
 
         return deployment
