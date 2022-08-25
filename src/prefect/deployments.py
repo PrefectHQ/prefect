@@ -419,9 +419,12 @@ class Deployment(BaseModel):
         return file_count
 
     @sync_compatible
-    async def apply(self) -> UUID:
+    async def apply(self, upload: bool = False) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
+
+        Args:
+            upload: if True, deployment files are automatically uploaded to remote storage
         """
         if not self.name or not self.flow_name:
             raise ValueError("Both a deployment name and flow name must be set.")
@@ -436,6 +439,9 @@ class Deployment(BaseModel):
                 infrastructure_document_id = await self.infrastructure._save(
                     is_anonymous=True,
                 )
+
+            if upload:
+                await self.upload_to_storage()
 
             # we assume storage was already saved
             storage_document_id = getattr(self.storage, "_block_document_id", None)
