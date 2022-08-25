@@ -33,6 +33,18 @@ class TestDeploymentBasicInterface:
         d = Deployment(name="foo")
         assert d.work_queue_name == "default"
 
+    async def test_location(self):
+        storage = S3(bucket_path="test-bucket")
+
+        d = Deployment(name="foo", storage=storage)
+        assert d.location == "s3://test-bucket/"
+
+        d = Deployment(name="foo", storage=storage, path="subdir")
+        assert d.location == "s3://test-bucket/subdir"
+
+        d = Deployment(name="foo", path="/full/path/to/flow/")
+        assert d.location == "/full/path/to/flow/"
+
 
 class TestDeploymentLoad:
     async def test_deployment_load_hydrates_with_server_settings(
