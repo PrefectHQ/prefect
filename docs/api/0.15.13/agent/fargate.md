@@ -11,7 +11,7 @@ Agent which deploys flow runs as tasks using Fargate.
 
 DEPRECATED: The Fargate agent is deprecated, please transition to using the ECS agent instead.
 
-This agent can run anywhere as long as the proper access configuration variables are set.  Information on using the Fargate Agent can be found at https://docs.prefect.io/orchestration/agents/fargate.html
+This agent can run anywhere as long as the proper access configuration variables are set. 
 
 All `kwargs` are accepted that one would normally pass to boto3 for `register_task_definition` and `run_task`. For information on the kwargs supported visit the following links:
 

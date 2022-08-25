@@ -25,14 +25,20 @@ class S3Result(Result):
         - boto3_kwargs (dict, optional): keyword arguments to pass on to boto3 when the [client
             session](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client)
             is initialized.
+        - upload_options (dict, optional): additional options for s3 client upload_fileobj() 'ExtraArgs' argument.
         - **kwargs (Any, optional): any additional `Result` initialization options
-    """
+    """  # noqa: E501
 
     def __init__(
-        self, bucket: str, boto3_kwargs: Dict[str, Any] = None, **kwargs: Any
+        self,
+        bucket: str,
+        boto3_kwargs: Dict[str, Any] = None,
+        upload_options: Dict[str, Any] = None,
+        **kwargs: Any,
     ) -> None:
         self.bucket = bucket
         self.boto3_kwargs = boto3_kwargs or {}
+        self.upload_options = upload_options or {}
         super().__init__(**kwargs)
 
     @property
@@ -49,6 +55,9 @@ class S3Result(Result):
         return state
 
     def __setstate__(self, state: dict) -> None:
+        # Ensure pickles are backwards compatible
+        state.setdefault("boto3_kwargs", {})
+        state.setdefault("upload_options", {})
         self.__dict__.update(state)
 
     def write(self, value_: Any, **kwargs: Any) -> Result:
@@ -76,7 +85,12 @@ class S3Result(Result):
         from botocore.exceptions import ClientError
 
         try:
-            self.client.upload_fileobj(stream, Bucket=self.bucket, Key=new.location)
+            self.client.upload_fileobj(
+                stream,
+                Bucket=self.bucket,
+                Key=new.location,
+                ExtraArgs=self.upload_options,
+            )
         except ClientError as err:
             self.logger.error("Error uploading to S3: {}".format(err))
             raise err

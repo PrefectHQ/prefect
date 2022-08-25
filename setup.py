@@ -52,9 +52,10 @@ extras = {
     "aws": orchestration_extras["aws"],
     "azure": [
         "azure-core >= 1.10.0",
-        "azure-storage-blob >= 12.1.0",
         "azure-cosmos >= 3.1.1",
-    ],
+        "azure-mgmt-datafactory >= 2.7.0",
+    ]
+    + orchestration_extras["azure"],
     "azureml": ["azureml-sdk"],
     "bitbucket": orchestration_extras["bitbucket"],
     "dask_cloudprovider": ["dask_cloudprovider[aws] >= 0.2.0"],
@@ -103,11 +104,15 @@ extras = {
     "neo4j": ["py2neo >= 2021.2.3"],
     "transform": ["transform >= 1.0.12"],
     "sftp": ["paramiko >= 2.10.4"],
+    "toloka": ["toloka-kit >= 0.1.25"],
 }
 
 
 if sys.version_info < (3, 6):
     extras["dev"].remove("black")
+
+if sys.version_info < (3, 7):
+    del extras["toloka"]
 
 extras["all_extras"] = sum(extras.values(), [])
 

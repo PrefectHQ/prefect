@@ -7,7 +7,7 @@ editLink: false
  ## DockerAgent
  <div class='class-sig' id='prefect-agent-docker-agent-dockeragent'><p class="prefect-sig">class </p><p class="prefect-class">prefect.agent.docker.agent.DockerAgent</p>(agent_config_id=None, name=None, labels=None, env_vars=None, max_polls=None, agent_address=None, no_cloud_logs=None, base_url=None, no_pull=None, volumes=None, show_flow_logs=False, network=None, networks=None, reg_allow_list=None, docker_client_timeout=None, docker_interface=None)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agent/docker/agent.py#L37">[source]</a></span></div>
 
-Agent which deploys flow runs locally as Docker containers. Information on using the Docker Agent can be found at https://docs.prefect.io/orchestration/agents/docker.html
+Agent which deploys flow runs locally as Docker containers. 
 
 Environment variables may be set on the agent to be provided to each flow run's container: 
 ```

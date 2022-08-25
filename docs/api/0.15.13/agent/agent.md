@@ -7,7 +7,7 @@ editLink: false
  ## Agent
  <div class='class-sig' id='prefect-agent-agent-agent'><p class="prefect-sig">class </p><p class="prefect-class">prefect.agent.agent.Agent</p>(agent_config_id=None, name=None, labels=None, env_vars=None, max_polls=None, agent_address=None, no_cloud_logs=None)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agent/agent.py#L80">[source]</a></span></div>
 
-Base class for Agents. Information on using the Prefect agents can be found at https://docs.prefect.io/orchestration/agents/overview.html
+Base class for Agents. 
 
 This Agent class is a standard point for executing Flows through the Prefect API. It is meant to have subclasses which inherit functionality from this class. The only piece that the subclasses should implement is the `deploy_flows` function, which specifies how to run a Flow on the given platform. It is built in this way to keep Prefect API logic standard but allows for platform specific customizability.
 

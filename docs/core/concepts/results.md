@@ -156,7 +156,7 @@ Task-level results will _always_ be used over flow-level results. Neither will b
 :::
 
 ::: warning `Results` are always attached to their task's outputs
-For example, suppose task A is configured to use result A, and task B to use result B, and that A passes data downstream to B. If B fails and requests a retry, it needs to cache its inputs, one of which came from A. If you are using Cloud, [Cloud will use results to persist the input cache](https://docs.prefect.io/orchestration/faq/dataflow.html#when-is-data-persisted), and since the data is from task A it will use the result configured on A.
+For example, suppose task A is configured to use result A, and task B to use result B, and that A passes data downstream to B. If B fails and requests a retry, it needs to cache its inputs, one of which came from A. If you are using Cloud, [Cloud will use results to persist the input cache](/orchestration/faq/dataflow.html#when-is-data-persisted), and since the data is from task A it will use the result configured on A.
 :::
 
 ::: warning Parameters are different

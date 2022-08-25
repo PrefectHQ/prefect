@@ -605,6 +605,7 @@ class ReadNamespacedPodLogs(Task):
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
+        - container (str, optional): The name of the container to read logs from
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task
             constructor
     """
@@ -615,17 +616,23 @@ class ReadNamespacedPodLogs(Task):
         namespace: str = "default",
         on_log_entry: Callable = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
+        container: str = None,
         **kwargs: Any
     ):
         self.pod_name = pod_name
         self.namespace = namespace
         self.on_log_entry = on_log_entry
         self.kubernetes_api_key_secret = kubernetes_api_key_secret
+        self.container = container
 
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "pod_name", "namespace", "on_log_entry", "kubernetes_api_key_secret"
+        "pod_name",
+        "namespace",
+        "on_log_entry",
+        "kubernetes_api_key_secret",
+        "container",
     )
     def run(
         self,
@@ -633,6 +640,7 @@ class ReadNamespacedPodLogs(Task):
         namespace: str = "default",
         on_log_entry: Callable = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
+        container: str = None,
     ) -> None:
         """
         Task run method.
@@ -647,6 +655,7 @@ class ReadNamespacedPodLogs(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
+            - container (str, optional): The name of the container to read logs from
 
         Raises:
             - ValueError: if `pod_name` is `None`
@@ -660,7 +669,7 @@ class ReadNamespacedPodLogs(Task):
 
         if on_log_entry is None:
             return api_client.read_namespaced_pod_log(
-                name=pod_name, namespace=namespace
+                name=pod_name, namespace=namespace, container=container
             )
 
         # From the kubernetes.watch documentation:
@@ -674,6 +683,7 @@ class ReadNamespacedPodLogs(Task):
                     api_client.read_namespaced_pod_log,
                     name=pod_name,
                     namespace=namespace,
+                    container=container,
                 )
 
                 for log in stream:

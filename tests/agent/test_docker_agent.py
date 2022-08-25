@@ -138,7 +138,6 @@ def test_populate_env_vars(api, backend):
         "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
         "PREFECT__LOGGING__LEVEL": "INFO",
         "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-        "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
     }
 
     assert env_vars == expected_vars

@@ -5,7 +5,7 @@ editLink: false
 # Configuration
 ---
 Utilities for interacting with [Prefect
-configuration](https://docs.prefect.io/core/concepts/configuration.html).  These are only
+configuration](/core/concepts/configuration.html).  These are only
 intended to be used for testing.
 
 ## Functions

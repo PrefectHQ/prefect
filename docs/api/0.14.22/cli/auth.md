@@ -41,8 +41,7 @@ Options:
 ```
 Create a Prefect Cloud API token.
 
-For more info on API tokens visit
-https://docs.prefect.io/orchestration/concepts/api.html
+For more info on API tokens see the [API documentation](/orchestration/concepts/api.html).
 
 Options:
     --name, -n      TEXT    A name to give the generated token
