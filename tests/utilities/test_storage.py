@@ -68,7 +68,7 @@ class TestExtractFlowFromFile:
 
         full_path = os.path.join(tmpdir, "flow.py")
 
-        with open(full_path, "w", encoding='utf8') as f:
+        with open(full_path, "w", encoding="utf-8") as f:
             f.write(contents)
 
         return full_path
