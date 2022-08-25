@@ -79,7 +79,7 @@ def extract_flow_from_file(
             contents = f.read()
 
     elif file_contents is not None:
-        contents = file_contents.encode("utf-8")
+        contents = file_contents.encode()
     else:
         raise ValueError("Provide either `file_path` or `file_contents`.")
 
