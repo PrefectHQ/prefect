@@ -14,7 +14,7 @@ from typing_extensions import Literal
 
 import prefect
 from prefect.blocks.core import Block, SecretStr
-from prefect.docker import get_prefect_image_name
+from prefect.docker import get_prefect_image_name, parse_tag_image
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -297,12 +297,7 @@ class DockerContainer(Infrastructure):
         return container.id
 
     def _get_image_and_tag(self) -> Tuple[str, Optional[str]]:
-        parts = self.image.split(":")
-        if len(parts) > 2 and re.search(r'\d\d\d\d', parts[1]):
-            parts = [f"{parts[0]}:{parts[1]}", parts[2]]
-        image = parts.pop(0)
-        tag = parts[0] if parts else None
-        return image, tag
+        return parse_tag_image(self.image)
 
     def _determine_image_pull_policy(self) -> ImagePullPolicy:
         """
@@ -556,39 +551,3 @@ class DockerContainer(Infrastructure):
             )
 
         return env
-
-
-def parse_tag_image(name: str) -> Tuple[str, Optional[str]]:
-    """
-    Parse Docker Image String
-
-    - If a tag exists, this function parses and returns the image registry and tag
-      as a tuple.
-      - Example 1: 'prefecthq/prefect:latest' -> ('prefecthq/prefect', 'latest')
-      - Example 2: 'hostname.io:5050/folder/subfolder:latest' -> ('hostname.io:5050/folder/subfolder', 'latest')
-
-    Args:
-        name (str): Name of Docker Image
-    
-    Return:
-        Tuple[str, str]: image registry, image tag
-    """
-    tag = None
-    name_parts = name.split('/')
-    # First handles the simplest image names (DockerHub-based, index-free, potentionally with a tag
-    # - Example: simple_name:latest
-    if len(name_parts) == 1:
-        if ':' in name_parts[0]:
-            image_name, tag = name_parts[0].split(':')
-        else:
-            image_name = name_parts[0]
-    else:
-        # 1. Separates index (hostname.io or prefecthq) from path:tag (folder/subfolder:latest or prefect:latest)
-        # 2. Separates path and tag (if tag exists)
-        # 3. Reunites index and path (without tag) as image name
-        index_name = name_parts[0]
-        image_path = '/'.join(name_parts[1:])
-        if ':' in image_path:
-            image_path, tag = image_path.split(':')
-        image_name = f"{index_name}/{image_path}"
-    return image_name, tag
