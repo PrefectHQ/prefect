@@ -176,6 +176,25 @@ class Deployment(BaseModel):
         else:
             return editable_fields + ["infrastructure"]
 
+    @property
+    def location(self) -> str:
+        """
+        The 'location' that this deployment points to is given by `path` alone
+        in the case of no remote storage, and otherwise by `storage.basepath / path`.
+
+        The underlying flow entrypoint is interpreted relative to this location.
+        """
+        location = ""
+        if self.storage:
+            location = (
+                self.storage.basepath + "/"
+                if not self.storage.basepath.endswith("/")
+                else ""
+            )
+        if self.path:
+            location += self.path
+        return location
+
     @sync_compatible
     async def to_yaml(self, path: Path) -> None:
         yaml_dict = self._yaml_dict()
@@ -320,6 +339,24 @@ class Deployment(BaseModel):
     async def load_from_yaml(cls, path: str):
         with open(str(path), "r") as f:
             data = yaml.safe_load(f)
+
+            # load blocks from server to ensure secret values are properly hydrated
+            if data["storage"]:
+                block_doc_name = data["storage"].get("_block_document_name")
+                # if no doc name, this block is not stored on the server
+                if block_doc_name:
+                    block_slug = data["storage"]["_block_type_slug"]
+                    block = await Block.load(f"{block_slug}/{block_doc_name}")
+                    data["storage"] = block
+
+            if data["infrastructure"]:
+                block_doc_name = data["infrastructure"].get("_block_document_name")
+                # if no doc name, this block is not stored on the server
+                if block_doc_name:
+                    block_slug = data["infrastructure"]["_block_type_slug"]
+                    block = await Block.load(f"{block_slug}/{block_doc_name}")
+                    data["infrastructure"] = block
+
             return cls(**data)
 
     @sync_compatible
