@@ -274,16 +274,9 @@ async def apply(
 
         if upload:
             file_count = await deployment.upload_to_storage()
-            if file_count and deployment.storage:
-                location = (
-                    deployment.storage.basepath + "/"
-                    if not deployment.storage.basepath.endswith("/")
-                    else ""
-                )
-                if deployment.path:
-                    location += deployment.path
+            if file_count:
                 app.console.print(
-                    f"Successfully uploaded {file_count} files to {location}",
+                    f"Successfully uploaded {file_count} files to {deployment.location}",
                     style="green",
                 )
 
@@ -556,16 +549,9 @@ async def build(
 
     if not skip_upload:
         file_count = await deployment.upload_to_storage()
-        if file_count and deployment.storage:
-            location = (
-                deployment.storage.basepath + "/"
-                if not deployment.storage.basepath.endswith("/")
-                else ""
-            )
-            if path:
-                location += path
+        if file_count:
             app.console.print(
-                f"Successfully uploaded {file_count} files to {location}",
+                f"Successfully uploaded {file_count} files to {deployment.location}",
                 style="green",
             )
 
