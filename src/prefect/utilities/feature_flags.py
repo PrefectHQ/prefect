@@ -1,28 +1,44 @@
 """
-Support for feature flags enabling experimental behavior in Prefect.
+Support for feature flags that enable experimental behavior in Prefect.
 
 For more guidance, read the [Feature Flags](/contributing/feature_flags/) documentation.
 """
 import threading
 from pathlib import Path
-from typing import Any, Iterable, Iterator, Optional
+from typing import Any, Dict, Iterable, Iterator, List, Optional
 
 import yaml
 from flipper import Condition, FeatureFlagClient, MemoryFeatureFlagStore
 from flipper.bucketing.base import AbstractBucketer
 from flipper.flag import FeatureFlag
+from pydantic import BaseModel, Field, ValidationError
 
 from prefect import settings
+from prefect.logging import get_logger
 from prefect.settings import PREFECT_FEATURE_FLAGGING_SETTINGS_PATH
 
 # This path will be used if `PREFECT_FEATURE_FLAGGING_SETTINGS_PATH` is null.
 from prefect.utilities.importtools import from_qualified_name
 
-DEFAULT_FEATURE_FLAGGING_SETTINGS_PATH = Path(__file__).parent / "feature_flags.yml"
+logger = get_logger("feature_flags")
 
-_in_memory_store: Optional[MemoryFeatureFlagStore] = None
+DEFAULT_FEATURE_FLAGGING_SETTINGS_PATH = Path(__file__).parent / "feature_flags.yml"
+DEFAULT_FEATURE_FLAG_FACTORY = (
+    "prefect.utilities.feature_flags.get_default_feature_flagger"
+)
+
 _flagger: Optional["FeatureFlagger"] = None
-_config: Optional[dict] = None
+_config: Optional["FeatureFlaggingConfigSchema"] = None
+
+
+class FeatureFlagSchema(BaseModel):
+    is_enabled: bool
+
+
+class FeatureFlaggingConfigSchema(BaseModel):
+    version: int
+    flagger_factory: Optional[str] = Field(DEFAULT_FEATURE_FLAG_FACTORY)
+    flags: Optional[Dict[str, FeatureFlagSchema]]
 
 
 class FeatureFlagger(FeatureFlagClient):
@@ -51,9 +67,8 @@ class FeatureFlagger(FeatureFlagClient):
                         to determine if a flag is enabled
 
         Returns:
-            `FeatureFlag` or None: Returns a created or existing flag
-                                           or None if feature flagging is
-                                           disabled.
+            `FeatureFlag` or None: Returns a created or existing flag or None
+                                   if feature flagging is disabled.
         """
 
         if not settings.PREFECT_FEATURE_FLAGGING_ENABLED.value():
@@ -174,25 +189,44 @@ class FeatureFlagger(FeatureFlagClient):
 
 
 def get_default_feature_flagger() -> FeatureFlagger:
-    global _in_memory_store
+    """
+    Return the default feature flagger.
 
-    if not _in_memory_store:
-        with threading.Lock():
-            _in_memory_store = MemoryFeatureFlagStore()
+    The default feature flagger uses an in-memory flag store.
 
-    set_flagger(FeatureFlagger(_in_memory_store))
+    Once the feature flag
+    """
+    global _flagger
+
+    if _flagger:
+        return _flagger
+
+    with threading.Lock():
+        _flagger = FeatureFlagger(MemoryFeatureFlagStore())
 
     return _flagger
 
 
-def set_flagger(flagger: FeatureFlagger):
-    global _flagger
+def _make_simple_validation_errors(errors: List[Dict[Any, Any]]):
+    """Create a simplified list of Pydantic validation errors."""
+    _errors = []
+    for error in errors:
+        config_field = error["loc"][0]
+        message = error["msg"]
+        _errors += [f"{config_field!r}: {message}"]
+    return _errors
 
-    with threading.Lock():
-        _flagger = flagger
 
+def get_flagging_config() -> FeatureFlaggingConfigSchema:
+    """
+    Return the feature flagging configuration.
 
-def get_flagging_config():
+    If the configuration has not been loaded, read the contents of the feature
+    flagging configuration file and parse it from YAML into a Python dictionary.
+
+    Once the configuration is parsed, this function will return the same
+    configuration dictionary every time it's called.
+    """
     global _config
 
     if _config:
@@ -204,33 +238,80 @@ def get_flagging_config():
         else DEFAULT_FEATURE_FLAGGING_SETTINGS_PATH
     )
 
-    _config = yaml.safe_load(path.read_text())
+    parsed_config = yaml.safe_load(path.read_text())
+    error_prefix = "Could not parse feature flag configuration file"
+
+    if not parsed_config:
+        raise RuntimeError(f"{error_prefix}: the file is empty")
+    elif not isinstance(parsed_config, dict):
+        raise RuntimeError(f"{error_prefix}: the file does not contain any fields")
+
+    try:
+        config = FeatureFlaggingConfigSchema.parse_obj(parsed_config)
+    except ValidationError as exc:
+        errors = _make_simple_validation_errors(exc.errors())
+        raise RuntimeError(f"{error_prefix}: {', '.join(errors)}")
+
+    with threading.Lock():
+        _config = config
+
     return _config
 
 
 def get_flagger() -> FeatureFlagger:
+    """
+    Return a feature flagger.
+
+    If the flagger hasn't been initialized, use the function specified in the
+    "flagger_factory" attribute in the feature flags configuration file to
+    create a new flagger instance and return that.
+
+    Once a flagger is initialized, this function will return the same instance
+    every time it's called.
+    """
     global _flagger
 
     if _flagger:
         return _flagger
 
     config = get_flagging_config()
-    qualified_flagger_factory = config["flagger_factory"]
-
-    flagger_factory = from_qualified_name(qualified_flagger_factory)
+    flagger_factory = from_qualified_name(config.flagger_factory)
     flagger = flagger_factory()
 
-    set_flagger(flagger)
+    with threading.Lock():
+        _flagger = flagger
+
     return flagger
 
 
 def setup_feature_flags():
     """
-    Loads logging configuration from a path allowing override from the environment
+    Loads feature flagging configuration from a path.
+
+    Users can override the configuration file by setting
+    `PREFECT_FEATURE_FLAGGING_SETTINGS_PATH`, which should point to a YAML
+    file. The format of the file should look like this:
+
+    ```
+    # The version of the configuration file format.
+    version: 1
+
+    # The function Prefect should call to get the `FeatureFlagger` instance
+    # to use for flagging, in dotted notation (package.module.function).
+    flagger_factory: my_package.my_module.my_function
+
+    # Feature flags that the application should know about. Prefect will use
+    # the key you specify here as the flag's name. Flags can have one supported
+    # attribute currently, which is: `is_enabled`. This should either true or
+    # false, depending on what state the flag should be in by default.
+    flags:
+      very-cool-feature:
+        is_enabled: false
+    ```
     """
     flagger = get_flagger()
     config = get_flagging_config()
 
-    if config["flags"]:
-        for flag, flag_settings in config["flags"].items():
-            flagger.create(flag, is_enabled=flag_settings["is_enabled"])
+    if config.flags:
+        for flag, flag_settings in config.flags.items():
+            flagger.create(flag, is_enabled=flag_settings.is_enabled)

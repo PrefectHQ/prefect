@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Generator
 
 import pytest
@@ -5,12 +8,17 @@ from flipper import Condition
 from flipper.bucketing import Percentage, PercentageBucketer
 from flipper.contrib.memory import MemoryFeatureFlagStore
 
-from prefect.settings import PREFECT_FEATURE_FLAGGING_ENABLED, temporary_settings
+from prefect.settings import (
+    PREFECT_FEATURE_FLAGGING_ENABLED,
+    PREFECT_FEATURE_FLAGGING_SETTINGS_PATH,
+    temporary_settings,
+)
+from prefect.utilities import feature_flags
 from prefect.utilities.feature_flags import FeatureFlagger
 
 
 @pytest.fixture
-def features() -> Generator[FeatureFlagger, None, None]:
+def features(enable_flagging) -> Generator[FeatureFlagger, None, None]:
     """
     A feature flagger whose flag store exists only for the duration of
     a test run.
@@ -22,18 +30,18 @@ def features() -> Generator[FeatureFlagger, None, None]:
 
 
 @pytest.fixture
-def enable_flagging(features):
+def enable_flagging():
     with temporary_settings({PREFECT_FEATURE_FLAGGING_ENABLED: "true"}):
-        yield features
+        yield
 
 
 @pytest.fixture
-def disable_flagging(features):
+def disable_flagging():
     with temporary_settings({PREFECT_FEATURE_FLAGGING_ENABLED: "false"}):
-        yield features
+        yield
 
 
-@pytest.mark.usefixtures("disable_flagging")
+@pytest.mark.usefixtures("features", "disable_flagging")
 class TestFeatureFlaggingDisabled:
     def test_create(self, features):
         assert features.create("test", is_enabled=True) is None
@@ -55,7 +63,7 @@ class TestFeatureFlaggingDisabled:
         assert flags == []
 
 
-@pytest.mark.usefixtures("enable_flagging")
+@pytest.mark.usefixtures("features", "enable_flagging")
 class TestFeatureFlaggingEnabled:
     def test_create_missing_flag(self, features):
         name = "test"
@@ -136,3 +144,85 @@ class TestFeatureFlaggingEnabled:
 
         all_flags = features.all()
         assert {flag.name for flag in all_flags} == flag_names
+
+
+class CustomFeatureFlagger(FeatureFlagger):
+    pass
+
+
+def flagger_test_factory():
+    return CustomFeatureFlagger(MemoryFeatureFlagStore())
+
+
+custom_feature_flag_yaml = b"""
+version: 1
+
+flagger_factory: tests.utilities.test_feature_flags.flagger_test_factory
+
+flags:
+  my-enabled-flag:
+    is_enabled: true
+    my-disabled-flag:
+    is_enabled: false
+"""
+
+invalid_feature_flag_yaml = b"""
+not_yaml
+"""
+
+
+@pytest.mark.usefixtures("enable_flagging")
+class TestFeatureFlaggingLoading:
+    def test_loads_yaml_from_file_in_setting(self, features):
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+        with NamedTemporaryFile() as f:
+            f.write(custom_feature_flag_yaml)
+            f.seek(0)
+
+            with temporary_settings({PREFECT_FEATURE_FLAGGING_SETTINGS_PATH: f.name}):
+                feature_flags._config = None
+                feature_flags._flagger = None
+                flagger = feature_flags.get_flagger()
+                assert isinstance(flagger, CustomFeatureFlagger)
+
+    def test_invalid_yaml_file(self, features):
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+        with NamedTemporaryFile() as f:
+            f.write(invalid_feature_flag_yaml)
+            f.seek(0)
+
+            with temporary_settings({PREFECT_FEATURE_FLAGGING_SETTINGS_PATH: f.name}):
+                feature_flags._config = None
+                feature_flags._flagger = None
+
+                with pytest.raises(RuntimeError) as e:
+                    feature_flags.get_flagger()
+
+                assert (
+                    "Could not parse feature flag configuration "
+                    "file: the file does not contain any fields" in str(e)
+                )
+
+    def test_empty_yaml_file(self, features):
+        with NamedTemporaryFile() as f:
+            f.write(b"")
+            f.seek(0)
+
+            with temporary_settings({PREFECT_FEATURE_FLAGGING_SETTINGS_PATH: f.name}):
+                feature_flags._config = None
+                feature_flags._flagger = None
+
+                with pytest.raises(RuntimeError) as e:
+                    feature_flags.get_flagger()
+
+                assert (
+                    "Could not parse feature flag configuration file: the file is empty"
+                    in str(e)
+                )
+
+    def test_get_feature_flagger_returns_same_flagger(self, features):
+        feature_flags._flagger = None
+        flagger = feature_flags.get_flagger()
+        assert flagger == feature_flags.get_flagger()
