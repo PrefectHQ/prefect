@@ -427,6 +427,12 @@ async def build(
         "-o",
         help="An optional filename to write the deployment file to.",
     ),
+    _apply: bool = typer.Option(
+        False,
+        "--apply",
+        "-a",
+        help="An optional flag to automatically register the resulting deployment with the API.",
+    ),
 ):
     """
     Generate a deployment YAML from /path/to/file.py:flow_function
@@ -557,6 +563,14 @@ async def build(
 
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
     await deployment.to_yaml(deployment_loc)
-    exit_with_success(
-        f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'."
-    )
+
+    if _apply:
+        deployment_id = await deployment.apply()
+        app.console.print(
+            f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
+            style="green",
+        )
+    else:
+        exit_with_success(
+            f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'."
+        )
