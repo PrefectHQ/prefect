@@ -51,17 +51,13 @@ async def load_flow_from_flow_run(
             storage_block = LocalFileSystem(basepath=basepath)
 
         sys.path.insert(0, ".")
-        # TODO: append deployment.path
-        await storage_block.get_directory(from_path=None, local_path=".")
+        await storage_block.get_directory(from_path=deployment.path, local_path=".")
 
     flow_run_logger(flow_run).debug(
         f"Loading flow for deployment {deployment.name!r}..."
     )
 
-    if deployment.path:
-        import_path = Path(deployment.path) / deployment.entrypoint
-    else:
-        import_path = deployment.entrypoint
+    import_path = deployment.entrypoint
 
     # for backwards compat
     if deployment.manifest_path:
@@ -172,6 +168,9 @@ class Deployment(BaseModel):
             "schedule",
             "infra_overrides",
         ]
+
+        # if infrastructure is baked as a pre-saved block, then
+        # editing its fields will not update anything
         if self.infrastructure._block_document_id:
             return editable_fields
         else:
@@ -220,6 +219,10 @@ class Deployment(BaseModel):
             all_fields["storage"][
                 "_block_type_slug"
             ] = self.storage.get_block_type_slug()
+        if all_fields["infrastructure"]:
+            all_fields["infrastructure"][
+                "_block_type_slug"
+            ] = self.infrastructure.get_block_type_slug()
         return all_fields
 
     # top level metadata
@@ -270,12 +273,38 @@ class Deployment(BaseModel):
         description="The parameter schema of the flow, including defaults.",
     )
 
-    @validator("storage", pre=True)
-    def cast_storage_to_block_type(cls, value):
+    @validator("infrastructure", pre=True)
+    def infrastructure_must_have_capabilities(cls, value):
         if isinstance(value, dict):
-            block = lookup_type(Block, value.pop("_block_type_slug"))
-            return block(**value)
-        return value
+            block_type = lookup_type(Block, value.pop("_block_type_slug"))
+            block = block_type(**value)
+        elif value is None:
+            return value
+        else:
+            block = value
+
+        if "run-infrastructure" not in block.get_block_capabilities():
+            raise ValueError(
+                "Infrastructure block must have 'run-infrastructure' capabilities."
+            )
+        return block
+
+    @validator("storage", pre=True)
+    def storage_must_have_capabilities(cls, value):
+        if isinstance(value, dict):
+            block_type = lookup_type(Block, value.pop("_block_type_slug"))
+            block = block_type(**value)
+        elif value is None:
+            return value
+        else:
+            block = value
+
+        capabilities = block.get_block_capabilities()
+        if "get-directory" not in capabilities and "put-directory" not in capabilities:
+            raise ValueError(
+                "Remote Storage block must have both 'get-directory' and 'put-directory' capabilities."
+            )
+        return block
 
     @validator("parameter_openapi_schema", pre=True)
     def handle_openapi_schema(cls, value):
@@ -372,25 +401,25 @@ class Deployment(BaseModel):
         deployment_path = None
         file_count = None
         if storage_block:
-            template = await Block.load(storage_block)
-            self.storage = template.copy(
-                exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
-            )
+            self.storage = await Block.load(storage_block)
 
             # upload current directory to storage location
-            file_count = await self.storage.put_directory(ignore_file=ignore_file)
+            file_count = await self.storage.put_directory(
+                ignore_file=ignore_file, to_path=self.path
+            )
         elif not self.storage:
             # default storage, no need to move anything around
             self.storage = None
-            deployment_path = str(Path(".").absolute())
+            self.path = str(Path(".").absolute())
         else:
-            file_count = await self.storage.put_directory(ignore_file=".prefectignore")
+            file_count = await self.storage.put_directory(
+                ignore_file=ignore_file, to_path=self.path
+            )
 
         # persists storage now in case it contains secret values
         if self.storage and not self.storage._block_document_id:
             await self.storage._save(is_anonymous=True)
 
-        self.path = deployment_path
         return file_count
 
     @sync_compatible
@@ -477,7 +506,8 @@ class Deployment(BaseModel):
         await deployment.load()
 
         # set a few attributes for this flow object
-        deployment.entrypoint = f"{Path(flow_file).absolute()}:{flow.fn.__name__}"
+        entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
+        deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
         deployment.parameter_openapi_schema = parameter_schema(flow)
         if not deployment.version:
             deployment.version = flow.version
