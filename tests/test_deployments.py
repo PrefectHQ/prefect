@@ -22,7 +22,7 @@ class TestDeploymentBasicInterface:
     async def test_that_storage_block_capabilities_are_validated(self):
         bad_storage = Process()
 
-        with pytest.raises(ValueError, match="capabilities"):
+        with pytest.raises(ValueError, match="'get-directory' capabilities"):
             Deployment(name="foo", storage=bad_storage)
 
     async def test_that_infrastructure_defaults_to_process(self):
