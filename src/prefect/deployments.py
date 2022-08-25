@@ -274,7 +274,7 @@ class Deployment(BaseModel):
     )
 
     @validator("infrastructure", pre=True)
-    def infrastructure_must_have_capabilities(cls, value):
+    def infrastructure_validation(cls, value):
         if isinstance(value, dict):
             block_type = lookup_type(Block, value.pop("_block_type_slug"))
             block = block_type(**value)
@@ -290,10 +290,13 @@ class Deployment(BaseModel):
         return block
 
     @validator("storage", pre=True)
-    def storage_must_have_capabilities(cls, value):
+    def storage_validation(cls, value):
         if isinstance(value, dict):
-            block_type = lookup_type(Block, value.pop("_block_type_slug"))
+            type_slug = value.pop("_block_type_slug")
+            block_type = lookup_type(Block, type_slug)
             block = block_type(**value)
+            if block._block_document_name:
+                block = Block.load(f"{type_slug}/{block._block_document_name}")
         elif value is None:
             return value
         else:
