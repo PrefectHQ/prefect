@@ -5,7 +5,6 @@ import os
 import textwrap
 from typing import Optional
 
-import httpx
 import typer
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
@@ -14,10 +13,8 @@ import prefect.context
 import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.cloud import CloudUnauthorizedError, get_cloud_client
 from prefect.cli.orion_utils import ConnectionStatus, check_orion_connection
 from prefect.cli.root import app
-from prefect.client import get_client
 from prefect.context import use_profile
 
 profile_app = PrefectTyper(

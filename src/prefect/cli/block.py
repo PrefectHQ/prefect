@@ -234,10 +234,15 @@ async def block_create(
         ui = ui_base_url(connection_status)
 
         if not ui:
-            exit_with_error("Prefect must be configured to use a hosted Orion server or Prefect cloud to display the Prefect UI")
+            exit_with_error(
+                "Prefect must be configured to use a hosted Orion server or Prefect cloud to display the Prefect UI"
+            )
 
         block_link = f"{ui}/blocks/catalog/{block_type.slug}/create"
-        app.console.print(f"Create a {block_type_slug} block: {block_link}", display_block_type(block_type))
+        app.console.print(
+            f"Create a {block_type_slug} block: {block_link}",
+            display_block_type(block_type),
+        )
 
 
 @blocks_app.command("inspect")
@@ -288,7 +293,9 @@ async def list_types():
 
     table.add_column("Block Type Slug", style="italic cyan", no_wrap=True)
     table.add_column("Description", style="blue", no_wrap=False, justify="right")
-    table.add_column("Generate creation link", style="italic cyan", no_wrap=False, justify="right")
+    table.add_column(
+        "Generate creation link", style="italic cyan", no_wrap=False, justify="right"
+    )
 
     for blocktype in sorted(block_types, key=lambda x: x.name):
         table.add_row(
