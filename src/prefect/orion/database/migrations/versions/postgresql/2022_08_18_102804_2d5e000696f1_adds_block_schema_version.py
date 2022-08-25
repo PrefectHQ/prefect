@@ -22,7 +22,6 @@ def upgrade():
             "version", sa.String(), server_default="non-versioned", nullable=False
         ),
     )
-    op.drop_index("ix_block_schema__capabilities", table_name="block_schema")
     op.drop_index("uq_block_schema__checksum", table_name="block_schema")
     op.create_index(
         "uq_block_schema__checksum_version",
@@ -36,8 +35,5 @@ def downgrade():
     op.drop_index("uq_block_schema__checksum_version", table_name="block_schema")
     op.create_index(
         "uq_block_schema__checksum", "block_schema", ["checksum"], unique=False
-    )
-    op.create_index(
-        "ix_block_schema__capabilities", "block_schema", ["capabilities"], unique=False
     )
     op.drop_column("block_schema", "version")
