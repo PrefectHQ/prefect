@@ -319,9 +319,9 @@ class Deployment(BaseModel):
             block = value
 
         capabilities = block.get_block_capabilities()
-        if "get-directory" not in capabilities and "put-directory" not in capabilities:
+        if "get-directory" not in capabilities:
             raise ValueError(
-                "Remote Storage block must have both 'get-directory' and 'put-directory' capabilities."
+                "Remote Storage block must have 'get-directory' capabilities."
             )
         return block
 
