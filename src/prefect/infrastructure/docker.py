@@ -556,3 +556,39 @@ class DockerContainer(Infrastructure):
             )
 
         return env
+
+
+def parse_tag_image(name: str) -> Tuple[str, Optional[str]]:
+    """
+    Parse Docker Image String
+
+    - If a tag exists, this function parses and returns the image registry and tag
+      as a tuple.
+      - Example 1: 'prefecthq/prefect:latest' -> ('prefecthq/prefect', 'latest')
+      - Example 2: 'hostname.io:5050/folder/subfolder:latest' -> ('hostname.io:5050/folder/subfolder', 'latest')
+
+    Args:
+        name (str): Name of Docker Image
+    
+    Return:
+        Tuple[str, str]: image registry, image tag
+    """
+    tag = None
+    name_parts = name.split('/')
+    # First handles the simplest image names (DockerHub-based, index-free, potentionally with a tag
+    # - Example: simple_name:latest
+    if len(name_parts) == 1:
+        if ':' in name_parts[0]:
+            image_name, tag = name_parts[0].split(':')
+        else:
+            image_name = name_parts[0]
+    else:
+        # 1. Separates index (hostname.io or prefecthq) from path:tag (folder/subfolder:latest or prefect:latest)
+        # 2. Separates path and tag (if tag exists)
+        # 3. Reunites index and path (without tag) as image name
+        index_name = name_parts[0]
+        image_path = '/'.join(name_parts[1:])
+        if ':' in image_path:
+            image_path, tag = image_path.split(':')
+        image_name = f"{index_name}/{image_path}"
+    return image_name, tag
