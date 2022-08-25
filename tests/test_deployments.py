@@ -188,8 +188,11 @@ class TestDeploymentBuild:
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
 
-    async def test_build_from_flow_sets_path(self, flow_function):
-        d = await Deployment.build_from_flow(flow=flow_function, name="foo")
+    @pytest.mark.parametrize("skip_upload", [True, False])
+    async def test_build_from_flow_sets_path(self, flow_function, skip_upload):
+        d = await Deployment.build_from_flow(
+            flow=flow_function, name="foo", skip_upload=skip_upload
+        )
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
         assert d.path is not None
