@@ -583,13 +583,16 @@ class FlowRunView:
             A populated `FlowRunView` instance
         """
         flow_run_data = cls._query_for_flow_run(where={"id": {"_eq": flow_run_id}})
+        _cached_task_runs = list(_cached_task_runs or [])
 
         if load_static_tasks:
             task_run_data = TaskRunView._query_for_task_runs(
                 where={
                     "map_index": {"_eq": -1},
                     "flow_run_id": {"_eq": flow_run_id},
+                    "id": {"_nin": [view.task_run_id for view in _cached_task_runs]},
                 },
+                error_on_empty=False,
             )
             task_runs = [
                 TaskRunView._from_task_run_data(data) for data in task_run_data
@@ -599,7 +602,7 @@ class FlowRunView:
             task_runs = []
 
         # Combine with the provided `_cached_task_runs` iterable
-        task_runs = task_runs + list(_cached_task_runs or [])
+        task_runs = task_runs + _cached_task_runs
 
         return cls._from_flow_run_data(flow_run_data, task_runs=task_runs)
 
@@ -740,7 +743,8 @@ class FlowRunView:
             where={
                 "flow_run_id": {"_eq": self.flow_run_id},
                 "id": {"_nin": list(self._cached_task_runs.keys())},
-            }
+            },
+            error_on_empty=False,
         )
 
         new_task_runs = [
