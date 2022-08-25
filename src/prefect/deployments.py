@@ -274,7 +274,7 @@ class Deployment(BaseModel):
     )
 
     @validator("infrastructure", pre=True)
-    def infrastructure_validation(cls, value):
+    def infrastructure_must_have_capabilities(cls, value):
         if isinstance(value, dict):
             block_type = lookup_type(Block, value.pop("_block_type_slug"))
             block = block_type(**value)
@@ -290,13 +290,10 @@ class Deployment(BaseModel):
         return block
 
     @validator("storage", pre=True)
-    def storage_validation(cls, value):
+    def storage_must_have_capabilities(cls, value):
         if isinstance(value, dict):
-            type_slug = value.pop("_block_type_slug")
-            block_type = lookup_type(Block, type_slug)
+            block_type = lookup_type(Block, value.pop("_block_type_slug"))
             block = block_type(**value)
-            if block._block_document_name:
-                block = Block.load(f"{type_slug}/{block._block_document_name}")
         elif value is None:
             return value
         else:
@@ -323,6 +320,24 @@ class Deployment(BaseModel):
     async def load_from_yaml(cls, path: str):
         with open(str(path), "r") as f:
             data = yaml.safe_load(f)
+
+            # load blocks from server to ensure secret values are properly hydrated
+            if data["storage"]:
+                block_doc_name = data["storage"].get("_block_document_name")
+                # if no doc name, this block is not stored on the server
+                if block_doc_name:
+                    block_slug = data["storage"]["_block_type_slug"]
+                    block = await Block.load(f"{block_slug}/{block_doc_name}")
+                    data["storage"] = block
+
+            if data["infrastructure"]:
+                block_doc_name = data["infrastructure"].get("_block_document_name")
+                # if no doc name, this block is not stored on the server
+                if block_doc_name:
+                    block_slug = data["infrastructure"]["_block_type_slug"]
+                    block = await Block.load(f"{block_slug}/{block_doc_name}")
+                    data["infrastructure"] = block
+
             return cls(**data)
 
     @sync_compatible
