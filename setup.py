@@ -63,7 +63,7 @@ extras = {
     "databricks": ["pydantic >= 1.9.0"],
     "dropbox": ["dropbox ~= 9.0"],
     "firebolt": ["firebolt-sdk >= 0.2.1"],
-    "ge": ["great_expectations >= 0.13.8", "mistune < 2.0"],
+    "ge": ["great_expectations >= 0.13.8"],
     "gcp": [
         "google-cloud-bigquery >= 1.6.0",
     ]
