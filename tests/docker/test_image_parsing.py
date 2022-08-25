@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.docker import parse_tag_image
+from prefect.docker import parse_image_tag
 
 
 @pytest.mark.parametrize(
@@ -21,5 +21,5 @@ from prefect.docker import parse_tag_image
         ),
     ],
 )
-def test_parse_tag_image(value, expected):
-    assert parse_tag_image(value) == expected
+def test_parse_image_tag(value, expected):
+    assert parse_image_tag(value) == expected

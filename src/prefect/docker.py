@@ -454,7 +454,7 @@ def to_run_command(command: List[str]) -> str:
     return run_command
 
 
-def parse_tag_image(name: str) -> Tuple[str, Optional[str]]:
+def parse_image_tag(name: str) -> Tuple[str, Optional[str]]:
     """
     Parse Docker Image String
 
