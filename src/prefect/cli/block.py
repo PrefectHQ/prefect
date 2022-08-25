@@ -215,6 +215,31 @@ async def block_delete(
             exit_with_error("Must provide a Block slug or id")
 
 
+@blocks_app.command("create")
+async def block_create(
+    block_type_slug: Optional[str] = typer.Argument(
+        ..., help="A Block type Slug: list using `prefect block type ls`"
+    ),
+):
+    """
+    Generate a link to the Prefect UI to create a Block.
+    """
+    async with get_client() as client:
+        try:
+            block_type = await client.read_block_type_by_slug(block_type_slug)
+        except ObjectNotFound:
+            exit_with_error(f"Block Type {block_type_slug!r} not found!")
+
+        connection_status = await check_orion_connection()
+        ui = ui_base_url(connection_status)
+
+        if not ui:
+            exit_with_error("Prefect must be configured to use a hosted Orion server or Prefect cloud to display the Prefect UI")
+
+        block_link = f"{ui}/blocks/catalog/{block_type.slug}/create"
+        app.console.print(f"Create a {block_type_slug} block: {block_link}", display_block_type(block_type))
+
+
 @blocks_app.command("inspect")
 async def block_inspect(
     slug: Optional[str] = typer.Argument(
@@ -256,28 +281,22 @@ async def list_types():
     async with get_client() as client:
         block_types = await client.read_block_types()
 
-    connection_status = await check_orion_connection()
-    ui_url = ui_base_url(connection_status)
-
     table = Table(
         title="Block Types",
         show_lines=True,
     )
-    table.add_column("Name", style="blue", no_wrap=True)
-    table.add_column("Slug", style="italic cyan", no_wrap=True)
+
+    table.add_column("Block Type Slug", style="italic cyan", no_wrap=True)
     table.add_column("Description", style="blue", no_wrap=False, justify="right")
-    table.add_column("", style="blue", no_wrap=False, justify="right")
+    table.add_column("Generate creation link", style="italic cyan", no_wrap=False, justify="right")
 
     for blocktype in sorted(block_types, key=lambda x: x.name):
         table.add_row(
-            str(blocktype.name),
             str(blocktype.slug),
             str(blocktype.description.splitlines()[0].partition(".")[0])
             if blocktype.description is not None
             else "",
-            f"[link={ui_url}/blocks/catalog/{blocktype.slug}/create]create[/link]"
-            if ui_url
-            else "",
+            f"prefect block create {blocktype.slug}",
         )
 
     app.console.print(table)
