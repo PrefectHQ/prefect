@@ -4,7 +4,7 @@ from pydantic.error_wrappers import ValidationError
 
 from prefect.blocks.core import Block
 from prefect.deployments import Deployment
-from prefect.filesystems import LocalFileSystem, S3
+from prefect.filesystems import S3, LocalFileSystem
 from prefect.infrastructure import Process
 
 
