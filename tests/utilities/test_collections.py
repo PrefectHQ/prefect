@@ -10,6 +10,7 @@ from prefect.utilities.collections import (
     AutoEnum,
     dict_to_flatdict,
     flatdict_to_dict,
+    isiterable,
     remove_nested_keys,
     visit_collection,
 )
@@ -409,3 +410,13 @@ class TestRemoveKeys:
         assert remove_nested_keys(["foo"], 1) == 1
         assert remove_nested_keys(["foo"], "foo") == "foo"
         assert remove_nested_keys(["foo"], b"foo") == b"foo"
+
+
+class TestIsIterable:
+    @pytest.mark.parametrize("obj", [[1, 2, 3], (1, 2, 3), "hello"])
+    def test_is_iterable(self, obj):
+        assert isiterable(obj)
+
+    @pytest.mark.parametrize("obj", [5, Exception(), True])
+    def test_not_iterable(self, obj):
+        assert not isiterable(obj)

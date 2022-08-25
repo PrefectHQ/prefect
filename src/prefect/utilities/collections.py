@@ -125,6 +125,15 @@ def flatdict_to_dict(
 T = TypeVar("T")
 
 
+def isiterable(obj: Any) -> bool:
+    try:
+        iter(obj)
+    except TypeError:
+        return False
+    else:
+        return True
+
+
 def ensure_iterable(obj: Union[T, Iterable[T]]) -> Iterable[T]:
     if isinstance(obj, Sequence) or isinstance(obj, Set):
         return obj

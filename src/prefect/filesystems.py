@@ -25,14 +25,44 @@ class ReadableFileSystem(Block, abc.ABC):
 
 
 class WritableFileSystem(Block, abc.ABC):
-    _block_schema_capabilities = ["write-path"]
+    _block_schema_capabilities = ["read-path", "write-path"]
+
+    @abc.abstractmethod
+    async def read_path(self, path: str) -> bytes:
+        pass
 
     @abc.abstractmethod
     async def write_path(self, path: str, content: bytes) -> None:
         pass
 
 
-class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
+class ReadableDeploymentStorage(Block, abc.ABC):
+    _block_schema_capabilities = ["get-directory"]
+
+    @abc.abstractmethod
+    async def get_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> None:
+        pass
+
+
+class WritableDeploymentStorage(Block, abc.ABC):
+    _block_schema_capabilities = ["get-directory", "put-directory"]
+
+    @abc.abstractmethod
+    async def get_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> None:
+        pass
+
+    @abc.abstractmethod
+    async def put_directory(
+        self, local_path: str = None, to_path: str = None, ignore_file: str = None
+    ) -> None:
+        pass
+
+
+class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on a local file system.
 
@@ -73,9 +103,9 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
             path = basepath / path
         else:
             path = path.resolve()
-            if not basepath in path.parents:
+            if not basepath in path.parents and (basepath != path):
                 raise ValueError(
-                    f"Attempted to write to path {path} outside of the base path {basepath}."
+                    f"Provided path {path} is outside of the base path {basepath}."
                 )
 
         return path
@@ -171,7 +201,7 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
             await f.write(content)
 
 
-class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
+class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on a remote file system.
 
@@ -253,6 +283,8 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         """
         if from_path is None:
             from_path = str(self.basepath)
+        else:
+            from_path = self._resolve_path(from_path)
 
         if local_path is None:
             local_path = Path(".").absolute()
@@ -273,6 +305,8 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         """
         if to_path is None:
             to_path = str(self.basepath)
+        else:
+            to_path = self._resolve_path(to_path)
 
         if local_path is None:
             local_path = "."
@@ -338,7 +372,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         return self._filesystem
 
 
-class S3(ReadableFileSystem, WritableFileSystem):
+class S3(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on AWS S3.
 
@@ -422,7 +456,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
         return await self.filesystem.write_path(path=path, content=content)
 
 
-class GCS(ReadableFileSystem, WritableFileSystem):
+class GCS(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on Google Cloud Storage.
 
@@ -503,7 +537,7 @@ class GCS(ReadableFileSystem, WritableFileSystem):
         return await self.filesystem.write_path(path=path, content=content)
 
 
-class Azure(ReadableFileSystem, WritableFileSystem):
+class Azure(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on Azure Datalake and Azure Blob Storage.
 
@@ -597,7 +631,7 @@ class Azure(ReadableFileSystem, WritableFileSystem):
         return await self.filesystem.write_path(path=path, content=content)
 
 
-class SMB(ReadableFileSystem, WritableFileSystem):
+class SMB(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on a SMB share.
 
