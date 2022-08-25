@@ -23,7 +23,7 @@ The Prefect Orion database persists data used by many features of Prefect to per
 Currently Prefect Orion supports the following databases:
 
 - SQLite: The default in Prefect Orion, and our recommendation for lightweight, single-server deployments. SQLite requires essentially no setup.
-- PostgreSQL: Best for connecting to external databases, but does require additional setup (such as Docker). Prefect Orion uses the `pg_trgm` extension, so it must be installed and added to a schema visible to the Postgres user in your connection string.
+- PostgreSQL: Best for connecting to external databases, but does require additional setup (such as Docker). Prefect Orion uses the [`pg_trgm`](https://www.postgresql.org/docs/current/pgtrgm.html) extension, so it must be installed and added to a schema visible to the Postgres user in your connection string.
 
 ## Using the database
 
