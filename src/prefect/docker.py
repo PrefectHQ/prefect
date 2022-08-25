@@ -14,9 +14,9 @@ from typing import (
     List,
     Optional,
     TextIO,
+    Tuple,
     Type,
     Union,
-    Tuple
 )
 from urllib.parse import urlsplit
 
@@ -454,32 +454,39 @@ def to_run_command(command: List[str]) -> str:
     return run_command
 
 
-def parse_image_tag(image_tag: str) -> Tuple[str, Optional[str]]:
+def parse_tag_image(name: str) -> Tuple[str, Optional[str]]:
     """
-    Splits an docker image url into the registry adress and image name and tag. The expected format is `[[registry-address]:port/]name:tag`, where `registry-adress` and `port` can be omitted. The output is `[registry-address]:port/]name, tag`.
+    Parse Docker Image String
+
+    - If a tag exists, this function parses and returns the image registry and tag, separately
+      as a tuple.
+      - Example 1: 'prefecthq/prefect:latest' -> ('prefecthq/prefect', 'latest')
+      - Example 2: 'hostname.io:5050/folder/subfolder:latest' -> ('hostname.io:5050/folder/subfolder', 'latest')
+    - Supports parsing Docker Image strings that follow Docker Image Specification v1.1.0
+      - Image building tools typically enforce this standard
+
+    Args:
+        name (str): Name of Docker Image
+
+    Return:
+        tuple: image registry, image tag
     """
     tag = None
-    if image_tag.startswith('http:') or image_tag.startswith('https:'):
-        raise ValueError(f'The docker image url should not start with "http" or "https".')
-    parts = image_tag.split(":")
-    if len(parts)==1:
-        # neither port nor tag given
-        image = image_tag
-    elif len(parts)==3:
-        # port and tag given
-        if not '/' in parts[1]:
-            raise ValueError(f'Given docker image url ({image_tag}) is not valid.')
-        image = ':'.join(parts[:-1])
-        tag = parts[-1]
-    elif len(parts)==2:
-        # port or tag given
-        if '/' in parts[1]:
-            # port is given
-            image = image_tag
+    name_parts = name.split("/")
+    # First handles the simplest image names (DockerHub-based, index-free, potentionally with a tag)
+    # - Example: simplename:latest
+    if len(name_parts) == 1:
+        if ":" in name_parts[0]:
+            image_name, tag = name_parts[0].split(":")
         else:
-            # tag is given
-            image = parts[0]
-            tag = parts[1]
+            image_name = name_parts[0]
     else:
-        raise ValueError(f'Given docker image url ({image_tag} is not valid.')
-    return image, tag
+        # 1. Separates index (hostname.io or prefecthq) from path:tag (folder/subfolder:latest or prefect:latest)
+        # 2. Separates path and tag (if tag exists)
+        # 3. Reunites index and path (without tag) as image name
+        index_name = name_parts[0]
+        image_path = "/".join(name_parts[1:])
+        if ":" in image_path:
+            image_path, tag = image_path.split(":")
+        image_name = f"{index_name}/{image_path}"
+    return image_name, tag

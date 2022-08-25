@@ -298,7 +298,6 @@ class DockerContainer(Infrastructure):
 
     def _get_image_and_tag(self) -> Tuple[str, Optional[str]]:
         return parse_image_tag(self.image)
-        
 
     def _determine_image_pull_policy(self) -> ImagePullPolicy:
         """
