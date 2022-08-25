@@ -255,6 +255,11 @@ async def apply(
         ...,
         help="One or more paths to deployment YAML files.",
     ),
+    upload: bool = typer.Option(
+        False,
+        "--upload",
+        help="A flag that, when provided, uploads this deployment's files to remote storage.",
+    ),
 ):
     """
     Create or update a deployment from a YAML file.
@@ -266,6 +271,21 @@ async def apply(
             app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
         except Exception as exc:
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
+
+        if upload:
+            file_count = await deployment.upload_to_storage()
+            if file_count and deployment.storage:
+                location = (
+                    deployment.storage.basepath + "/"
+                    if not deployment.storage.basepath.endswith("/")
+                    else ""
+                )
+                if deployment.path:
+                    location += deployment.path
+                app.console.print(
+                    f"Successfully uploaded {file_count} files to {location}",
+                    style="green",
+                )
 
         deployment_id = await deployment.apply()
         app.console.print(
