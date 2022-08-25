@@ -1,9 +1,10 @@
 import pytest
+import yaml
 from pydantic.error_wrappers import ValidationError
 
 from prefect.blocks.core import Block
 from prefect.deployments import Deployment
-from prefect.filesystems import LocalFileSystem
+from prefect.filesystems import LocalFileSystem, S3
 from prefect.infrastructure import Process
 
 
@@ -259,6 +260,39 @@ class TestYAML:
         assert new_d.flow_name == "test"
         assert new_d.storage == storage
         assert new_d.infrastructure == infrastructure
+
+    async def test_deployment_yaml_roundtrip_handles_secret_values(self, tmp_path):
+        storage = S3(
+            bucket_path="unreal",
+            aws_access_key_id="fake",
+            aws_secret_access_key="faker",
+        )
+
+        # save so that secret values are persisted somewhere
+        await storage.save("test-me-with-secrets")
+        infrastructure = Process()
+
+        d = Deployment(
+            name="yaml",
+            flow_name="test",
+            storage=storage,
+            infrastructure=infrastructure,
+            tags=["A", "B"],
+        )
+        yaml_path = str(tmp_path / "dep.yaml")
+        await d.to_yaml(yaml_path)
+
+        with open(yaml_path, "r") as f:
+            data = yaml.safe_load(f)
+
+        # ensure secret values are hidden
+        assert set(data["storage"]["aws_access_key_id"]) == {"*"}
+        assert set(data["storage"]["aws_secret_access_key"]) == {"*"}
+
+        # ensure secret values are re-hydrated
+        new_d = await Deployment.load_from_yaml(yaml_path)
+        assert new_d.storage.aws_access_key_id.get_secret_value() == "fake"
+        assert new_d.storage.aws_secret_access_key.get_secret_value() == "faker"
 
     def test_yaml_comment_for_work_queue(self, tmp_path):
         d = Deployment(name="yaml", flow_name="test")
