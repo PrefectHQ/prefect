@@ -15,6 +15,7 @@ export const routes = {
   notifications: () => ({ name: 'notifications' }) as const,
   notificationCreate: () => ({ name: 'notifications.create' }) as const,
   notificationEdit: (notificationId: string) => ({ name: 'notifications.edit', params: { notificationId } }) as const,
+  taskRun: (id: string) => ({ name: 'task-run', params: { id } }) as const,
   workQueue: (id: string) => ({ name: 'work-queue', params: { id } }) as const,
   workQueueEdit: (id: string) => ({ name: 'edit-work-queue', params: { id } }) as const,
   workQueueCreate: () => ({ name: 'create-work-queue' }) as const,
