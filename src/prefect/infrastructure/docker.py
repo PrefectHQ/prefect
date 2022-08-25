@@ -14,7 +14,7 @@ from typing_extensions import Literal
 
 import prefect
 from prefect.blocks.core import Block, SecretStr
-from prefect.docker import get_prefect_image_name
+from prefect.docker import get_prefect_image_name, parse_image_tag
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -297,10 +297,7 @@ class DockerContainer(Infrastructure):
         return container.id
 
     def _get_image_and_tag(self) -> Tuple[str, Optional[str]]:
-        parts = self.image.split(":")
-        image = parts.pop(0)
-        tag = parts[0] if parts else None
-        return image, tag
+        return parse_image_tag(self.image)
 
     def _determine_image_pull_policy(self) -> ImagePullPolicy:
         """
