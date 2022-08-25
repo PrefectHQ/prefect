@@ -16,6 +16,7 @@ from typing import (
     TextIO,
     Type,
     Union,
+    Tuple
 )
 from urllib.parse import urlsplit
 
@@ -451,3 +452,34 @@ def to_run_command(command: List[str]) -> str:
     # )
 
     return run_command
+
+
+def parse_image_tag(image_tag: str) -> Tuple[str, Optional[str]]:
+    """
+    Splits an docker image url into the registry adress and image name and tag. The expected format is `[[registry-address]:port/]name:tag`, where `registry-adress` and `port` can be omitted. The output is `[registry-address]:port/]name, tag`.
+    """
+    tag = None
+    if image_tag.startswith('http:') or image_tag.startswith('https:'):
+        raise ValueError(f'The docker image url should not start with "http" or "https".')
+    parts = image_tag.split(":")
+    if len(parts)==1:
+        # neither port nor tag given
+        image = image_tag
+    elif len(parts)==3:
+        # port and tag given
+        if not '/' in parts[1]:
+            raise ValueError(f'Given docker image url ({image_tag}) is not valid.')
+        image = ':'.join(parts[:-1])
+        tag = parts[-1]
+    elif len(parts)==2:
+        # port or tag given
+        if '/' in parts[1]:
+            # port is given
+            image = image_tag
+        else:
+            # tag is given
+            image = parts[0]
+            tag = parts[1]
+    else:
+        raise ValueError(f'Given docker image url ({image_tag} is not valid.')
+    return image, tag
