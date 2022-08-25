@@ -211,6 +211,15 @@ class TestDeploymentBuild:
         assert d.description == flow_function.description
         assert d.version == flow_function.version
 
+    async def test_build_from_flow_sets_correct_entrypoint(self, flow_function):
+        """
+        Entrypoints are *always* relative to {storage.basepath / path}
+        """
+        d = await Deployment.build_from_flow(
+            flow=flow_function, name="foo", description="a", version="b"
+        )
+        d.entrypoint == "tests/fixtures/client.py:client_test_flow"
+
     async def test_build_from_flow_sets_provided_attrs(self, flow_function):
         d = await Deployment.build_from_flow(
             flow_function,
