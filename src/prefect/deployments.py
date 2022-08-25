@@ -407,11 +407,7 @@ class Deployment(BaseModel):
             file_count = await self.storage.put_directory(
                 ignore_file=ignore_file, to_path=self.path
             )
-        elif not self.storage:
-            # default storage, no need to move anything around
-            self.storage = None
-            self.path = str(Path(".").absolute())
-        else:
+        elif self.storage:
             file_count = await self.storage.put_directory(
                 ignore_file=ignore_file, to_path=self.path
             )
@@ -471,6 +467,7 @@ class Deployment(BaseModel):
         flow: Flow,
         name: str,
         output: str = None,
+        skip_upload: bool = False,
         **kwargs,
     ) -> "Deployment":
         """
@@ -484,6 +481,7 @@ class Deployment(BaseModel):
             name: A name for the deployment
             output (optional): if provided, the full deployment specification will be written as a YAML
                 file in the location specified by `output`
+            skip_upload: if True, deployment files are not automatically uploaded to remote storage
             **kwargs: other keyword arguments to pass to the constructor for the `Deployment` class
         """
         if not name:
@@ -513,11 +511,11 @@ class Deployment(BaseModel):
             deployment.version = flow.version
         if not deployment.description:
             deployment.description = flow.description
+        if not deployment.storage:
+            deployment.path = str(Path(".").absolute())
 
-        # if no storage is set, assume local for now
-        # TODO: revisit with Docker integration
-        # note: this method call sets `deployment.path`
-        await deployment.upload_to_storage()
+        if not skip_upload:
+            await deployment.upload_to_storage()
 
         if output:
             await deployment.to_yaml(output)

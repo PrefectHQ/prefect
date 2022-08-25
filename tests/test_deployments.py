@@ -131,12 +131,6 @@ class TestDeploymentLoad:
 
 
 class TestDeploymentUpload:
-    async def test_uploading_with_no_storage_sets_path(self):
-        d = Deployment(name="foo", flow_name="bar")
-        assert d.path is None
-        await d.upload_to_storage()
-        assert d.path
-
     async def test_uploading_with_unsaved_storage_creates_anon_block(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
 
@@ -193,6 +187,12 @@ class TestDeploymentBuild:
         d = await Deployment.build_from_flow(flow=flow_function, name="foo")
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
+
+    async def test_build_from_flow_sets_path(self, flow_function):
+        d = await Deployment.build_from_flow(flow=flow_function, name="foo")
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.path is not None
 
     async def test_build_from_flow_sets_description_and_version_if_not_set(
         self, flow_function
