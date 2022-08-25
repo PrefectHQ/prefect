@@ -509,6 +509,9 @@ class Deployment(BaseModel):
         deployment.flow_name = flow.name
         await deployment.load()
 
+        # proxy for whether infra is docker-based
+        is_docker_based = hasattr(deployment.infrastructure, "image")
+
         # set a few attributes for this flow object
         entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
         deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
@@ -518,8 +521,13 @@ class Deployment(BaseModel):
             deployment.version = flow.version
         if not deployment.description:
             deployment.description = flow.description
-        if not deployment.storage:
+
+        if not deployment.storage and not is_docker_based:
             deployment.path = str(Path(".").absolute())
+        elif not deployment.storage and is_docker_based:
+            # only update if a path is not already set
+            if not deployment.path:
+                deployment.path = "/opt/prefect"
 
         if not skip_upload:
             await deployment.upload_to_storage()
