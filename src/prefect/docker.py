@@ -473,7 +473,7 @@ def parse_tag_image(name: str) -> Tuple[str, Optional[str]]:
     """
     tag = None
     name_parts = name.split("/")
-    # First handles the simplest image names (DockerHub-based, index-free, potentionally with a tag
+    # First handles the simplest image names (DockerHub-based, index-free, potentionally with a tag)
     # - Example: simple_name:latest
     if len(name_parts) == 1:
         if ":" in name_parts[0]:
