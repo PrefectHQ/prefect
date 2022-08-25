@@ -68,8 +68,8 @@
     router.push(routes.workQueues())
   }
 
-  watch(workQueue, () => {
-    if (workQueue.value?.deprecated) {
+  watch(() => workQueue.value?.deprecated, value => {
+    if (value) {
       showToast(localization.info.deprecatedWorkQueue, 'default', { dismissible: false, timeout: false })
     }
   })
