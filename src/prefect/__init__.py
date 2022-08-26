@@ -13,7 +13,7 @@ __version__ = __version_info__["version"]
 
 # The absolute path to this module
 __module_path__ = pathlib.Path(__file__).parent
-# The absolute path to the root of the repository
+# The absolute path to the root of the repository, only valid for use during development.
 __root_path__ = __module_path__.parents[1]
 # The absolute path to the built UI within the Python module
 __ui_static_path__ = __module_path__ / "orion" / "ui"
@@ -27,7 +27,6 @@ from prefect.flows import flow, Flow
 from prefect.tasks import task, Task
 from prefect.context import tags
 from prefect.client import get_client
-from prefect.deployments import Deployment
 from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped
 
@@ -79,7 +78,7 @@ if not hasattr(sys, "frozen"):
     sys.meta_path = [Prefect1ImportInterceptor()] + sys.meta_path
 
 
-prefect.context.enter_root_settings_context()
+prefect.context.root_settings_context()
 prefect.context.initialize_object_registry()
 
 # The context needs updated references for flows and tasks
@@ -93,7 +92,6 @@ prefect.plugins.load_prefect_collections()
 
 # Declare API
 __all__ = [
-    "Deployment",
     "flow",
     "Flow",
     "get_client",

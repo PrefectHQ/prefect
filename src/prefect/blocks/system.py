@@ -24,7 +24,7 @@ class JSON(Block):
 
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/19W3Di10hhb4oma2Qer0x6/764d1e7b4b9974cd268c775a488b9d26/image16.png?h=250"
 
-    value: Any = Field(..., description="A JSON-compatible value")
+    value: Any = Field(..., description="A JSON-compatible value.")
 
 
 class String(Block):

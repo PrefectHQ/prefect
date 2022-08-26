@@ -10,6 +10,7 @@ from prefect.utilities.collections import (
     AutoEnum,
     dict_to_flatdict,
     flatdict_to_dict,
+    isiterable,
     remove_nested_keys,
     visit_collection,
 )
@@ -21,14 +22,14 @@ class Color(AutoEnum):
 
 
 class TestAutoEnum:
-    async def test_autoenum_generates_string_values(self):
+    def test_autoenum_generates_string_values(self):
         assert Color.RED.value == "RED"
         assert Color.BLUE.value == "BLUE"
 
-    async def test_autoenum_repr(self):
+    def test_autoenum_repr(self):
         assert repr(Color.RED) == str(Color.RED) == "Color.RED"
 
-    async def test_autoenum_can_be_json_serialized_with_default_encoder(self):
+    def test_autoenum_can_be_json_serialized_with_default_encoder(self):
         json.dumps(Color.RED) == "RED"
 
 
@@ -62,9 +63,16 @@ def test_flatdict_conversion(d, expected):
     assert flatdict_to_dict(flat) == d
 
 
-async def negative_even_numbers(x):
+def negative_even_numbers(x):
     print("Function called on", x)
     if isinstance(x, int) and x % 2 == 0:
+        return -x
+    return x
+
+
+def all_negative_numbers(x):
+    print("Function called on", x)
+    if isinstance(x, int):
         return -x
     return x
 
@@ -72,7 +80,7 @@ async def negative_even_numbers(x):
 EVEN = set()
 
 
-async def visit_even_numbers(x):
+def visit_even_numbers(x):
     if isinstance(x, int) and x % 2 == 0:
         EVEN.add(x)
     return x
@@ -81,7 +89,7 @@ async def visit_even_numbers(x):
 VISITED = list()
 
 
-async def add_to_visited_list(x):
+def add_to_visited_list(x):
     VISITED.append(x)
 
 
@@ -145,7 +153,7 @@ class TestPydanticObjects:
     breaking changes.
     """
 
-    async def test_private_pydantic_behaves_as_expected(self):
+    def test_private_pydantic_behaves_as_expected(self):
         input = PrivatePydantic(x=1)
 
         # Public attr accessible immediately
@@ -163,7 +171,7 @@ class TestPydanticObjects:
         assert input._y == 4
         assert input._z == 5
 
-    async def test_immutable_pydantic_behaves_as_expected(self):
+    def test_immutable_pydantic_behaves_as_expected(self):
 
         input = ImmutablePrivatePydantic(x=1)
 
@@ -207,10 +215,8 @@ class TestVisitCollection:
             (ExtraPydantic(x=1, y=2, z=3), ExtraPydantic(x=1, y=-2, z=3)),
         ],
     )
-    async def test_visit_collection_and_transform_data(self, inp, expected):
-        result = await visit_collection(
-            inp, visit_fn=negative_even_numbers, return_data=True
-        )
+    def test_visit_collection_and_transform_data(self, inp, expected):
+        result = visit_collection(inp, visit_fn=negative_even_numbers, return_data=True)
         assert result == expected
 
     @pytest.mark.parametrize(
@@ -229,10 +235,8 @@ class TestVisitCollection:
             (ExtraPydantic(x=1, y=2, z=4), {2, 4}),
         ],
     )
-    async def test_visit_collection(self, inp, expected):
-        result = await visit_collection(
-            inp, visit_fn=visit_even_numbers, return_data=False
-        )
+    def test_visit_collection(self, inp, expected):
+        result = visit_collection(inp, visit_fn=visit_even_numbers, return_data=False)
         assert result is None
         assert EVEN == expected
 
@@ -243,27 +247,25 @@ class TestVisitCollection:
             (SimpleDataclass(x=1, y=2), [SimpleDataclass(x=1, y=2), 1, 2]),
         ],
     )
-    async def test_visit_collection_visits_nodes(self, inp, expected):
-        result = await visit_collection(
-            inp, visit_fn=add_to_visited_list, return_data=False
-        )
+    def test_visit_collection_visits_nodes(self, inp, expected):
+        result = visit_collection(inp, visit_fn=add_to_visited_list, return_data=False)
         assert result is None
         assert VISITED == expected
 
-    async def test_visit_collection_allows_mutation_of_nodes(self):
-        async def collect_and_drop_x_from_dicts(node):
-            await add_to_visited_list(node)
+    def test_visit_collection_allows_mutation_of_nodes(self):
+        def collect_and_drop_x_from_dicts(node):
+            add_to_visited_list(node)
             if isinstance(node, dict):
                 return {key: value for key, value in node.items() if key != "x"}
             return node
 
-        result = await visit_collection(
+        result = visit_collection(
             {"x": 1, "y": 2}, visit_fn=collect_and_drop_x_from_dicts, return_data=True
         )
         assert result == {"y": 2}
         assert VISITED == [{"x": 1, "y": 2}, "y", 2]
 
-    async def test_visit_collection_with_private_pydantic_attributes(self):
+    def test_visit_collection_with_private_pydantic_attributes(self):
         """
         We should not visit private fields on Pydantic models.
         """
@@ -271,9 +273,7 @@ class TestVisitCollection:
         input._y = 3
         input._z = 4
 
-        result = await visit_collection(
-            input, visit_fn=visit_even_numbers, return_data=False
-        )
+        result = visit_collection(input, visit_fn=visit_even_numbers, return_data=False)
         assert EVEN == {2}, "Only the public field should be visited"
         assert result is None, "Data should not be returned"
 
@@ -281,12 +281,12 @@ class TestVisitCollection:
         assert input._y == 3
         assert input._z == 4
 
-    async def test_visit_collection_includes_unset_pydantic_fields(self):
+    def test_visit_collection_includes_unset_pydantic_fields(self):
         class RandomPydantic(pydantic.BaseModel):
             val: uuid.UUID = pydantic.Field(default_factory=uuid.uuid4)
 
         input_model = RandomPydantic()
-        output_model = await visit_collection(
+        output_model = visit_collection(
             input_model, visit_fn=visit_even_numbers, return_data=True
         )
 
@@ -295,7 +295,7 @@ class TestVisitCollection:
         ), "The fields value should be used, not the default factory"
 
     @pytest.mark.parametrize("immutable", [True, False])
-    async def test_visit_collection_mutation_with_private_pydantic_attributes(
+    def test_visit_collection_mutation_with_private_pydantic_attributes(
         self, immutable
     ):
         model = ImmutablePrivatePydantic if immutable else PrivatePydantic
@@ -303,7 +303,7 @@ class TestVisitCollection:
         input._y = 3
         input._z = 4
 
-        result = await visit_collection(
+        result = visit_collection(
             input, visit_fn=negative_even_numbers, return_data=True
         )
 
@@ -319,25 +319,23 @@ class TestVisitCollection:
         assert result._z == 4
 
     @pytest.mark.skipif(True, reason="We will recurse forever in this case")
-    async def test_visit_collection_does_not_recurse_forever_in_reference_cycle(self):
+    def test_visit_collection_does_not_recurse_forever_in_reference_cycle(self):
         # Create references to each other
         foo = Foo(x=None)
         bar = Bar(y=foo)
         foo.x = bar
 
-        await visit_collection(
-            [foo, bar], visit_fn=negative_even_numbers, return_data=True
-        )
+        visit_collection([foo, bar], visit_fn=negative_even_numbers, return_data=True)
 
     @pytest.mark.skipif(True, reason="We will recurse forever in this case")
     @pytest.mark.xfail(reason="We do not return correct results in this case")
-    async def test_visit_collection_returns_correct_result_in_reference_cycle(self):
+    def test_visit_collection_returns_correct_result_in_reference_cycle(self):
         # Create references to each other
         foo = Foo(x=None)
         bar = Bar(y=foo)
         foo.x = bar
 
-        result = await visit_collection(
+        result = visit_collection(
             [foo, bar], visit_fn=negative_even_numbers, return_data=True
         )
         expected_foo = Foo(x=None)
@@ -346,7 +344,7 @@ class TestVisitCollection:
 
         assert result == [expected_foo, expected_bar]
 
-    async def test_visit_collection_works_with_field_alias(self):
+    def test_visit_collection_works_with_field_alias(self):
         class TargetConfigs(pydantic.BaseModel):
             type: str
             schema_: str = pydantic.Field(alias="schema")
@@ -355,11 +353,27 @@ class TestVisitCollection:
         target_configs = TargetConfigs(
             type="a_type", schema="a working schema", threads=1
         )
-        result = await visit_collection(
+        result = visit_collection(
             target_configs, visit_fn=negative_even_numbers, return_data=True
         )
 
         assert result == target_configs
+
+    @pytest.mark.parametrize(
+        "inp,depth,expected",
+        [
+            (1, 0, -1),
+            ([1, [2, [3, [4]]]], 0, [1, [2, [3, [4]]]]),
+            ([1, [2, [3, [4]]]], 1, [-1, [2, [3, [4]]]]),
+            ([1, [2, [3, [4]]]], 2, [-1, [-2, [3, [4]]]]),
+            ([1, 1, 1, [2, 2, 2]], 1, [-1, -1, -1, [2, 2, 2]]),
+        ],
+    )
+    def test_visit_collection_max_depth(self, inp, depth, expected):
+        result = visit_collection(
+            inp, visit_fn=all_negative_numbers, return_data=True, max_depth=depth
+        )
+        assert result == expected
 
 
 class TestRemoveKeys:
@@ -396,3 +410,13 @@ class TestRemoveKeys:
         assert remove_nested_keys(["foo"], 1) == 1
         assert remove_nested_keys(["foo"], "foo") == "foo"
         assert remove_nested_keys(["foo"], b"foo") == b"foo"
+
+
+class TestIsIterable:
+    @pytest.mark.parametrize("obj", [[1, 2, 3], (1, 2, 3), "hello"])
+    def test_is_iterable(self, obj):
+        assert isiterable(obj)
+
+    @pytest.mark.parametrize("obj", [5, Exception(), True])
+    def test_not_iterable(self, obj):
+        assert not isiterable(obj)

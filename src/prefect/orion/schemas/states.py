@@ -12,7 +12,7 @@ import pendulum
 from pydantic import Field, root_validator, validator
 
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel
+from prefect.orion.utilities.schemas import DateTimeTZ, IDBaseModel, PrefectBaseModel
 from prefect.utilities.collections import AutoEnum
 
 R = TypeVar("R")
@@ -43,9 +43,10 @@ class StateDetails(PrefectBaseModel):
     task_run_id: UUID = None
     # for task runs that represent subflows, the subflow's run ID
     child_flow_run_id: UUID = None
-    scheduled_time: datetime.datetime = None
+    scheduled_time: DateTimeTZ = None
     cache_key: str = None
-    cache_expiration: datetime.datetime = None
+    cache_expiration: DateTimeTZ = None
+    untrackable_result: bool = False
 
 
 class State(IDBaseModel, Generic[R]):
@@ -56,7 +57,7 @@ class State(IDBaseModel, Generic[R]):
 
     type: StateType
     name: str = None
-    timestamp: datetime.datetime = Field(default_factory=lambda: pendulum.now("UTC"))
+    timestamp: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
     message: str = Field(None, example="Run started")
     data: DataDocument[R] = Field(None)
     state_details: StateDetails = Field(default_factory=StateDetails)
@@ -136,9 +137,6 @@ class State(IDBaseModel, Generic[R]):
         # Link the result to this state for dependency tracking
         # Performing this here lets us capture relationships for futures resolved into
         # data
-        from prefect.engine import link_state_to_result
-
-        link_state_to_result(self, data)
 
         if (self.is_failed() or self.is_crashed()) and raise_on_failure:
             if isinstance(data, Exception):
@@ -191,28 +189,28 @@ class State(IDBaseModel, Generic[R]):
                 state_details.scheduled_time = pendulum.now("utc")
         return values
 
-    def is_scheduled(self):
+    def is_scheduled(self) -> bool:
         return self.type == StateType.SCHEDULED
 
-    def is_pending(self):
+    def is_pending(self) -> bool:
         return self.type == StateType.PENDING
 
-    def is_running(self):
+    def is_running(self) -> bool:
         return self.type == StateType.RUNNING
 
-    def is_completed(self):
+    def is_completed(self) -> bool:
         return self.type == StateType.COMPLETED
 
-    def is_failed(self):
+    def is_failed(self) -> bool:
         return self.type == StateType.FAILED
 
-    def is_crashed(self):
+    def is_crashed(self) -> bool:
         return self.type == StateType.CRASHED
 
-    def is_cancelled(self):
+    def is_cancelled(self) -> bool:
         return self.type == StateType.CANCELLED
 
-    def is_final(self):
+    def is_final(self) -> bool:
         return self.type in TERMINAL_STATES
 
     def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):

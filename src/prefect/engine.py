@@ -20,7 +20,7 @@ import sys
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 import pendulum
@@ -37,10 +37,15 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
-from prefect.exceptions import Abort, MappingLengthMismatch, UpstreamTaskError
+from prefect.exceptions import (
+    Abort,
+    MappingLengthMismatch,
+    MappingMissingIterable,
+    UpstreamTaskError,
+)
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_data
+from prefect.futures import PrefectFuture, call_repr
 from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import OrionHandler
 from prefect.logging.loggers import (
@@ -89,7 +94,8 @@ from prefect.utilities.asyncutils import (
     run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import Quote, visit_collection
+from prefect.utilities.collections import Quote, isiterable, visit_collection
+from prefect.utilities.hashing import stable_hash
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
@@ -134,15 +140,15 @@ def enter_flow_run_engine_from_flow_call(
         flow=flow,
         parameters=parameters,
         return_type=return_type,
+        client=parent_flow_run_context.client if is_subflow_run else None,
     )
 
-    # Async flow run
-    if flow.isasync:
-        return begin_run()  # Return a coroutine for the user to await
-
-    # Sync flow run
     if not is_subflow_run:
-        if in_async_main_thread():
+        # Async flow run
+        if flow.isasync:
+            return begin_run()  # Return a coroutine for the user to await
+        # Sync flow run
+        elif in_async_main_thread():
             # An event loop is already running and we must create a blocking portal to
             # run async code from this synchronous context
             with start_blocking_portal() as portal:
@@ -151,10 +157,14 @@ def enter_flow_run_engine_from_flow_call(
             # An event loop is not running so we will create one
             return anyio.run(begin_run)
 
-    # Sync subflow run
     if not parent_flow_run_context.flow.isasync:
+        # Async subflow run in sync flow run
         return run_async_from_worker_thread(begin_run)
+    elif parent_flow_run_context.flow.isasync and flow.isasync:
+        # Async subflow run in async flow run
+        return begin_run()
     else:
+        # Sync subflow run in async flow run
         return parent_flow_run_context.sync_portal.call(begin_run)
 
 
@@ -192,14 +202,13 @@ async def create_then_begin_flow_run(
         raise RuntimeError(
             f"Cannot create flow run. Failed to reach API at {client.api_url}."
         ) from connect_error
-
     state = Pending()
     if flow.should_validate_parameters:
         try:
             parameters = flow.validate_parameters(parameters)
         except Exception as exc:
             state = Failed(
-                message="Flow run received invalid parameters.",
+                message=f"Validation of flow parameters failed with error: {exc!r}",
                 data=DataDocument.encode("cloudpickle", exc),
             )
 
@@ -214,6 +223,7 @@ async def create_then_begin_flow_run(
     engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
 
     if state.is_failed():
+        flow_run_logger(flow_run).error(state.message)
         engine_logger.info(
             f"Flow run {flow_run.name!r} received invalid parameters and is marked as failed."
         )
@@ -242,7 +252,6 @@ async def retrieve_flow_then_begin_flow_run(
     - Updates the flow run version
     """
     flow_run = await client.read_flow_run(flow_run_id)
-
     try:
         flow = await load_flow_from_flow_run(flow_run, client=client)
     except Exception as exc:
@@ -254,25 +263,42 @@ async def retrieve_flow_then_begin_flow_run(
         )
         return state
 
+    # Update the flow run policy defaults to match settings on the flow
+    # Note: Mutating the flow run object prevents us from performing another read
+    #       operation if these properties are used by the client downstream
+    if flow_run.empirical_policy.retry_delay is None:
+        flow_run.empirical_policy.retry_delay = flow.retry_delay_seconds
+
+    if flow_run.empirical_policy.retries is None:
+        flow_run.empirical_policy.retries = flow.retries
+
     await client.update_flow_run(
         flow_run_id=flow_run_id,
         flow_version=flow.version,
+        empirical_policy=flow_run.empirical_policy,
     )
 
     if flow.should_validate_parameters:
+        failed_state = None
         try:
             parameters = flow.validate_parameters(flow_run.parameters)
         except Exception as exc:
-            flow_run_logger(flow_run).exception("Flow run received invalid parameters.")
-            state = Failed(
-                message="Flow run received invalid parameters.",
+            validation_error = (
+                f"Validation of flow parameters failed with error: {exc!r}"
+            )
+            flow_run_logger(flow_run).exception(validation_error)
+            failed_state = Failed(
+                message=validation_error,
                 data=DataDocument.encode("cloudpickle", exc),
             )
-            await client.propose_state(
-                state=state,
+
+        if failed_state is not None:
+            await propose_state(
+                client,
+                state=failed_state,
                 flow_run_id=flow_run_id,
             )
-            return state
+            return failed_state
     else:
         parameters = flow_run.parameters
 
@@ -316,12 +342,17 @@ async def begin_flow_run(
             report_flow_run_crashes(flow_run=flow_run, client=client)
         )
 
+        # Create a task group for background tasks
+        flow_run_context.background_tasks = await stack.enter_async_context(
+            anyio.create_task_group()
+        )
+
         # If the flow is async, we need to provide a portal so sync tasks can run
         flow_run_context.sync_portal = (
             stack.enter_context(start_blocking_portal()) if flow.isasync else None
         )
 
-        logger.info(
+        logger.debug(
             f"Starting {type(flow.task_runner).__name__!r}; submitted tasks "
             f"will be run {CONCURRENCY_MESSAGES[flow.task_runner.concurrency_type]}..."
         )
@@ -394,7 +425,7 @@ async def create_and_begin_subflow_run(
     )
 
     # Resolve any task futures in the input
-    parameters = await resolve_futures_to_data(parameters)
+    parameters = await resolve_inputs(parameters)
 
     if parent_task_run.state.is_final():
 
@@ -429,19 +460,26 @@ async def create_and_begin_subflow_run(
         logger = flow_run_logger(flow_run, flow)
 
         if flow.should_validate_parameters:
+            failed_state = None
             try:
                 parameters = flow.validate_parameters(parameters)
             except Exception as exc:
-                state = Failed(
-                    message="Flow run received invalid parameters.",
+                validation_error = (
+                    f"Validation of flow parameters failed with error: {exc!r}"
+                )
+                logger.exception(validation_error)
+                failed_state = Failed(
+                    message=validation_error,
                     data=DataDocument.encode("cloudpickle", exc),
                 )
-                await client.propose_state(
-                    state=state,
+
+            if failed_state is not None:
+                await propose_state(
+                    client,
+                    state=failed_state,
                     flow_run_id=flow_run.id,
                 )
-                logger.error("Received invalid parameters", exc_info=True)
-                return state
+                return failed_state
 
         async with AsyncExitStack() as stack:
             await stack.enter_async_context(
@@ -462,6 +500,7 @@ async def create_and_begin_subflow_run(
                     sync_portal=parent_flow_run_context.sync_portal,
                     result_filesystem=parent_flow_run_context.result_filesystem,
                     task_runner=task_runner,
+                    background_tasks=parent_flow_run_context.background_tasks,
                 ),
             )
 
@@ -516,14 +555,13 @@ async def orchestrate_flow_run(
     )
     flow_run_context = None
 
-    state = await client.propose_state(Running(), flow_run_id=flow_run.id)
+    state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
     while state.is_running():
         waited_for_task_runs = False
 
         # Update the flow run to the latest data
         flow_run = await client.read_flow_run(flow_run.id)
-
         try:
             with timeout_context as timeout_scope:
                 with partial_flow_run_context.finalize(
@@ -560,19 +598,29 @@ async def orchestrate_flow_run(
                     flow_run_context.task_run_futures, client=client
                 )
 
-        except TimeoutError as exc:
-            # TODO: Cancel task runs if feasible
-            terminal_state = Failed(
-                name="TimedOut",
-                message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
-            )
         except Exception as exc:
-            logger.error(
-                f"Encountered exception during execution:",
-                exc_info=True,
-            )
+            name = message = None
+            if (
+                # Flow run timeouts
+                isinstance(exc, TimeoutError)
+                and timeout_scope
+                # Only update the message if the timeout was actually encountered since
+                # this could be a timeout in the user's code
+                and timeout_scope.cancel_called
+            ):
+                # TODO: Cancel task runs if feasible
+                name = "TimedOut"
+                message = f"Flow run exceeded timeout of {flow.timeout_seconds} seconds"
+            else:
+                # Generic exception in user code
+                message = "Flow run encountered an exception."
+                logger.error(
+                    "Encountered exception during execution:",
+                    exc_info=True,
+                )
             terminal_state = Failed(
-                message="Flow run encountered an exception.",
+                name=name,
+                message=message,
                 data=DataDocument.encode("cloudpickle", exc),
             )
         else:
@@ -603,7 +651,8 @@ async def orchestrate_flow_run(
         # from being sent to the Orion API and stored in the Orion database.
         # state.data is left as is, otherwise we would have to load
         # the data from block storage again after storing.
-        state = await client.propose_state(
+        state = await propose_state(
+            client,
             state=terminal_state,
             flow_run_id=flow_run.id,
             backend_state_data=(
@@ -630,7 +679,7 @@ async def orchestrate_flow_run(
                 extra={"send_to_orion": False},
             )
             # Attempt to enter a running state again
-            state = await client.propose_state(Running(), flow_run_id=flow_run.id)
+            state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
     if state.data is not None and state.data.encoding == "result":
         state.data = DataDocument.parse_raw(
@@ -668,7 +717,7 @@ def enter_task_run_engine(
         raise TimeoutError("Flow run timed out")
 
     begin_run = partial(
-        begin_task_map if mapped else create_task_run_then_submit,
+        begin_task_map if mapped else get_task_call_return_value,
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
@@ -704,27 +753,42 @@ async def begin_task_map(
     # Resolve any futures / states that are in the parameters as we need to
     # validate the lengths of those values before proceeding.
     parameters.update(await resolve_inputs(parameters))
-    parameter_lengths = {
-        key: len(val)
-        for key, val in parameters.items()
-        if not isinstance(val, unmapped)
-    }
 
-    lengths = set(parameter_lengths.values())
-    if len(lengths) > 1:
-        raise MappingLengthMismatch(
-            "Received parameters with different lengths. Parameters for map "
-            f"must all be the same length. Got lengths: {parameter_lengths}"
+    iterable_parameters = {}
+    static_parameters = {}
+    for key, val in parameters.items():
+        if isinstance(val, unmapped):
+            static_parameters[key] = val.value
+        elif isiterable(val):
+            iterable_parameters[key] = val
+        else:
+            static_parameters[key] = val
+
+    if not len(iterable_parameters):
+        raise MappingMissingIterable(
+            "No iterable parameters were received. Parameters for map must "
+            f"include at least one iterable. Parameters: {parameters}"
         )
 
-    map_length = list(lengths)[0] if lengths else 1
+    iterable_parameter_lengths = {
+        key: len(val) for key, val in iterable_parameters.items()
+    }
+    lengths = set(iterable_parameter_lengths.values())
+    if len(lengths) > 1:
+        raise MappingLengthMismatch(
+            "Received iterable parameters with different lengths. Parameters "
+            f"for map must all be the same length. Got lengths: {iterable_parameter_lengths}"
+        )
+
+    map_length = list(lengths)[0]
 
     task_runs = []
     for i in range(map_length):
-        call_parameters = {key: value[i] for key, value in parameters.items()}
+        call_parameters = {key: value[i] for key, value in iterable_parameters.items()}
+        call_parameters.update({key: value for key, value in static_parameters.items()})
         task_runs.append(
             partial(
-                create_task_run_then_submit,
+                get_task_call_return_value,
                 task=task,
                 flow_run_context=flow_run_context,
                 parameters=call_parameters,
@@ -754,8 +818,9 @@ async def collect_task_run_inputs(
 
     inputs = set()
 
-    async def add_futures_and_states_to_inputs(obj):
+    def add_futures_and_states_to_inputs(obj):
         if isinstance(obj, PrefectFuture):
+            run_async_from_worker_thread(obj._wait_for_submission)
             inputs.add(core.TaskRunResult(id=obj.task_run.id))
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
@@ -765,38 +830,31 @@ async def collect_task_run_inputs(
             if state and state.state_details.task_run_id:
                 inputs.add(core.TaskRunResult(id=state.state_details.task_run_id))
 
-    await visit_collection(
-        expr, visit_fn=add_futures_and_states_to_inputs, return_data=False
+    await run_sync_in_worker_thread(
+        visit_collection,
+        expr,
+        visit_fn=add_futures_and_states_to_inputs,
+        return_data=False,
     )
 
     return inputs
 
 
-async def create_task_run_then_submit(
+async def get_task_call_return_value(
     task: Task,
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
-) -> Union[PrefectFuture, State]:
-    task_run = await create_task_run(
+):
+    future = await create_task_run_future(
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
-        dynamic_key=_dynamic_key_for_task_run(flow_run_context, task),
         wait_for=wait_for,
+        task_runner=task_runner,
     )
-
-    future = await submit_task_run(
-        task=task,
-        flow_run_context=flow_run_context,
-        parameters=parameters,
-        task_run=task_run,
-        wait_for=wait_for,
-        task_runner=task_runner or flow_run_context.task_runner,
-    )
-
     if return_type == "future":
         return future
     elif return_type == "state":
@@ -807,8 +865,92 @@ async def create_task_run_then_submit(
         raise ValueError(f"Invalid return type for task engine {return_type!r}.")
 
 
+async def create_task_run_future(
+    task: Task,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
+    task_runner: Optional[BaseTaskRunner],
+) -> PrefectFuture:
+    # Default to the flow run's task runner
+    task_runner = task_runner or flow_run_context.task_runner
+
+    # Generate a name for the future
+    dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
+    task_run_name = f"{task.name}-{stable_hash(task.task_key)[:8]}-{dynamic_key}"
+
+    # Generate a future
+    future = PrefectFuture(
+        name=task_run_name,
+        key=uuid4(),
+        task_runner=task_runner,
+        asynchronous=task.isasync and flow_run_context.flow.isasync,
+    )
+
+    # Create and submit the task run in the background
+    flow_run_context.background_tasks.start_soon(
+        partial(
+            create_task_run_then_submit,
+            task=task,
+            task_run_name=task_run_name,
+            task_run_dynamic_key=dynamic_key,
+            future=future,
+            flow_run_context=flow_run_context,
+            parameters=parameters,
+            wait_for=wait_for,
+            task_runner=task_runner,
+        )
+    )
+
+    # Track the task run future in the flow run context
+    flow_run_context.task_run_futures.append(future)
+
+    if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
+        await future._wait()
+
+    # Return the future without waiting for task run creation or submission
+    return future
+
+
+async def create_task_run_then_submit(
+    task: Task,
+    task_run_name: str,
+    task_run_dynamic_key: str,
+    future: PrefectFuture,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
+    task_runner: BaseTaskRunner,
+) -> None:
+
+    task_run = await create_task_run(
+        task=task,
+        name=task_run_name,
+        flow_run_context=flow_run_context,
+        parameters=parameters,
+        dynamic_key=task_run_dynamic_key,
+        wait_for=wait_for,
+    )
+
+    # Attach the task run to the future to support `get_state` operations
+    future.task_run = task_run
+
+    await submit_task_run(
+        task=task,
+        future=future,
+        flow_run_context=flow_run_context,
+        parameters=parameters,
+        task_run=task_run,
+        wait_for=wait_for,
+        task_runner=task_runner,
+    )
+
+    future._submitted.set()
+
+
 async def create_task_run(
     task: Task,
+    name: str,
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     dynamic_key: str,
@@ -822,6 +964,7 @@ async def create_task_run(
 
     task_run = await flow_run_context.client.create_task_run(
         task=task,
+        name=name,
         flow_run_id=flow_run_context.flow_run.id,
         dynamic_key=dynamic_key,
         state=Pending(),
@@ -836,29 +979,22 @@ async def create_task_run(
 
 async def submit_task_run(
     task: Task,
+    future: PrefectFuture,
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     task_run: TaskRun,
     wait_for: Optional[Iterable[PrefectFuture]],
     task_runner: BaseTaskRunner,
 ) -> PrefectFuture:
-    """
-    Async entrypoint for task calls.
-
-    Tasks must be called within a flow. When tasks are called, they create a task run
-    and submit orchestration of the run to the flow run's task runner. The task runner
-    returns a future that is returned immediately.
-    """
     logger = get_run_logger(flow_run_context)
 
     if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
         logger.info(f"Executing {task_run.name!r} immediately...")
 
     future = await task_runner.submit(
-        task_run=task_run,
-        run_key=f"{task_run.name}-{task_run.id.hex}-{flow_run_context.flow_run.run_count}",
-        run_fn=begin_task_run,
-        run_kwargs=dict(
+        key=future.key,
+        call=partial(
+            begin_task_run,
             task=task,
             task_run=task_run,
             parameters=parameters,
@@ -866,14 +1002,10 @@ async def submit_task_run(
             result_filesystem=flow_run_context.result_filesystem,
             settings=prefect.context.SettingsContext.get().copy(),
         ),
-        asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
 
     if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
         logger.info(f"Submitted task run {task_run.name!r} for execution.")
-
-    # Track the task run future in the flow run context
-    flow_run_context.task_run_futures.append(future)
 
     return future
 
@@ -913,7 +1045,7 @@ async def begin_task_run(
     --> `begin_task_run` executes on a different event loop than the flow
     --> Current settings is not set or does not match, settings A is entered
     """
-    flow_run_context = prefect.context.FlowRunContext.get()
+    maybe_flow_run_context = prefect.context.FlowRunContext.get()
 
     async with AsyncExitStack() as stack:
 
@@ -923,17 +1055,23 @@ async def begin_task_run(
             stack.enter_context(settings)
             setup_logging()
 
-        if flow_run_context:
+        if maybe_flow_run_context:
             # Accessible if on a worker that is running in the same thread as the flow
-            client = flow_run_context.client
+            client = maybe_flow_run_context.client
             # Only run the task in an interruptible thread if it in the same thread as
             # the flow _and_ the flow run has a timeout attached. If the task is on a
             # worker, the flow run timeout will not be raised in the worker process.
-            interruptible = flow_run_context.timeout_scope is not None
+            interruptible = maybe_flow_run_context.timeout_scope is not None
+            background_tasks = maybe_flow_run_context.background_tasks
         else:
             # Otherwise, retrieve a new client
             client = await stack.enter_async_context(get_client())
             interruptible = False
+            background_tasks = await stack.enter_async_context(
+                anyio.create_task_group()
+            )
+
+        # TODO: Use the background tasks group to manage logging for this task
 
         connect_error = await client.api_healthcheck()
         if connect_error:
@@ -955,6 +1093,10 @@ async def begin_task_run(
         except Abort:
             # Task run already completed, just fetch its state
             task_run = await client.read_task_run(task_run.id)
+            task_run_logger(task_run).debug(
+                f"Task run '{task_run.id}' already finished. "
+                f"Retrieving result for state {task_run.state!r}..."
+            )
             # Hydrate the state data
             task_run.state.data._cache_data(await _retrieve_result(task_run.state))
             return task_run.state
@@ -1008,7 +1150,8 @@ async def orchestrate_task_run(
         # Resolve futures in any non-data dependencies to ensure they are ready
         await resolve_inputs(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
-        return await client.propose_state(
+        return await propose_state(
+            client,
             Pending(name="NotReady", message=str(upstream_exc)),
             task_run_id=task_run.id,
         )
@@ -1021,7 +1164,8 @@ async def orchestrate_task_run(
     )
 
     # Transition from `PENDING` -> `RUNNING`
-    state = await client.propose_state(
+    state = await propose_state(
+        client,
         Running(state_details=StateDetails(cache_key=cache_key)),
         task_run_id=task_run.id,
     )
@@ -1076,7 +1220,8 @@ async def orchestrate_task_run(
         # from being sent to the Orion API and stored in the Orion database.
         # terminal_state.data is left as is, otherwise we would have to load
         # the data from block storage again after storing.
-        state = await client.propose_state(
+        state = await propose_state(
+            client,
             terminal_state,
             task_run_id=task_run.id,
             backend_state_data=(
@@ -1102,7 +1247,7 @@ async def orchestrate_task_run(
                 extra={"send_to_orion": False},
             )
             # Attempt to enter a running state again
-            state = await client.propose_state(Running(), task_run_id=task_run.id)
+            state = await propose_state(client, Running(), task_run_id=task_run.id)
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = repr(state) if PREFECT_DEBUG_MODE else str(state)
@@ -1146,11 +1291,11 @@ async def wait_for_task_runs_and_report_crashes(
         )
         if result.status == SetStateStatus.ACCEPT:
             engine_logger.debug(
-                f"Reported crashed task run {future.run_key!r} successfully."
+                f"Reported crashed task run {future.name!r} successfully."
             )
         else:
             engine_logger.warning(
-                f"Failed to report crashed task run {future.run_key!r}. "
+                f"Failed to report crashed task run {future.name!r}. "
                 f"Orchestrator did not accept state: {result!r}"
             )
 
@@ -1207,13 +1352,13 @@ async def resolve_inputs(
         UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
 
-    async def visit_fn(expr):
+    def resolve_input(expr):
         state = None
 
         if isinstance(expr, Quote):
             return expr.unquote()
         elif isinstance(expr, PrefectFuture):
-            state = await expr._wait()
+            state = run_async_from_worker_thread(expr._wait)
         elif isinstance(expr, State):
             state = expr
         else:
@@ -1227,11 +1372,110 @@ async def resolve_inputs(
         # Only retrieve the result if requested as it may be expensive
         return state.result() if return_data else None
 
-    return await visit_collection(
+    return await run_sync_in_worker_thread(
+        visit_collection,
         parameters,
-        visit_fn=visit_fn,
+        visit_fn=resolve_input,
         return_data=return_data,
     )
+
+
+async def propose_state(
+    client: OrionClient,
+    state: State,
+    backend_state_data: DataDocument = None,
+    task_run_id: UUID = None,
+    flow_run_id: UUID = None,
+) -> State:
+    """
+    Propose a new state for a flow run or task run, invoking Orion orchestration logic.
+
+    If the proposed state is accepted, the provided `state` will be augmented with
+     details and returned.
+
+    If the proposed state is rejected, a new state returned by the Orion API will be
+    returned.
+
+    If the proposed state results in a WAIT instruction from the Orion API, the
+    function will sleep and attempt to propose the state again.
+
+    If the proposed state results in an ABORT instruction from the Orion API, an
+    error will be raised.
+
+    Args:
+        state: a new state for the task or flow run
+        backend_state_data: an optional document to store with the state in the
+            database instead of its local data field. This allows the original
+            state object to be retained while storing a pointer to persisted data
+            in the database.
+        task_run_id: an optional task run id, used when proposing task run states
+        flow_run_id: an optional flow run id, used when proposing flow run states
+
+    Returns:
+        a [State model][prefect.orion.State] representation of the flow or task run
+            state
+
+    Raises:
+        ValueError: if neither task_run_id or flow_run_id is provided
+        prefect.exceptions.Abort: if an ABORT instruction is received from
+            the Orion API
+    """
+
+    # Determine if working with a task run or flow run
+    if not task_run_id and not flow_run_id:
+        raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
+
+    # Handle task and sub-flow tracing
+    if state.is_final():
+        if state.data is not None:
+            link_state_to_result(state, state.data.decode())
+
+    # Attempt to set the state
+    if task_run_id:
+        response = await client.set_task_run_state(
+            task_run_id, state, backend_state_data=backend_state_data
+        )
+    elif flow_run_id:
+        response = await client.set_flow_run_state(
+            flow_run_id, state, backend_state_data=backend_state_data
+        )
+    else:
+        raise ValueError(
+            "Neither flow run id or task run id were provided. At least one must "
+            "be given."
+        )
+
+    # Parse the response to return the new state
+    if response.status == SetStateStatus.ACCEPT:
+        # Update the state with the details if provided
+        if response.state.state_details:
+            state.state_details = response.state.state_details
+        return state
+
+    elif response.status == SetStateStatus.ABORT:
+        raise prefect.exceptions.Abort(response.details.reason)
+
+    elif response.status == SetStateStatus.WAIT:
+        engine_logger.debug(
+            f"Received wait instruction for {response.details.delay_seconds}s: "
+            f"{response.details.reason}"
+        )
+        await anyio.sleep(response.details.delay_seconds)
+        return await propose_state(
+            client,
+            state,
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_id,
+            backend_state_data=backend_state_data,
+        )
+
+    elif response.status == SetStateStatus.REJECT:
+        return response.state
+
+    else:
+        raise ValueError(
+            f"Received unexpected `SetStateStatus` from server: {response.status!r}"
+        )
 
 
 def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
@@ -1256,19 +1500,59 @@ def get_state_for_result(obj: Any) -> Optional[State]:
 
 def link_state_to_result(state: State, result: Any) -> None:
     """
-    Stores information about the state on the result or in the global context for
-    relationship tracking.
-    """
-    if type(result) in UNTRACKABLE_TYPES:
-        return
+    Caches a link between a state and a result and its components using
+    the `id` of the components to map to the state. The cache is persisted to the
+    current flow run context since task relationships are limited to within a flow run.
 
-    # Cache the state onto the flow_run_context, associated by the id of the
-    # result. This allows a best-effort attempt to get the state from an object
-    # that wouldn't allow the __prefect_state__ attribute to be set. It also
-    # acts as a complete cache of states for reporting in a flow run state.
+    This allows dependency tracking to occur when results are passed around.
+    Note: Because `id` is used, we cannot cache links between singleton objects.
+
+    We only cache the relationship between components 1-layer deep.
+    Example:
+        Given the result [1, ["a","b"], ("c",)], the following elements will be
+        mapped to the state:
+        - [1, ["a","b"], ("c",)]
+        - ["a","b"]
+        - ("c",)
+
+        Note: the int `1` will not be mapped to the state because it is a singleton.
+
+    Other Notes:
+    We do not hash the result because:
+    - If changes are made to the object in the flow between task calls, we can still
+      track that they are related.
+    - Hashing can be expensive.
+    - Not all objects are hashable.
+
+    We do not set an attribute, e.g. `__prefect_state__`, on the result because:
+
+    - Mutating user's objects is dangerous.
+    - Unrelated equality comparisons can break unexpectedly.
+    - The field can be preserved on copy.
+    - We cannot set this attribute on Python built-ins.
+    """
+
     flow_run_context = FlowRunContext.get()
+
+    def link_if_trackable(obj: Any) -> None:
+        """Track connection between a task run result and its associated state if it has a unique ID.
+
+        We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
+        because they are singletons.
+
+        This function will mutate the State if the object is an untrackable type by setting the value
+        for `State.state_details.untrackable_result` to `True`.
+
+        """
+        if (type(obj) in UNTRACKABLE_TYPES) or (
+            isinstance(obj, int) and (-5 <= obj <= 256)
+        ):
+            state.state_details.untrackable_result = True
+            return
+        flow_run_context.task_run_results[id(obj)] = state
+
     if flow_run_context:
-        flow_run_context.task_run_results[id(result)] = state
+        visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
 
 
 def get_default_result_filesystem() -> LocalFileSystem:

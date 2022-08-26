@@ -25,7 +25,7 @@ If you want to start running flows on a schedule, via the API, from the UI, or o
 - Create a [work queue](/concepts/work-queues/#work-queue-overview) to collect scheduled runs for deployments.
 - [Start an agent](/concepts/work-queues/#agent-overview) in an environment that can execute work from a work queue.
 
-If you have used Prefect 1.0 and are familiar with Prefect workflows, we still recommend reading through the [Prefect 2.0 tutorials](/tutorials/first-steps/). Prefect 2.0 flows and subflows offer new functionality, and running deployments with [work queues and agents](/tutorials/deployments/) reflects a significant change in how you configure orchestration components.
+If you have used Prefect 1.0 and are familiar with Prefect workflows, we still recommend reading through the [Prefect 2.0 tutorials](/tutorials/first-steps/). Prefect 2.0 flows and subflows offer new functionality, and running deployments with [agents and work queues](/tutorials/deployments/) reflects a significant change in how you configure orchestration components.
 
 !!! note "Additional Resources"
     If you don't find what you're looking for here there are many other ways to engage, ask questions and provide feedback:

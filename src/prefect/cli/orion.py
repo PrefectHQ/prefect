@@ -124,6 +124,8 @@ async def start(
                 run_process,
                 command=[
                     "uvicorn",
+                    "--app-dir",
+                    str(prefect.__module_path__.parent),
                     "--factory",
                     "prefect.orion.api.server:create_app",
                     "--host",
@@ -241,7 +243,15 @@ async def downgrade(
 
 
 @database_app.command()
-async def revision(message: str = None, autogenerate: bool = False):
+async def revision(
+    message: str = typer.Option(
+        None,
+        "--message",
+        "-m",
+        help="A message to describe the migration.",
+    ),
+    autogenerate: bool = False,
+):
     """Create a new migration for the Orion database"""
 
     app.console.print("Running migration file creation ...")

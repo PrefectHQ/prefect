@@ -13,7 +13,7 @@ import pytz
 from croniter import croniter
 from pydantic import Field, validator
 
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
 
 MAX_ITERATIONS = 10000
 
@@ -55,6 +55,12 @@ class IntervalSchedule(PrefectBaseModel):
     will adjust for DST boundaries so that the clock-hour remains constant. This
     means that a daily schedule that always fires at 9am will observe DST and
     continue to fire at 9am in the local time zone.
+
+    Args:
+        interval (datetime.timedelta): an interval to schedule on
+        anchor_date (DateTimeTZ, optional): an anchor date to schedule increments against;
+            if not provided, the current timestamp will be used
+        timezone (str, optional): a valid timezone string
     """
 
     class Config:
@@ -62,7 +68,7 @@ class IntervalSchedule(PrefectBaseModel):
         exclude_none = True
 
     interval: datetime.timedelta
-    anchor_date: datetime.datetime = None
+    anchor_date: DateTimeTZ = None
     timezone: str = Field(None, example="America/New_York")
 
     @validator("interval")
@@ -327,6 +333,10 @@ class RRuleSchedule(PrefectBaseModel):
     to the initial timezone provided. A 9am daily schedule with a daylight saving
     time-aware start date will maintain a local 9am time through DST boundaries;
     a 9am daily schedule with a UTC start date will maintain a 9am UTC time.
+
+    Args:
+        rrule (str): a valid RRule string
+        timezone (str, optional): a valid timezone string
     """
 
     class Config:

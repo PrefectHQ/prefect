@@ -1,13 +1,10 @@
 """
 Command line interface for working with deployments.
 """
-import json
-import traceback
+from datetime import timedelta
 from enum import Enum
-from inspect import getdoc
 from pathlib import Path
 from typing import List, Optional
-from uuid import UUID
 
 import pendulum
 import typer
@@ -15,27 +12,30 @@ import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect import Manifest
+import prefect
+from prefect import Flow
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
-from prefect.deployments import (
-    Deployment,
-    DeploymentYAML,
-    PackageManifest,
-    load_deployments_from_yaml,
+from prefect.deployments import Deployment, load_deployments_from_yaml
+from prefect.exceptions import (
+    ObjectNotFound,
+    PrefectHTTPStatusError,
+    ScriptError,
+    exception_traceback,
 )
-from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError, ScriptError
-from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
-from prefect.infrastructure.submission import _prepare_infrastructure
-from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowFilter
+from prefect.orion.schemas.schedules import (
+    CronSchedule,
+    IntervalSchedule,
+    RRuleSchedule,
+)
 from prefect.utilities.callables import parameter_schema
-from prefect.utilities.importtools import load_flow_from_manifest_path
+from prefect.utilities.filesystem import set_default_ignore_file
 
 
 def str_presenter(dumper, data):
@@ -54,7 +54,7 @@ yaml.representer.SafeRepresenter.add_representer(str, str_presenter)
 deployment_app = PrefectTyper(
     name="deployment", help="Commands for working with deployments."
 )
-app.add_typer(deployment_app)
+app.add_typer(deployment_app, aliases=["deployments"])
 
 
 def assert_deployment_name_format(name: str) -> None:
@@ -62,14 +62,6 @@ def assert_deployment_name_format(name: str) -> None:
         exit_with_error(
             "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
         )
-
-
-def exception_traceback(exc: Exception) -> str:
-    """
-    Convert an exception to a printable string with a traceback
-    """
-    tb = traceback.TracebackException.from_exception(exc)
-    return "".join(list(tb.format()))
 
 
 async def get_deployment(client, name, deployment_id):
@@ -87,11 +79,6 @@ async def get_deployment(client, name, deployment_id):
         exit_with_error("Must provide a deployed flow's name or id")
     else:
         exit_with_error("Only provide a deployed flow's name or id")
-
-    if not deployment.manifest_path:
-        exit_with_error(
-            f"This deployment has been deprecated. Please see https://orion-docs.prefect.io/concepts/deployments/ to learn how to create a deployment."
-        )
 
     return deployment
 
@@ -115,16 +102,41 @@ async def inspect(name: str):
     \b
     Example:
         \b
-        $ prefect deployment inspect "hello-world/inline-deployment"
-        Deployment(
-            id='dfd3e220-a130-4149-9af6-8d487e02fea6',
-            created='39 minutes ago',
-            updated='39 minutes ago',
-            name='inline-deployment',
-            flow_id='fe50cfa6-fd54-42e3-8930-6d9192678f89',
-            parameters={'name': 'Marvin'},
-            tags=['foo', 'bar']
-        )
+        $ prefect deployment inspect "hello-world/my-deployment"
+        {
+            'id': '610df9c3-0fb4-4856-b330-67f588d20201',
+            'created': '2022-08-01T18:36:25.192102+00:00',
+            'updated': '2022-08-01T18:36:25.188166+00:00',
+            'name': 'my-deployment',
+            'description': None,
+            'flow_id': 'b57b0aa2-ef3a-479e-be49-381fb0483b4e',
+            'schedule': None,
+            'is_schedule_active': True,
+            'parameters': {'name': 'Marvin'},
+            'tags': ['test'],
+            'parameter_openapi_schema': {
+                'title': 'Parameters',
+                'type': 'object',
+                'properties': {
+                    'name': {
+                        'title': 'name',
+                        'type': 'string'
+                    }
+                },
+                'required': ['name']
+            },
+            'storage_document_id': '63ef008f-1e5d-4e07-a0d4-4535731adb32',
+            'infrastructure_document_id': '6702c598-7094-42c8-9785-338d2ec3a028',
+            'infrastructure': {
+                'type': 'process',
+                'env': {},
+                'labels': {},
+                'name': None,
+                'command': ['python', '-m', 'prefect.engine'],
+                'stream_output': True
+            }
+        }
+
     """
     assert_deployment_name_format(name)
 
@@ -239,74 +251,56 @@ def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
 
 @deployment_app.command()
 async def apply(
-    path: Path = typer.Argument(
-        None,
-        help="The path to a deployment YAML file.",
-        show_default=False,
-    )
+    paths: List[str] = typer.Argument(
+        ...,
+        help="One or more paths to deployment YAML files.",
+    ),
+    upload: bool = typer.Option(
+        False,
+        "--upload",
+        help="A flag that, when provided, uploads this deployment's files to remote storage.",
+    ),
 ):
     """
     Create or update a deployment from a YAML file.
     """
-    if path is None:
-        path = "deployment.yaml"
+    for path in paths:
 
-    # load the file
-    with open(str(path), "r") as f:
-        data = yaml.safe_load(f)
+        try:
+            deployment = await Deployment.load_from_yaml(path)
+            app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
+        except Exception as exc:
+            exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
 
-    # create deployment object
-    try:
-        deployment = DeploymentYAML(**data)
-        app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
-    except Exception as exc:
-        exit_with_error(f"Provided file did not conform to deployment spec: {exc!r}")
+        if upload:
+            file_count = await deployment.upload_to_storage()
+            if file_count:
+                app.console.print(
+                    f"Successfully uploaded {file_count} files to {deployment.location}",
+                    style="green",
+                )
 
-    async with get_client() as client:
-        # prep IDs
-        flow_id = await client.create_flow_from_name(deployment.flow_name)
-
-        deployment.infrastructure = deployment.infrastructure.copy()
-        infrastructure_document_id = await deployment.infrastructure._save(
-            is_anonymous=True,
+        deployment_id = await deployment.apply()
+        app.console.print(
+            f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
+            style="green",
         )
 
-        # we assume storage was already saved
-        storage_document_id = deployment.storage._block_document_id
-
-        deployment_id = await client.create_deployment(
-            flow_id=flow_id,
-            name=deployment.name,
-            schedule=deployment.schedule,
-            parameters=deployment.parameters,
-            description=deployment.description,
-            tags=deployment.tags,
-            manifest_path=deployment.manifest_path,
-            storage_document_id=storage_document_id,
-            infrastructure_document_id=infrastructure_document_id,
-            parameter_openapi_schema=deployment.parameter_openapi_schema.dict(),
-        )
-
-    app.console.print(
-        f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
-        style="green",
-    )
-
-
-def _deployment_name(deployment: Deployment):
-    if isinstance(deployment.flow, PackageManifest):
-        flow_name = deployment.flow.flow_name
-    else:
-        flow_name = deployment.flow.name
-
-    if flow_name and deployment.name:
-        return f"{flow_name}/{deployment.name}"
-    elif deployment.name and not flow_name:
-        return f"{deployment.name}"
-    elif not deployment.name and flow_name:
-        return f"{flow_name}/{flow_name}"
-    else:
-        return "<no name provided>"
+        if deployment.work_queue_name is not None:
+            app.console.print(
+                "\nTo execute flow runs from this deployment, start an agent "
+                f"that pulls work from the the {deployment.work_queue_name!r} work queue:"
+            )
+            app.console.print(
+                f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"
+            )
+        else:
+            app.console.print(
+                "\nThis deployment does not specify a work queue name, which means agents "
+                "will not be able to pick up its runs. To add a work queue, "
+                "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
+                style="red",
+            )
 
 
 @deployment_app.command()
@@ -345,53 +339,6 @@ async def delete(
             exit_with_error("Must provide a deployment name or id")
 
 
-@deployment_app.command()
-async def preview(path: Path):
-    """
-    Prints a preview of a deployment.
-
-    Accepts the same file types as `prefect deployment create`.  This preview will
-    include any customizations you have made to your deployment's FlowRunner.  If your
-    file includes multiple deployments, use `--name` to identify one to preview.
-
-    `prefect deployment preview` is intended for previewing the customizations you've
-    made to your deployments, and will include mock identifiers.  They will not run
-    correctly if applied directly to an execution environment (like a Kubernetes
-    cluster).  Use `prefect deployment create` and `prefect deployment run` to
-    actually run your deployments.
-
-    \b
-    Example:
-        \b
-        $ prefect deployment preview my-flow.py
-
-    \b
-    Output:
-        \b
-        apiVersion: batch/v1
-        kind: Job ...
-
-    """
-    registry = _load_deployments(path, quietly=True)
-
-    # create an exemplar FlowRun
-    flow_run = FlowRun(
-        id=UUID(int=0),
-        flow_id=UUID(int=0),
-        name="cool-name",
-    )
-
-    deployments = registry.get_instances(Deployment)
-
-    if not deployments:
-        exit_with_error("No deployments found!")
-
-    for deployment in deployments:
-        name = repr(deployment.name) if deployment.name else "<unnamed deployment>"
-        app.console.print(f"[green]Preview for {name}[/]:\n")
-        print(_prepare_infrastructure(flow_run, deployment.infrastructure).preview())
-
-
 class Infra(str, Enum):
     kubernetes = KubernetesJob.get_block_type_slug()
     process = Process.get_block_type_slug()
@@ -400,24 +347,34 @@ class Infra(str, Enum):
 
 @deployment_app.command()
 async def build(
-    path: str = typer.Argument(
+    entrypoint: str = typer.Argument(
         ...,
         help="The path to a flow entrypoint, in the form of `./path/to/file.py:flow_func_name`",
     ),
-    manifest_only: bool = typer.Option(
-        False, "--manifest-only", help="Generate the manifest file only."
-    ),
     name: str = typer.Option(
         None, "--name", "-n", help="The name to give the deployment."
+    ),
+    version: str = typer.Option(
+        None, "--version", "-v", help="A version to give the deployment."
     ),
     tags: List[str] = typer.Option(
         None,
         "-t",
         "--tag",
-        help="One or more optional tags to apply to the deployment.",
+        help="One or more optional tags to apply to the deployment. Note: tags are used only for organizational purposes. For delegating work to agents, use the --work-queue flag.",
+    ),
+    work_queue_name: str = typer.Option(
+        None,
+        "-q",
+        "--work-queue",
+        help=(
+            "The work queue that will handle this deployment's runs. "
+            "It will be created if it doesn't already exist. Defaults to `None`. "
+            "Note that if a work queue is not set, work will not be scheduled."
+        ),
     ),
     infra_type: Infra = typer.Option(
-        "process",
+        None,
         "--infra",
         "-i",
         help="The infrastructure type to use, prepopulated with defaults.",
@@ -428,11 +385,41 @@ async def build(
         "-ib",
         help="The slug of the infrastructure block to use as a template.",
     ),
+    overrides: List[str] = typer.Option(
+        None,
+        "--override",
+        help="One or more optional infrastructure overrides provided as a dot delimited path, e.g., `env.env_key=env_value`",
+    ),
     storage_block: str = typer.Option(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of the storage block to use.",
+        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure', 'smb'",
+    ),
+    skip_upload: bool = typer.Option(
+        False,
+        "--skip-upload",
+        help="A flag that, when provided, skips uploading this deployment's files to remote storage.",
+    ),
+    cron: str = typer.Option(
+        None,
+        "--cron",
+        help="A cron string that will be used to set a CronSchedule on the deployment.",
+    ),
+    interval: int = typer.Option(
+        None,
+        "--interval",
+        help="An integer specifying an interval (in seconds) that will be used to set an IntervalSchedule on the deployment.",
+    ),
+    rrule: str = typer.Option(
+        None,
+        "--rrule",
+        help="An RRule that will be used to set an RRuleSchedule on the deployment.",
+    ),
+    path: str = typer.Option(
+        None,
+        "--path",
+        help="An optional path to specify a subdirectory of remote storage to upload to.",
     ),
     output: str = typer.Option(
         None,
@@ -446,9 +433,17 @@ async def build(
     """
 
     # validate inputs
-    if not name and not manifest_only:
+    if not name:
         exit_with_error(
             "A name for this deployment must be provided with the '--name' flag."
+        )
+
+    if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
+        exit_with_error("Only one schedule type can be provided.")
+
+    if infra_block and infra_type:
+        exit_with_error(
+            "Only one of `infra` or `infra_block` can be provided, please choose one."
         )
 
     output_file = None
@@ -461,98 +456,107 @@ async def build(
 
     # validate flow
     try:
-        fpath, obj_name = path.rsplit(":", 1)
+        fpath, obj_name = entrypoint.rsplit(":", 1)
     except ValueError as exc:
         if str(exc) == "not enough values to unpack (expected 2, got 1)":
-            missing_flow_name_msg = f"Your flow path must include the name of the function that is the entrypoint to your flow.\nTry {path}:<flow_name> for your flow path."
+            missing_flow_name_msg = f"Your flow entrypoint must include the name of the function that is the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
             exit_with_error(missing_flow_name_msg)
         else:
             raise exc
     try:
-        flow = load_flow_from_manifest_path(path)
-        app.console.print(f"Found flow {flow.name!r}", style="green")
+        flow = prefect.utilities.importtools.import_object(entrypoint)
+        if isinstance(flow, Flow):
+            app.console.print(f"Found flow {flow.name!r}", style="green")
+        else:
+            exit_with_error(
+                f"Found object of unexpected type {type(flow).__name__!r}. Expected 'Flow'."
+            )
     except AttributeError:
         exit_with_error(f"{obj_name!r} not found in {fpath!r}.")
+    except FileNotFoundError:
+        exit_with_error(f"{fpath!r} not found.")
 
-    flow_parameter_schema = parameter_schema(flow)
-    manifest = Manifest(
-        flow_name=flow.name,
-        import_path=path,
-        parameter_openapi_schema=flow_parameter_schema,
-    )
-    manifest_loc = f"{obj_name}-manifest.json"
-    with open(manifest_loc, "w") as f:
-        json.dump(manifest.dict(), f, indent=4)
-
-    app.console.print(
-        f"Manifest created at '{Path(manifest_loc).absolute()!s}'.",
-        style="green",
-    )
-    if manifest_only:
-        typer.Exit(0)
-
-    ## process storage and move files around
-    if storage_block:
-        template = await Block.load(storage_block)
-        storage = template.copy(
-            exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
-        )
-
-        # upload current directory to storage location
-        file_count = await storage.put_directory()
-        app.console.print(
-            f"Successfully uploaded {file_count} files to {storage.basepath}",
-            style="green",
-        )
-    else:
-        # default storage, no need to move anything around
-        storage = LocalFileSystem(basepath=Path(".").absolute())
-
-    # persists storage now in case it contains secret values
-    await storage._save(is_anonymous=True)
+    infra_overrides = {}
+    for override in overrides or []:
+        key, value = override.split("=", 1)
+        infra_overrides[key] = value
 
     if infra_block:
-        template = await Block.load(infra_block)
-        infrastructure = template.copy(
-            exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
-        )
-    else:
+        infrastructure = await Block.load(infra_block)
+    elif infra_type:
         if infra_type == Infra.kubernetes:
             infrastructure = KubernetesJob()
         elif infra_type == Infra.docker:
             infrastructure = DockerContainer()
-        else:
+        elif infra_type == Infra.process:
             infrastructure = Process()
+    else:
+        # will reset to a default of Process is no infra is present on the
+        # server-side definition of this deployment
+        infrastructure = None
 
-    description = getdoc(flow)
     schedule = None
-    async with get_client() as client:
-        try:
-            deployment = await client.read_deployment_by_name(f"{flow.name}/{name}")
-            description = deployment.description
-            schedule = deployment.schedule
-        except ObjectNotFound:
-            pass
+    if cron:
+        schedule = CronSchedule(cron=cron)
+    elif interval:
+        schedule = IntervalSchedule(interval=timedelta(seconds=interval))
+    elif rrule:
+        schedule = RRuleSchedule(rrule=rrule)
 
-    deployment = DeploymentYAML(
-        name=name,
-        description=description,
-        tags=tags or [],
-        flow_name=flow.name,
-        schedule=schedule,
-        parameter_openapi_schema=manifest.parameter_openapi_schema,
-        manifest_path=manifest_loc,
+    # parse storage_block
+    if storage_block:
+        block_type, block_name, *block_path = storage_block.split("/")
+        if block_path and path:
+            exit_with_error(
+                "Must provide a `path` explicitly or provide one on the storage block specification, but not both."
+            )
+        elif not path:
+            path = "/".join(block_path)
+        storage_block = f"{block_type}/{block_name}"
+        storage = await Block.load(storage_block)
+    else:
+        storage = None
+
+    # set up deployment object
+    deployment = Deployment(name=name, flow_name=flow.name)
+    await deployment.load()  # load server-side settings, if any
+
+    flow_parameter_schema = parameter_schema(flow)
+    entrypoint = (
+        f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
+    )
+    updates = dict(
+        path=path,
+        parameter_openapi_schema=flow_parameter_schema,
+        entrypoint=entrypoint,
+        description=deployment.description or flow.description,
+        version=version or deployment.version or flow.version,
+        tags=tags or None,
         storage=storage,
         infrastructure=infrastructure,
+        infra_overrides=infra_overrides or None,
+        schedule=schedule,
+        work_queue_name=work_queue_name,
     )
+    await deployment.update(**updates, ignore_none=True)
+
+    ## process storage, move files around and process path logic
+    if set_default_ignore_file(path="."):
+        app.console.print(
+            f"Default '.prefectignore' file written to {(Path('.') / '.prefectignore').absolute()}",
+            style="green",
+        )
+
+    if not skip_upload:
+        file_count = await deployment.upload_to_storage()
+        if file_count:
+            app.console.print(
+                f"Successfully uploaded {file_count} files to {deployment.location}",
+                style="green",
+            )
 
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
-    with open(deployment_loc, "w") as f:
-        f.write(deployment.header)
-        yaml.dump(deployment.editable_fields_dict(), f, sort_keys=False)
-        f.write("###\n### DO NOT EDIT BELOW THIS LINE\n###\n")
-        yaml.dump(deployment.immutable_fields_dict(), f, sort_keys=False)
-
+    await deployment.to_yaml(deployment_loc)
     exit_with_success(
         f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'."
     )

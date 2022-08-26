@@ -9,6 +9,7 @@ from uuid import UUID
 import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
+from fastapi.responses import ORJSONResponse
 
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
@@ -19,6 +20,7 @@ from prefect.orion.models.flow_runs import DependencyResult
 from prefect.orion.orchestration import dependencies as orchestration_dependencies
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 
 logger = get_logger("orion.api")
@@ -90,10 +92,8 @@ async def count_flow_runs(
 
 @router.post("/history")
 async def flow_run_history(
-    history_start: datetime.datetime = Body(
-        ..., description="The history's start time."
-    ),
-    history_end: datetime.datetime = Body(..., description="The history's end time."),
+    history_start: DateTimeTZ = Body(..., description="The history's start time."),
+    history_end: DateTimeTZ = Body(..., description="The history's end time."),
     history_interval: datetime.timedelta = Body(
         ...,
         description="The size of each history interval, in seconds. Must be at least 1 second.",
@@ -156,7 +156,7 @@ async def read_flow_run_graph(
     )
 
 
-@router.post("/filter")
+@router.post("/filter", response_class=ORJSONResponse)
 async def read_flow_runs(
     sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
     limit: int = dependencies.LimitBody(),
@@ -170,7 +170,7 @@ async def read_flow_runs(
     """
     Query for flow runs.
     """
-    return await models.flow_runs.read_flow_runs(
+    db_flow_runs = await models.flow_runs.read_flow_runs(
         session=session,
         flow_filter=flows,
         flow_run_filter=flow_runs,
@@ -180,6 +180,16 @@ async def read_flow_runs(
         limit=limit,
         sort=sort,
     )
+
+    # Instead of relying on fastapi.encoders.jsonable_encoder to convert the
+    # response to JSON, we do so more efficiently ourselves.
+    # In particular, the FastAPI encoder is very slow for large, nested objects.
+    # See: https://github.com/tiangolo/fastapi/issues/1224
+    encoded = [
+        schemas.core.FlowRun.from_orm(fr).dict(json_compatible=True)
+        for fr in db_flow_runs
+    ]
+    return ORJSONResponse(content=encoded)
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)

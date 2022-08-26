@@ -1,7 +1,7 @@
 site_name: Prefect 2.0
 site_url: https://docs.prefect.io/
 repo_url: https://github.com/PrefectHQ/prefect
-edit_uri: 
+edit_uri: edit/main/docs
 extra_css:
     - stylesheets/theme.css
     - stylesheets/admonitions.css
@@ -31,13 +31,15 @@ markdown_extensions:
           permalink: true
 theme:
     name: material
-    custom_dir: overrides
+    custom_dir: docs/overrides
     favicon: img/favicon.png
     features:
         - toc.integrate
         - navigation.tabs
         - navigation.tabs.sticky
         - navigation.instant
+        - search.suggest
+        - search.highlight
     font:
         text: Inter
         code: Source Code Pro
@@ -47,7 +49,6 @@ theme:
     palette:
         primary: blue
         accent: blue
-    custom_dir: docs/overrides
 plugins:
     autorefs: {}
     mkdocstrings:
@@ -92,10 +93,10 @@ nav:
         - Infrastructure: concepts/infrastructure.md
         - Task Runners: concepts/task-runners.md
         - Deployments: concepts/deployments.md
+        - Agents & Work Queues: concepts/work-queues.md
         - Storage: concepts/storage.md
         - Blocks: concepts/blocks.md
         - File Systems: concepts/filesystems.md
-        - Work Queues & Agents: concepts/work-queues.md
         - Schedules: concepts/schedules.md
         - Logging: concepts/logs.md
         - Database: concepts/database.md

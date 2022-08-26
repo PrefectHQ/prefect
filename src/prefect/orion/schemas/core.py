@@ -12,7 +12,7 @@ import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.names import generate_slug, obfuscate_string
-from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
+from prefect.orion.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
@@ -90,8 +90,36 @@ class FlowRunPolicy(PrefectBaseModel):
 
     # TODO: Determine how to separate between infrastructure and within-process level
     #       retries
-    max_retries: int = 0
-    retry_delay_seconds: float = 0
+    max_retries: int = Field(
+        0,
+        description="The maximum number of retries. Field is not used. Please use `retries` instead.",
+        deprecated=True,
+    )
+    retry_delay_seconds: float = Field(
+        0,
+        description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
+        deprecated=True,
+    )
+
+    retries: Optional[int] = Field(None, description="The number of retries.")
+    retry_delay: Optional[int] = Field(
+        None, description="The delay time between retries, in seconds."
+    )
+
+    @root_validator
+    def populate_deprecated_fields(cls, values):
+        """
+        If deprecated fields are provided, populate the corresponding new fields
+        to preserve orchestration behavior.
+        """
+        if not values.get("retries", None) and values.get("max_retries", 0) != 0:
+            values["retries"] = values["max_retries"]
+        if (
+            not values.get("retry_delay", None)
+            and values.get("retry_delay_seconds", 0) != 0
+        ):
+            values["retry_delay"] = values["retry_delay_seconds"]
+        return values
 
 
 class FlowRun(ORMBaseModel):
@@ -107,6 +135,9 @@ class FlowRun(ORMBaseModel):
     deployment_id: UUID = Field(
         None,
         description="The id of the deployment associated with this flow run, if available.",
+    )
+    work_queue_name: str = Field(
+        None, description="The work queue that handled this flow run."
     )
     flow_version: str = Field(
         None,
@@ -147,17 +178,17 @@ class FlowRun(ORMBaseModel):
         0, description="The number of times the flow run was executed."
     )
 
-    expected_start_time: datetime.datetime = Field(
+    expected_start_time: DateTimeTZ = Field(
         None,
         description="The flow run's expected start time.",
     )
 
-    next_scheduled_start_time: datetime.datetime = Field(
+    next_scheduled_start_time: DateTimeTZ = Field(
         None,
         description="The next time the flow run is scheduled to start.",
     )
-    start_time: datetime.datetime = Field(None, description="The actual start time.")
-    end_time: datetime.datetime = Field(None, description="The actual end time.")
+    start_time: DateTimeTZ = Field(None, description="The actual start time.")
+    end_time: DateTimeTZ = Field(None, description="The actual end time.")
     total_run_time: datetime.timedelta = Field(
         datetime.timedelta(0),
         description="Total run time. If the flow run was executed multiple times, the time of each run will be summed.",
@@ -207,8 +238,36 @@ class FlowRun(ORMBaseModel):
 class TaskRunPolicy(PrefectBaseModel):
     """Defines of how a task run should retry."""
 
-    max_retries: int = 0
-    retry_delay_seconds: float = 0
+    max_retries: int = Field(
+        0,
+        description="The maximum number of retries. Field is not used. Please use `retries` instead.",
+        deprecated=True,
+    )
+    retry_delay_seconds: float = Field(
+        0,
+        description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
+        deprecated=True,
+    )
+
+    retries: Optional[int] = Field(None, description="The number of retries.")
+    retry_delay: Optional[int] = Field(
+        None, description="The delay time between retries, in seconds."
+    )
+
+    @root_validator
+    def populate_deprecated_fields(cls, values):
+        """
+        If deprecated fields are provided, populate the corresponding new fields
+        to preserve orchestration behavior.
+        """
+        if not values.get("retries", None) and values.get("max_retries", 0) != 0:
+            values["retries"] = values["max_retries"]
+        if (
+            not values.get("retry_delay", None)
+            and values.get("retry_delay_seconds", 0) != 0
+        ):
+            values["retry_delay"] = values["retry_delay_seconds"]
+        return values
 
 
 class TaskRunInput(PrefectBaseModel):
@@ -261,7 +320,7 @@ class TaskRun(ORMBaseModel):
         None,
         description="An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run.",
     )
-    cache_expiration: datetime.datetime = Field(
+    cache_expiration: DateTimeTZ = Field(
         None, description="Specifies when the cached state should expire."
     )
     task_version: str = Field(None, description="The version of the task being run.")
@@ -287,19 +346,19 @@ class TaskRun(ORMBaseModel):
         0, description="The number of times the task run has been executed."
     )
 
-    expected_start_time: datetime.datetime = Field(
+    expected_start_time: DateTimeTZ = Field(
         None,
         description="The task run's expected start time.",
     )
 
     # the next scheduled start time will be populated
     # whenever the run is in a scheduled state
-    next_scheduled_start_time: datetime.datetime = Field(
+    next_scheduled_start_time: DateTimeTZ = Field(
         None,
         description="The next time the task run is scheduled to start.",
     )
-    start_time: datetime.datetime = Field(None, description="The actual start time.")
-    end_time: datetime.datetime = Field(None, description="The actual end time.")
+    start_time: DateTimeTZ = Field(None, description="The actual start time.")
+    end_time: DateTimeTZ = Field(None, description="The actual end time.")
     total_run_time: datetime.timedelta = Field(
         datetime.timedelta(0),
         description="Total run time. If the task run was executed multiple times, the time of each run will be summed.",
@@ -326,6 +385,9 @@ class Deployment(ORMBaseModel):
     """An ORM representation of deployment data."""
 
     name: str = Field(..., description="The name of the deployment.")
+    version: Optional[str] = Field(
+        None, description="An optional version for the deployment."
+    )
     description: str = Field(None, description="A description for the deployment.")
     flow_id: UUID = Field(
         ..., description="The flow id associated with the deployment."
@@ -336,6 +398,10 @@ class Deployment(ORMBaseModel):
     is_schedule_active: bool = Field(
         True, description="Whether or not the deployment schedule is active."
     )
+    infra_overrides: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Overrides to apply to the base infrastructure block at runtime.",
+    )
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
@@ -345,13 +411,24 @@ class Deployment(ORMBaseModel):
         description="A list of tags for the deployment",
         example=["tag-1", "tag-2"],
     )
-
+    work_queue_name: Optional[str] = Field(
+        None,
+        description="The work queue for the deployment. If no work queue is set, work will not be scheduled.",
+    )
     parameter_openapi_schema: Dict[str, Any] = Field(
         None,
         description="The parameter schema of the flow, including defaults.",
     )
+    path: str = Field(
+        None,
+        description="The path to the working directory for the workflow, relative to remote storage or an absolute path.",
+    )
+    entrypoint: str = Field(
+        None,
+        description="The path to the entrypoint for the workflow, relative to the `path`.",
+    )
     manifest_path: str = Field(
-        ...,
+        None,
         description="The path to the flow's manifest file, relative to the chosen storage.",
     )
     storage_document_id: Optional[UUID] = Field(
@@ -594,7 +671,7 @@ class Log(ORMBaseModel):
     name: str = Field(..., description="The logger name.")
     level: int = Field(..., description="The log level.")
     message: str = Field(..., description="The log message.")
-    timestamp: datetime.datetime = Field(..., description="The log timestamp.")
+    timestamp: DateTimeTZ = Field(..., description="The log timestamp.")
     flow_run_id: UUID = Field(
         ..., description="The flow run ID associated with the log."
     )
@@ -615,69 +692,10 @@ class QueueFilter(PrefectBaseModel):
         description="Only include flow runs from these deployments in the work queue.",
     )
 
-    def get_flow_run_filter(self) -> "schemas.filters.FlowRunFilter":
-        """
-        Construct a flow run filter for the work queue's flow runs.
-        """
-        return schemas.filters.FlowRunFilter(
-            tags=schemas.filters.FlowRunFilterTags(all_=self.tags),
-            deployment_id=schemas.filters.FlowRunFilterDeploymentId(
-                any_=self.deployment_ids,
-                is_null_=False,
-            ),
-        )
-
-    def get_scheduled_flow_run_filter(
-        self, scheduled_before: datetime.datetime
-    ) -> "schemas.filters.FlowRunFilter":
-        """
-        Construct a flow run filter for the work queue's SCHEDULED flow runs.
-
-        Args:
-            scheduled_before: Create a FlowRunFilter that excludes runs scheduled before this date.
-
-        Returns:
-            Flow run filter that can be used to query the work queue for scheduled runs.
-        """
-        return self.get_flow_run_filter().copy(
-            update={
-                "state": schemas.filters.FlowRunFilterState(
-                    type=schemas.filters.FlowRunFilterStateType(
-                        any_=[
-                            schemas.states.StateType.SCHEDULED,
-                        ]
-                    )
-                ),
-                "next_scheduled_start_time": schemas.filters.FlowRunFilterNextScheduledStartTime(
-                    before_=scheduled_before
-                ),
-            }
-        )
-
-    def get_executing_flow_run_filter(self) -> "schemas.filters.FlowRunFilter":
-        """
-        Construct a flow run filter for the work queue's PENDING or RUNNING flow runs.
-        """
-        return self.get_flow_run_filter().copy(
-            update={
-                "state": schemas.filters.FlowRunFilterState(
-                    type=schemas.filters.FlowRunFilterStateType(
-                        any_=[
-                            schemas.states.StateType.PENDING,
-                            schemas.states.StateType.RUNNING,
-                        ]
-                    )
-                )
-            }
-        )
-
 
 class WorkQueue(ORMBaseModel):
     """An ORM representation of a work queue"""
 
-    filter: QueueFilter = Field(
-        default_factory=QueueFilter, description="Filter criteria for the work queue."
-    )
     name: str = Field(..., description="The name of the work queue.")
     description: Optional[str] = Field(
         "", description="An optional description for the work queue."
@@ -687,6 +705,11 @@ class WorkQueue(ORMBaseModel):
     )
     concurrency_limit: Optional[int] = Field(
         None, description="An optional concurrency limit for the work queue."
+    )
+    filter: Optional[QueueFilter] = Field(
+        None,
+        description="Deprecated field: Filter criteria for the work queue.",
+        deprecated=True,
     )
 
     @validator("name", check_fields=False)
@@ -738,7 +761,7 @@ class Agent(ORMBaseModel):
     work_queue_id: UUID = Field(
         ..., description="The work queue with which the agent is associated."
     )
-    last_activity_time: Optional[datetime.datetime] = Field(
+    last_activity_time: Optional[DateTimeTZ] = Field(
         None, description="The last time this agent polled for work."
     )
 

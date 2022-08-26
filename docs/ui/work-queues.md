@@ -34,7 +34,7 @@ Select the **+** button to create a new work queue. You'll be able to specify th
 !!! note "Work queue settings are filters"
     Note that work queue settings are filters and restrict the work queue to servicing flow runs only for deployments that meet the filtering criteria. For example, if you do not specify any tags, the work queue will serve any flow runs. However, if you added a "test" tag to the **Tags** list, the work queue would serve _only_ flow runs configured with a "test" tag.
 
-See the [Work Queues and Agents](/concepts/work-queues/) documentation for details on configuring work queues and agents, including creating work queues from the Prefect CLI.
+See the [Work Queues and Agents](/concepts/work-queues/) documentation for details on configuring agents and work queues, including creating work queues from the Prefect CLI.
 
 Click on the name of any work queue to see details about it. This page includes the Prefect CLI command you can use to create an agent that pulls flow runs from this work queue.
 

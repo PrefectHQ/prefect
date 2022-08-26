@@ -4,7 +4,6 @@ Schemas that define Orion filtering operations.
 Each filter schema includes logic for transforming itself into a SQL `where` clause.
 """
 
-import datetime
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
@@ -13,7 +12,7 @@ from pydantic import Field
 from sqlalchemy.sql.elements import BooleanClauseList
 
 import prefect.orion.schemas as schemas
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
@@ -242,6 +241,31 @@ class FlowRunFilterDeploymentId(PrefectOperatorFilterBaseModel):
         return filters
 
 
+class FlowRunFilterWorkQueueName(PrefectOperatorFilterBaseModel):
+    """Filter by `FlowRun.work_queue_name`."""
+
+    any_: List[str] = Field(
+        None,
+        description="A list of work queue names to include",
+        example=["work_queue_1", "work_queue_2"],
+    )
+    is_null_: bool = Field(
+        None, description="If true, only include flow runs without work queue names"
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.FlowRun.work_queue_name.in_(self.any_))
+        if self.is_null_ is not None:
+            filters.append(
+                db.FlowRun.work_queue_name == None
+                if self.is_null_
+                else db.FlowRun.work_queue_name != None
+            )
+        return filters
+
+
 class FlowRunFilterStateType(PrefectFilterBaseModel):
     """Filter by `FlowRun.state_type`."""
 
@@ -268,7 +292,7 @@ class FlowRunFilterStateName(PrefectFilterBaseModel):
         return filters
 
 
-class FlowRunFilterState(PrefectFilterBaseModel):
+class FlowRunFilterState(PrefectOperatorFilterBaseModel):
     type: Optional[FlowRunFilterStateType]
     name: Optional[FlowRunFilterStateName]
 
@@ -298,10 +322,10 @@ class FlowRunFilterFlowVersion(PrefectFilterBaseModel):
 class FlowRunFilterStartTime(PrefectFilterBaseModel):
     """Filter by `FlowRun.start_time`."""
 
-    before_: datetime.datetime = Field(
+    before_: DateTimeTZ = Field(
         None, description="Only include flow runs starting at or before this time"
     )
-    after_: datetime.datetime = Field(
+    after_: DateTimeTZ = Field(
         None, description="Only include flow runs starting at or after this time"
     )
     is_null_: bool = Field(
@@ -326,11 +350,11 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
 class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
     """Filter by `FlowRun.expected_start_time`."""
 
-    before_: datetime.datetime = Field(
+    before_: DateTimeTZ = Field(
         None,
         description="Only include flow runs scheduled to start at or before this time",
     )
-    after_: datetime.datetime = Field(
+    after_: DateTimeTZ = Field(
         None,
         description="Only include flow runs scheduled to start at or after this time",
     )
@@ -347,11 +371,11 @@ class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
 class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
     """Filter by `FlowRun.next_scheduled_start_time`."""
 
-    before_: datetime.datetime = Field(
+    before_: DateTimeTZ = Field(
         None,
         description="Only include flow runs with a next_scheduled_start_time or before this time",
     )
-    after_: datetime.datetime = Field(
+    after_: DateTimeTZ = Field(
         None,
         description="Only include flow runs with a next_scheduled_start_time at or after this time",
     )
@@ -403,6 +427,9 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
     deployment_id: Optional[FlowRunFilterDeploymentId] = Field(
         None, description="Filter criteria for `FlowRun.deployment_id`"
     )
+    work_queue_name: Optional[FlowRunFilterWorkQueueName] = Field(
+        None, description="Filter criteria for `FlowRun.work_queue_name"
+    )
     state: Optional[FlowRunFilterState] = Field(
         None, description="Filter criteria for `FlowRun.state`"
     )
@@ -433,6 +460,8 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.tags.as_sql_filter(db))
         if self.deployment_id is not None:
             filters.append(self.deployment_id.as_sql_filter(db))
+        if self.work_queue_name is not None:
+            filters.append(self.work_queue_name.as_sql_filter(db))
         if self.flow_version is not None:
             filters.append(self.flow_version.as_sql_filter(db))
         if self.state is not None:
@@ -540,7 +569,7 @@ class TaskRunFilterStateName(PrefectFilterBaseModel):
         return filters
 
 
-class TaskRunFilterState(PrefectFilterBaseModel):
+class TaskRunFilterState(PrefectOperatorFilterBaseModel):
     type: Optional[TaskRunFilterStateType]
     name: Optional[TaskRunFilterStateName]
 
@@ -573,10 +602,10 @@ class TaskRunFilterSubFlowRuns(PrefectFilterBaseModel):
 class TaskRunFilterStartTime(PrefectFilterBaseModel):
     """Filter by `TaskRun.start_time`."""
 
-    before_: datetime.datetime = Field(
+    before_: DateTimeTZ = Field(
         None, description="Only include task runs starting at or before this time"
     )
-    after_: datetime.datetime = Field(
+    after_: DateTimeTZ = Field(
         None, description="Only include task runs starting at or after this time"
     )
     is_null_: bool = Field(
@@ -679,6 +708,22 @@ class DeploymentFilterName(PrefectFilterBaseModel):
         return filters
 
 
+class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
+    """Filter by `Deployment.work_queue_name`."""
+
+    any_: List[str] = Field(
+        None,
+        description="A list of work queue names to include",
+        example=["work_queue_1", "work_queue_2"],
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Deployment.work_queue_name.in_(self.any_))
+        return filters
+
+
 class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
     """Filter by `Deployment.is_schedule_active`."""
 
@@ -734,6 +779,9 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
     tags: Optional[DeploymentFilterTags] = Field(
         None, description="Filter criteria for `Deployment.tags`"
     )
+    work_queue_name: Optional[DeploymentFilterWorkQueueName] = Field(
+        None, description="Filter criteria for `Deployment.work_queue_name`"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -746,6 +794,8 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.is_schedule_active.as_sql_filter(db))
         if self.tags is not None:
             filters.append(self.tags.as_sql_filter(db))
+        if self.work_queue_name is not None:
+            filters.append(self.work_queue_name.as_sql_filter(db))
 
         return filters
 
@@ -793,10 +843,10 @@ class LogFilterLevel(PrefectFilterBaseModel):
 class LogFilterTimestamp(PrefectFilterBaseModel):
     """Filter by `Log.timestamp`."""
 
-    before_: datetime.datetime = Field(
+    before_: DateTimeTZ = Field(
         None, description="Only include logs with a timestamp at or before this time"
     )
-    after_: datetime.datetime = Field(
+    after_: DateTimeTZ = Field(
         None, description="Only include logs with a timestamp at or after this time"
     )
 
