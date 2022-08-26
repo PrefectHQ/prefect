@@ -270,6 +270,7 @@ class S3List(Task):
 
         files = []
         for page in filtered_results if filtered_results else results:
-            files.extend(obj["Key"] for obj in page.get("Contents", []))
+            if not page.get("Contents", []) is None:
+                files.extend(obj["Key"] for obj in page.get("Contents", []))
 
         return files
