@@ -638,17 +638,19 @@ class Task(Generic[P, R]):
             >>> my_flow()
             [6, 7, 8]
 
-            Use unmapped to treat an iterable arg as static
+            Use `unmapped` to treat an iterable argument as static
             >>> from prefect import unmapped
             >>>
             >>> @task
-            >>> def my_task(n, static_str):
-            >>>     print(f'{n} - {static_str}')
+            >>> def add_n_to_items(items, n):
+            >>>     return [item + n for item in items]
             >>>
             >>> @flow
             >>> def my_flow():
-            >>>     my_task.map([1, 2, 3], unmapped("Hello!"))
-
+            >>>     return add_n_to_items.map(unmapped([10, 20]), n=[1, 2, 3])
+            >>>
+            >>> my_flow()
+            [[11, 21], [12, 22], [13, 23]]
         """
 
         from prefect.engine import enter_task_run_engine
