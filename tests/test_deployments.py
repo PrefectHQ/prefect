@@ -215,7 +215,7 @@ class TestDeploymentBuild:
         d = await Deployment.build_from_flow(
             flow=flow_function, name="foo", infrastructure=DockerContainer()
         )
-        assert d.path == "/opt/prefect/deployment"
+        assert d.path == "/opt/prefect/flows"
 
         # can be overriden
         d = await Deployment.build_from_flow(
