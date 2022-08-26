@@ -159,11 +159,18 @@ def task_run_logger(
 
 
 @contextmanager
-def disable_run_logger(*args, **kwargs):
+def disable_run_logger():
+    flow_run_logger = get_logger("prefect.flow_run")
+    task_run_logger = get_logger("prefect.task_run")
+
+    # determine if it's already disabled
+    flow_run_logger_disabled = flow_run_logger.disabled
+    task_run_logger_disabled = task_run_logger.disabled
     try:
-        get_logger("prefect.flow_run").disabled = True
-        get_logger("prefect.task_run").disabled = True
+        flow_run_logger.disabled = True
+        task_run_logger.disabled = True
         yield
     finally:
-        get_logger("prefect.flow_run").disabled = False
-        get_logger("prefect.task_run").disabled = False
+        # return to original state
+        flow_run_logger.disabled = flow_run_logger_disabled
+        task_run_logger.disabled = task_run_logger_disabled

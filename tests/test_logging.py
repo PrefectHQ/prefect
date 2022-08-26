@@ -1052,12 +1052,16 @@ def test_disable_run_logger(caplog):
         logger.critical("wont show")
         return 42
 
+    flow_run_logger = get_logger("prefect.flow_run")
+    task_run_logger = get_logger("prefect.task_run")
+    task_run_logger.disabled = True
+
     with disable_run_logger():
         num = task_with_run_logger.fn()
         assert num == 42
-        assert get_logger("prefect.flow_run").disabled
-        assert get_logger("prefect.task_run").disabled
+        assert flow_run_logger.disabled
+        assert task_run_logger.disabled
 
-    assert not get_logger("prefect.flow_run").disabled
-    assert not get_logger("prefect.task_run").disabled
+    assert not flow_run_logger.disabled
+    assert task_run_logger.disabled  # was already disabled beforehand
     assert caplog.record_tuples == [("null", logging.CRITICAL, "wont show")]
