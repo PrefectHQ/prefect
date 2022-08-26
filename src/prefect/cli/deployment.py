@@ -273,12 +273,16 @@ async def apply(
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
 
         if upload:
-            file_count = await deployment.upload_to_storage()
-            if file_count:
-                app.console.print(
-                    f"Successfully uploaded {file_count} files to {deployment.location}",
-                    style="green",
-                )
+            if (
+                deployment.storage
+                and "put-directory" in deployment.storage.get_block_capabilities()
+            ):
+                file_count = await deployment.upload_to_storage()
+                if file_count:
+                    app.console.print(
+                        f"Successfully uploaded {file_count} files to {deployment.location}",
+                        style="green",
+                    )
 
         deployment_id = await deployment.apply()
         app.console.print(
@@ -548,12 +552,16 @@ async def build(
         )
 
     if not skip_upload:
-        file_count = await deployment.upload_to_storage()
-        if file_count:
-            app.console.print(
-                f"Successfully uploaded {file_count} files to {deployment.location}",
-                style="green",
-            )
+        if (
+            deployment.storage
+            and "put-directory" in deployment.storage.get_block_capabilities()
+        ):
+            file_count = await deployment.upload_to_storage()
+            if file_count:
+                app.console.print(
+                    f"Successfully uploaded {file_count} files to {deployment.location}",
+                    style="green",
+                )
 
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
     await deployment.to_yaml(deployment_loc)

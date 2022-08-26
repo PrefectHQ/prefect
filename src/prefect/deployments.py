@@ -571,7 +571,11 @@ class Deployment(BaseModel):
             deployment.path = str(Path(".").absolute())
 
         if not skip_upload:
-            await deployment.upload_to_storage()
+            if (
+                deployment.storage
+                and "put-directory" in deployment.storage.get_block_capabilities()
+            ):
+                await deployment.upload_to_storage()
 
         if output:
             await deployment.to_yaml(output)
