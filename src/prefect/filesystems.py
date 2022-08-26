@@ -1,5 +1,6 @@
 import abc
 import glob
+import io
 import json
 import shutil
 import sys
@@ -14,6 +15,7 @@ from pydantic import Field, SecretStr, validator
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import filter_files
+from prefect.utilities.processutils import run_process
 
 
 class ReadableFileSystem(Block, abc.ABC):
@@ -25,14 +27,44 @@ class ReadableFileSystem(Block, abc.ABC):
 
 
 class WritableFileSystem(Block, abc.ABC):
-    _block_schema_capabilities = ["write-path"]
+    _block_schema_capabilities = ["read-path", "write-path"]
+
+    @abc.abstractmethod
+    async def read_path(self, path: str) -> bytes:
+        pass
 
     @abc.abstractmethod
     async def write_path(self, path: str, content: bytes) -> None:
         pass
 
 
-class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
+class ReadableDeploymentStorage(Block, abc.ABC):
+    _block_schema_capabilities = ["get-directory"]
+
+    @abc.abstractmethod
+    async def get_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> None:
+        pass
+
+
+class WritableDeploymentStorage(Block, abc.ABC):
+    _block_schema_capabilities = ["get-directory", "put-directory"]
+
+    @abc.abstractmethod
+    async def get_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> None:
+        pass
+
+    @abc.abstractmethod
+    async def put_directory(
+        self, local_path: str = None, to_path: str = None, ignore_file: str = None
+    ) -> None:
+        pass
+
+
+class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on a local file system.
 
@@ -73,9 +105,9 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
             path = basepath / path
         else:
             path = path.resolve()
-            if not basepath in path.parents:
+            if not basepath in path.parents and (basepath != path):
                 raise ValueError(
-                    f"Attempted to write to path {path} outside of the base path {basepath}."
+                    f"Provided path {path} is outside of the base path {basepath}."
                 )
 
         return path
@@ -171,7 +203,7 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
             await f.write(content)
 
 
-class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
+class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on a remote file system.
 
@@ -253,6 +285,8 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         """
         if from_path is None:
             from_path = str(self.basepath)
+        else:
+            from_path = self._resolve_path(from_path)
 
         if local_path is None:
             local_path = Path(".").absolute()
@@ -273,6 +307,8 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         """
         if to_path is None:
             to_path = str(self.basepath)
+        else:
+            to_path = self._resolve_path(to_path)
 
         if local_path is None:
             local_path = "."
@@ -338,7 +374,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         return self._filesystem
 
 
-class S3(ReadableFileSystem, WritableFileSystem):
+class S3(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on AWS S3.
 
@@ -422,7 +458,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
         return await self.filesystem.write_path(path=path, content=content)
 
 
-class GCS(ReadableFileSystem, WritableFileSystem):
+class GCS(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on Google Cloud Storage.
 
@@ -503,7 +539,7 @@ class GCS(ReadableFileSystem, WritableFileSystem):
         return await self.filesystem.write_path(path=path, content=content)
 
 
-class Azure(ReadableFileSystem, WritableFileSystem):
+class Azure(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on Azure Datalake and Azure Blob Storage.
 
@@ -597,7 +633,7 @@ class Azure(ReadableFileSystem, WritableFileSystem):
         return await self.filesystem.write_path(path=path, content=content)
 
 
-class SMB(ReadableFileSystem, WritableFileSystem):
+class SMB(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on a SMB share.
 
@@ -689,3 +725,48 @@ class SMB(ReadableFileSystem, WritableFileSystem):
 
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
+
+
+class GitHub(ReadableDeploymentStorage):
+    """
+    Interact with files stored on public GitHub repositories.
+    """
+
+    _block_type_name = "GitHub"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/187oCWsD18m5yooahq1vU0/ace41e99ab6dc40c53e5584365a33821/github.png?h=250"
+
+    repository: str = Field(
+        ...,
+        description="The URL of a GitHub repository to read from, in either HTTPS or SSH format.",
+    )
+    reference: Optional[str] = Field(
+        None,
+        description="An optional reference to pin to; can be a branch name or tag.",
+    )
+
+    async def get_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> None:
+        """
+        Clones a GitHub project specified in `from_path` to the provided `local_path`; defaults to cloning
+        the repository reference configured on the Block to the present working directory.
+        """
+        cmd = "git clone"
+        if from_path is None:
+            cmd += f" {self.repository}"
+            if self.reference:
+                cmd += f" -b {self.reference} --depth 1"
+        else:
+            cmd += f" {from_path}"
+
+        if local_path is None:
+            local_path = Path(".").absolute()
+
+        cmd += f" {local_path}"
+
+        err_stream = io.StringIO()
+        out_stream = io.StringIO()
+        process = await run_process(cmd, stream_output=(out_stream, err_stream))
+        if process.returncode != 0:
+            err_stream.seek(0)
+            raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
