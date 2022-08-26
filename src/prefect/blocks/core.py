@@ -165,6 +165,9 @@ class Block(BaseModel, ABC):
         super().__init__(*args, **kwargs)
         self.block_initialization()
 
+    def __str__(self) -> str:
+        return self.__repr__()
+
     def block_initialization(self) -> None:
         pass
 

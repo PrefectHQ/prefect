@@ -4,7 +4,8 @@ from pydantic.error_wrappers import ValidationError
 
 from prefect.blocks.core import Block
 from prefect.deployments import Deployment
-from prefect.filesystems import S3, LocalFileSystem
+from prefect.exceptions import BlockMissingCapabilities
+from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import Process
 
 
@@ -180,6 +181,24 @@ class TestDeploymentUpload:
 
         assert d.storage._is_anonymous is False
         assert d.storage._block_document_id == old_id
+
+    async def test_uploading_with_readonly_storage_raises(self, tmp_path):
+        storage = GitHub(repository="prefect")
+
+        d = Deployment(name="foo", flow_name="bar", storage=storage)
+
+        with pytest.raises(
+            BlockMissingCapabilities, match="'put-directory' capability"
+        ):
+            await d.upload_to_storage(ignore_file=None)
+
+        d = Deployment(name="foo", flow_name="bar")
+        await storage.save(name="readonly")
+
+        with pytest.raises(
+            BlockMissingCapabilities, match="'put-directory' capability"
+        ):
+            await d.upload_to_storage(storage_block="github/readonly", ignore_file=None)
 
 
 class TestDeploymentBuild:
