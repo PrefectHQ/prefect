@@ -111,10 +111,13 @@ class Telemetry(LoopService):
                 )
             result.raise_for_status()
         except Exception as exc:
-            # the traceback is only needed if doing deeper debugging, otherwise
-            # this looks like an impactful server error
+
             self.logger.error(
-                f"Failed to send telemetry: {exc}", exc_info=PREFECT_DEBUG_MODE.value()
+                f"Failed to send telemetry: {exc}\n"
+                "Shutting down telemetry service...",
+                # The traceback is only needed if doing deeper debugging, otherwise
+                # this looks like an impactful server error
+                exc_info=PREFECT_DEBUG_MODE.value(),
             )
             await self.stop(block=False)
 
