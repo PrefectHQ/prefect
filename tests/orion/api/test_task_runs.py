@@ -325,7 +325,7 @@ class TestSetTaskRunState:
         # set max retries to 1
         # copy to trigger ORM updates
         task_run.empirical_policy = task_run.empirical_policy.copy()
-        task_run.empirical_policy.max_retries = 1
+        task_run.empirical_policy.retries = 1
         await session.flush()
 
         (
@@ -355,7 +355,7 @@ class TestSetTaskRunState:
         # set max retries to 1
         # copy to trigger ORM updates
         task_run.empirical_policy = task_run.empirical_policy.copy()
-        task_run.empirical_policy.max_retries = 1
+        task_run.empirical_policy.retries = 1
         await session.flush()
 
         (

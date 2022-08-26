@@ -110,7 +110,13 @@ class DeploymentUpdate(
 class FlowRunUpdate(
     schemas.core.FlowRun.subclass(
         name="FlowRunUpdate",
-        include_fields=["flow_version", "parameters", "name", "tags"],
+        include_fields=[
+            "flow_version",
+            "parameters",
+            "name",
+            "tags",
+            "empirical_policy",
+        ],
     )
 ):
     """Data used by the Orion API to update a flow run."""

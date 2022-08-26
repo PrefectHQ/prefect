@@ -9,7 +9,11 @@ import pytest
 from prefect import flow, get_run_logger, tags
 from prefect.context import PrefectObjectRegistry
 from prefect.engine import get_state_for_result
-from prefect.exceptions import MappingLengthMismatch, ReservedArgumentError
+from prefect.exceptions import (
+    MappingLengthMismatch,
+    MappingMissingIterable,
+    ReservedArgumentError,
+)
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
@@ -554,9 +558,10 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function.submit()
-            return future.task_run.id, future.wait()
+            return future.wait(), ...
 
-        task_run_id, task_run_state = test_flow()
+        task_run_state, _ = test_flow()
+        task_run_id = task_run_state.state_details.task_run_id
 
         if always_fail:
             assert task_run_state.is_failed()
@@ -596,9 +601,10 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function.submit()
-            return future.task_run.id, future.wait()
+            return future.wait()
 
-        task_run_id, task_run_state = test_flow()
+        task_run_state = test_flow()
+        task_run_id = task_run_state.state_details.task_run_id
 
         assert task_run_state.is_completed()
         assert task_run_state.result() is True
@@ -1965,6 +1971,14 @@ class TestTaskMap:
         futures = my_flow()
         assert [future.result() for future in futures] == [5, 7, 9]
 
+    def test_missing_iterable_argument(self):
+        @flow
+        def my_flow():
+            return TestTaskMap.add_together.map(5, 6)
+
+        with pytest.raises(MappingMissingIterable):
+            assert my_flow()
+
     def test_mismatching_input_lengths(self):
         @flow
         def my_flow():
@@ -2005,6 +2019,19 @@ class TestTaskMap:
             numbers = [1, 2, 3]
             other = unmapped(5)
             return TestTaskMap.add_together.map(numbers, other)
+
+        futures = my_flow()
+        assert [future.result() for future in futures] == [6, 7, 8]
+
+    async def test_with_default_kwargs(self):
+        @task
+        def add_some(x, y=5):
+            return x + y
+
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            return add_some.map(numbers)
 
         futures = my_flow()
         assert [future.result() for future in futures] == [6, 7, 8]
