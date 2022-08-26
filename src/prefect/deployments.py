@@ -566,7 +566,7 @@ class Deployment(BaseModel):
         elif not deployment.storage and is_docker_based:
             # only update if a path is not already set
             if not deployment.path:
-                deployment.path = "/opt/prefect/deployment"
+                deployment.path = "/opt/prefect/flows"
 
         if not skip_upload:
             await deployment.upload_to_storage()
