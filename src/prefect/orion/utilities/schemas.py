@@ -9,6 +9,7 @@ from functools import partial
 from typing import Any, Dict, List, Set, Type, TypeVar
 from uuid import UUID, uuid4
 
+import orjson
 import pendulum
 import pydantic
 from packaging.version import Version
@@ -113,6 +114,15 @@ def pydantic_subclass(
     return new_cls
 
 
+def orjson_dumps(v: Any, *, default: Any) -> str:
+    """
+    Utility for dumping a value to JSON using orjson.
+
+    orjson.dumps returns bytes, to match standard json.dumps we need to decode.
+    """
+    return orjson.dumps(v, default=default).decode()
+
+
 class PrefectBaseModel(BaseModel):
     """A base pydantic.BaseModel for all Prefect schemas and pydantic models.
 
@@ -140,6 +150,10 @@ class PrefectBaseModel(BaseModel):
             copy_on_model_validation = "none"
         else:
             copy_on_model_validation = False
+
+        # Use orjson for serialization
+        json_loads = orjson.loads
+        json_dumps = orjson_dumps
 
     @classmethod
     def subclass(
