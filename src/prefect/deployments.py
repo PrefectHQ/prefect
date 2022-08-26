@@ -168,10 +168,32 @@ class Deployment(BaseModel):
             "schedule",
             "infra_overrides",
         ]
+
+        # if infrastructure is baked as a pre-saved block, then
+        # editing its fields will not update anything
         if self.infrastructure._block_document_id:
             return editable_fields
         else:
             return editable_fields + ["infrastructure"]
+
+    @property
+    def location(self) -> str:
+        """
+        The 'location' that this deployment points to is given by `path` alone
+        in the case of no remote storage, and otherwise by `storage.basepath / path`.
+
+        The underlying flow entrypoint is interpreted relative to this location.
+        """
+        location = ""
+        if self.storage:
+            location = (
+                self.storage.basepath + "/"
+                if not self.storage.basepath.endswith("/")
+                else ""
+            )
+        if self.path:
+            location += self.path
+        return location
 
     @sync_compatible
     async def to_yaml(self, path: Path) -> None:
@@ -216,6 +238,10 @@ class Deployment(BaseModel):
             all_fields["storage"][
                 "_block_type_slug"
             ] = self.storage.get_block_type_slug()
+        if all_fields["infrastructure"]:
+            all_fields["infrastructure"][
+                "_block_type_slug"
+            ] = self.infrastructure.get_block_type_slug()
         return all_fields
 
     # top level metadata
@@ -266,12 +292,38 @@ class Deployment(BaseModel):
         description="The parameter schema of the flow, including defaults.",
     )
 
-    @validator("storage", pre=True)
-    def cast_storage_to_block_type(cls, value):
+    @validator("infrastructure", pre=True)
+    def infrastructure_must_have_capabilities(cls, value):
         if isinstance(value, dict):
-            block = lookup_type(Block, value.pop("_block_type_slug"))
-            return block(**value)
-        return value
+            block_type = lookup_type(Block, value.pop("_block_type_slug"))
+            block = block_type(**value)
+        elif value is None:
+            return value
+        else:
+            block = value
+
+        if "run-infrastructure" not in block.get_block_capabilities():
+            raise ValueError(
+                "Infrastructure block must have 'run-infrastructure' capabilities."
+            )
+        return block
+
+    @validator("storage", pre=True)
+    def storage_must_have_capabilities(cls, value):
+        if isinstance(value, dict):
+            block_type = lookup_type(Block, value.pop("_block_type_slug"))
+            block = block_type(**value)
+        elif value is None:
+            return value
+        else:
+            block = value
+
+        capabilities = block.get_block_capabilities()
+        if "get-directory" not in capabilities and "put-directory" not in capabilities:
+            raise ValueError(
+                "Remote Storage block must have both 'get-directory' and 'put-directory' capabilities."
+            )
+        return block
 
     @validator("parameter_openapi_schema", pre=True)
     def handle_openapi_schema(cls, value):
@@ -287,6 +339,24 @@ class Deployment(BaseModel):
     async def load_from_yaml(cls, path: str):
         with open(str(path), "r") as f:
             data = yaml.safe_load(f)
+
+            # load blocks from server to ensure secret values are properly hydrated
+            if data["storage"]:
+                block_doc_name = data["storage"].get("_block_document_name")
+                # if no doc name, this block is not stored on the server
+                if block_doc_name:
+                    block_slug = data["storage"]["_block_type_slug"]
+                    block = await Block.load(f"{block_slug}/{block_doc_name}")
+                    data["storage"] = block
+
+            if data["infrastructure"]:
+                block_doc_name = data["infrastructure"].get("_block_document_name")
+                # if no doc name, this block is not stored on the server
+                if block_doc_name:
+                    block_slug = data["infrastructure"]["_block_type_slug"]
+                    block = await Block.load(f"{block_slug}/{block_doc_name}")
+                    data["infrastructure"] = block
+
             return cls(**data)
 
     @sync_compatible
@@ -368,20 +438,13 @@ class Deployment(BaseModel):
         deployment_path = None
         file_count = None
         if storage_block:
-            template = await Block.load(storage_block)
-            self.storage = template.copy(
-                exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
-            )
+            self.storage = await Block.load(storage_block)
 
             # upload current directory to storage location
             file_count = await self.storage.put_directory(
                 ignore_file=ignore_file, to_path=self.path
             )
-        elif not self.storage:
-            # default storage, no need to move anything around
-            self.storage = None
-            self.path = str(Path(".").absolute())
-        else:
+        elif self.storage:
             file_count = await self.storage.put_directory(
                 ignore_file=ignore_file, to_path=self.path
             )
@@ -393,9 +456,12 @@ class Deployment(BaseModel):
         return file_count
 
     @sync_compatible
-    async def apply(self) -> UUID:
+    async def apply(self, upload: bool = False) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
+
+        Args:
+            upload: if True, deployment files are automatically uploaded to remote storage
         """
         if not self.name or not self.flow_name:
             raise ValueError("Both a deployment name and flow name must be set.")
@@ -410,6 +476,9 @@ class Deployment(BaseModel):
                 infrastructure_document_id = await self.infrastructure._save(
                     is_anonymous=True,
                 )
+
+            if upload:
+                await self.upload_to_storage()
 
             # we assume storage was already saved
             storage_document_id = getattr(self.storage, "_block_document_id", None)
@@ -441,6 +510,7 @@ class Deployment(BaseModel):
         flow: Flow,
         name: str,
         output: str = None,
+        skip_upload: bool = False,
         **kwargs,
     ) -> "Deployment":
         """
@@ -454,6 +524,7 @@ class Deployment(BaseModel):
             name: A name for the deployment
             output (optional): if provided, the full deployment specification will be written as a YAML
                 file in the location specified by `output`
+            skip_upload: if True, deployment files are not automatically uploaded to remote storage
             **kwargs: other keyword arguments to pass to the constructor for the `Deployment` class
         """
         if not name:
@@ -476,17 +547,19 @@ class Deployment(BaseModel):
         await deployment.load()
 
         # set a few attributes for this flow object
-        deployment.entrypoint = f"{Path(flow_file).absolute()}:{flow.fn.__name__}"
+        entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
+        deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
         deployment.parameter_openapi_schema = parameter_schema(flow)
+
         if not deployment.version:
             deployment.version = flow.version
         if not deployment.description:
             deployment.description = flow.description
+        if not deployment.storage:
+            deployment.path = str(Path(".").absolute())
 
-        # if no storage is set, assume local for now
-        # TODO: revisit with Docker integration
-        # note: this method call sets `deployment.path`
-        await deployment.upload_to_storage()
+        if not skip_upload:
+            await deployment.upload_to_storage()
 
         if output:
             await deployment.to_yaml(output)
