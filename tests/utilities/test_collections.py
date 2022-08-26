@@ -413,10 +413,10 @@ class TestRemoveKeys:
 
 
 class TestIsIterable:
-    @pytest.mark.parametrize("obj", [[1, 2, 3], (1, 2, 3), "hello"])
+    @pytest.mark.parametrize("obj", [[1, 2, 3], (1, 2, 3)])
     def test_is_iterable(self, obj):
         assert isiterable(obj)
 
-    @pytest.mark.parametrize("obj", [5, Exception(), True])
+    @pytest.mark.parametrize("obj", [5, Exception(), True, "hello", bytes()])
     def test_not_iterable(self, obj):
         assert not isiterable(obj)
