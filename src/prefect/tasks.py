@@ -579,38 +579,42 @@ class Task(Generic[P, R]):
             >>> def my_task(x):
             >>>     return x + 1
 
-            Run a map in a flow
+            Create mapped tasks
 
             >>> from prefect import flow
             >>> @flow
             >>> def my_flow():
             >>>     my_task.map([1, 2, 3])
 
-            Wait for mapping to finish
+            Wait for all mapped tasks to finish
 
             >>> @flow
             >>> def my_flow():
             >>>     futures = my_task.map([1, 2, 3])
             >>>     for future in futures:
             >>>         future.wait()
+            >>>     # Now all of the mapped tasks have finished
+            >>>     my_task(10)
 
-            Use the result from a map in a flow
+            Use the result from mapped tasks in a flow
 
             >>> @flow
             >>> def my_flow():
             >>>     futures = my_task.map([1, 2, 3])
             >>>     for future in futures:
-            >>>         future.result()
+            >>>         print(future.result())
             >>> my_flow()
-            [2, 3, 4]
+            2
+            3
+            4
 
             Enforce ordering between tasks that do not exchange data
             >>> @task
-            >>> def task_1():
+            >>> def task_1(x):
             >>>     pass
             >>>
             >>> @task
-            >>> def task_2():
+            >>> def task_2(y):
             >>>     pass
             >>>
             >>> @flow
@@ -620,25 +624,21 @@ class Task(Generic[P, R]):
             >>>     # task 2 will wait for task_1 to complete
             >>>     y = task_2.map([1, 2, 3], wait_for=[x])
 
-            Use static arguments
+            Use a non-iterable input as a constant across mapped tasks
             >>> @task
-            >>> def add_y(x, y):
-            >>>    return x + y
+            >>> def display(prefix, item):
+            >>>    print(prefix, item)
             >>>
             >>> @flow
             >>> def my_flow():
-            >>>     futures = add_something.map([1, 2, 3], 5)
-            >>>
-            >>>     # collect results
-            >>>     result = []
-            >>>     for future in futures:
-            >>>         result.append(future.result())
-            >>>     return result
+            >>>     display.map("Check it out: ", [1, 2, 3])
             >>>
             >>> my_flow()
-            [6, 7, 8]
+            Check it out: 1
+            Check it out: 2
+            Check it out: 3
 
-            Use `unmapped` to treat an iterable argument as static
+            Use `unmapped` to treat an iterable argument as a constant
             >>> from prefect import unmapped
             >>>
             >>> @task
