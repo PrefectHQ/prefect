@@ -116,7 +116,7 @@ class Telemetry(LoopService):
             self.logger.error(
                 "Failed to send telemetry.", exc_info=PREFECT_DEBUG_MODE.value()
             )
-            await self.stop()
+            await self.stop(block=False)
 
 
 if __name__ == "__main__":
