@@ -98,7 +98,6 @@ def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logge
         and get_logger("prefect.task_run").disabled
     ):
         logger = logging.getLogger("null")
-        logger.addHandler(logging.NullHandler())
     else:
         raise RuntimeError("There is no active flow or task run context.")
 
