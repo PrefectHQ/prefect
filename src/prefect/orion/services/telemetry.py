@@ -114,7 +114,7 @@ class Telemetry(LoopService):
             # the traceback is only needed if doing deeper debugging, otherwise
             # this looks like an impactful server error
             self.logger.error(
-                "Failed to send telemetry.", exc_info=PREFECT_DEBUG_MODE.value()
+                f"Failed to send telemetry: {exc}", exc_info=PREFECT_DEBUG_MODE.value()
             )
             await self.stop(block=False)
 
