@@ -63,7 +63,7 @@ extras = {
     "databricks": ["pydantic >= 1.9.0"],
     "dropbox": ["dropbox ~= 9.0"],
     "firebolt": ["firebolt-sdk >= 0.2.1"],
-    "ge": ["great_expectations >= 0.13.8", "mistune < 2.0"],
+    "ge": ["great_expectations >= 0.13.8", "sqlalchemy-redshift >= 0.8.11"],
     "gcp": [
         "google-cloud-bigquery >= 1.6.0",
     ]
@@ -124,7 +124,9 @@ extras["task_library_ci"] = sum(extras.values(), [])
 extras["task_library_ci"] = [
     r
     for r in extras["task_library_ci"]
-    if not r.startswith("dask_cloudprovider") and not r.startswith("pyodbc")
+    if not r.startswith("dask_cloudprovider")
+    and not r.startswith("pyodbc")
+    and not r.startswith("soda")
 ]
 
 extras["base_library_ci"] = (
