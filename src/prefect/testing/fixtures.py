@@ -147,15 +147,20 @@ def mock_anyio_sleep(monkeypatch):
     monkeypatch.setattr("anyio.sleep", sleep)
 
     @contextmanager
-    def assert_sleeps_for(seconds: Union[int, float]):
+    def assert_sleeps_for(
+        seconds: Union[int, float], extra_tolerance: Union[int, float] = 0
+    ):
         """
         Assert that sleep was called for N seconds during the duration of the context.
-        The runtime of the code during the context of the duration is used as a
-        tolerance to account for sleeps that start based on a time. This is less
+        The runtime of the code during the context of the duration is used as an
+        upper tolerance to account for sleeps that start based on a time. This is less
         brittle than attempting to freeze the current time.
 
-        If an integer is provided, the tolerance will be rounded up to the nearest
-        integer. If a float is provided, the tolerance will be a float.
+        If an integer is provided, the upper tolerance will be rounded up to the nearest
+        integer. If a float is provided, the upper tolerance will be a float.
+
+        An optional extra tolerance may be provided to account for any other issues.
+        This will be applied symmetrically.
         """
         run_t0 = original_now().timestamp()
         sleep_t0 = time_shift
@@ -168,8 +173,10 @@ def mock_anyio_sleep(monkeypatch):
             runtime = int(runtime) + 1
         sleeptime = sleep_t1 - sleep_t0
         assert (
-            sleeptime <= seconds <= sleeptime + runtime
-        ), f"Sleep was called for {sleeptime}; expected {seconds} with tolerance of +{runtime}."
+            sleeptime - float(extra_tolerance)
+            <= seconds
+            <= sleeptime + runtime + extra_tolerance
+        ), f"Sleep was called for {sleeptime}; expected {seconds} with tolerance of +{runtime + extra_tolerance}, -{extra_tolerance}"
 
     sleep.assert_sleeps_for = assert_sleeps_for
 

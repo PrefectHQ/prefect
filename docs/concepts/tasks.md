@@ -32,6 +32,8 @@ Tasks also take advantage of automatic Prefect [logging](/concepts/logs) to capt
 
 You can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. All tasks must be called from within a flow. Tasks may not be called from other tasks.
 
+**Calling a task from a flow**
+
 Use the `@task` decorator to designate a function as a task. Calling the task from within a flow function creates a new task run:
 
 ```python hl_lines="3-5"
@@ -52,6 +54,29 @@ Tasks are uniquely identified by a task key, which is a hash composed of the tas
     Prefect encourages "small tasks" &mdash; each one should represent a single logical step of your workflow. This allows Prefect to better contain task failures.
 
     To be clear, there's nothing stopping you from putting all of your code in a single task &mdash; Prefect will happily run it! However, if any line of code fails, the entire task will fail and must be retried from the beginning. This can be avoided by splitting the code into multiple dependent tasks.
+
+!!! warning "Calling a task's function from another task"
+
+    Prefect does not allow triggering task runs from other tasks. If you want to call your task's function directly, you can use `task.fn()`. 
+
+    ```python hl_lines="9"
+    from prefect import flow, task
+
+    @task
+    def my_first_task(msg):
+        print(f"Hello, {msg}")
+
+    @task
+    def my_second_task(msg):
+        my_first_task.fn(msg)
+
+    @flow
+    def my_flow():
+        my_second_task("Trillian")
+
+    ```
+
+    Note that in the example above you are only calling the task's function without actually generating a task run. Prefect won't track task execution in your Prefect backend if you call the task function this way. You also won't be able to use features such as retries with this function call.
 
 ## Task arguments
 
@@ -237,7 +262,7 @@ See [state returned values](/concepts/task-runners/#using-results-from-submitted
 
 ## Map
 
-Prefect provides a `.map()` implementation that automatically creates task run for each element of its input data. Mapped tasks represent the computations of many individual children tasks.
+Prefect provides a `.map()` implementation that automatically creates a task run for each element of its input data. Mapped tasks represent the computations of many individual children tasks.
 
 The simplest Prefect map takes a tasks and applies it to each element of its inputs.
 
@@ -262,10 +287,10 @@ def map_flow(nums):
 map_flow([1,2,3,5,8,13])
 ```
 
-Prefect also supports `unmapped` arguments, allowing to pass static values that don't get mapped over.
+Prefect also supports `unmapped` arguments, allowing you to pass static values that don't get mapped over.
 
 ```python
-from prefect import flow, task, unmapped
+from prefect import flow, task
 
 @task
 def add_together(x, y):
@@ -276,7 +301,24 @@ def sum_it(numbers, static_value):
     futures = add_together.map(numbers, static_value)
     return futures
 
-sum_it([1, 2, 3], unmapped(5))
+sum_it([1, 2, 3], 5)
+```
+
+If your static argument is an iterable, you'll need to wrap it with `unmapped` to tell Prefect that it should be treated as a static value.
+
+```python
+from prefect import flow, task, unmapped
+
+@task
+def sum_plus(x, static_iterable):
+    return x + sum(static_iterable)
+
+@flow
+def sum_it(numbers, static_iterable):
+    futures = sum_plus.map(numbers, static_iterable)
+    return futures
+
+sum_it([4, 5, 6], unmapped([1, 2, 3]))
 ```
 
 ## Async tasks

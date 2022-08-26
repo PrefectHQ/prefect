@@ -84,7 +84,9 @@ def flow_run_caplog(caplog):
 
 
 @pytest.fixture
-async def flow_run_context(orion_client, local_filesystem):
+async def get_flow_run_context(orion_client, local_filesystem):
+    partial_ctx = PartialModel(FlowRunContext)
+
     @flow
     def foo():
         pass
@@ -92,15 +94,18 @@ async def flow_run_context(orion_client, local_filesystem):
     test_task_runner = SequentialTaskRunner()
     flow_run = await orion_client.create_flow_run(foo)
 
-    ctx = FlowRunContext(
-        flow=foo,
-        flow_run=flow_run,
-        client=orion_client,
-        task_runner=test_task_runner,
-        result_filesystem=local_filesystem,
-    )
+    async def _get_flow_run_context():
+        async with anyio.create_task_group() as tg:
+            partial_ctx.background_tasks = tg
+            return partial_ctx.finalize(
+                flow=foo,
+                flow_run=flow_run,
+                client=orion_client,
+                task_runner=test_task_runner,
+                result_filesystem=local_filesystem,
+            )
 
-    return ctx
+    return _get_flow_run_context
 
 
 class TestOrchestrateTaskRun:
@@ -249,11 +254,14 @@ class TestOrchestrateTaskRun:
         # Create a future to wrap the upstream task, have it resolve to the given
         # incomplete state
         future = PrefectFuture(
-            task_run=upstream_task_run,
-            run_key=str(upstream_task_run.id),
+            key=str(upstream_task_run.id),
+            name="foo",
             task_runner=None,
             _final_state=upstream_task_state,
         )
+        # simulate assigning task run to the future
+        future.task_run = upstream_task_run
+        future._submitted.set()
 
         # Create a task run to test
         task_run = await orion_client.create_task_run(
@@ -410,6 +418,8 @@ class TestOrchestrateFlowRun:
         def foo():
             return 1
 
+        partial_flow_run_context.background_tasks = anyio.create_task_group()
+
         flow_run = await orion_client.create_flow_run(
             flow=foo,
             state=State(
@@ -438,6 +448,8 @@ class TestOrchestrateFlowRun:
         def foo():
             return 1
 
+        partial_flow_run_context.background_tasks = anyio.create_task_group()
+
         flow_run = await orion_client.create_flow_run(
             flow=foo,
             state=State(
@@ -465,6 +477,8 @@ class TestOrchestrateFlowRun:
         self, orion_client, mock_anyio_sleep, partial_flow_run_context
     ):
         flow_run_count = 0
+
+        partial_flow_run_context.background_tasks = anyio.create_task_group()
 
         @flow(retries=1, retry_delay_seconds=43)
         def flaky_function():
@@ -920,6 +934,37 @@ class TestDeploymentFlowRun:
         )
         assert state.result() == 1
 
+    async def test_retries_loaded_from_flow_definition(
+        self, orion_client, patch_manifest_load, mock_anyio_sleep
+    ):
+        @flow(retries=2, retry_delay_seconds=3)
+        def my_flow(x: int):
+            raise ValueError()
+
+        await patch_manifest_load(my_flow)
+        deployment_id = await self.create_deployment(orion_client, my_flow)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"x": 1}
+        )
+        assert flow_run.empirical_policy.retries == None
+        assert flow_run.empirical_policy.retry_delay == None
+
+        with mock_anyio_sleep.assert_sleeps_for(
+            my_flow.retries * my_flow.retry_delay_seconds,
+            # Allow an extra second tolerance per retry to account for rounding
+            extra_tolerance=my_flow.retries,
+        ):
+            state = await retrieve_flow_then_begin_flow_run(
+                flow_run.id, client=orion_client
+            )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.empirical_policy.retries == 2
+        assert flow_run.empirical_policy.retry_delay == 3
+        assert state.is_failed()
+        assert flow_run.run_count == 3
+
     async def test_failed_run(self, orion_client, patch_manifest_load):
         @flow
         def my_flow(x: int):
@@ -1195,29 +1240,13 @@ class TestRetrieveFlowThenBeginFlowRun:
 
 
 class TestCreateAndBeginSubflowRun:
-    async def create_test_context(self, orion_client, local_filesystem):
-        @flow
-        def foo():
-            pass
-
-        test_task_runner = SequentialTaskRunner()
-        flow_run = await orion_client.create_flow_run(foo)
-
-        ctx = FlowRunContext(
-            flow=foo,
-            flow_run=flow_run,
-            client=orion_client,
-            task_runner=test_task_runner,
-            result_filesystem=local_filesystem,
-        )
-
-        return ctx
-
     async def test_handles_bad_parameter_types(
-        self, orion_client, parameterized_flow, local_filesystem
+        self,
+        orion_client,
+        parameterized_flow,
+        get_flow_run_context,
     ):
-        ctx = await self.create_test_context(orion_client, local_filesystem)
-        with ctx:
+        with await get_flow_run_context() as ctx:
             state = await create_and_begin_subflow_run(
                 flow=parameterized_flow,
                 parameters={"dog": [1, 2], "cat": "not an int"},
@@ -1232,10 +1261,12 @@ class TestCreateAndBeginSubflowRun:
             assert type(state.data.decode()) == ParameterTypeError
 
     async def test_handles_signature_mismatches(
-        self, orion_client, parameterized_flow, local_filesystem
+        self,
+        orion_client,
+        parameterized_flow,
+        get_flow_run_context,
     ):
-        ctx = await self.create_test_context(orion_client, local_filesystem)
-        with ctx:
+        with await get_flow_run_context() as ctx:
             state = await create_and_begin_subflow_run(
                 flow=parameterized_flow,
                 parameters={"puppy": "a string", "kitty": 42},
@@ -1290,20 +1321,20 @@ class TestLinkStateToResult:
         "test_input", [True, False, -5, 0, 1, 256, ..., None, NotImplemented]
     )
     async def test_link_state_to_result_with_untrackables(
-        self, test_input, flow_run_context, state
+        self, test_input, get_flow_run_context, state
     ):
 
-        with flow_run_context as ctx:
+        with await get_flow_run_context() as ctx:
             link_state_to_result(state=state, result=test_input)
             assert ctx.task_run_results == {}
 
     @pytest.mark.parametrize("test_input", [-6, 257, "Hello", RandomTestClass()])
-    def test_link_state_to_result_with_single_trackables(
-        self, flow_run_context, test_input, state
+    async def test_link_state_to_result_with_single_trackables(
+        self, get_flow_run_context, test_input, state
     ):
         input_id = id(test_input)
 
-        with flow_run_context as ctx:
+        with await get_flow_run_context() as ctx:
             link_state_to_result(state=state, result=test_input)
             assert ctx.task_run_results == {input_id: state}
 
@@ -1315,11 +1346,11 @@ class TestLinkStateToResult:
             [4200, "Test", RandomTestClass()],
         ],
     )
-    def test_link_state_to_result_with_multiple_unnested_trackables(
-        self, flow_run_context, test_inputs, state
+    async def test_link_state_to_result_with_multiple_unnested_trackables(
+        self, get_flow_run_context, test_inputs, state
     ):
         input_ids = []
-        with flow_run_context as ctx:
+        with await get_flow_run_context() as ctx:
             for test_input in test_inputs:
                 input_ids.append(id(test_input))
                 link_state_to_result(state=state, result=test_input)
@@ -1334,10 +1365,10 @@ class TestLinkStateToResult:
             (1, 2, 3),
         ],
     )
-    def test_link_state_to_result_with_list_or_tuple_of_untrackables(
-        self, flow_run_context, test_input, state
+    async def test_link_state_to_result_with_list_or_tuple_of_untrackables(
+        self, get_flow_run_context, test_input, state
     ):
-        with flow_run_context as ctx:
+        with await get_flow_run_context() as ctx:
             link_state_to_result(state=state, result=test_input)
             assert ctx.task_run_results == {id(test_input): state}
 
@@ -1348,10 +1379,10 @@ class TestLinkStateToResult:
             ("Test", 1, RandomTestClass()),
         ],
     )
-    def test_link_state_to_result_with_list_or_tuple_of_mixed(
-        self, flow_run_context, test_input, state
+    async def test_link_state_to_result_with_list_or_tuple_of_mixed(
+        self, get_flow_run_context, test_input, state
     ):
-        with flow_run_context as ctx:
+        with await get_flow_run_context() as ctx:
             link_state_to_result(state=state, result=test_input)
             assert ctx.task_run_results == {
                 id(test_input[0]): state,
@@ -1359,24 +1390,26 @@ class TestLinkStateToResult:
                 id(test_input): state,
             }
 
-    async def test_link_state_to_result_with_nested_list(self, flow_run_context, state):
+    async def test_link_state_to_result_with_nested_list(
+        self, get_flow_run_context, state
+    ):
         test_input = [1, [-6, [1, 2, 3]]]
 
-        with flow_run_context as ctx:
+        with await get_flow_run_context() as ctx:
             link_state_to_result(state=state, result=test_input)
             assert ctx.task_run_results == {
                 id(test_input): state,
                 id(test_input[1]): state,
             }
 
-    def test_link_state_to_result_with_nested_pydantic_class(
-        self, flow_run_context, state
+    async def test_link_state_to_result_with_nested_pydantic_class(
+        self, get_flow_run_context, state
     ):
         pydantic_instance = self.PydanticTestClass(num=42, list_of_ints=[1, 257])
 
         test_input = [-7, pydantic_instance, 1]
 
-        with flow_run_context as ctx:
+        with await get_flow_run_context() as ctx:
             link_state_to_result(state=state, result=test_input)
             assert ctx.task_run_results == {
                 id(test_input): state,
@@ -1384,10 +1417,12 @@ class TestLinkStateToResult:
                 id(test_input[1]): state,
             }
 
-    def test_link_state_to_result_with_pydantic_class(self, flow_run_context, state):
+    async def test_link_state_to_result_with_pydantic_class(
+        self, get_flow_run_context, state
+    ):
         pydantic_instance = self.PydanticTestClass(num=42, list_of_ints=[1, 257])
 
-        with flow_run_context as ctx:
+        with await get_flow_run_context() as ctx:
             link_state_to_result(state=state, result=pydantic_instance)
             assert ctx.task_run_results == {
                 id(pydantic_instance): state,
@@ -1412,10 +1447,10 @@ class TestLinkStateToResult:
             (PydanticTestClass(num=257, list_of_ints=[1, 2, 3]), False),
         ],
     )
-    def test_link_state_to_result_marks_trackability_in_state_details(
-        self, flow_run_context, test_input, expected_status, state
+    async def test_link_state_to_result_marks_trackability_in_state_details(
+        self, get_flow_run_context, test_input, expected_status, state
     ):
 
-        with flow_run_context:
+        with await get_flow_run_context():
             link_state_to_result(state=state, result=test_input)
             assert state.state_details.untrackable_result == expected_status

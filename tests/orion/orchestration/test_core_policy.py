@@ -251,7 +251,7 @@ class TestFlowRetryingRule:
             *intended_transition,
         )
         ctx.run.run_count = 1
-        ctx.run_settings.max_retries = 1
+        ctx.run_settings.retries = 1
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -299,7 +299,7 @@ class TestFlowRetryingRule:
             *intended_transition,
         )
         ctx.run.run_count = 2
-        ctx.run_settings.max_retries = 1
+        ctx.run_settings.retries = 1
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -329,7 +329,7 @@ class TestTaskRetryingRule:
         orm_run = ctx.run
         run_settings = ctx.run_settings
         orm_run.run_count = 2
-        run_settings.max_retries = 2
+        run_settings.retries = 2
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -357,7 +357,7 @@ class TestTaskRetryingRule:
         orm_run = ctx.run
         run_settings = ctx.run_settings
         orm_run.run_count = 3
-        run_settings.max_retries = 2
+        run_settings.retries = 2
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -387,7 +387,7 @@ class TestRenameRetryingStates:
         orm_run = ctx.run
         run_settings = ctx.run_settings
         orm_run.run_count = 2
-        run_settings.max_retries = 2
+        run_settings.retries = 2
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -418,7 +418,7 @@ class TestRenameRetryingStates:
         orm_run = ctx.run
         run_settings = ctx.run_settings
         orm_run.run_count = 2
-        run_settings.max_retries = 2
+        run_settings.retries = 2
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -447,7 +447,7 @@ class TestRenameRetryingStates:
         orm_run = ctx.run
         run_settings = ctx.run_settings
         orm_run.run_count = 0
-        run_settings.max_retries = 2
+        run_settings.retries = 2
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:

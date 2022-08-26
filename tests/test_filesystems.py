@@ -2,7 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from prefect.filesystems import LocalFileSystem, RemoteFileSystem
+import prefect
+from prefect.filesystems import GitHub, LocalFileSystem, RemoteFileSystem
+from prefect.testing.utilities import AsyncMock
 
 
 class TestLocalFileSystem:
@@ -27,6 +29,13 @@ class TestLocalFileSystem:
         (tmp_path / "folder").mkdir()
         with pytest.raises(ValueError, match="not a file"):
             await fs.read_path(tmp_path / "folder")
+
+    async def test_resolve_path(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+
+        assert fs._resolve_path(tmp_path) == tmp_path
+        assert fs._resolve_path(tmp_path / "subdirectory") == tmp_path / "subdirectory"
+        assert fs._resolve_path("subdirectory") == tmp_path / "subdirectory"
 
 
 class TestRemoteFileSystem:
@@ -72,3 +81,61 @@ class TestRemoteFileSystem:
         fs = RemoteFileSystem(basepath="memory://root")
         with pytest.raises(FileNotFoundError):
             await fs.read_path("foo/bar")
+
+    async def test_resolve_path(self):
+        base = "memory://root"
+        fs = RemoteFileSystem(basepath=base)
+
+        assert fs._resolve_path(base) == base + "/"
+        assert fs._resolve_path(f"{base}/subdir") == f"{base}/subdir"
+        assert fs._resolve_path("subdirectory") == f"{base}/subdirectory"
+
+
+class TestGitHub:
+    async def test_subprocess_errors_are_surfaced(self):
+        g = GitHub(repository="incorrect-url-scheme")
+        with pytest.raises(
+            OSError, match="fatal: repository 'incorrect-url-scheme' does not exist"
+        ):
+            await g.get_directory()
+
+    async def test_repository_default(self, monkeypatch):
+        class p:
+            returncode = 0
+
+        expected_path = Path(".").absolute()
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect.filesystems, "run_process", mock)
+        g = GitHub(repository="prefect")
+        await g.get_directory()
+
+        assert mock.await_count == 1
+        assert mock.await_args[0][0] == f"git clone prefect {expected_path}"
+
+    async def test_reference_default(self, monkeypatch):
+        class p:
+            returncode = 0
+
+        expected_path = Path(".").absolute()
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect.filesystems, "run_process", mock)
+        g = GitHub(repository="prefect", reference="2.0.0")
+        await g.get_directory()
+
+        assert mock.await_count == 1
+        assert (
+            mock.await_args[0][0]
+            == f"git clone prefect -b 2.0.0 --depth 1 {expected_path}"
+        )
+
+    async def test_get_directory_accepts_inputs(self, monkeypatch):
+        class p:
+            returncode = 0
+
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect.filesystems, "run_process", mock)
+        g = GitHub(repository="prefect", reference="2.0.0")
+        await g.get_directory(from_path="prefect-aws", local_path="/my/tmp/place")
+
+        assert mock.await_count == 1
+        assert mock.await_args[0][0] == f"git clone prefect-aws /my/tmp/place"
