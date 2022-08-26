@@ -1,4 +1,5 @@
 import datetime
+from contextlib import asynccontextmanager
 
 import sqlalchemy as sa
 
@@ -82,6 +83,29 @@ class OrionDBInterface(metaclass=DBSingleton):
         """
         engine = await self.engine()
         return await self.database_config.session(engine)
+
+    @asynccontextmanager
+    async def session_context(self):
+        """
+        Provides a SQLAlchemy session and a context manager for opening/closing
+        the underlying connection.
+
+        Note: this does not open a transaction. No changes will be committed.
+        """
+        session = await self.session()
+        async with session:
+            yield session
+
+    @asynccontextmanager
+    async def transaction_context(self):
+        """
+        Provides a SQLAlchemy session and a context manager for opening/closing
+        the underlying connection AND committing / rolling back any changes.
+        """
+        session = await self.session()
+        async with session:
+            async with session.begin():
+                yield session
 
     @property
     def Base(self):
