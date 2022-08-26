@@ -563,6 +563,10 @@ async def build(
 
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
     await deployment.to_yaml(deployment_loc)
+    app.console.print(
+        f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'.",
+        style="green",
+    )
 
     if _apply:
         deployment_id = await deployment.apply()
@@ -570,22 +574,18 @@ async def build(
             f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
             style="green",
         )
-    else:
-        exit_with_success(
-            f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'."
-        )
-    if deployment.work_queue_name is not None:
-        app.console.print(
-            "\nTo execute flow runs from this deployment, start an agent "
-            f"that pulls work from the the {deployment.work_queue_name!r} work queue:"
-        )
-        app.console.print(
-            f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"
-        )
-    else:
-        app.console.print(
-            "\nThis deployment does not specify a work queue name, which means agents "
-            "will not be able to pick up its runs. To add a work queue, "
-            "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
-            style="red",
-        )
+        if deployment.work_queue_name is not None:
+            app.console.print(
+                "\nTo execute flow runs from this deployment, start an agent "
+                f"that pulls work from the the {deployment.work_queue_name!r} work queue:"
+            )
+            app.console.print(
+                f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"
+            )
+        else:
+            app.console.print(
+                "\nThis deployment does not specify a work queue name, which means agents "
+                "will not be able to pick up its runs. To add a work queue, "
+                "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
+                style="red",
+            )
