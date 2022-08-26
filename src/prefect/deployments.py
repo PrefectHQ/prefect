@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, parse_obj_as, validator
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import PrefectObjectRegistry
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
@@ -438,13 +438,25 @@ class Deployment(BaseModel):
         deployment_path = None
         file_count = None
         if storage_block:
-            self.storage = await Block.load(storage_block)
+            storage = await Block.load(storage_block)
+
+            if "put-directory" not in storage.get_block_capabilities():
+                raise BlockMissingCapabilities(
+                    f"Storage block {storage!r} missing 'put-directory' capability."
+                )
+
+            self.storage = storage
 
             # upload current directory to storage location
             file_count = await self.storage.put_directory(
                 ignore_file=ignore_file, to_path=self.path
             )
         elif self.storage:
+            if "put-directory" not in self.storage.get_block_capabilities():
+                raise BlockMissingCapabilities(
+                    f"Storage block {self.storage!r} missing 'put-directory' capability."
+                )
+
             file_count = await self.storage.put_directory(
                 ignore_file=ignore_file, to_path=self.path
             )
