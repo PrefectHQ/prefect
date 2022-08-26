@@ -638,6 +638,17 @@ class Task(Generic[P, R]):
             >>> my_flow()
             [6, 7, 8]
 
+            Use unmapped to treat an iterable arg as static
+            >>> from prefect import unmapped
+            >>>
+            >>> @task
+            >>> def my_task(n, static_str):
+            >>>     print(f'{n} - {static_str}')
+            >>>
+            >>> @flow
+            >>> def my_flow():
+            >>>     my_task.map([1, 2, 3], unmapped("Hello!"))
+
         """
 
         from prefect.engine import enter_task_run_engine
