@@ -27,6 +27,7 @@ from prefect.logging.configuration import (
 )
 from prefect.logging.handlers import OrionHandler, OrionLogWorker
 from prefect.logging.loggers import (
+    disable_run_logger,
     flow_run_logger,
     get_logger,
     get_run_logger,
@@ -1042,3 +1043,21 @@ async def test_run_logger_in_task(orion_client):
         "flow_run_id": str(flow_run.id),
         "flow_run_name": flow_run.name,
     }
+
+
+def test_disable_run_logger(caplog):
+    @task
+    def task_with_run_logger():
+        logger = get_run_logger()
+        logger.critical("wont show")
+        return 42
+
+    with disable_run_logger():
+        num = task_with_run_logger.fn()
+        assert num == 42
+        assert get_logger("prefect.flow_run").disabled
+        assert get_logger("prefect.task_run").disabled
+
+    assert not get_logger("prefect.flow_run").disabled
+    assert not get_logger("prefect.task_run").disabled
+    assert caplog.record_tuples == [("null", logging.CRITICAL, "wont show")]

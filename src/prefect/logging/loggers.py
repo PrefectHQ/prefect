@@ -1,4 +1,5 @@
 import logging
+from contextlib import contextmanager
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
@@ -92,6 +93,12 @@ def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logge
         logger = flow_run_logger(
             flow_run=flow_run_context.flow_run, flow=flow_run_context.flow, **kwargs
         )
+    elif (
+        get_logger("prefect.flow_run").disabled
+        and get_logger("prefect.task_run").disabled
+    ):
+        logger = logging.getLogger("null")
+        logger.addHandler(logging.NullHandler())
     else:
         raise RuntimeError("There is no active flow or task run context.")
 
@@ -149,3 +156,14 @@ def task_run_logger(
             **kwargs,
         },
     )
+
+
+@contextmanager
+def disable_run_logger(*args, **kwargs):
+    try:
+        get_logger("prefect.flow_run").disabled = True
+        get_logger("prefect.task_run").disabled = True
+        yield
+    finally:
+        get_logger("prefect.flow_run").disabled = False
+        get_logger("prefect.task_run").disabled = False
