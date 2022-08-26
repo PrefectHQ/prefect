@@ -229,6 +229,17 @@ class TestDeploymentBuild:
         assert d.name == "foo"
         assert d.path is not None
 
+    async def test_build_from_flow_gracefully_handles_readonly_storage(
+        self, flow_function
+    ):
+        storage = GitHub(repository="prefect")
+        d = await Deployment.build_from_flow(
+            flow=flow_function, name="foo", storage=storage
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.path is None
+
     async def test_build_from_flow_sets_description_and_version_if_not_set(
         self, flow_function
     ):
