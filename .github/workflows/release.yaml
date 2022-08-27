@@ -97,6 +97,8 @@ jobs:
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Test docker image
         run: |
@@ -158,6 +160,8 @@ jobs:
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           outputs: type=docker,dest=/tmp/image-conda.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Test docker image
         run: |
