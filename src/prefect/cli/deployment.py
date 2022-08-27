@@ -523,6 +523,18 @@ async def build(
     else:
         storage = None
 
+    ## docker default settings
+    # proxy for whether infra is docker-based
+    is_docker_based = hasattr(infrastructure, "image")
+
+    if not storage:
+        if is_docker_based:
+            # only update if a path is not already set
+            if not path:
+                path = "/opt/prefect/flows"
+        else:
+            path = str(Path(".").absolute())
+
     # set up deployment object
     deployment = Deployment(name=name, flow_name=flow.name)
     await deployment.load()  # load server-side settings, if any
