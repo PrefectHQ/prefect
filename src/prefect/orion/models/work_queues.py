@@ -165,14 +165,63 @@ async def delete_work_queue(
     return result.rowcount > 0
 
 
+@inject_db
 async def get_runs_in_work_queue(
     session: sa.orm.Session,
     work_queue_id: UUID,
+    db: OrionDBInterface,
+    limit: int = None,
+    scheduled_before: datetime.datetime = None,
+):
+    """
+    Get runs from a work queue.
+
+    Args:
+        session: A database session.
+        work_queue_id: The work queue id.
+        scheduled_before: Only return runs scheduled to start before this time.
+        limit: An optional limit for the number of runs to return from the queue.
+            This limit applies to the request only. It does not affect the
+            work queue's concurrency limit. If `limit` exceeds the work queue's
+            concurrency limit, it will be ignored.
+
+    """
+    work_queue = await read_work_queue(session=session, work_queue_id=work_queue_id)
+    if not work_queue:
+        raise ObjectNotFoundError(f"Work queue with id {work_queue_id} not found.")
+
+    if work_queue.filter is None:
+        query = db.queries.get_runs_in_work_queue(
+            db=db,
+            limit=limit,
+            work_queue_ids=[work_queue_id],
+            scheduled_before=scheduled_before,
+        )
+        result = await session.execute(query)
+        return result.scalars().unique().all()
+
+    # if the work queue has a filter, it's a deprecated tag-based work queue
+    # and uses an old approach
+    else:
+        return await _legacy_get_runs_in_work_queue(
+            session=session,
+            work_queue_id=work_queue_id,
+            db=db,
+            scheduled_before=scheduled_before,
+            limit=limit,
+        )
+
+
+@inject_db
+async def _legacy_get_runs_in_work_queue(
+    session: sa.orm.Session,
+    work_queue_id: UUID,
+    db: OrionDBInterface,
     scheduled_before: datetime.datetime = None,
     limit: int = None,
 ):
     """
-    Get runs from a work queue.
+    DEPRECATED method for getting runs from a tag-based work queue
 
     Args:
         session: A database session.
