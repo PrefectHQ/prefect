@@ -132,6 +132,31 @@ class TestInputValidation:
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
         assert deployment.version == "CLI-version"
 
+    def test_auto_apply_flag(self, patch_import, tmp_path):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+        )
+        deployment_id = d.apply()
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--apply",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Deployment '{d.flow_name}/{d.name}' successfully created with id '{deployment_id}'."
+            ],
+            temp_dir=tmp_path,
+        )
+
 
 class TestOutputMessages:
     def test_message_with_work_queue_name(self, patch_import, tmp_path):
