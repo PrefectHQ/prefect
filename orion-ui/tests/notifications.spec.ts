@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test'
+import { mocker } from '@prefecthq/orion-design'
 import { test, useForm, useCombobox, useLabel, useSelect, useTable, useButton, usePageHeading, useLink, pages, useIconButtonMenu, useTag, useModal } from './utilities'
 
 test.describe.configure({ mode: 'serial' })
@@ -29,7 +30,7 @@ test('Can create notification', async () => {
 
   const { control: webhookUrl } = useLabel('Webhook URL')
   const input = webhookUrl.locator('input')
-  await input.fill('https://slack.test')
+  await input.fill(mocker.create('url'))
 
   const { submit } = useForm()
   await submit()
@@ -41,7 +42,7 @@ test('Can create notification', async () => {
 })
 
 test('Can edit notification', async () => {
-  const tagToAdd = 'playwright-edited'
+  const tagToAdd = mocker.create('string')
 
   const { rows: notifications } = useTable()
   const notification = notifications.first()
