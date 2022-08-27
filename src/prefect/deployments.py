@@ -523,6 +523,7 @@ class Deployment(BaseModel):
         name: str,
         output: str = None,
         skip_upload: bool = False,
+        apply: bool = False,
         **kwargs,
     ) -> "Deployment":
         """
@@ -537,6 +538,7 @@ class Deployment(BaseModel):
             output (optional): if provided, the full deployment specification will be written as a YAML
                 file in the location specified by `output`
             skip_upload: if True, deployment files are not automatically uploaded to remote storage
+            apply: if True, the deployment is automatically registered with the API
             **kwargs: other keyword arguments to pass to the constructor for the `Deployment` class
         """
         if not name:
@@ -567,8 +569,16 @@ class Deployment(BaseModel):
             deployment.version = flow.version
         if not deployment.description:
             deployment.description = flow.description
-        if not deployment.storage:
+
+        # proxy for whether infra is docker-based
+        is_docker_based = hasattr(deployment.infrastructure, "image")
+
+        if not deployment.storage and not is_docker_based:
             deployment.path = str(Path(".").absolute())
+        elif not deployment.storage and is_docker_based:
+            # only update if a path is not already set
+            if not deployment.path:
+                deployment.path = "/opt/prefect/flows"
 
         if not skip_upload:
             if (
@@ -579,5 +589,8 @@ class Deployment(BaseModel):
 
         if output:
             await deployment.to_yaml(output)
+
+        if apply:
+            await deployment.apply()
 
         return deployment
