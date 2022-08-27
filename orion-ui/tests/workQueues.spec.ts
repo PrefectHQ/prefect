@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test'
+import { mocker } from '@prefecthq/orion-design'
 import { test, useForm, useLabel, useTable, usePageHeading, useLink, pages, useIconButtonMenu, useModal, useButton } from './utilities'
 import { useToggle } from './utilities/useToggle'
 
@@ -8,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto(pages.workQueues)
 })
 
-const workQueueNameToCreate = 'string'
+const workQueueNameToCreate = mocker.create('string')
 
 test('Can create work queue', async ({ page }) => {
   const { table, rows: workQueues } = useTable()
@@ -30,10 +31,10 @@ test('Can toggle workQueue from list', async () => {
     hasText: workQueueNameToCreate,
   })
 
-  const { getState, setState } = useToggle(worksQueue)
-  const currentState = await getState()
-  await setState(!currentState)
-  const newState = await getState()
+  const { toggle } = useToggle(worksQueue)
+  const currentState = await toggle.isChecked()
+  await toggle.setChecked(!currentState)
+  const newState = await toggle.isChecked()
 
   expect(newState).toBe(!currentState)
 })
@@ -65,11 +66,11 @@ test('Can toggle workQueue', async ({ page }) => {
     url: /\/work-queue\//,
   })
 
-  const { toggle, getState, setState } = useToggle()
+  const { toggle } = useToggle()
   await toggle.waitFor()
-  const currentState = await getState()
-  await setState(!currentState)
-  const newState = await getState()
+  const currentState = await toggle.isChecked()
+  await toggle.setChecked(!currentState)
+  const newState = await toggle.isChecked()
 
   expect(newState).toBe(!currentState)
 })
