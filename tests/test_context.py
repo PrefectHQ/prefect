@@ -2,6 +2,7 @@ import textwrap
 from contextvars import ContextVar
 from unittest.mock import MagicMock
 
+import anyio
 import pytest
 from pendulum.datetime import DateTime
 
@@ -89,20 +90,22 @@ async def test_flow_run_context(orion_client, local_filesystem):
     test_task_runner = SequentialTaskRunner()
     flow_run = await orion_client.create_flow_run(foo)
 
-    with FlowRunContext(
-        flow=foo,
-        flow_run=flow_run,
-        client=orion_client,
-        task_runner=test_task_runner,
-        result_filesystem=local_filesystem,
-    ):
-        ctx = FlowRunContext.get()
-        assert ctx.flow is foo
-        assert ctx.flow_run == flow_run
-        assert ctx.client is orion_client
-        assert ctx.task_runner is test_task_runner
-        assert ctx.result_filesystem == local_filesystem
-        assert isinstance(ctx.start_time, DateTime)
+    async with anyio.create_task_group() as task_group:
+        with FlowRunContext(
+            flow=foo,
+            flow_run=flow_run,
+            client=orion_client,
+            task_runner=test_task_runner,
+            result_filesystem=local_filesystem,
+            background_tasks=task_group,
+        ):
+            ctx = FlowRunContext.get()
+            assert ctx.flow is foo
+            assert ctx.flow_run == flow_run
+            assert ctx.client is orion_client
+            assert ctx.task_runner is test_task_runner
+            assert ctx.result_filesystem == local_filesystem
+            assert isinstance(ctx.start_time, DateTime)
 
 
 async def test_task_run_context(orion_client, flow_run, local_filesystem):
@@ -153,24 +156,29 @@ async def test_get_run_context(orion_client, local_filesystem):
     with pytest.raises(MissingContextError):
         get_run_context()
 
-    with FlowRunContext(
-        flow=foo,
-        flow_run=flow_run,
-        client=orion_client,
-        task_runner=test_task_runner,
-        result_filesystem=local_filesystem,
-    ) as flow_ctx:
-        assert get_run_context() is flow_ctx
+    async with anyio.create_task_group() as task_group:
 
-        with TaskRunContext(
-            task=bar,
-            task_run=task_run,
+        with FlowRunContext(
+            flow=foo,
+            flow_run=flow_run,
             client=orion_client,
+            task_runner=test_task_runner,
             result_filesystem=local_filesystem,
-        ) as task_ctx:
-            assert get_run_context() is task_ctx, "Task context takes precendence"
+            background_tasks=task_group,
+        ) as flow_ctx:
+            assert get_run_context() is flow_ctx
 
-        assert get_run_context() is flow_ctx, "Flow context is restored and retrieved"
+            with TaskRunContext(
+                task=bar,
+                task_run=task_run,
+                client=orion_client,
+                result_filesystem=local_filesystem,
+            ) as task_ctx:
+                assert get_run_context() is task_ctx, "Task context takes precendence"
+
+            assert (
+                get_run_context() is flow_ctx
+            ), "Flow context is restored and retrieved"
 
 
 class TestSettingsContext:
