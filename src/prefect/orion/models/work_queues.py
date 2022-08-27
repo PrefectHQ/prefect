@@ -191,9 +191,9 @@ async def get_runs_in_work_queue(
         raise ObjectNotFoundError(f"Work queue with id {work_queue_id} not found.")
 
     if work_queue.filter is None:
-        query = db.queries.get_runs_in_work_queue(
+        query = db.queries.get_scheduled_flow_runs_from_work_queues(
             db=db,
-            limit=limit,
+            limit_per_queue=limit,
             work_queue_ids=[work_queue_id],
             scheduled_before=scheduled_before,
         )

@@ -115,7 +115,9 @@ async def test_injecting_really_dumb_query_components():
         async def get_flow_run_notifications_from_queue(self, session, limit):
             pass
 
-        def get_runs_in_work_queue(self, db, limit, work_queue_ids, scheduled_before):
+        def get_scheduled_flow_runs_from_work_queues(
+            self, db, limit_per_queue, work_queue_ids, scheduled_before
+        ):
             ...
 
     with dependencies.temporary_query_components(ReallyBrokenQueries()):
