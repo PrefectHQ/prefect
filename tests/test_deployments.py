@@ -1,8 +1,10 @@
 import pytest
+import yaml
 from pydantic.error_wrappers import ValidationError
 
 from prefect.blocks.core import Block
 from prefect.deployments import Deployment
+from prefect.filesystems import S3, LocalFileSystem
 from prefect.infrastructure import Process
 
 
@@ -11,6 +13,18 @@ class TestDeploymentBasicInterface:
         with pytest.raises(ValidationError, match="field required"):
             Deployment()
 
+    async def test_that_infra_block_capabilities_are_validated(self):
+        bad_infra = LocalFileSystem(basepath=".")
+
+        with pytest.raises(ValueError, match="'run-infrastructure' capabilities"):
+            Deployment(name="foo", infrastructure=bad_infra)
+
+    async def test_that_storage_block_capabilities_are_validated(self):
+        bad_storage = Process()
+
+        with pytest.raises(ValueError, match="capabilities"):
+            Deployment(name="foo", storage=bad_storage)
+
     async def test_that_infrastructure_defaults_to_process(self):
         d = Deployment(name="foo")
         assert isinstance(d.infrastructure, Process)
@@ -18,6 +32,18 @@ class TestDeploymentBasicInterface:
     async def test_default_work_queue_name(self):
         d = Deployment(name="foo")
         assert d.work_queue_name == "default"
+
+    async def test_location(self):
+        storage = S3(bucket_path="test-bucket")
+
+        d = Deployment(name="foo", storage=storage)
+        assert d.location == "s3://test-bucket/"
+
+        d = Deployment(name="foo", storage=storage, path="subdir")
+        assert d.location == "s3://test-bucket/subdir"
+
+        d = Deployment(name="foo", path="/full/path/to/flow/")
+        assert d.location == "/full/path/to/flow/"
 
 
 class TestDeploymentLoad:
@@ -118,11 +144,42 @@ class TestDeploymentLoad:
 
 
 class TestDeploymentUpload:
-    async def test_uploading_with_no_storage_sets_path(self):
-        d = Deployment(name="foo", flow_name="bar")
-        assert d.path is None
-        await d.upload_to_storage()
-        assert d.path
+    async def test_uploading_with_unsaved_storage_creates_anon_block(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+
+        async def do_nothing(**kwargs):
+            pass
+
+        fs.put_directory = do_nothing
+
+        d = Deployment(name="foo", flow_name="bar", storage=fs)
+
+        assert d.storage._is_anonymous is None
+        assert d.storage._block_document_id is None
+
+        await d.upload_to_storage(ignore_file=None)
+
+        assert d.storage._is_anonymous is True
+        assert d.storage._block_document_id
+
+    async def test_uploading_with_saved_storage_does_not_copy(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+        await fs.save(name="save-test")
+
+        async def do_nothing(**kwargs):
+            pass
+
+        fs.put_directory = do_nothing
+
+        d = Deployment(name="foo", flow_name="bar", storage=fs)
+
+        assert d.storage._is_anonymous is False
+        old_id = d.storage._block_document_id
+
+        await d.upload_to_storage(ignore_file=None)
+
+        assert d.storage._is_anonymous is False
+        assert d.storage._block_document_id == old_id
 
 
 class TestDeploymentBuild:
@@ -144,6 +201,15 @@ class TestDeploymentBuild:
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
 
+    @pytest.mark.parametrize("skip_upload", [True, False])
+    async def test_build_from_flow_sets_path(self, flow_function, skip_upload):
+        d = await Deployment.build_from_flow(
+            flow=flow_function, name="foo", skip_upload=skip_upload
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.path is not None
+
     async def test_build_from_flow_sets_description_and_version_if_not_set(
         self, flow_function
     ):
@@ -161,6 +227,15 @@ class TestDeploymentBuild:
         assert d.description == flow_function.description
         assert d.version == flow_function.version
 
+    async def test_build_from_flow_sets_correct_entrypoint(self, flow_function):
+        """
+        Entrypoints are *always* relative to {storage.basepath / path}
+        """
+        d = await Deployment.build_from_flow(
+            flow=flow_function, name="foo", description="a", version="b"
+        )
+        d.entrypoint == "tests/fixtures/client.py:client_test_flow"
+
     async def test_build_from_flow_sets_provided_attrs(self, flow_function):
         d = await Deployment.build_from_flow(
             flow_function,
@@ -177,6 +252,60 @@ class TestDeploymentBuild:
 
 
 class TestYAML:
+    def test_deployment_yaml_roundtrip(self, tmp_path):
+        storage = LocalFileSystem(basepath=".")
+        infrastructure = Process()
+
+        d = Deployment(
+            name="yaml",
+            flow_name="test",
+            storage=storage,
+            infrastructure=infrastructure,
+            tags=["A", "B"],
+        )
+        yaml_path = str(tmp_path / "dep.yaml")
+        d.to_yaml(yaml_path)
+
+        new_d = Deployment.load_from_yaml(yaml_path)
+        assert new_d.name == "yaml"
+        assert new_d.tags == ["A", "B"]
+        assert new_d.flow_name == "test"
+        assert new_d.storage == storage
+        assert new_d.infrastructure == infrastructure
+
+    async def test_deployment_yaml_roundtrip_handles_secret_values(self, tmp_path):
+        storage = S3(
+            bucket_path="unreal",
+            aws_access_key_id="fake",
+            aws_secret_access_key="faker",
+        )
+
+        # save so that secret values are persisted somewhere
+        await storage.save("test-me-with-secrets")
+        infrastructure = Process()
+
+        d = Deployment(
+            name="yaml",
+            flow_name="test",
+            storage=storage,
+            infrastructure=infrastructure,
+            tags=["A", "B"],
+        )
+        yaml_path = str(tmp_path / "dep.yaml")
+        await d.to_yaml(yaml_path)
+
+        with open(yaml_path, "r") as f:
+            data = yaml.safe_load(f)
+
+        # ensure secret values are hidden
+        assert set(data["storage"]["aws_access_key_id"]) == {"*"}
+        assert set(data["storage"]["aws_secret_access_key"]) == {"*"}
+
+        # ensure secret values are re-hydrated
+        new_d = await Deployment.load_from_yaml(yaml_path)
+        assert new_d.storage.aws_access_key_id.get_secret_value() == "fake"
+        assert new_d.storage.aws_secret_access_key.get_secret_value() == "faker"
+
     def test_yaml_comment_for_work_queue(self, tmp_path):
         d = Deployment(name="yaml", flow_name="test")
         yaml_path = str(tmp_path / "dep.yaml")
