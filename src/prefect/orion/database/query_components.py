@@ -1,6 +1,7 @@
 import datetime
 from abc import ABC, abstractmethod, abstractproperty
-from typing import TYPE_CHECKING, Hashable, List, Tuple
+from typing import TYPE_CHECKING, Hashable, List, Optional, Tuple
+from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
@@ -34,6 +35,10 @@ class BaseQueryComponents(ABC):
 
     @abstractmethod
     def greatest(self, *values):
+        """dialect-specific SqlAlchemy binding"""
+
+    @abstractmethod
+    def least(self, *values):
         """dialect-specific SqlAlchemy binding"""
 
     # --- dialect-specific JSON handling
@@ -127,6 +132,49 @@ class BaseQueryComponents(ABC):
         )
         await session.execute(stmt)
 
+    @abstractmethod
+    def get_runs_in_work_queue(
+        self,
+        db: "OrionDBInterface",
+        limit: Optional[int] = None,
+        work_queue_ids: Optional[List[UUID]] = None,
+        scheduled_before: Optional[datetime.datetime] = None,
+    ):
+        pass
+
+    def _get_available_slots_for_get_runs_in_work_queue(
+        self,
+        db: "OrionDBInterface",
+        work_queue_ids: Optional[List[UUID]] = None,
+    ):
+        """
+        Collects any work queues with concurrency limits and count the number of
+        flow runs currently PENDING or RUNNING. The difference between the
+        concurrency limit and the running flows is the number of runs that queue
+        is currently able to schedule.
+        """
+        return (
+            sa.select(
+                db.WorkQueue.id,
+                self.greatest(
+                    0, db.WorkQueue.concurrency_limit - sa.func.count(db.FlowRun.id)
+                ).label("available_slots"),
+            )
+            .select_from(db.WorkQueue)
+            .join(
+                db.FlowRun,
+                db.WorkQueue.name == db.FlowRun.work_queue_name,
+                isouter=True,
+            )
+            .where(
+                db.WorkQueue.concurrency_limit.is_not(None),
+                db.FlowRun.state_type.in_(["RUNNING", "PENDING"]),
+                db.WorkQueue.id.in_(work_queue_ids) if work_queue_ids else True,
+            )
+            .group_by(db.WorkQueue.id)
+            .cte("available_slots")
+        )
+
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
     # --- Postgres-specific SqlAlchemy bindings
@@ -136,6 +184,9 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
 
     def greatest(self, *values):
         return sa.func.greatest(*values)
+
+    def least(self, *values):
+        return sa.func.least(*values)
 
     # --- Postgres-specific JSON handling
 
@@ -266,6 +317,47 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         result = await session.execute(notification_details_stmt)
         return result.fetchall()
 
+    def get_runs_in_work_queue(
+        self,
+        db: "OrionDBInterface",
+        limit: Optional[int] = None,
+        work_queue_ids: Optional[List[UUID]] = None,
+        scheduled_before: Optional[datetime.datetime] = None,
+    ):
+
+        available_slots = self._get_available_slots_for_get_runs_in_work_queue(
+            db=db, work_queue_ids=work_queue_ids
+        )
+
+        flow_runs = (
+            sa.select(db.FlowRun)
+            .where(
+                db.FlowRun.work_queue_name == db.WorkQueue.name,
+                db.FlowRun.state_type == "SCHEDULED",
+                db.FlowRun.next_scheduled_start_time <= scheduled_before
+                if scheduled_before is not None
+                else True,
+            )
+            .limit(self.least(limit, available_slots.c.available_slots))
+            .lateral("flow_runs")
+        )
+
+        query = (
+            sa.select(sa.orm.aliased(db.FlowRun, flow_runs))
+            .select_from(db.WorkQueue)
+            .join(
+                available_slots, available_slots.c.id == db.WorkQueue.id, isouter=True
+            )
+            .join(flow_runs, True)
+            .where(
+                db.WorkQueue.is_paused.is_(False),
+                db.WorkQueue.id.in_(work_queue_ids) if work_queue_ids else True,
+            )
+            .order_by(flow_runs.c.next_scheduled_start_time.asc())
+        )
+
+        return query
+
 
 class AioSqliteQueryComponents(BaseQueryComponents):
     # --- Sqlite-specific SqlAlchemy bindings
@@ -275,6 +367,9 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
     def greatest(self, *values):
         return sa.func.max(*values)
+
+    def least(self, *values):
+        return sa.func.min(*values)
 
     # --- Sqlite-specific JSON handling
 
@@ -437,3 +532,62 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         await session.execute(delete_stmt)
 
         return notifications
+
+    def get_runs_in_work_queue(
+        self,
+        db: "OrionDBInterface",
+        limit: Optional[int] = None,
+        work_queue_ids: Optional[List[UUID]] = None,
+        scheduled_before: Optional[datetime.datetime] = None,
+    ):
+
+        available_slots = self._get_available_slots_for_get_runs_in_work_queue(
+            db=db,
+            work_queue_ids=work_queue_ids,
+        )
+
+        flow_runs = (
+            sa.select(
+                sa.func.row_number()
+                .over(
+                    partition_by=[db.FlowRun.work_queue_name],
+                    order_by=db.FlowRun.next_scheduled_start_time,
+                )
+                .label("rank"),
+                db.FlowRun,
+            )
+            .where(
+                db.FlowRun.state_type == "SCHEDULED",
+                db.FlowRun.next_scheduled_start_time <= scheduled_before
+                if scheduled_before is not None
+                else True,
+            )
+            .subquery("flow_runs")
+        )
+
+        query = (
+            sa.select(sa.orm.aliased(db.FlowRun, flow_runs))
+            .select_from(db.WorkQueue)
+            .join(
+                available_slots, available_slots.c.id == db.WorkQueue.id, isouter=True
+            )
+            .join(
+                flow_runs,
+                sa.and_(
+                    flow_runs.c.work_queue_name == db.WorkQueue.name,
+                    flow_runs.c.rank
+                    <= self.least(
+                        # SQLite returns NULL from `least` if limit is NULL
+                        sa.func.COALESCE(limit, 10000),
+                        sa.func.COALESCE(available_slots.c.available_slots, 10000),
+                    ),
+                ),
+            )
+            .where(
+                db.WorkQueue.is_paused.is_(False),
+                db.WorkQueue.id.in_(work_queue_ids) if work_queue_ids else True,
+            )
+            .order_by(flow_runs.c.next_scheduled_start_time.asc())
+        )
+
+        return query
