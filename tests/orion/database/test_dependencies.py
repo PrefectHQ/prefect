@@ -76,6 +76,9 @@ async def test_injecting_really_dumb_query_components():
         def greatest(self, *values):
             ...
 
+        def least(self, *values):
+            ...
+
         # --- dialect-specific JSON handling
 
         def uses_json_strings(self) -> bool:
@@ -111,6 +114,9 @@ async def test_injecting_really_dumb_query_components():
 
         async def get_flow_run_notifications_from_queue(self, session, limit):
             pass
+
+        def get_runs_in_work_queue(self, db, limit, work_queue_ids, scheduled_before):
+            ...
 
     with dependencies.temporary_query_components(ReallyBrokenQueries()):
         db = dependencies.provide_database_interface()
