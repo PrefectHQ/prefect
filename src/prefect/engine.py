@@ -20,7 +20,7 @@ import sys
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 import pendulum
@@ -95,6 +95,7 @@ from prefect.utilities.asyncutils import (
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import Quote, isiterable, visit_collection
+from prefect.utilities.hashing import stable_hash
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
@@ -341,6 +342,11 @@ async def begin_flow_run(
             report_flow_run_crashes(flow_run=flow_run, client=client)
         )
 
+        # Create a task group for background tasks
+        flow_run_context.background_tasks = await stack.enter_async_context(
+            anyio.create_task_group()
+        )
+
         # If the flow is async, we need to provide a portal so sync tasks can run
         flow_run_context.sync_portal = (
             stack.enter_context(start_blocking_portal()) if flow.isasync else None
@@ -406,7 +412,7 @@ async def create_and_begin_subflow_run(
     parent_logger = get_run_logger(parent_flow_run_context)
 
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
-    task_inputs = {k: collect_task_run_inputs(v) for k, v in parameters.items()}
+    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
 
     # Generate a task in the parent flow run to represent the result of the subflow run
     dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
@@ -494,6 +500,7 @@ async def create_and_begin_subflow_run(
                     sync_portal=parent_flow_run_context.sync_portal,
                     result_filesystem=parent_flow_run_context.result_filesystem,
                     task_runner=task_runner,
+                    background_tasks=parent_flow_run_context.background_tasks,
                 ),
             )
 
@@ -710,7 +717,7 @@ def enter_task_run_engine(
         raise TimeoutError("Flow run timed out")
 
     begin_run = partial(
-        begin_task_map if mapped else create_task_run_then_submit,
+        begin_task_map if mapped else get_task_call_return_value,
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
@@ -781,7 +788,7 @@ async def begin_task_map(
         call_parameters.update({key: value for key, value in static_parameters.items()})
         task_runs.append(
             partial(
-                create_task_run_then_submit,
+                get_task_call_return_value,
                 task=task,
                 flow_run_context=flow_run_context,
                 parameters=call_parameters,
@@ -794,7 +801,7 @@ async def begin_task_map(
     return await gather(*task_runs)
 
 
-def collect_task_run_inputs(
+async def collect_task_run_inputs(
     expr: Any,
 ) -> Set[Union[core.TaskRunResult, core.Parameter, core.Constant]]:
     """
@@ -804,7 +811,7 @@ def collect_task_run_inputs(
 
     Example:
         >>> task_inputs = {
-        >>>    k: collect_task_run_inputs(v) for k, v in parameters.items()
+        >>>    k: await collect_task_run_inputs(v) for k, v in parameters.items()
         >>> }
     """
     # TODO: This function needs to be updated to detect parameters and constants
@@ -813,6 +820,7 @@ def collect_task_run_inputs(
 
     def add_futures_and_states_to_inputs(obj):
         if isinstance(obj, PrefectFuture):
+            run_async_from_worker_thread(obj._wait_for_submission)
             inputs.add(core.TaskRunResult(id=obj.task_run.id))
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
@@ -822,36 +830,31 @@ def collect_task_run_inputs(
             if state and state.state_details.task_run_id:
                 inputs.add(core.TaskRunResult(id=state.state_details.task_run_id))
 
-    visit_collection(expr, visit_fn=add_futures_and_states_to_inputs, return_data=False)
+    await run_sync_in_worker_thread(
+        visit_collection,
+        expr,
+        visit_fn=add_futures_and_states_to_inputs,
+        return_data=False,
+    )
 
     return inputs
 
 
-async def create_task_run_then_submit(
+async def get_task_call_return_value(
     task: Task,
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     task_runner: Optional[BaseTaskRunner],
-) -> Union[PrefectFuture, State]:
-    task_run = await create_task_run(
+):
+    future = await create_task_run_future(
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
-        dynamic_key=_dynamic_key_for_task_run(flow_run_context, task),
         wait_for=wait_for,
+        task_runner=task_runner,
     )
-
-    future = await submit_task_run(
-        task=task,
-        flow_run_context=flow_run_context,
-        parameters=parameters,
-        task_run=task_run,
-        wait_for=wait_for,
-        task_runner=task_runner or flow_run_context.task_runner,
-    )
-
     if return_type == "future":
         return future
     elif return_type == "state":
@@ -862,21 +865,106 @@ async def create_task_run_then_submit(
         raise ValueError(f"Invalid return type for task engine {return_type!r}.")
 
 
+async def create_task_run_future(
+    task: Task,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
+    task_runner: Optional[BaseTaskRunner],
+) -> PrefectFuture:
+    # Default to the flow run's task runner
+    task_runner = task_runner or flow_run_context.task_runner
+
+    # Generate a name for the future
+    dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
+    task_run_name = f"{task.name}-{stable_hash(task.task_key)[:8]}-{dynamic_key}"
+
+    # Generate a future
+    future = PrefectFuture(
+        name=task_run_name,
+        key=uuid4(),
+        task_runner=task_runner,
+        asynchronous=task.isasync and flow_run_context.flow.isasync,
+    )
+
+    # Create and submit the task run in the background
+    flow_run_context.background_tasks.start_soon(
+        partial(
+            create_task_run_then_submit,
+            task=task,
+            task_run_name=task_run_name,
+            task_run_dynamic_key=dynamic_key,
+            future=future,
+            flow_run_context=flow_run_context,
+            parameters=parameters,
+            wait_for=wait_for,
+            task_runner=task_runner,
+        )
+    )
+
+    # Track the task run future in the flow run context
+    flow_run_context.task_run_futures.append(future)
+
+    if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
+        await future._wait()
+
+    # Return the future without waiting for task run creation or submission
+    return future
+
+
+async def create_task_run_then_submit(
+    task: Task,
+    task_run_name: str,
+    task_run_dynamic_key: str,
+    future: PrefectFuture,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
+    task_runner: BaseTaskRunner,
+) -> None:
+
+    task_run = await create_task_run(
+        task=task,
+        name=task_run_name,
+        flow_run_context=flow_run_context,
+        parameters=parameters,
+        dynamic_key=task_run_dynamic_key,
+        wait_for=wait_for,
+    )
+
+    # Attach the task run to the future to support `get_state` operations
+    future.task_run = task_run
+
+    await submit_task_run(
+        task=task,
+        future=future,
+        flow_run_context=flow_run_context,
+        parameters=parameters,
+        task_run=task_run,
+        wait_for=wait_for,
+        task_runner=task_runner,
+    )
+
+    future._submitted.set()
+
+
 async def create_task_run(
     task: Task,
+    name: str,
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     dynamic_key: str,
     wait_for: Optional[Iterable[PrefectFuture]],
 ) -> TaskRun:
-    task_inputs = {k: collect_task_run_inputs(v) for k, v in parameters.items()}
+    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
     if wait_for:
-        task_inputs["wait_for"] = collect_task_run_inputs(wait_for)
+        task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
 
     logger = get_run_logger(flow_run_context)
 
     task_run = await flow_run_context.client.create_task_run(
         task=task,
+        name=name,
         flow_run_id=flow_run_context.flow_run.id,
         dynamic_key=dynamic_key,
         state=Pending(),
@@ -891,29 +979,22 @@ async def create_task_run(
 
 async def submit_task_run(
     task: Task,
+    future: PrefectFuture,
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     task_run: TaskRun,
     wait_for: Optional[Iterable[PrefectFuture]],
     task_runner: BaseTaskRunner,
 ) -> PrefectFuture:
-    """
-    Async entrypoint for task calls.
-
-    Tasks must be called within a flow. When tasks are called, they create a task run
-    and submit orchestration of the run to the flow run's task runner. The task runner
-    returns a future that is returned immediately.
-    """
     logger = get_run_logger(flow_run_context)
 
     if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
         logger.info(f"Executing {task_run.name!r} immediately...")
 
     future = await task_runner.submit(
-        task_run=task_run,
-        run_key=f"{task_run.name}-{task_run.id.hex}-{flow_run_context.flow_run.run_count}",
-        run_fn=begin_task_run,
-        run_kwargs=dict(
+        key=future.key,
+        call=partial(
+            begin_task_run,
             task=task,
             task_run=task_run,
             parameters=parameters,
@@ -921,14 +1002,10 @@ async def submit_task_run(
             result_filesystem=flow_run_context.result_filesystem,
             settings=prefect.context.SettingsContext.get().copy(),
         ),
-        asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
 
     if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
         logger.info(f"Submitted task run {task_run.name!r} for execution.")
-
-    # Track the task run future in the flow run context
-    flow_run_context.task_run_futures.append(future)
 
     return future
 
@@ -985,10 +1062,16 @@ async def begin_task_run(
             # the flow _and_ the flow run has a timeout attached. If the task is on a
             # worker, the flow run timeout will not be raised in the worker process.
             interruptible = maybe_flow_run_context.timeout_scope is not None
+            background_tasks = maybe_flow_run_context.background_tasks
         else:
             # Otherwise, retrieve a new client
             client = await stack.enter_async_context(get_client())
             interruptible = False
+            background_tasks = await stack.enter_async_context(
+                anyio.create_task_group()
+            )
+
+        # TODO: Use the background tasks group to manage logging for this task
 
         connect_error = await client.api_healthcheck()
         if connect_error:
@@ -1208,11 +1291,11 @@ async def wait_for_task_runs_and_report_crashes(
         )
         if result.status == SetStateStatus.ACCEPT:
             engine_logger.debug(
-                f"Reported crashed task run {future.run_key!r} successfully."
+                f"Reported crashed task run {future.name!r} successfully."
             )
         else:
             engine_logger.warning(
-                f"Failed to report crashed task run {future.run_key!r}. "
+                f"Failed to report crashed task run {future.name!r}. "
                 f"Orchestrator did not accept state: {result!r}"
             )
 
@@ -1342,6 +1425,11 @@ async def propose_state(
     if not task_run_id and not flow_run_id:
         raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
 
+    # Handle task and sub-flow tracing
+    if state.is_final():
+        if state.data is not None:
+            link_state_to_result(state, state.data.decode())
+
     # Attempt to set the state
     if task_run_id:
         response = await client.set_task_run_state(
@@ -1451,10 +1539,15 @@ def link_state_to_result(state: State, result: Any) -> None:
 
         We cannot track booleans, Ellipsis, None, NotImplemented, or the integers from -5 to 256
         because they are singletons.
+
+        This function will mutate the State if the object is an untrackable type by setting the value
+        for `State.state_details.untrackable_result` to `True`.
+
         """
         if (type(obj) in UNTRACKABLE_TYPES) or (
             isinstance(obj, int) and (-5 <= obj <= 256)
         ):
+            state.state_details.untrackable_result = True
             return
         flow_run_context.task_run_results[id(obj)] = state
 

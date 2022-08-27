@@ -4,6 +4,7 @@ Futures represent the execution of a task and allow retrieval of the task run's 
 This module contains the definition for futures as well as utilities for resolving
 futures in nested data structures.
 """
+import asyncio
 import warnings
 from typing import (
     TYPE_CHECKING,
@@ -17,9 +18,11 @@ from typing import (
     cast,
     overload,
 )
+from uuid import UUID
+
+import anyio
 
 from prefect.client import OrionClient, inject_client
-from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
 from prefect.utilities.asyncutils import (
     A,
@@ -104,18 +107,22 @@ class PrefectFuture(Generic[R, A]):
 
     def __init__(
         self,
-        task_run: TaskRun,
-        run_key: str,
+        name: str,
+        key: UUID,
         task_runner: "BaseTaskRunner",
         asynchronous: A = True,
         _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
-        self.task_run = task_run
-        self.run_key = run_key
+        self.key = key
+        self.name = name
         self.asynchronous = asynchronous
+        self.task_run = None
         self._final_state = _final_state
         self._exception: Optional[Exception] = None
         self._task_runner = task_runner
+        self._submitted = anyio.Event()
+
+        self._loop = asyncio.get_running_loop()
 
     @overload
     def wait(
@@ -162,10 +169,12 @@ class PrefectFuture(Generic[R, A]):
         """
         Async implementation for `wait`
         """
+        await self._wait_for_submission()
+
         if self._final_state:
             return self._final_state
 
-        self._final_state = await self._task_runner.wait(self, timeout)
+        self._final_state = await self._task_runner.wait(self.key, timeout)
         return self._final_state
 
     @overload
@@ -240,10 +249,7 @@ class PrefectFuture(Generic[R, A]):
 
     def get_state(self, client: OrionClient = None):
         """
-        Wait for the run to finish and return the final state
-
-        If the timeout is reached before the run reaches a final state,
-        `None` is returned.
+        Get the current state of the task run.
         """
         if self.asynchronous:
             return cast(Awaitable[State[R]], self._get_state(client=client))
@@ -254,6 +260,9 @@ class PrefectFuture(Generic[R, A]):
     async def _get_state(self, client: OrionClient = None) -> State[R]:
         assert client is not None  # always injected
 
+        # We must wait for the task run id to be populated
+        await self._wait_for_submission()
+
         task_run = await client.read_task_run(self.task_run.id)
 
         if not task_run:
@@ -263,11 +272,23 @@ class PrefectFuture(Generic[R, A]):
         self.task_run = task_run
         return task_run.state
 
+    async def _wait_for_submission(self):
+        import asyncio
+
+        # TODO: This spin lock is not performant but is necessary for cases where a
+        #       future is created in a separate event loop i.e. when a sync task is
+        #       called in an async flow
+        if not asyncio.get_running_loop() == self._loop:
+            while not self.task_run:
+                await anyio.sleep(0)
+        else:
+            await self._submitted.wait()
+
     def __hash__(self) -> int:
-        return hash(self.run_key)
+        return hash(self.key)
 
     def __repr__(self) -> str:
-        return f"PrefectFuture({self.run_key!r})"
+        return f"PrefectFuture({self.name!r})"
 
     def __bool__(self) -> bool:
         warnings.warn(
