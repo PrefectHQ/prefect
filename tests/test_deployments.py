@@ -5,7 +5,7 @@ from pydantic.error_wrappers import ValidationError
 from prefect.blocks.core import Block
 from prefect.deployments import Deployment
 from prefect.filesystems import S3, LocalFileSystem
-from prefect.infrastructure import Process
+from prefect.infrastructure import DockerContainer, Process
 
 
 class TestDeploymentBasicInterface:
@@ -209,6 +209,34 @@ class TestDeploymentBuild:
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
         assert d.path is not None
+
+    async def test_build_from_flow_manages_docker_specific_path(self, flow_function):
+        # default, local within-container storage assumption
+        d = await Deployment.build_from_flow(
+            flow=flow_function, name="foo", infrastructure=DockerContainer()
+        )
+        assert d.path == "/opt/prefect/flows"
+
+        # can be overriden
+        d = await Deployment.build_from_flow(
+            flow=flow_function,
+            name="foo",
+            infrastructure=DockerContainer(),
+            path="/my/path/of/choice",
+        )
+        assert d.path == "/my/path/of/choice"
+
+        # remote storage, path is unimportant
+        for path in [None, "subdir"]:
+            d = await Deployment.build_from_flow(
+                flow=flow_function,
+                name="foo",
+                infrastructure=DockerContainer(),
+                storage=S3(bucket_path="unreal"),
+                skip_upload=True,
+                path=path,
+            )
+            assert d.path == path
 
     async def test_build_from_flow_sets_description_and_version_if_not_set(
         self, flow_function
