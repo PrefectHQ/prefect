@@ -7,7 +7,7 @@ import { useToggle } from './utilities/useToggle'
 test.describe.configure({ mode: 'serial' })
 
 test.beforeEach(async ({ page }) => {
-  await page.goto(pages.workQueues)
+  await page.goto(pages.workQueues())
 })
 
 const workQueueNameToCreate = mocker.create('string')
@@ -18,7 +18,7 @@ test('Can create work queue', async ({ page }) => {
 
   await createWorkQueue()
 
-  await page.goto(pages.workQueues)
+  await page.goto(pages.workQueues())
 
   await table.waitFor()
   const newWorkQueues = await workQueues.count()
@@ -78,7 +78,7 @@ test('Can toggle workQueue', async ({ page }) => {
 
 async function createWorkQueue(): Promise<void> {
   const { heading } = usePageHeading()
-  const { link } = useLink(pages.workQueuesCreate, heading)
+  const { link } = useLink(pages.workQueuesCreate(), heading)
   await link.click()
 
   const { control: name } = useLabel('Name')
