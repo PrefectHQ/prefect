@@ -6,11 +6,9 @@ export type UseToggle = {
 }
 
 export function useToggle(page: Page | Locator = PAGE): UseToggle {
-  return {
-    toggle: getToggle(page),
-  }
-}
+  const toggle = page.locator('.p-toggle__control')
 
-function getToggle(page: Page | Locator): Locator {
-  return page.locator('.p-toggle__control')
+  return {
+    toggle,
+  }
 }
