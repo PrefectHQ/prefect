@@ -193,6 +193,20 @@ async def test_sync_compatible_call_from_async(fn):
     assert await fn(1, y=2) == 6
 
 
+async def test_sync_compatible_call_from_sync_in_async_thread():
+    # Here we are in the async main thread
+
+    def run_fn():
+        # Here we are back in a sync context but still in the async main thread
+        sync_compatible_fn(1, y=2)
+
+    with pytest.raises(
+        RuntimeError,
+        match="method was called from a context that was previously async but is now sync",
+    ):
+        run_fn()
+
+
 @pytest.mark.parametrize("fn", SYNC_COMPAT_TEST_CASES)
 async def test_sync_compatible_call_from_worker(fn):
     def run_fn():

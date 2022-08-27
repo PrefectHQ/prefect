@@ -60,6 +60,24 @@ class TestInputValidation:
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
         assert deployment.work_queue_name == "default"
 
+    def test_entrypoint_is_saved_as_relative_path(self, patch_import, tmp_path):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.entrypoint == "fake-path.py:fn"
+
     def test_server_side_settings_are_used_if_present(self, patch_import, tmp_path):
         d = Deployment(
             name="TEST",

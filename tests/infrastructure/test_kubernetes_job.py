@@ -637,7 +637,7 @@ class TestCustomizingBaseJob:
 
         # the prefect-job container is still populated
         assert pod["containers"][0]["name"] == "prefect-job"
-        assert pod["containers"][0]["command"] == ["echo", "hello"]
+        assert pod["containers"][0]["args"] == ["echo", "hello"]
 
         assert pod["containers"][1] == {
             "name": "my-sidecar",
@@ -767,26 +767,50 @@ class TestCustomizingJob:
             customizations=[
                 {
                     "op": "add",
-                    "path": "/spec/template/spec/containers/0/command/0",
+                    "path": "/spec/template/spec/containers/0/args/0",
                     "value": "opentelemetry-instrument",
                 },
                 {
                     "op": "add",
-                    "path": "/spec/template/spec/containers/0/command/1",
+                    "path": "/spec/template/spec/containers/0/args/1",
                     "value": "--resource_attributes",
                 },
                 {
                     "op": "add",
-                    "path": "/spec/template/spec/containers/0/command/2",
+                    "path": "/spec/template/spec/containers/0/args/2",
                     "value": "service.name=my-cool-job",
                 },
             ],
         ).build_job()
 
-        assert manifest["spec"]["template"]["spec"]["containers"][0]["command"] == [
+        assert manifest["spec"]["template"]["spec"]["containers"][0]["args"] == [
             "opentelemetry-instrument",
             "--resource_attributes",
             "service.name=my-cool-job",
+            "echo",
+            "hello",
+        ]
+
+    def test_user_overriding_entrypoint_command(self):
+        """Users should be able to wrap the command-line with another command"""
+        manifest = KubernetesJob(
+            command=["echo", "hello"],
+            customizations=[
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/containers/0/command",
+                    "value": ["conda", "run", "-n", "foo"],
+                },
+            ],
+        ).build_job()
+
+        assert manifest["spec"]["template"]["spec"]["containers"][0]["command"] == [
+            "conda",
+            "run",
+            "-n",
+            "foo",
+        ]
+        assert manifest["spec"]["template"]["spec"]["containers"][0]["args"] == [
             "echo",
             "hello",
         ]
