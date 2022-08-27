@@ -133,16 +133,16 @@ class BaseQueryComponents(ABC):
         await session.execute(stmt)
 
     @abstractmethod
-    def get_runs_in_work_queue(
+    def get_scheduled_flow_runs_from_work_queues(
         self,
         db: "OrionDBInterface",
-        limit: Optional[int] = None,
+        limit_per_queue: Optional[int] = None,
         work_queue_ids: Optional[List[UUID]] = None,
         scheduled_before: Optional[datetime.datetime] = None,
     ):
         pass
 
-    def _get_available_slots_for_get_runs_in_work_queue(
+    def _get_available_slots_for_scheduled_flow_runs(
         self,
         db: "OrionDBInterface",
         work_queue_ids: Optional[List[UUID]] = None,
@@ -156,6 +156,8 @@ class BaseQueryComponents(ABC):
         return (
             sa.select(
                 db.WorkQueue.id,
+                # available slots are computed as the (positive) difference between
+                # the queue's concurrency limit and the currently running flow runs
                 self.greatest(
                     0, db.WorkQueue.concurrency_limit - sa.func.count(db.FlowRun.id)
                 ).label("available_slots"),
@@ -317,18 +319,20 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         result = await session.execute(notification_details_stmt)
         return result.fetchall()
 
-    def get_runs_in_work_queue(
+    def get_scheduled_flow_runs_from_work_queues(
         self,
         db: "OrionDBInterface",
-        limit: Optional[int] = None,
+        limit_per_queue: Optional[int] = None,
         work_queue_ids: Optional[List[UUID]] = None,
         scheduled_before: Optional[datetime.datetime] = None,
     ):
 
-        available_slots = self._get_available_slots_for_get_runs_in_work_queue(
+        available_slots = self._get_available_slots_for_scheduled_flow_runs(
             db=db, work_queue_ids=work_queue_ids
         )
 
+        # lateral join for flow runs where the limit is either the provided `limit`
+        # or the available slots on the queue
         flow_runs = (
             sa.select(db.FlowRun)
             .where(
@@ -338,7 +342,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 if scheduled_before is not None
                 else True,
             )
-            .limit(self.least(limit, available_slots.c.available_slots))
+            .limit(self.least(limit_per_queue, available_slots.c.available_slots))
             .lateral("flow_runs")
         )
 
@@ -533,19 +537,21 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
         return notifications
 
-    def get_runs_in_work_queue(
+    def get_scheduled_flow_runs_from_work_queues(
         self,
         db: "OrionDBInterface",
-        limit: Optional[int] = None,
+        limit_per_queue: Optional[int] = None,
         work_queue_ids: Optional[List[UUID]] = None,
         scheduled_before: Optional[datetime.datetime] = None,
     ):
 
-        available_slots = self._get_available_slots_for_get_runs_in_work_queue(
+        available_slots = self._get_available_slots_for_scheduled_flow_runs(
             db=db,
             work_queue_ids=work_queue_ids,
         )
 
+        # select flow runs and rank them; this will let us only retrieve as many
+        # runs per queue as we can (either the `limit_per_queue` or the available slots)
         flow_runs = (
             sa.select(
                 sa.func.row_number()
@@ -578,7 +584,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                     flow_runs.c.rank
                     <= self.least(
                         # SQLite returns NULL from `least` if limit is NULL
-                        sa.func.COALESCE(limit, 10000),
+                        sa.func.COALESCE(limit_per_queue, 10000),
                         sa.func.COALESCE(available_slots.c.available_slots, 10000),
                     ),
                 ),
