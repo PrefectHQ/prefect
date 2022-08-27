@@ -3,16 +3,16 @@
 ## 2.2.0
 
 ### Exciting New Features 🎉
-* Added automatic detection of static arguments to `Task.map` in #6513
+* Added automatic detection of static arguments to `Task.map` in https://github.com/PrefectHQ/prefect/pull/6513
 
 ### Fixes
-* Updated deployment flow run retry settings with runtime values in #6489
-* Updated media queries for flow-run-filter in #6484
-* Added `empirical_policy` to flow run update route in #6486
-* Updated flow run policy retry settings to be nullable in #6488
-* Disallowed extra attribute initialization on `Deployment` objects in #6505
-* Updated `deployment build` to raise an informative error if two infrastructure configs are provided in #6504
-* Fixed calling async subflows from sync parents in #6514
+* Updated deployment flow run retry settings with runtime values in https://github.com/PrefectHQ/prefect/pull/6489
+* Updated media queries for flow-run-filter in https://github.com/PrefectHQ/prefect/pull/6484
+* Added `empirical_policy` to flow run update route in https://github.com/PrefectHQ/prefect/pull/6486
+* Updated flow run policy retry settings to be nullable in https://github.com/PrefectHQ/prefect/pull/6488
+* Disallowed extra attribute initialization on `Deployment` objects in https://github.com/PrefectHQ/prefect/pull/6505
+* Updated `deployment build` to raise an informative error if two infrastructure configs are provided in https://github.com/PrefectHQ/prefect/pull/6504
+* Fixed calling async subflows from sync parents in https://github.com/PrefectHQ/prefect/pull/6514
 
 ## 2.1.1
 
