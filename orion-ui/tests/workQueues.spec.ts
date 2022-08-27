@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test'
 import { mocker } from '@prefecthq/orion-design'
 import { test, useForm, useLabel, useTable, usePageHeading, useLink, pages, useIconButtonMenu, useModal, useButton } from './utilities'
+import { useInput } from './utilities/useInput'
 import { useToggle } from './utilities/useToggle'
 
 test.describe.configure({ mode: 'serial' })
@@ -81,7 +82,7 @@ async function createWorkQueue(): Promise<void> {
   await link.click()
 
   const { control: name } = useLabel('Name')
-  const input = name.locator('input')
+  const { input } = useInput(name)
   await input.fill(workQueueNameToCreate)
 
   const { submit } = useForm()
