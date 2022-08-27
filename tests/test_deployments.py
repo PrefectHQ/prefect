@@ -267,7 +267,6 @@ class TestDeploymentBuild:
                 path=path,
             )
             assert d.path == path
->>>>>>> main
 
     async def test_build_from_flow_sets_description_and_version_if_not_set(
         self, flow_function
