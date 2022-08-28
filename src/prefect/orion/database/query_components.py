@@ -165,12 +165,14 @@ class BaseQueryComponents(ABC):
             .select_from(db.WorkQueue)
             .join(
                 db.FlowRun,
-                db.WorkQueue.name == db.FlowRun.work_queue_name,
+                sa.and_(
+                    db.WorkQueue.name == db.FlowRun.work_queue_name,
+                    db.FlowRun.state_type.in_(["RUNNING", "PENDING"]),
+                ),
                 isouter=True,
             )
             .where(
                 db.WorkQueue.concurrency_limit.is_not(None),
-                db.FlowRun.state_type.in_(["RUNNING", "PENDING"]),
                 db.WorkQueue.id.in_(work_queue_ids) if work_queue_ids else True,
             )
             .group_by(db.WorkQueue.id)
