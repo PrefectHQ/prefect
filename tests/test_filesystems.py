@@ -127,15 +127,3 @@ class TestGitHub:
             mock.await_args[0][0]
             == f"git clone prefect -b 2.0.0 --depth 1 {expected_path}"
         )
-
-    async def test_get_directory_accepts_inputs(self, monkeypatch):
-        class p:
-            returncode = 0
-
-        mock = AsyncMock(return_value=p())
-        monkeypatch.setattr(prefect.filesystems, "run_process", mock)
-        g = GitHub(repository="prefect", reference="2.0.0")
-        await g.get_directory(from_path="prefect-aws", local_path="/my/tmp/place")
-
-        assert mock.await_count == 1
-        assert mock.await_args[0][0] == f"git clone prefect-aws /my/tmp/place"
