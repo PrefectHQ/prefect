@@ -6,7 +6,7 @@ from prefect.blocks.core import Block
 from prefect.deployments import Deployment
 from prefect.exceptions import BlockMissingCapabilities
 from prefect.filesystems import S3, GitHub, LocalFileSystem
-from prefect.infrastructure import Process
+from prefect.infrastructure import DockerContainer, Process
 
 
 class TestDeploymentBasicInterface:
