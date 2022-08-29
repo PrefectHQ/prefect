@@ -34,9 +34,9 @@ To use a remote storage block when creating deployments or using storage blocks 
 
 | Service | Library |
 | --- | --- |
-| AWS S3 | `s3fs` |
-| Azure | `adlfx` |
-| GCS | `gcsfs` |
+| AWS S3 | [`s3fs`](https://s3fs.readthedocs.io/en/latest/) |
+| Azure | [`adlfs`](https://github.com/fsspec/adlfs) |
+| GCS | [`gcsfs`](https://gcsfs.readthedocs.io/en/latest/) |
 
 For example:
 
@@ -100,7 +100,7 @@ Select **Create** to create the new storage block. Prefect displays the details 
 
 ## Using storage blocks with deployments
 
-To demonstrate using a storage block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorials/deployments/). For this deployment, we'll specify using the storage block created earlier by passing `-sb s3/log-test` to the `prefect deployment build` command.
+To demonstrate using a storage block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorials/deployments/). For this deployment, we'll specify using the storage block created earlier by passing `-sb s3/log-test` or `--storage-block s3/log-test` to the `prefect deployment build` command.
 
 <div class="terminal">
 ```bash
@@ -148,3 +148,34 @@ $ prefect agent start -q 'test'
 When you create flow runs from this deployment, the agent pulls the flow script from remote storage rather than local storage. This enables more complex flow run scenarios such as running flows on remote machines, in Docker containers, and more. We'll take a closer look at these scenarios in a future tutorial.
 
 ## Infrastructure
+
+Similar to storage blocks, infrastructure [blocks](/concepts/blocks/) contain configuration for interacting with external systems. In the case of infrastructure this his includes settings that [agents](/concepts/work-queues/) use to create an execution environment for a flow run.
+
+Infastructure include configuration for environments such as:
+
+- Docker containers
+- Kubernetes Jobs
+- Process configuration
+
+Most users will find it easiest to configure new infrastructure blocks through the Prefect Orion or Prefect Cloud UI. 
+
+You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page. To create a new infrastructure block, select the **+** button on this page. Prefect displays a page of available block types. Select **run-infrastructure** from the **Capability** list to filter just the infrastructure blocks.
+
+![Viewing a list of infrastructure block types in the Prefect UI](/img/tutorials/infrastructure-blocks.png)
+
+Use these base blocks to create your own infrastructure blocks containing the settings needed to run flows in your environment.
+
+For example, find the **Docker Container** block, then select **Add +** to see the options for a Docker infrastructure block.
+
+![Viewing a list of infrastructure block types in the Prefect UI](/img/tutorials/docker-infrastructure.png)
+
+We're not going to create a custom infrastructure block until a later tutorial, so select **Cancel** to close the form.
+
+## Using infrastructure blocks with deployments
+
+To use an infrastructure block when building a deployment, the process is similar to using a storage block. You can specify a custom infastructure block to the `prefect deployment build` command with the `-ib` or `--infra-block` options, passing the type and name of the block in the in the format `type/name`, with `type` and `name` separated by a forward slash. 
+
+- `type` is the type of storage block, such as `docker-container`, `kubernetes-job`, or `process`.
+- `name` is the name you specified when creating the block.
+
+The `prefect deployment build` command also supports specifying a built-in infrastructure type prepopulated with defaults by using the `--infra` or `-i` options and passing the name of the infrastructure type: `docker-container`, `kubernetes-job`, or `process`.
