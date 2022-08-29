@@ -105,7 +105,7 @@ class Deployment(BaseModel):
             used only for organizational purposes. For delegating work to agents, see `work_queue_name`.
         schedule: A schedule to run this deployment on, once registered
         work_queue_name: The work queue that will handle this deployment's runs
-        flow_name: The name of the flow this deployment encapsulates
+        flow: The name of the flow this deployment encapsulates
         parameters: A dictionary of parameter values to pass to runs created from this deployment
         infrastructure: An optional infrastructure block used to configure infrastructure for runs;
             if not provided, will default to running this deployment in Agent subprocesses
@@ -511,6 +511,7 @@ class Deployment(BaseModel):
         name: str,
         output: str = None,
         skip_upload: bool = False,
+        apply: bool = False,
         **kwargs,
     ) -> "Deployment":
         """
@@ -525,6 +526,7 @@ class Deployment(BaseModel):
             output (optional): if provided, the full deployment specification will be written as a YAML
                 file in the location specified by `output`
             skip_upload: if True, deployment files are not automatically uploaded to remote storage
+            apply: if True, the deployment is automatically registered with the API
             **kwargs: other keyword arguments to pass to the constructor for the `Deployment` class
         """
         if not name:
@@ -555,13 +557,24 @@ class Deployment(BaseModel):
             deployment.version = flow.version
         if not deployment.description:
             deployment.description = flow.description
-        if not deployment.storage:
+
+        # proxy for whether infra is docker-based
+        is_docker_based = hasattr(deployment.infrastructure, "image")
+
+        if not deployment.storage and not is_docker_based:
             deployment.path = str(Path(".").absolute())
+        elif not deployment.storage and is_docker_based:
+            # only update if a path is not already set
+            if not deployment.path:
+                deployment.path = "/opt/prefect/flows"
 
         if not skip_upload:
             await deployment.upload_to_storage()
 
         if output:
             await deployment.to_yaml(output)
+
+        if apply:
+            await deployment.apply()
 
         return deployment
