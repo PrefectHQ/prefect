@@ -132,7 +132,48 @@ class BaseQueryComponents(ABC):
         )
         await session.execute(stmt)
 
-    @abstractmethod
+    def _get_scheduled_flow_runs_join(
+        self,
+        db: "OrionDBInterface",
+        work_queue_query,
+        limit_per_queue: Optional[int],
+        scheduled_before: Optional[datetime.datetime],
+    ):
+        """Used by self.get_scheduled_flow_runs_from_work_queue, allowing just
+        this function to be changed on a per-dialect basis"""
+
+        # get scheduled flow runs with lateral join where the limit is the
+        # available slots per queue
+        scheduled_flow_runs = (
+            sa.select(db.FlowRun)
+            .where(
+                self._join_flow_run_to_work_queue(
+                    flow_run=db.FlowRun, work_queue=db.WorkQueue
+                ),
+                db.FlowRun.state_type == "SCHEDULED",
+                (
+                    db.FlowRun.next_scheduled_start_time <= scheduled_before
+                    if scheduled_before is not None
+                    else True
+                ),
+            )
+            .limit(sa.func.least(limit_per_queue, work_queue_query.c.available_slots))
+            .lateral("scheduled_flow_runs")
+        )
+
+        join_criteria = True
+
+        return scheduled_flow_runs, join_criteria
+
+    def _join_flow_run_to_work_queue(self, flow_run, work_queue):
+        """
+        On clause for for joining flow runs to work queues
+
+        Used by self.get_scheduled_flow_runs_from_work_queue, allowing just
+        this function to be changed on a per-dialect basis
+        """
+        return sa.and_(flow_run.work_queue_name == work_queue.name)
+
     def get_scheduled_flow_runs_from_work_queues(
         self,
         db: "OrionDBInterface",
@@ -140,24 +181,12 @@ class BaseQueryComponents(ABC):
         work_queue_ids: Optional[List[UUID]] = None,
         scheduled_before: Optional[datetime.datetime] = None,
     ):
-        pass
 
-    def _get_available_slots_for_scheduled_flow_runs(
-        self,
-        db: "OrionDBInterface",
-        work_queue_ids: Optional[List[UUID]] = None,
-    ):
-        """
-        Collects any work queues with concurrency limits and count the number of
-        flow runs currently PENDING or RUNNING. The difference between the
-        concurrency limit and the running flows is the number of runs that queue
-        is currently able to schedule.
-        """
-        return (
+        # get any work queues that have a concurrency limit, and set available
+        # slots equal to their limit less the number of running flows
+        limited_queues = (
             sa.select(
                 db.WorkQueue.id,
-                # available slots are computed as the (positive) difference between
-                # the queue's concurrency limit and the currently running flow runs
                 self.greatest(
                     0, db.WorkQueue.concurrency_limit - sa.func.count(db.FlowRun.id)
                 ).label("available_slots"),
@@ -166,18 +195,45 @@ class BaseQueryComponents(ABC):
             .join(
                 db.FlowRun,
                 sa.and_(
-                    db.WorkQueue.name == db.FlowRun.work_queue_name,
+                    self._join_flow_run_to_work_queue(
+                        flow_run=db.FlowRun, work_queue=db.WorkQueue
+                    ),
                     db.FlowRun.state_type.in_(["RUNNING", "PENDING"]),
                 ),
                 isouter=True,
             )
+            .where(db.WorkQueue.concurrency_limit.is_not(None))
+            .group_by(db.WorkQueue.id)
+            .cte("limited_queues")
+        )
+
+        # use the work queues and available slots information to generate a join
+        # for all scheduled runs
+        scheduled_flow_runs, join_criteria = self._get_scheduled_flow_runs_join(
+            db=db,
+            work_queue_query=limited_queues,
+            limit_per_queue=limit_per_queue,
+            scheduled_before=scheduled_before,
+        )
+
+        # join the work queue query and the flow query to return as many
+        # scheduled flow runs as each queue will allow
+        query = (
+            sa.select(sa.orm.aliased(db.FlowRun, scheduled_flow_runs))
+            .select_from(db.WorkQueue)
+            .join(limited_queues, db.WorkQueue.id == limited_queues.c.id, isouter=True)
+            .join(scheduled_flow_runs, join_criteria)
             .where(
-                db.WorkQueue.concurrency_limit.is_not(None),
+                db.WorkQueue.is_paused.is_(False),
                 db.WorkQueue.id.in_(work_queue_ids) if work_queue_ids else True,
             )
-            .group_by(db.WorkQueue.id)
-            .cte("available_slots")
+            .order_by(
+                scheduled_flow_runs.c.next_scheduled_start_time,
+                scheduled_flow_runs.c.id,
+            )
         )
+
+        return query
 
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
@@ -320,49 +376,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
 
         result = await session.execute(notification_details_stmt)
         return result.fetchall()
-
-    def get_scheduled_flow_runs_from_work_queues(
-        self,
-        db: "OrionDBInterface",
-        limit_per_queue: Optional[int] = None,
-        work_queue_ids: Optional[List[UUID]] = None,
-        scheduled_before: Optional[datetime.datetime] = None,
-    ):
-
-        available_slots = self._get_available_slots_for_scheduled_flow_runs(
-            db=db, work_queue_ids=work_queue_ids
-        )
-
-        # lateral join for flow runs where the limit is either the provided `limit`
-        # or the available slots on the queue
-        flow_runs = (
-            sa.select(db.FlowRun)
-            .where(
-                db.FlowRun.work_queue_name == db.WorkQueue.name,
-                db.FlowRun.state_type == "SCHEDULED",
-                db.FlowRun.next_scheduled_start_time <= scheduled_before
-                if scheduled_before is not None
-                else True,
-            )
-            .limit(self.least(limit_per_queue, available_slots.c.available_slots))
-            .lateral("flow_runs")
-        )
-
-        query = (
-            sa.select(sa.orm.aliased(db.FlowRun, flow_runs))
-            .select_from(db.WorkQueue)
-            .join(
-                available_slots, available_slots.c.id == db.WorkQueue.id, isouter=True
-            )
-            .join(flow_runs, True)
-            .where(
-                db.WorkQueue.is_paused.is_(False),
-                db.WorkQueue.id.in_(work_queue_ids) if work_queue_ids else True,
-            )
-            .order_by(flow_runs.c.next_scheduled_start_time.asc())
-        )
-
-        return query
 
 
 class AioSqliteQueryComponents(BaseQueryComponents):
@@ -539,22 +552,16 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
         return notifications
 
-    def get_scheduled_flow_runs_from_work_queues(
+    def _get_scheduled_flow_runs_join(
         self,
         db: "OrionDBInterface",
-        limit_per_queue: Optional[int] = None,
-        work_queue_ids: Optional[List[UUID]] = None,
-        scheduled_before: Optional[datetime.datetime] = None,
+        work_queue_query,
+        limit_per_queue: Optional[int],
+        scheduled_before: Optional[datetime.datetime],
     ):
 
-        available_slots = self._get_available_slots_for_scheduled_flow_runs(
-            db=db,
-            work_queue_ids=work_queue_ids,
-        )
-
-        # select flow runs and rank them; this will let us only retrieve as many
-        # runs per queue as we can (either the `limit_per_queue` or the available slots)
-        flow_runs = (
+        # select scheduled flow runs, ordered by scheduled start time per queue
+        scheduled_flow_runs = (
             sa.select(
                 sa.func.row_number()
                 .over(
@@ -566,36 +573,25 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             )
             .where(
                 db.FlowRun.state_type == "SCHEDULED",
-                db.FlowRun.next_scheduled_start_time <= scheduled_before
-                if scheduled_before is not None
-                else True,
-            )
-            .subquery("flow_runs")
-        )
-
-        query = (
-            sa.select(sa.orm.aliased(db.FlowRun, flow_runs))
-            .select_from(db.WorkQueue)
-            .join(
-                available_slots, available_slots.c.id == db.WorkQueue.id, isouter=True
-            )
-            .join(
-                flow_runs,
-                sa.and_(
-                    flow_runs.c.work_queue_name == db.WorkQueue.name,
-                    flow_runs.c.rank
-                    <= self.least(
-                        # SQLite returns NULL from `least` if limit is NULL
-                        sa.func.COALESCE(limit_per_queue, 10000),
-                        sa.func.COALESCE(available_slots.c.available_slots, 10000),
-                    ),
+                (
+                    db.FlowRun.next_scheduled_start_time <= scheduled_before
+                    if scheduled_before is not None
+                    else True
                 ),
             )
-            .where(
-                db.WorkQueue.is_paused.is_(False),
-                db.WorkQueue.id.in_(work_queue_ids) if work_queue_ids else True,
-            )
-            .order_by(flow_runs.c.next_scheduled_start_time.asc())
+            .subquery("scheduled_flow_runs")
         )
 
-        return query
+        # in the join, only keep flow runs whose rank is less than or equal to the
+        # available slots for each queue
+        join_criteria = sa.and_(
+            self._join_flow_run_to_work_queue(
+                flow_run=scheduled_flow_runs.c, work_queue=db.WorkQueue
+            ),
+            scheduled_flow_runs.c.rank
+            <= sa.func.min(
+                sa.func.coalesce(work_queue_query.c.available_slots, limit_per_queue),
+                limit_per_queue,
+            ),
+        )
+        return scheduled_flow_runs, join_criteria
