@@ -128,7 +128,7 @@ async def use(name: str):
         ),
         ConnectionStatus.INVALID_API: (
             exit_with_error,
-            f"Error connecting to Prefect Cloud",
+            f"Error connecting to Prefect API URL",
         ),
     }
 
