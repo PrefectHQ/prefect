@@ -105,7 +105,7 @@ class Deployment(BaseModel):
             used only for organizational purposes. For delegating work to agents, see `work_queue_name`.
         schedule: A schedule to run this deployment on, once registered
         work_queue_name: The work queue that will handle this deployment's runs
-        flow_name: The name of the flow this deployment encapsulates
+        flow: The name of the flow this deployment encapsulates
         parameters: A dictionary of parameter values to pass to runs created from this deployment
         infrastructure: An optional infrastructure block used to configure infrastructure for runs;
             if not provided, will default to running this deployment in Agent subprocesses
@@ -175,6 +175,25 @@ class Deployment(BaseModel):
             return editable_fields
         else:
             return editable_fields + ["infrastructure"]
+
+    @property
+    def location(self) -> str:
+        """
+        The 'location' that this deployment points to is given by `path` alone
+        in the case of no remote storage, and otherwise by `storage.basepath / path`.
+
+        The underlying flow entrypoint is interpreted relative to this location.
+        """
+        location = ""
+        if self.storage:
+            location = (
+                self.storage.basepath + "/"
+                if not self.storage.basepath.endswith("/")
+                else ""
+            )
+        if self.path:
+            location += self.path
+        return location
 
     @sync_compatible
     async def to_yaml(self, path: Path) -> None:
@@ -320,6 +339,24 @@ class Deployment(BaseModel):
     async def load_from_yaml(cls, path: str):
         with open(str(path), "r") as f:
             data = yaml.safe_load(f)
+
+            # load blocks from server to ensure secret values are properly hydrated
+            if data["storage"]:
+                block_doc_name = data["storage"].get("_block_document_name")
+                # if no doc name, this block is not stored on the server
+                if block_doc_name:
+                    block_slug = data["storage"]["_block_type_slug"]
+                    block = await Block.load(f"{block_slug}/{block_doc_name}")
+                    data["storage"] = block
+
+            if data["infrastructure"]:
+                block_doc_name = data["infrastructure"].get("_block_document_name")
+                # if no doc name, this block is not stored on the server
+                if block_doc_name:
+                    block_slug = data["infrastructure"]["_block_type_slug"]
+                    block = await Block.load(f"{block_slug}/{block_doc_name}")
+                    data["infrastructure"] = block
+
             return cls(**data)
 
     @sync_compatible
@@ -407,11 +444,7 @@ class Deployment(BaseModel):
             file_count = await self.storage.put_directory(
                 ignore_file=ignore_file, to_path=self.path
             )
-        elif not self.storage:
-            # default storage, no need to move anything around
-            self.storage = None
-            self.path = str(Path(".").absolute())
-        else:
+        elif self.storage:
             file_count = await self.storage.put_directory(
                 ignore_file=ignore_file, to_path=self.path
             )
@@ -423,9 +456,12 @@ class Deployment(BaseModel):
         return file_count
 
     @sync_compatible
-    async def apply(self) -> UUID:
+    async def apply(self, upload: bool = False) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
+
+        Args:
+            upload: if True, deployment files are automatically uploaded to remote storage
         """
         if not self.name or not self.flow_name:
             raise ValueError("Both a deployment name and flow name must be set.")
@@ -440,6 +476,9 @@ class Deployment(BaseModel):
                 infrastructure_document_id = await self.infrastructure._save(
                     is_anonymous=True,
                 )
+
+            if upload:
+                await self.upload_to_storage()
 
             # we assume storage was already saved
             storage_document_id = getattr(self.storage, "_block_document_id", None)
@@ -471,6 +510,8 @@ class Deployment(BaseModel):
         flow: Flow,
         name: str,
         output: str = None,
+        skip_upload: bool = False,
+        apply: bool = False,
         **kwargs,
     ) -> "Deployment":
         """
@@ -484,6 +525,8 @@ class Deployment(BaseModel):
             name: A name for the deployment
             output (optional): if provided, the full deployment specification will be written as a YAML
                 file in the location specified by `output`
+            skip_upload: if True, deployment files are not automatically uploaded to remote storage
+            apply: if True, the deployment is automatically registered with the API
             **kwargs: other keyword arguments to pass to the constructor for the `Deployment` class
         """
         if not name:
@@ -509,17 +552,29 @@ class Deployment(BaseModel):
         entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
         deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
         deployment.parameter_openapi_schema = parameter_schema(flow)
+
         if not deployment.version:
             deployment.version = flow.version
         if not deployment.description:
             deployment.description = flow.description
 
-        # if no storage is set, assume local for now
-        # TODO: revisit with Docker integration
-        # note: this method call sets `deployment.path`
-        await deployment.upload_to_storage()
+        # proxy for whether infra is docker-based
+        is_docker_based = hasattr(deployment.infrastructure, "image")
+
+        if not deployment.storage and not is_docker_based:
+            deployment.path = str(Path(".").absolute())
+        elif not deployment.storage and is_docker_based:
+            # only update if a path is not already set
+            if not deployment.path:
+                deployment.path = "/opt/prefect/flows"
+
+        if not skip_upload:
+            await deployment.upload_to_storage()
 
         if output:
             await deployment.to_yaml(output)
+
+        if apply:
+            await deployment.apply()
 
         return deployment
