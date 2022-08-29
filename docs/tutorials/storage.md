@@ -30,17 +30,121 @@ The steps demonstrated in this tutorial assume you have access to a storage loca
 
 To create a storage block, you will need the storage location (for example, a bucket or container name) and valid authentication details such as access keys or connection strings.
 
+To use a remote storage block when creating deployments or using storage blocks within your flow script, you must install the required library for the storage service. 
+
+| Service | Library |
+| --- | --- |
+| AWS S3 | `s3fs` |
+| Azure | `adlfx` |
+| GCS | `gcsfs` |
+
+For example:
+
+<div class="terminal">
+```bash
+$ pip install s3fs
+```
+</div>
+
 ## Storage
 
 As mentioned previously, storage blocks contain configuration for interacting with file storage. This includes:
 
 - Local storage
 - Remote storage on a filesystem supported by [`fsspec`](https://filesystem-spec.readthedocs.io/en/latest/)
-- AWS S3 buckets
-- Azure Blob storage 
+- AWS S3
+- Azure Blob Storage
+- Google Cloud Storage
 - SMB shares
 
-Storage blocks are used, when you create a deployment, to save flow artifacts (such as your flow scripts) to a location where they can be retrieved for future flow run execution. 
+Storage blocks are used, when you create a deployment, to enable Prefect to save flow artifacts (such as your flow scripts) to a location where they can be retrieved for future flow run execution. 
 
 Your flow code may also load storage blocks to access configuration for accessing storage, such as for reading or saving files.
 
+## Create a storage block
+
+Most users will find it easiest to configure new storage blocks through the Prefect Orion or Prefect Cloud UI.
+
+You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page.
+
+![Viewing a list of previously configured storage blocks in the Prefect UI](/img/tutorials/storage-blocks.png)
+
+To create a new block, select the **+** button on this page, or if you haven't previously created any blocks, **New Block**. Prefect displays a page of available block types.
+
+![Viewing a list of block types in the Prefect UI](/img/tutorials/choose-blocks.png)
+
+For this tutorial example, we'll use the AWS S3 block as an example. If you use a different cloud storage service or solution, feel free to use the appropriate block type. The process is similar for all blocks, though the configuration options are slightly different, reflecting the authentication requirements of different cloud services.
+
+Scroll down the list of blocks and find the **S3** block, then select **Add +** to configure a new storage block based on this block type. Prefect displays a **Create** page that enables specifying storage settings.
+
+![Configurating an S3 storage block in the Prefect UI](/img/tutorials/s3-block-configuration.png)
+
+Enter the configuration for your storage.
+
+- **Block Name** is the name by which your block is referenced. The name must only contain lowercase letters, numbers, and dashes.
+- **Bucket Path** is the name of the bucket or container and, optionally, path to a folder within the bucket. If the folder does not exist it will be created. For example: `my-bucket/my/path`.
+- **AWS Access Key ID** and **AWS Secret Access Key** take the respective authentication keys if they are needed to access the storage location.
+
+In this example we've specified a storage location that could be used by the flow example from the [deployments tutorial](/tutorials/deployments/).
+
+- The name `log-test` makes it clear what flow code is stored in this location.
+- `bucket-full-of-sunshine/flows/log-test` specifies the bucket name `bucket-full-of-sunshine` and the path to use within that bucket: `/flows/log-test`.
+- This bucket requires an authenticated role, so we include the Access Key ID and Secret Access Key values.
+
+!!! tip "Secrets are obfuscated in the UI"
+    Note that, once you save a block definition that contains sensitive data such as access keys, connection strings, or passwords, this data is obfuscated when viewed in the UI. You may update sensitive data, replacing it in the Prefect database, but you cannot view or copy this data from the UI.
+
+Select **Create** to create the new storage block. Prefect displays the details of the new block, including a code example for using the block within your flow code.
+
+![Viewing details of a new S3 storage block in the Prefect UI](/img/tutorials/new-storage-block.png)
+
+## Using storage blocks with deployments
+
+To demonstrate using a storage block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorials/deployments/). For this deployment, we'll specify using the storage block created earlier by passing `-sb s3/log-test` to the `prefect deployment build` command.
+
+<div class="terminal">
+```bash
+$ prefect deployment build ./log_flow.py:log_flow -n log-flow-s3 -sb s3/log-test -q test -o log-flow-s3-deployment.yaml
+Found flow 'log-flow'
+Successfully uploaded 3 files to s3://bucket-full-of-sunshine/flows/log-test
+Deployment YAML created at
+'/Users/terry/test/dplytest/prefect-tutorial/log-flow-s3-deployment.yaml'.
+```
+</div>
+
+Note that, with the `-sb s3/log-test` option, the build process uploads the flow script files to `s3://bucket-full-of-sunshine/flows/log-test`.
+
+What did we do here? Let's break down the command:
+
+- `prefect deployment build` is the Prefect CLI command that enables you to prepare the settings for a deployment.
+-  `./log_flow.py:log_flow` specifies the location of the flow script file and the name of the entrypoint flow function, separated by a colon.
+- `-n log-flow-s3` specifies a name for the deployment. For ease of identification, the name includes a reference to the S3 storage.
+- `-sb s3/log-test` specifies a storage block by type and name.
+- `-q test` specifies a work queue for the deployment. Work queues direct scheduled runs to agents.
+- `-o log-flow-s3-deployment.yaml` specifies the name for the deployment YAML file. We do this to create a new deployment file rather than overwriting the previous one.
+
+In deployments, storage blocks are always referenced by name in the format `type/name`, with `type` and `name` separated by a forward slash. 
+
+- `type` is the type of storage block, such as `s3`, `azure`, or `gcs`.
+- `name` is the name you specified when creating the block.
+
+If you used a different storage block type or block name, your command may be different.
+
+Now you can apply the deployment YAML to create the deployment on the API.
+
+<div class="terminal">
+```bash
+$ prefect deployment apply log-flow-s3-deployment.yaml
+Successfully loaded 'log-flow-s3'
+Deployment 'log-flow/log-flow-s3' successfully created with id
+'73b0288e-d5bb-4b37-847c-fa68fda39c81'.
+
+To execute flow runs from this deployment, start an agent that pulls work from the the 'test'
+work queue:
+$ prefect agent start -q 'test'
+```
+</div>
+
+When you create flow runs from this deployment, the agent pulls the flow script from remote storage rather than local storage. This enables more complex flow run scenarios such as running flows on remote machines, in Docker containers, and more. We'll take a closer look at these scenarios in a future tutorial.
+
+## Infrastructure
