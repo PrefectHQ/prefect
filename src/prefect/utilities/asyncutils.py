@@ -183,8 +183,14 @@ def sync_compatible(async_fn: T) -> T:
     def wrapper(*args, **kwargs):
         if in_async_main_thread():
             caller_frame = sys._getframe(1)
+            caller_module = caller_frame.f_globals.get("__name__", "unknown")
             caller_async = caller_frame.f_code.co_flags & inspect.CO_COROUTINE
-            if caller_async:
+            if caller_async or any(
+                # Add exceptions for the internals anyio/asyncio which can run
+                # coroutines from synchronous functions
+                caller_module.startswith(f"{module}.")
+                for module in ["asyncio", "anyio"]
+            ):
                 # In the main async context; return the coro for them to await
                 return async_fn(*args, **kwargs)
             else:
