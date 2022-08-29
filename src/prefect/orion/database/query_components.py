@@ -139,10 +139,9 @@ class BaseQueryComponents(ABC):
         work_queue_ids: Optional[List[UUID]] = None,
         scheduled_before: Optional[datetime.datetime] = None,
     ):
-
         # get any work queues that have a concurrency limit, and compute available
         # slots as their limit less the number of running flows
-        limited_queues = (
+        concurrency_queues = (
             sa.select(
                 db.WorkQueue.id,
                 self.greatest(
@@ -153,23 +152,21 @@ class BaseQueryComponents(ABC):
             .join(
                 db.FlowRun,
                 sa.and_(
-                    self._join_flow_run_to_work_queue(
-                        flow_run=db.FlowRun, work_queue=db.WorkQueue
-                    ),
+                    self._flow_run_work_queue_join_clause(db.FlowRun, db.WorkQueue),
                     db.FlowRun.state_type.in_(["RUNNING", "PENDING"]),
                 ),
                 isouter=True,
             )
             .where(db.WorkQueue.concurrency_limit.is_not(None))
             .group_by(db.WorkQueue.id)
-            .cte("limited_queues")
+            .cte("concurrency_queues")
         )
 
         # use the available slots information to generate a join
         # for all scheduled runs
         scheduled_flow_runs, join_criteria = self._get_scheduled_flow_runs_join(
             db=db,
-            work_queue_query=limited_queues,
+            work_queue_query=concurrency_queues,
             limit_per_queue=limit_per_queue,
             scheduled_before=scheduled_before,
         )
@@ -180,7 +177,11 @@ class BaseQueryComponents(ABC):
         query = (
             sa.select(sa.orm.aliased(db.FlowRun, scheduled_flow_runs))
             .select_from(db.WorkQueue)
-            .join(limited_queues, db.WorkQueue.id == limited_queues.c.id, isouter=True)
+            .join(
+                concurrency_queues,
+                db.WorkQueue.id == concurrency_queues.c.id,
+                isouter=True,
+            )
             .join(scheduled_flow_runs, join_criteria)
             .where(
                 db.WorkQueue.is_paused.is_(False),
@@ -203,21 +204,22 @@ class BaseQueryComponents(ABC):
     ):
         """Used by self.get_scheduled_flow_runs_from_work_queue, allowing just
         this function to be changed on a per-dialect basis"""
+        # if scheduled_before is not None:
+
+        scheduled_before_clause = (
+            db.FlowRun.next_scheduled_start_time <= scheduled_before
+            if scheduled_before is not None
+            else True
+        )
 
         # get scheduled flow runs with lateral join where the limit is the
         # available slots per queue
         scheduled_flow_runs = (
             sa.select(db.FlowRun)
             .where(
-                self._join_flow_run_to_work_queue(
-                    flow_run=db.FlowRun, work_queue=db.WorkQueue
-                ),
+                self._flow_run_work_queue_join_clause(db.FlowRun, db.WorkQueue),
                 db.FlowRun.state_type == "SCHEDULED",
-                (
-                    db.FlowRun.next_scheduled_start_time <= scheduled_before
-                    if scheduled_before is not None
-                    else True
-                ),
+                scheduled_before_clause,
             )
             # if null, no limit will be applied
             .limit(sa.func.least(limit_per_queue, work_queue_query.c.available_slots))
@@ -228,7 +230,7 @@ class BaseQueryComponents(ABC):
 
         return scheduled_flow_runs, join_criteria
 
-    def _join_flow_run_to_work_queue(self, flow_run, work_queue):
+    def _flow_run_work_queue_join_clause(self, flow_run, work_queue):
         """
         On clause for for joining flow runs to work queues
 
@@ -561,45 +563,43 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         limit_per_queue: Optional[int],
         scheduled_before: Optional[datetime.datetime],
     ):
+        scheduled_before_clause = (
+            db.FlowRun.next_scheduled_start_time <= scheduled_before
+            if scheduled_before is not None
+            else True
+        )
 
         # select scheduled flow runs, ordered by scheduled start time per queue
         scheduled_flow_runs = (
             sa.select(
-                sa.func.row_number()
-                .over(
-                    partition_by=[db.FlowRun.work_queue_name],
-                    order_by=db.FlowRun.next_scheduled_start_time,
-                )
-                .label("rank"),
+                (
+                    sa.func.row_number()
+                    .over(
+                        partition_by=[db.FlowRun.work_queue_name],
+                        order_by=db.FlowRun.next_scheduled_start_time,
+                    )
+                    .label("rank")
+                ),
                 db.FlowRun,
             )
             .where(
                 db.FlowRun.state_type == "SCHEDULED",
-                (
-                    db.FlowRun.next_scheduled_start_time <= scheduled_before
-                    if scheduled_before is not None
-                    else True
-                ),
+                scheduled_before_clause,
             )
             .subquery("scheduled_flow_runs")
         )
 
-        # in the join, only keep flow runs whose rank is less than or equal to the
-        # available slots for each queue
-
         # sqlite short-circuits the `min` comparison on nulls, so we use `999999`
         # as an "unlimited" limit.
-        if limit_per_queue is None:
-            limit_per_queue = 999999
+        limit = 999999 if limit_per_queue is None else limit_per_queue
 
+        # in the join, only keep flow runs whose rank is less than or equal to the
+        # available slots for each queue
         join_criteria = sa.and_(
-            self._join_flow_run_to_work_queue(
-                flow_run=scheduled_flow_runs.c, work_queue=db.WorkQueue
-            ),
+            self._flow_run_work_queue_join_clause(scheduled_flow_runs.c, db.WorkQueue),
             scheduled_flow_runs.c.rank
             <= sa.func.min(
-                sa.func.coalesce(work_queue_query.c.available_slots, limit_per_queue),
-                limit_per_queue,
+                sa.func.coalesce(work_queue_query.c.available_slots, limit), limit
             ),
         )
         return scheduled_flow_runs, join_criteria
