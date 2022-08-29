@@ -1,0 +1,5 @@
+task:
+  - "Fix bug where flows with emoji characters pass `flow.validate()`, but fail to extract from file - [#6375](https://github.com/PrefectHQ/prefect/pull/6375)"
+
+contributor:
+  - "[Stéphan Taljaard](https://github.com/taljaards)"
