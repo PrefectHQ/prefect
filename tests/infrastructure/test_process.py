@@ -115,3 +115,9 @@ def test_task_status_receives_pid():
         task_status=fake_status
     )
     fake_status.started.assert_called_once_with(int(result.identifier))
+
+
+def test_run_requires_command():
+    process = Process(command=[])
+    with pytest.raises(ValueError, match="cannot be run with empty command"):
+        process.run()
