@@ -108,7 +108,7 @@ async def use(name: str):
         ),
         ConnectionStatus.CLOUD_ERROR: (
             exit_with_error,
-            f"Error authenticating with Prefect Cloud using profile {name!r}",
+            f"Error connecting to Prefect Cloud using profile {name!r}",
         ),
         ConnectionStatus.CLOUD_UNAUTHORIZED: (
             exit_with_error,
