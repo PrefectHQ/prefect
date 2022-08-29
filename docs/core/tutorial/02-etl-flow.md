@@ -4,6 +4,10 @@ sidebarDepth: 0
 
 # ETL with Prefect
 
+::: tip Prefect 2
+With general availability of Prefect 2, we recommend new users start with [Prefect 2](https://docs.prefect.io/#getting-started-with-prefect).
+:::
+
 In this tutorial, we'll use Prefect to improve the overall structure of the ETL workflow from the [previous tutorial](/core/tutorial/01-etl-before-prefect.html).
 
 ::: tip Follow along in the Terminal

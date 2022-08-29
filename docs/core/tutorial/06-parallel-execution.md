@@ -3,6 +3,10 @@ sidebarDepth: 0
 ---
 # Scaling Out
 
+::: tip Prefect 2
+With general availability of Prefect 2, we recommend new users start with [Prefect 2](https://docs.prefect.io/#getting-started-with-prefect).
+:::
+
 ::: tip Follow along in the Terminal
 
 ```
