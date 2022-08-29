@@ -28,7 +28,7 @@ async def check_orion_connection():
         return ConnectionStatus.CLOUD_CONNECTED
     except CloudUnauthorizedError:
         # if the Cloud 2.0 API exists and fails to authenticate, notify the user
-        return "authentication error"
+        return ConnectionStatus.CLOUD_UNAUTHORIZED
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code == status.HTTP_404_NOT_FOUND:
             # if the route does not exist, attmpt to connect as a hosted Orion instance
