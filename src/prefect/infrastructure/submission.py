@@ -1,3 +1,4 @@
+import sys
 from typing import Dict, Optional
 
 from anyio.abc import TaskStatus
@@ -7,6 +8,7 @@ from prefect.infrastructure.base import Infrastructure
 from prefect.orion.schemas.core import FlowRun
 
 MIN_COMPAT_PREFECT_VERSION = "2.0b12"
+FLOW_RUN_ENTRYPOINT_COMMAND = [sys.executable, "-m", "prefect.engine"]
 
 
 def base_flow_run_labels(flow_run: FlowRun) -> Dict[str, str]:
@@ -35,6 +37,7 @@ def _prepare_infrastructure(
             "env": {**base_flow_run_environment(flow_run), **infrastructure.env},
             "labels": {**base_flow_run_labels(flow_run), **infrastructure.labels},
             "name": infrastructure.name or flow_run.name,
+            "command": infrastructure.command or FLOW_RUN_ENTRYPOINT_COMMAND,
         }
     )
 
