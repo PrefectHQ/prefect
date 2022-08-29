@@ -29,7 +29,11 @@ class PrefectLogAdapter(logging.LoggerAdapter):
 @lru_cache()
 def get_logger(name: str = None) -> logging.Logger:
     """
-    Get a `prefect` logger. For use within Prefect.
+    Get a `prefect` logger. These loggers are intended for internal use within the
+    `prefect` package.
+
+    See `get_run_logger` for retrieving loggers for use within task or flow runs.
+    By default, only run related loggers are connected to the `OrionHandler`.
     """
 
     parent_logger = logging.getLogger("prefect")
@@ -53,6 +57,9 @@ def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logge
 
     The logger will be named either `prefect.task_runs` or `prefect.flow_runs`.
     Contextual data about the run will be attached to the log records.
+
+    These loggers are connected to the `OrionHandler` by default to send log records to
+    the API.
 
     Arguments:
         context: A specific context may be provided as an override. By default, the
