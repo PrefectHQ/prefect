@@ -80,8 +80,5 @@ def ui_base_url(connection_status):
         ui_url = PREFECT_API_URL.value()
         ui_url = ui_url.strip("/api")
         return ui_url
-    if connection_status == ConnectionStatus.EPHEMERAL:
-        ui_url = "http://127.0.0.1:4200"
-        return ui_url
     else:
         return None
