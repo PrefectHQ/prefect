@@ -61,7 +61,8 @@ def extract_flow_from_file(
 
     Args:
         - file_path (str, optional): A file path pointing to a .py file containing a flow
-        - file_contents (Union[str, bytes], optional): The string or byte contents of a .py file containing a flow
+        - file_contents (Union[str, bytes], optional): The string or byte contents of a
+            .py file containing a flow
         - flow_name (str, optional): A specific name of a flow to extract from a file.
             If not set then the first flow object retrieved from file will be returned.
 
