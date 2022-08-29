@@ -584,14 +584,19 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
         # in the join, only keep flow runs whose rank is less than or equal to the
         # available slots for each queue
+        #
+        # sqlite short-circuits the `min` comparison on nulls, so we use `999999`
+        # as an "unlimited" limit.
         join_criteria = sa.and_(
             self._join_flow_run_to_work_queue(
                 flow_run=scheduled_flow_runs.c, work_queue=db.WorkQueue
             ),
             scheduled_flow_runs.c.rank
             <= sa.func.min(
-                sa.func.coalesce(work_queue_query.c.available_slots, limit_per_queue),
-                limit_per_queue,
+                sa.func.coalesce(
+                    work_queue_query.c.available_slots, limit_per_queue or 99999
+                ),
+                limit_per_queue or 99999,
             ),
         )
         return scheduled_flow_runs, join_criteria
