@@ -27,7 +27,7 @@
 
         <p-divider />
 
-        <!-- <TaskRunDetails alternate :task-run="taskRun" /> -->
+        <TaskRunDetails alternate :task-run="taskRun" />
       </template>
     </template>
   </p-layout-well>
@@ -36,7 +36,7 @@
 <script lang="ts" setup>
   import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, StateBadge, DurationIconText, FlowRunIconText, JsonView } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
-  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
+  import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { routes } from '@/router'
@@ -56,11 +56,14 @@
     return values
   })
 
-  const taskRunDetailsSubscription = useSubscription(taskRunsApi.getTaskRun, [taskRunId], { interval: 5000 })
-  const taskRun = computed(() => taskRunDetailsSubscription.response)
-  const flowRunId = computed(() => taskRun.value?.flowRunId)
 
-  const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId.value!], { interval: 5000 })
+  const taskRunIdArgs = computed<[string] | null>(() => taskRunId.value ? [taskRunId.value] : null)
+  const taskRunDetailsSubscription = useSubscriptionWithDependencies(taskRunsApi.getTaskRun, taskRunIdArgs)
+  const taskRun = computed(() => taskRunDetailsSubscription.response)
+
+  const flowRunId = computed(() => taskRun.value?.flowRunId)
+  const flowRunIdArgs = computed<[string] | null>(() => flowRunId.value ? [flowRunId.value] : null)
+  const flowRunDetailsSubscription = useSubscriptionWithDependencies(flowRunsApi.getFlowRun, flowRunIdArgs)
 
   const parameters = computed(() => {
     return taskRun.value?.taskInputs ? JSON.stringify(taskRun.value.taskInputs, undefined, 2) : '{}'
