@@ -24,6 +24,7 @@ class Infrastructure(Block, abc.ABC):
 
     env: Dict[str, str] = pydantic.Field(
         default_factory=dict,
+        title="Environment",
         description="Environment variables to set in the configured infrastructure.",
     )
     labels: Dict[str, str] = pydantic.Field(
@@ -31,11 +32,11 @@ class Infrastructure(Block, abc.ABC):
         description="Labels applied to the infrastructure for metadata purposes.",
     )
     name: Optional[str] = pydantic.Field(
-        None, description="Display name for the configured infrastructure."
+        None, description="Name applied to the infrastructure for identification."
     )
-    command: List[str] = pydantic.Field(
-        ["python", "-m", "prefect.engine"],
-        description="A list of strings specifying the command to run in the to start the flow run. In most cases you should not change this.",
+    command: Optional[List[str]] = pydantic.Field(
+        None,
+        description="The command to run in the infrastructure.",
     )
 
     @abc.abstractmethod
