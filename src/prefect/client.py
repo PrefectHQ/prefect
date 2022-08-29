@@ -72,7 +72,6 @@ from prefect.settings import (
     PREFECT_ORION_DATABASE_CONNECTION_URL,
 )
 from prefect.utilities.asyncutils import asyncnullcontext
-from prefect.utilities.hashing import stable_hash
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
@@ -602,8 +601,8 @@ class OrionClient:
             parent_task_run_id=parent_task_run_id,
             state=state,
             empirical_policy=schemas.core.FlowRunPolicy(
-                max_retries=flow.retries,
-                retry_delay_seconds=flow.retry_delay_seconds,
+                retries=flow.retries,
+                retry_delay=flow.retry_delay_seconds,
             ),
         )
 
@@ -1676,15 +1675,15 @@ class OrionClient:
             state = schemas.states.Pending()
 
         task_run_data = schemas.actions.TaskRunCreate(
-            name=name or f"{task.name}-{stable_hash(task.task_key)[:8]}-{dynamic_key}",
+            name=name,
             flow_run_id=flow_run_id,
             task_key=task.task_key,
             dynamic_key=dynamic_key,
             tags=list(tags),
             task_version=task.version,
             empirical_policy=schemas.core.TaskRunPolicy(
-                max_retries=task.retries,
-                retry_delay_seconds=task.retry_delay_seconds,
+                retries=task.retries,
+                retry_delay=task.retry_delay_seconds,
             ),
             state=state,
             task_inputs=task_inputs or {},
