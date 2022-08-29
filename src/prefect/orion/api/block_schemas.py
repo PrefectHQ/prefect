@@ -5,7 +5,7 @@ from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, Response, status
+from fastapi import Body, Depends, HTTPException, Path, Query, Response, status
 from fastapi.responses import Response
 
 from prefect.blocks.core import Block
@@ -127,10 +127,14 @@ async def read_block_schema_by_checksum(
     block_schema_checksum: str = Path(
         ..., description="The block schema checksum", alias="checksum"
     ),
+    version: Optional[str] = Query(
+        None,
+        description="Version of block schema. If not provided the most recently created block schema with the matching checksum will be returned.",
+    ),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.BlockSchema:
     block_schema = await models.block_schemas.read_block_schema_by_checksum(
-        session=session, checksum=block_schema_checksum
+        session=session, checksum=block_schema_checksum, version=version
     )
     if not block_schema:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block schema not found")

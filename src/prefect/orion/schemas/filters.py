@@ -1011,6 +1011,24 @@ class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
         return filters
 
 
+class BlockSchemaFilterVersion(PrefectFilterBaseModel):
+    """Filter by `BlockSchema.capabilities`"""
+
+    any_: List[str] = Field(
+        None,
+        example=["2.0.0", "2.1.0"],
+        description="A list of block schema versions.",
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        pass
+
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.BlockSchema.version.in_(self.any_))
+        return filters
+
+
 class BlockSchemaFilter(PrefectOperatorFilterBaseModel):
     """Filter BlockSchemas"""
 
@@ -1023,6 +1041,9 @@ class BlockSchemaFilter(PrefectOperatorFilterBaseModel):
     id: Optional[BlockSchemaFilterId] = Field(
         None, description="Filter criteria for `BlockSchema.id`"
     )
+    version: Optional[BlockSchemaFilterVersion] = Field(
+        None, description="Filter criteria for `BlockSchema.version`"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -1033,6 +1054,8 @@ class BlockSchemaFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.block_capabilities.as_sql_filter(db))
         if self.id is not None:
             filters.append(self.id.as_sql_filter(db))
+        if self.version is not None:
+            filters.append(self.version.as_sql_filter(db))
 
         return filters
 
