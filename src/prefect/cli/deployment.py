@@ -283,6 +283,11 @@ async def apply(
                         f"Successfully uploaded {file_count} files to {deployment.location}",
                         style="green",
                     )
+            else:
+                app.console.print(
+                    f"Deployment storage {deployment.storage} does not have upload capabilities; no files uploaded.",
+                    style="red",
+                )
 
         deployment_id = await deployment.apply()
         app.console.print(
@@ -580,6 +585,11 @@ async def build(
                     f"Successfully uploaded {file_count} files to {deployment.location}",
                     style="green",
                 )
+        else:
+            app.console.print(
+                f"Deployment storage {deployment.storage} does not have upload capabilities; no files uploaded.  Pass --skip-upload to suppress this warning.",
+                style="green",
+            )
 
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
     await deployment.to_yaml(deployment_loc)
