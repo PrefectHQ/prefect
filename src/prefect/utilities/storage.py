@@ -78,7 +78,7 @@ def extract_flow_from_file(
             )
 
         with open(file_path, "rb") as f:
-            contents = f.read()
+            contents: Union[str, bytes] = f.read()
 
     elif file_contents is not None:
         if not isinstance(file_contents, (str, bytes)):
