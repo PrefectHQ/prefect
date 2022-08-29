@@ -1,5 +1,9 @@
 # Next Steps
 
+::: tip Prefect 2
+With general availability of Prefect 2, we recommend new users start with [Prefect 2](https://docs.prefect.io/#getting-started-with-prefect).
+:::
+
 In this tutorial we showed how Prefect can be used to improve the behavior of your workflow. However, there is a lot more to Prefect that we didn't cover!
 
 ## Logging within your Tasks

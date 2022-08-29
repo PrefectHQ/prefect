@@ -4,6 +4,12 @@ sidebarDepth: 0
 
 # Introduction to ETL
 
+::: tip Prefect 2
+With general availability of Prefect 2, we recommend new users start with [Prefect 2](https://docs.prefect.io/#getting-started-with-prefect).
+
+If you are unsure which Prefect version to choose for your specific use case, [this Prefect Discourse page](https://discourse.prefect.io/t/should-i-start-with-prefect-2-0-orion-skipping-prefect-1-0/544) may help you decide.
+:::
+
 Before we even `import prefect`, let's begin by reviewing a typical real-life ETL workflow.
 
 ::: tip Follow along in the Terminal
@@ -11,7 +17,7 @@ Before we even `import prefect`, let's begin by reviewing a typical real-life ET
 Grab the tutorial code:
 
 ```
-git clone --depth 1 https://github.com/PrefectHQ/prefect.git
+git clone --branch 1.x --depth 1 https://github.com/PrefectHQ/prefect.git
 cd prefect/examples/tutorial
 
 # Optionally, create a virtual environment for this tutorial
