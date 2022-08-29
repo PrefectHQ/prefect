@@ -204,8 +204,8 @@ class BaseQueryComponents(ABC):
     ):
         """Used by self.get_scheduled_flow_runs_from_work_queue, allowing just
         this function to be changed on a per-dialect basis"""
-        # if scheduled_before is not None:
 
+        # precompute for readability
         scheduled_before_clause = (
             db.FlowRun.next_scheduled_start_time <= scheduled_before
             if scheduled_before is not None
@@ -563,6 +563,8 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         limit_per_queue: Optional[int],
         scheduled_before: Optional[datetime.datetime],
     ):
+
+        # precompute for readability
         scheduled_before_clause = (
             db.FlowRun.next_scheduled_start_time <= scheduled_before
             if scheduled_before is not None
