@@ -17,6 +17,7 @@ from prefect import Flow
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli.orion_utils import check_orion_connection, ui_base_url
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
@@ -213,7 +214,13 @@ async def run(
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
+
+    connection_status = await check_orion_connection()
+    ui = ui_base_url(connection_status)
+
     app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
+    if ui:
+        app.console.print(f"View flow run in UI: {ui}/flow-run/{flow_run.id}")
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
@@ -285,6 +292,12 @@ async def apply(
             f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
             style="green",
         )
+
+        connection_status = await check_orion_connection()
+        ui = ui_base_url(connection_status)
+
+        if ui:
+            app.console.print(f"View Deployment in UI: {ui}/deployment/{deployment_id}")
 
         if deployment.work_queue_name is not None:
             app.console.print(
