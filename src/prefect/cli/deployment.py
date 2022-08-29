@@ -255,6 +255,11 @@ async def apply(
         ...,
         help="One or more paths to deployment YAML files.",
     ),
+    upload: bool = typer.Option(
+        False,
+        "--upload",
+        help="A flag that, when provided, uploads this deployment's files to remote storage.",
+    ),
 ):
     """
     Create or update a deployment from a YAML file.
@@ -266,6 +271,14 @@ async def apply(
             app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
         except Exception as exc:
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
+
+        if upload:
+            file_count = await deployment.upload_to_storage()
+            if file_count:
+                app.console.print(
+                    f"Successfully uploaded {file_count} files to {deployment.location}",
+                    style="green",
+                )
 
         deployment_id = await deployment.apply()
         app.console.print(
@@ -383,6 +396,11 @@ async def build(
         "-sb",
         help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure', 'smb'",
     ),
+    skip_upload: bool = typer.Option(
+        False,
+        "--skip-upload",
+        help="A flag that, when provided, skips uploading this deployment's files to remote storage.",
+    ),
     cron: str = typer.Option(
         None,
         "--cron",
@@ -408,6 +426,12 @@ async def build(
         "--output",
         "-o",
         help="An optional filename to write the deployment file to.",
+    ),
+    _apply: bool = typer.Option(
+        False,
+        "--apply",
+        "-a",
+        help="An optional flag to automatically register the resulting deployment with the API.",
     ),
 ):
     """
@@ -495,6 +519,21 @@ async def build(
         elif not path:
             path = "/".join(block_path)
         storage_block = f"{block_type}/{block_name}"
+        storage = await Block.load(storage_block)
+    else:
+        storage = None
+
+    ## docker default settings
+    # proxy for whether infra is docker-based
+    is_docker_based = hasattr(infrastructure, "image")
+
+    if not storage:
+        if is_docker_based:
+            # only update if a path is not already set
+            if not path:
+                path = "/opt/prefect/flows"
+        else:
+            path = str(Path(".").absolute())
 
     # set up deployment object
     deployment = Deployment(name=name, flow_name=flow.name)
@@ -511,6 +550,7 @@ async def build(
         description=deployment.description or flow.description,
         version=version or deployment.version or flow.version,
         tags=tags or None,
+        storage=storage,
         infrastructure=infrastructure,
         infra_overrides=infra_overrides or None,
         schedule=schedule,
@@ -525,21 +565,39 @@ async def build(
             style="green",
         )
 
-    file_count = await deployment.upload_to_storage(storage_block)
-    if file_count:
-        location = (
-            deployment.storage.basepath + "/"
-            if not deployment.storage.basepath.endswith("/")
-            else ""
-        )
-        if path:
-            location += path
-        app.console.print(
-            f"Successfully uploaded {file_count} files to {location}",
-            style="green",
-        )
+    if not skip_upload:
+        file_count = await deployment.upload_to_storage()
+        if file_count:
+            app.console.print(
+                f"Successfully uploaded {file_count} files to {deployment.location}",
+                style="green",
+            )
+
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
     await deployment.to_yaml(deployment_loc)
-    exit_with_success(
-        f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'."
+    app.console.print(
+        f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'.",
+        style="green",
     )
+
+    if _apply:
+        deployment_id = await deployment.apply()
+        app.console.print(
+            f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
+            style="green",
+        )
+        if deployment.work_queue_name is not None:
+            app.console.print(
+                "\nTo execute flow runs from this deployment, start an agent "
+                f"that pulls work from the the {deployment.work_queue_name!r} work queue:"
+            )
+            app.console.print(
+                f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"
+            )
+        else:
+            app.console.print(
+                "\nThis deployment does not specify a work queue name, which means agents "
+                "will not be able to pick up its runs. To add a work queue, "
+                "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
+                style="red",
+            )

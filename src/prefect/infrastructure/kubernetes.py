@@ -315,7 +315,7 @@ class KubernetesJob(Infrastructure):
             shortcuts.append(
                 {
                     "op": "add",
-                    "path": "/spec/template/spec/containers/0/command",
+                    "path": "/spec/template/spec/containers/0/args",
                     "value": self.command,
                 }
             )

@@ -1,6 +1,7 @@
 import hashlib
 import inspect
 import logging
+import sys
 import warnings
 from abc import ABC
 from textwrap import dedent
@@ -25,7 +26,12 @@ from slugify import slugify
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
-from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
+from prefect.orion.schemas.core import (
+    DEFAULT_BLOCK_SCHEMA_VERSION,
+    BlockDocument,
+    BlockSchema,
+    BlockType,
+)
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.dispatch import lookup_type, register_base_type
@@ -188,6 +194,7 @@ class Block(BaseModel, ABC):
     _block_type_id: Optional[UUID] = None
     _block_schema_id: Optional[UUID] = None
     _block_schema_capabilities: Optional[List[str]] = None
+    _block_schema_version: Optional[str] = None
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
     _is_anonymous: Optional[bool] = None
@@ -219,6 +226,24 @@ class Block(BaseModel, ABC):
                 for c in getattr(base, "_block_schema_capabilities", []) or []
             }
         )
+
+    @classmethod
+    def _get_current_package_version(cls):
+        current_module = inspect.getmodule(cls)
+        if current_module:
+            top_level_module = sys.modules[
+                current_module.__name__.split(".")[0] or "__main__"
+            ]
+            try:
+                return str(top_level_module.__version__)
+            except AttributeError:
+                # Module does not have a __version__ attribute
+                pass
+        return DEFAULT_BLOCK_SCHEMA_VERSION
+
+    @classmethod
+    def get_block_schema_version(cls) -> str:
+        return cls._block_schema_version or cls._get_current_package_version()
 
     @classmethod
     def _to_block_schema_reference_dict(cls):
@@ -351,6 +376,7 @@ class Block(BaseModel, ABC):
             block_type_id=block_type_id or cls._block_type_id,
             block_type=cls._to_block_type(),
             capabilities=list(cls.get_block_capabilities()),
+            version=cls.get_block_schema_version(),
         )
 
     @classmethod
