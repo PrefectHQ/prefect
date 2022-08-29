@@ -129,7 +129,7 @@ async def test_submission_does_not_mutate_original_object(
     obj = MockInfrastructure()
     await submit_flow_run(flow_run, infrastructure=obj)
     assert obj.env == {}
-    assert obj.command == ["python", "-m", "prefect.engine"]
+    assert obj.command is None
     assert obj.labels == {}
     assert obj.name is None
 
