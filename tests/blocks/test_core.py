@@ -6,7 +6,7 @@ from typing import Dict, Type, Union
 from uuid import UUID, uuid4
 
 import pytest
-from pydantic import Field, SecretBytes, SecretStr
+from pydantic import BaseModel, Field, SecretBytes, SecretStr
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
@@ -181,10 +181,20 @@ class TestAPICompatibility:
         assert isinstance(blockdoc.data["y"], SecretBytes)
 
         json_blockdoc = json.loads(blockdoc.json())
-        assert json_blockdoc["data"] == {"x": "**********", "y": "**********", "z": "z"}
+        assert json_blockdoc["data"] == {
+            "x": "**********",
+            "y": "**********",
+            "z": "z",
+            "block_type_slug": SecretBlock.get_block_type_slug(),
+        }
 
         json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
-        assert json_blockdoc_with_secrets["data"] == {"x": "x", "y": "y", "z": "z"}
+        assert json_blockdoc_with_secrets["data"] == {
+            "x": "x",
+            "y": "y",
+            "z": "z",
+            "block_type_slug": SecretBlock.get_block_type_slug(),
+        }
 
     def test_create_nested_api_block_with_secret_values_are_obfuscated_by_default(self):
         class Child(Block):
@@ -209,14 +219,24 @@ class TestAPICompatibility:
         assert json_blockdoc["data"] == {
             "a": "**********",
             "b": "b",
-            "child": {"a": "**********", "b": "b"},
+            "child": {
+                "a": "**********",
+                "b": "b",
+                "block_type_slug": Child.get_block_type_slug(),
+            },
+            "block_type_slug": Parent.get_block_type_slug(),
         }
 
         json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
         assert json_blockdoc_with_secrets["data"] == {
             "a": "a",
             "b": "b",
-            "child": {"a": "a", "b": "b"},
+            "child": {
+                "a": "a",
+                "b": "b",
+                "block_type_slug": Child.get_block_type_slug(),
+            },
+            "block_type_slug": Parent.get_block_type_slug(),
         }
 
     def test_registering_blocks_with_capabilities(self):
@@ -707,6 +727,7 @@ class TestAPICompatibility:
             "_block_document_id": middle_block_document_1.id,
             "_block_document_name": "middle-block-document-1",
             "_is_anonymous": False,
+            "block_type_slug": "c",
         }
         assert block_instance.d.dict() == {
             "b": {
@@ -714,11 +735,13 @@ class TestAPICompatibility:
                 "_block_document_id": inner_block_document.id,
                 "_block_document_name": "inner-block-document",
                 "_is_anonymous": False,
+                "block_type_slug": "b",
             },
             "z": "ztop",
             "_block_document_id": middle_block_document_2.id,
             "_block_document_name": "middle-block-document-2",
             "_is_anonymous": False,
+            "block_type_slug": "d",
         }
 
     async def test_create_block_from_nonexistent_name(self, test_block):
@@ -1152,7 +1175,7 @@ class TestSaveBlock:
         assert db_block_without_secrets.data == {
             "a": obfuscate_string("a"),
             "b": "b",
-            "child": {"a": obfuscate_string("a"), "b": "b"},
+            "child": {"a": obfuscate_string("a"), "b": "b", "block_type_slug": "child"},
         }
 
         # read from DB with secrets
@@ -1161,7 +1184,11 @@ class TestSaveBlock:
             block_document_id=block._block_document_id,
             include_secrets=True,
         )
-        assert db_block.data == {"a": "a", "b": "b", "child": {"a": "a", "b": "b"}}
+        assert db_block.data == {
+            "a": "a",
+            "b": "b",
+            "child": {"a": "a", "b": "b", "block_type_slug": "child"},
+        }
 
         # load block with secrets
         api_block = await Parent.load("secret-block")
@@ -1691,3 +1718,87 @@ class TestSyncCompatible:
 
         result = await my_flow()
         assert result == 1000000
+
+
+# Define types for `TestTypeDispatch`
+
+
+class BaseBlock(Block):
+    base: int = 0
+
+
+class ParentModel(BaseModel):
+    block: BaseBlock
+
+
+class AChildBlock(BaseBlock):
+    a: int = 1
+
+
+class BChildBlock(BaseBlock):
+    b: int = 2
+
+
+class TestTypeDispatch:
+    def test_block_type_slug_is_included_in_dict(self):
+        assert "block_type_slug" in AChildBlock().dict()
+
+    def test_block_type_slug_respects_exclude(self):
+        assert "block_type_slug" not in AChildBlock().dict(exclude={"block_type_slug"})
+
+    def test_block_type_slug_respects_include(self):
+        assert "block_type_slug" not in AChildBlock().dict(include={"a"})
+
+    def test_block_type_slug_excluded_from_document(self):
+        document = AChildBlock()._to_block_document()
+        assert "block_type_slug" not in document.data
+
+    def test_base_parse_works_for_base_instance(self):
+        block = BaseBlock.parse_obj(BaseBlock().dict())
+        assert type(block) == BaseBlock
+
+        block = BaseBlock.parse_obj(BaseBlock().dict())
+        assert type(block) == BaseBlock
+
+    def test_base_parse_creates_child_instance_from_dict(self):
+        block = BaseBlock.parse_obj(AChildBlock().dict())
+        assert type(block) == AChildBlock
+
+        block = BaseBlock.parse_obj(BChildBlock().dict())
+        assert type(block) == BChildBlock
+
+    def test_base_parse_creates_child_instance_from_json(self):
+        block = BaseBlock.parse_raw(AChildBlock().json())
+        assert type(block) == AChildBlock
+
+        block = BaseBlock.parse_raw(BChildBlock().json())
+        assert type(block) == BChildBlock
+
+    def test_base_parse_retains_default_attributes(self):
+        block = BaseBlock.parse_obj(AChildBlock().dict())
+        assert block.base == 0
+        assert block.a == 1
+
+    def test_base_parse_retains_set_child_attributes(self):
+        block = BaseBlock.parse_obj(BChildBlock(b=3).dict())
+        assert block.base == 0
+        assert block.b == 3
+
+    def test_base_parse_retains_set_base_attributes(self):
+        block = BaseBlock.parse_obj(BChildBlock(base=1).dict())
+        assert block.base == 1
+        assert block.b == 2
+
+    def test_base_field_creates_child_instance_from_object(self):
+        model = ParentModel(block=AChildBlock())
+        assert type(model.block) == AChildBlock
+
+        model = ParentModel(block=BChildBlock())
+        assert type(model.block) == BChildBlock
+
+    def test_base_field_creates_child_instance_from_dict(self):
+        model = ParentModel(block=AChildBlock().dict())
+        assert type(model.block) == AChildBlock
+
+        model = ParentModel(block=BChildBlock().dict())
+        assert type(model.block) == BChildBlock
