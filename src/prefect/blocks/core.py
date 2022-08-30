@@ -174,6 +174,13 @@ class Block(BaseModel, ABC):
     def __str__(self) -> str:
         return self.__repr__()
 
+    def __repr_args__(self):
+        repr_args = super().__repr_args__()
+        data_keys = self.schema()["properties"].keys()
+        return [
+            (key, value) for key, value in repr_args if key is None or key in data_keys
+        ]
+
     def block_initialization(self) -> None:
         pass
 
