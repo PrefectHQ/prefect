@@ -2,7 +2,7 @@
 
 <p align="center">
     <a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
-        <img src="https://badge.fury.io/py/prefect.svg?" /></a>
+        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect?color=0052FF&labelColor=090422"></a>
     <a href="https://github.com/prefecthq/prefect/" alt="Stars">
         <img src="https://img.shields.io/github/stars/prefecthq/prefect?color=0052FF&labelColor=090422&" /></a>
     <a href="https://pepy.tech/badge/prefect/" alt="Downloads">
