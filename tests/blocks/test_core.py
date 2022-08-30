@@ -1749,8 +1749,9 @@ class TestTypeDispatch:
     def test_block_type_slug_respects_include(self):
         assert "block_type_slug" not in AChildBlock().dict(include={"a"})
 
-    def test_block_type_slug_excluded_from_document(self):
-        document = AChildBlock()._to_block_document()
+    async def test_block_type_slug_excluded_from_document(self, orion_client):
+        await AChildBlock.register_type_and_schema(client=orion_client)
+        document = AChildBlock()._to_block_document(name="foo")
         assert "block_type_slug" not in document.data
 
     def test_base_parse_works_for_base_instance(self):
