@@ -524,3 +524,6 @@ You're welcome to leave the work queue and agent running to experiment and to ha
 To terminate the agent, simply go to the terminal session where it's running and end the process with either `Ctrl+C` or by terminating the terminal session.
 
 You can pause or delete a work queue on the Prefect UI **Work Queues** page.
+
+!!! tip "Next steps: Storage and infrastructure"
+    Deployments get interesting when you can execute flow runs in in environments other than your local machine. To do that, you'll need to configure [Storage and Infrastructure](/tutorials/storage/), which is covered in our next tutorial.
