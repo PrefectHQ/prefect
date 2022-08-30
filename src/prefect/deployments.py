@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, parse_obj_as, validator
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import PrefectObjectRegistry
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
@@ -319,9 +319,9 @@ class Deployment(BaseModel):
             block = value
 
         capabilities = block.get_block_capabilities()
-        if "get-directory" not in capabilities and "put-directory" not in capabilities:
+        if "get-directory" not in capabilities:
             raise ValueError(
-                "Remote Storage block must have both 'get-directory' and 'put-directory' capabilities."
+                "Remote Storage block must have 'get-directory' capabilities."
             )
         return block
 
@@ -438,13 +438,25 @@ class Deployment(BaseModel):
         deployment_path = None
         file_count = None
         if storage_block:
-            self.storage = await Block.load(storage_block)
+            storage = await Block.load(storage_block)
+
+            if "put-directory" not in storage.get_block_capabilities():
+                raise BlockMissingCapabilities(
+                    f"Storage block {storage!r} missing 'put-directory' capability."
+                )
+
+            self.storage = storage
 
             # upload current directory to storage location
             file_count = await self.storage.put_directory(
                 ignore_file=ignore_file, to_path=self.path
             )
         elif self.storage:
+            if "put-directory" not in self.storage.get_block_capabilities():
+                raise BlockMissingCapabilities(
+                    f"Storage block {self.storage!r} missing 'put-directory' capability."
+                )
+
             file_count = await self.storage.put_directory(
                 ignore_file=ignore_file, to_path=self.path
             )
@@ -569,7 +581,11 @@ class Deployment(BaseModel):
                 deployment.path = "/opt/prefect/flows"
 
         if not skip_upload:
-            await deployment.upload_to_storage()
+            if (
+                deployment.storage
+                and "put-directory" in deployment.storage.get_block_capabilities()
+            ):
+                await deployment.upload_to_storage()
 
         if output:
             await deployment.to_yaml(output)
