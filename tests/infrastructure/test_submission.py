@@ -188,7 +188,6 @@ async def test_submission_does_not_override_existing_name(
     MockInfrastructure._run.call_args[0][0]["name"] == "test"
 
 
-@pytest.mark.skip("Flaky test that needs investigation")
 @pytest.mark.service("docker")
 @pytest.mark.usefixtures("use_hosted_orion")
 @pytest.mark.skipif(
