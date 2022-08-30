@@ -1,11 +1,14 @@
 import { expect } from '@playwright/test'
+import { mocker } from '@prefecthq/orion-design'
 import { test, useForm, useCombobox, useLabel, useSelect, useTable, useButton, usePageHeading, useLink, pages, useIconButtonMenu, useTag, useModal } from './utilities'
 
 test.describe.configure({ mode: 'serial' })
 
-test('Can create notification', async ({ page }) => {
+test.beforeEach(async ({ page }) => {
   await page.goto(pages.notifications)
+})
 
+test('Can create notification', async () => {
   const { table, rows: notifications } = useTable()
   const existingNotifications = await notifications.count()
 
@@ -27,7 +30,7 @@ test('Can create notification', async ({ page }) => {
 
   const { control: webhookUrl } = useLabel('Webhook URL')
   const input = webhookUrl.locator('input')
-  await input.fill('https://slack.test')
+  await input.fill(mocker.create('url'))
 
   const { submit } = useForm()
   await submit()
@@ -38,10 +41,8 @@ test('Can create notification', async ({ page }) => {
   expect(newNotifications).toBe(existingNotifications + 1)
 })
 
-test('Can edit notification', async ({ page }) => {
-  const tagToAdd = 'playwright-edited'
-
-  await page.goto(pages.notifications)
+test('Can edit notification', async () => {
+  const tagToAdd = mocker.create('string')
 
   const { rows: notifications } = useTable()
   const notification = notifications.first()
@@ -64,9 +65,7 @@ test('Can edit notification', async ({ page }) => {
   await expect(tag).toBeVisible()
 })
 
-test('Can delete notification', async ({ page }) => {
-  await page.goto(pages.notifications)
-
+test('Can delete notification', async () => {
   const { rows: notifications } = useTable()
   const notification = notifications.first()
   const existingNotifications = await notifications.count()
