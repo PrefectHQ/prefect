@@ -34,7 +34,9 @@ export const test = base.extend<CustomFixtures>({
   },
 })
 
-const baseUrl = 'http://127.0.0.1:4200/api'
+const baseUrl = process.env.playwright_base_api_url ?? 'http://127.0.0.1:4200/api'
+
+// could possibly be replaced with actual api calls in future
 async function createWorkQueue(request: APIRequestContext, workQueue: WorkQueueCreate): Promise<WorkQueue> {
   const response = await request.post(`${baseUrl}/work_queues/`, {
     data: mapper.map('WorkQueueCreate', workQueue, 'WorkQueueCreateRequest'),
