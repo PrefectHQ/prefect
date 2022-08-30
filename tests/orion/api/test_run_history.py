@@ -506,6 +506,7 @@ async def test_last_bin_contains_end_date(client, route):
     assert parsed[1].interval_end == dt.add(days=2)
 
 
+@pytest.mark.flaky(max_runs=3)
 async def test_flow_run_lateness(client, session):
 
     await session.execute("delete from flow where true;")
