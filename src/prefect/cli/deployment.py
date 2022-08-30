@@ -280,11 +280,20 @@ async def apply(
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
 
         if upload:
-            file_count = await deployment.upload_to_storage()
-            if file_count:
+            if (
+                deployment.storage
+                and "put-directory" in deployment.storage.get_block_capabilities()
+            ):
+                file_count = await deployment.upload_to_storage()
+                if file_count:
+                    app.console.print(
+                        f"Successfully uploaded {file_count} files to {deployment.location}",
+                        style="green",
+                    )
+            else:
                 app.console.print(
-                    f"Successfully uploaded {file_count} files to {deployment.location}",
-                    style="green",
+                    f"Deployment storage {deployment.storage} does not have upload capabilities; no files uploaded.",
+                    style="red",
                 )
 
         deployment_id = await deployment.apply()
@@ -407,7 +416,7 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure', 'smb'",
+        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'github', 's3', 'gcs', 'azure', 'smb'",
     ),
     skip_upload: bool = typer.Option(
         False,
@@ -579,10 +588,19 @@ async def build(
         )
 
     if not skip_upload:
-        file_count = await deployment.upload_to_storage()
-        if file_count:
+        if (
+            deployment.storage
+            and "put-directory" in deployment.storage.get_block_capabilities()
+        ):
+            file_count = await deployment.upload_to_storage()
+            if file_count:
+                app.console.print(
+                    f"Successfully uploaded {file_count} files to {deployment.location}",
+                    style="green",
+                )
+        else:
             app.console.print(
-                f"Successfully uploaded {file_count} files to {deployment.location}",
+                f"Deployment storage {deployment.storage} does not have upload capabilities; no files uploaded.  Pass --skip-upload to suppress this warning.",
                 style="green",
             )
 
