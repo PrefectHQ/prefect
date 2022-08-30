@@ -241,20 +241,14 @@ async def _legacy_get_runs_in_work_queue(
     if work_queue.is_paused:
         return []
 
-    # handle legacy work queues that use tag-based filters
-    if work_queue.filter is not None:
-        # ensure the filter object is fully hydrated
-        # SQLAlchemy caching logic can result in a dict type instead
-        # of the full pydantic model
-        work_queue_filter = parse_obj_as(schemas.core.QueueFilter, work_queue.filter)
-        flow_run_filter = dict(
-            tags=dict(all_=work_queue_filter.tags),
-            deployment_id=dict(any_=work_queue_filter.deployment_ids, is_null_=False),
-        )
-
-    # new work queues are entirely name-based
-    else:
-        flow_run_filter = dict(work_queue_name=dict(any_=[work_queue.name]))
+    # ensure the filter object is fully hydrated
+    # SQLAlchemy caching logic can result in a dict type instead
+    # of the full pydantic model
+    work_queue_filter = parse_obj_as(schemas.core.QueueFilter, work_queue.filter)
+    flow_run_filter = dict(
+        tags=dict(all_=work_queue_filter.tags),
+        deployment_id=dict(any_=work_queue_filter.deployment_ids, is_null_=False),
+    )
 
     # if the work queue has a concurrency limit, check how many runs are currently
     # executing and compare that count to the concurrency limit
