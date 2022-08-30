@@ -188,6 +188,9 @@ You may specify additional options to further customize your deployment.
 |  `--cron TEXT`    | A cron string that will be used to set a [`CronSchedule`](/concepts/schedules/) on the deployment. For example, `--cron "*/1 * * * *"` to create flow runs from that deployment every minute. |
 |  `--interval INTEGER`     | An integer specifying an interval (in seconds) that will be used to set an [`IntervalSchedule`](/concepts/schedules/) on the deployment. For example, `--interval 60` to create flow runs from that deployment every minute. |
 |  `--rrule TEXT`     | An `RRule` that will be used to set an [`RRuleSchedule`](/concepts/schedules/) on the deployment. For example, `--rrule 'FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9,10,11,12,13,14,15,16,17'` to create flow runs from that deployment every hour but only during business hours. |
+| `--apply` | When provided, automatically registers the resulting deployment with the API. |
+| `--skip-upload` | When provided, skips uploading this deployment's files to remote storage. |
+| `--path` | An optional path to specify a subdirectory of remote storage to upload to. |
 
 ### Block indentifiers
 
@@ -309,7 +312,7 @@ When you run a deployed flow with Prefect Orion, the following happens:
 
     Scheduled flow runs will not run unless an appropriate [agent and work queue](/concepts/work-queues/) are configured.
 
-## Create a Deployment from a Python object
+## Create a deployment from a Python object
 
 You can also create deployments from Python scripts by using the [`prefect.deployments.Deployment`][prefect.deployments.Deployment] class.
 
