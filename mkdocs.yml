@@ -31,7 +31,7 @@ markdown_extensions:
           permalink: true
 theme:
     name: material
-    custom_dir: overrides
+    custom_dir: docs/overrides
     favicon: img/favicon.png
     features:
         - toc.integrate
@@ -49,7 +49,6 @@ theme:
     palette:
         primary: blue
         accent: blue
-    custom_dir: docs/overrides
 plugins:
     autorefs: {}
     mkdocstrings:
@@ -80,8 +79,9 @@ nav:
             - tutorials/execution.md
             - tutorials/orion.md
             - tutorials/deployments.md
+            - tutorials/storage.md
             - tutorials/dask-ray-task-runners.md
-            # - tutorials/docker-flow-runner.md
+            - tutorials/docker.md
             # - tutorials/kubernetes-flow-runner.md
             - tutorials/testing.md
             - Prefect Cloud: ui/cloud-getting-started.md

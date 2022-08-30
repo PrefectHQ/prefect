@@ -17,6 +17,7 @@ from prefect import Flow
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli.orion_utils import check_orion_connection, ui_base_url
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
@@ -213,7 +214,13 @@ async def run(
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
+
+    connection_status = await check_orion_connection()
+    ui = ui_base_url(connection_status)
+
     app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
+    if ui:
+        app.console.print(f"View flow run in UI: {ui}/flow-run/{flow_run.id}")
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
@@ -255,6 +262,11 @@ async def apply(
         ...,
         help="One or more paths to deployment YAML files.",
     ),
+    upload: bool = typer.Option(
+        False,
+        "--upload",
+        help="A flag that, when provided, uploads this deployment's files to remote storage.",
+    ),
 ):
     """
     Create or update a deployment from a YAML file.
@@ -267,11 +279,34 @@ async def apply(
         except Exception as exc:
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
 
+        if upload:
+            if (
+                deployment.storage
+                and "put-directory" in deployment.storage.get_block_capabilities()
+            ):
+                file_count = await deployment.upload_to_storage()
+                if file_count:
+                    app.console.print(
+                        f"Successfully uploaded {file_count} files to {deployment.location}",
+                        style="green",
+                    )
+            else:
+                app.console.print(
+                    f"Deployment storage {deployment.storage} does not have upload capabilities; no files uploaded.",
+                    style="red",
+                )
+
         deployment_id = await deployment.apply()
         app.console.print(
             f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
             style="green",
         )
+
+        connection_status = await check_orion_connection()
+        ui = ui_base_url(connection_status)
+
+        if ui:
+            app.console.print(f"View Deployment in UI: {ui}/deployment/{deployment_id}")
 
         if deployment.work_queue_name is not None:
             app.console.print(
@@ -334,7 +369,7 @@ class Infra(str, Enum):
 
 @deployment_app.command()
 async def build(
-    path: str = typer.Argument(
+    entrypoint: str = typer.Argument(
         ...,
         help="The path to a flow entrypoint, in the form of `./path/to/file.py:flow_func_name`",
     ),
@@ -381,7 +416,12 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure', 'smb'",
+        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'github', 's3', 'gcs', 'azure', 'smb'",
+    ),
+    skip_upload: bool = typer.Option(
+        False,
+        "--skip-upload",
+        help="A flag that, when provided, skips uploading this deployment's files to remote storage.",
     ),
     cron: str = typer.Option(
         None,
@@ -398,11 +438,22 @@ async def build(
         "--rrule",
         help="An RRule that will be used to set an RRuleSchedule on the deployment.",
     ),
+    path: str = typer.Option(
+        None,
+        "--path",
+        help="An optional path to specify a subdirectory of remote storage to upload to.",
+    ),
     output: str = typer.Option(
         None,
         "--output",
         "-o",
         help="An optional filename to write the deployment file to.",
+    ),
+    _apply: bool = typer.Option(
+        False,
+        "--apply",
+        "-a",
+        help="An optional flag to automatically register the resulting deployment with the API.",
     ),
 ):
     """
@@ -433,15 +484,15 @@ async def build(
 
     # validate flow
     try:
-        fpath, obj_name = path.rsplit(":", 1)
+        fpath, obj_name = entrypoint.rsplit(":", 1)
     except ValueError as exc:
         if str(exc) == "not enough values to unpack (expected 2, got 1)":
-            missing_flow_name_msg = f"Your flow path must include the name of the function that is the entrypoint to your flow.\nTry {path}:<flow_name> for your flow path."
+            missing_flow_name_msg = f"Your flow entrypoint must include the name of the function that is the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
             exit_with_error(missing_flow_name_msg)
         else:
             raise exc
     try:
-        flow = prefect.utilities.importtools.import_object(path)
+        flow = prefect.utilities.importtools.import_object(entrypoint)
         if isinstance(flow, Flow):
             app.console.print(f"Found flow {flow.name!r}", style="green")
         else:
@@ -480,6 +531,32 @@ async def build(
     elif rrule:
         schedule = RRuleSchedule(rrule=rrule)
 
+    # parse storage_block
+    if storage_block:
+        block_type, block_name, *block_path = storage_block.split("/")
+        if block_path and path:
+            exit_with_error(
+                "Must provide a `path` explicitly or provide one on the storage block specification, but not both."
+            )
+        elif not path:
+            path = "/".join(block_path)
+        storage_block = f"{block_type}/{block_name}"
+        storage = await Block.load(storage_block)
+    else:
+        storage = None
+
+    ## docker default settings
+    # proxy for whether infra is docker-based
+    is_docker_based = hasattr(infrastructure, "image")
+
+    if not storage:
+        if is_docker_based:
+            # only update if a path is not already set
+            if not path:
+                path = "/opt/prefect/flows"
+        else:
+            path = str(Path(".").absolute())
+
     # set up deployment object
     deployment = Deployment(name=name, flow_name=flow.name)
     await deployment.load()  # load server-side settings, if any
@@ -489,11 +566,13 @@ async def build(
         f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
     )
     updates = dict(
+        path=path,
         parameter_openapi_schema=flow_parameter_schema,
         entrypoint=entrypoint,
         description=deployment.description or flow.description,
         version=version or deployment.version or flow.version,
         tags=tags or None,
+        storage=storage,
         infrastructure=infrastructure,
         infra_overrides=infra_overrides or None,
         schedule=schedule,
@@ -508,14 +587,48 @@ async def build(
             style="green",
         )
 
-    file_count = await deployment.upload_to_storage(storage_block)
-    if file_count:
-        app.console.print(
-            f"Successfully uploaded {file_count} files to {deployment.storage.basepath}",
-            style="green",
-        )
+    if not skip_upload:
+        if (
+            deployment.storage
+            and "put-directory" in deployment.storage.get_block_capabilities()
+        ):
+            file_count = await deployment.upload_to_storage()
+            if file_count:
+                app.console.print(
+                    f"Successfully uploaded {file_count} files to {deployment.location}",
+                    style="green",
+                )
+        else:
+            app.console.print(
+                f"Deployment storage {deployment.storage} does not have upload capabilities; no files uploaded.  Pass --skip-upload to suppress this warning.",
+                style="green",
+            )
+
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
     await deployment.to_yaml(deployment_loc)
-    exit_with_success(
-        f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'."
+    app.console.print(
+        f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'.",
+        style="green",
     )
+
+    if _apply:
+        deployment_id = await deployment.apply()
+        app.console.print(
+            f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
+            style="green",
+        )
+        if deployment.work_queue_name is not None:
+            app.console.print(
+                "\nTo execute flow runs from this deployment, start an agent "
+                f"that pulls work from the the {deployment.work_queue_name!r} work queue:"
+            )
+            app.console.print(
+                f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"
+            )
+        else:
+            app.console.print(
+                "\nThis deployment does not specify a work queue name, which means agents "
+                "will not be able to pick up its runs. To add a work queue, "
+                "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
+                style="red",
+            )
