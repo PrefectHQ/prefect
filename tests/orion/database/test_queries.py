@@ -88,9 +88,26 @@ class TestGetRunsInQueueQuery:
     async def commit_all(self, session, fr_1, fr_2, fr_3):
         await session.commit()
 
-    async def test_get_runs_in_queue_query(self, session, db, fr_1, fr_2, fr_3):
+    async def test_get_runs_in_queue_query(
+        self, session, db, fr_1, fr_2, fr_3, work_queue_1, work_queue_2
+    ):
         query = db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
         result = await session.execute(query)
+        runs = result.all()
+
+        assert [r[0].id for r in runs] == [fr_1.id, fr_2.id, fr_3.id]
+        assert [r.work_queue_id for r in runs] == [
+            work_queue_1.id,
+            work_queue_1.id,
+            work_queue_2.id,
+        ]
+
+    async def test_get_runs_in_queue_query_with_scalars(
+        self, session, db, fr_1, fr_2, fr_3, work_queue_1, work_queue_2
+    ):
+        query = db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
+        result = await session.execute(query)
+        # will only capture the flow run object
         runs = result.scalars().unique().all()
 
         assert [r.id for r in runs] == [fr_1.id, fr_2.id, fr_3.id]
@@ -100,9 +117,9 @@ class TestGetRunsInQueueQuery:
             db=db, limit_per_queue=1
         )
         result = await session.execute(query)
-        runs = result.scalars().unique().all()
+        runs = result.all()
 
-        assert [r.id for r in runs] == [fr_1.id, fr_3.id]
+        assert [r[0].id for r in runs] == [fr_1.id, fr_3.id]
 
     async def test_get_runs_in_queue_scheduled_before(
         self, session, db, fr_1, fr_2, fr_3
@@ -111,9 +128,9 @@ class TestGetRunsInQueueQuery:
             db=db, scheduled_before=pendulum.now().subtract(seconds=90)
         )
         result = await session.execute(query)
-        runs = result.scalars().unique().all()
+        runs = result.all()
 
-        assert [r.id for r in runs] == [fr_1.id]
+        assert [r[0].id for r in runs] == [fr_1.id]
 
     async def test_get_runs_in_queue_work_queue_ids(
         self, session, db, fr_1, fr_2, fr_3, work_queue_2
@@ -122,9 +139,9 @@ class TestGetRunsInQueueQuery:
             db=db, work_queue_ids=[work_queue_2.id]
         )
         result = await session.execute(query)
-        runs = result.scalars().unique().all()
+        runs = result.all()
 
-        assert [r.id for r in runs] == [fr_3.id]
+        assert [r[0].id for r in runs] == [fr_3.id]
 
     async def test_use_query_to_filter_deployments(
         self, session, db, fr_1, fr_2, fr_3, work_queue_2
@@ -141,6 +158,6 @@ class TestGetRunsInQueueQuery:
         )
         result = await session.execute(query)
 
-        runs = result.scalars().unique().all()
+        runs = result.all()
 
-        assert [r.id for r in runs] == [fr_3.id]
+        assert [r[0].id for r in runs] == [fr_3.id]

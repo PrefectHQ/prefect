@@ -139,6 +139,14 @@ class BaseQueryComponents(ABC):
         work_queue_ids: Optional[List[UUID]] = None,
         scheduled_before: Optional[datetime.datetime] = None,
     ):
+        """
+        Returns all scheduled runs in work queues, subject to provided parameters.
+
+        This query returns a `(db.FlowRun, db.WorkQueue.id)` pair; calling
+        `result.all()` will return both; calling `result.scalars().unique().all()`
+        will return only the flow run because it grabs the first result.
+        """
+
         # get any work queues that have a concurrency limit, and compute available
         # slots as their limit less the number of running flows
         concurrency_queues = (
@@ -175,7 +183,11 @@ class BaseQueryComponents(ABC):
         # concurrency information and the scheduled flow runs to load all applicable
         # runs. this will return all the scheduled runs allowed by the parameters
         query = (
-            sa.select(sa.orm.aliased(db.FlowRun, scheduled_flow_runs))
+            # return a flow run and work queue id
+            sa.select(
+                sa.orm.aliased(db.FlowRun, scheduled_flow_runs),
+                db.WorkQueue.id.label("work_queue_id"),
+            )
             .select_from(db.WorkQueue)
             .join(
                 concurrency_queues,
