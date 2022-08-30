@@ -79,7 +79,6 @@ nav:
             - tutorials/execution.md
             - tutorials/orion.md
             - tutorials/deployments.md
-            - tutorials/storage.md
             - tutorials/dask-ray-task-runners.md
             - tutorials/docker.md
             # - tutorials/kubernetes-flow-runner.md
@@ -214,6 +213,6 @@ nav:
         # - Testing Flow Runners: contributing/testing-flow-runners.md
 
 extra:
-  analytics:
-    provider: google
-    property: G-3M31G9B0QJ
+    analytics:
+        provider: google
+        property: G-3M31G9B0QJ

@@ -77,3 +77,13 @@ to force column width */
 .no-wrap {
     white-space: nowrap;
 }
+
+/* badge formatting */
+.badge {
+    background-color: #FCD14E;
+    color: white;
+    font-size: 120%;
+    padding: 4px 8px;
+    text-align: center;
+    border-radius: 5px;
+  }
