@@ -17,6 +17,7 @@ from prefect import Flow
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli.orion_utils import check_orion_connection, ui_base_url
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
@@ -213,7 +214,13 @@ async def run(
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
+
+    connection_status = await check_orion_connection()
+    ui = ui_base_url(connection_status)
+
     app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
+    if ui:
+        app.console.print(f"View flow run in UI: {ui}/flow-run/{flow_run.id}")
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
@@ -273,11 +280,20 @@ async def apply(
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
 
         if upload:
-            file_count = await deployment.upload_to_storage()
-            if file_count:
+            if (
+                deployment.storage
+                and "put-directory" in deployment.storage.get_block_capabilities()
+            ):
+                file_count = await deployment.upload_to_storage()
+                if file_count:
+                    app.console.print(
+                        f"Successfully uploaded {file_count} files to {deployment.location}",
+                        style="green",
+                    )
+            else:
                 app.console.print(
-                    f"Successfully uploaded {file_count} files to {deployment.location}",
-                    style="green",
+                    f"Deployment storage {deployment.storage} does not have upload capabilities; no files uploaded.",
+                    style="red",
                 )
 
         deployment_id = await deployment.apply()
@@ -285,6 +301,12 @@ async def apply(
             f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
             style="green",
         )
+
+        connection_status = await check_orion_connection()
+        ui = ui_base_url(connection_status)
+
+        if ui:
+            app.console.print(f"View Deployment in UI: {ui}/deployment/{deployment_id}")
 
         if deployment.work_queue_name is not None:
             app.console.print(
@@ -394,7 +416,7 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'remote-file-system', 's3', 'gcs', 'azure', 'smb'",
+        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'github', 's3', 'gcs', 'azure', 'smb'",
     ),
     skip_upload: bool = typer.Option(
         False,
@@ -426,6 +448,12 @@ async def build(
         "--output",
         "-o",
         help="An optional filename to write the deployment file to.",
+    ),
+    _apply: bool = typer.Option(
+        False,
+        "--apply",
+        "-a",
+        help="An optional flag to automatically register the resulting deployment with the API.",
     ),
 ):
     """
@@ -517,6 +545,18 @@ async def build(
     else:
         storage = None
 
+    ## docker default settings
+    # proxy for whether infra is docker-based
+    is_docker_based = hasattr(infrastructure, "image")
+
+    if not storage:
+        if is_docker_based:
+            # only update if a path is not already set
+            if not path:
+                path = "/opt/prefect/flows"
+        else:
+            path = str(Path(".").absolute())
+
     # set up deployment object
     deployment = Deployment(name=name, flow_name=flow.name)
     await deployment.load()  # load server-side settings, if any
@@ -548,15 +588,47 @@ async def build(
         )
 
     if not skip_upload:
-        file_count = await deployment.upload_to_storage()
-        if file_count:
+        if (
+            deployment.storage
+            and "put-directory" in deployment.storage.get_block_capabilities()
+        ):
+            file_count = await deployment.upload_to_storage()
+            if file_count:
+                app.console.print(
+                    f"Successfully uploaded {file_count} files to {deployment.location}",
+                    style="green",
+                )
+        else:
             app.console.print(
-                f"Successfully uploaded {file_count} files to {deployment.location}",
+                f"Deployment storage {deployment.storage} does not have upload capabilities; no files uploaded.  Pass --skip-upload to suppress this warning.",
                 style="green",
             )
 
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
     await deployment.to_yaml(deployment_loc)
-    exit_with_success(
-        f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'."
+    app.console.print(
+        f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'.",
+        style="green",
     )
+
+    if _apply:
+        deployment_id = await deployment.apply()
+        app.console.print(
+            f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
+            style="green",
+        )
+        if deployment.work_queue_name is not None:
+            app.console.print(
+                "\nTo execute flow runs from this deployment, start an agent "
+                f"that pulls work from the the {deployment.work_queue_name!r} work queue:"
+            )
+            app.console.print(
+                f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"
+            )
+        else:
+            app.console.print(
+                "\nThis deployment does not specify a work queue name, which means agents "
+                "will not be able to pick up its runs. To add a work queue, "
+                "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
+                style="red",
+            )
