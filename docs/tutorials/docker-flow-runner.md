@@ -1,5 +1,5 @@
 ---
-description: Learn how to run Prefect flows in Docker containers using the Docker flow runner.
+description: Learn how to build Prefect deployments that create flow runs in Docker containers.
 tags:
     - Docker
     - containers
@@ -9,189 +9,187 @@ tags:
     - tutorial
 ---
 
-# Running flows in Docker
+# Running flows with Docker
 
-Prefect integrates with Docker via the [flow runner interface](/concepts/flow-runners/). The [DockerFlowRunner](/api-ref/prefect/flow-runners/#prefect.flow_runners.DockerFlowRunner) runs Prefect flows using [Docker containers](https://www.docker.com/resources/what-container).
+In the [Deployments](/tutorials/deployments/) and [Storage and Infrastructure](/tutorials/storage/) tutorials, we looked at creating configuration that enables creating flow runs via the API and with code that was uploaded to a remotely accessible location.  
 
-In this tutorial we'll work through the steps you'll need to: 
+In this tutorial, we'll further configure the deployment so flow runs are executed not locally, but in a the "remote" execution environment of a Docker container. 
 
-- Create a simple flow that runs in a Docker container and logs a message.
-- Create a deployment for the flow so you can run the flow via API.
-- Configure the API URL and an agent to run deployments.
+In this tutorial we'll: 
 
-## Requirements
+- Configure a Docker Container infrastructure block that enables creating flow runs in a container.
+- Build and apply a new `log_flow.py` deployment that uses the new infrastructure block.
+- Create a flow run from this deployment that spins up a Docker container and executes, logging a message.
+
+## Prerequisites
 
 To run a deployed flow in a Docker container, you'll need the following:
 
-- [Docker Engine](https://docs.docker.com/engine/) installed and running on the same machine as your agent.
-- A remote [Storage](/concepts/storage/) configuration, not Local Storage or Temporary Local Storage.
-- You must run a standalone Orion API server (`prefect orion start`).
+- We'll use the flow script and deployment from the [Deployments](/tutorials/deployments/) tutorial. 
+- We'll also use the remote storage block created in the [Storage and Infrastructure](/tutorials/storage/) tutorial.
+- You must run a standalone Prefect Orion API server (`prefect orion start`) or Prefect Cloud.
+- You'll need [Docker Engine](https://docs.docker.com/engine/) installed and running on the same machine as your agent.
 
 [Docker Desktop](https://www.docker.com/products/docker-desktop) works fine for local testing if you don't already have Docker Engine configured in your environment.
 
-You'll need to configure a remote store such as S3, Google Cloud Storage, or Azure Blob Storage. See the [Storage](/concepts/storage/) documentation for details. 
+!!! note "Run Prefect Orion server"
+    This tutorial assumes you're already running a Prefect Orion server with `prefect orion start`, as described in the [Deployments](/tutorials/deployments/#run-a-prefect-orion-server) tutorial. 
+    
+    If you shut down the server from a previous tutorial, you can start it again by opening another terminal session and starting the Prefect Orion server with the `prefect orion start` CLI command.
 
-## A simple Docker deployment
+## Create an infrastructure block
 
-We'll create a simple flow that simply logs a message, indicating that it ran in the Docker container. We'll include the [deployment specification](/concepts/deployments/#deployment-specifications) alongside the flow code. 
+Most users will find it easiest to configure new infrastructure blocks through the Prefect Orion or Prefect Cloud UI. 
 
-Save the following script to the file `docker-deployment.py`:
+You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page. To create a new infrastructure block, select the **+** button on this page. Prefect displays a page of available block types. Select **run-infrastructure** from the **Capability** list to filter just the infrastructure blocks.
 
-```python
-from prefect import flow, get_run_logger
-from prefect.deployments import Deployment
-from prefect.flow_runners import DockerFlowRunner
+![Viewing a list of infrastructure block types in the Prefect UI](/img/tutorials/infrastructure-blocks.png)
 
-@flow
-def my_docker_flow():
-    logger = get_run_logger()
-    logger.info("Hello from Docker!")
+Use these base blocks to create your own infrastructure blocks containing the settings needed to run flows in your environment.
 
-Deployment(
-    name="docker-example",
-    flow=my_docker_flow,
-    flow_runner=DockerFlowRunner(),
-    work_queue_name="docker-tutorial"
-)
+For this tutorial, find the **Docker Container** block, then select **Add +** to see the options for a Docker infrastructure block.
+
+![Viewing a list of infrastructure block types in the Prefect UI](/img/tutorials/docker-infrastructure.png)
+
+To configure this Docker Container block to run the `log_flow.py` deployment, we just need to add two pieces of information.
+
+First, give the block a **Block Name**. We used "log-tutorial".
+
+Second, we need to make sure the container includes any additional files, libraries, or configuration to run `log_flow.py`. By default, Prefect uses a preconfigured container that includes installations of Python and Prefect.
+
+In the [Storage and Infrastructure](/tutorials/storage/) tutorial, recall that we needed to `pip install s3fs` the library for an S3 storage block. You'll need to include the same command in the configuration of the Docker Container infrastructure block. When the agent spins up a container for a flow run, it will know to install the `s3fs` package before starting the flow run.
+
+As a convenience, we can use the [`EXTRA_PIP_PACKAGES` environment variable](/concepts/infrastructure/#installing-extra-dependencies-at-runtime) to install dependencies at runtime. If defined, `pip install ${EXTRA_PIP_PACKAGES}` is executed before the flow run starts.
+
+In the **Env (Optional)** box, enter the following to specify that the `s3fs` package should be installed. Note that we use JSON formatting to specify the environment variable (key) and packages to install (value).
+
+```json
+{
+  "EXTRA_PIP_PACKAGES": "s3fs"
+}
 ```
+If you defined a different type of storage block, such as Azure or GCS, you'll need to specify the relevant storage library. See the [Prerequisites section of the Storage tutorial](/tutorials/storage/#prerequisites) for details.
 
-Now use the Prefect CLI to create the deployment, passing the file containing the flow code and deployment specification, `docker-deployment.py`:
+![Configuring a new Docker Container infrastructure block in the Prefect UI](/img/tutorials/docker-tutorial-block.png)
 
-<div class='termy'>
-```
-$ prefect deployment create ./docker-deployment.py
-Loading deployments from python script at 'docker-deployment.py'...
-Created deployment 'docker-example' for flow 'my-docker-flow'
-```
-</div>
+## Using infrastructure blocks with deployments
 
-In future when we reference the deployment, we'll use the format "flow name/deployment name" &mdash; in this case, `my-docker-flow/docker-example`.
+To use an infrastructure block when building a deployment, the process is similar to using a storage block. You can specify a custom infastructure block to the `prefect deployment build` command with the `-ib` or `--infra-block` options, passing the type and name of the block in the in the format `type/name`, with `type` and `name` separated by a forward slash. 
 
-## Run Orion server
+- `type` is the type of storage block, such as `docker-container`, `kubernetes-job`, or `process`.
+- `name` is the name you specified when creating the block.
 
-In a separate terminal, start the Prefect Orion server with the `prefect orion start` CLI command:
+The `prefect deployment build` command also supports specifying a built-in infrastructure type prepopulated with defaults by using the `--infra` or `-i` options and passing the name of the infrastructure type: `docker-container`, `kubernetes-job`, or `process`.
 
+## Build a deployment with Docker infrastructure
+
+To demonstrate using an infrastructure block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorials/deployments/). For this deployment, we'll include the following options to the `prefect deployment build` command:
+
+- Use the storage block created in the [Storage and Infrastructure](/tutorials/storage/) tutorial by passing `-sb s3/log-test` or `--storage-block s3/log-test`.
+- Use the infrastructure block created earlier by passing `-ib docker-container/log-tutorial` or `--storage-block s3/log-tutorial`.
+
+<div class="terminal">
 ```bash
-$ prefect orion start
-Starting...
-
- ___ ___ ___ ___ ___ ___ _____    ___  ___ ___ ___  _  _
-| _ \ _ \ __| __| __/ __|_   _|  / _ \| _ \_ _/ _ \| \| |
-|  _/   / _|| _|| _| (__  | |   | (_) |   /| | (_) | .` |
-|_| |_|_\___|_| |___\___| |_|    \___/|_|_\___\___/|_|\_|
-
-Configure Prefect to communicate with the server with:
-
-    prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
-
-Check out the dashboard at http://127.0.0.1:4200
-```
-
-Note the message to set `PREFECT_API_URL` so that we're orchestrating flows with this API instance.
-
-Open another terminal and run the command to set the API URL:
-
-<div class='termy'>
-```
-$ prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
-Set variable 'PREFECT_API_URL' to 'http://127.0.0.1:4200/api'
-Updated profile 'default'
+$ prefect deployment build ./log_flow.py:log_flow -n log-flow-docker -sb s3/log-test -ib docker-container/log-tutorial -q test -o log-flow-docker-deployment.yaml
+Found flow 'log-flow'
+Successfully uploaded 4 files to s3://bucket-full-of-sunshine/flows/test
+Deployment YAML created at
+'/Users/terry/prefect-tutorial/log-flow-docker-deployment.yaml'.
 ```
 </div>
 
-## Configure storage
+What did we do here? Let's break down the command:
 
-Now that we can communicate with the Orion API, lets configure [storage](/concepts/storage/) for flow and task run data. 
+- `prefect deployment build` is the Prefect CLI command that enables you to prepare the settings for a deployment.
+-  `./log_flow.py:log_flow` specifies the location of the flow script file and the name of the entrypoint flow function, separated by a colon.
+- `-n log-flow-docker` specifies a name for the deployment. For ease of identification, the name includes a reference to the Docker infrastructure.
+- `-sb s3/log-test` specifies a storage block by type and name. If you used a different storage block type or block name, your command may be different.
+- `-ib docker-container/log-tutorial` specifies an infrastructure block by type and name.
+- `-q test` specifies a work queue for the deployment. Work queues direct scheduled runs to agents.
+- `-o log-flow-docker-deployment.yaml` specifies the name for the deployment YAML file. We do this to create a new deployment file rather than overwriting the previous one.
 
-Before doing this next step, make sure you have the information to connect to and authenticate with a remote data store. In this example we're connecting to an AWS S3 bucket, but you could also Google Cloud Storage or Azure Blob Storage.
+## Apply the deployment
 
-Run the `prefect storage create` command. In this case we choose the S3 option and supply the bucket name and AWS IAM access key.
+Now we can apply the deployment YAML to create the deployment on the API.
 
-<div class='termy'>
-```
-$ prefect storage create
-Found the following storage types:
-0) Azure Blob Storage
-    Store data in an Azure blob storage container
-1) Google Cloud Storage
-    Store data in a GCS bucket
-2) KV Server Storage
-    Store data by sending requests to a KV server
-3) Local Storage
-    Store data in a run's local file system
-4) S3 Storage
-    Store data in an AWS S3 bucket
-5) Temporary Local Storage
-    Store data in a temporary directory in a run's local file system
-Select a storage type to create: 4
-You've selected S3 Storage. It has 6 option(s).
-BUCKET: the-curious-case-of-benjamin-bucket
-AWS ACCESS KEY ID (optional): XXXXXXXXXXXXXXXXXXXX
-AWS SECRET ACCESS KEY (optional): XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-AWS SESSION TOKEN (optional):
-PROFILE NAME (optional):
-REGION NAME (optional):
-Choose a name for this storage configuration: benjamin-bucket
-Validating configuration...
-Registering storage with server...
-Registered storage 'benjamin-bucket' with identifier '0f536aaa-216f-4c72-9c31-f3272bcdf977'.
-You do not have a default storage configuration. Would you like to set this as your default storage? [Y/n]: y
-Set default storage to 'benjamin-bucket'.
-```
-</div>
-
-We set this storage as the default that Orion will use for flows running in the Docker container. Any flow runs can use the persistent S3 storage for flow code, task results, and flow results rather than relying on local storage that will disappear when the container shuts down.
-
-## Start an agent
-
-Agents are configured to poll for work from specific work queues, which organize flow runs produced by deployments.  To learn more, see the [Work Queues & Agents](/concepts/work-queues/) documentation.
-
-To run orchestrated deployments, you'll need to set up at least one agent to poll the `docker-tutorial` work queue that our deployment uses. Don't worry about creating the work queue - it will be generated automatically.
-
-Now use the `prefect agent start` command, passing the name of our work queue, to start an agent that polls for flow runs from that work queue.
-
+<div class="terminal">
 ```bash
-$ prefect agent start -q docker-tutorial
-Starting agent connected to http://127.0.0.1:4200/api...
+$ prefect deployment apply log-flow-docker-deployment.yaml
+Successfully loaded 'log-flow-docker'
+Deployment 'log-flow/log-flow-docker' successfully created with id
+'a52fe285-d646-4e57-affd-257acf92782a'.
 
-  ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
- | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
- |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |
- |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
-
-
-Agent started!
-```
-
-Now we're ready to run our deployed flow in Docker!
-
-## Run the Docker deployment
-
-Go back to the original terminal session, then use the `prefect deployment run` command to create a flow run for the `my-docker-flow/docker-example` deployment:
-
-<div class='termy'>
-```
-$ prefect deployment run my-docker-flow/docker-example
-Created flow run 'hulking-poodle' (d17584f1-9c7e-457d-89a3-8f8fac0e507b)
+To execute flow runs from this deployment, start an agent that pulls work from the the 'test'
+work queue:
+$ prefect agent start -q 'test'
 ```
 </div>
 
-Look in the terminal session running the agent: you'll see the agent submit the flow run, then the flow runner create the container and execute the flow commands. You'll see a different flow run name and ID.
+Open the Prefect UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/) and select the **Deployments** page. You'll see a list of all deployments that have been created in this Prefect Orion instance, including the new `log-flow/log-flow-docker` deployment.
 
-<div class='termy'>
-```
-17:14:54.901 | INFO    | prefect.agent - Submitting flow run 'd17584f1-9c7e-457d-89a3-8f8fac0e507b'
-17:14:55.079 | INFO    | prefect.flow_runner.docker - Flow run 'hulking-poodle' has container settings = {'image': 'prefecthq/prefect:dev-python3.8', 'network': None, 'command': ['python', '-m', 'prefect.engine', 'd17584f1-9c7e-457d-89a3-8f8fac0e507b'], 'environment': {'PREFECT_API_URL': 'http://host.docker.internal:4200/api'}, 'auto_remove': False, 'labels': {'io.prefect.flow-run-id': 'd17584f1-9c7e-457d-89a3-8f8fac0e507b'}, 'extra_hosts': None, 'name': 'hulking-poodle', 'volumes': []}
-17:14:55.512 | INFO    | prefect.agent - Completed submission of flow run 'd17584f1-9c7e-457d-89a3-8f8fac0e507b'
-17:14:55.547 | INFO    | prefect.flow_runner.docker - Flow run container 'hulking-poodle' has status 'running'
-22:14:58.870 | INFO    | Flow run 'hulking-poodle' - Using task runner 'ConcurrentTaskRunner'
-22:14:59.685 | INFO    | Flow run 'hulking-poodle' - Finished in state Completed(None)
-Hello from Docker!
-17:15:00.193 | INFO    | prefect.flow_runner.docker - Flow run container 'hulking-poodle' has status 'exited'
+![Viewing the new Docker deployment in the Prefect UI](/img/tutorials/docker-deployment.png)
+
+## Edit the deployment in the UI
+
+`log_flow` exepcts a runtime parameter for its greeting, and we didn't provide one as part of this deployment yet. We could edit `log-flow-docker-deployment.yaml` to add a parameter and apply the edited YAML to update the deployment on the API.
+
+Instead, let's edit the deployment through the Prefect UI. Select **log-flow/log-flow-docker** to see the deployment's details.
+
+![Viewing the Docker deployment details in the Prefect UI](/img/tutorials/docker-deployment-details.png)
+
+Select the menu next to **Run**, then select **Edit** to edit the deployment.
+
+Scroll down to the **Parameters** section and provide a value for the `name` parameter. We used "Ford Prefect" here. 
+
+![Editing the Docker deployment details in the Prefect UI](/img/tutorials/edit-docker-deployment.png)
+
+Select **Save** to save these changes to the deployment.
+
+## Create a flow run in Docker
+
+When you create flow runs from this deployment, the agent pulls the default Prefect Docker container, `pip installs` the prerequisites we specified, retrieves the flow script from remote storage, and starts the Prefect engine to execute the flow run.
+
+Let's create a flow run for this deployment. The flow run will execute in a Docker container rather than in your local development environment.
+
+!!! note "Run a Prefect agent"
+    This tutorial assumes you're already running a Prefect agent with `prefect agent start`, as described in the [Deployments](/tutorials/deployments/#agents-and-work-queues) tutorial. 
+    
+    If you shut down the agent from a previous tutorial, you can start it again by opening another terminal session and starting the agent with the `prefect agent start -q test` CLI command. This agent pulls work from the `test` work queue created previously.
+
+On the deployment details page, select **Run**, then select **Now with defaults**. This creates a new flow run using the default parameters and other settings.
+
+![Running the Docker deployment from the Prefect UI](/img/tutorials/run-docker-deployment.png)
+
+Go to the terminal session running the Prefect agent. You should see logged output showing:
+
+- The agent submitting the flow run.
+- The Docker container being created.
+- Installation of the storage library.
+- The task run creating log messages.
+- The flow run completing.
+- The Docker container closing down.
+
+<div class='terminal'>
+```bash
+23:19:52.252 | INFO    | prefect.agent - Submitting flow run '2d520993-3697-4105-987f-70398e2a65fe'
+23:19:52.449 | INFO    | prefect.infrastructure.docker-container - Creating Docker container 'woodoo-peacock'...
+23:19:53.034 | INFO    | prefect.agent - Completed submission of flow run '2d520993-3697-4105-987f-70398e2a65fe'
+23:19:53.065 | INFO    | prefect.infrastructure.docker-container - Docker container 'woodoo-peacock' has status 'running'
++pip install s3fs
+Collecting s3fs
+  Downloading s3fs-2022.7.1-py3-none-any.whl (27 kB)
+...
+03:20:02.773 | INFO    | Flow run 'woodoo-peacock' - Created task run 'log_task-99465d2b-0' for task 'log_task'
+03:20:02.774 | INFO    | Flow run 'woodoo-peacock' - Executing 'log_task-99465d2b-0' immediately...
+03:20:02.808 | INFO    | Task run 'log_task-99465d2b-0' - Hello Ford Prefect!
+03:20:02.808 | INFO    | Task run 'log_task-99465d2b-0' - Prefect Version = 2.2.0 🚀
+03:20:02.837 | INFO    | Task run 'log_task-99465d2b-0' - Finished in state Completed()
+03:20:02.869 | INFO    | Flow run 'woodoo-peacock' - Finished in state Completed('All states completed.')
+23:20:03.410 | INFO    | prefect.infrastructure.docker-container - Docker container 'woodoo-peacock' has status 'exited'
 ```
 </div>
 
-Open the Prefect Orion UI at [http://127.0.0.1:4200](http://127.0.0.1:4200) and go to the **Logs** tab of your flow run. You should see the "Hello from Docker!" log message created by the flow running in the Docker container!
+In the Prefect Orion UI, go to the **Flow Runs** page and select the flow run. You should see the "Hello Ford Prefect!" log message created by the flow running in the Docker container!
 
 ![Log messages from the deployment flow run.](/img/tutorials/docker-flow-log.png)
 
