@@ -95,13 +95,15 @@ class TestRemoteFileSystem:
 
     async def test_put_directory_flat(self):
         fs = RemoteFileSystem(basepath="memory://flat")
-        await fs.put_directory(os.path.join(TEST_PROJECTS_DIR, "flat-project"))
+        await fs.put_directory(
+            os.path.join(TEST_PROJECTS_DIR, "flat-project"),
+            ignore_file=os.path.join(
+                TEST_PROJECTS_DIR, "flat-project", ".prefectignore"
+            ),
+        )
         copied_files = set(fs.filesystem.glob("/flat/**"))
+
         assert copied_files == {
-            "/flat/__pycache__",
-            "/flat/__pycache__/explicit_relative.cpython-39.pyc",
-            "/flat/__pycache__/implicit_relative.cpython-39.pyc",
-            "/flat/__pycache__/shared_libs.cpython-39.pyc",
             "/flat/explicit_relative.py",
             "/flat/implicit_relative.py",
             "/flat/shared_libs.py",
@@ -109,19 +111,19 @@ class TestRemoteFileSystem:
 
     async def test_put_directory_tree(self):
         fs = RemoteFileSystem(basepath="memory://tree")
-        await fs.put_directory(os.path.join(TEST_PROJECTS_DIR, "tree-project"))
+        await fs.put_directory(
+            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
+            ignore_file=os.path.join(
+                TEST_PROJECTS_DIR, "tree-project", ".prefectignore"
+            ),
+        )
         copied_files = set(fs.filesystem.glob("/tree/**"))
+
         assert copied_files == {
             "/tree/imports",
-            "/tree/imports/__pycache__",
-            "/tree/imports/__pycache__/explicit_relative.cpython-39.pyc",
-            "/tree/imports/__pycache__/implicit_relative.cpython-39.pyc",
             "/tree/imports/explicit_relative.py",
             "/tree/imports/implicit_relative.py",
             "/tree/shared_libs",
-            "/tree/shared_libs/__pycache__",
-            "/tree/shared_libs/__pycache__/bar.cpython-39.pyc",
-            "/tree/shared_libs/__pycache__/foo.cpython-39.pyc",
             "/tree/shared_libs/bar.py",
             "/tree/shared_libs/foo.py",
         }
