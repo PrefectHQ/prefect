@@ -4,6 +4,7 @@ import io
 import json
 import shutil
 import sys
+import tempfile
 import urllib.parse
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -750,23 +751,38 @@ class GitHub(ReadableDeploymentStorage):
         """
         Clones a GitHub project specified in `from_path` to the provided `local_path`; defaults to cloning
         the repository reference configured on the Block to the present working directory.
+
+        Args:
+            - from_path: if provided, interpreted as a subdirectory of the underlying repository that will
+                be copied to the provided local path
+            - local_path: a local path to clone to; defaults to present working directory
         """
         cmd = "git clone"
-        if from_path is None:
-            cmd += f" {self.repository}"
-            if self.reference:
-                cmd += f" -b {self.reference} --depth 1"
-        else:
-            cmd += f" {from_path}"
+
+        cmd += f" {self.repository}"
+        if self.reference:
+            cmd += f" -b {self.reference} --depth 1"
 
         if local_path is None:
             local_path = Path(".").absolute()
 
+        # in this case, we clone to a temporary directory and move the subdirectory over
+        tmp_dir = None
+        if from_path:
+            tmp_dir = tempfile.TemporaryDirectory(suffix="prefect")
+            path_to_move = str(Path(tmp_dir.name).joinpath(from_path))
+            cmd += f" {tmp_dir.name} && cp -R {path_to_move}/."
+
         cmd += f" {local_path}"
 
-        err_stream = io.StringIO()
-        out_stream = io.StringIO()
-        process = await run_process(cmd, stream_output=(out_stream, err_stream))
+        try:
+            err_stream = io.StringIO()
+            out_stream = io.StringIO()
+            process = await run_process(cmd, stream_output=(out_stream, err_stream))
+        finally:
+            if tmp_dir:
+                tmp_dir.cleanup()
+
         if process.returncode != 0:
             err_stream.seek(0)
             raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
