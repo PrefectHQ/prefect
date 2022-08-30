@@ -4,13 +4,13 @@
     <a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
         <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect?color=0052FF&labelColor=090422"></a>
     <a href="https://github.com/prefecthq/prefect/" alt="Stars">
-        <img src="https://img.shields.io/github/stars/prefecthq/prefect?color=0052FF&labelColor=090422&" /></a>
+        <img src="https://img.shields.io/github/stars/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
     <a href="https://pepy.tech/badge/prefect/" alt="Downloads">
-        <img src="https://pepy.tech/badge/prefect?color=0052FF&labelColor=090422&" /></a>
+        <img src="https://img.shields.io/pypi/dm/prefect?color=0052FF&labelColor=090422" /></a>
     <a href="https://github.com/prefecthq/prefect/pulse" alt="Activity">
-        <img src="https://img.shields.io/github/commit-activity/m/prefecthq/prefect?color=0052FF&labelColor=090422&" /></a>
+        <img src="https://img.shields.io/github/commit-activity/m/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
     <a href="https://github.com/prefecthq/prefect/graphs/contributors" alt="Contributors">
-        <img src="https://img.shields.io/github/contributors/prefecthq/prefect?color=0052FF&labelColor=090422&" /></a>
+        <img src="https://img.shields.io/github/contributors/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
     <br>
     <a href="https://prefect-community.slack.com" alt="Slack">
         <img src="https://img.shields.io/badge/slack-join_community-red.svg?color=0052FF&labelColor=090422&logo=slack" /></a>
