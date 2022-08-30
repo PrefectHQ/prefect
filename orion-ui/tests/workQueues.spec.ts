@@ -1,18 +1,8 @@
-import { APIRequestContext, expect } from '@playwright/test'
-import { mapper, mocker, WorkQueue, WorkQueueCreate } from '@prefecthq/orion-design'
+import { expect } from '@playwright/test'
+import { mocker } from '@prefecthq/orion-design'
 import { test, useForm, useLabel, useTable, usePageHeading, useLink, pages, useIconButtonMenu, useModal, useButton } from './utilities'
 import { useInput } from './utilities/useInput'
 import { useToggle } from './utilities/useToggle'
-
-test.describe.configure({ mode: 'parallel' })
-
-const workQueueIdsCreated: string[] = []
-
-test.afterEach(({ request }) => {
-  workQueueIdsCreated.forEach(id => {
-    deleteWorkQueue(request, id)
-  })
-})
 
 test('Can create work queue', async ({ page }) => {
   await page.goto(pages.workQueues())
@@ -40,8 +30,8 @@ test('Can create work queue', async ({ page }) => {
   expect(worksQueue).toBeTruthy()
 })
 
-test('Can toggle workQueue from list', async ({ page, request }) => {
-  const workQueue = await useWorkQueue(request)
+test('Can toggle workQueue from list', async ({ page, useWorkQueue }) => {
+  const workQueue = await useWorkQueue()
   await page.goto(pages.workQueues())
 
   const { rows: workQueues } = useTable()
@@ -57,8 +47,8 @@ test('Can toggle workQueue from list', async ({ page, request }) => {
   expect(newState).toBe(!currentState)
 })
 
-test('Can delete worksQueue from list', async ({ page, request }) => {
-  const workQueue = await useWorkQueue(request)
+test('Can delete worksQueue from list', async ({ page, useWorkQueue }) => {
+  const workQueue = await useWorkQueue()
 
   await page.goto(pages.workQueues())
   const { rows: workQueues } = useTable()
@@ -82,8 +72,8 @@ test('Can delete worksQueue from list', async ({ page, request }) => {
   expect(await updatedRow.count()).toBe(0)
 })
 
-test('Can toggle workQueue', async ({ page, request }) => {
-  const workQueue = await useWorkQueue(request)
+test('Can toggle workQueue', async ({ page, useWorkQueue }) => {
+  const workQueue = await useWorkQueue()
   const url = pages.workQueue(workQueue.id)
   await page.goto(url)
 
@@ -95,26 +85,3 @@ test('Can toggle workQueue', async ({ page, request }) => {
 
   expect(newState).toBe(!currentState)
 })
-
-async function useWorkQueue(request: APIRequestContext): Promise<WorkQueue> {
-  const workQueue = await createWorkQueue(request, {
-    name: mocker.create('string'),
-  })
-
-  workQueueIdsCreated.push(workQueue.id)
-
-  return workQueue
-}
-
-const baseUrl = 'http://127.0.0.1:4200/api'
-async function createWorkQueue(request: APIRequestContext, workQueue: WorkQueueCreate): Promise<WorkQueue> {
-  const response = await request.post(`${baseUrl}/work_queues/`, {
-    data: workQueue,
-  })
-
-  return mapper.map('WorkQueueResponse', await response.json(), 'WorkQueue')
-}
-
-async function deleteWorkQueue(request: APIRequestContext, id: string): Promise<void> {
-  await request.delete(`${baseUrl}/work_queues/${id}`)
-}
