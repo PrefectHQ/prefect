@@ -4,7 +4,7 @@
 
 ### Exciting New Features 🎉
 
-- Add support for deploying flows stored in containers — [#6574](https://github.com/PrefectHQ/prefect/pull/6574)
+- Add support for deploying flows stored in Docker images — [#6574](https://github.com/PrefectHQ/prefect/pull/6574)
 - Add support for deploying flows stored on GitHub — [#6598](https://github.com/PrefectHQ/prefect/pull/6598)
 - Add file system block for reading directories from GitHub — [#6517](https://github.com/PrefectHQ/prefect/pull/6517)
 - Add a context manager to disable the flow and task run loggers for testing — [#6575](https://github.com/PrefectHQ/prefect/pull/6575)
