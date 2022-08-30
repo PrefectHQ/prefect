@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, parse_obj_as, validator
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import PrefectObjectRegistry
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
 from prefect.infrastructure import DockerContainer, KubernetesJob, Process
@@ -105,7 +105,7 @@ class Deployment(BaseModel):
             used only for organizational purposes. For delegating work to agents, see `work_queue_name`.
         schedule: A schedule to run this deployment on, once registered
         work_queue_name: The work queue that will handle this deployment's runs
-        flow_name: The name of the flow this deployment encapsulates
+        flow: The name of the flow this deployment encapsulates
         parameters: A dictionary of parameter values to pass to runs created from this deployment
         infrastructure: An optional infrastructure block used to configure infrastructure for runs;
             if not provided, will default to running this deployment in Agent subprocesses
@@ -319,9 +319,9 @@ class Deployment(BaseModel):
             block = value
 
         capabilities = block.get_block_capabilities()
-        if "get-directory" not in capabilities and "put-directory" not in capabilities:
+        if "get-directory" not in capabilities:
             raise ValueError(
-                "Remote Storage block must have both 'get-directory' and 'put-directory' capabilities."
+                "Remote Storage block must have 'get-directory' capabilities."
             )
         return block
 
@@ -438,13 +438,25 @@ class Deployment(BaseModel):
         deployment_path = None
         file_count = None
         if storage_block:
-            self.storage = await Block.load(storage_block)
+            storage = await Block.load(storage_block)
+
+            if "put-directory" not in storage.get_block_capabilities():
+                raise BlockMissingCapabilities(
+                    f"Storage block {storage!r} missing 'put-directory' capability."
+                )
+
+            self.storage = storage
 
             # upload current directory to storage location
             file_count = await self.storage.put_directory(
                 ignore_file=ignore_file, to_path=self.path
             )
         elif self.storage:
+            if "put-directory" not in self.storage.get_block_capabilities():
+                raise BlockMissingCapabilities(
+                    f"Storage block {self.storage!r} missing 'put-directory' capability."
+                )
+
             file_count = await self.storage.put_directory(
                 ignore_file=ignore_file, to_path=self.path
             )
@@ -511,6 +523,7 @@ class Deployment(BaseModel):
         name: str,
         output: str = None,
         skip_upload: bool = False,
+        apply: bool = False,
         **kwargs,
     ) -> "Deployment":
         """
@@ -525,6 +538,7 @@ class Deployment(BaseModel):
             output (optional): if provided, the full deployment specification will be written as a YAML
                 file in the location specified by `output`
             skip_upload: if True, deployment files are not automatically uploaded to remote storage
+            apply: if True, the deployment is automatically registered with the API
             **kwargs: other keyword arguments to pass to the constructor for the `Deployment` class
         """
         if not name:
@@ -555,13 +569,28 @@ class Deployment(BaseModel):
             deployment.version = flow.version
         if not deployment.description:
             deployment.description = flow.description
-        if not deployment.storage:
+
+        # proxy for whether infra is docker-based
+        is_docker_based = hasattr(deployment.infrastructure, "image")
+
+        if not deployment.storage and not is_docker_based:
             deployment.path = str(Path(".").absolute())
+        elif not deployment.storage and is_docker_based:
+            # only update if a path is not already set
+            if not deployment.path:
+                deployment.path = "/opt/prefect/flows"
 
         if not skip_upload:
-            await deployment.upload_to_storage()
+            if (
+                deployment.storage
+                and "put-directory" in deployment.storage.get_block_capabilities()
+            ):
+                await deployment.upload_to_storage()
 
         if output:
             await deployment.to_yaml(output)
+
+        if apply:
+            await deployment.apply()
 
         return deployment

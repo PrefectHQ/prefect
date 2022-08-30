@@ -31,6 +31,16 @@ const routeRecords: AppRouteRecord[] = [
     ],
   },
   {
+    path: '/task-run/:id',
+    children: [
+      {
+        name: 'task-run',
+        path: '',
+        component: (): RouteComponent => import('@/pages/TaskRun.vue'),
+      },
+    ],
+  },
+  {
     name: 'flows',
     path: '/flows',
     component: (): RouteComponent => import('@/pages/Flows.vue'),
