@@ -179,3 +179,6 @@ To use an infrastructure block when building a deployment, the process is simila
 - `name` is the name you specified when creating the block.
 
 The `prefect deployment build` command also supports specifying a built-in infrastructure type prepopulated with defaults by using the `--infra` or `-i` options and passing the name of the infrastructure type: `docker-container`, `kubernetes-job`, or `process`.
+
+!!! tip "Next steps: Flow runs with Docker"
+    Continue on to the [Docker](/tutorials/docker/) tutorial where we'll put storage, infrastructure, and deployments together to run a flow in a Docker container.
