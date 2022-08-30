@@ -1,34 +1,32 @@
 <template>
-  <p-layout-well class="task-run">
+  <p-layout-well v-if="taskRun" class="task-run">
     <template #header>
-      <PageHeadingTaskRun v-if="taskRun" :task-run="taskRun" @delete="goToFlowRun" />
+      <PageHeadingTaskRun :task-run="taskRun" @delete="goToFlowRun" />
     </template>
 
     <p-tabs :tabs="tabs">
       <template #details>
-        <TaskRunDetails v-if="taskRun" :task-run="taskRun" />
+        <TaskRunDetails :task-run="taskRun" />
       </template>
 
       <template #logs>
-        <TaskRunLogs v-if="taskRun" :task-run="taskRun" />
+        <TaskRunLogs :task-run="taskRun" />
       </template>
 
       <template #task-inputs>
-        <JsonView v-if="taskRun" :value="parameters" />
+        <JsonView :value="parameters" />
       </template>
     </p-tabs>
     <template #well>
-      <template v-if="taskRun">
-        <div class="task-run__meta">
-          <StateBadge :state="taskRun.state" />
-          <DurationIconText :duration="taskRun.duration" />
-          <FlowRunIconText :flow-run-id="taskRun.flowRunId" />
-        </div>
+      <div class="task-run__meta">
+        <StateBadge :state="taskRun.state" />
+        <DurationIconText :duration="taskRun.duration" />
+        <FlowRunIconText :flow-run-id="taskRun.flowRunId" />
+      </div>
 
-        <p-divider />
+      <p-divider />
 
-        <TaskRunDetails alternate :task-run="taskRun" />
-      </template>
+      <TaskRunDetails alternate :task-run="taskRun" />
     </template>
   </p-layout-well>
 </template>
