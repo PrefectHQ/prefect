@@ -80,7 +80,7 @@ nav:
             - tutorials/orion.md
             - tutorials/deployments.md
             - tutorials/dask-ray-task-runners.md
-            # - tutorials/docker-flow-runner.md
+            - tutorials/docker.md
             # - tutorials/kubernetes-flow-runner.md
             - tutorials/testing.md
             - Prefect Cloud: ui/cloud-getting-started.md
