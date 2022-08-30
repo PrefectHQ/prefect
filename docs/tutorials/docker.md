@@ -13,7 +13,7 @@ tags:
 
 In the [Deployments](/tutorials/deployments/) and [Storage and Infrastructure](/tutorials/storage/) tutorials, we looked at creating configuration that enables creating flow runs via the API and with code that was uploaded to a remotely accessible location.  
 
-In this tutorial, we'll further configure the deployment so flow runs are executed not locally, but in a the "remote" execution environment of a Docker container. 
+In this tutorial, we'll further configure the deployment so flow runs are executed in a Docker container. We'll run our Docker instance locally, but you can extend this tutorial to run it on remote machines. 
 
 In this tutorial we'll: 
 
@@ -27,7 +27,7 @@ To run a deployed flow in a Docker container, you'll need the following:
 
 - We'll use the flow script and deployment from the [Deployments](/tutorials/deployments/) tutorial. 
 - We'll also use the remote storage block created in the [Storage and Infrastructure](/tutorials/storage/) tutorial.
-- You must run a standalone Prefect Orion API server (`prefect orion start`) or Prefect Cloud.
+- You must run a standalone Prefect Orion API server (`prefect orion start`) or use Prefect Cloud.
 - You'll need [Docker Engine](https://docs.docker.com/engine/) installed and running on the same machine as your agent.
 
 [Docker Desktop](https://www.docker.com/products/docker-desktop) works fine for local testing if you don't already have Docker Engine configured in your environment.
@@ -149,7 +149,7 @@ Select **Save** to save these changes to the deployment.
 
 When you create flow runs from this deployment, the agent pulls the default Prefect Docker container, `pip installs` the prerequisites we specified, retrieves the flow script from remote storage, and starts the Prefect engine to execute the flow run.
 
-Let's create a flow run for this deployment. The flow run will execute in a Docker container rather than in your local development environment.
+Let's create a flow run for this deployment. The flow run will execute in a Docker container on your local machine.
 
 !!! note "Run a Prefect agent"
     This tutorial assumes you're already running a Prefect agent with `prefect agent start`, as described in the [Deployments](/tutorials/deployments/#agents-and-work-queues) tutorial. 
