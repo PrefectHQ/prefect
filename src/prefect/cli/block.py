@@ -13,6 +13,7 @@ from rich.table import Table
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli.orion_utils import check_orion_connection, ui_base_url
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import ObjectNotFound, ScriptError, exception_traceback
@@ -213,6 +214,35 @@ async def block_delete(
             exit_with_error("Must provide a Block slug or id")
 
 
+@blocks_app.command("create")
+async def block_create(
+    block_type_slug: Optional[str] = typer.Argument(
+        ..., help="A Block type Slug: list using `prefect block type ls`"
+    ),
+):
+    """
+    Generate a link to the Prefect UI to create a Block.
+    """
+    async with get_client() as client:
+        try:
+            block_type = await client.read_block_type_by_slug(block_type_slug)
+        except ObjectNotFound:
+            exit_with_error(f"Block Type {block_type_slug!r} not found!")
+
+        connection_status = await check_orion_connection()
+        ui = ui_base_url(connection_status)
+
+        if not ui:
+            exit_with_error(
+                "Prefect must be configured to use a hosted Orion server or Prefect cloud to display the Prefect UI"
+            )
+
+        block_link = f"{ui}/blocks/catalog/{block_type.slug}/create"
+        app.console.print(
+            f"Create a {block_type_slug} block: {block_link}",
+        )
+
+
 @blocks_app.command("inspect")
 async def block_inspect(
     slug: Optional[str] = typer.Argument(
@@ -258,17 +288,20 @@ async def list_types():
         title="Block Types",
         show_lines=True,
     )
-    table.add_column("Name", style="blue", no_wrap=True)
-    table.add_column("Slug", style="italic cyan", no_wrap=True)
-    table.add_column("Description", style="blue", no_wrap=False, justify="right")
+
+    table.add_column("Block Type Slug", style="italic cyan", no_wrap=True)
+    table.add_column("Description", style="blue", no_wrap=False, justify="left")
+    table.add_column(
+        "Generate creation link", style="italic cyan", no_wrap=False, justify="left"
+    )
 
     for blocktype in sorted(block_types, key=lambda x: x.name):
         table.add_row(
-            str(blocktype.name),
             str(blocktype.slug),
             str(blocktype.description.splitlines()[0].partition(".")[0])
             if blocktype.description is not None
             else "",
+            f"prefect block create {blocktype.slug}",
         )
 
     app.console.print(table)
