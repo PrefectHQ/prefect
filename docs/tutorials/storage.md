@@ -112,7 +112,7 @@ Deployment YAML created at
 ```
 </div>
 
-Note that, with the `-sb s3/log-test` option, the build process uploads the flow script files to `s3://bucket-full-of-sunshine/flows/log-test`.
+Note that with the `-sb s3/log-test` option the build process uploads the flow script files to `s3://bucket-full-of-sunshine/flows/log-test`.
 
 What did we do here? Let's break down the command:
 
@@ -130,7 +130,7 @@ In deployments, storage blocks are always referenced by name in the format `type
 
 If you used a different storage block type or block name, your command may be different.
 
-Now you can apply the deployment YAML to create the deployment on the API.
+Now you can apply the deployment YAML file to create the deployment on the API.
 
 <div class="terminal">
 ```bash
@@ -151,7 +151,7 @@ When you create flow runs from this deployment, the agent pulls the flow script 
 
 Similar to storage blocks, infrastructure [blocks](/concepts/blocks/) contain configuration for interacting with external systems. In the case of infrastructure this his includes settings that [agents](/concepts/work-queues/) use to create an execution environment for a flow run.
 
-Infastructure include configuration for environments such as:
+Infrastructure includes configuration for environments such as:
 
 - Docker containers
 - Kubernetes Jobs
@@ -159,7 +159,7 @@ Infastructure include configuration for environments such as:
 
 Most users will find it easiest to configure new infrastructure blocks through the Prefect Orion or Prefect Cloud UI. 
 
-You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page. To create a new infrastructure block, select the **+** button on this page. Prefect displays a page of available block types. Select **run-infrastructure** from the **Capability** list to filter just the infrastructure blocks.
+You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page. To create a new infrastructure block, select the **+** button on this page. Prefect displays a page of available block types. Select **run-infrastructure** from the **Capability** list to filter to just the infrastructure blocks.
 
 ![Viewing a list of infrastructure block types in the Prefect UI](/img/tutorials/infrastructure-blocks.png)
 
@@ -173,7 +173,7 @@ We're not going to create a custom infrastructure block until a later tutorial, 
 
 ## Using infrastructure blocks with deployments
 
-To use an infrastructure block when building a deployment, the process is similar to using a storage block. You can specify a custom infastructure block to the `prefect deployment build` command with the `-ib` or `--infra-block` options, passing the type and name of the block in the in the format `type/name`, with `type` and `name` separated by a forward slash. 
+To use an infrastructure block when building a deployment, the process is similar to using a storage block. You can specify a custom infastructure block to the `prefect deployment build` command with the `-ib` or `--infra-block` options, passing the type and name of the block in the format `type/name`, with `type` and `name` separated by a forward slash. 
 
 - `type` is the type of storage block, such as `docker-container`, `kubernetes-job`, or `process`.
 - `name` is the name you specified when creating the block.
