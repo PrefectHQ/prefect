@@ -2,11 +2,12 @@ import abc
 import glob
 import io
 import json
+import os
 import shutil
 import sys
 import tempfile
 import urllib.parse
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any, Dict, Optional
 
 import anyio
@@ -322,13 +323,16 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             included_files = filter_files(local_path, ignore_patterns)
 
         counter = 0
-        for f in glob.glob("**", recursive=True):
+        for f in glob.glob(os.path.join(local_path, "**"), recursive=True):
             if ignore_file and f not in included_files:
                 continue
+
+            relative_path = PurePath(f).relative_to(local_path).as_posix()
             if to_path.endswith("/"):
-                fpath = to_path + f
+                fpath = to_path + relative_path
             else:
-                fpath = to_path + "/" + f
+                fpath = to_path + "/" + relative_path
+
             if Path(f).is_dir():
                 pass
             else:
@@ -336,7 +340,9 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
                     self.filesystem.put_file(f, fpath, overwrite=True)
                 else:
                     self.filesystem.put_file(f, fpath)
+
             counter += 1
+
         return counter
 
     async def read_path(self, path: str) -> bytes:
@@ -444,7 +450,7 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
         ignore_file: Optional[str] = None,
     ) -> int:
         """
-        Uploads a directory from a given local path to a remote direcotry.
+        Uploads a directory from a given local path to a remote directory.
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
