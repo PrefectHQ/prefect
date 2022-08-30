@@ -33,7 +33,7 @@ def get_logger(name: str = None) -> logging.Logger:
     `prefect` package.
 
     See `get_run_logger` for retrieving loggers for use within task or flow runs.
-    By default, only run related loggers are connected to the `OrionHandler`.
+    By default, only run-related loggers are connected to the `OrionHandler`.
     """
 
     parent_logger = logging.getLogger("prefect")
