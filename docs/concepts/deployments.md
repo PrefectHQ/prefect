@@ -264,7 +264,7 @@ parameter_openapi_schema:
 
 ### Create deployment in API
 
-When you've configured `deployment.yaml` for a deployment, you can create the deployment on the API. Run the following Prefect CLI command.
+When you've configured `deployment.yaml` for a deployment, you can create the deployment on the API by running the `prefect deployment apply` Prefect CLI command.
 
 <div class="terminal">
 ```bash
@@ -281,6 +281,8 @@ Successfully loaded 'catfact'
 Deployment '76a9f1ac-4d8c-4a92-8869-615bec502685' successfully created.
 ```
 </div>
+
+`prefect deployment apply` accepts an optional `--upload` flag that, when provided, uploads this deployment's files to remote storage.
 
 Once the deployment has been created, you'll see it in the [Prefect UI](/ui/flow-runs/) and can inspect it using the CLI.
 
