@@ -53,6 +53,7 @@
     notificationCreateRouteKey,
     notificationsApiKey,
     notificationsRouteKey,
+    taskRunRouteKey,
     settingsRouteKey,
     taskRunsApiKey,
     workQueueCreateRouteKey,
@@ -114,6 +115,7 @@
   provide(notificationCreateRouteKey, routes.notificationCreate)
   provide(editNotificationRouteKey, routes.notificationEdit)
   provide(notificationsRouteKey, routes.notifications)
+  provide(taskRunRouteKey, routes.taskRun)
   provide(workQueuesRouteKey, routes.workQueues)
 
   const mobileMenuOpen = ref(false)
