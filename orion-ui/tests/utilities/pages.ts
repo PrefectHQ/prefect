@@ -1,4 +1,5 @@
 export const pages = {
+  root: '/',
   flowRuns: '/runs',
   flowRun: (id: string) => `/flow-run/${id}`,
   flowRunRadar: (id: string) => `/flow-run/${id}/radar`,
@@ -9,7 +10,7 @@ export const pages = {
   deploymentEdit: (id: string) => `/deployment/${id}/edit`,
   workQueues: '/work-queues',
   workQueue: (id: string) => `/work-queue/${id}`,
-  workQueueCreate: '/work-queue/new',
+  workQueuesCreate: '/work-queues/new',
   workQueueEdit: (id: string) => `/work-queue/${id}`,
   blocks: '/blocks',
   blocksCatalog: '/blocks/catalog',
