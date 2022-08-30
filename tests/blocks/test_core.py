@@ -185,7 +185,6 @@ class TestAPICompatibility:
             "x": "**********",
             "y": "**********",
             "z": "z",
-            "block_type_slug": SecretBlock.get_block_type_slug(),
         }
 
         json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
@@ -193,7 +192,6 @@ class TestAPICompatibility:
             "x": "x",
             "y": "y",
             "z": "z",
-            "block_type_slug": SecretBlock.get_block_type_slug(),
         }
 
     def test_create_nested_api_block_with_secret_values_are_obfuscated_by_default(self):
@@ -219,24 +217,20 @@ class TestAPICompatibility:
         assert json_blockdoc["data"] == {
             "a": "**********",
             "b": "b",
+            # The child includes the type slug because it is not a block document
             "child": {
                 "a": "**********",
                 "b": "b",
-                "block_type_slug": Child.get_block_type_slug(),
+                "block_type_slug": "child",
             },
-            "block_type_slug": Parent.get_block_type_slug(),
         }
 
         json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
         assert json_blockdoc_with_secrets["data"] == {
             "a": "a",
             "b": "b",
-            "child": {
-                "a": "a",
-                "b": "b",
-                "block_type_slug": Child.get_block_type_slug(),
-            },
-            "block_type_slug": Parent.get_block_type_slug(),
+            # The child includes the type slug because it is not a block document
+            "child": {"a": "a", "b": "b", "block_type_slug": "child"},
         }
 
     def test_registering_blocks_with_capabilities(self):
