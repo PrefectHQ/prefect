@@ -177,13 +177,12 @@ async def get_runs_in_work_queue(
     Get runs from a work queue.
 
     Args:
-        session: A database session.
-        work_queue_id: The work queue id.
+        session: A database session. work_queue_id: The work queue id.
         scheduled_before: Only return runs scheduled to start before this time.
-        limit: An optional limit for the number of runs to return from the queue.
-            This limit applies to the request only. It does not affect the
-            work queue's concurrency limit. If `limit` exceeds the work queue's
-            concurrency limit, it will be ignored.
+        limit: An optional limit for the number of runs to return from the
+            queue. This limit applies to the request only. It does not affect
+            the work queue's concurrency limit. If `limit` exceeds the work
+            queue's concurrency limit, it will be ignored.
 
     """
     work_queue = await read_work_queue(session=session, work_queue_id=work_queue_id)
