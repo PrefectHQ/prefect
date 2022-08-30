@@ -16,8 +16,8 @@ export const test = base.extend<CustomFixtures>({
   useWorkQueue: async ({ request }, use) => {
     let workQueue: WorkQueue | undefined
 
-    await use(async (override: Partial<WorkQueue> = {}) => {
-      const data = mocker.create('workQueue', [override])
+    await use(async (override: Partial<WorkQueueCreate> = {}) => {
+      const data = mocker.create('workQueueCreate', [override])
 
       workQueue = await createWorkQueue(request, data)
 
@@ -25,7 +25,11 @@ export const test = base.extend<CustomFixtures>({
     })
 
     if (workQueue) {
-      await deleteWorkQueue(request, workQueue.id)
+      try {
+        await deleteWorkQueue(request, workQueue.id)
+      } catch {
+        // do nothing
+      }
     }
   },
 })
@@ -33,7 +37,7 @@ export const test = base.extend<CustomFixtures>({
 const baseUrl = 'http://127.0.0.1:4200/api'
 async function createWorkQueue(request: APIRequestContext, workQueue: WorkQueueCreate): Promise<WorkQueue> {
   const response = await request.post(`${baseUrl}/work_queues/`, {
-    data: workQueue,
+    data: mapper.map('WorkQueueCreate', workQueue, 'WorkQueueCreateRequest'),
   })
 
   return mapper.map('WorkQueueResponse', await response.json(), 'WorkQueue')
