@@ -50,7 +50,7 @@
 
 - Add tutorials for creating and using storage and infrastructure blocks — [#6608](https://github.com/PrefectHQ/prefect/pull/6608)
 - Update tutorial for running flows in Docker — [#6612](https://github.com/PrefectHQ/prefect/pull/6612)
-- Add example of calling a task with from a task — [#6501](https://github.com/PrefectHQ/prefect/pull/6501)
+- Add example of calling a task from a task — [#6501](https://github.com/PrefectHQ/prefect/pull/6501)
 - Update database documentation for Postgres to clarify required plugins — [#6566](https://github.com/PrefectHQ/prefect/pull/6566)
 - Add example of using `Task.map` in docstring — [#6579](https://github.com/PrefectHQ/prefect/pull/6579)
 - Add details about flow run retention policies — [#6577](https://github.com/PrefectHQ/prefect/pull/6577)
@@ -63,7 +63,6 @@ Thanks to our external contributors!
 
 - @darrida
 - @jmg-duarte
-- @rpeden
 - @MSSandroid
 
 ## 2.2.0
