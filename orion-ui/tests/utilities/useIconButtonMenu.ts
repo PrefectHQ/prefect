@@ -4,7 +4,7 @@ import { locate } from './locate'
 
 export type UseIconButtonMenu = {
   menu: Locator,
-  selectItem: (text: string) => void,
+  selectItem: (text: string) => Promise<void>,
 }
 
 export function useIconButtonMenu(locator: string | Locator = '.p-icon-button-menu', page: Page | Locator = PAGE): UseIconButtonMenu {

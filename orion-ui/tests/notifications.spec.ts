@@ -5,7 +5,7 @@ import { test, useForm, useCombobox, useLabel, useSelect, useTable, useButton, u
 test.describe.configure({ mode: 'serial' })
 
 test.beforeEach(async ({ page }) => {
-  await page.goto(pages.notifications)
+  await page.goto(pages.notifications())
 })
 
 test('Can create notification', async () => {
@@ -13,7 +13,7 @@ test('Can create notification', async () => {
   const existingNotifications = await notifications.count()
 
   const { heading } = usePageHeading()
-  const { link } = useLink(pages.notificationsCreate, heading)
+  const { link } = useLink(pages.notificationsCreate(), heading)
   await link.click()
 
   const { control: states } = useLabel('Run states')
