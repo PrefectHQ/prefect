@@ -8,8 +8,6 @@ tags:
 
 # Code style and practices
 
-<span class="badge">Experimental</span>
-
 Generally, we follow the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html). This document covers sections where we differ or where additional clarification is necessary.
 
 ## Imports
