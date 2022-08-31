@@ -214,7 +214,14 @@ async def test_execution_is_compatible_with_old_prefect_container_version(
 
     result = await submit_flow_run(
         flow_run,
-        DockerContainer(image=get_prefect_image_name(MIN_COMPAT_PREFECT_VERSION)),
+        DockerContainer(
+            image=get_prefect_image_name(MIN_COMPAT_PREFECT_VERSION),
+            # Disable test mode in the container to allow the API to send new fields
+            # TODO: The API schema behavior toggle should have a dedicated setting
+            # TODO: The test mode is not checked as a boolean correctly so we must unset
+            #       it entirely
+            env={"PREFECT_TEST_MODE": None},
+        ),
     )
     assert result.status_code == 0
     flow_run = await orion_client.read_flow_run(flow_run.id)
