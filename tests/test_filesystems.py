@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -5,6 +6,8 @@ import pytest
 import prefect
 from prefect.filesystems import GitHub, LocalFileSystem, RemoteFileSystem
 from prefect.testing.utilities import AsyncMock
+
+TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
 
 
 class TestLocalFileSystem:
@@ -89,6 +92,41 @@ class TestRemoteFileSystem:
         assert fs._resolve_path(base) == base + "/"
         assert fs._resolve_path(f"{base}/subdir") == f"{base}/subdir"
         assert fs._resolve_path("subdirectory") == f"{base}/subdirectory"
+
+    async def test_put_directory_flat(self):
+        fs = RemoteFileSystem(basepath="memory://flat")
+        await fs.put_directory(
+            os.path.join(TEST_PROJECTS_DIR, "flat-project"),
+            ignore_file=os.path.join(
+                TEST_PROJECTS_DIR, "flat-project", ".prefectignore"
+            ),
+        )
+        copied_files = set(fs.filesystem.glob("/flat/**"))
+
+        assert copied_files == {
+            "/flat/explicit_relative.py",
+            "/flat/implicit_relative.py",
+            "/flat/shared_libs.py",
+        }
+
+    async def test_put_directory_tree(self):
+        fs = RemoteFileSystem(basepath="memory://tree")
+        await fs.put_directory(
+            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
+            ignore_file=os.path.join(
+                TEST_PROJECTS_DIR, "tree-project", ".prefectignore"
+            ),
+        )
+        copied_files = set(fs.filesystem.glob("/tree/**"))
+
+        assert copied_files == {
+            "/tree/imports",
+            "/tree/imports/explicit_relative.py",
+            "/tree/imports/implicit_relative.py",
+            "/tree/shared_libs",
+            "/tree/shared_libs/bar.py",
+            "/tree/shared_libs/foo.py",
+        }
 
 
 class TestGitHub:
