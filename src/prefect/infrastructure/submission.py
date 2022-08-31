@@ -6,7 +6,7 @@ import prefect
 from prefect.infrastructure.base import Infrastructure
 from prefect.orion.schemas.core import FlowRun
 
-MIN_COMPAT_PREFECT_VERSION = "2.0"
+MIN_COMPAT_PREFECT_VERSION = "2.0.0"
 
 
 def base_flow_run_labels(flow_run: FlowRun) -> Dict[str, str]:
