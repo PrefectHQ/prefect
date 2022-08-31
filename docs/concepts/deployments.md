@@ -182,9 +182,9 @@ You may specify additional options to further customize your deployment.
 |  `-q`. `--work-queue TEXT`        |  The work queue that will handle this deployment's runs. It will be created if it doesn't already exist. Defaults to `None`. Note that if a work queue is not set, work will not be scheduled.
 |  `-o`, `--output TEXT`            | Optional location for the YAML manifest generated as a result of the `build` step. You can version-control that file, but it's not required since the CLI can generate everything you need to define a deployment. |
 |  `-i`, `--infra`                   | The [infrastructure type](/concepts/infrastructure/) to use. (Default is `Process`) |
-|  `-ib`, `--infra-block TEXT`       | The [infrastructure block](#block-indentifiers) to use, in `type/name` format. |
+|  `-ib`, `--infra-block TEXT`       | The [infrastructure block](#block-identifiers) to use, in `type/name` format. |
 |  `--override TEXT`       | One or more optional infrastructure overrides provided as a dot delimited path. For example, `env.env_key=env_value`. |
-|  <span class="no-wrap">`-sb`, `--storage-block TEXT`</span>    | The [storage block](#block-indentifiers) to use in `type/name` format. |
+|  <span class="no-wrap">`-sb`, `--storage-block TEXT`</span>    | The [storage block](#block-identifiers) to use in `type/name` format. |
 |  `--cron TEXT`    | A cron string that will be used to set a [`CronSchedule`](/concepts/schedules/) on the deployment. For example, `--cron "*/1 * * * *"` to create flow runs from that deployment every minute. |
 |  `--interval INTEGER`     | An integer specifying an interval (in seconds) that will be used to set an [`IntervalSchedule`](/concepts/schedules/) on the deployment. For example, `--interval 60` to create flow runs from that deployment every minute. |
 |  `--rrule TEXT`     | An `RRule` that will be used to set an [`RRuleSchedule`](/concepts/schedules/) on the deployment. For example, `--rrule 'FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9,10,11,12,13,14,15,16,17'` to create flow runs from that deployment every hour but only during business hours. |
@@ -192,7 +192,7 @@ You may specify additional options to further customize your deployment.
 | `--skip-upload` | When provided, skips uploading this deployment's files to remote storage. |
 | `--path` | An optional path to specify a subdirectory of remote storage to upload to. |
 
-### Block indentifiers
+### Block identifiers
 
 You can provide storage (`-sb`) and infrastructure block (`-ib`) identifiers in your `deployment build` command. The required format of a block type consists of the `block-type` and `block-name` in the format `block-type/block-name`. Block name is the name that you provided when creating the block. The block type is the same name as the underlying file system or infrastructure block class, but split into separate words combined with hyphens. Here are some examples that illustrate the pattern:
 
