@@ -36,7 +36,25 @@ def mock_docker_client(monkeypatch):
     fake_container = docker.models.containers.Container()
     fake_container.client = MagicMock(name="Container.client")
     fake_container.collection = MagicMock(name="Container.collection")
-    attrs = {"Id": "fake-id", "Name": "fake-name", "State": "exited"}
+    attrs = (
+        {
+            "Id": "fake-id",
+            "Name": "fake-name",
+            "State": {
+                "Status": "exited",
+                "Running": False,
+                "Paused": False,
+                "Restarting": False,
+                "OOMKilled": False,
+                "Dead": True,
+                "Pid": 0,
+                "ExitCode": 0,
+                "Error": "",
+                "StartedAt": "2022-08-31T18:01:32.645851548Z",
+                "FinishedAt": "2022-08-31T18:01:32.657076632Z",
+            },
+        },
+    )
     fake_container.collection.get().attrs = attrs
     fake_container.attrs = attrs
 
