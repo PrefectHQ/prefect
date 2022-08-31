@@ -53,6 +53,23 @@ def test_generate_lower_bounds_robust_to_versions_with_dots(
 
 
 @pytest.mark.parametrize(
+    "min_version",
+    [
+        "10.0a1",
+        "10.0alpha",
+        "10.0a2",
+        "10.0b20",
+        "10.0rc1",
+    ],
+)
+def test_generate_lower_bounds_robust_to_versions_with_prerelease_designation(
+    generate_lower_bounds, min_version
+):
+    results = list(generate_lower_bounds([f"x >= {min_version}"]))
+    assert results == [f"x=={min_version}"]
+
+
+@pytest.mark.parametrize(
     "input",
     ["x <= 11", "x <=11"],
 )

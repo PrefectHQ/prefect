@@ -1,3 +1,4 @@
+from typing import List
 from uuid import uuid4
 
 import pendulum
@@ -301,6 +302,8 @@ class TestReadFlowRuns:
         response = await client.post("/flow_runs/filter")
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 3
+        # return type should be correct
+        assert pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
     async def test_read_flow_runs_applies_flow_filter(self, flow, flow_runs, client):
         flow_run_filter = dict(
