@@ -316,41 +316,35 @@ async def read_block_documents(
     # finally, build a query that unions:
     # - the filtered block documents
     # - with any block documents that are discovered as (potentially nested) references
-    all_block_documents_query = (
-        sa.union_all(
-            # first select the parent block
-            sa.select(
-                [
-                    db.BlockDocument,
-                    sa.literal(None).label("reference_name"),
-                    sa.literal(None).label("reference_parent_block_document_id"),
-                ]
-            )
-            .select_from(db.BlockDocument)
-            .where(
-                db.BlockDocument.id.in_(sa.select(filtered_block_documents_query.c.id))
-            ),
-            #
-            # then select any referenced blocks
-            sa.select(
-                [
-                    db.BlockDocument,
-                    recursive_block_document_references_cte.c.name,
-                    recursive_block_document_references_cte.c.parent_block_document_id,
-                ]
-            )
-            .select_from(db.BlockDocument)
-            .join(
-                recursive_block_document_references_cte,
-                db.BlockDocument.id
-                == recursive_block_document_references_cte.c.reference_block_document_id,
-            ),
+    all_block_documents_query = sa.union_all(
+        # first select the parent block
+        sa.select(
+            [
+                db.BlockDocument,
+                sa.literal(None).label("reference_name"),
+                sa.literal(None).label("reference_parent_block_document_id"),
+            ]
         )
-        .order_by(db.BlockDocument.name)
-        .subquery("all_block_documents_query")
-    )
+        .select_from(db.BlockDocument)
+        .where(db.BlockDocument.id.in_(sa.select(filtered_block_documents_query.c.id))),
+        #
+        # then select any referenced blocks
+        sa.select(
+            [
+                db.BlockDocument,
+                recursive_block_document_references_cte.c.name,
+                recursive_block_document_references_cte.c.parent_block_document_id,
+            ]
+        )
+        .select_from(db.BlockDocument)
+        .join(
+            recursive_block_document_references_cte,
+            db.BlockDocument.id
+            == recursive_block_document_references_cte.c.reference_block_document_id,
+        ),
+    ).subquery("all_block_documents_query")
 
-    # as a final step, alias the query to load ORM block document objects
+    # as a final step, alias the query to load ORM block document objects and apply sorting
     # (this automatically adds joins to schema + type tables)
     all_block_documents_query = (
         sa.select(
@@ -359,6 +353,7 @@ async def read_block_documents(
             all_block_documents_query.c.reference_parent_block_document_id,
         )
         .select_from(all_block_documents_query)
+        .order_by(all_block_documents_query.c.name)
         .execution_options(populate_existing=True)
     )
 
