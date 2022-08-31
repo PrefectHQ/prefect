@@ -754,6 +754,7 @@ class TestFlowRunCrashes:
             in flow_run.state.message
         )
 
+    @pytest.mark.flaky(max_runs=3)
     async def test_interrupt_flow(self):
         i = 0
 
