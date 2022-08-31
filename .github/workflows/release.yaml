@@ -97,6 +97,8 @@ jobs:
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Test docker image
         run: |
@@ -158,6 +160,8 @@ jobs:
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           outputs: type=docker,dest=/tmp/image-conda.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Test docker image
         run: |
@@ -222,7 +226,7 @@ jobs:
           path: "./dist"
 
       - name: Publish distribution 📦 to Test PyPI
-        uses: pypa/gh-action-pypi-publish@master
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip_existing: true
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
@@ -242,7 +246,7 @@ jobs:
           path: "./dist"
 
       - name: Publish distribution to PyPI
-        uses: pypa/gh-action-pypi-publish@master
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
 
