@@ -155,13 +155,19 @@ class OrionAgent:
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
         deployment = await self.client.read_deployment(flow_run.deployment_id)
 
+        # overrides only apply when configuring known infra blocks
+        if not deployment.infrastructure_document_id:
+            if self.default_infrastructure:
+                return self.default_infrastructure
+            else:
+                infra_document = await self.client.read_block_document(
+                    self.default_infrastructure_document_id
+                )
+                return Block._from_block_document(infra_document)
+
         ## get infra
-        infrastructure_document_id = (
-            deployment.infrastructure_document_id
-            or self.default_infrastructure_document_id
-        )
         infra_document = await self.client.read_block_document(
-            infrastructure_document_id
+            deployment.infrastructure_document_id
         )
 
         # this piece of logic applies any overrides that may have been set on the deployment;
@@ -261,12 +267,6 @@ class OrionAgent:
         self.client = get_client()
         await self.client.__aenter__()
         await self.task_group.__aenter__()
-
-        # Convert the passed default infrastructure to an id
-        if self.default_infrastructure and not self.default_infrastructure_document_id:
-            self.default_infrastructure_document_id = (
-                await self.default_infrastructure._save(is_anonymous=True)
-            )
 
     async def shutdown(self, *exc_info):
         self.started = False

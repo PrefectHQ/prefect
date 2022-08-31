@@ -269,3 +269,9 @@ class MappingMissingIterable(PrefectException):
     """
     Raised when attempting to call Task.map with all static arguments
     """
+
+
+class BlockMissingCapabilities(PrefectException):
+    """
+    Raised when a block does not have required capabilities for a given operation.
+    """

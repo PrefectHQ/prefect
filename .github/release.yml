@@ -18,7 +18,7 @@ changelog:
         - enhancement
     - title: Fixes
       labels:
-        - bug
+        - fix
     - title: Documentation
       labels:
         - docs
