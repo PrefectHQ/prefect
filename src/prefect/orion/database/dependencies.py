@@ -29,6 +29,7 @@ MODELS_DEPENDENCIES = {
     "database_config": None,
     "query_components": None,
     "orm": None,
+    "interface_class": None,
 }
 
 
@@ -44,6 +45,7 @@ def provide_database_interface() -> OrionDBInterface:
     database_config = MODELS_DEPENDENCIES.get("database_config")
     query_components = MODELS_DEPENDENCIES.get("query_components")
     orm = MODELS_DEPENDENCIES.get("orm")
+    interface_class = MODELS_DEPENDENCIES.get("interface_class")
     dialect = get_dialect(connection_url)
 
     if database_config is None:
@@ -83,7 +85,10 @@ def provide_database_interface() -> OrionDBInterface:
 
         MODELS_DEPENDENCIES["orm"] = orm
 
-    return OrionDBInterface(
+    if interface_class is None:
+        interface_class = OrionDBInterface
+
+    return interface_class(
         database_config=database_config,
         query_components=query_components,
         orm=orm,
@@ -179,10 +184,29 @@ def temporary_orm_config(tmp_orm_config: BaseORMConfiguration):
 
 
 @contextmanager
+def temporary_interface_class(tmp_interface_class: BaseORMConfiguration):
+    """
+    Temporarily override the Orion interface class When the context is closed,
+    the existing interface will be restored.
+
+    Args:
+        tmp_interface_class: Orion interface class to inject.
+
+    """
+    starting_interface_class = MODELS_DEPENDENCIES["interface_class"]
+    try:
+        MODELS_DEPENDENCIES["interface_class"] = tmp_interface_class
+        yield
+    finally:
+        MODELS_DEPENDENCIES["interface_class"] = starting_interface_class
+
+
+@contextmanager
 def temporary_database_interface(
     tmp_database_config: BaseDatabaseConfiguration = None,
     tmp_queries: BaseQueryComponents = None,
     tmp_orm_config: BaseORMConfiguration = None,
+    tmp_interface_class: type = None,
 ):
     """
     Temporarily override the Orion database interface.
@@ -198,6 +222,7 @@ def temporary_database_interface(
         tmp_database_config: An optional Orion database configuration to inject.
         tmp_orm_config: An optional Orion ORM configuration to inject.
         tmp_queries: Optional Orion query components to inject.
+        tmp_interface_class: Optional OrionDB interface class to inject
 
     """
     with ExitStack() as stack:
@@ -206,6 +231,9 @@ def temporary_database_interface(
         )
         stack.enter_context(temporary_query_components(tmp_queries=tmp_queries))
         stack.enter_context(temporary_orm_config(tmp_orm_config=tmp_orm_config))
+        stack.enter_context(
+            temporary_interface_class(tmp_interface_class=tmp_interface_class)
+        )
         yield
 
 
@@ -222,3 +250,8 @@ def set_query_components(query_components: BaseQueryComponents):
 def set_orm_config(orm_config: BaseORMConfiguration):
     """Set Orion orm configuration."""
     MODELS_DEPENDENCIES["orm"] = orm_config
+
+
+def set_interface_class(interface_class: type):
+    """Set Orion interface class."""
+    MODELS_DEPENDENCIES["interface_class"] = interface_class

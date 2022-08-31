@@ -17,6 +17,7 @@ For larger teams, and companies with more complex needs around user and access m
 - Organizational accounts and membership management
 - Role Based Access Controls (RBAC) to set permissions at the organization and workspace level
 - Service accounts to generate credentials for specific workloads
+- Expanded and customizable [Flow Run Retention Policy](/ui/flow-runs/#flow-run-retention-policy)
 
 ![Organization member page in Cloud 2.](/img/ui/org-members.png)
 

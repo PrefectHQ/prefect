@@ -4,7 +4,7 @@ Routes for interacting with block schema objects.
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import Body, Depends, HTTPException, Path, Response, status
+from fastapi import Body, Depends, HTTPException, Path, Query, Response, status
 from fastapi.responses import Response
 
 from prefect.blocks.core import Block
@@ -132,10 +132,14 @@ async def read_block_schema_by_checksum(
         ..., description="The block schema checksum", alias="checksum"
     ),
     db: OrionDBInterface = Depends(provide_database_interface),
+    version: Optional[str] = Query(
+        None,
+        description="Version of block schema. If not provided the most recently created block schema with the matching checksum will be returned.",
+    ),
 ) -> schemas.core.BlockSchema:
     async with db.session_context() as session:
         block_schema = await models.block_schemas.read_block_schema_by_checksum(
-            session=session, checksum=block_schema_checksum
+            session=session, checksum=block_schema_checksum, version=version
         )
     if not block_schema:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block schema not found")

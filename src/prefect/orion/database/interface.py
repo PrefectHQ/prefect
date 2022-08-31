@@ -17,6 +17,7 @@ class DBSingleton(type):
 
     def __call__(cls, *args, **kwargs):
         unique_key = (
+            cls.__name__,
             kwargs["database_config"]._unique_key(),
             kwargs["query_components"]._unique_key(),
             kwargs["orm"]._unique_key(),
