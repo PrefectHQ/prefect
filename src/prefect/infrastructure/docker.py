@@ -229,6 +229,7 @@ class DockerContainer(Infrastructure):
 
         return volumes
 
+    @sync_compatible
     async def run(
         self,
         task_status: Optional[TaskStatus] = None,
