@@ -89,11 +89,15 @@ LABEL org.label-schema.url="https://www.prefect.io/"
 
 WORKDIR /opt/prefect
 
-# Install tini for the entrypoint
+# Install requirements
+# - tini: Used in the entrypoint
+# - build-essential: Required for Python dependencies without wheels
+# - git: Required for retrieving workflows from git sources
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
         tini=0.19.* \
-        build-essential \ 
+        build-essential \
+        git=1:2.* \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Pin the pip version
