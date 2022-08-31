@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 TrackedObjectType = Union["Flow", "Task"]
 
-__all__ = ["callback_factory", "gmail_notifier", "slack_notifier"]
+__all__ = ["callback_factory", "gmail_notifier", "slack_notifier", "snowflake_logger"]
 
 
 def callback_factory(
@@ -317,4 +317,136 @@ def slack_notifier(
     r = requests.post(webhook_url, json=form_data, proxies=proxies)
     if not r.ok:
         raise ValueError("Slack notification for {} failed".format(tracked_obj))
+    return new_state
+
+
+def snowflake_message_formatter(
+    tracked_obj: TrackedObjectType,
+    state: "prefect.engine.state.State",
+) -> dict:
+    fields = []
+    if isinstance(state.result, Exception):
+        value = "{}".format(repr(state.result))
+    else:
+        value = cast(str, state.message)
+    if value is not None:
+        fields.append({"value": value.replace("'", "''")})
+
+    notification_payload = {
+        "flow_id": prefect.context.get("flow_run_id"),
+        "flow_name": prefect.context.get("flow_name"),
+        "task_name": tracked_obj.name,
+        "state": type(state).__name__,
+        "message": fields,
+    }
+
+    return notification_payload
+
+
+@curry
+def snowflake_logger(
+    tracked_obj: TrackedObjectType,
+    old_state: "prefect.engine.state.State",
+    new_state: "prefect.engine.state.State",
+    ignore_states: list = None,
+    only_states: list = None,
+    snowflake_secret: str = None,
+    snowflake_log_table_name: str = None,
+    test_env: bool = False,
+) -> "prefect.engine.state.State":
+    """
+    Snowflake state change handler/logger; requires having the Prefect Snowflake app installed.
+    Works as a standalone state handler, or can be called from within a custom state handler.  This
+    function is curried meaning that it can be called multiple times to partially bind any
+    keyword arguments (see example below).
+    Args:
+        - tracked_obj (Task or Flow): Task or Flow object the handler is registered with.
+        - old_state (State): Previous state of tracked object.
+        - new_state (State): New state of tracked object.
+        - ignore_states ([State], optional): List of `State` classes to ignore, e.g.,
+            `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states,
+            no notification will occur.
+        - only_states ([State], optional): Similar to `ignore_states`, but instead _only_
+            notifies you if the Task / Flow is in a state from the provided list of `State`
+            classes
+        - snowflake_secret (str, optional): The name of the Prefect Secret that stores your Snowflake
+            credentials; defaults to `"SNOWFLAKE_CREDS"`.
+        - snowflake_log_table_name (str, optional): The fully qualified Snowflake log table name
+            e.g. DB.SCHEMA.TABLE.
+        - test_env (bool): Only used for testing and defaults to False.
+    Example:
+        ```python
+        from prefect import task
+        from prefect.utilities.notifications import snowflake_logger
+        @task(state_handlers=[snowflake_logger(ignore_states=[Running])]) # uses currying
+        def add(x, y):
+            return x + y
+        ```
+    """
+    # import SnowflakeQuery here to avoid circular import error
+    from prefect.tasks.snowflake import SnowflakeQuery
+
+    ignore_states = ignore_states or []
+    only_states = only_states or []
+
+    if any(isinstance(new_state, ignored) for ignored in ignore_states):
+        return new_state
+
+    if only_states and not any(
+        [isinstance(new_state, included) for included in only_states]
+    ):
+        return new_state
+
+    # get the secret
+    sf_secret = prefect.client.Secret(snowflake_secret or "SNOWFLAKE_CREDS").get()
+    sf_secret_dict = sf_secret if sf_secret is not None else {}
+
+    # get formatted message and destruct it
+    row_data = snowflake_message_formatter(tracked_obj, new_state)
+    flow_id = row_data.get("flow_id")
+    flow_name = row_data.get("flow_name")
+    task_name = row_data.get("task_name")
+    state = row_data.get("state")
+    message = row_data.get("message") if row_data.get("message") != [] else ""
+
+    # get fully qualified Snowflake log table name e.g. DB.SCHEMA.TABLE
+    full_log_table_name = prefect.client.Secret(
+        snowflake_log_table_name or "LOG_TABLE_NAME_FULL"
+    ).get()
+    full_log_table_name_list = (
+        full_log_table_name.split(".") if full_log_table_name else "DB.SCHEMA.TABLE"
+    )
+    DB_NAME = full_log_table_name_list[0]
+    SCHEMA_NAME = full_log_table_name_list[1]
+    TABLE_NAME = full_log_table_name_list[2]
+
+    sql = (
+        f"INSERT INTO {DB_NAME}.{SCHEMA_NAME}.{TABLE_NAME} (FLOW_ID, FLOW_NAME, TASK_NAME, "
+        f"STATE, MESSAGE, INGESTED_AT) VALUES ('{flow_id}','{flow_name}','{task_name}',"
+        f"'{state}','{message}',CURRENT_TIMESTAMP());"
+    )
+
+    sf_user = sf_secret_dict.get("user", None)
+    sf_password = sf_secret_dict.get("password", None)
+    sf_account = sf_secret_dict.get("account", None)
+    sf_role = sf_secret_dict.get("role", None)
+    sf_warehouse = sf_secret_dict.get("warehouse", None)
+    sf_private_key = sf_secret_dict.get("private_key", None)
+
+    # adding extra check to handle testing
+    # at this point it would just test the original SnowflakeQuery Task
+    # and that seems unnecessary
+    if test_env:
+        print(sql)
+    else:
+        # Insert log data about Task into LOG table
+        SnowflakeQuery().run(
+            user=sf_user,
+            password=sf_password,
+            account=sf_account,
+            role=sf_role,
+            warehouse=sf_warehouse,
+            private_key=sf_private_key,
+            query=sql,
+        )
     return new_state
