@@ -22,7 +22,9 @@ class TestExtraForbidden:
         class Model(PrefectBaseModel):
             x: int
 
-        with pytest.raises(pydantic.ValidationError):
+        with pytest.raises(
+            pydantic.ValidationError, match="extra fields not permitted"
+        ):
             Model(x=1, y=2)
 
     @pytest.mark.parametrize("falsey_value", ["0", "False", "", None])
@@ -44,6 +46,26 @@ class TestExtraForbidden:
             x: int
 
         Model(x=1, y=2)
+
+    @pytest.mark.parametrize("truthy_value", ["1", "True", "true"])
+    def test_extra_attributes_are_not_allowed_with_truthy_test_mode(
+        self, monkeypatch, truthy_value
+    ):
+        monkeypatch.setenv("PREFECT_TEST_MODE", truthy_value)
+
+        # We must re-execute the module since the setting is configured at base model
+        # definition time
+        importlib.reload(prefect.orion.utilities.schemas)
+
+        from prefect.orion.utilities.schemas import PrefectBaseModel
+
+        class Model(PrefectBaseModel):
+            x: int
+
+        with pytest.raises(
+            pydantic.ValidationError, match="extra fields not permitted"
+        ):
+            Model(x=1, y=2)
 
 
 class TestPydanticSubclass:
