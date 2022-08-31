@@ -169,23 +169,6 @@ def prefect_git_source(**kwargs):
     )
 
 
-def assert_git_source_conflicting_args(**kwargs):
-    with pytest.raises(pydantic.ValidationError):
-        prefect_git_source(**kwargs)
-
-
-def test_gitsource_branch_or_tag_are_exclusive():
-    assert_git_source_conflicting_args(git_branch="main", git_tag="v1.0")
-
-
-def test_gitsource_branch_or_commit_are_exclusive():
-    assert_git_source_conflicting_args(git_branch="main", git_commit="78ffc7055")
-
-
-def test_gitsource_commit_or_tag_are_exclusive():
-    assert_git_source_conflicting_args(git_tag="v1.0", git_commit="78ffc7055")
-
-
 def multi_task_job_def():
     return {
         "tasks": [

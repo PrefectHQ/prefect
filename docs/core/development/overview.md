@@ -21,7 +21,7 @@ The source code for [Prefect Server](https://github.com/PrefectHQ/server) and [P
 To clone Prefect for development, we recommend creating an "editable" install of Prefect's master branch, including all development dependencies:
 
 ```bash
-git clone https://github.com/PrefectHQ/prefect.git
+git clone --branch 1.x --depth 1 https://github.com/PrefectHQ/prefect.git
 cd prefect
 pip install -e ".[dev]"
 ```
