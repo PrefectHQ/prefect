@@ -139,8 +139,8 @@ class PrefectBaseModel(BaseModel):
         # extra attributes are forbidden in order to raise meaningful errors for
         # bad API payloads
         # We cannot load this setting through the normal pattern due to circular
-        # imports; instead just parse the value as a boolean directly
-        if pydantic.parse_obj_as(bool, os.getenv("PREFECT_TEST_MODE")):
+        # imports; instead just check if its a truthy setting directly
+        if os.getenv("PREFECT_TEST_MODE", "0").lower() in ["1", "true"]:
             extra = "forbid"
         else:
             extra = "ignore"

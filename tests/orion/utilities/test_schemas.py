@@ -1,10 +1,12 @@
 import datetime
+import importlib
 from uuid import UUID, uuid4
 
 import pendulum
 import pydantic
 import pytest
 
+import prefect.orion.utilities.schemas
 from prefect.orion.utilities.schemas import (
     DateTimeTZ,
     IDBaseModel,
@@ -22,6 +24,26 @@ class TestExtraForbidden:
 
         with pytest.raises(pydantic.ValidationError):
             Model(x=1, y=2)
+
+    @pytest.mark.parametrize("falsey_value", ["0", "False", "", None])
+    def test_extra_attributes_are_allowed_outside_test_mode(
+        self, monkeypatch, falsey_value
+    ):
+        if falsey_value is not None:
+            monkeypatch.setenv("PREFECT_TEST_MODE", falsey_value)
+        else:
+            monkeypatch.delenv("PREFECT_TEST_MODE")
+
+        # We must re-execute the module since the setting is configured at base model
+        # definition time
+        importlib.reload(prefect.orion.utilities.schemas)
+
+        from prefect.orion.utilities.schemas import PrefectBaseModel
+
+        class Model(PrefectBaseModel):
+            x: int
+
+        Model(x=1, y=2)
 
 
 class TestPydanticSubclass:
