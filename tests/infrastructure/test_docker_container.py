@@ -573,6 +573,18 @@ async def test_container_result(docker: "DockerClient"):
 
 
 @pytest.mark.service("docker")
+async def test_container_auto_remove(docker: "DockerClient"):
+    from docker.errors import NotFound
+
+    result = await DockerContainer(command=["echo", "hello"], auto_remove=True).run()
+    assert bool(result)
+    assert result.status_code == 0
+    assert result.identifier
+    with pytest.raises(NotFound):
+        docker.containers.get(result.identifier)
+
+
+@pytest.mark.service("docker")
 async def test_container_metadata(docker: "DockerClient"):
     result = await DockerContainer(
         command=["echo", "hello"],
