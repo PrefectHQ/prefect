@@ -22,7 +22,7 @@ class Infrastructure(Block, abc.ABC):
 
     type: str
 
-    env: Dict[str, str] = pydantic.Field(
+    env: Dict[str, Optional[str]] = pydantic.Field(
         default_factory=dict,
         description="Environment variables to set in the configured infrastructure.",
     )

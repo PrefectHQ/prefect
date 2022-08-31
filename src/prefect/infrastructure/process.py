@@ -103,7 +103,10 @@ class Process(Infrastructure):
         os_environ = os.environ if include_os_environ else {}
         # The base environment must override the current environment or
         # the Prefect settings context may not be respected
-        return {**os_environ, **self._base_environment(), **self.env}
+        env = {**os_environ, **self._base_environment(), **self.env}
+
+        # Drop null values allowing users to "unset" variables
+        return {key: value for key, value in env.items() if value is not None}
 
 
 class ProcessResult(InfrastructureResult):

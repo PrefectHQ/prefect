@@ -550,4 +550,5 @@ class DockerContainer(Infrastructure):
                 .replace("127.0.0.1", "host.docker.internal")
             )
 
-        return env
+        # Drop null values allowing users to "unset" variables
+        return {key: value for key, value in env.items() if value is not None}

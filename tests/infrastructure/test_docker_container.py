@@ -196,6 +196,15 @@ async def test_uses_env_setting(
     }
 
 
+async def test_allows_unsetting_environment_variables(
+    mock_docker_client,
+):
+    await DockerContainer(env={"PREFECT_TEST_MODE": None}).run()
+    mock_docker_client.containers.create.assert_called_once()
+    call_env = mock_docker_client.containers.create.call_args[1].get("environment")
+    assert "PREFECT_TEST_MODE" not in call_env
+
+
 async def test_uses_image_registry_setting(
     mock_docker_client,
 ):
