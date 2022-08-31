@@ -952,6 +952,19 @@ class BlockTypeFilterName(PrefectFilterBaseModel):
         return filters
 
 
+class BlockTypeFilterSlug(PrefectFilterBaseModel):
+    """Filter by `BlockType.slug`"""
+
+    any_: List[str] = Field(None, description=("A list of slugs to match"))
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.BlockType.slug.in_(self.any_))
+
+        return filters
+
+
 class BlockTypeFilter(PrefectFilterBaseModel):
     """Filter BlockTypes"""
 
@@ -959,11 +972,17 @@ class BlockTypeFilter(PrefectFilterBaseModel):
         None, description="Filter criteria for `BlockType.name`"
     )
 
+    slug: Optional[BlockTypeFilterSlug] = Field(
+        None, description="Filter criteria for `BlockType.slug`"
+    )
+
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
 
         if self.name is not None:
             filters.append(self.name.as_sql_filter(db))
+        if self.slug is not None:
+            filters.append(self.slug.as_sql_filter(db))
 
         return filters
 
@@ -1087,9 +1106,36 @@ class BlockDocumentFilterBlockTypeId(PrefectFilterBaseModel):
         return filters
 
 
+class BlockDocumentFilterId(PrefectFilterBaseModel):
+    """Filter by `BlockDocument.id`."""
+
+    any_: List[UUID] = Field(None, description="A list of block ids to include")
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.BlockDocument.id.in_(self.any_))
+        return filters
+
+
+class BlockDocumentFilterName(PrefectFilterBaseModel):
+    """Filter by `BlockDocument.name`."""
+
+    any_: List[str] = Field(None, description="A list of block names to include")
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.BlockDocument.name.in_(self.any_))
+        return filters
+
+
 class BlockDocumentFilter(PrefectOperatorFilterBaseModel):
     """Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned"""
 
+    id: Optional[BlockDocumentFilterId] = Field(
+        None, description="Filter criteria for `BlockDocument.id`"
+    )
     is_anonymous: Optional[BlockDocumentFilterIsAnonymous] = Field(
         # default is to exclude anonymous blocks
         BlockDocumentFilterIsAnonymous(eq_=False),
@@ -1101,14 +1147,20 @@ class BlockDocumentFilter(PrefectOperatorFilterBaseModel):
     block_type_id: Optional[BlockDocumentFilterBlockTypeId] = Field(
         None, description="Filter criteria for `BlockDocument.block_type_id`"
     )
+    name: Optional[BlockDocumentFilterName] = Field(
+        None, description="Filter criteria for `BlockDocument.name`"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
+        if self.id is not None:
+            filters.append(self.id.as_sql_filter(db))
         if self.is_anonymous is not None:
             filters.append(self.is_anonymous.as_sql_filter(db))
         if self.block_type_id is not None:
             filters.append(self.block_type_id.as_sql_filter(db))
-
+        if self.name is not None:
+            filters.append(self.name.as_sql_filter(db))
         return filters
 
 
