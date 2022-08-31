@@ -562,6 +562,22 @@ class TestReadBlockDocuments:
         assert len(swim_block_documents) == 1
         assert swim_block_documents[0].id == block_documents[6].id
 
+    async def test_read_block_documents_filter_types(self, client, block_documents):
+        response = await client.post(
+            "/block_documents/filter",
+            json=dict(block_types=dict(slug=dict(any_=["a", "b"]))),
+        )
+        assert response.status_code == 200
+        docs = pydantic.parse_obj_as(List[schemas.core.BlockDocument], response.json())
+        assert len(docs) == 3
+        assert len([d for d in docs if d.block_type.slug == "a"]) == 1
+        assert len([d for d in docs if d.block_type.slug == "b"]) == 2
+        assert [b.id for b in docs] == [
+            block_documents[1].id,
+            block_documents[2].id,
+            block_documents[4].id,
+        ]
+
 
 class TestDeleteBlockDocument:
     async def test_delete_block(self, session, client, block_schemas):
