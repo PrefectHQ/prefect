@@ -28,7 +28,8 @@ markdown_extensions:
               format: !!python/name:pymdownx.superfences.fence_code_format
     - pymdownx.tabbed
     - toc:
-          permalink: true
+        permalink: true
+    - pymdownx.snippets
 theme:
     name: material
     custom_dir: docs/overrides
