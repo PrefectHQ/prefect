@@ -367,7 +367,7 @@ async def read_block_documents(
         (await session.execute(all_block_documents_query)).unique().all()
     )
 
-    # find the "parent" block documents, which will have `None` in their last two columsn
+    # find the "parent" block documents, which will have `None` in their last two columns
     parent_block_document_ids = [
         b[0].id
         for b in block_documents_with_references
