@@ -412,8 +412,9 @@ class DockerContainer(Infrastructure):
                 container = docker_client.containers.create(name=name, **kwargs)
             except APIError as exc:
                 if "Conflict" in str(exc) and "container name" in str(exc):
-                    self.logger.debug(
-                        f"Docker container name already exists; adding identifier..."
+                    self.logger.info(
+                        f"Docker container name {display_name} already exists; "
+                        "retrying..."
                     )
                     index += 1
                     name = f"{original_name}-{index}"
