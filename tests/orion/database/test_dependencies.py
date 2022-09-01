@@ -11,6 +11,7 @@ from prefect.orion.database.configurations import (
     BaseDatabaseConfiguration,
 )
 from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import (
     AioSqliteORMConfiguration,
     AsyncPostgresORMConfiguration,
@@ -188,3 +189,14 @@ async def test_inject_db(db):
             return 1
 
     assert inspect.iscoroutinefunction(Returner().return_1)
+
+
+async def test_inject_interface_class():
+    class TestInterface(OrionDBInterface):
+        @property
+        def new_property(self):
+            return 42
+
+    with dependencies.temporary_interface_class(TestInterface):
+        db = dependencies.provide_database_interface()
+        assert isinstance(db, TestInterface)
