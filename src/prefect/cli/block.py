@@ -23,7 +23,7 @@ from prefect.utilities.importtools import load_script_as_module
 
 blocks_app = PrefectTyper(name="block", help="Commands for working with blocks.")
 blocktypes_app = PrefectTyper(
-    name="type", help="Commands for working with blocks types"
+    name="type", help="Commands for working with blocks types."
 )
 app.add_typer(blocks_app, aliases=["blocks"])
 blocks_app.add_typer(blocktypes_app, aliases=["types"])
