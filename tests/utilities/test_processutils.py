@@ -1,3 +1,4 @@
+import os
 import signal
 import sys
 from unittest import mock
@@ -56,6 +57,19 @@ async def test_run_process_allows_stderr_fd(tmp_path):
     assert (tmp_path / "output.txt").read_text().strip() == "hello world"
 
 
+def send_signal(signal_: int):
+    # Python 3.7 doesn't have access to the `signal.raise_signal` method, this
+    # is a bit of a hacky fall-back that handles windows as well as python 3.7.
+    if sys.platform == "win32":
+        import ctypes
+
+        ucrtbase = ctypes.CDLL("ucrtbase")
+        c_raise = ucrtbase["raise"]
+        c_raise(signal_)
+    else:
+        os.killpg(os.getpgid(os.getpid()), signal_)
+
+
 class TestKillOnInterrupt:
     @pytest.mark.skipif(
         sys.platform == "win32",
@@ -69,14 +83,14 @@ class TestKillOnInterrupt:
         kill_on_interrupt(123, "My Process", print_fn)
 
         # Send first SIGINT and expect a SIGTERM
-        signal.raise_signal(signal.SIGINT)
+        send_signal(signal.SIGINT)
         print_fn.assert_called_once_with("\nStopping My Process...")
         os_kill.assert_called_once_with(123, signal.SIGTERM)
 
         # Reset mocks and send second SIGINT and expect SIGKILL
         print_fn.reset_mock()
         os_kill.reset_mock()
-        signal.raise_signal(signal.SIGINT)
+        send_signal(signal.SIGINT)
 
         print_fn.assert_called_once_with("\nKilling My Process...")
         os_kill.assert_called_once_with(123, signal.SIGKILL)
@@ -91,7 +105,7 @@ class TestKillOnInterrupt:
         monkeypatch.setattr("os.kill", os_kill)
 
         kill_on_interrupt(123, "My Process", print_fn)
-        signal.raise_signal(signal.SIGINT)
+        send_signal(signal.SIGINT)
 
         print_fn.assert_called_once_with("\nStopping My Process...")
         os_kill.assert_called_once_with(123, signal.CTRL_BREAK_EVENT)
