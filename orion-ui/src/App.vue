@@ -62,7 +62,7 @@
     workQueuesRouteKey
   } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media, showToast } from '@prefecthq/prefect-design'
-  import { computed, onMounted, provide, ref, watchEffect } from 'vue'
+  import { computed, provide, ref, watchEffect } from 'vue'
   import { blockDocumentsApi } from './services/blockDocumentsApi'
   import { blockSchemasApi } from './services/blockSchemasApi'
   import { blockTypesApi } from './services/blockTypesApi'
