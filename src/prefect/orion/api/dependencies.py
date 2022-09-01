@@ -14,40 +14,22 @@ from prefect.settings import PREFECT_ORION_API_DEFAULT_LIMIT
 
 
 @response_scoped_dependency
-async def get_raw_session(
-    db: OrionDBInterface = Depends(provide_database_interface),
-) -> AsyncGenerator[AsyncSession, None]:
-    """
-    Dependency-injected database session that handles opening and closing the
-    session, but does not perform any transaction management like commits or
-    rollbacks. This means users can use this dependency for a "commit-as-you-go"
-    style.
-
-    Unless explicit transaction control is required, users should prefer the
-    `get_session` dependency which automatically begins, commits, or rolls back
-    a transaction.
-    """
-    session = await db.session()
-    async with session:
-        yield session
-
-
-@response_scoped_dependency
 async def get_session(
-    raw_session: AsyncSession = Depends(get_raw_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency-injected database session.
 
-    The context manager will automatically handle commits, rollbacks, and
-    closing the connection. It can not be used for explicit commits, however. To
-    manually commit a session, use the `get_raw_session` dependency.
+    The context manager will automatically handle commits, rollbacks, and closing the
+    connection.
 
-    A `response_scoped_dependency` is used to ensure this session is closed
-    before the response is returned to a client.
+    A `response_scoped_dependency` is used to ensure this session is closed before the
+    response is returned to a client.
     """
-    async with raw_session.begin():
-        yield raw_session
+    session = await db.session()
+    async with session:
+        async with session.begin():
+            yield session
 
 
 class EnforceMinimumAPIVersion:
