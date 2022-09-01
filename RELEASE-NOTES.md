@@ -14,8 +14,8 @@
 * Fix handling of `.prefectignore` paths on Windows — https://github.com/PrefectHQ/prefect/pull/6680
 
 ## New collections
+* [prefect-juptyer](https://prefecthq.github.io/prefect-jupyter/)
 
-- [prefect-juptyer](https://prefecthq.github.io/prefect-jupyter/)
 ## Contributors
 * @mars-f made their first contribution — https://github.com/PrefectHQ/prefect/pull/6639
 * @pdashk made their first contribution — https://github.com/PrefectHQ/prefect/pull/6640
