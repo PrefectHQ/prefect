@@ -578,6 +578,18 @@ class TestReadBlockDocuments:
             block_documents[4].id,
         ]
 
+    async def test_read_block_documents_filter_multiple(self, client, block_documents):
+        response = await client.post(
+            "/block_documents/filter",
+            json=dict(
+                block_types=dict(slug=dict(any_=["a", "b"])),
+                block_schemas=dict(block_capabilities=dict(all_=["fly"])),
+            ),
+        )
+        assert response.status_code == 200
+        docs = pydantic.parse_obj_as(List[schemas.core.BlockDocument], response.json())
+        assert [b.id for b in docs] == [block_documents[2].id, block_documents[4].id]
+
 
 class TestDeleteBlockDocument:
     async def test_delete_block(self, session, client, block_schemas):
