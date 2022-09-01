@@ -68,6 +68,7 @@
   import { blockTypesApi } from './services/blockTypesApi'
   import { healthApi } from './services/healthApi'
   import { notificationsApi } from './services/notificationsApi'
+  import { UiSettings } from './services/uiSettings'
   import ContextSidebar from '@/components/ContextSidebar.vue'
   import { routes } from '@/router/routes'
   import { blockCapabilitiesApi } from '@/services/blockCapabilitiesApi'
@@ -134,15 +135,15 @@
     try {
       await healthApi.getHealth()
     } catch (error) {
-      showToast('Network error', 'error', { timeout: false })
+      const apiUrl = await UiSettings.get('apiUrl').then(res => res)
+      showToast(`Can't connect to Orion API at ${apiUrl}. Check that it's accessible from your machine.`, 'error', { timeout: false })
       console.warn(error)
     }
   }
 
-  watchEffect(() => {
-    healthCheck()
-    document.body.classList.toggle('body-scrolling-disabled', showMenu.value && !media.lg)
-  })
+  healthCheck()
+
+  watchEffect(() => document.body.classList.toggle('body-scrolling-disabled', showMenu.value && !media.lg))
 </script>
 
 <style>
