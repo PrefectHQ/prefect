@@ -23,7 +23,8 @@ from prefect.testing.utilities import assert_does_not_warn
 @contextmanager
 def reload_prefect_base_model(test_mode_value) -> Type[PrefectBaseModel]:
 
-    original = os.environ.get("PREFECT_TEST_MODE")
+    original_base_model = prefect.orion.utilities.schemas.PrefectBaseModel
+    original_environment = os.environ.get("PREFECT_TEST_MODE")
     if test_mode_value is not None:
         os.environ["PREFECT_TEST_MODE"] = test_mode_value
     else:
@@ -38,11 +39,13 @@ def reload_prefect_base_model(test_mode_value) -> Type[PrefectBaseModel]:
 
         yield PrefectBaseModel
     finally:
-        if original is None:
+        if original_environment is None:
             os.environ.pop("PREFECT_TEST_MODE")
         else:
-            os.environ["PREFECT_TEST_MODE"] = original
-        importlib.reload(prefect.orion.utilities.schemas)
+            os.environ["PREFECT_TEST_MODE"] = original_environment
+
+        # We must restore this type or `isinstance` checks will fail later
+        prefect.orion.utilities.schemas.PrefectBaseModel = original_base_model
 
 
 class TestExtraForbidden:
