@@ -1,5 +1,25 @@
 # Prefect Release Notes
 
+## 2.3.1
+
+### Enhancements
+* Add sync compatibility to `run` for all infrastructure types — https://github.com/PrefectHQ/prefect/pull/6654
+* Update Docker container name collision log to `INFO` level for clarity — https://github.com/PrefectHQ/prefect/pull/6657
+* Refactor block documents queries for speed ⚡️ — https://github.com/PrefectHQ/prefect/pull/6645
+* Update block CLI to match standard styling — https://github.com/PrefectHQ/prefect/pull/6679
+### Fixes
+* Add `git` to the Prefect image — https://github.com/PrefectHQ/prefect/pull/6653
+* Update Docker container runs to be robust to container removal — https://github.com/PrefectHQ/prefect/pull/6656
+* Fix parsing of `PREFECT_TEST_MODE` in `PrefectBaseModel` — https://github.com/PrefectHQ/prefect/pull/6647
+* Fix handling of `.prefectignore` paths on Windows — https://github.com/PrefectHQ/prefect/pull/6680
+
+## New collections
+
+- [prefect-juptyer](https://prefecthq.github.io/prefect-jupyter/)
+## Contributors
+* @mars-f made their first contribution — https://github.com/PrefectHQ/prefect/pull/6639
+* @pdashk made their first contribution — https://github.com/PrefectHQ/prefect/pull/6640
+
 ## 2.3.0
 
 ### Exciting New Features 🎉
