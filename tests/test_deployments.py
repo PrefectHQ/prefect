@@ -4,7 +4,8 @@ from pydantic.error_wrappers import ValidationError
 
 from prefect.blocks.core import Block
 from prefect.deployments import Deployment
-from prefect.filesystems import S3, LocalFileSystem
+from prefect.exceptions import BlockMissingCapabilities
+from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
 
 
@@ -22,7 +23,7 @@ class TestDeploymentBasicInterface:
     async def test_that_storage_block_capabilities_are_validated(self):
         bad_storage = Process()
 
-        with pytest.raises(ValueError, match="capabilities"):
+        with pytest.raises(ValueError, match="'get-directory' capabilities"):
             Deployment(name="foo", storage=bad_storage)
 
     async def test_that_infrastructure_defaults_to_process(self):
@@ -181,6 +182,24 @@ class TestDeploymentUpload:
         assert d.storage._is_anonymous is False
         assert d.storage._block_document_id == old_id
 
+    async def test_uploading_with_readonly_storage_raises(self, tmp_path):
+        storage = GitHub(repository="prefect")
+
+        d = Deployment(name="foo", flow_name="bar", storage=storage)
+
+        with pytest.raises(
+            BlockMissingCapabilities, match="'put-directory' capability"
+        ):
+            await d.upload_to_storage(ignore_file=None)
+
+        d = Deployment(name="foo", flow_name="bar")
+        await storage.save(name="readonly")
+
+        with pytest.raises(
+            BlockMissingCapabilities, match="'put-directory' capability"
+        ):
+            await d.upload_to_storage(storage_block="github/readonly", ignore_file=None)
+
 
 class TestDeploymentBuild:
     async def test_build_from_flow_requires_name(self, flow_function):
@@ -209,6 +228,17 @@ class TestDeploymentBuild:
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
         assert d.path is not None
+
+    async def test_build_from_flow_gracefully_handles_readonly_storage(
+        self, flow_function
+    ):
+        storage = GitHub(repository="prefect")
+        d = await Deployment.build_from_flow(
+            flow=flow_function, name="foo", storage=storage
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.path is None
 
     async def test_build_from_flow_manages_docker_specific_path(self, flow_function):
         # default, local within-container storage assumption
