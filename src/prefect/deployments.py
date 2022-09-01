@@ -6,7 +6,7 @@ import importlib
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 import yaml
@@ -18,7 +18,7 @@ from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
-from prefect.infrastructure import DockerContainer, KubernetesJob, Process
+from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -268,9 +268,7 @@ class Deployment(BaseModel):
         None,
         description="The path to the flow's manifest file, relative to the chosen storage.",
     )
-    infrastructure: Union[DockerContainer, KubernetesJob, Process] = Field(
-        default_factory=Process
-    )
+    infrastructure: Infrastructure = Field(default_factory=Process)
     infra_overrides: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",
