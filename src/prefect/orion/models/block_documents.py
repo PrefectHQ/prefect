@@ -342,7 +342,7 @@ async def read_block_documents(
             db.BlockDocument.id
             == recursive_block_document_references_cte.c.reference_block_document_id,
         ),
-    ).subquery("all_block_documents_query")
+    ).cte("all_block_documents_query")
 
     # as a final step, alias the query to load ORM block document objects and apply sorting
     # (this automatically adds joins to schema + type tables)
@@ -362,12 +362,16 @@ async def read_block_documents(
         (await session.execute(all_block_documents_query)).unique().all()
     )
 
-    # find the "parent" block documents, which will have `None` in their last two columns
-    parent_block_document_ids = [
-        b[0].id
-        for b in block_documents_with_references
-        if b[1] is None and b[2] is None
-    ]
+    parent_block_document_ids = []
+    for i, (doc, name, parent_id) in enumerate(block_documents_with_references):
+        # identify "parent" block documents that have no `parent_id` because they aren't references
+        if parent_id is None:
+            parent_block_document_ids.append(doc.id)
+
+        # SQLite returns IDs as strings but we expect UUIDs
+        elif isinstance(parent_id, str):
+            parent_id = UUID(parent_id)
+            block_documents_with_references[i] = (doc, name, parent_id)
 
     # walk the resulting dataset and hydrate all block documents
     fully_constructed_block_documents = []
