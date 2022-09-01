@@ -1797,3 +1797,16 @@ class TestTypeDispatch:
 
         model = ParentModel(block=BChildBlock().dict())
         assert type(model.block) == BChildBlock
+
+    def test_created_block_has_pydantic_attributes(self):
+        block = BaseBlock.parse_obj(AChildBlock().dict())
+        assert block.__fields_set__
+
+    def test_created_block_can_be_copied(self):
+        block = BaseBlock.parse_obj(AChildBlock().dict())
+        block_copy = block.copy()
+        assert block == block_copy
+
+    async def test_created_block_can_be_saved(self):
+        block = BaseBlock.parse_obj(AChildBlock().dict())
+        assert await block.save("test")
