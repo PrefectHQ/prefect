@@ -1,5 +1,8 @@
 import datetime
 import importlib
+import os
+from contextlib import contextmanager
+from typing import Type
 from uuid import UUID, uuid4
 
 import pendulum
@@ -17,6 +20,31 @@ from prefect.orion.utilities.schemas import (
 from prefect.testing.utilities import assert_does_not_warn
 
 
+@contextmanager
+def reload_prefect_base_model(test_mode_value) -> Type[PrefectBaseModel]:
+
+    original = os.environ.get("PREFECT_TEST_MODE")
+    if test_mode_value is not None:
+        os.environ["PREFECT_TEST_MODE"] = test_mode_value
+    else:
+        os.environ.pop("PREFECT_TEST_MODE")
+
+    try:
+        # We must re-execute the module since the setting is configured at base model
+        # definition time
+        importlib.reload(prefect.orion.utilities.schemas)
+
+        from prefect.orion.utilities.schemas import PrefectBaseModel
+
+        yield PrefectBaseModel
+    finally:
+        if original is None:
+            os.environ.pop("PREFECT_TEST_MODE")
+        else:
+            os.environ["PREFECT_TEST_MODE"] = original
+        importlib.reload(prefect.orion.utilities.schemas)
+
+
 class TestExtraForbidden:
     def test_extra_attributes_are_forbidden_during_unit_tests(self):
         class Model(PrefectBaseModel):
@@ -28,39 +56,22 @@ class TestExtraForbidden:
             Model(x=1, y=2)
 
     @pytest.mark.parametrize("falsey_value", ["0", "False", "", None])
-    def test_extra_attributes_are_allowed_outside_test_mode(
-        self, monkeypatch, falsey_value
-    ):
-        if falsey_value is not None:
-            monkeypatch.setenv("PREFECT_TEST_MODE", falsey_value)
-        else:
-            monkeypatch.delenv("PREFECT_TEST_MODE")
+    def test_extra_attributes_are_allowed_outside_test_mode(self, falsey_value):
 
-        # We must re-execute the module since the setting is configured at base model
-        # definition time
-        importlib.reload(prefect.orion.utilities.schemas)
+        with reload_prefect_base_model(falsey_value) as PrefectBaseModel:
 
-        from prefect.orion.utilities.schemas import PrefectBaseModel
-
-        class Model(PrefectBaseModel):
-            x: int
+            class Model(PrefectBaseModel):
+                x: int
 
         Model(x=1, y=2)
 
     @pytest.mark.parametrize("truthy_value", ["1", "True", "true"])
-    def test_extra_attributes_are_not_allowed_with_truthy_test_mode(
-        self, monkeypatch, truthy_value
-    ):
-        monkeypatch.setenv("PREFECT_TEST_MODE", truthy_value)
+    def test_extra_attributes_are_not_allowed_with_truthy_test_mode(self, truthy_value):
 
-        # We must re-execute the module since the setting is configured at base model
-        # definition time
-        importlib.reload(prefect.orion.utilities.schemas)
+        with reload_prefect_base_model(truthy_value) as PrefectBaseModel:
 
-        from prefect.orion.utilities.schemas import PrefectBaseModel
-
-        class Model(PrefectBaseModel):
-            x: int
+            class Model(PrefectBaseModel):
+                x: int
 
         with pytest.raises(
             pydantic.ValidationError, match="extra fields not permitted"
