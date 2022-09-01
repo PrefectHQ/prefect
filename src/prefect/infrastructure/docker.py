@@ -14,7 +14,7 @@ from typing_extensions import Literal
 
 import prefect
 from prefect.blocks.core import Block, SecretStr
-from prefect.docker import get_prefect_image_name
+from prefect.docker import get_prefect_image_name, parse_image_tag
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -229,6 +229,7 @@ class DockerContainer(Infrastructure):
 
         return volumes
 
+    @sync_compatible
     async def run(
         self,
         task_status: Optional[TaskStatus] = None,
@@ -297,10 +298,7 @@ class DockerContainer(Infrastructure):
         return container.id
 
     def _get_image_and_tag(self) -> Tuple[str, Optional[str]]:
-        parts = self.image.split(":")
-        image = parts.pop(0)
-        tag = parts[0] if parts else None
-        return image, tag
+        return parse_image_tag(self.image)
 
     def _determine_image_pull_policy(self) -> ImagePullPolicy:
         """
@@ -415,8 +413,9 @@ class DockerContainer(Infrastructure):
                 container = docker_client.containers.create(name=name, **kwargs)
             except APIError as exc:
                 if "Conflict" in str(exc) and "container name" in str(exc):
-                    self.logger.debug(
-                        f"Docker container name already exists; adding identifier..."
+                    self.logger.info(
+                        f"Docker container name {display_name} already exists; "
+                        "retrying..."
                     )
                     index += 1
                     name = f"{original_name}-{index}"

@@ -1,10 +1,13 @@
 import abc
 import glob
+import io
 import json
+import os
 import shutil
 import sys
+import tempfile
 import urllib.parse
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any, Dict, Optional
 
 import anyio
@@ -14,6 +17,7 @@ from pydantic import Field, SecretStr, validator
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import filter_files
+from prefect.utilities.processutils import run_process
 
 
 class ReadableFileSystem(Block, abc.ABC):
@@ -25,14 +29,44 @@ class ReadableFileSystem(Block, abc.ABC):
 
 
 class WritableFileSystem(Block, abc.ABC):
-    _block_schema_capabilities = ["write-path"]
+    _block_schema_capabilities = ["read-path", "write-path"]
+
+    @abc.abstractmethod
+    async def read_path(self, path: str) -> bytes:
+        pass
 
     @abc.abstractmethod
     async def write_path(self, path: str, content: bytes) -> None:
         pass
 
 
-class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
+class ReadableDeploymentStorage(Block, abc.ABC):
+    _block_schema_capabilities = ["get-directory"]
+
+    @abc.abstractmethod
+    async def get_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> None:
+        pass
+
+
+class WritableDeploymentStorage(Block, abc.ABC):
+    _block_schema_capabilities = ["get-directory", "put-directory"]
+
+    @abc.abstractmethod
+    async def get_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> None:
+        pass
+
+    @abc.abstractmethod
+    async def put_directory(
+        self, local_path: str = None, to_path: str = None, ignore_file: str = None
+    ) -> None:
+        pass
+
+
+class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on a local file system.
 
@@ -171,7 +205,7 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
             await f.write(content)
 
 
-class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
+class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on a remote file system.
 
@@ -286,16 +320,21 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
             with open(ignore_file, "r") as f:
                 ignore_patterns = f.readlines()
 
-            included_files = filter_files(local_path, ignore_patterns)
+            included_files = filter_files(
+                local_path, ignore_patterns, include_dirs=True
+            )
 
         counter = 0
-        for f in glob.glob("**", recursive=True):
-            if ignore_file and f not in included_files:
+        for f in glob.glob(os.path.join(local_path, "**"), recursive=True):
+            relative_path = PurePath(f).relative_to(local_path).as_posix()
+            if included_files and relative_path not in included_files:
                 continue
+
             if to_path.endswith("/"):
-                fpath = to_path + f
+                fpath = to_path + relative_path
             else:
-                fpath = to_path + "/" + f
+                fpath = to_path + "/" + relative_path
+
             if Path(f).is_dir():
                 pass
             else:
@@ -303,7 +342,9 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
                     self.filesystem.put_file(f, fpath, overwrite=True)
                 else:
                     self.filesystem.put_file(f, fpath)
+
             counter += 1
+
         return counter
 
     async def read_path(self, path: str) -> bytes:
@@ -342,7 +383,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         return self._filesystem
 
 
-class S3(ReadableFileSystem, WritableFileSystem):
+class S3(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on AWS S3.
 
@@ -411,7 +452,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
         ignore_file: Optional[str] = None,
     ) -> int:
         """
-        Uploads a directory from a given local path to a remote direcotry.
+        Uploads a directory from a given local path to a remote directory.
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
@@ -426,7 +467,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
         return await self.filesystem.write_path(path=path, content=content)
 
 
-class GCS(ReadableFileSystem, WritableFileSystem):
+class GCS(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on Google Cloud Storage.
 
@@ -507,7 +548,7 @@ class GCS(ReadableFileSystem, WritableFileSystem):
         return await self.filesystem.write_path(path=path, content=content)
 
 
-class Azure(ReadableFileSystem, WritableFileSystem):
+class Azure(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on Azure Datalake and Azure Blob Storage.
 
@@ -601,7 +642,7 @@ class Azure(ReadableFileSystem, WritableFileSystem):
         return await self.filesystem.write_path(path=path, content=content)
 
 
-class SMB(ReadableFileSystem, WritableFileSystem):
+class SMB(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on a SMB share.
 
@@ -693,3 +734,63 @@ class SMB(ReadableFileSystem, WritableFileSystem):
 
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
+
+
+class GitHub(ReadableDeploymentStorage):
+    """
+    Interact with files stored on public GitHub repositories.
+    """
+
+    _block_type_name = "GitHub"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/187oCWsD18m5yooahq1vU0/ace41e99ab6dc40c53e5584365a33821/github.png?h=250"
+
+    repository: str = Field(
+        ...,
+        description="The URL of a GitHub repository to read from, in either HTTPS or SSH format.",
+    )
+    reference: Optional[str] = Field(
+        None,
+        description="An optional reference to pin to; can be a branch name or tag.",
+    )
+
+    async def get_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> None:
+        """
+        Clones a GitHub project specified in `from_path` to the provided `local_path`; defaults to cloning
+        the repository reference configured on the Block to the present working directory.
+
+        Args:
+            - from_path: if provided, interpreted as a subdirectory of the underlying repository that will
+                be copied to the provided local path
+            - local_path: a local path to clone to; defaults to present working directory
+        """
+        cmd = "git clone"
+
+        cmd += f" {self.repository}"
+        if self.reference:
+            cmd += f" -b {self.reference} --depth 1"
+
+        if local_path is None:
+            local_path = Path(".").absolute()
+
+        # in this case, we clone to a temporary directory and move the subdirectory over
+        tmp_dir = None
+        if from_path:
+            tmp_dir = tempfile.TemporaryDirectory(suffix="prefect")
+            path_to_move = str(Path(tmp_dir.name).joinpath(from_path))
+            cmd += f" {tmp_dir.name} && cp -R {path_to_move}/."
+
+        cmd += f" {local_path}"
+
+        try:
+            err_stream = io.StringIO()
+            out_stream = io.StringIO()
+            process = await run_process(cmd, stream_output=(out_stream, err_stream))
+        finally:
+            if tmp_dir:
+                tmp_dir.cleanup()
+
+        if process.returncode != 0:
+            err_stream.seek(0)
+            raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
