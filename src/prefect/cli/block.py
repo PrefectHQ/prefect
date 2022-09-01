@@ -18,7 +18,6 @@ from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import ObjectNotFound, ScriptError, exception_traceback
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.dispatch import get_registry_for_type
 from prefect.utilities.importtools import load_script_as_module
 
 blocks_app = PrefectTyper(name="block", help="Commands for working with blocks.")
@@ -227,11 +226,8 @@ async def block_delete(
 async def block_create(
     block_type_slug: str = typer.Argument(
         ...,
-        help=(
-            "A block type slug. "
-            f"Found locally installed types: {', '.join(get_registry_for_type(Block))}."
-            " View all registered types using `prefect block type ls`."
-        ),
+        help="A block type slug. View available types with: prefect block type ls",
+        show_default=False,
     ),
 ):
     """
@@ -241,7 +237,11 @@ async def block_create(
         try:
             block_type = await client.read_block_type_by_slug(block_type_slug)
         except ObjectNotFound:
-            exit_with_error(f"Block Type {block_type_slug!r} not found!")
+            app.console.print(f"[red]Block type {block_type_slug!r} not found![/red]")
+            block_types = await client.read_block_types()
+            slugs = {block_type.slug for block_type in block_types}
+            app.console.print(f"Available block types: {', '.join(slugs)}")
+            raise typer.Exit(1)
 
         connection_status = await check_orion_connection()
         ui = ui_base_url(connection_status)
