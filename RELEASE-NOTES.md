@@ -13,10 +13,10 @@
 * Fix parsing of `PREFECT_TEST_MODE` in `PrefectBaseModel` — https://github.com/PrefectHQ/prefect/pull/6647
 * Fix handling of `.prefectignore` paths on Windows — https://github.com/PrefectHQ/prefect/pull/6680
 
-## New collections
+### New collections
 * [prefect-juptyer](https://prefecthq.github.io/prefect-jupyter/)
 
-## Contributors
+### Contributors
 * @mars-f made their first contribution — https://github.com/PrefectHQ/prefect/pull/6639
 * @pdashk made their first contribution — https://github.com/PrefectHQ/prefect/pull/6640
 
