@@ -61,14 +61,12 @@
     workQueuesApiKey,
     workQueuesRouteKey
   } from '@prefecthq/orion-design'
-  import { PGlobalSidebar, PIcon, media, showToast } from '@prefecthq/prefect-design'
+  import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
   import { computed, provide, ref, watchEffect } from 'vue'
   import { blockDocumentsApi } from './services/blockDocumentsApi'
   import { blockSchemasApi } from './services/blockSchemasApi'
   import { blockTypesApi } from './services/blockTypesApi'
-  import { healthApi } from './services/healthApi'
   import { notificationsApi } from './services/notificationsApi'
-  import { UiSettings } from './services/uiSettings'
   import ContextSidebar from '@/components/ContextSidebar.vue'
   import { routes } from '@/router/routes'
   import { blockCapabilitiesApi } from '@/services/blockCapabilitiesApi'
@@ -78,6 +76,7 @@
   import { logsApi } from '@/services/logsApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
+  import { healthCheck } from '@/utilities/api'
   import { can } from '@/utilities/permissions'
 
   provide(blockCapabilitiesApiKey, blockCapabilitiesApi)
@@ -129,16 +128,6 @@
 
   function close(): void {
     mobileMenuOpen.value = false
-  }
-
-  const healthCheck = async (): Promise<void> => {
-    try {
-      await healthApi.getHealth()
-    } catch (error) {
-      const apiUrl = await UiSettings.get('apiUrl').then(res => res)
-      showToast(`Can't connect to Orion API at ${apiUrl}. Check that it's accessible from your machine.`, 'error', { timeout: false })
-      console.warn(error)
-    }
   }
 
   healthCheck()
