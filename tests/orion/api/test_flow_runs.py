@@ -285,15 +285,17 @@ class TestReadFlowRuns:
 
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=actions.FlowRunCreate(flow_id=flow.id, name="fr1", tags=["red"]),
         )
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=actions.FlowRunCreate(flow_id=flow.id, name="fr2", tags=["blue"]),
         )
         flow_run_3 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(flow_id=flow_2.id),
+            flow_run=actions.FlowRunCreate(
+                flow_id=flow_2.id, name="fr3", tags=["blue", "red"]
+            ),
         )
         await session.commit()
         return [flow_run_1, flow_run_2, flow_run_3]
@@ -348,6 +350,18 @@ class TestReadFlowRuns:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[1].id)
+
+    async def test_read_flow_runs_multi_filter(self, flow, flow_runs, client):
+        flow_run_filter = dict(
+            flow_runs=dict(tags=dict(all_=["blue"])),
+            flows=dict(name=dict(any_=["another-test"])),
+            limit=1,
+            offset=0,
+        )
+        response = await client.post("/flow_runs/filter", json=flow_run_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(flow_runs[2].id)
 
     async def test_read_flow_runs_applies_limit(self, flow_runs, client):
         response = await client.post("/flow_runs/filter", json=dict(limit=1))
