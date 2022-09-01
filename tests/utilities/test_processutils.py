@@ -1,8 +1,10 @@
+import signal
 import sys
+from unittest import mock
 
 import pytest
 
-from prefect.utilities.processutils import run_process
+from prefect.utilities.processutils import kill_on_interrupt, run_process
 
 
 async def test_run_process_hides_output(capsys):
@@ -52,3 +54,44 @@ async def test_run_process_allows_stderr_fd(tmp_path):
         )
     assert process.returncode == 0
     assert (tmp_path / "output.txt").read_text().strip() == "hello world"
+
+
+class TestKillOnInterrupt:
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="SIGTERM is only used in non-Windows environments",
+    )
+    def test_sends_sigterm_then_sigkill(self, monkeypatch):
+        print_fn = mock.Mock()
+        os_kill = mock.Mock()
+        monkeypatch.setattr("os.kill", os_kill)
+
+        kill_on_interrupt(123, "My Process", print_fn)
+
+        # Send first SIGINT and expect a SIGTERM
+        signal.raise_signal(signal.SIGINT)
+        print_fn.assert_called_once_with("\nStopping My Process...")
+        os_kill.assert_called_once_with(123, signal.SIGTERM)
+
+        # Reset mocks and send second SIGINT and expect SIGKILL
+        print_fn.reset_mock()
+        os_kill.reset_mock()
+        signal.raise_signal(signal.SIGINT)
+
+        print_fn.assert_called_once_with("\nKilling My Process...")
+        os_kill.assert_called_once_with(123, signal.SIGKILL)
+
+    @pytest.mark.skipif(
+        sys.platform != "win32",
+        reason="CTRL_BREAK_EVENT is only defined in Windows",
+    )
+    def test_sends_ctrl_break_win32(self, monkeypatch):
+        print_fn = mock.Mock()
+        os_kill = mock.Mock()
+        monkeypatch.setattr("os.kill", os_kill)
+
+        kill_on_interrupt(123, "My Process", print_fn)
+        signal.raise_signal(signal.SIGINT)
+
+        print_fn.assert_called_once_with("\nStopping My Process...")
+        os_kill.assert_called_once_with(123, signal.CTRL_BREAK_EVENT)
