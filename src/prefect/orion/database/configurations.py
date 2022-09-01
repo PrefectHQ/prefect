@@ -207,11 +207,6 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             if self.timeout is not None:
                 kwargs["connect_args"] = dict(timeout=self.timeout)
 
-            # use `named` paramstyle because of edge cases where `qmark`
-            # results in params being sent in the wrong positional order
-            # https://github.com/PrefectHQ/prefect/pull/6645
-            kwargs["paramstyle"] = "named"
-
             # ensure a long-lasting pool is used with in-memory databases
             # because they disappear when the last connection closes
             if ":memory:" in self.connection_url:

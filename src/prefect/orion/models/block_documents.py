@@ -15,10 +15,7 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import ORMBlockDocument
 from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
 from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
-from prefect.orion.schemas.filters import (
-    BlockDocumentFilterIsAnonymous,
-    BlockSchemaFilter,
-)
+from prefect.orion.schemas.filters import BlockSchemaFilter
 from prefect.orion.utilities.names import obfuscate_string
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
@@ -253,114 +250,24 @@ async def read_block_documents(
     """
     Read block documents with an optional limit and offset
     """
-    # if no filter is provided, one is created that excludes anonymous blocks
-    if block_document_filter is None:
-        block_document_filter = schemas.filters.BlockDocumentFilter(
-            is_anonymous=BlockDocumentFilterIsAnonymous(eq_=False)
-        )
-
-    # begin by building a query for only those block documents that are selected
-    # by the provided filters
-    filtered_block_documents_query = sa.select(db.BlockDocument.id).where(
-        block_document_filter.as_sql_filter(db)
-    )
-
-    if block_type_filter is not None:
-        block_type_exists_clause = sa.select(db.BlockType).where(
-            db.BlockType.id == db.BlockDocument.block_type_id,
-            block_type_filter.as_sql_filter(db),
-        )
-        filtered_block_documents_query = filtered_block_documents_query.where(
-            block_type_exists_clause.exists()
-        )
-
-    if block_schema_filter is not None:
-        block_schema_exists_clause = sa.select(db.BlockSchema).where(
-            db.BlockSchema.id == db.BlockDocument.block_schema_id,
-            block_schema_filter.as_sql_filter(db),
-        )
-        filtered_block_documents_query = filtered_block_documents_query.where(
-            block_schema_exists_clause.exists()
-        )
-
-    if offset is not None:
-        filtered_block_documents_query = filtered_block_documents_query.offset(offset)
-
-    if limit is not None:
-        filtered_block_documents_query = filtered_block_documents_query.limit(limit)
-
-    filtered_block_documents_query = filtered_block_documents_query.cte(
-        "filtered_block_documents"
-    )
-
-    # next build a recursive query for (potentially nested) block document references
-    # of the filtered block documents
-    block_document_references_query = (
-        sa.select(db.BlockDocumentReference)
-        .filter(
-            db.BlockDocumentReference.parent_block_document_id.in_(
-                sa.select(filtered_block_documents_query.c.id)
-            )
-        )
-        .cte("block_document_references", recursive=True)
-    )
-    block_document_references_join = sa.select(db.BlockDocumentReference).join(
-        block_document_references_query,
-        db.BlockDocumentReference.parent_block_document_id
-        == block_document_references_query.c.reference_block_document_id,
-    )
-    recursive_block_document_references_cte = block_document_references_query.union_all(
-        block_document_references_join
-    )
-
-    # finally, build a query that unions:
-    # - the filtered block documents
-    # - with any block documents that are discovered as (potentially nested) references
-    all_block_documents_query = sa.union_all(
-        # first select the parent block
-        sa.select(
-            [
-                db.BlockDocument,
-                sa.literal(None).label("reference_name"),
-                sa.literal(None).label("reference_parent_block_document_id"),
-            ]
-        )
-        .select_from(db.BlockDocument)
-        .where(db.BlockDocument.id.in_(sa.select(filtered_block_documents_query.c.id))),
-        #
-        # then select any referenced blocks
-        sa.select(
-            [
-                db.BlockDocument,
-                recursive_block_document_references_cte.c.name,
-                recursive_block_document_references_cte.c.parent_block_document_id,
-            ]
-        )
-        .select_from(db.BlockDocument)
-        .join(
-            recursive_block_document_references_cte,
-            db.BlockDocument.id
-            == recursive_block_document_references_cte.c.reference_block_document_id,
-        ),
-    ).cte("all_block_documents_query")
-
-    # as a final step, alias the query to load ORM block document objects and apply sorting
-    # (this automatically adds joins to schema + type tables)
-    all_block_documents_query = (
-        sa.select(
-            sa.orm.aliased(db.BlockDocument, all_block_documents_query),
-            all_block_documents_query.c.reference_name,
-            all_block_documents_query.c.reference_parent_block_document_id,
-        )
-        .select_from(all_block_documents_query)
-        .order_by(all_block_documents_query.c.name)
-        .execution_options(populate_existing=True)
+    # retrieve a query that contains
+    #   - "parent" block documents that match the provided filter
+    #   - "referenced" block documents that are nested under the parents
+    all_block_documents_query = await db.queries.read_block_documents(
+        session=session,
+        db=db,
+        block_document_filter=block_document_filter,
+        block_type_filter=block_type_filter,
+        block_schema_filter=block_schema_filter,
+        offset=offset,
+        limit=limit,
     )
 
     # execute the query to get all related block documents
-    block_documents_with_references = (
-        (await session.execute(all_block_documents_query)).unique().all()
+    result = await session.execute(
+        all_block_documents_query.execution_options(populate_existing=True)
     )
+    block_documents_with_references = result.unique().all()
 
     parent_block_document_ids = []
     for i, (doc, name, parent_id) in enumerate(block_documents_with_references):
@@ -393,6 +300,7 @@ async def read_block_documents(
                 )
             )
             visited_block_document_ids.append(root_orm_block_document.id)
+
     block_schema_ids = [
         block_document.block_schema_id
         for block_document in fully_constructed_block_documents
