@@ -10,6 +10,7 @@ from pydantic import Field
 from typing_extensions import Literal
 
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
+from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
 
 
@@ -52,6 +53,7 @@ class Process(Infrastructure):
         description="If set, output will be streamed from the process to local standard output.",
     )
 
+    @sync_compatible
     async def run(
         self,
         task_status: TaskStatus = None,
