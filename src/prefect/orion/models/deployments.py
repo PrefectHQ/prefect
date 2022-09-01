@@ -86,6 +86,7 @@ async def create_deployment(
                         "path",
                         "entrypoint",
                         "infra_overrides",
+                        "parameter_openapi_schema"
                     },
                 ),
             },
