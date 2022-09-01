@@ -429,7 +429,7 @@ class TestReadBlockDocuments:
         read_block_documents = pydantic.parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
-        # sorted by block type name, block document name
+        # sorted by block document name
         # anonymous blocks excluded by default
         assert [b.id for b in read_block_documents] == [
             b.id for b in block_documents if not b.is_anonymous
@@ -471,7 +471,7 @@ class TestReadBlockDocuments:
         read_block_documents = pydantic.parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
-        # sorted by block type name, block document name
+        # sorted by block document name
         assert [b.id for b in read_block_documents] == [
             b.id for b in block_documents if b.is_anonymous is is_anonymous
         ]
@@ -494,11 +494,11 @@ class TestReadBlockDocuments:
         read_block_documents = pydantic.parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
-        # sorted by block type name, block document name
+        # sorted by block document name
         assert [b.id for b in read_block_documents] == [b.id for b in block_documents]
 
     async def test_read_block_documents_limit_offset(self, client, block_documents):
-        # sorted by block type name, block document name
+        # sorted by block document name
         response = await client.post("/block_documents/filter", json=dict(limit=2))
         read_block_documents = pydantic.parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
