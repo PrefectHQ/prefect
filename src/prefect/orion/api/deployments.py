@@ -227,7 +227,7 @@ async def set_schedule_active(
 @router.post("/{id}/set_schedule_inactive")
 async def set_schedule_inactive(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    session: AsyncSession = Depends(dependencies.get_session),
+    session: AsyncSession = Depends(dependencies.get_raw_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> None:
     """
@@ -242,12 +242,15 @@ async def set_schedule_inactive(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )
     deployment.is_schedule_active = False
-    await session.flush()
+    # commit the inactive schedule to avoid race conditions with the scheduler service
+    # while deleting scheduled runs
+    await session.commit()
 
     # delete any auto scheduled runs
     await models.deployments._delete_auto_scheduled_runs(
         session=session, deployment_id=deployment_id, db=db
     )
+    await session.commit()
 
 
 @router.post("/{id}/create_flow_run")
