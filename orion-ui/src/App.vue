@@ -61,11 +61,12 @@
     workQueuesApiKey,
     workQueuesRouteKey
   } from '@prefecthq/orion-design'
-  import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
-  import { computed, provide, ref, watchEffect } from 'vue'
+  import { PGlobalSidebar, PIcon, media, showToast } from '@prefecthq/prefect-design'
+  import { computed, onMounted, provide, ref, watchEffect } from 'vue'
   import { blockDocumentsApi } from './services/blockDocumentsApi'
   import { blockSchemasApi } from './services/blockSchemasApi'
   import { blockTypesApi } from './services/blockTypesApi'
+  import { healthApi } from './services/healthApi'
   import { notificationsApi } from './services/notificationsApi'
   import ContextSidebar from '@/components/ContextSidebar.vue'
   import { routes } from '@/router/routes'
@@ -129,7 +130,19 @@
     mobileMenuOpen.value = false
   }
 
-  watchEffect(() => document.body.classList.toggle('body-scrolling-disabled', showMenu.value && !media.lg))
+  const healthCheck = async (): Promise<void> => {
+    try {
+      await healthApi.getHealth()
+    } catch (error) {
+      showToast('Network error', 'error', { timeout: false })
+      console.warn(error)
+    }
+  }
+
+  watchEffect(() => {
+    healthCheck()
+    document.body.classList.toggle('body-scrolling-disabled', showMenu.value && !media.lg)
+  })
 </script>
 
 <style>
