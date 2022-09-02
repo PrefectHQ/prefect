@@ -1,4 +1,3 @@
-import os
 import signal
 import sys
 from unittest import mock
@@ -57,22 +56,6 @@ async def test_run_process_allows_stderr_fd(tmp_path):
     assert (tmp_path / "output.txt").read_text().strip() == "hello world"
 
 
-def send_signal(signal_: int):
-    # Python 3.7 doesn't have access to the `signal.raise_signal` method, this
-    # is a bit of a hacky fall-back that handles windows as well as python 3.7.
-    if sys.version_info < (3, 8):
-        if sys.platform == "win32":
-            import ctypes
-
-            ucrtbase = ctypes.CDLL("ucrtbase")
-            c_raise = ucrtbase["raise"]
-            c_raise(signal_)
-        else:
-            os.killpg(os.getpgid(os.getpid()), signal_)
-    else:
-        signal.raise_signal(signal_)
-
-
 class TestKillOnInterrupt:
     @pytest.mark.skipif(
         sys.platform == "win32",
@@ -81,19 +64,33 @@ class TestKillOnInterrupt:
     def test_sends_sigterm_then_sigkill(self, monkeypatch):
         print_fn = mock.Mock()
         os_kill = mock.Mock()
+        signal_receiver = mock.Mock()
         monkeypatch.setattr("os.kill", os_kill)
+        monkeypatch.setattr("signal.signal", signal_receiver)
 
         kill_on_interrupt(123, "My Process", print_fn)
 
-        # Send first SIGINT and expect a SIGTERM
-        send_signal(signal.SIGINT)
+        # This is a bit convoluted, but the point of the `signal_receiver` mock
+        # is to try to avoid actually sending the SIGINT. Doing so causes
+        # pytest to receive the signal and cancel the test run. Note that this
+        # doesn't happen with `signal.raise_signal`, but that's unavalable in
+        # python 3.7.
+        assert signal_receiver.call_args_list[0][0][0] == signal.SIGINT
+        signal_handler = signal_receiver.call_args_list[0][0][1]
+        signal_receiver.reset_mock()
+
+        # Call SIGINT handler expect a SIGTERM
+        signal_handler()
         print_fn.assert_called_once_with("\nStopping My Process...")
         os_kill.assert_called_once_with(123, signal.SIGTERM)
 
         # Reset mocks and send second SIGINT and expect SIGKILL
         print_fn.reset_mock()
         os_kill.reset_mock()
-        send_signal(signal.SIGINT)
+
+        assert signal_receiver.call_args_list[0][0][0] == signal.SIGINT
+        signal_handler = signal_receiver.call_args_list[0][0][1]
+        signal_handler()
 
         print_fn.assert_called_once_with("\nKilling My Process...")
         os_kill.assert_called_once_with(123, signal.SIGKILL)
@@ -105,10 +102,15 @@ class TestKillOnInterrupt:
     def test_sends_ctrl_break_win32(self, monkeypatch):
         print_fn = mock.Mock()
         os_kill = mock.Mock()
+        signal_receiver = mock.Mock()
         monkeypatch.setattr("os.kill", os_kill)
+        monkeypatch.setattr("signal.signal", signal_receiver)
 
         kill_on_interrupt(123, "My Process", print_fn)
-        send_signal(signal.SIGINT)
+
+        assert signal_receiver.call_args_list[0][0][0] == signal.SIGINT
+        signal_handler = signal_receiver.call_args_list[0][0][1]
+        signal_handler()
 
         print_fn.assert_called_once_with("\nStopping My Process...")
         os_kill.assert_called_once_with(123, signal.CTRL_BREAK_EVENT)
