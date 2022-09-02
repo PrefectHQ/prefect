@@ -363,7 +363,12 @@ class Deployment(BaseModel):
     async def load(self) -> bool:
         """
         Queries the API for a deployment with this name for this flow, and if found, prepopulates
-        settings.  Returns a boolean specifying whether a load was successful or not.
+        any settings that were not set at initialization.
+
+        Returns a boolean specifying whether a load was successful or not.
+
+        Raises:
+            - ValueError: if both name and flow name are not set
         """
         if not self.name or not self.flow_name:
             raise ValueError("Both a deployment name and flow name must be provided.")
@@ -556,6 +561,8 @@ class Deployment(BaseModel):
             if not flow_file:
                 raise ValueError("Could not determine flow's file location.")
 
+        # note that `deployment.load` only updates settings that were *not*
+        # provided at initialization
         deployment = cls(name=name, **kwargs)
         deployment.flow_name = flow.name
         await deployment.load()
@@ -573,7 +580,7 @@ class Deployment(BaseModel):
         # proxy for whether infra is docker-based
         is_docker_based = hasattr(deployment.infrastructure, "image")
 
-        if not deployment.storage and not is_docker_based:
+        if not deployment.storage and not is_docker_based and not deployment.path:
             deployment.path = str(Path(".").absolute())
         elif not deployment.storage and is_docker_based:
             # only update if a path is not already set
