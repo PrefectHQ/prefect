@@ -16,17 +16,20 @@ We're always looking for new recipe contributions! See the [Prefect Recipes](htt
 ## Recipe catalog
 
 <!-- The code below is a jinja2 template that will be rendered by generate_catalog.py -->
-<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin: 0 1rem 0 1rem auto; padding: margin: 0 1rem 0 1rem auto;">
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin: 1rem auto; padding: 0 1rem 0 1rem auto;">
 {% for collection in collections %}
     <div>
         <a href="{{ collection['repo'] }}">
             <h3>{{collection['recipeName']}}</h3>
         </a>
-        <div style="height: 130px;">
+        <div style="height: 110px;">
             <p style="font-size: 0.8rem">
                 {{ collection["description"] }}
             </p>
         </div>
+        <p style="font-size: 0.6rem">
+            Maintained by <a href="{{ collection["authorUrl"] }}">{{ collection["author"] }}</a>
+        </p>
         <p style="font-size: 0.6rem">
             This recipe uses:
         </p>
@@ -34,9 +37,6 @@ We're always looking for new recipe contributions! See the [Prefect Recipes](htt
             {% for icon in collection['iconUrl'] %}
                 <img src="{{ icon }}" style="max-height: 48px; max-width: 48px; margin: 0 0.5em 0 auto;">
             {% endfor %}
-        </p>
-        <p style="font-size: 0.6rem">
-            Maintained by <a href="{{ collection["authorUrl"] }}">{{ collection["author"] }}</a>
         </p>
     </div>
 {% endfor %}

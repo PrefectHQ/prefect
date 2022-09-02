@@ -1,4 +1,4 @@
-recipeName: Trigger Flow via API
+recipeName: Trigger Flows via the API
 author: Prefect
 authorUrl: https://prefect.io
 description: Start a flow run from a deployment by calling the Prefect API directly.
