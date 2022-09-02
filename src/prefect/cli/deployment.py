@@ -159,6 +159,98 @@ async def inspect(name: str):
     app.console.print(Pretty(deployment_json))
 
 
+@deployment_app.command("set-schedule")
+async def set_schedule(
+    name: str,
+    interval: Optional[str] = typer.Option(
+        None, "--interval", help="An interval to schedule on"
+    ),
+    interval_anchor: Optional[str] = typer.Option(
+        None, "--anchor-date", help="The anchor date for an interval schedule"
+    ),
+    rrule_string: Optional[str] = typer.Option(
+        None, "--rrule", help="Deployment schedule rrule string"
+    ),
+    cron_string: Optional[str] = typer.Option(
+        None, "--cron", help="Deployment schedule cron string"
+    ),
+    cron_day_or: Optional[str] = typer.Option(
+        None,
+        "--day_or",
+        help="Control how croniter handles `day` and `day_of_week` entries",
+    ),
+    timezone: Optional[str] = typer.Option(
+        None,
+        "--timezone",
+        help="Deployment schedule timezone string e.g. 'America/New_York'",
+    ),
+):
+    assert_deployment_name_format(name)
+
+    interval_schedule = {
+        "interval": interval,
+        "interval_anchor": interval_anchor,
+        "timezone": timezone,
+    }
+    cron_schedule = {"cron": cron_string, "day_or": cron_day_or, "timezone": timezone}
+    rrule_schedule = {"rrule": rrule_string, "timezone": timezone}
+
+    def updated_schedule_check(schedule):
+        return any(v is not None for v in schedule.values())
+
+    updated_schedules = list(
+        filter(
+            updated_schedule_check, (interval_schedule, cron_schedule, rrule_schedule)
+        )
+    )
+
+    if len(updated_schedules) == 0:
+        exit_with_error("No deployment schedule updates provided")
+    if len(updated_schedules) > 1:
+        exit_with_error("Incompatible schedule parameters")
+
+    updated_schedule = {k: v for k, v in updated_schedules[0].items() if v is not None}
+
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
+
+        await client.update_deployment(deployment, schedule=updated_schedule)
+        exit_with_success("Updated deployment schedule!")
+
+
+@deployment_app.command("pause-schedule")
+async def pause_schedule(
+    name: str,
+):
+    assert_deployment_name_format(name)
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
+
+        await client.update_deployment(deployment, is_schedule_active=False)
+        exit_with_success(f"Paused schedule for deployment {name}")
+
+
+@deployment_app.command("resume-schedule")
+async def resume_schedule(
+    name: str,
+):
+    assert_deployment_name_format(name)
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
+
+        await client.update_deployment(deployment, is_schedule_active=True)
+        exit_with_success(f"Resumed schedule for deployment {name}")
+
+
 @deployment_app.command()
 async def ls(flow_name: List[str] = None, by_created: bool = False):
     """
