@@ -72,21 +72,10 @@ async def create_deployment(
             set_={
                 **deployment.dict(
                     shallow=True,
-                    include={
-                        "schedule",
-                        "is_schedule_active",
-                        "description",
-                        "tags",
-                        "parameters",
-                        "updated",
-                        "work_queue_name",
-                        "storage_document_id",
-                        "infrastructure_document_id",
-                        "manifest_path",
-                        "path",
-                        "entrypoint",
-                        "infra_overrides",
-                        "parameter_openapi_schema",
+                    exclude_unset=True,
+                    exclude={
+                        "id",
+                        "created",
                     },
                 ),
             },
