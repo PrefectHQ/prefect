@@ -52,9 +52,10 @@ class Infrastructure(Block, abc.ABC):
         identifier for the infrastructure.
 
         The call will then monitor the created infrastructure, returning a result at
-        the end containing a status code indicating if the infrastructure exited cleanly\
+        the end containing a status code indicating if the infrastructure exited cleanly
         or encountered an error.
         """
+        # Note: implementations should include `sync_compatible`
 
     @abc.abstractmethod
     def preview(self) -> str:

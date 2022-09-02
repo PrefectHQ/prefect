@@ -2,10 +2,12 @@ import abc
 import glob
 import io
 import json
+import os
 import shutil
 import sys
+import tempfile
 import urllib.parse
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any, Dict, Optional
 
 import anyio
@@ -318,16 +320,21 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             with open(ignore_file, "r") as f:
                 ignore_patterns = f.readlines()
 
-            included_files = filter_files(local_path, ignore_patterns)
+            included_files = filter_files(
+                local_path, ignore_patterns, include_dirs=True
+            )
 
         counter = 0
-        for f in glob.glob("**", recursive=True):
-            if ignore_file and f not in included_files:
+        for f in glob.glob(os.path.join(local_path, "**"), recursive=True):
+            relative_path = PurePath(f).relative_to(local_path)
+            if included_files and str(relative_path) not in included_files:
                 continue
+
             if to_path.endswith("/"):
-                fpath = to_path + f
+                fpath = to_path + relative_path.as_posix()
             else:
-                fpath = to_path + "/" + f
+                fpath = to_path + "/" + relative_path.as_posix()
+
             if Path(f).is_dir():
                 pass
             else:
@@ -335,7 +342,9 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
                     self.filesystem.put_file(f, fpath, overwrite=True)
                 else:
                     self.filesystem.put_file(f, fpath)
+
             counter += 1
+
         return counter
 
     async def read_path(self, path: str) -> bytes:
@@ -443,7 +452,7 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
         ignore_file: Optional[str] = None,
     ) -> int:
         """
-        Uploads a directory from a given local path to a remote direcotry.
+        Uploads a directory from a given local path to a remote directory.
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
@@ -750,23 +759,38 @@ class GitHub(ReadableDeploymentStorage):
         """
         Clones a GitHub project specified in `from_path` to the provided `local_path`; defaults to cloning
         the repository reference configured on the Block to the present working directory.
+
+        Args:
+            - from_path: if provided, interpreted as a subdirectory of the underlying repository that will
+                be copied to the provided local path
+            - local_path: a local path to clone to; defaults to present working directory
         """
         cmd = "git clone"
-        if from_path is None:
-            cmd += f" {self.repository}"
-            if self.reference:
-                cmd += f" -b {self.reference} --depth 1"
-        else:
-            cmd += f" {from_path}"
+
+        cmd += f" {self.repository}"
+        if self.reference:
+            cmd += f" -b {self.reference} --depth 1"
 
         if local_path is None:
             local_path = Path(".").absolute()
 
+        # in this case, we clone to a temporary directory and move the subdirectory over
+        tmp_dir = None
+        if from_path:
+            tmp_dir = tempfile.TemporaryDirectory(suffix="prefect")
+            path_to_move = str(Path(tmp_dir.name).joinpath(from_path))
+            cmd += f" {tmp_dir.name} && cp -R {path_to_move}/."
+
         cmd += f" {local_path}"
 
-        err_stream = io.StringIO()
-        out_stream = io.StringIO()
-        process = await run_process(cmd, stream_output=(out_stream, err_stream))
+        try:
+            err_stream = io.StringIO()
+            out_stream = io.StringIO()
+            process = await run_process(cmd, stream_output=(out_stream, err_stream))
+        finally:
+            if tmp_dir:
+                tmp_dir.cleanup()
+
         if process.returncode != 0:
             err_stream.seek(0)
             raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
