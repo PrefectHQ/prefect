@@ -632,3 +632,9 @@ async def test_container_result_async(docker: "DockerClient"):
     assert result.identifier
     container = docker.containers.get(result.identifier)
     assert container is not None
+
+
+def test_run_requires_command():
+    container = DockerContainer(command=[])
+    with pytest.raises(ValueError, match="cannot be run with empty command"):
+        container.run()
