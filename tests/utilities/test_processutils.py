@@ -60,14 +60,17 @@ async def test_run_process_allows_stderr_fd(tmp_path):
 def send_signal(signal_: int):
     # Python 3.7 doesn't have access to the `signal.raise_signal` method, this
     # is a bit of a hacky fall-back that handles windows as well as python 3.7.
-    if sys.platform == "win32":
-        import ctypes
+    if sys.version_info < (3, 8):
+        if sys.platform == "win32":
+            import ctypes
 
-        ucrtbase = ctypes.CDLL("ucrtbase")
-        c_raise = ucrtbase["raise"]
-        c_raise(signal_)
+            ucrtbase = ctypes.CDLL("ucrtbase")
+            c_raise = ucrtbase["raise"]
+            c_raise(signal_)
+        else:
+            os.killpg(os.getpgid(os.getpid()), signal_)
     else:
-        os.killpg(os.getpgid(os.getpid()), signal_)
+        signal.raise_signal(signal_)
 
 
 class TestKillOnInterrupt:
