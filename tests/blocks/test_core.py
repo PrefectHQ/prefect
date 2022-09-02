@@ -1810,3 +1810,10 @@ class TestTypeDispatch:
     async def test_created_block_can_be_saved(self):
         block = BaseBlock.parse_obj(AChildBlock().dict())
         assert await block.save("test")
+
+    async def test_created_block_can_be_saved_then_loaded(self):
+        block = BaseBlock.parse_obj(AChildBlock().dict())
+        await block.save("test")
+        new_block = await block.load("test")
+        assert block == new_block
+        assert new_block.__fields_set__
