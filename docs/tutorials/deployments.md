@@ -21,7 +21,7 @@ In the tutorials leading up to this one, you've been able to explore Prefect cap
 
 You need just a few ingredients to turn a flow definition into a deployment:
 
-- A flow script
+- A Python script that contains a function [decorated with `@flow`](/tutorials/flow-task-config/#basic-flow-configuration)
 
 That's it. To create flow runs based on the deployment, you need a few more pieces:
 
