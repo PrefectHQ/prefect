@@ -258,9 +258,7 @@ async def read_block_documents(
             is_anonymous=schemas.filters.BlockDocumentFilterIsAnonymous(eq_=False)
         )
 
-    # --- Build a query that filters for Parent Block Documents
-    # begin by building a query for only those block documents that are selected
-    # by the provided filters
+    # --- Build an initial query that filters for the requested block documents
     filtered_block_documents_query = sa.select(db.BlockDocument.id).where(
         block_document_filter.as_sql_filter(db)
     )
@@ -293,43 +291,40 @@ async def read_block_documents(
         "filtered_block_documents"
     )
 
-    # --- Query for Referenced Block Documents next build a recursive query for
-    # (potentially nested) block documents that reference the filtered block
-    # documents. Include the filtered block documents as the top level of the
-    # query, so the result is a list of ALL block document IDs we need, as well
-    # as (optional) information about the block that references them
-    block_document_references_query = (
+    # --- Build a recursive query that starts with the filtered block documents
+    # and iteratively loads all referenced block documents. The query includes
+    # the ID of each block document as well as the ID of the document that
+    # references it and name it's referenced by, if applicable.
+    parent_documents = (
         sa.select(
-            db.BlockDocument.id,
+            filtered_block_documents_query.c.id,
             sa.cast(sa.null(), sa.String).label("reference_name"),
             sa.cast(sa.null(), UUIDTypeDecorator).label(
                 "reference_parent_block_document_id"
             ),
         )
-        .filter(db.BlockDocument.id.in_(sa.select(filtered_block_documents_query.c.id)))
+        .select_from(filtered_block_documents_query)
         .cte("all_block_documents", recursive=True)
     )
     # recursive part of query
-    block_document_references_join = (
+    referenced_documents = (
         sa.select(
             db.BlockDocumentReference.reference_block_document_id,
             db.BlockDocumentReference.name,
             db.BlockDocumentReference.parent_block_document_id,
         )
-        .select_from(block_document_references_query)
+        .select_from(parent_documents)
         .join(
             db.BlockDocumentReference,
-            db.BlockDocumentReference.parent_block_document_id
-            == block_document_references_query.c.id,
+            db.BlockDocumentReference.parent_block_document_id == parent_documents.c.id,
         )
     )
     # union the recursive CTE
-    all_block_documents_query = block_document_references_query.union_all(
-        block_document_references_join
-    )
+    all_block_documents_query = parent_documents.union_all(referenced_documents)
 
-    # join the list of all block documents to the block document table to get
-    # the final query with all block document information
+    # --- Join the recursive query that contains all required document IDs
+    # back to the BlockDocument table to load info for every document
+    # and order by name
     final_query = (
         sa.select(
             db.BlockDocument,
@@ -344,20 +339,15 @@ async def read_block_documents(
     result = await session.execute(
         final_query.execution_options(populate_existing=True)
     )
+
     block_documents_with_references = result.unique().all()
 
-    parent_block_document_ids = []
-    for i, (doc, reference_name, parent_id) in enumerate(
-        block_documents_with_references
-    ):
-        # identify "parent" block documents that have no `parent_id` because they aren't references
-        if parent_id is None:
-            parent_block_document_ids.append(doc.id)
-
-        # SQLite returns IDs as strings but we expect UUIDs
-        elif isinstance(parent_id, str):
-            parent_id = UUID(parent_id)
-            block_documents_with_references[i] = (doc, reference_name, parent_id)
+    # identify true "parent" documents as those with no reference parent ids
+    parent_block_document_ids = [
+        d[0].id
+        for d in block_documents_with_references
+        if d.reference_parent_block_document_id is None
+    ]
 
     # walk the resulting dataset and hydrate all block documents
     fully_constructed_block_documents = []
