@@ -21,7 +21,7 @@ There are four recommended possible ways to create a schedule for a deployment:
 - Use the Prefect UI
 - Use the `--schedule` flag with the CLI `deployment build` command
 - Use the `schedule` parameter with a Python deployment file
-- Edit the deployment YAML file's `schedule` section
+- Manually edit the deployment YAML file's `schedule` section
 
 ## Creating schedules through the UI
 
