@@ -326,14 +326,14 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         counter = 0
         for f in glob.glob(os.path.join(local_path, "**"), recursive=True):
-            relative_path = PurePath(f).relative_to(local_path).as_posix()
-            if included_files and relative_path not in included_files:
+            relative_path = PurePath(f).relative_to(local_path)
+            if included_files and str(relative_path) not in included_files:
                 continue
 
             if to_path.endswith("/"):
-                fpath = to_path + relative_path
+                fpath = to_path + relative_path.as_posix()
             else:
-                fpath = to_path + "/" + relative_path
+                fpath = to_path + "/" + relative_path.as_posix()
 
             if Path(f).is_dir():
                 pass
