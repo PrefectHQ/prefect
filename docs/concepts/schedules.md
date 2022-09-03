@@ -19,7 +19,7 @@ You can add a schedule to any flow [deployment](/concepts/deployments/). The Pre
 There are four recommended ways to create a schedule for a deployment:
 
 - Use the Prefect UI
-- "Use the `cron`, `interval`, or `rrule` flags with the CLI  `deployment build` command
+- Use the `cron`, `interval`, or `rrule` flags with the CLI  `deployment build` command
 - Use the `schedule` parameter with a Python deployment file
 - Manually edit the deployment YAML file's `schedule` section
 
