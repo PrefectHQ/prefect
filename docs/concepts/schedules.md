@@ -16,7 +16,7 @@ Schedules tell the Prefect API how to create new flow runs for you automatically
 
 You can add a schedule to any flow [deployment](/concepts/deployments/). The Prefect `Scheduler` service periodically reviews every deployment and creates new flow runs according to the schedule configured for the deployment.
 
-There are four recommended possible ways to create a schedule for a deployment:
+There are four recommended ways to create a schedule for a deployment:
 
 - Use the Prefect UI
 - Use the `--schedule` flag with the CLI `deployment build` command
