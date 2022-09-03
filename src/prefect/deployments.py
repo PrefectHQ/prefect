@@ -565,11 +565,13 @@ class Deployment(BaseModel):
         # provided at initialization
         deployment = cls(name=name, **kwargs)
         deployment.flow_name = flow.name
+        if not deployment.entrypoint:
+            entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
+            deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
+
         await deployment.load()
 
         # set a few attributes for this flow object
-        entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
-        deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
         deployment.parameter_openapi_schema = parameter_schema(flow)
 
         if not deployment.version:
