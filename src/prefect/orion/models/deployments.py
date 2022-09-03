@@ -78,6 +78,7 @@ async def create_deployment(
                         "description",
                         "tags",
                         "parameters",
+                        "parameter_openapi_schema",
                         "updated",
                         "work_queue_name",
                         "storage_document_id",
