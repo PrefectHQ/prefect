@@ -1,6 +1,7 @@
 """
 Command line interface for working with deployments.
 """
+import json
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
@@ -547,6 +548,16 @@ async def build(
         "-a",
         help="An optional flag to automatically register the resulting deployment with the API.",
     ),
+    param: str = typer.Option(
+        None,
+        "--param",
+        help="An optional parameter override",
+    ),
+    params: str = typer.Option(
+        None,
+        "--params",
+        help="An optional flag to automatically register the resulting deployment with the API.",
+    ),
 ):
     """
     Generate a deployment YAML from /path/to/file.py:flow_function
@@ -649,6 +660,21 @@ async def build(
         else:
             path = str(Path(".").absolute())
 
+    if param is not None and params is not None:
+        exit_with_error("Can only pass one of `param` or `params` options")
+
+    if param is not None:
+        k, unparsed_value = param.split("=")
+        try:
+            v = json.loads(unparsed_value)
+            app.console.print(f"The parameter value {unparsed_value} is parsed as a JSON string")
+        except json.JSONDecodeError:
+            v = unparsed_value
+        parameters = {k: v}
+
+    if params is not None:
+        parameters = json.loads(params)
+
     # set up deployment object
     deployment = Deployment(name=name, flow_name=flow.name)
     await deployment.load()  # load server-side settings, if any
@@ -660,6 +686,7 @@ async def build(
     updates = dict(
         path=path,
         parameter_openapi_schema=flow_parameter_schema,
+        parameters=parameters,
         entrypoint=entrypoint,
         description=deployment.description or flow.description,
         version=version or deployment.version or flow.version,
