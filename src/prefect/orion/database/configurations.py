@@ -207,6 +207,8 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             if self.timeout is not None:
                 kwargs["connect_args"] = dict(timeout=self.timeout)
 
+            kwargs["paramstyle"] = "named"
+
             # ensure a long-lasting pool is used with in-memory databases
             # because they disappear when the last connection closes
             if ":memory:" in self.connection_url:
