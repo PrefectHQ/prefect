@@ -191,7 +191,7 @@ You can list the contents of the folder to see what we have at this step in the 
 ```
 </div>
 
-!!! tip "Ignoring files with `.prefectignore`"
+???+ tip "Ignoring files with `.prefectignore`"
     By default `prefect deployment build` automatically uploads your flow script and any supporting files in the present working directory to storage (if you've specified remote storage for the deployment).
 
     To exclude files from being uploaded, you can create a `.prefectignore` file. `.prefectignore` enables you to specify files that should be ignored by the deployment creation process. [The syntax follows `.gitignore` patterns](https://git-scm.com/docs/gitignore).
@@ -344,9 +344,43 @@ $ prefect deployment inspect log-flow/log-simple
 ```
 </div>
 
+!!! note "Customize this workflow to your needs"
+    
+    You may not want Prefect to automatically upload your files in the build step, or you may want to do _everything_ in one single CLI command. Whatever your preference, the Prefect CLI is highly customizable:
+
+    - `prefect deployment build` accepts a `--skip-upload` flag that avoids automatic file uploads
+    - `prefect deployment apply` accepts an `--upload` flag that performs the file upload in the apply step
+    - `prefect deployment build` accepts an `--apply` flag that also performs the apply step
+
+## Deployment creation with Python
+
+We can perform all of the same actions above with Python as our interface instead of the CLI - which interface to use is ultimately a matter of preference.
+
+Here we mirror the steps taken above with a new Python file saved as `deployment.py` in the root of our project directory:
+
+```python
+# deployment.py
+
+from log_flow import log_flow
+from prefect.deployments import Deployment
+
+deployment = Deployment.build_from_flow(
+    flow=log_flow,
+    name="log-simple",
+    parameters={"name": "Marvin"},
+    infra_overrides={"env": {"PREFECT_LOGGING_LEVEL": "DEBUG"}},
+    work_queue_name="test",
+)
+
+if __name__ == "__main__":
+    deployment.apply()
+```
+
+All of the same configuration options apply here as well - you can skip automatic file uploads, apply and build in one step, etc.
+
 ## Run a Prefect Orion server
 
-For this tutorial, you'll use a local Prefect Orion server. Open another terminal session and start the Prefect Orion server with the `prefect orion start` CLI command:
+For the remainder of this tutorial, you'll use a local Prefect Orion server. Open another terminal session and start the Prefect Orion server with the `prefect orion start` CLI command:
 
 <div class='terminal'>
 ```bash
@@ -388,17 +422,15 @@ Updated profile 'default'
 
 ## Agents and work queues
 
-Note that you can't **Run** the deployment from the UI yet. As mentioned at the beginning of this tutorial, you still need two more items to run orchestrated deployments: an agent and a work queue. You'll set those up next.
+As mentioned at the beginning of this tutorial, you still need two more items to run orchestrated deployments: an agent and a work queue. You'll set those up next.
 
-[Agents and work queues](/concepts/work-queues/) are the mechanisms by which the Prefect API orchestrates deployment flow runs in remote execution environments.
+[Agents and work queues](/concepts/work-queues/) are the mechanisms by which Prefect orchestrates deployment flow runs in remote execution environments.
 
-Work queues let you organize flow runs into queues for execution. Agents pick up work from queues and execute the flows.
+Work queues let you organize flow runs into queues for execution. Agents pick up work from one or more queues and execute the runs.
 
-There is no default global agent, so to orchestrate runs of `log_flow` you need to configure one. 
+In the Prefect UI, you can create a work queue by selecting the **Work Queues** page, then creating a new work queue. However, in our case you don't need to manually create a work queue because it was created automatically when you created your deployment. If you hadn't created your deployment yet, it would be created when you start your agent. 
 
-In the Prefect UI, you can create a work queue by selecting the **Work Queues** page, then creating a new work queue. However, you don't need to manually create a work queue because it was created automatically when you created your deployment. If you hadn't created your deployment yet, it would be created when you start your agent. 
-
-Open an additional terminal session, then run the `prefect agent start` command, passing a `-q test` option that tells it to pull work from the `test` work queue. Remember, we configured the deployment to use this work queue at an earlier step.
+Open an additional terminal session, then run the `prefect agent start` command, passing a `-q test` option that tells it to pull work from the `test` work queue. 
 
 <div class="terminal">
 ```bash
@@ -417,7 +449,7 @@ Agent started! Looking for work from queue(s): test...
 
 Remember that:
 
-- We specified the `test` work queue when building the deployment files.
+- We specified the `test` work queue when creating the deployment.
 - The agent is configured to pick up work from the `test` work queue, so it will execute flow runs from the `log-flow/log-simple` deployment (and any others that also point at this queue).
 
 ## Run the deployment locally
@@ -431,17 +463,20 @@ Created flow run 'talented-jackdaw' (b0ba3195-912d-4a2f-8645-d939747655c3)
 ```
 </div>
 
-If you switch over to the terminal session where your agent is running, you'll see that the agent picked up the flow run and executed it.
+If you switch over to the terminal session where your agent is running, you'll see that the agent picked up the flow run and executed it.  Recall that we set an environment variable that configures the Prefect logging level for runs of this deployment.
 
 <div class="terminal">
 ```bash
 16:18:28.281 | INFO    | prefect.agent - Submitting flow run 'b0ba3195-912d-4a2f-8645-d939747655c3'
 16:18:28.340 | INFO    | prefect.infrastructure.process - Opening process 'talented-jackdaw'...
 16:18:28.349 | INFO    | prefect.agent - Completed submission of flow run 'b0ba3195-912d-4a2f-8645-d939747655c3'
+...
 16:18:30.282 | INFO    | Flow run 'talented-jackdaw' - Created task run 'log_task-99465d2b-0' for task 'log_task'
 16:18:30.283 | INFO    | Flow run 'talented-jackdaw' - Executing 'log_task-99465d2b-0' immediately...
+16:18:30.325 | DEBUG   | Task run 'log_task-99465d2b-0' - Beginning execution...
 16:18:30.325 | INFO    | Task run 'log_task-99465d2b-0' - Hello Marvin!
-16:18:30.325 | INFO    | Task run 'log_task-99465d2b-0' - Prefect Version = 2.1.1 🚀
+16:18:30.325 | INFO    | Task run 'log_task-99465d2b-0' - Prefect Version = 2.3.1 🚀
+16:18:30.325 | DEBUG   | Task run 'log_task-99465d2b-0' - hello from another file
 16:18:30.354 | INFO    | Task run 'log_task-99465d2b-0' - Finished in state Completed()
 16:18:30.432 | INFO    | Flow run 'talented-jackdaw' - Finished in state Completed('All states completed.')
 16:18:30.654 | INFO    | prefect.infrastructure.process - Process 'talented-jackdaw' exited cleanly.
@@ -456,7 +491,7 @@ You can also see your flow in the [Prefect UI](/ui/overview/). Open the Prefect 
 
 ## Run a deployment from the UI
 
-With a work queue and agent in place, you can also create a flow run for `leonardo_dicapriflow` directly from the UI.
+With a work queue and agent in place, you can also create a flow run for `log_simple` directly from the UI.
 
 In the Prefect UI, select the **Deployments** page. You'll see a list of all deployments that have been created in this Prefect Orion instance.
 
@@ -504,10 +539,13 @@ As before, the flow run will be picked up by the agent, and you should be able t
 16:44:42.110 | INFO    | prefect.agent - Submitting flow run 'ceb0782a-1538-4dce-a32c-831d8d1cf0f6'
 16:44:42.163 | INFO    | prefect.infrastructure.process - Opening process 'upsilon2-belfalas-manifold'...
 16:44:42.172 | INFO    | prefect.agent - Completed submission of flow run 'ceb0782a-1538-4dce-a32c-831d8d1cf0f6'
+...
 16:44:45.166 | INFO    | Flow run 'upsilon2-belfalas-manifold' - Created task run 'log_task-99465d2b-0' for task 'log_task'
 16:44:45.167 | INFO    | Flow run 'upsilon2-belfalas-manifold' - Executing 'log_task-99465d2b-0' immediately...
+16:44:45.193 | DEBUG   | Task run 'log_task-99465d2b-0' - Beginning execution...
 16:44:45.193 | INFO    | Task run 'log_task-99465d2b-0' - Hello Trillian!
-16:44:45.193 | INFO    | Task run 'log_task-99465d2b-0' - Prefect Version = 2.1.1 🚀
+16:44:45.193 | INFO    | Task run 'log_task-99465d2b-0' - Prefect Version = 2.3.1 🚀
+16:44:45.193 | DEBUG   | Task run 'log_task-99465d2b-0' - hello from another file
 16:44:45.219 | INFO    | Task run 'log_task-99465d2b-0' - Finished in state Completed()
 16:44:45.251 | INFO    | Flow run 'upsilon2-belfalas-manifold' - Finished in state Completed('All states completed.')
 16:44:45.480 | INFO    | prefect.infrastructure.process - Process 'upsilon2-belfalas-manifold' exited cleanly.
