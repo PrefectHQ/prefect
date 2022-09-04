@@ -26,7 +26,7 @@ In Prefect, [blocks](/concepts/blocks/) are a primitive that enable you to speci
 
 ## Prerequisites
 
-The steps demonstrated in this tutorial assume you have access to a storage location in a third party service such as AWS, Azure or GitHub.
+The steps demonstrated in this tutorial assume you have access to a storage location in a third-party service such as AWS, Azure, or GitHub.
 
 To create a storage block, you will need the storage location (for example, a bucket or container name) and valid authentication details such as access keys or connection strings.
 
@@ -185,7 +185,7 @@ The `prefect deployment build` command also supports specifying a built-in infra
 
 ## Sharing blocks between different deployments
 
-One of the major benefits of Prefect Blocks is the ability to share common configuration across a diverse set of uses. This includes sharing storage and infrastructure configuration between your deployments.
+One of the major benefits of Prefect blocks is the ability to share common configuration across a diverse set of uses. This includes sharing storage and infrastructure configuration between your deployments.
 
 ### Sharing storage
 
@@ -208,8 +208,8 @@ Deployment YAML created at
 
 Note that we used the `--path` option on the `build` CLI to provide this information. Other ways of specifying a deployment's `path` include:
 
-- by providing a value for `path` to `Deployment.build_from_flow` or at `Deployment` initialization (see [the API reference for more details](/api-ref/prefect/deployments/#prefect.deployments.Deployment))
-- Prefect offers [syntatic sugar](https://en.wikipedia.org/wiki/Syntactic_sugar) on storage block specification where the path can be provided after the block slug: `-sb s3/log-test/log-flow-directory`
+- Providing a value for `path` to `Deployment.build_from_flow` or at `Deployment` initialization (see [the API reference for more details](/api-ref/prefect/deployments/#prefect.deployments.Deployment)).
+- Prefect offers [syntatic sugar](https://en.wikipedia.org/wiki/Syntactic_sugar) on storage block specification where the path can be provided after the block slug: `-sb s3/log-test/log-flow-directory`.
 
 ### Sharing infrastructure
 
@@ -217,10 +217,10 @@ Sharing infrastructure blocks between deployments is just as straightforward: ev
 
 When specified via CLI, overrides must be dot-delimited keys that target a specific (and possibly nested) attribute of the underlying infrastructure block.  When specified via Python, overrides must be provided as a possibly nested dictionary.  This is best illustrated with examples:
 
-- **Providing a custom environment variable**: every infrastructure block exposes an `env` field that contains a dictionary of environment variables and corresponding values.  To provide a specific environment variable on a deployment, pass `env.ENVIRONMENT_VARIABLE=VALUE` to either the CLI or the `infra_overrides` dictionary as a key / value pair
-- **Docker image override**: every docker-based infrastructure block exposes an `image` field referencing the docker image to use as a runtime envrionment; overriding this is as simple as `--override image=my-custom-registry/my-custom-image:my-custom-tag`
+- **Providing a custom environment variable**: every infrastructure block exposes an `env` field that contains a dictionary of environment variables and corresponding values.  To provide a specific environment variable on a deployment, pass `env.ENVIRONMENT_VARIABLE=VALUE` to either the CLI or the `infra_overrides` dictionary as a key/value pair.
+- **Docker image override**: every Docker-based infrastructure block exposes an `image` field referencing the Docker image to use as a runtime environment. Overriding this is as simple as `--override image=my-custom-registry/my-custom-image:my-custom-tag`.
 
-## Specifying Blocks in Python
+## Specifying blocks in Python
 
 As before, we can configure all of this via Python instead of the CLI by modifying our `deployment.py` file [created in the previous tutorial](/tutorials/deployments/#deployment-creation-with-python):
 
