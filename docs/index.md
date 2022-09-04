@@ -109,7 +109,7 @@ Prefect helps you keep your data and code secure. Prefect's patented [hybrid exe
 - **(OSS)** Prefect's orchestration and execution layers can be managed independently
 - **(Cloud)** your data can stay in your environment while Prefect Cloud manages orchestration of your dataflow
 
-Prefect, the company, is SOC2 Type II compliant and our enterprise product makes it easy for you to restrict access to the right people in your organization.
+Prefect Technologies is SOC2 Type II compliant and our enterprise product makes it easy for you to restrict access to the right people in your organization.
 
 **A user friendly, interactive dashboard for your dataflows**
 
