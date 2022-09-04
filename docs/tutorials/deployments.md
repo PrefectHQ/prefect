@@ -61,11 +61,11 @@ As noted earlier, the first ingredient of a deployment is a flow script. You've 
 
 Let's start with a simple example that captures many aspects of a standard project:
 
-- utility files that you import from to keep your code clean
-- parameterized runs with a basic CLI interface
-- logging
+- Utility files that you import from to keep your code clean.
+- Parameterized runs with a basic CLI interface.
+- Logging.
 
-This flow contains a single flow function `log_flow()`, and a single task `log_task` that logs messages based on a parameter input, your installed Prefect version and an imported message from another file in your project:
+This flow contains a single flow function `log_flow()`, and a single task `log_task` that logs messages based on a parameter input, your installed Prefect version, and an imported message from another file in your project:
 
 ```python
 import sys
@@ -109,11 +109,11 @@ $ python log_flow.py Marvin
 
 Like previous flow examples, this is still a script that you have to run locally. 
 
-In this tutorial, you'll use this flow script (and its supporting files!) to create a deployment on the Prefect server. With a deployment, you can trigger ad-hoc parametrized flow runs via the UI or an API call. You could also schedule automatic flow runs that run anywhere you can run a Prefect Agent, including on remote infrastructure. 
+In this tutorial, you'll use this flow script (and its supporting files!) to create a deployment on the Prefect server. With a deployment, you can trigger ad-hoc parametrized flow runs via the UI or an API call. You could also schedule automatic flow runs that run anywhere you can run a Prefect agent, including on remote infrastructure. 
 
 You'll create the deployment for this flow by doing the following: 
 
-- Configure deployment settings via one of Prefect's interfaces (CLI or Python)
+- Configure deployment settings via one of Prefect's interfaces (CLI or Python).
 - Optionally copy the relevant flow files to a specified storage location from which it can be retrieved for flow runs 
 - Apply the deployment settings to create a deployment on the Prefect server
 - Inspect the deployment with the Prefect CLI and Prefect UI
@@ -123,8 +123,8 @@ You'll create the deployment for this flow by doing the following:
 
 To create a deployment from an existing flow script using the CLI, there are just a few steps:
 
-1. Use the `prefect deployment build` Prefect CLI command to create a deployment definition YAML file - by default this step also uploads your flow script and any supporting files to storage, if you've specified storage for the deployment.
-1. Optionally, before applying you can edit the deployment YAML file to include additional settings that are not easily specified via CLI flags. 
+1. Use the `prefect deployment build` Prefect CLI command to create a deployment definition YAML file. By default this step also uploads your flow script and any supporting files to storage, if you've specified storage for the deployment.
+1. Optionally, before applying, you can edit the deployment YAML file to include additional settings that are not easily specified via CLI flags. 
 1. Use the `prefect deployment apply` Prefect CLI command to create the deployment with the Prefect Orion server based on the settings in the deployment YAML file.
 
 ### Build a deployment definition
@@ -192,11 +192,11 @@ You can list the contents of the folder to see what we have at this step in the 
 </div>
 
 ???+ tip "Ignoring files with `.prefectignore`"
-    By default `prefect deployment build` automatically uploads your flow script and any supporting files in the present working directory to storage (if you've specified remote storage for the deployment).
+    By default, `prefect deployment build` automatically uploads your flow script and any supporting files in the present working directory to storage (if you've specified remote storage for the deployment).
 
     To exclude files from being uploaded, you can create a `.prefectignore` file. `.prefectignore` enables you to specify files that should be ignored by the deployment creation process. [The syntax follows `.gitignore` patterns](https://git-scm.com/docs/gitignore).
 
-    `.prefectignore` is preconfigured with common artifacts from Python, environment managers, operating system, and other applications that you probably don't want included in flows uploaded to storage. 
+    `.prefectignore` is preconfigured with common artifacts from Python, environment managers, operating systems, and other applications that you probably don't want included in flows uploaded to storage. 
 
     It's also a good flow development practice to store flow files and their dependencies in a folder structure that helps ensure only the files needed to execute flow runs are uploaded to storage.
 
@@ -205,9 +205,9 @@ You can list the contents of the folder to see what we have at this step in the 
 
 ### Configure the deployment
 
-Note that the flow requires a `name` parameter, but we didn't specify one when building the `deployment.yaml` file. To make sure flow runs based on this deployment have a default `name` parameter, we'll add one to the deployment definition.  Additionally, one of our logs is a `DEBUG` level log so in order to ensure that log is emitted we will specify a custom environment variable.
+Note that the flow requires a `name` parameter, but we didn't specify one when building the `deployment.yaml` file. To make sure flow runs based on this deployment have a default `name` parameter, we'll add one to the deployment definition.  Additionally, one of our logs is a `DEBUG` level log &mdash; to ensure that log is emitted, we will specify a custom environment variable.
 
-Open the `log_flow-deployment.yaml` file and edit the parameters to include a default as `parameters: {'name': 'Marvin'}` and the `infra_overrides` to include the relevant environment variable (note that both JSON and nested key / value pairs work here):
+Open the `log_flow-deployment.yaml` file and edit the parameters to include a default as `parameters: {'name': 'Marvin'}` and the `infra_overrides` to include the relevant environment variable (note that both JSON and nested key/value pairs work here):
 
 ```yaml hl_lines="10 12-14"
 ###
@@ -354,7 +354,7 @@ $ prefect deployment inspect log-flow/log-simple
 
 ## Deployment creation with Python
 
-We can perform all of the same actions above with Python as our interface instead of the CLI - which interface to use is ultimately a matter of preference.
+We can perform all of the same actions above with Python as our interface instead of the CLI &mdash; which interface to use is ultimately a matter of preference.
 
 Here we mirror the steps taken above with a new Python file saved as `deployment.py` in the root of our project directory:
 
@@ -376,7 +376,7 @@ if __name__ == "__main__":
     deployment.apply()
 ```
 
-All of the same configuration options apply here as well - you can skip automatic file uploads, apply and build in one step, etc.
+All of the same configuration options apply here as well: you can skip automatic file uploads, apply and build in one step, etc.
 
 ## Run a Prefect Orion server
 
@@ -573,4 +573,4 @@ To terminate the agent, simply go to the terminal session where it's running and
 You can pause or delete a work queue on the Prefect UI **Work Queues** page.
 
 !!! tip "Next steps: Storage and infrastructure"
-    Deployments get interesting when you can execute flow runs in in environments other than your local machine. To do that, you'll need to configure [Storage and Infrastructure](/tutorials/storage/), which is covered in our next tutorial.
+    Deployments get interesting when you can execute flow runs in environments other than your local machine. To do that, you'll need to configure [Storage and Infrastructure](/tutorials/storage/), which is covered in our next tutorial.
