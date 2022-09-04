@@ -246,7 +246,7 @@ if __name__ == "__main__":
     deployment.apply()
 ```
 
-This recipe for loading Blocks is useful across a wide variety of situations, not just deployments.  We can load arbitrary block types from the core `Block` class by referencing their slug.
+This recipe for loading blocks is useful across a wide variety of situations, not just deployments.  We can load arbitrary block types from the core `Block` class by referencing their slug.
 
 !!! tip "Next steps: Flow runs with Docker"
     Continue on to the [Docker](/tutorials/docker/) tutorial where we'll put storage, infrastructure, and deployments together to run a flow in a Docker container.
