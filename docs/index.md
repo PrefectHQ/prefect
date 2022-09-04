@@ -29,7 +29,7 @@ If you move data, you probably need the following functionality:
 - [notifications](ui/notifications/)
 - [observability](/ui/overview/)
 
-Implementing all of these features for your dataflows is a huge pain that takes a lot of time &mdash; time that could be better used writing domain specific code.
+Implementing all of these features for your dataflows is a huge pain that takes a lot of time &mdash; time that could be better used writing domain-specific code.
 
 That's why Prefect 2 offers all this functionality and more! 
 
