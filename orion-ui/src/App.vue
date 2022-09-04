@@ -76,6 +76,7 @@
   import { logsApi } from '@/services/logsApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
+  import { healthCheck } from '@/utilities/api'
   import { can } from '@/utilities/permissions'
 
   provide(blockCapabilitiesApiKey, blockCapabilitiesApi)
@@ -128,6 +129,8 @@
   function close(): void {
     mobileMenuOpen.value = false
   }
+
+  healthCheck()
 
   watchEffect(() => document.body.classList.toggle('body-scrolling-disabled', showMenu.value && !media.lg))
 </script>
