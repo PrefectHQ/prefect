@@ -233,6 +233,7 @@ class BaseQueryComponents(ABC):
                 db.FlowRun.state_type == "SCHEDULED",
                 scheduled_before_clause,
             )
+            .with_for_update(skip_locked=True)
             # if null, no limit will be applied
             .limit(sa.func.least(limit_per_queue, work_queue_query.c.available_slots))
             .lateral("scheduled_flow_runs")
