@@ -161,3 +161,22 @@ class TestGetRunsInQueueQuery:
         runs = result.all()
 
         assert [r[0].id for r in runs] == [fr_3.id]
+
+    async def test_query_skips_locked(self, db):
+        """Concurrent queries should not both receive runs"""
+        if db.database_config.connection_url.startswith("sqlite"):
+            pytest.skip(reason="FOR UDPATE SKIP LOCKED is not supported on SQLite")
+
+        query = db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
+
+        session1 = await db.session()
+        session2 = await db.session()
+        async with session1:
+            async with session2:
+                async with session1.begin():
+                    async with session2.begin():
+                        result1 = (await session1.execute(query)).all()
+                        result2 = (await session2.execute(query)).all()
+
+        assert len(result1) == 3
+        assert len(result2) == 0
