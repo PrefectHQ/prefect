@@ -276,9 +276,13 @@ $ prefect deployment apply log_flow-deployment.yaml
 Successfully loaded 'log-simple'
 Deployment 'log-flow/log-simple' successfully created with id
 '517fd294-2bd3-4738-9515-0c68092ce35d'.
+```
+</div>
 
 You can now use the Prefect CLI to create a flow run for this deployment and run it with an agent that pulls work from the the 'test'
 work queue:
+<div class="terminal">
+```bash
 $ prefect deployment run 'log-flow/log-simple'
 $ prefect agent start -q 'test'
 ```
