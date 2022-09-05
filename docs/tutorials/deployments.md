@@ -50,7 +50,7 @@ In order to demonstrate some of the benefits of Prefect deployments, let's add t
 <div class="terminal">
 ```bash
 $ echo '{"some-piece-of-config": 100}' > config.json
-$ echo 'AN_IMPORTED_MESSAGE = "hello from another file"' > utilities.py
+$ echo 'AN_IMPORTED_MESSAGE = "Hello from another file"' > utilities.py
 ```
 </div>
 
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     log_flow(name)
 ```
 
-Save this in a file `log_flow.py` and run it as a Python script.py Marvin`. You'll see output like this:
+Save this in a file `log_flow.py` and run it as a Python script: `python log_flow.py Marvin`. You'll see output like this:
 
 <div class="terminal">
 ```bash
