@@ -548,7 +548,7 @@ async def build(
         "-a",
         help="An optional flag to automatically register the resulting deployment with the API.",
     ),
-    param: str = typer.Option(
+    param: List[str] = typer.Option(
         None,
         "--param",
         help="An optional parameter override",
@@ -661,19 +661,13 @@ async def build(
             path = str(Path(".").absolute())
 
     parameters = {}
-    if param is not None and params is not None:
+    if param not in [None, []] and params is not None:
         exit_with_error("Can only pass one of `param` or `params` options")
 
     if param is not None:
-        k, unparsed_value = param.split("=")
-        try:
-            v = json.loads(unparsed_value)
-            app.console.print(
-                f"The parameter value {unparsed_value} is parsed as a JSON string"
-            )
-        except json.JSONDecodeError:
-            v = unparsed_value
-        parameters = {k: v}
+        for kv_pair in param or []:
+            param_key, param_value = kv_pair.split("=", 1)
+            parameters[param_key] = param_value
 
     if params is not None:
         parameters = json.loads(params)
@@ -689,7 +683,7 @@ async def build(
     updates = dict(
         path=path,
         parameter_openapi_schema=flow_parameter_schema,
-        parameters=parameters,
+        parameters=parameters or None,
         entrypoint=entrypoint,
         description=deployment.description or flow.description,
         version=version or deployment.version or flow.version,
