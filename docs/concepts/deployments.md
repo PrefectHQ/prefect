@@ -61,14 +61,14 @@ graph LR
 ```
 
 !!! info "Your flow code and the Prefect hybrid model"
-    In the diagram above, the dotted line indicates the path of your flow code in the lifecycle of a Prefect deployment, from creation to executing a flow run. Notice that your flow code stays within your storage and execution infrastructure and never lives on the Prefect API or database.
+    In the diagram above, the dotted line indicates the path of your flow code in the lifecycle of a Prefect deployment, from creation to executing a flow run. Notice that your flow code stays within your storage and execution infrastructure and never lives on the Prefect server or database.
 
-    This is the heart of the Prefect hybrid model: there's always a boundary between your code, your private infrastructure, and the Prefect backend, such as [Prefect Cloud](/ui/cloud/). Even if you're using a self-hosted Prefect Orion API, you only register the deployment metadata on the backend.
+    This is the heart of the Prefect hybrid model: there's always a boundary between your code, your private infrastructure, and the Prefect backend, such as [Prefect Cloud](/ui/cloud/). Even if you're using a self-hosted Prefect Orion API, you only register the deployment metadata on the backend allowing for a clean separation of concerns.
 
 When creating a deployment, a user must answer *two* basic questions:
 
 - What instructions does an [agent](/concepts/work-queues/) need to set up an execution environment for my workflow? For example, a workflow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
-- Where and how can the agent access the flow code?
+- How should the flow code be accessed?
 
 A deployment additionally enables you to:
 
@@ -198,7 +198,7 @@ You can provide storage (`-sb`) and infrastructure block (`-ib`) identifiers in 
 
 | Block class name | Block type used in a deployment |
 | ------- | ----------- |
-| `LocalFileSystem` | `local-file-system` |
+| `GitHub` | `github` |
 | `RemoteFileSystem` | `remote-file-system` |
 | `S3` | `s3` |
 | `GCS` | `gcs` |
