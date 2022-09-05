@@ -660,6 +660,7 @@ async def build(
         else:
             path = str(Path(".").absolute())
 
+    parameters = {}
     if param is not None and params is not None:
         exit_with_error("Can only pass one of `param` or `params` options")
 
@@ -667,7 +668,9 @@ async def build(
         k, unparsed_value = param.split("=")
         try:
             v = json.loads(unparsed_value)
-            app.console.print(f"The parameter value {unparsed_value} is parsed as a JSON string")
+            app.console.print(
+                f"The parameter value {unparsed_value} is parsed as a JSON string"
+            )
         except json.JSONDecodeError:
             v = unparsed_value
         parameters = {k: v}
