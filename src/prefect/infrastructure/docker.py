@@ -139,6 +139,7 @@ class DockerContainer(Infrastructure):
 
     Attributes:
         auto_remove: If set, the container will be removed on completion. Otherwise,
+            the container will remain after exit for inspection.
         command: A list of strings specifying the command to run in the container to
             start the flow run. In most cases you should not override this.
         env: Environment variables to set for the container.
@@ -153,7 +154,6 @@ class DockerContainer(Infrastructure):
             used. If 'networks' is set, this cannot be set.
         networks: An optional list of strings specifying Docker networks to connect the
             container to.
-            the container will remain after exit for inspection.
         stream_output: If set, stream output from the container to local standard output.
         volumes: An optional list of volume mount strings in the format of
             "local_path:container_path".
