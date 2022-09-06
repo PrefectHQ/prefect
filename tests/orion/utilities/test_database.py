@@ -338,6 +338,29 @@ class TestJSON:
         )
         assert await self.get_ids(session, query) == ids
 
+    async def test_multiple_json_has_any(self, session):
+        """
+        SQLAlchemy's default bindparam has a `.` in it, which SQLite rejects. We
+        create a custom bindparam name with `unique=True` to avoid confusion;
+        this tests that multiple json_has_any_key clauses can be used in the
+        same query.
+        """
+        query = (
+            sa.select(SQLJSONModel)
+            .where(
+                sa.or_(
+                    sa.and_(
+                        json_has_any_key(SQLJSONModel.data, ["a"]),
+                        json_has_any_key(SQLJSONModel.data, ["b"]),
+                    ),
+                    json_has_any_key(SQLJSONModel.data, ["c"]),
+                    json_has_any_key(SQLJSONModel.data, ["d"]),
+                ),
+            )
+            .order_by(SQLJSONModel.id)
+        )
+        assert await self.get_ids(session, query) == [3, 4, 5, 6]
+
     @pytest.mark.parametrize(
         "keys,ids",
         [
