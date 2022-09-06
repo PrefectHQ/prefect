@@ -1,15 +1,30 @@
 #!/usr/bin/env python3
-from re import sub
-import httpx
+"""
+This script generates release notes using the GitHub Release API then prints it to
+standard output. You must be logged into GitHub using the `gh` CLI tool.
+
+Usage:
+
+    generate-release-notes.py [<release-tag>] [<target>]
+
+The release tag defaults to `preview` but often should be set to the new version:
+
+    generate-release-notes.py "2.3.0"
+
+The target defaults to `main` but can be set to a different commit or branch:
+
+    generate-release-notes "2.3.0" "my-test-branch"
+"""
+import re
+import shutil
+import subprocess
 import sys
+
+import httpx
 
 REPO_ORG = "PrefectHQ"
 REPO_NAME = "prefect"
 DEFAULT_TAG = "preview"
-
-import subprocess
-import shutil
-import re
 
 TOKEN_REGEX = re.compile(r"Token:\s(.*)")
 ENTRY_REGEX = re.compile(r"^\* (.*) by @(.*) in (.*)$", re.MULTILINE)
@@ -34,8 +49,11 @@ def generate_release_notes(
         json={"tag_name": tag_name, "target_commitish": target_commit},
     )
     if not response.status_code == 200:
-        print("Received status code {response.status_code} from GitHub API:")
-        print(response.json())
+        print(
+            "Received status code {response.status_code} from GitHub API:",
+            file=sys.stderr,
+        )
+        print(response.json(), file=sys.stderr)
         exit(1)
 
     release_notes = response.json()["body"]
@@ -83,16 +101,19 @@ def get_github_token() -> str:
     )
     output = gh_auth_status.stderr.decode()
     if not gh_auth_status.returncode == 0:
-        print("Failed to retrieve authentication status from GitHub CLI:")
-        print(output)
+        print(
+            "Failed to retrieve authentication status from GitHub CLI:", file=sys.stderr
+        )
+        print(output, file=sys.stderr)
         exit(1)
 
     match = TOKEN_REGEX.search(output)
     if not match:
         print(
-            f"Failed to find token in GitHub CLI output with regex {TOKEN_REGEX.pattern!r}:"
+            f"Failed to find token in GitHub CLI output with regex {TOKEN_REGEX.pattern!r}:",
+            file=sys.stderr,
         )
-        print(output)
+        print(output, file=sys.stderr)
         exit(1)
 
     return match.groups()[0]
