@@ -1817,3 +1817,52 @@ class TestTypeDispatch:
         new_block = await block.load("test")
         assert block == new_block
         assert new_block.__fields_set__
+
+    def test_created_block_fields_set(self):
+        expected = {"base", "block_type_slug", "a"}
+
+        block = BaseBlock.parse_obj(AChildBlock().dict())
+        assert block.__fields_set__ == expected
+        assert block.a == 1
+
+        block = BaseBlock.parse_obj(AChildBlock(a=2).dict())
+        assert block.__fields_set__ == expected
+        assert block.a == 2
+
+        block = block.copy()
+        assert block.__fields_set__ == expected
+        assert block.a == 2
+
+    def test_base_field_creates_child_instance_with_union(self):
+        class UnionParentModel(BaseModel):
+            block: Union[AChildBlock, BChildBlock]
+
+        model = UnionParentModel(block=AChildBlock(a=3).dict())
+        assert type(model.block) == AChildBlock
+
+        # Assignment with a copy works still
+        model.block = model.block.copy()
+        assert type(model.block) == AChildBlock
+        assert model.block
+
+        model = UnionParentModel(block=BChildBlock(b=4).dict())
+        assert type(model.block) == BChildBlock
+
+    def test_base_field_creates_child_instance_with_assignment_validation(self):
+        class AssignmentParentModel(BaseModel):
+            block: BaseBlock
+
+            class Config:
+                validate_assignment = True
+
+        model = AssignmentParentModel(block=AChildBlock(a=3).dict())
+        assert type(model.block) == AChildBlock
+        assert model.block.a == 3
+
+        model.block = model.block.copy()
+        assert type(model.block) == AChildBlock
+        assert model.block.a == 3
+
+        model.block = BChildBlock(b=4).dict()
+        assert type(model.block) == BChildBlock
+        assert model.block.b == 4

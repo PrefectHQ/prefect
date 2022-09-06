@@ -791,8 +791,21 @@ class Block(BaseModel, ABC):
         Create an instance of the Block subclass type if a `block_type_slug` is
         present in the data payload.
         """
-        if "block_type_slug" in kwargs:
-            subcls = lookup_type(cls, dispatch_key=kwargs["block_type_slug"])
-            return super().__new__(subcls)
+        block_type_slug = kwargs.pop("block_type_slug", None)
+        if block_type_slug:
+            subcls = lookup_type(cls, dispatch_key=block_type_slug)
+            m = super().__new__(subcls)
+            # NOTE: This is a workaround for an obscure issue where copied models were
+            #       missing attributes. This pattern is from Pydantic's
+            #       `BaseModel._copy_and_set_values`.
+            #       The issue this fixes could not be reproduced in unit tests that
+            #       directly targeted dispatch handling and was only observed when
+            #       copying then saving infrastructure blocks on deployment models.
+            object.__setattr__(m, "__dict__", kwargs)
+            object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
+            return m
         else:
-            return super().__new__(cls)
+            m = super().__new__(cls)
+            object.__setattr__(m, "__dict__", kwargs)
+            object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
+            return m
