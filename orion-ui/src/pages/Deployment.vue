@@ -29,6 +29,15 @@
       <template #details>
         <DeploymentDetails :deployment="deployment" @update="deploymentSubscription.refresh" />
       </template>
+
+      <template #runs>
+        <FlowRunList v-if="flowRuns.length" :flow-runs="flowRuns" disabled :selected="selectedFlowRuns" />
+        <PEmptyResults v-else>
+          <template #message>
+            No runs from the last 7 days
+          </template>
+        </PEmptyResults>
+      </template>
     </p-tabs>
 
     <template #well>
@@ -43,14 +52,16 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentDescription, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization } from '@prefecthq/orion-design'
+  import { DeploymentDescription, FlowRunList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useFlowRunFilterFromParam } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed, watch } from 'vue'
+  import { computed, watch, ref, Ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
   import { routes } from '@/router'
   import { deploymentsApi } from '@/services/deploymentsApi'
+  import { flowRunsApi } from '@/services/flowRunsApi'
+
 
   const deploymentId = useRouteParam('id')
   const router = useRouter()
@@ -61,7 +72,7 @@
   }
 
   const tabs = computed(() => {
-    const values = ['Overview']
+    const values = ['Overview', 'Runs']
 
     if (!deployment.value?.deprecated) {
       values.push('Parameters')
@@ -69,16 +80,24 @@
     if (!media.xl) {
       values.push('Details')
     }
+
     return values
   })
 
   const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
   const deployment = computed(() => deploymentSubscription.response)
 
+
   function routeToDeployments(): void {
     router.push(routes.deployments())
   }
 
+  const deployments: Ref<string[]> = ref<string[]>([deploymentId.value])
+  const filter =  useFlowRunFilterFromParam({ deployments: deployments })
+  console.log('filter on dep page', filter.filter)
+  const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [filter.filter.value], subscriptionOptions)
+  const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
+  const selectedFlowRuns = ref([])
   watch(deployment, () => {
     // If the deployment isn't deprecated and doesn't have a work queue, show the missing work queue message
     if (!deployment.value?.workQueueName && !deployment.value?.deprecated) {
