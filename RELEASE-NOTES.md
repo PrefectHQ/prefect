@@ -12,7 +12,7 @@
 * Fix issue where some user-supplied values were ignored when creating new deployments - https://github.com/PrefectHQ/prefect/pull/6695
 
 ### Collections
-* Added [prefect-fugue](https://prefecthq.github.io/prefect-jupyter/) 
+* Added [prefect-fugue](https://fugue-project.github.io/prefect-fugue/) 
 
 ### Contributors
 * @lennertvandevelde made their first contribution! — [https://github.com/PrefectHQ/prefect/pull/6668](https://github.com/PrefectHQ/prefect/pull/6668)
