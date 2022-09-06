@@ -3,6 +3,6 @@ author: Prefect
 authorUrl: https://prefect.io
 description: Configure Slack webhook notifications with Prefect Cloud 2.
 topic: Cloud
-repo: https://discourse.prefect.io/t/sending-notifications-in-cloud-1-0-using-automations-cloud-2-0-slack-webhook-blocks-and-notifications/1315
+recipeUrl: https://discourse.prefect.io/t/sending-notifications-in-cloud-1-0-using-automations-cloud-2-0-slack-webhook-blocks-and-notifications/1315
 iconUrl: 
   - /img/collections/slack.png

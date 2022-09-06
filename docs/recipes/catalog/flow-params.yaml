@@ -3,6 +3,6 @@ author: Prefect
 authorUrl: https://prefect.io
 description: A guide to passing runtime variables to flows as parameters.
 topic: Deployments
-repo: https://discourse.prefect.io/t/guide-to-implementing-parameters-between-prefect-1-0-and-2-0/1321
+recipeUrl: https://discourse.prefect.io/t/guide-to-implementing-parameters-between-prefect-1-0-and-2-0/1321
 iconUrl: 
   - /img/collections/python.png

@@ -3,6 +3,6 @@ author: Prefect
 authorUrl: https://prefect.io
 description: Create a deployment when pushing to a branch using GitHub Actions.
 topic: GitHub
-repo: https://github.com/PrefectHQ/prefect-recipes/blob/main/devops/github-actions/general-docker-deploy.yaml
+recipeUrl: https://github.com/PrefectHQ/prefect-recipes/blob/main/devops/github-actions/general-docker-deploy.yaml
 iconUrl: 
   - /img/collections/github.png

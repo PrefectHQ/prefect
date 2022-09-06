@@ -3,7 +3,7 @@ author: Prefect
 authorUrl: https://prefect.io
 description: Set up an Azure VM and run a Prefect agent.
 topic: Azure
-repo: https://github.com/PrefectHQ/prefect-recipes/tree/main/devops/infrastructure-as-code/azure/prefect-agent-on-avm
+recipeUrl: https://github.com/PrefectHQ/prefect-recipes/tree/main/devops/infrastructure-as-code/azure/prefect-agent-on-avm
 iconUrl: 
   - /img/collections/azure.png
   - /img/collections/terraform.png

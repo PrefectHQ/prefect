@@ -19,7 +19,7 @@ We're always looking for new recipe contributions! See the [Prefect Recipes](htt
 <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin: 1rem auto; padding: 0 1rem 0 1rem auto;">
 {% for collection in collections %}
     <div>
-        <a href="{{ collection['repo'] }}">
+        <a href="{{ collection['recipeUrl'] }}">
             <h3>{{collection['recipeName']}}</h3>
         </a>
         <div style="height: 110px;">
