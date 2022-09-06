@@ -3,7 +3,7 @@
 ## 2.3.2
 
 ### Enhancements
-* UI displays a message when backend is unreachable - https://github.com/PrefectHQ/prefect/pull/6670
+* UI displays an error message when backend is unreachable - https://github.com/PrefectHQ/prefect/pull/6670
 
 ### Fixes
 * Fix issue where parameters weren't updated when a deployment was re-applied by @lennertvandevelde in https://github.com/PrefectHQ/prefect/pull/6668
@@ -12,10 +12,10 @@
 * Fix issue where some user-supplied values were ignored when creating new deployments - https://github.com/PrefectHQ/prefect/pull/6695
 
 ### Collections
-* [prefect-fugue](https://prefecthq.github.io/prefect-jupyter/)
+* Added [prefect-fugue](https://prefecthq.github.io/prefect-jupyter/) 
 
 ### Contributors
-* @lennertvandevelde made their first contribution — [https://github.com/PrefectHQ/prefect/pull/6668](https://github.com/PrefectHQ/prefect/pull/6668)
+* @lennertvandevelde made their first contribution! — [https://github.com/PrefectHQ/prefect/pull/6668](https://github.com/PrefectHQ/prefect/pull/6668)
 
 ## 2.3.1
 
