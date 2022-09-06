@@ -99,7 +99,7 @@ def test_process_env_unset_current_env_vars(monkeypatch, capsys):
     assert "VALUE-A" not in out
 
 
-async def test_process_created_then_marked_as_started(mock_open_process):
+def test_process_created_then_marked_as_started(mock_open_process):
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     # By raising an exception when started is called we can assert the process
     # is opened before this time
