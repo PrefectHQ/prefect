@@ -197,7 +197,7 @@ async def set_schedule(
     rrule_schedule = {"rrule": rrule_string, "timezone": timezone}
 
     def updated_schedule_check(schedule):
-        return any(v is not None for v in schedule.values())
+        return any(v is not None for k, v in schedule.items() if k != "timezone")
 
     updated_schedules = list(
         filter(
