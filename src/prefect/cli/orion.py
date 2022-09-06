@@ -2,7 +2,6 @@
 Command line interface for working with Orion
 """
 import os
-import signal
 import textwrap
 from functools import partial
 
@@ -32,7 +31,7 @@ from prefect.settings import (
     PREFECT_ORION_UI_ENABLED,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.processutils import run_process
+from prefect.utilities.processutils import kill_on_interrupt, run_process
 
 orion_app = PrefectTyper(
     name="orion",
@@ -138,24 +137,14 @@ async def start(
             )
         )
 
-        # Explicitly handle the interrupt signal here, as it will allow us to cleanly
-        # stop the Orion uvicorn server with a SIGTERM.  Failing to do that may cause
-        # a large amount of anyio error traces on the terminal, because the SIGINT is
-        # handled by Typer/Click in this (the parent process) and will start
-        # shutting down subprocesses:
+        # Explicitly handle the interrupt signal here, as it will allow us to
+        # cleanly stop the Orion uvicorn server. Failing to do that may cause a
+        # large amount of anyio error traces on the terminal, because the
+        # SIGINT is handled by Typer/Click in this process (the parent process)
+        # and will start shutting down subprocesses:
         # https://github.com/PrefectHQ/orion/issues/2475
-        # The first interrupt with send a SIGTERM to uvicorn, then subsequent ones will
-        # send SIGKILL
-        def stop_orion(*args):
-            app.console.print("\nStopping Orion...")
-            os.kill(orion_process_id, signal.SIGTERM)
-            signal.signal(signal.SIGINT, kill_orion)
 
-        def kill_orion(*args):
-            app.console.print("\nKilling Orion...")
-            os.kill(orion_process_id, signal.SIGKILL)
-
-        signal.signal(signal.SIGINT, stop_orion)
+        kill_on_interrupt(orion_process_id, "Orion", app.console.print)
 
     app.console.print("Orion stopped!")
 
