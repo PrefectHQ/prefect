@@ -660,14 +660,14 @@ async def build(
         else:
             path = str(Path(".").absolute())
 
-    if not param and params is not None:
+    if param and (params is not None):
         exit_with_error("Can only pass one of `param` or `params` options")
 
     parameters = dict()
 
     if param:
         for p in param or []:
-            k, unparsed_value = kv_pair.split("=", 1)
+            k, unparsed_value = p.split("=", 1)
             try:
                 v = json.loads(unparsed_value)
                 app.console.print(
