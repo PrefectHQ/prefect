@@ -6,7 +6,7 @@ GitHub token via `GITHUB_TOKEN` environment variable.
 
 Usage:
 
-    generate-release-notes.py [<release-tag>] [<target>]
+    generate-release-notes.py [<release-tag>] [<target>] [<previous-tag>]
 
 The release tag defaults to `preview` but often should be set to the new version:
 
@@ -14,7 +14,12 @@ The release tag defaults to `preview` but often should be set to the new version
 
 The target defaults to `main` but can be set to a different commit or branch:
 
-    generate-release-notes "2.3.0" "my-test-branch"
+    generate-release-notes.py "2.3.0" "my-test-branch"
+
+The previous tag defaults to the last tag, but can be set to a different tag to view
+release notes for a different release. In this case, the target must be provided too.
+
+    generate-release-notes.py "2.3.3" "main" "2.3.2"
 """
 import os
 import re
@@ -38,17 +43,22 @@ def generate_release_notes(
     tag_name: str,
     github_token: str,
     target_commit: str,
+    previous_tag: str = None,
 ):
     """
     Generate release notes using the GitHub API.
     """
+    request = {"tag_name": tag_name, "target_commitish": target_commit}
+    if previous_tag:
+        request["previous_tag_name"] = previous_tag
+
     response = httpx.post(
         f"https://api.github.com/repos/{repo_org}/{repo_name}/releases/generate-notes",
         headers={
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {github_token}",
         },
-        json={"tag_name": tag_name, "target_commitish": target_commit},
+        json=request,
     )
     if not response.status_code == 200:
         print(
@@ -131,6 +141,7 @@ if __name__ == "__main__":
         REPO_ORG,
         REPO_NAME,
         tag_name=sys.argv[1] if len(sys.argv) > 1 else DEFAULT_TAG,
-        target_commit=sys.arg[2] if len(sys.argv) > 2 else "main",
+        target_commit=sys.argv[2] if len(sys.argv) > 2 else "main",
+        previous_tag=sys.argv[3] if len(sys.argv) > 3 else None,
         github_token=get_github_token(),
     )
