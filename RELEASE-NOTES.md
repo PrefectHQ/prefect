@@ -9,7 +9,7 @@
 * Fix issue where parameters weren't updated when a deployment was re-applied by @lennertvandevelde in https://github.com/PrefectHQ/prefect/pull/6668
 * Fix issues with stopping Orion on Windows machines - https://github.com/PrefectHQ/prefect/pull/6672
 * Fix issue with GitHub storage running in non-empty directories - https://github.com/PrefectHQ/prefect/pull/6693
-* New deployments now respect all user inputs - https://github.com/PrefectHQ/prefect/pull/6695
+* Fix issue where some user-supplied values were ignored when creating new deployments - https://github.com/PrefectHQ/prefect/pull/6695
 
 ### Collections
 * [prefect-fugue](https://prefecthq.github.io/prefect-jupyter/)
