@@ -29,8 +29,8 @@ class TestInputValidation:
         invoke_and_assert(
             ["deployment", "build", dep_path, "-n", "dog-deployment"],
             expected_output_contains=[
-                "Your flow path must include the name of the function that is the entrypoint to your flow.",
-                f"Try {dep_path}:<flow_name> for your flow path.",
+                "Your flow entrypoint must include the name of the function that is the entrypoint to your flow.",
+                f"Try {dep_path}:<flow_name>",
             ],
             expected_code=1,
         )
@@ -60,12 +60,36 @@ class TestInputValidation:
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
         assert deployment.work_queue_name == "default"
 
+    def test_entrypoint_is_saved_as_relative_path(self, patch_import, tmp_path):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.entrypoint == "fake-path.py:fn"
+
     def test_server_side_settings_are_used_if_present(self, patch_import, tmp_path):
+        """
+        This only applies to tags, work queue name, description, schedules and default parameter values
+        """
         d = Deployment(
             name="TEST",
             flow_name="fn",
             description="server-side value",
             version="server",
+            parameters={"key": "server"},
+            tags=["server-tag"],
+            work_queue_name="dev",
         )
         assert d.apply()
 
@@ -85,7 +109,9 @@ class TestInputValidation:
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
         assert deployment.description == "server-side value"
-        assert deployment.version == "server"
+        assert deployment.tags == ["server-tag"]
+        assert deployment.parameters == dict(key="server")
+        assert deployment.work_queue_name == "dev"
 
     def test_version_flag_takes_precedence(self, patch_import, tmp_path):
         d = Deployment(
@@ -113,6 +139,31 @@ class TestInputValidation:
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
         assert deployment.version == "CLI-version"
+
+    def test_auto_apply_flag(self, patch_import, tmp_path):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+        )
+        deployment_id = d.apply()
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--apply",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Deployment '{d.flow_name}/{d.name}' successfully created with id '{deployment_id}'."
+            ],
+            temp_dir=tmp_path,
+        )
 
 
 class TestOutputMessages:

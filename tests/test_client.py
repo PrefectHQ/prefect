@@ -366,6 +366,7 @@ class TestClientContextManager:
         assert startup.call_count == shutdown.call_count
         assert startup.call_count > 0
 
+    @pytest.mark.flaky(max_runs=3)
     @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
     async def test_client_context_lifespan_is_robust_to_mixed_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
@@ -909,8 +910,8 @@ async def test_update_flow_run(orion_client):
         name="test",
         tags=["hello", "world"],
         empirical_policy=schemas.core.FlowRunPolicy(
-            max_retries=1,
-            retry_delay_seconds=2,
+            retries=1,
+            retry_delay=2,
         ),
     )
     updated_flow_run = await orion_client.read_flow_run(flow_run.id)
@@ -919,8 +920,8 @@ async def test_update_flow_run(orion_client):
     assert updated_flow_run.name == "test"
     assert updated_flow_run.tags == ["hello", "world"]
     assert updated_flow_run.empirical_policy == schemas.core.FlowRunPolicy(
-        max_retries=1,
-        retry_delay_seconds=2,
+        retries=1,
+        retry_delay=2,
     )
 
 

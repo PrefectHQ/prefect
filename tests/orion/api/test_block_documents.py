@@ -317,6 +317,12 @@ class TestReadBlockDocument:
         response = await client.get(f"/block_documents/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    async def test_read_nonsense_block_document(self, client):
+        """Regression test for an issue we observed in Cloud where a client made
+        requests for /block_documents/null"""
+        response = await client.get(f"/block_documents/not-even")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
 
 class TestReadBlockDocuments:
     @pytest.fixture(autouse=True)
@@ -423,7 +429,7 @@ class TestReadBlockDocuments:
         read_block_documents = pydantic.parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
-        # sorted by block type name, block document name
+        # sorted by block document name
         # anonymous blocks excluded by default
         assert [b.id for b in read_block_documents] == [
             b.id for b in block_documents if not b.is_anonymous
@@ -447,6 +453,12 @@ class TestReadBlockDocuments:
             for attr in required_attrs:
                 assert getattr(b, attr) is not None
 
+    async def test_read_nonsense_block_document(self, client, block_documents):
+        """Regression test for an issue we observed in Cloud where a client made
+        requests for /block_documents/null"""
+        response = await client.get(f"/block_documents/not-even")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
     @pytest.mark.parametrize("is_anonymous", [True, False])
     async def test_read_block_documents_with_filter_is_anonymous(
         self, client, block_documents, is_anonymous
@@ -459,7 +471,7 @@ class TestReadBlockDocuments:
         read_block_documents = pydantic.parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
-        # sorted by block type name, block document name
+        # sorted by block document name
         assert [b.id for b in read_block_documents] == [
             b.id for b in block_documents if b.is_anonymous is is_anonymous
         ]
@@ -482,11 +494,11 @@ class TestReadBlockDocuments:
         read_block_documents = pydantic.parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
-        # sorted by block type name, block document name
+        # sorted by block document name
         assert [b.id for b in read_block_documents] == [b.id for b in block_documents]
 
     async def test_read_block_documents_limit_offset(self, client, block_documents):
-        # sorted by block type name, block document name
+        # sorted by block document name
         response = await client.post("/block_documents/filter", json=dict(limit=2))
         read_block_documents = pydantic.parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
@@ -550,6 +562,34 @@ class TestReadBlockDocuments:
         assert len(swim_block_documents) == 1
         assert swim_block_documents[0].id == block_documents[6].id
 
+    async def test_read_block_documents_filter_types(self, client, block_documents):
+        response = await client.post(
+            "/block_documents/filter",
+            json=dict(block_types=dict(slug=dict(any_=["a", "b"]))),
+        )
+        assert response.status_code == 200
+        docs = pydantic.parse_obj_as(List[schemas.core.BlockDocument], response.json())
+        assert len(docs) == 3
+        assert len([d for d in docs if d.block_type.slug == "a"]) == 1
+        assert len([d for d in docs if d.block_type.slug == "b"]) == 2
+        assert [b.id for b in docs] == [
+            block_documents[1].id,
+            block_documents[2].id,
+            block_documents[4].id,
+        ]
+
+    async def test_read_block_documents_filter_multiple(self, client, block_documents):
+        response = await client.post(
+            "/block_documents/filter",
+            json=dict(
+                block_types=dict(slug=dict(any_=["a", "b"])),
+                block_schemas=dict(block_capabilities=dict(all_=["fly"])),
+            ),
+        )
+        assert response.status_code == 200
+        docs = pydantic.parse_obj_as(List[schemas.core.BlockDocument], response.json())
+        assert [b.id for b in docs] == [block_documents[2].id, block_documents[4].id]
+
 
 class TestDeleteBlockDocument:
     async def test_delete_block(self, session, client, block_schemas):
@@ -575,6 +615,12 @@ class TestDeleteBlockDocument:
 
     async def test_delete_missing_block(self, session, client, block_schemas):
         response = await client.delete(f"/block_documents/{uuid4()}")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_delete_nonsense_block_document(self, client, block_schemas):
+        """Regression test for an issue we observed in Cloud where a client made
+        requests for /block_documents/null"""
+        response = await client.get("/block_documents/not-even")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
@@ -918,6 +964,20 @@ class TestUpdateBlockDocument:
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    async def test_update_nonsense_block_document(self, client):
+        """Regression test for an issue we observed in Cloud where a client made
+        requests for /block_documents/null"""
+        response = await client.patch(
+            "/block_documents/not-even",
+            json=BlockDocumentUpdate(
+                data={
+                    "b": {"$ref": {}},
+                    "z": "zzzzz",
+                },
+            ).dict(json_compatible=True, exclude_unset=True),
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestSecretBlockDocuments:

@@ -1,6 +1,7 @@
 import sys
 import time
 from abc import ABC, abstractmethod
+from functools import partial
 from uuid import uuid4
 
 import anyio
@@ -8,7 +9,6 @@ import cloudpickle
 import pytest
 
 from prefect import flow, task
-from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
@@ -334,17 +334,11 @@ class TaskRunnerStandardTestSuite(ABC):
             )
 
         async with task_runner.start():
-            fut = await task_runner.submit(
-                task_run=task_run,
-                run_key=f"{task_run.name}-{task_run.id.hex}",
-                run_fn=fake_orchestrate_task_run,
-                run_kwargs=dict(example_kwarg=1),
+            await task_runner.submit(
+                key=task_run.id,
+                call=partial(fake_orchestrate_task_run, example_kwarg=1),
             )
-            assert isinstance(fut, PrefectFuture), "submit should return a future"
-            assert fut.task_run == task_run, "the future should have the same task run"
-            assert fut.asynchronous == True
-
-            state = await task_runner.wait(fut, 5)
+            state = await task_runner.wait(task_run.id, 5)
             assert state is not None, "wait timed out"
             assert isinstance(state, State), "wait should return a state"
             assert state.result() == 1
@@ -364,14 +358,12 @@ class TaskRunnerStandardTestSuite(ABC):
             raise exception
 
         async with task_runner.start():
-            future = await task_runner.submit(
-                task_run=task_run,
-                run_key=f"{task_run.name}-{task_run.id.hex}",
-                run_fn=fake_orchestrate_task_run,
-                run_kwargs={},
+            await task_runner.submit(
+                key=task_run.id,
+                call=fake_orchestrate_task_run,
             )
 
-            state = await task_runner.wait(future, 5)
+            state = await task_runner.wait(task_run.id, 5)
             assert state is not None, "wait timed out"
             assert isinstance(state, State), "wait should return a state"
             assert state.type == StateType.CRASHED

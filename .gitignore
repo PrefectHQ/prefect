@@ -25,6 +25,9 @@ profile_default/
 ipython_config.py
 *.ipynb_checkpoints/*
 
+# Profiling
+/prof
+
 # Environments
 .python-version
 .env

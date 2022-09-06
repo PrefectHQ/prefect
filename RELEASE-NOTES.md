@@ -1,5 +1,104 @@
 # Prefect Release Notes
 
+## 2.3.1
+
+### Enhancements
+* Add sync compatibility to `run` for all infrastructure types — https://github.com/PrefectHQ/prefect/pull/6654
+* Update Docker container name collision log to `INFO` level for clarity — https://github.com/PrefectHQ/prefect/pull/6657
+* Refactor block documents queries for speed ⚡️ — https://github.com/PrefectHQ/prefect/pull/6645
+* Update block CLI to match standard styling — https://github.com/PrefectHQ/prefect/pull/6679
+### Fixes
+* Add `git` to the Prefect image — https://github.com/PrefectHQ/prefect/pull/6653
+* Update Docker container runs to be robust to container removal — https://github.com/PrefectHQ/prefect/pull/6656
+* Fix parsing of `PREFECT_TEST_MODE` in `PrefectBaseModel` — https://github.com/PrefectHQ/prefect/pull/6647
+* Fix handling of `.prefectignore` paths on Windows — https://github.com/PrefectHQ/prefect/pull/6680
+
+### Collections
+* [prefect-juptyer](https://prefecthq.github.io/prefect-jupyter/)
+
+### Contributors
+* @mars-f made their first contribution — https://github.com/PrefectHQ/prefect/pull/6639
+* @pdashk made their first contribution — https://github.com/PrefectHQ/prefect/pull/6640
+
+## 2.3.0
+
+### Exciting New Features 🎉
+
+- Add support for deploying flows stored in Docker images — [#6574](https://github.com/PrefectHQ/prefect/pull/6574)
+- Add support for deploying flows stored on GitHub — [#6598](https://github.com/PrefectHQ/prefect/pull/6598)
+- Add file system block for reading directories from GitHub — [#6517](https://github.com/PrefectHQ/prefect/pull/6517)
+- Add a context manager to disable the flow and task run loggers for testing — [#6575](https://github.com/PrefectHQ/prefect/pull/6575)
+- Add task run pages to the UI — [#6570](https://github.com/PrefectHQ/prefect/pull/6570)
+
+### Enhancements
+
+- Add "cloud" to `prefect version` server type display — [#6523](https://github.com/PrefectHQ/prefect/pull/6523)
+- Use the parent flow run client for child flow runs if available — [#6526](https://github.com/PrefectHQ/prefect/pull/6526)
+- Add display of Prefect version when starting agent — [#6545](https://github.com/PrefectHQ/prefect/pull/6545)
+- Add type hints to state predicates, e.g. `is_completed()` — [#6561](https://github.com/PrefectHQ/prefect/pull/6561)
+- Add error when sync compatible methods are used incorrectly — [#6565](https://github.com/PrefectHQ/prefect/pull/6565)
+- Improve performance of task run submission — [#6527](https://github.com/PrefectHQ/prefect/pull/6527)
+- Improve performance of flow run serialization for `/flow_runs/filter` endpoint — [#6553](https://github.com/PrefectHQ/prefect/pull/6553)
+- Add field to states with untrackable dependencies due to result types — [#6472](https://github.com/PrefectHQ/prefect/pull/6472)
+- Update `Task.map` iterable detection to exclude strings and bytes — [#6582](https://github.com/PrefectHQ/prefect/pull/6582)
+- Add a version attribute to the block schema model — [#6491](https://github.com/PrefectHQ/prefect/pull/6491)
+- Add better error handling in the telemetry service — [#6124](https://github.com/PrefectHQ/prefect/pull/6124)
+- Update the Docker entrypoint display for the Prefect image — [#655](https://github.com/PrefectHQ/prefect/pull/6552)
+- Add a block creation link to `prefect block type ls` — [#6493](https://github.com/PrefectHQ/prefect/pull/6493)
+- Allow customization of notifications of queued flow runs — [#6538](https://github.com/PrefectHQ/prefect/pull/6538)
+- Avoid duplicate saves of storage blocks as anonymous blocks — [#6550](https://github.com/PrefectHQ/prefect/pull/6550)
+- Remove save of agent default infrastructure blocks — [#6550](https://github.com/PrefectHQ/prefect/pull/6550)
+- Add a `--skip-upload` flag to `prefect deployment build` — [#6560](https://github.com/PrefectHQ/prefect/pull/6560)
+- Add a `--upload` flag to `prefect deployment apply` — [#6560](https://github.com/PrefectHQ/prefect/pull/6560)
+- Add the ability to specify relative sub-paths when working with remote storage for deployments — [#6518](https://github.com/PrefectHQ/prefect/pull/6518)
+- Prevent non-UUID slugs from raising errors on `/block_document` endpoints — [#6541](https://github.com/PrefectHQ/prefect/pull/6541)
+- Improve Docker image tag parsing to support the full Moby specification — [#6564](https://github.com/PrefectHQ/prefect/pull/6564)
+### Fixes
+
+- Set uvicorn `--app-dir` when starting Orion to avoid module collisions — [#6547](https://github.com/PrefectHQ/prefect/pull/6547)
+- Resolve issue with Python-based deployments having incorrect entrypoint paths — [#6554](https://github.com/PrefectHQ/prefect/pull/6554)
+- Fix Docker image tag parsing when ports are included — [#6567](https://github.com/PrefectHQ/prefect/pull/6567)
+- Update Kubernetes Job to use `args` instead of `command` to respect image entrypoints — [#6581](https://github.com/PrefectHQ/prefect/pull/6581)
+    - Warning: If you are using a custom image with an entrypoint that does not allow passthrough of commands, flow runs will fail.
+- Fix edge case in `sync_compatible` detection when using AnyIO task groups — [#6602](https://github.com/PrefectHQ/prefect/pull/6602)
+- Add check for infrastructure and storage block capabilities during deployment build — [#6535](https://github.com/PrefectHQ/prefect/pull/6535)
+- Fix issue where deprecated work queue pages showed multiple deprecation notices — [#6531](https://github.com/PrefectHQ/prefect/pull/6531)
+- Fix path issues with `RemoteFileSystem` and Windows — [#6620](https://github.com/PrefectHQ/prefect/pull/6620)
+- Fix a bug where `RemoteFileSystem.put_directory` did not respect `local_path` — [#6620](https://github.com/PrefectHQ/prefect/pull/6620)
+
+### Documentation
+
+- Add tutorials for creating and using storage and infrastructure blocks — [#6608](https://github.com/PrefectHQ/prefect/pull/6608)
+- Update tutorial for running flows in Docker — [#6612](https://github.com/PrefectHQ/prefect/pull/6612)
+- Add example of calling a task from a task — [#6501](https://github.com/PrefectHQ/prefect/pull/6501)
+- Update database documentation for Postgres to clarify required plugins — [#6566](https://github.com/PrefectHQ/prefect/pull/6566)
+- Add example of using `Task.map` in docstring — [#6579](https://github.com/PrefectHQ/prefect/pull/6579)
+- Add details about flow run retention policies — [#6577](https://github.com/PrefectHQ/prefect/pull/6577)
+- Fix flow parameter name docstring in deployments — [#6599](https://github.com/PrefectHQ/prefect/pull/6599)
+
+
+### Contributors
+
+Thanks to our external contributors!
+
+- @darrida
+- @jmg-duarte
+- @MSSandroid
+
+## 2.2.0
+
+### Exciting New Features 🎉
+* Added automatic detection of static arguments to `Task.map` in https://github.com/PrefectHQ/prefect/pull/6513
+
+### Fixes
+* Updated deployment flow run retry settings with runtime values in https://github.com/PrefectHQ/prefect/pull/6489
+* Updated media queries for flow-run-filter in https://github.com/PrefectHQ/prefect/pull/6484
+* Added `empirical_policy` to flow run update route in https://github.com/PrefectHQ/prefect/pull/6486
+* Updated flow run policy retry settings to be nullable in https://github.com/PrefectHQ/prefect/pull/6488
+* Disallowed extra attribute initialization on `Deployment` objects in https://github.com/PrefectHQ/prefect/pull/6505
+* Updated `deployment build` to raise an informative error if two infrastructure configs are provided in https://github.com/PrefectHQ/prefect/pull/6504
+* Fixed calling async subflows from sync parents in https://github.com/PrefectHQ/prefect/pull/6514
+
 ## 2.1.1
 
 ### Fixes
@@ -8,7 +107,6 @@
 * Fixed error message in `submit_run` in https://github.com/PrefectHQ/prefect/pull/6453
 * Fixed error if default parameters are missing on a deployment flow run in https://github.com/PrefectHQ/prefect/pull/6465
 * Added error message if `get_run_logger` receives context of unknown type in https://github.com/PrefectHQ/prefect/pull/6401
-
 
 ## 2.1.0
 
@@ -70,11 +168,11 @@ This release contains a number of bug fixes and documentation improvements.
 
 ### Introducing [`prefect-dbt`](https://prefecthq.github.io/prefect-dbt/)
 
-We've released `prefect-dbt` - a collection of Prefect integrations for working with dbt in your Prefect flows. This collection has been built as part of a partnership with dbt Labs to ensure that it follows best practices for working with dbt. 
+We've released `prefect-dbt` - a collection of Prefect integrations for working with dbt in your Prefect flows. This collection has been built as part of a partnership with dbt Labs to ensure that it follows best practices for working with dbt.
 
 ### Improvements and bug fixes
 - Azure storage blocks can use `.prefectignore`
-- Resolved bugs and improved interface in the Orion client. 
+- Resolved bugs and improved interface in the Orion client.
 - Resolved a bug in Azure storage blocks that would cause uploads to get stuck.
 - Resolved a bug where calling a flow in a separate thread would raise an exception.
 - Resolved issues with loading flows from a deployment.
@@ -198,7 +296,7 @@ This release builds upon the collection of small enhancements made in the previo
 For convenience, earlier versions of Prefect 2.0 allowed for a global storage setting. With forthcoming enhancements to blocks, this will no longer be necessary.
 
 ### Other improvements and bug fixes
-- We have published a [guide for migrating workflows from Prefect 1.0 (and lower) to Prefect 2.0](https://orion-docs.prefect.io/migration_guide/) 
+- We have published a [guide for migrating workflows from Prefect 1.0 (and lower) to Prefect 2.0](https://orion-docs.prefect.io/migration_guide/)
 - The Flow run page now has a clearer empty state that is more consistent with other pages
 - Tutorial documentation has been further updated to reflect new result behavior
 - Tasks and flows now run in interruptible threads when timeouts are used
@@ -219,7 +317,7 @@ This release is the first of a series of smaller releases to be released daily.
 
 ## 2.0b9
 
-Big things are in the works for Prefect 2! This release includes breaking changes and deprecations in preparation for Prefect 2 graduating from its beta period to General Availability. 
+Big things are in the works for Prefect 2! This release includes breaking changes and deprecations in preparation for Prefect 2 graduating from its beta period to General Availability.
 
 **With next week's release on July 27th, Prefect 2 will become the default package installed with `pip install prefect`. Flows written with Prefect 1 will require modifications to run with Prefect 2**. Please ensure that your package management process enables you to make the transition when the time is right for you.
 

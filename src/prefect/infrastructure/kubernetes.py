@@ -12,7 +12,7 @@ from typing_extensions import Literal
 from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.docker import get_prefect_image_name
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.hashing import stable_hash
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.pydantic import JsonPatch
@@ -206,6 +206,7 @@ class KubernetesJob(Infrastructure):
         with open(filename, "r", encoding="utf-8") as f:
             return JsonPatch(yaml.load(f, yaml.SafeLoader))
 
+    @sync_compatible
     async def run(
         self,
         task_status: Optional[TaskStatus] = None,
@@ -315,7 +316,7 @@ class KubernetesJob(Infrastructure):
             shortcuts.append(
                 {
                     "op": "add",
-                    "path": "/spec/template/spec/containers/0/command",
+                    "path": "/spec/template/spec/containers/0/args",
                     "value": self.command,
                 }
             )

@@ -5,16 +5,7 @@ from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import (
-    Body,
-    Depends,
-    HTTPException,
-    Path,
-    Query,
-    Response,
-    responses,
-    status,
-)
+from fastapi import Body, Depends, HTTPException, Path, Query, Response, status
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
@@ -52,6 +43,7 @@ async def create_block_document(
 async def read_block_documents(
     limit: int = dependencies.LimitBody(),
     block_documents: Optional[schemas.filters.BlockDocumentFilter] = None,
+    block_types: Optional[schemas.filters.BlockTypeFilter] = None,
     block_schemas: Optional[schemas.filters.BlockSchemaFilter] = None,
     include_secrets: bool = Body(
         False, description="Whether to include sensitive values in the block document."
@@ -65,6 +57,7 @@ async def read_block_documents(
     result = await models.block_documents.read_block_documents(
         session=session,
         block_document_filter=block_documents,
+        block_type_filter=block_types,
         block_schema_filter=block_schemas,
         include_secrets=include_secrets,
         offset=offset,
@@ -74,7 +67,7 @@ async def read_block_documents(
     return result
 
 
-@router.get("/{id}")
+@router.get("/{id:uuid}")
 async def read_block_document_by_id(
     block_document_id: UUID = Path(
         ..., description="The block document id", alias="id"
@@ -90,15 +83,15 @@ async def read_block_document_by_id(
         include_secrets=include_secrets,
     )
     if not block_document:
-        return responses.JSONResponse(
-            status_code=404, content={"message": "Block document not found"}
-        )
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Block document not found")
     return block_document
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_block_document(
-    block_document_id: str = Path(..., description="The block document id", alias="id"),
+    block_document_id: UUID = Path(
+        ..., description="The block document id", alias="id"
+    ),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     result = await models.block_documents.delete_block_document(
@@ -110,10 +103,12 @@ async def delete_block_document(
         )
 
 
-@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_block_document_data(
     block_document: schemas.actions.BlockDocumentUpdate,
-    block_document_id: str = Path(..., description="The block document id", alias="id"),
+    block_document_id: UUID = Path(
+        ..., description="The block document id", alias="id"
+    ),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     try:
