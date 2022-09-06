@@ -286,7 +286,7 @@ class FlowOrchestrationContext(OrchestrationContext):
         validated_state = (
             validated_orm_state.as_state() if validated_orm_state else None
         )
-
+        await self.session.flush()
         self.validated_state = validated_state
 
     def safe_copy(self):
@@ -422,7 +422,7 @@ class TaskOrchestrationContext(OrchestrationContext):
         validated_state = (
             validated_orm_state.as_state() if validated_orm_state else None
         )
-
+        await self.session.flush()
         self.validated_state = validated_state
 
     def safe_copy(self):
