@@ -551,12 +551,12 @@ async def build(
     param: List[str] = typer.Option(
         None,
         "--param",
-        help="An optional parameter override",
+        help="An optional parameter override, values are parsed as JSON strings e.g. --param question=ultimate --param answer=42",
     ),
     params: str = typer.Option(
         None,
         "--params",
-        help="An optional flag to automatically register the resulting deployment with the API.",
+        help='An optional parameter override in a JSON string format e.g. --params=\'{"question": "ultimate", "answer": 42}\'',
     ),
 ):
     """
@@ -660,14 +660,22 @@ async def build(
         else:
             path = str(Path(".").absolute())
 
-    parameters = {}
-    if param not in [None, []] and params is not None:
+    if not param and params is not None:
         exit_with_error("Can only pass one of `param` or `params` options")
 
-    if param is not None:
-        for kv_pair in param or []:
-            param_key, param_value = kv_pair.split("=", 1)
-            parameters[param_key] = param_value
+    parameters = dict()
+
+    if param:
+        for p in param or []:
+            k, unparsed_value = kv_pair.split("=", 1)
+            try:
+                v = json.loads(unparsed_value)
+                app.console.print(
+                    f"The parameter value {unparsed_value} is parsed as a JSON string"
+                )
+            except json.JSONDecodeError:
+                v = unparsed_value
+            parameters[k] = v
 
     if params is not None:
         parameters = json.loads(params)
