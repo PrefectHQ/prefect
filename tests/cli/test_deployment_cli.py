@@ -79,11 +79,17 @@ class TestInputValidation:
         assert deployment.entrypoint == "fake-path.py:fn"
 
     def test_server_side_settings_are_used_if_present(self, patch_import, tmp_path):
+        """
+        This only applies to tags, work queue name, description, schedules and default parameter values
+        """
         d = Deployment(
             name="TEST",
             flow_name="fn",
             description="server-side value",
             version="server",
+            parameters={"key": "server"},
+            tags=["server-tag"],
+            work_queue_name="dev",
         )
         assert d.apply()
 
@@ -103,7 +109,9 @@ class TestInputValidation:
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
         assert deployment.description == "server-side value"
-        assert deployment.version == "server"
+        assert deployment.tags == ["server-tag"]
+        assert deployment.parameters == dict(key="server")
+        assert deployment.work_queue_name == "dev"
 
     def test_version_flag_takes_precedence(self, patch_import, tmp_path):
         d = Deployment(
