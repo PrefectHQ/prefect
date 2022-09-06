@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 This script generates release notes using the GitHub Release API then prints it to
-standard output. You must be logged into GitHub using the `gh` CLI tool.
+standard output. You must be logged into GitHub using the `gh` CLI tool or provide a
+GitHub token via `GITHUB_TOKEN` environment variable.
 
 Usage:
 
@@ -15,6 +16,7 @@ The target defaults to `main` but can be set to a different commit or branch:
 
     generate-release-notes "2.3.0" "my-test-branch"
 """
+import os
 import re
 import shutil
 import subprocess
@@ -92,8 +94,13 @@ def get_github_token() -> str:
     """
     Retrieve the current GitHub token from the `gh` CLI.
     """
+    if "GITHUB_TOKEN" in os.environ:
+        return os.environ["GITHUB_TOKEN"]
+
     if not shutil.which("gh"):
-        print("You must provide a GitHub access token or have the gh CLI installed.")
+        print(
+            "You must provide a GitHub access token via GITHUB_TOKEN or have the gh CLI installed."
+        )
         exit(1)
 
     gh_auth_status = subprocess.run(
