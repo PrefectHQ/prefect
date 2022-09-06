@@ -774,12 +774,14 @@ class GitHub(ReadableDeploymentStorage):
         if local_path is None:
             local_path = Path(".").absolute()
 
+        if not from_path:
+            from_path = ""
+
         # in this case, we clone to a temporary directory and move the subdirectory over
         tmp_dir = None
-        if from_path:
-            tmp_dir = tempfile.TemporaryDirectory(suffix="prefect")
-            path_to_move = str(Path(tmp_dir.name).joinpath(from_path))
-            cmd += f" {tmp_dir.name} && cp -R {path_to_move}/."
+        tmp_dir = tempfile.TemporaryDirectory(suffix="prefect")
+        path_to_move = str(Path(tmp_dir.name).joinpath(from_path))
+        cmd += f" {tmp_dir.name} && cp -R {path_to_move}/."
 
         cmd += f" {local_path}"
 

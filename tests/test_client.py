@@ -366,6 +366,7 @@ class TestClientContextManager:
         assert startup.call_count == shutdown.call_count
         assert startup.call_count > 0
 
+    @pytest.mark.flaky(max_runs=3)
     @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
     async def test_client_context_lifespan_is_robust_to_mixed_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
