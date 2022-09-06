@@ -211,6 +211,7 @@ def test_import_object_from_module_with_relative_imports(
         assert foobar() == "foobar"
 
 
+@pytest.mark.flaky(max_runs=3)
 @pytest.mark.usefixtures("reset_sys_modules")
 @pytest.mark.parametrize(
     "working_directory,import_path",
