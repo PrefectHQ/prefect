@@ -303,10 +303,8 @@ class BaseQueryComponents(ABC):
         if limit is not None:
             filtered_block_documents_query = filtered_block_documents_query.limit(limit)
 
-        # apply database-specific handling of the filtered parent block documents
-        filtered_block_document_ids = await self._handle_filtered_block_document_ids(
-            session=session,
-            filtered_block_documents_query=filtered_block_documents_query,
+        filtered_block_documents_query = filtered_block_documents_query.cte(
+            "filtered_block_documents"
         )
 
         # --- Query for Referenced Block Documents
@@ -316,7 +314,7 @@ class BaseQueryComponents(ABC):
             sa.select(db.BlockDocumentReference)
             .filter(
                 db.BlockDocumentReference.parent_block_document_id.in_(
-                    filtered_block_document_ids
+                    sa.select(filtered_block_documents_query.c.id)
                 )
             )
             .cte("block_document_references", recursive=True)
@@ -344,7 +342,9 @@ class BaseQueryComponents(ABC):
                 ]
             )
             .select_from(db.BlockDocument)
-            .where(db.BlockDocument.id.in_(filtered_block_document_ids)),
+            .where(
+                db.BlockDocument.id.in_(sa.select(filtered_block_documents_query.c.id))
+            ),
             #
             # then select any referenced blocks
             sa.select(
@@ -373,12 +373,6 @@ class BaseQueryComponents(ABC):
             .select_from(all_block_documents_query)
             .order_by(all_block_documents_query.c.name)
         )
-
-    async def _handle_filtered_block_document_ids(
-        self, session, filtered_block_documents_query
-    ):
-        """Apply database-specific processing to a filtered block document query"""
-        return filtered_block_documents_query
 
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
@@ -521,15 +515,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
 
         result = await session.execute(notification_details_stmt)
         return result.fetchall()
-
-    async def _handle_filtered_block_document_ids(
-        self, session, filtered_block_documents_query
-    ):
-        """
-        Transform the filtered block document query into a CTE and select its `id`
-        """
-        filtered_cte = filtered_block_documents_query.cte("filtered_block_documents")
-        return sa.select(filtered_cte.c.id)
 
 
 class AioSqliteQueryComponents(BaseQueryComponents):
