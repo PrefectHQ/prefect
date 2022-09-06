@@ -230,7 +230,6 @@ async def set_schedule_active(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
         deployment.is_schedule_active = True
-        # await session.flush() # TODO - do we need this?
 
 
 @router.post("/{id}/set_schedule_inactive")
@@ -251,7 +250,6 @@ async def set_schedule_inactive(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
         deployment.is_schedule_active = False
-        await session.flush()
 
         # delete any auto scheduled runs
         await models.deployments._delete_auto_scheduled_runs(
