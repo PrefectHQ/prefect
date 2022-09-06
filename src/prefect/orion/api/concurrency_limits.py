@@ -27,7 +27,7 @@ async def create_concurrency_limit(
     # hydrate the input model into a full model
     concurrency_limit_model = schemas.core.ConcurrencyLimit(**concurrency_limit.dict())
 
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
 
         model = await models.concurrency_limits.create_concurrency_limit(
             session=session, concurrency_limit=concurrency_limit_model
@@ -114,7 +114,7 @@ async def delete_concurrency_limit(
     ),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.concurrency_limits.delete_concurrency_limit(
             session=session, concurrency_limit_id=concurrency_limit_id
         )
@@ -129,7 +129,7 @@ async def delete_concurrency_limit_by_tag(
     tag: str = Path(..., description="The tag name"),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.concurrency_limits.delete_concurrency_limit_by_tag(
             session=session, tag=tag
         )

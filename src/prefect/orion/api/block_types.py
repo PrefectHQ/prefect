@@ -30,7 +30,7 @@ async def create_block_type(
             detail="Block type names beginning with 'Prefect' are reserved.",
         )
     try:
-        async with db.transaction_context() as session:
+        async with db.session_context(begin_transaction=True) as session:
             created_block_type = await models.block_types.create_block_type(
                 session, block_type=block_type
             )
@@ -106,7 +106,7 @@ async def update_block_type(
     """
     Update a block type.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         db_block_type = await models.block_types.read_block_type(
             session=session, block_type_id=block_type_id
         )
@@ -129,7 +129,7 @@ async def delete_block_type(
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         db_block_type = await models.block_types.read_block_type(
             session=session, block_type_id=block_type_id
         )
@@ -203,7 +203,7 @@ async def install_system_block_types(
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """Install block types that the system expects to be present"""
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         for block in [
             prefect.blocks.system.JSON,
             prefect.blocks.system.DateTime,

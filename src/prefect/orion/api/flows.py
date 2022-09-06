@@ -33,7 +33,7 @@ async def create_flow(
 
     now = pendulum.now("UTC")
 
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         model = await models.flows.create_flow(session=session, flow=flow)
 
     if model.created >= now:
@@ -50,7 +50,7 @@ async def update_flow(
     """
     Updates a flow.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.flows.update_flow(
             session=session, flow=flow, flow_id=flow_id
         )
@@ -150,7 +150,7 @@ async def delete_flow(
     """
     Delete a flow by id.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.flows.delete_flow(session=session, flow_id=flow_id)
     if not result:
         raise HTTPException(

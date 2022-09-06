@@ -42,7 +42,7 @@ class Telemetry(LoopService):
 
         Telemetry sessions last until the database is reset.
         """
-        async with db.transaction_context() as session:
+        async with db.session_context(begin_transaction=True) as session:
             telemetry_session = await configuration.read_configuration(
                 session, "TELEMETRY_SESSION"
             )

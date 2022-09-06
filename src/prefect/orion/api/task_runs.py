@@ -45,7 +45,7 @@ async def create_task_run(
 
     now = pendulum.now("UTC")
 
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         model = await models.task_runs.create_task_run(
             session=session, task_run=task_run
         )
@@ -166,7 +166,7 @@ async def delete_task_run(
     """
     Delete a task run by id.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.task_runs.delete_task_run(
             session=session, task_run_id=task_run_id
         )
@@ -194,7 +194,7 @@ async def set_task_run_state(
     """Set a task run state, invoking any orchestration rules."""
 
     # create the state
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         orchestration_result = await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run_id,

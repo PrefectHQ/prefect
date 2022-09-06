@@ -35,7 +35,7 @@ async def create_saved_search(
 
     now = pendulum.now()
 
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         model = await models.saved_searches.create_saved_search(
             session=session, saved_search=saved_search
         )
@@ -90,7 +90,7 @@ async def delete_saved_search(
     """
     Delete a saved search by id.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.saved_searches.delete_saved_search(
             session=session, saved_search_id=saved_search_id
         )

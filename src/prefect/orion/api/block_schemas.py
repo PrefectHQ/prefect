@@ -25,7 +25,7 @@ async def create_block_schema(
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockSchema:
 
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         # check if the requested block type is protected
         block_type = await models.block_types.read_block_type(
             session=session, block_type_id=block_schema.block_type_id
@@ -69,7 +69,7 @@ async def delete_block_schema(
     """
     Delete a block schema by id.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         block_schema = await models.block_schemas.read_block_schema(
             session=session, block_schema_id=block_schema_id
         )

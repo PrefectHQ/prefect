@@ -49,7 +49,7 @@ async def create_flow_run(
 
     now = pendulum.now("UTC")
 
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         model = await models.flow_runs.create_flow_run(
             session=session, flow_run=flow_run
         )
@@ -68,7 +68,7 @@ async def update_flow_run(
     """
     Updates a flow run.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.flow_runs.update_flow_run(
             session=session, flow_run=flow_run, flow_run_id=flow_run_id
         )
@@ -211,7 +211,7 @@ async def delete_flow_run(
     """
     Delete a flow run by id.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.flow_runs.delete_flow_run(
             session=session, flow_run_id=flow_run_id
         )
@@ -241,7 +241,7 @@ async def set_flow_run_state(
     """Set a flow run state, invoking any orchestration rules."""
 
     # create the state
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         orchestration_result = await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run_id,

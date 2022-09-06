@@ -37,7 +37,7 @@ async def create_deployment(
     # hydrate the input model into a full model
     deployment = schemas.core.Deployment(**deployment.dict())
 
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         # check to see if relevant blocks exist, allowing us throw a useful error message
         # for debugging
         if deployment.infrastructure_document_id is not None:
@@ -83,7 +83,7 @@ async def update_deployment(
     deployment_id: str = Path(..., description="The deployment id", alias="id"),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.deployments.update_deployment(
             session=session, deployment_id=deployment_id, deployment=deployment
         )
@@ -182,7 +182,7 @@ async def delete_deployment(
     """
     Delete a deployment by id.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.deployments.delete_deployment(
             session=session, deployment_id=deployment_id
         )
@@ -203,7 +203,7 @@ async def schedule_deployment(
     """
     Schedule runs for a deployment. For backfills, provide start/end times in the past.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         await models.deployments.schedule_runs(
             session=session,
             deployment_id=deployment_id,
@@ -221,7 +221,7 @@ async def set_schedule_active(
     """
     Set a deployment schedule to active. Runs will be scheduled immediately.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
         )
@@ -242,7 +242,7 @@ async def set_schedule_inactive(
     Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled
     state will be deleted.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
         )
@@ -274,7 +274,7 @@ async def create_flow_run_from_deployment(
 
     If no state is provided, the flow run will be created in a PENDING state.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         # get relevant info from the deployment
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id

@@ -22,7 +22,7 @@ async def create_logs(
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """Create new logs from the provided schema."""
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         await models.logs.create_logs(session=session, logs=logs)
 
 

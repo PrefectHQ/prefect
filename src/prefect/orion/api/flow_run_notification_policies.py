@@ -27,7 +27,7 @@ async def create_flow_run_notification_policy(
     """
     Creates a new flow run notification policy.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         return await models.flow_run_notification_policies.create_flow_run_notification_policy(
             session=session, flow_run_notification_policy=flow_run_notification_policy
         )
@@ -44,7 +44,7 @@ async def update_flow_run_notification_policy(
     """
     Updates an existing flow run notification policy.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.flow_run_notification_policies.update_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy_id=flow_run_notification_policy_id,
@@ -109,7 +109,7 @@ async def delete_flow_run_notification_policy(
     """
     Delete a flow run notification policy by id.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.flow_run_notification_policies.delete_flow_run_notification_policy(
             session=session,
             flow_run_notification_policy_id=flow_run_notification_policy_id,

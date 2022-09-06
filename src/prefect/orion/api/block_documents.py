@@ -24,7 +24,7 @@ async def create_block_document(
     """
     Create a new block document.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         try:
             new_block_document = await models.block_documents.create_block_document(
                 session=session, block_document=block_document
@@ -95,7 +95,7 @@ async def delete_block_document(
     ),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.block_documents.delete_block_document(
             session=session, block_document_id=block_document_id
         )
@@ -114,7 +114,7 @@ async def update_block_document_data(
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     try:
-        async with db.transaction_context() as session:
+        async with db.session_context(begin_transaction=True) as session:
             result = await models.block_documents.update_block_document(
                 session=session,
                 block_document_id=block_document_id,

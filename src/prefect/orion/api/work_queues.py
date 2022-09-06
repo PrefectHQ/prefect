@@ -32,7 +32,7 @@ async def create_work_queue(
     """
 
     try:
-        async with db.transaction_context() as session:
+        async with db.session_context(begin_transaction=True) as session:
             model = await models.work_queues.create_work_queue(
                 session=session, work_queue=work_queue
             )
@@ -54,7 +54,7 @@ async def update_work_queue(
     """
     Updates an existing work queue.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.work_queues.update_work_queue(
             session=session, work_queue_id=work_queue_id, work_queue=work_queue
         )
@@ -119,7 +119,7 @@ async def read_work_queue_runs(
     """
     Get flow runs from the work queue.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         flow_runs = await models.work_queues.get_runs_in_work_queue(
             session=session,
             work_queue_id=work_queue_id,
@@ -160,7 +160,7 @@ async def delete_work_queue(
     """
     Delete a work queue by id.
     """
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         result = await models.work_queues.delete_work_queue(
             session=session, work_queue_id=work_queue_id
         )

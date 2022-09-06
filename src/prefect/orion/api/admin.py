@@ -39,7 +39,7 @@ async def clear_database(
     if not confirm:
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
-    async with db.transaction_context() as session:
+    async with db.session_context(begin_transaction=True) as session:
         for table in reversed(db.Base.metadata.sorted_tables):
             await session.execute(table.delete())
 
