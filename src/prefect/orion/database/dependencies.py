@@ -184,7 +184,7 @@ def temporary_orm_config(tmp_orm_config: BaseORMConfiguration):
 
 
 @contextmanager
-def temporary_interface_class(tmp_interface_class: BaseORMConfiguration):
+def temporary_interface_class(tmp_interface_class: type):
     """
     Temporarily override the Orion interface class When the context is closed,
     the existing interface will be restored.
