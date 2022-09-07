@@ -2,14 +2,13 @@ import datetime
 from typing import List
 from uuid import UUID
 
-import sqlalchemy as sa
 from fastapi import Body, Depends
 from pydantic import Field
 
-import prefect.orion.api.dependencies as dependencies
 import prefect.orion.schemas as schemas
 from prefect.logging import get_logger
 from prefect.orion import models
+from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.orion.utilities.server import OrionRouter
@@ -46,8 +45,7 @@ async def read_flow_run_history(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    db: OrionDBInterface = Depends(dependencies.provide_database_interface),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[SimpleFlowRun]:
     columns = [
         db.FlowRun.id,
@@ -56,16 +54,18 @@ async def read_flow_run_history(
         db.FlowRun.expected_start_time,
         db.FlowRun.total_run_time,
     ]
-    result = await models.flow_runs.read_flow_runs(
-        columns=columns,
-        flow_filter=flows,
-        flow_run_filter=flow_runs,
-        task_run_filter=task_runs,
-        deployment_filter=deployments,
-        limit=limit,
-        offset=offset,
-        session=session,
-    )
+    async with db.session_context() as session:
+        result = await models.flow_runs.read_flow_runs(
+            columns=columns,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            sort=sort,
+            limit=limit,
+            offset=offset,
+            session=session,
+        )
     return [
         SimpleFlowRun(
             id=r.id,
