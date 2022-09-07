@@ -121,3 +121,12 @@ def test_run_requires_command():
     process = Process(command=[])
     with pytest.raises(ValueError, match="cannot be run with empty command"):
         process.run()
+
+
+async def test_prepare_for_flow_run_uses_sys_executable(
+    deployment,
+    orion_client,
+):
+    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
+    infrastructure = Process().prepare_for_flow_run(flow_run)
+    assert infrastructure.command == [sys.executable, "-m", "prefect.engine"]
