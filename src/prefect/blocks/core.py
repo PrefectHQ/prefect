@@ -174,6 +174,13 @@ class Block(BaseModel, ABC):
     def __str__(self) -> str:
         return self.__repr__()
 
+    def __repr_args__(self):
+        repr_args = super().__repr_args__()
+        data_keys = self.schema()["properties"].keys()
+        return [
+            (key, value) for key, value in repr_args if key is None or key in data_keys
+        ]
+
     def block_initialization(self) -> None:
         pass
 
@@ -185,6 +192,7 @@ class Block(BaseModel, ABC):
     # type name will default to the class name.
     _block_type_name: Optional[str] = None
     _block_type_slug: Optional[str] = None
+
     # Attributes used to set properties on a block type when registered
     # with Orion.
     _logo_url: Optional[HttpUrl] = None
@@ -764,3 +772,40 @@ class Block(BaseModel, ABC):
         document_id = await self._save(name=name, overwrite=overwrite)
 
         return document_id
+
+    def _iter(self, *, include=None, exclude=None, **kwargs):
+        # Injects the `block_type_slug` into serialized payloads for dispatch
+        for key_value in super()._iter(include=include, exclude=exclude, **kwargs):
+            yield key_value
+
+        # Respect inclusion and exclusion still
+        if include and "block_type_slug" not in include:
+            return
+        if exclude and "block_type_slug" in exclude:
+            return
+
+        yield "block_type_slug", self.get_block_type_slug()
+
+    def __new__(cls: Type[Self], **kwargs) -> Self:
+        """
+        Create an instance of the Block subclass type if a `block_type_slug` is
+        present in the data payload.
+        """
+        block_type_slug = kwargs.pop("block_type_slug", None)
+        if block_type_slug:
+            subcls = lookup_type(cls, dispatch_key=block_type_slug)
+            m = super().__new__(subcls)
+            # NOTE: This is a workaround for an obscure issue where copied models were
+            #       missing attributes. This pattern is from Pydantic's
+            #       `BaseModel._copy_and_set_values`.
+            #       The issue this fixes could not be reproduced in unit tests that
+            #       directly targeted dispatch handling and was only observed when
+            #       copying then saving infrastructure blocks on deployment models.
+            object.__setattr__(m, "__dict__", kwargs)
+            object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
+            return m
+        else:
+            m = super().__new__(cls)
+            object.__setattr__(m, "__dict__", kwargs)
+            object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
+            return m
