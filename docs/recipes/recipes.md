@@ -5,13 +5,15 @@ tags:
 
 # Prefect Recipes
 
-[Prefect Recipes](https://github.com/PrefectHQ/prefect-recipes) are common, extensible patterns for setting up Prefect in your execution environment with readymade resources like dockerfiles, Terraform files, GitHub actions, and more.
+[Prefect recipes](https://github.com/PrefectHQ/prefect-recipes) are common, extensible patterns for setting up Prefect in your execution environment with readymade ingredients like dockerfiles, Terraform files, GitHub actions, and more.
 
-The following are specific Prefect Recipes for Prefect 2.0. You can find the full repository of Recipes at [https://github.com/PrefectHQ/prefect-recipes](https://github.com/PrefectHQ/prefect-recipes).
+Recipes are useful when you are looking to deploy your agent, use event-driven flows, set up unit testing, and more.
 
-### Contributing
+The following are Prefect recipes specific to Prefect 2. You can find a full repository of recipes at [https://github.com/PrefectHQ/prefect-recipes](https://github.com/PrefectHQ/prefect-recipes) and additional recipes in the [Prefect Discourse](https://discourse.prefect.io/).
 
-We're always looking for new recipe contributions! See the [Prefect Recipes](https://github.com/PrefectHQ/prefect-recipes#contributing--swag-) repository for details on how you can add your Prefect 2.0 recipe, share flow best practices with fellow Prefect users, and earn some swag.
+### Contributing recipes
+
+We're always looking for new recipe contributions! See the [Prefect Recipes](https://github.com/PrefectHQ/prefect-recipes#contributing--swag-) repository for details on how you can add your Prefect 2 recipe, share flow best practices with fellow Prefect users, and earn some swag.
 
 ## Recipe catalog
 
