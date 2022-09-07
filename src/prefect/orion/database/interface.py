@@ -41,9 +41,9 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     def __init__(
         self,
-        database_config: BaseDatabaseConfiguration = None,
-        query_components: BaseQueryComponents = None,
-        orm: BaseORMConfiguration = None,
+        database_config: BaseDatabaseConfiguration,
+        query_components: BaseQueryComponents,
+        orm: BaseORMConfiguration,
     ):
 
         self.database_config = database_config
