@@ -15,7 +15,6 @@ from prefect.client import OrionClient, get_client
 from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.infrastructure import Infrastructure, Process
-from prefect.infrastructure.submission import submit_flow_run
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
 from prefect.orion.schemas.data import DataDocument
@@ -189,7 +188,9 @@ class OrionAgent:
         infra_document = BlockDocument(**doc_dict)
         infrastructure_block = Block._from_block_document(infra_document)
         # TODO: Here the agent may update the infrastructure with agent-level settings
-        return infrastructure_block
+
+        prepared_infrastructure = infrastructure_block.prepare_for_flow_run(flow_run)
+        return prepared_infrastructure
 
     async def submit_run(self, flow_run: FlowRun) -> None:
         """
@@ -203,7 +204,7 @@ class OrionAgent:
             try:
                 # Wait for submission to be completed. Note that the submission function
                 # may continue to run in the background after this exits.
-                await self.task_group.start(submit_flow_run, flow_run, infrastructure)
+                await self.task_group.start(infrastructure.run)
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
             except Exception as exc:
                 self.logger.exception(

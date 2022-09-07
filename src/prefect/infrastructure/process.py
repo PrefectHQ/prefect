@@ -107,6 +107,9 @@ class Process(Infrastructure):
         # the Prefect settings context may not be respected
         return {**os_environ, **self._base_environment(), **self.env}
 
+    def _base_flow_run_command(self):
+        return [sys.executable, "-m", "prefect.engine"]
+
 
 class ProcessResult(InfrastructureResult):
     """Contains information about the final state of a completed process"""
