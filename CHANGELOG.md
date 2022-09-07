@@ -15,7 +15,7 @@ Released on September 7, 2022.
 
 - Add state handler to log to Snowflake - [#5671](https://github.com/PrefectHQ/prefect/pull/5671)
 - Fix default idempotency token for `DatabricksSubmitMultitaskRun` - [#6412](https://github.com/PrefectHQ/prefect/pull/6412)
-- Fix custom tag type for Databricks `NewCluster` - [#6573](https://github.com/PrefectHQ/prefect/pull/6009)
+- Fix custom tag type for Databricks `NewCluster` - [#6573](https://github.com/PrefectHQ/prefect/pull/6573)
 - Fix empty file handling in `S3List` task - [#6028](https://github.com/PrefectHQ/prefect/pull/6028)
 
 
