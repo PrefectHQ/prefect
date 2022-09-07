@@ -200,7 +200,7 @@ Subflows will block execution of the parent flow until completion. However, asyn
 
 Subflows differ from normal flows in that they will resolve any passed task futures into data. This allows data to be passed from the parent flow to the child easily.
 
-The relationship between a child and parent flow is tracked by creating a special task run in the the parent flow. This task run will mirror the state of the child flow run.
+The relationship between a child and parent flow is tracked by creating a special task run in the parent flow. This task run will mirror the state of the child flow run.
 
 A task that represents a subflow will be annotated as such in its `state_details` via the presence of a `child_flow_run_id` field.  A subflow can be identified via the presence of a `parent_task_run_id` on `state_details`.
 
