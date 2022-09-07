@@ -1,5 +1,0 @@
-enhancement:
-  - "Using Python object id as idempotency token for DatabricksSubmitMultitaskRun  - [#6412](https://github.com/PrefectHQ/prefect/pull/6412)"
-
-contributor:
-  - "[Edmondo Porcu](https://github.com/edmondo1984)"
