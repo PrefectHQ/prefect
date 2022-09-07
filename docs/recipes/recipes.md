@@ -16,11 +16,11 @@ We're always looking for new recipe contributions! See the [Prefect Recipes](htt
 ## Recipe catalog
 
 <!-- The code below is a jinja2 template that will be rendered by generate_catalog.py -->
-<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin: 1rem auto; padding: 0 1rem 0 1rem auto;">
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin: 1rem 0 3rem">
 {% for collection in collections %}
-    <div>
+    <div style="padding: 1rem; box-shadow: 0 6px 16px rgba(0, 0, 0, .3); border-radius: 5px">
         <a href="{{ collection['recipeUrl'] }}">
-            <h3>{{collection['recipeName']}}</h3>
+            <h3 style="margin: 0">{{collection['recipeName']}}</h3>
         </a>
         <div style="height: 110px;">
             <p style="font-size: 0.8rem">
