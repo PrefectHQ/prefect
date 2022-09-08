@@ -478,7 +478,42 @@ class TestInfrastructureIntegration:
         with pytest.raises(ValueError, match="Hello!"):
             raise result
 
-    async def test_agent_fails_flow_if_infrastructure_does_not_mark_as_started(
+    async def test_agent_does_not_fail_flow_if_infrastructure_watch_fails(
+        self, orion_client, deployment, mock_infrastructure_run
+    ):
+        infra_doc_id = deployment.infrastructure_document_id
+        infra_document = await orion_client.read_block_document(infra_doc_id)
+        infrastructure = Block._from_block_document(infra_document)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+        )
+
+        def raise_value_error():
+            raise ValueError("Hello!")
+
+        mock_infrastructure_run.post_start_side_effect = raise_value_error
+
+        async with OrionAgent(
+            [deployment.work_queue_name], prefetch_seconds=10
+        ) as agent:
+            agent.logger = MagicMock()
+            await agent.get_and_submit_flow_runs()
+
+        mock_infrastructure_run.assert_called_once_with(
+            infrastructure.prepare_for_flow_run(flow_run)
+        )
+        agent.logger.exception.assert_called_once_with(
+            f"An error occured while monitoring flow run '{flow_run.id}'. "
+            "The flow run will not be marked as failed, but an issue may have "
+            "occurred."
+        )
+
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        assert state.is_pending(), f"State should be PENDING: {state!r}"
+
+    async def test_agent_logs_if_infrastructure_does_not_mark_as_started(
         self, orion_client, deployment, mock_infrastructure_run
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
@@ -497,17 +532,12 @@ class TestInfrastructureIntegration:
             agent.logger = MagicMock()
             await agent.get_and_submit_flow_runs()
 
-        agent.logger.exception.assert_called_once_with(
-            f"Failed to submit flow run '{flow_run.id}' to infrastructure."
+        agent.logger.error.assert_called_once_with(
+            f"Infrastructure returned without reporting flow run '{flow_run.id}' "
+            "as started or raising an error. This behavior is not expected and "
+            "generally indicates improper implementation of infrastructure. The "
+            "flow run will not be marked as failed, but an issue may have occurred."
         )
-
-        state = (await orion_client.read_flow_run(flow_run.id)).state
-        assert state.is_failed()
-        result = await orion_client.resolve_datadoc(state.data)
-        with pytest.raises(
-            RuntimeError, match="Child exited without calling task_status.started"
-        ):
-            raise result
 
 
 async def test_agent_displays_message_on_work_queue_pause(
