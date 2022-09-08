@@ -350,12 +350,10 @@ class Block(BaseModel, ABC):
         # create references to those saved block documents.
         for key in data_keys:
             field_value = getattr(self, key)
-
             if (
                 isinstance(field_value, Block)
                 and field_value._block_document_id is not None
             ):
-                # save using alias
                 block_document_data[key] = {
                     "$ref": {"block_document_id": field_value._block_document_id}
                 }
