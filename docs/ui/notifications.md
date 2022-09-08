@@ -1,5 +1,5 @@
 ---
-description: Manage flow deployments from the Prefect UI and Prefect Cloud.
+description: Configure notifications based on flow state from the Prefect UI and Prefect Cloud.
 tags:
     - Orion
     - UI
