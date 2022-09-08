@@ -36,6 +36,7 @@ from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
+from prefect.utilities.importtools import to_qualified_name
 
 if TYPE_CHECKING:
     from prefect.client import OrionClient
@@ -459,7 +460,24 @@ class Block(BaseModel, ABC):
                         code_example = value.get("description")
                         break
 
+        if code_example is None:
+            # If no code example has been specified or extracted from the class
+            # docstring, generate a sensible default
+            code_example = cls._generate_code_example()
+
         return code_example
+
+    @classmethod
+    def _generate_code_example(cls) -> str:
+        """Generates a default code example for the current class"""
+        qualified_name = to_qualified_name(cls)
+        module_str = ".".join(qualified_name.split(".")[:-1])
+        return dedent(
+            f"""\
+        from {module_str} import {cls.__name__}
+
+        {cls.get_block_type_slug().replace("-", "_")}_block = {cls.__name__}.load("BLOCK_NAME")"""
+        )
 
     @classmethod
     def _to_block_type(cls) -> BlockType:
