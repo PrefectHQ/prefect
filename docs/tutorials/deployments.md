@@ -279,7 +279,7 @@ Deployment 'log-flow/log-simple' successfully created with id
 ```
 </div>
 
-You can now use the Prefect CLI to create a flow run for this deployment and run it with an agent that pulls work from the the 'test'
+You can now use the Prefect CLI to create a flow run for this deployment and run it with an agent that pulls work from the 'test'
 work queue:
 <div class="terminal">
 ```bash
@@ -572,7 +572,7 @@ As before, the flow run will be picked up by the agent, and you should be able t
 ```
 </div>
 
-Go back the the **Flow Runs** page in the UI and you'll see the flow run you just initiatied ran and was observed by the API.
+Go back the **Flow Runs** page in the UI and you'll see the flow run you just initiatied ran and was observed by the API.
 
 ![The deployment flow run is shown in the UI run history](/img/tutorials/deployment-run.png)
 

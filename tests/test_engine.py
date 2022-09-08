@@ -22,7 +22,7 @@ from prefect.engine import (
     orchestrate_task_run,
     retrieve_flow_then_begin_flow_run,
 )
-from prefect.exceptions import ParameterTypeError, SignatureMismatchError
+from prefect.exceptions import Abort, ParameterTypeError, SignatureMismatchError
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.states import (
@@ -717,6 +717,29 @@ class TestFlowRunCrashes:
         assert flow_run.state.is_failed()
         assert flow_run.state.type != StateType.CRASHED
         assert "exceeded timeout" in flow_run.state.message
+
+    async def test_aborts_are_not_crashes(self, flow_run, orion_client):
+        """
+        Since aborts are base exceptions, we want to ensure that they are not marked as
+        crashes
+        """
+
+        @flow
+        async def my_flow():
+            raise Abort()
+
+        with pytest.raises(Abort):
+            # ^ the exception should be re-raised
+            await begin_flow_run(
+                flow=my_flow,
+                parameters={},
+                flow_run=flow_run,
+                client=orion_client,
+            )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+
+        assert flow_run.state.type != StateType.CRASHED
 
     async def test_timeouts_do_not_hide_crashes(self, flow_run, orion_client):
         """
