@@ -46,7 +46,7 @@ theme:
         code: Source Code Pro
     icon:
         repo: fontawesome/brands/github
-    logo: img/logos/prefect-logo-full-solid-white.svg
+    logo: img/logos/prefect-logo-mark-solid-white.png
     palette:
         primary: blue
         accent: blue
