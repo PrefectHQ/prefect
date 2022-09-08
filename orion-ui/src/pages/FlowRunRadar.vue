@@ -1,7 +1,7 @@
 <template>
   <p-layout-full class="flow-run-radar">
     <template #header>
-      <PageHeadingFlowRun v-if="flowRun" :flow-run="flowRun" class="flow-run-radar__header" @delete="goToFlowRuns" />
+      <PageHeadingFlowRunRadar v-if="flowRun" :flow-run="flowRun" class="flow-run-radar__header" @delete="goToFlowRuns" />
     </template>
 
     <RadarApp :flow-run-id="flowRunId" />
@@ -9,7 +9,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { RadarApp, PageHeadingFlowRun } from '@prefecthq/orion-design'
+  import { RadarApp, PageHeadingFlowRunRadar } from '@prefecthq/orion-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
