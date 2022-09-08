@@ -1,5 +1,5 @@
 ---
-description: View and manage flows that Prefect is observing in the Prefect UI and Prefect Cloud.
+description: View and manage flows in the Prefect UI and Prefect Cloud.
 tags:
     - Orion
     - UI

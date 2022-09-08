@@ -310,7 +310,7 @@ async def apply(
         if deployment.work_queue_name is not None:
             app.console.print(
                 "\nTo execute flow runs from this deployment, start an agent "
-                f"that pulls work from the the {deployment.work_queue_name!r} work queue:"
+                f"that pulls work from the {deployment.work_queue_name!r} work queue:"
             )
             app.console.print(
                 f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"
@@ -614,7 +614,7 @@ async def build(
         if deployment.work_queue_name is not None:
             app.console.print(
                 "\nTo execute flow runs from this deployment, start an agent "
-                f"that pulls work from the the {deployment.work_queue_name!r} work queue:"
+                f"that pulls work from the {deployment.work_queue_name!r} work queue:"
             )
             app.console.print(
                 f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"

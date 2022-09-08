@@ -1,5 +1,5 @@
 ---
-description: Prefect storage configures local or remote data stores used for flow code, task results, and flow results.
+description: Prefect storage configures local or remote data stores used for flow scripts, deployments, and flow runs.
 tags:
     - storage
     - databases
@@ -9,6 +9,7 @@ tags:
     - AWS S3
     - Azure Blob Storage
     - Google Cloud Storage
+    - SMB
 ---
 
 # Storage

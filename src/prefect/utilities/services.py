@@ -18,7 +18,7 @@ async def critical_service_loop(
     printer: Callable[..., None] = print,
 ):
     """
-    Runs the the given `workload` function on the specified `interval`, while being
+    Runs the given `workload` function on the specified `interval`, while being
     forgiving of intermittent issues like temporary HTTP errors.  If more than a certain
     number of `consecutive` errors occur, print a summary of up to `memory` recent
     exceptions to `printer`, then exit.
