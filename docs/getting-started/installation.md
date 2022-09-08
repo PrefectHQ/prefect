@@ -16,13 +16,19 @@ tags:
 The first step to getting started with Prefect is installing the Prefect Python package. 
 
 ## Set up Python
+
 <a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
     <img src="https://img.shields.io/pypi/pyversions/prefect.svg" /></a>
 
 Prefect requires Python 3.7 or later.
 
+We recommend installing Prefect 2 using a Python virtual environment manager such as `pipenv`, `conda`, or `virtualenv`/`venv`.
 
-We recommend installing Prefect 2.0 using a Python virtual environment manager such as `pipenv`, `conda`, or `virtualenv`/`venv`.
+!!! success "Upgrading from Prefect 1 to Prefect 2"
+    If you're upgrading from Prefect 1 to Prefect 2, we recommend creating a new environment. Should you encounter any issues when upgrading, this ensures being able to roll back to a known working state easily.
+
+!!! warning "Windows and Linux requirements"
+    See [Windows installation notes](#windows-installation-notes) and [Linux installation notes](#linux-installation-notes) for details on additional installation requirements and considerations.
 
 ## Install Prefect 
 
@@ -31,12 +37,9 @@ We recommend installing Prefect 2.0 using a Python virtual environment manager s
 
 The following sections describe how to install Prefect in your development or execution environment.
 
-!!! success "Upgrading from Prefect 1.0 to Prefect 2.0"
-    If you're upgrading from Prefect 1.0 to Prefect 2.0, we recommend creating a new environment. Should you encounter any issues when upgrading, this ensures being able to roll back to a known working state easily.
-
 ### Installing the latest version
 
-Prefect is published as a Python package. To install the latest 2.0 release, run the following in a shell or terminal session:
+Prefect is published as a Python package. To install the latest Prefect 2 release, run the following in a shell or terminal session:
 
 <div class="terminal">
 ```bash
@@ -48,11 +51,11 @@ To install a specific version, specify the version, such as:
 
 <div class="terminal">
 ```bash
-pip install -U "prefect==2.3.1"
+pip install -U "prefect==2.3.2"
 ```
 </div>
 
-Find the available release versions in the [Prefect 2.0 Release Notes](https://github.com/PrefectHQ/prefect/blob/orion/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
+Find the available release versions in the [Prefect 2 Release Notes](https://github.com/PrefectHQ/prefect/blob/orion/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
 
 ### Installing the bleeding edge
 
@@ -92,11 +95,11 @@ To check that Prefect was installed correctly, use the Prefect CLI command `pref
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.0
-API version:         0.7.0
+Version:             2.3.2
+API version:         0.8.0
 Python version:      3.9.10
-Git commit:          6379bc53
-Built:               Tue, Jul 19, 2022 12:33 PM
+Git commit:          ef452c04
+Built:               Thu, Sep 8, 2022 2:07 PM
 OS/Arch:             darwin/x86_64
 Profile:             default
 Server type:         ephemeral
@@ -108,7 +111,10 @@ Server:
 
 ## Windows installation notes
 
-Support for running Prefect flows on Windows became available with Prefect 2.0b6. 
+Prefect 2 supports running Prefect flows on Windows. 
+
+!!! note "Prefect on Windows requires Python 3.8 or later"
+    Make sure to use Python 3.8 or higher when running a Prefect agent on Windows.
 
 You can install and run Prefect as described above via Windows PowerShell, the Windows Command Prompt, or [`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html). Note that, after installation, you may need to manually add the Python local packages `Scripts` folder to your `Path` environment variable. 
 
@@ -168,7 +174,6 @@ Prior to 2.0a10, Prefect did not have database migrations and required a hard re
 Resetting the database with the CLI command `prefect orion database reset` is not compatible a database from 2.0a9 or earlier. Instead, delete the database file `~/.prefect/orion.db`. Prefect automatically creates a new database on the next write.
 
 !!! warning "Resetting the database deletes data"
-
     Note that resetting the database causes the loss of any existing data. 
 
 ## External requirements
@@ -192,11 +197,11 @@ Or use the Prefect CLI command `prefect version`, which prints version and envir
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.0
+Version:             2.*
 API version:         0.8.0
 Python version:      3.9.10
-Git commit:          6379bc53
-Built:               Tue, Jul 19, 2022 12:33 PM
+Git commit:          ef452c04
+Built:               Thu, Sep 8, 2022 2:07 PM
 OS/Arch:             darwin/x86_64
 Profile:             default
 Server type:         ephemeral

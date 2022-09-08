@@ -96,6 +96,18 @@ def my_flow():
     y = task_2(wait_for=[x])
 ```
 
+### Can I run Prefect flows on Linux?
+
+Yes! 
+
+See the [Installation](/getting-started/installation/) documentation and [Linux installation notes](/getting-started/installation/#linux-installation-notes) for details on getting started with Prefect on Linux.
+
+### Can I run Prefect flows on Windows?
+
+Yes!
+
+See the [Installation](/getting-started/installation/) documentation and [Windows installation notes](/getting-started/installation/#windows-installation-notes) for details on getting started with Prefect on Windows.
+
 ### What external requirements does Prefect have?
 
 Prefect does not have any additional requirements besides those installed by `pip install --pre prefect`. The entire system, including the UI and services, can be run in a single process via `prefect orion start` and does not require Docker.
