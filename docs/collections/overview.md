@@ -6,6 +6,29 @@ tags:
     - collections
     - task library
     - contributing
+    - Airbyte
+    - AWS
+    - Azure
+    - CubeJS
+    - Dask
+    - Databricks
+    - dbt
+    - send email
+    - Fugue
+    - GCP
+    - GitHub
+    - Great Expectations
+    - Jupyter
+    - MetricFlow
+    - Monday
+    - OpenMetadata
+    - Ray
+    - Slack
+    - Snowflake
+    - SQLAlchemy
+    - Stitch
+    - Transform
+    - Twitter
 ---
 
 # Prefect Collections

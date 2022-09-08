@@ -1,3 +1,16 @@
+---
+description: Installing Prefect 2 and configuring on supported environments.
+tags:
+    - installation
+    - pip install
+    - development
+    - Linux
+    - Windows
+    - SQLite
+    - upgrading
+---
+
+
 # Installation
 
 The first step to getting started with Prefect is installing the Prefect Python package. 
