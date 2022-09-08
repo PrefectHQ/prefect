@@ -1,5 +1,43 @@
 # Prefect Release Notes
 
+## 2.3.2
+
+### Enhancements
+* UI displays an error message when backend is unreachable - https://github.com/PrefectHQ/prefect/pull/6670
+
+### Fixes
+* Fix issue where parameters weren't updated when a deployment was re-applied by @lennertvandevelde in https://github.com/PrefectHQ/prefect/pull/6668
+* Fix issues with stopping Orion on Windows machines - https://github.com/PrefectHQ/prefect/pull/6672
+* Fix issue with GitHub storage running in non-empty directories - https://github.com/PrefectHQ/prefect/pull/6693
+* Fix issue where some user-supplied values were ignored when creating new deployments - https://github.com/PrefectHQ/prefect/pull/6695
+
+### Collections
+* Added [prefect-fugue](https://fugue-project.github.io/prefect-fugue/) 
+
+### Contributors
+* @lennertvandevelde made their first contribution! — [https://github.com/PrefectHQ/prefect/pull/6668](https://github.com/PrefectHQ/prefect/pull/6668)
+
+## 2.3.1
+
+### Enhancements
+* Add sync compatibility to `run` for all infrastructure types — https://github.com/PrefectHQ/prefect/pull/6654
+* Update Docker container name collision log to `INFO` level for clarity — https://github.com/PrefectHQ/prefect/pull/6657
+* Refactor block documents queries for speed ⚡️ — https://github.com/PrefectHQ/prefect/pull/6645
+* Update block CLI to match standard styling — https://github.com/PrefectHQ/prefect/pull/6679
+
+### Fixes
+* Add `git` to the Prefect image — https://github.com/PrefectHQ/prefect/pull/6653
+* Update Docker container runs to be robust to container removal — https://github.com/PrefectHQ/prefect/pull/6656
+* Fix parsing of `PREFECT_TEST_MODE` in `PrefectBaseModel` — https://github.com/PrefectHQ/prefect/pull/6647
+* Fix handling of `.prefectignore` paths on Windows — https://github.com/PrefectHQ/prefect/pull/6680
+
+### Collections
+* [prefect-juptyer](https://prefecthq.github.io/prefect-jupyter/)
+
+### Contributors
+* @mars-f made their first contribution — https://github.com/PrefectHQ/prefect/pull/6639
+* @pdashk made their first contribution — https://github.com/PrefectHQ/prefect/pull/6640
+
 ## 2.3.0
 
 ### Exciting New Features 🎉

@@ -2,11 +2,9 @@
 Routes for admin-level interactions with the Orion API.
 """
 
-import sqlalchemy as sa
 from fastapi import Body, Depends, Response, status
 
 import prefect
-import prefect.orion.api.dependencies as dependencies
 import prefect.settings
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
@@ -29,7 +27,6 @@ async def read_version() -> str:
 
 @router.post("/database/clear", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_database(
-    session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
     confirm: bool = Body(
         False,
@@ -42,8 +39,9 @@ async def clear_database(
     if not confirm:
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
-    for table in reversed(db.Base.metadata.sorted_tables):
-        await session.execute(table.delete())
+    async with db.session_context(begin_transaction=True) as session:
+        for table in reversed(db.Base.metadata.sorted_tables):
+            await session.execute(table.delete())
 
 
 @router.post("/database/drop", status_code=status.HTTP_204_NO_CONTENT)
