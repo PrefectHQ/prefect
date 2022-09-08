@@ -401,7 +401,7 @@ class TaskRunView:
         This will not mutate the current object.
 
         Returns:
-            A new instance of TaskRunView
+            A new instance of `TaskRunView`.
         """
         latest_view = self.from_task_run_id(task_run_id=self.task_run_id)
         latest_view._result = self._result
