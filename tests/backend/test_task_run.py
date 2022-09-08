@@ -463,11 +463,11 @@ def test_task_run_view_get_latest_retains_cached_results(patch_post, tmpdir):
         {"data": {"task_run": [task_run_data]}},
     )
 
-    result = task_run.get_result()
+    result_value = task_run.get_result()
     task_run_2 = task_run.get_latest()
 
     # Cached results are transfered
-    assert task_run_2._result is result
+    assert task_run_2._result is result_value
 
     # Can be accessed
-    assert task_run_2.get_result() is result
+    assert task_run_2.get_result() is result_value
