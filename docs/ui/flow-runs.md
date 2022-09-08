@@ -1,5 +1,5 @@
 ---
-description: View your flow runs in the Prefect 2.0 and Prefect Cloud UI.
+description: View and inspect your flow runs in the Prefect UI and Prefect Cloud.
 tags:
     - Orion
     - UI

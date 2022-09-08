@@ -1,9 +1,11 @@
 ---
-description: Task runners enable sequential, concurrent, parallel, or distributed execution of Prefect tasks.
+description: Prefect task runners let you specify the executors for tasks in a flow run, including returning a PrefectFuture contianing both results and state. 
 tags:
-    - Orion
     - tasks
     - task runners
+    - executors
+    - PrefectFuture
+    - submit
     - concurrent execution
     - sequential execution
     - parallel execution

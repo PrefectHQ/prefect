@@ -1,11 +1,13 @@
 ---
-description: Prefect flows are the foundational containers for workflow logic
+description: Prefect flows are the foundational containers for workflow logic.
 tags:
-    - Orion
     - flows
     - subflows
+    - workflows
+    - scripts
     - parameters
     - states
+    - final state
 ---
 
 # Flows

@@ -1,5 +1,5 @@
 ---
-description: Prefect infrastructure responsible for creating and monitoring the execution environment for flow runs associated with deployments.
+description: Prefect infrastructure is responsible for creating and monitoring the execution environment for flow runs associated with deployments.
 tags:
     - orchestration
     - infrastructure

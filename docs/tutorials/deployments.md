@@ -1,5 +1,5 @@
 ---
-description: Learn how to create Prefect flow deployments and run them with agents and work queues.
+description: Learn how to create Prefect deployments and execute flow runs with agents and work queues.
 tags:
     - Orion
     - work queues
