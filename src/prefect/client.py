@@ -1391,7 +1391,7 @@ class OrionClient:
             description=deployment.description,
             work_queue_name=deployment.work_queue_name,
             tags=deployment.tags,
-            manifest_path=deployment.manifest_path,  # for backwards compat
+            manifest_path=deployment.manifest_path,
             path=deployment.path,
             entrypoint=deployment.entrypoint,
             parameters=deployment.parameters,

@@ -157,6 +157,86 @@ class TestInputValidation:
             temp_dir=tmp_path,
         )
 
+    def test_param_overrides(self, patch_import, tmp_path):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+        )
+        deployment_id = d.apply()
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--param",
+                "foo=bar",
+                "--param",
+                'greenman_says={"parsed as json": "I am"}',
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.parameters["foo"] == "bar"
+        assert deployment.parameters["greenman_says"] == {"parsed as json": "I am"}
+
+    def test_parameters_override(self, patch_import, tmp_path):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+        )
+        deployment_id = d.apply()
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--params",
+                '{"greenman_says": {"parsed as json": "I am"}}',
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.parameters["greenman_says"] == {"parsed as json": "I am"}
+
+    def test_mixing_parameter_overrides(self, patch_import, tmp_path):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+        )
+        deployment_id = d.apply()
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--params",
+                '{"which": "parameter"}',
+                "--param",
+                "shouldbe:used",
+            ],
+            expected_code=1,
+            temp_dir=tmp_path,
+        )
+
 
 class TestOutputMessages:
     def test_message_with_work_queue_name(self, patch_import, tmp_path):
