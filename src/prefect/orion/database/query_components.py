@@ -1,6 +1,7 @@
 import datetime
 from abc import ABC, abstractmethod, abstractproperty
-from typing import TYPE_CHECKING, Hashable, List, Tuple
+from typing import TYPE_CHECKING, Hashable, List, Optional, Tuple
+from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
@@ -34,6 +35,10 @@ class BaseQueryComponents(ABC):
 
     @abstractmethod
     def greatest(self, *values):
+        """dialect-specific SqlAlchemy binding"""
+
+    @abstractmethod
+    def least(self, *values):
         """dialect-specific SqlAlchemy binding"""
 
     # --- dialect-specific JSON handling
@@ -127,6 +132,248 @@ class BaseQueryComponents(ABC):
         )
         await session.execute(stmt)
 
+    def get_scheduled_flow_runs_from_work_queues(
+        self,
+        db: "OrionDBInterface",
+        limit_per_queue: Optional[int] = None,
+        work_queue_ids: Optional[List[UUID]] = None,
+        scheduled_before: Optional[datetime.datetime] = None,
+    ):
+        """
+        Returns all scheduled runs in work queues, subject to provided parameters.
+
+        This query returns a `(db.FlowRun, db.WorkQueue.id)` pair; calling
+        `result.all()` will return both; calling `result.scalars().unique().all()`
+        will return only the flow run because it grabs the first result.
+        """
+
+        # get any work queues that have a concurrency limit, and compute available
+        # slots as their limit less the number of running flows
+        concurrency_queues = (
+            sa.select(
+                db.WorkQueue.id,
+                self.greatest(
+                    0, db.WorkQueue.concurrency_limit - sa.func.count(db.FlowRun.id)
+                ).label("available_slots"),
+            )
+            .select_from(db.WorkQueue)
+            .join(
+                db.FlowRun,
+                sa.and_(
+                    self._flow_run_work_queue_join_clause(db.FlowRun, db.WorkQueue),
+                    db.FlowRun.state_type.in_(["RUNNING", "PENDING"]),
+                ),
+                isouter=True,
+            )
+            .where(db.WorkQueue.concurrency_limit.is_not(None))
+            .group_by(db.WorkQueue.id)
+            .cte("concurrency_queues")
+        )
+
+        # use the available slots information to generate a join
+        # for all scheduled runs
+        scheduled_flow_runs, join_criteria = self._get_scheduled_flow_runs_join(
+            db=db,
+            work_queue_query=concurrency_queues,
+            limit_per_queue=limit_per_queue,
+            scheduled_before=scheduled_before,
+        )
+
+        # starting with the work queue table, join the limited queues to get the
+        # concurrency information and the scheduled flow runs to load all applicable
+        # runs. this will return all the scheduled runs allowed by the parameters
+        query = (
+            # return a flow run and work queue id
+            sa.select(
+                sa.orm.aliased(db.FlowRun, scheduled_flow_runs),
+                db.WorkQueue.id.label("work_queue_id"),
+            )
+            .select_from(db.WorkQueue)
+            .join(
+                concurrency_queues,
+                db.WorkQueue.id == concurrency_queues.c.id,
+                isouter=True,
+            )
+            .join(scheduled_flow_runs, join_criteria)
+            .where(
+                db.WorkQueue.is_paused.is_(False),
+                db.WorkQueue.id.in_(work_queue_ids) if work_queue_ids else True,
+            )
+            .order_by(
+                scheduled_flow_runs.c.next_scheduled_start_time,
+                scheduled_flow_runs.c.id,
+            )
+        )
+
+        return query
+
+    def _get_scheduled_flow_runs_join(
+        self,
+        db: "OrionDBInterface",
+        work_queue_query,
+        limit_per_queue: Optional[int],
+        scheduled_before: Optional[datetime.datetime],
+    ):
+        """Used by self.get_scheduled_flow_runs_from_work_queue, allowing just
+        this function to be changed on a per-dialect basis"""
+
+        # precompute for readability
+        scheduled_before_clause = (
+            db.FlowRun.next_scheduled_start_time <= scheduled_before
+            if scheduled_before is not None
+            else True
+        )
+
+        # get scheduled flow runs with lateral join where the limit is the
+        # available slots per queue
+        scheduled_flow_runs = (
+            sa.select(db.FlowRun)
+            .where(
+                self._flow_run_work_queue_join_clause(db.FlowRun, db.WorkQueue),
+                db.FlowRun.state_type == "SCHEDULED",
+                scheduled_before_clause,
+            )
+            .with_for_update(skip_locked=True)
+            # if null, no limit will be applied
+            .limit(sa.func.least(limit_per_queue, work_queue_query.c.available_slots))
+            .lateral("scheduled_flow_runs")
+        )
+
+        join_criteria = True
+
+        return scheduled_flow_runs, join_criteria
+
+    def _flow_run_work_queue_join_clause(self, flow_run, work_queue):
+        """
+        On clause for for joining flow runs to work queues
+
+        Used by self.get_scheduled_flow_runs_from_work_queue, allowing just
+        this function to be changed on a per-dialect basis
+        """
+        return sa.and_(flow_run.work_queue_name == work_queue.name)
+
+    async def read_block_documents(
+        self,
+        session: sa.orm.Session,
+        db: "OrionDBInterface",
+        block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
+        block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
+        block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
+        include_secrets: bool = False,
+        offset: Optional[int] = None,
+        limit: Optional[int] = None,
+    ):
+
+        # if no filter is provided, one is created that excludes anonymous blocks
+        if block_document_filter is None:
+            block_document_filter = schemas.filters.BlockDocumentFilter(
+                is_anonymous=schemas.filters.BlockDocumentFilterIsAnonymous(eq_=False)
+            )
+
+        # --- Query for Parent Block Documents
+        # begin by building a query for only those block documents that are selected
+        # by the provided filters
+        filtered_block_documents_query = sa.select(db.BlockDocument.id).where(
+            block_document_filter.as_sql_filter(db)
+        )
+
+        if block_type_filter is not None:
+            block_type_exists_clause = sa.select(db.BlockType).where(
+                db.BlockType.id == db.BlockDocument.block_type_id,
+                block_type_filter.as_sql_filter(db),
+            )
+            filtered_block_documents_query = filtered_block_documents_query.where(
+                block_type_exists_clause.exists()
+            )
+
+        if block_schema_filter is not None:
+            block_schema_exists_clause = sa.select(db.BlockSchema).where(
+                db.BlockSchema.id == db.BlockDocument.block_schema_id,
+                block_schema_filter.as_sql_filter(db),
+            )
+            filtered_block_documents_query = filtered_block_documents_query.where(
+                block_schema_exists_clause.exists()
+            )
+
+        if offset is not None:
+            filtered_block_documents_query = filtered_block_documents_query.offset(
+                offset
+            )
+
+        if limit is not None:
+            filtered_block_documents_query = filtered_block_documents_query.limit(limit)
+
+        filtered_block_documents_query = filtered_block_documents_query.cte(
+            "filtered_block_documents"
+        )
+
+        # --- Query for Referenced Block Documents
+        # next build a recursive query for (potentially nested) block documents
+        # that reference the filtered block documents
+        block_document_references_query = (
+            sa.select(db.BlockDocumentReference)
+            .filter(
+                db.BlockDocumentReference.parent_block_document_id.in_(
+                    sa.select(filtered_block_documents_query.c.id)
+                )
+            )
+            .cte("block_document_references", recursive=True)
+        )
+        block_document_references_join = sa.select(db.BlockDocumentReference).join(
+            block_document_references_query,
+            db.BlockDocumentReference.parent_block_document_id
+            == block_document_references_query.c.reference_block_document_id,
+        )
+        recursive_block_document_references_cte = (
+            block_document_references_query.union_all(block_document_references_join)
+        )
+
+        # --- Final Query for All Block Documents
+        # build a query that unions:
+        # - the filtered block documents
+        # - with any block documents that are discovered as (potentially nested) references
+        all_block_documents_query = sa.union_all(
+            # first select the parent block
+            sa.select(
+                [
+                    db.BlockDocument,
+                    sa.null().label("reference_name"),
+                    sa.null().label("reference_parent_block_document_id"),
+                ]
+            )
+            .select_from(db.BlockDocument)
+            .where(
+                db.BlockDocument.id.in_(sa.select(filtered_block_documents_query.c.id))
+            ),
+            #
+            # then select any referenced blocks
+            sa.select(
+                [
+                    db.BlockDocument,
+                    recursive_block_document_references_cte.c.name,
+                    recursive_block_document_references_cte.c.parent_block_document_id,
+                ]
+            )
+            .select_from(db.BlockDocument)
+            .join(
+                recursive_block_document_references_cte,
+                db.BlockDocument.id
+                == recursive_block_document_references_cte.c.reference_block_document_id,
+            ),
+        ).cte("all_block_documents_query")
+
+        # the final union query needs to be `aliased` for proper ORM unpacking
+        # and also be sorted
+        return (
+            sa.select(
+                sa.orm.aliased(db.BlockDocument, all_block_documents_query),
+                all_block_documents_query.c.reference_name,
+                all_block_documents_query.c.reference_parent_block_document_id,
+            )
+            .select_from(all_block_documents_query)
+            .order_by(all_block_documents_query.c.name)
+        )
+
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
     # --- Postgres-specific SqlAlchemy bindings
@@ -136,6 +383,9 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
 
     def greatest(self, *values):
         return sa.func.greatest(*values)
+
+    def least(self, *values):
+        return sa.func.least(*values)
 
     # --- Postgres-specific JSON handling
 
@@ -275,6 +525,9 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
     def greatest(self, *values):
         return sa.func.max(*values)
+
+    def least(self, *values):
+        return sa.func.min(*values)
 
     # --- Sqlite-specific JSON handling
 
@@ -437,3 +690,67 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         await session.execute(delete_stmt)
 
         return notifications
+
+    async def _handle_filtered_block_document_ids(
+        self, session, filtered_block_documents_query
+    ):
+        """
+        On SQLite, including the filtered block document parameters confuses the
+        compiler and it passes positional parameters in the wrong order (it is
+        unclear why; SQLalchemy manual compilation works great. Switching to
+        `named` paramstyle also works but fails elsewhere in the codebase). To
+        resolve this, we materialize the filtered id query into a literal set of
+        IDs rather than leaving it as a SQL select.
+        """
+        result = await session.execute(filtered_block_documents_query)
+        return result.scalars().all()
+
+    def _get_scheduled_flow_runs_join(
+        self,
+        db: "OrionDBInterface",
+        work_queue_query,
+        limit_per_queue: Optional[int],
+        scheduled_before: Optional[datetime.datetime],
+    ):
+
+        # precompute for readability
+        scheduled_before_clause = (
+            db.FlowRun.next_scheduled_start_time <= scheduled_before
+            if scheduled_before is not None
+            else True
+        )
+
+        # select scheduled flow runs, ordered by scheduled start time per queue
+        scheduled_flow_runs = (
+            sa.select(
+                (
+                    sa.func.row_number()
+                    .over(
+                        partition_by=[db.FlowRun.work_queue_name],
+                        order_by=db.FlowRun.next_scheduled_start_time,
+                    )
+                    .label("rank")
+                ),
+                db.FlowRun,
+            )
+            .where(
+                db.FlowRun.state_type == "SCHEDULED",
+                scheduled_before_clause,
+            )
+            .subquery("scheduled_flow_runs")
+        )
+
+        # sqlite short-circuits the `min` comparison on nulls, so we use `999999`
+        # as an "unlimited" limit.
+        limit = 999999 if limit_per_queue is None else limit_per_queue
+
+        # in the join, only keep flow runs whose rank is less than or equal to the
+        # available slots for each queue
+        join_criteria = sa.and_(
+            self._flow_run_work_queue_join_clause(scheduled_flow_runs.c, db.WorkQueue),
+            scheduled_flow_runs.c.rank
+            <= sa.func.min(
+                sa.func.coalesce(work_queue_query.c.available_slots, limit), limit
+            ),
+        )
+        return scheduled_flow_runs, join_criteria
