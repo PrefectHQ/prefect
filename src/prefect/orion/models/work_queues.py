@@ -165,14 +165,62 @@ async def delete_work_queue(
     return result.rowcount > 0
 
 
+@inject_db
 async def get_runs_in_work_queue(
     session: sa.orm.Session,
     work_queue_id: UUID,
+    db: OrionDBInterface,
+    limit: int = None,
+    scheduled_before: datetime.datetime = None,
+):
+    """
+    Get runs from a work queue.
+
+    Args:
+        session: A database session. work_queue_id: The work queue id.
+        scheduled_before: Only return runs scheduled to start before this time.
+        limit: An optional limit for the number of runs to return from the
+            queue. This limit applies to the request only. It does not affect
+            the work queue's concurrency limit. If `limit` exceeds the work
+            queue's concurrency limit, it will be ignored.
+
+    """
+    work_queue = await read_work_queue(session=session, work_queue_id=work_queue_id)
+    if not work_queue:
+        raise ObjectNotFoundError(f"Work queue with id {work_queue_id} not found.")
+
+    if work_queue.filter is None:
+        query = db.queries.get_scheduled_flow_runs_from_work_queues(
+            db=db,
+            limit_per_queue=limit,
+            work_queue_ids=[work_queue_id],
+            scheduled_before=scheduled_before,
+        )
+        result = await session.execute(query)
+        return result.scalars().unique().all()
+
+    # if the work queue has a filter, it's a deprecated tag-based work queue
+    # and uses an old approach
+    else:
+        return await _legacy_get_runs_in_work_queue(
+            session=session,
+            work_queue_id=work_queue_id,
+            db=db,
+            scheduled_before=scheduled_before,
+            limit=limit,
+        )
+
+
+@inject_db
+async def _legacy_get_runs_in_work_queue(
+    session: sa.orm.Session,
+    work_queue_id: UUID,
+    db: OrionDBInterface,
     scheduled_before: datetime.datetime = None,
     limit: int = None,
 ):
     """
-    Get runs from a work queue.
+    DEPRECATED method for getting runs from a tag-based work queue
 
     Args:
         session: A database session.
@@ -192,20 +240,14 @@ async def get_runs_in_work_queue(
     if work_queue.is_paused:
         return []
 
-    # handle legacy work queues that use tag-based filters
-    if work_queue.filter is not None:
-        # ensure the filter object is fully hydrated
-        # SQLAlchemy caching logic can result in a dict type instead
-        # of the full pydantic model
-        work_queue_filter = parse_obj_as(schemas.core.QueueFilter, work_queue.filter)
-        flow_run_filter = dict(
-            tags=dict(all_=work_queue_filter.tags),
-            deployment_id=dict(any_=work_queue_filter.deployment_ids, is_null_=False),
-        )
-
-    # new work queues are entirely name-based
-    else:
-        flow_run_filter = dict(work_queue_name=dict(any_=[work_queue.name]))
+    # ensure the filter object is fully hydrated
+    # SQLAlchemy caching logic can result in a dict type instead
+    # of the full pydantic model
+    work_queue_filter = parse_obj_as(schemas.core.QueueFilter, work_queue.filter)
+    flow_run_filter = dict(
+        tags=dict(all_=work_queue_filter.tags),
+        deployment_id=dict(any_=work_queue_filter.deployment_ids, is_null_=False),
+    )
 
     # if the work queue has a concurrency limit, check how many runs are currently
     # executing and compare that count to the concurrency limit

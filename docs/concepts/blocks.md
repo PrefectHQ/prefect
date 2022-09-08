@@ -1,10 +1,12 @@
 ---
-description: Prefect blocks package configuration for use cases such as storage, secrets, and deployments.
+description: Prefect blocks package configuration storage, infrastructure, and secrets for use with deployments or flow scripts.
 tags:
   - blocks
   - storage
   - secrets
   - configuration
+  - infrastructure
+  - deployments
 ---
 
 # Blocks

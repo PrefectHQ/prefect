@@ -190,7 +190,7 @@ class TestOutputMessages:
             expected_output_contains=[
                 (
                     "To execute flow runs from this deployment, start an agent "
-                    "that pulls work from the the 'default' work queue:"
+                    "that pulls work from the 'default' work queue:"
                 ),
                 "$ prefect agent start -q 'default'",
             ],
@@ -215,7 +215,7 @@ class TestOutputMessages:
             expected_output_contains=[
                 (
                     "To execute flow runs from this deployment, start an agent "
-                    f"that pulls work from the the {d.work_queue_name!r} work queue:"
+                    f"that pulls work from the {d.work_queue_name!r} work queue:"
                 ),
                 f"$ prefect agent start -q {d.work_queue_name!r}",
             ],

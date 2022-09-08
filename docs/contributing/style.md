@@ -4,6 +4,7 @@ tags:
     - standards
     - code style
     - coding practices
+    - contributing
 ---
 
 # Code style and practices
