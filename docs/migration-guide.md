@@ -21,8 +21,6 @@ Let’s start by explicitly calling out what hasn’t changed:
 - The [principles](https://medium.com/the-prefect-blog/your-code-will-fail-but-thats-ok-f0327a208dbe) of Prefect providing the coordination plane for your dataflows
 - The [hybrid execution model](https://medium.com/the-prefect-blog/the-prefect-hybrid-model-1b70c7fd296)
 
----
-
 ## What changed
 
 Some changes require modifications to your existing tasks, flows, and deployment patterns. For more transparency, we've organized this information in the following categories:
@@ -48,14 +46,14 @@ The changes listed below require you to modify your workflow code. The following
 
 | Concept | Prefect 1 | Prefect 2 | Reference links |
 | --- | --- | --- | --- |
-| Flow definition | `with Flow("flow_name") as flow:`                                                                                                      | `@flow(name="flow_name")`                                                                                                                                                                                     | [How can I define a flow?](https://discourse.prefect.io/t/how-can-i-define-a-flow/28)                                                                                                             |
-| Flow executor that determines how to execute your task runs | Executor such as `LocalExecutor`                                                                                                       | Task runner such as `ConcurrentTaskRunner`                                                                                                                                                                    | [What is the default TaskRunner (executor)?](https://discourse.prefect.io/t/what-is-the-default-taskrunner-executor/63)                                                                           |
-| Configuration that determines how and where to execute your flow runs | Run configuration such as `flow.run_config = DockerRun()`                                                                              | Flow runner defined on a Deployment such as `Deployment(flow_runner=DockerFlowRunner)`                                                                                                                        | [How can I run my flow in a Docker container?](https://discourse.prefect.io/t/how-can-i-run-my-flow-in-a-docker-container/64)                                                                     |
-| Assignment of schedules and default parameter values | Schedules are attached to the flow object and default parameter values are defined within the Parameter tasks                          | Schedules and default parameters are assigned to a flow’s `Deployment`, rather than to a Flow object                                                                                                          | [How can I attach a schedule to a flow?](https://discourse.prefect.io/t/how-can-i-attach-a-schedule-to-a-flow/65)                                                                                 |
-| Retries | `@task(max_retries=2, retry_delay=timedelta(seconds=5))`                                                                               | `@task(retries=2, retry_delay_seconds=5)`                                                                                                                                                                     | [How can I specify the retry behavior for a specific task?](https://discourse.prefect.io/t/how-can-i-specify-the-retry-behavior-for-a-specific-task/60)                                           |
-| Logger syntax | Logger is retrieved from `prefect.context` and can only be used within tasks                                                       | In Prefect 2, you can log not only from tasks, but also within flows. To get the logger object, use: `prefect.get_run_logger()`                                                                             | [How can I add logs to my flow?](https://discourse.prefect.io/t/how-can-i-add-logs-to-my-flow/86)                                                                                                 |
-| The syntax and contents of Prefect context  | Context is a thread-safe way of accessing variables related to the flow run and task run. The syntax to retrieve it: `prefect.context` | Context is still available, but its content is much richer, allowing you to retrieve even more information about your flow runs and task runs. The syntax to retrieve it: `prefect.context.get_run_context()` | [How to access Prefect context values?](https://discourse.prefect.io/t/how-to-access-prefect-context-values/62)                                                                                   |
-| Task library | Included in the [main Prefect Core repository](https://docs.prefect.io/core/task_library/overview.html)                                                                                       | Separated into [individual repositories](../collections/catalog/) per system, cloud provider, or technology                                                                                                                          | [How to migrate Prefect 1 tasks to Prefect 2 collections](https://discourse.prefect.io/t/how-to-migrate-prefect-1-0-task-library-tasks-to-a-prefect-collection-repository-in-prefect-2-0/792) |
+| Flow definition. | `with Flow("flow_name") as flow:` | `@flow(name="flow_name")` | [How can I define a flow?](https://discourse.prefect.io/t/how-can-i-define-a-flow/28) |
+| Flow executor that determines how to execute your task runs. | Executor such as `LocalExecutor`. | Task runner such as `ConcurrentTaskRunner`. | [What is the default TaskRunner (executor)?](https://discourse.prefect.io/t/what-is-the-default-taskrunner-executor/63) |
+| Configuration that determines how and where to execute your flow runs. | Run configuration such as `flow.run_config = DockerRun()`. | Flow runner defined on a Deployment such as `Deployment(flow_runner=DockerFlowRunner)`. | [How can I run my flow in a Docker container?](https://discourse.prefect.io/t/how-can-i-run-my-flow-in-a-docker-container/64) |
+| Assignment of schedules and default parameter values. | Schedules are attached to the flow object and default parameter values are defined within the Parameter tasks. | Schedules and default parameters are assigned to a flow’s `Deployment`, rather than to a Flow object.  | [How can I attach a schedule to a flow?](https://discourse.prefect.io/t/how-can-i-attach-a-schedule-to-a-flow/65)  |
+| Retries | `@task(max_retries=2, retry_delay=timedelta(seconds=5))` | `@task(retries=2, retry_delay_seconds=5)`  | [How can I specify the retry behavior for a specific task?](https://discourse.prefect.io/t/how-can-i-specify-the-retry-behavior-for-a-specific-task/60) |
+| Logger syntax. | Logger is retrieved from `prefect.context` and can only be used within tasks. | In Prefect 2, you can log not only from tasks, but also within flows. To get the logger object, use: `prefect.get_run_logger()`. | [How can I add logs to my flow?](https://discourse.prefect.io/t/how-can-i-add-logs-to-my-flow/86)   |
+| The syntax and contents of Prefect context. | Context is a thread-safe way of accessing variables related to the flow run and task run. The syntax to retrieve it: `prefect.context`. | Context is still available, but its content is much richer, allowing you to retrieve even more information about your flow runs and task runs. The syntax to retrieve it: `prefect.context.get_run_context()`. | [How to access Prefect context values?](https://discourse.prefect.io/t/how-to-access-prefect-context-values/62) |
+| Task library. | Included in the [main Prefect Core repository](https://docs.prefect.io/core/task_library/overview.html). | Separated into [individual repositories](../collections/catalog/) per system, cloud provider, or technology. | [How to migrate Prefect 1 tasks to Prefect 2 collections](https://discourse.prefect.io/t/how-to-migrate-prefect-1-0-task-library-tasks-to-a-prefect-collection-repository-in-prefect-2-0/792). |
 
 ### What changed in workflow orchestration?
 
@@ -85,8 +83,6 @@ The role of agents has changed between Prefect 1 and Prefect 2:
 - In Prefect 1, agents are required to see the flow run history in the UI.
 - In Prefect 2, agents and work queues are only required if you want to trigger flows via the Prefect UI or API.
 - See [this Discourse page](https://discourse.prefect.io/t/whats-the-role-of-agents-and-work-queues-and-how-the-concept-of-agents-differ-between-prefect-1-0-and-2-0/689) for a more detailed description.
-
----
 
 ## New features introduced in Prefect 2
 
@@ -136,8 +132,6 @@ A similarly confusing concept in Prefect 1 was distinguishing between a function
 
 - [How can I define state dependencies between tasks?](https://discourse.prefect.io/t/how-can-i-define-state-dependencies-between-tasks/69)
 - [Can I define my tasks as classes rather than functions?](https://discourse.prefect.io/t/can-i-define-my-tasks-as-classes-rather-than-functions/54)
-
----
 
 ## Next steps
 
