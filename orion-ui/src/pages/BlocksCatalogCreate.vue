@@ -59,18 +59,16 @@
   const blockSchema = computed(() => blockSchemaSubscription.response?.[0])
 
   function submit(request: BlockDocumentCreateNamed): void {
-    console.log({ request })
-
-    // blockDocumentsApi
-    //   .createBlockDocument(request)
-    //   .then(({ id }) => {
-    //     showToast('Block created successfully', 'success')
-    //     router.push(routes.block(id))
-    //   })
-    //   .catch(err => {
-    //     showToast('Failed to create block', 'error')
-    //     console.error(err)
-    //   })
+    blockDocumentsApi
+      .createBlockDocument(request)
+      .then(({ id }) => {
+        showToast('Block created successfully', 'success')
+        router.push(routes.block(id))
+      })
+      .catch(err => {
+        showToast('Failed to create block', 'error')
+        console.error(err)
+      })
   }
 
   function cancel(): void {
