@@ -47,6 +47,8 @@ Current options for deployment storage blocks include:
 | [Remote File System](/api-ref/prefect/filesystems/#prefect.filesystems.RemoteFileSystem) | Store data in a any filesystem supported by [`fsspec`](https://filesystem-spec.readthedocs.io/en/latest/). |
 | [AWS S3 Storage](/api-ref/prefect/filesystems/#prefect.filesystems.S3) | Store data in an AWS S3 bucket. |
 | [Google Cloud Storage](/api-ref/prefect/filesystems/#prefect.filesystems.GCS) | Store data in a Google Cloud Platform (GCP) Cloud Storage bucket. |
+| [Azure Storage](/api-ref/prefect/filesystems/#prefect.filesystems.Azure) | Store data in Azure Datalake and Azure Blob Storage. |
+| [GitHub Storage](/api-ref/prefect/filesystems/#prefect.filesystems.GitHub) | Store data in a GitHub repository. |
 
 You can create these blocks either via the UI or via Python; for example:
 
