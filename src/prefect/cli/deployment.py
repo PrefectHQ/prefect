@@ -164,7 +164,9 @@ async def inspect(name: str):
 async def set_schedule(
     name: str,
     interval: Optional[int] = typer.Option(
-        None, "--interval", help="An interval to schedule on, specified as an interger number of seconds"
+        None,
+        "--interval",
+        help="An interval to schedule on, specified as an interger number of seconds",
     ),
     interval_anchor: Optional[str] = typer.Option(
         None, "--anchor-date", help="The anchor date for an interval schedule"
