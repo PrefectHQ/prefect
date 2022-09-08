@@ -119,7 +119,7 @@ Successfully loaded 'log-flow-docker'
 Deployment 'log-flow/log-flow-docker' successfully created with id
 'a52fe285-d646-4e57-affd-257acf92782a'.
 
-To execute flow runs from this deployment, start an agent that pulls work from the the 'test'
+To execute flow runs from this deployment, start an agent that pulls work from the 'test'
 work queue:
 $ prefect agent start -q 'test'
 ```

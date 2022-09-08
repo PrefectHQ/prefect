@@ -1,5 +1,5 @@
 ---
-description: Prefect flow deployments encapsulate a flow, allowing it to be scheduled and triggered via API.
+description: Prefect deployments encapsulate a flow, allowing flow runs to be scheduled and triggered via API.
 tags:
     - Orion
     - work queues
@@ -8,7 +8,6 @@ tags:
     - flow runs
     - deployments
     - schedules
-    - tags
     - deployments.yaml
     - infrastructure
     - storage
