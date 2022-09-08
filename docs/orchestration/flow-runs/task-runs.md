@@ -59,6 +59,12 @@ task_run = TaskRunView.from_task_run_id("c8751f34-9d5e-4ea7-aead-8b50978dabb7")
 
 ::::
 
+:::warning Immutability
+`TaskRunView` objects are views of the backend `Task Run` at the time of the view's creation.
+They will not retrieve the newest information each time you access their properties.
+To get the newest data for a task run, use `task_run = task_run.get_latest()` which will return a new `TaskRunView` instance.
+:::
+
 #### Task run results
 
 Results from task runs are persisted to the location you've specified in the task's `result` attribute. The `Result` type allows you to store task results in many locations on your own infrastructure. See the [results documentation](/core/concepts/results.md) for more details on configuring results.
@@ -74,6 +80,13 @@ def foo():
 task_run = TaskRunView.from_task_slug("foo-1", flow_run_id="<id>")
 task_run.get_result()  # "foobar!"
 ```
+
+::: tip Result caching
+When a result is retrieved, it will be cached in the `TaskRunView`.
+This reduces the time to retrieve the result from storage in the future. 
+When you use `task_run.get_latest()`, the cached result is preserved.
+:::
+
 
 ##### Mapped task results
 
