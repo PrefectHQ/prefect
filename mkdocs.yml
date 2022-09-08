@@ -98,7 +98,7 @@ nav:
         - Agents & Work Queues: concepts/work-queues.md
         - Storage: concepts/storage.md
         - Blocks: concepts/blocks.md
-        - File Systems: concepts/filesystems.md
+        - Filesystems: concepts/filesystems.md
         - Schedules: concepts/schedules.md
         - Logging: concepts/logs.md
         - Database: concepts/database.md
