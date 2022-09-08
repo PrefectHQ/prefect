@@ -62,7 +62,7 @@ task_run = TaskRunView.from_task_run_id("c8751f34-9d5e-4ea7-aead-8b50978dabb7")
 :::warning Immutability
 `TaskRunView` objects are views of the backend `Task Run` at the time of the view's creation.
 They will not retrieve the newest information each time you access their properties.
-To get the newest data for a task run, use `task_run = task_run.get_latest()` which will return a new `TaskRunView` instance.
+To get the newest data for a task run, use `task_run = task_run.get_latest()`, which will return a new `TaskRunView` instance.
 :::
 
 #### Task run results
