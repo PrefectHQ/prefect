@@ -35,7 +35,7 @@ To install a specific version, specify the version, such as:
 
 <div class="terminal">
 ```bash
-pip install -U "prefect==2.0"
+pip install -U "prefect==2.3.1"
 ```
 </div>
 

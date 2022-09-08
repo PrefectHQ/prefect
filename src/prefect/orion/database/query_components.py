@@ -1,6 +1,6 @@
 import datetime
 from abc import ABC, abstractmethod, abstractproperty
-from typing import TYPE_CHECKING, Hashable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Hashable, List, Tuple
 
 import pendulum
 import sqlalchemy as sa
@@ -126,134 +126,6 @@ class BaseQueryComponents(ABC):
             include_defaults=False,
         )
         await session.execute(stmt)
-
-    async def read_block_documents(
-        self,
-        session: sa.orm.Session,
-        db: "OrionDBInterface",
-        block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
-        block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
-        block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
-        include_secrets: bool = False,
-        offset: Optional[int] = None,
-        limit: Optional[int] = None,
-    ):
-
-        # if no filter is provided, one is created that excludes anonymous blocks
-        if block_document_filter is None:
-            block_document_filter = schemas.filters.BlockDocumentFilter(
-                is_anonymous=schemas.filters.BlockDocumentFilterIsAnonymous(eq_=False)
-            )
-
-        # --- Query for Parent Block Documents
-        # begin by building a query for only those block documents that are selected
-        # by the provided filters
-        filtered_block_documents_query = sa.select(db.BlockDocument.id).where(
-            block_document_filter.as_sql_filter(db)
-        )
-
-        if block_type_filter is not None:
-            block_type_exists_clause = sa.select(db.BlockType).where(
-                db.BlockType.id == db.BlockDocument.block_type_id,
-                block_type_filter.as_sql_filter(db),
-            )
-            filtered_block_documents_query = filtered_block_documents_query.where(
-                block_type_exists_clause.exists()
-            )
-
-        if block_schema_filter is not None:
-            block_schema_exists_clause = sa.select(db.BlockSchema).where(
-                db.BlockSchema.id == db.BlockDocument.block_schema_id,
-                block_schema_filter.as_sql_filter(db),
-            )
-            filtered_block_documents_query = filtered_block_documents_query.where(
-                block_schema_exists_clause.exists()
-            )
-
-        if offset is not None:
-            filtered_block_documents_query = filtered_block_documents_query.offset(
-                offset
-            )
-
-        if limit is not None:
-            filtered_block_documents_query = filtered_block_documents_query.limit(limit)
-
-        # apply database-specific handling of the filtered parent block documents
-        filtered_block_document_ids = await self._handle_filtered_block_document_ids(
-            session=session,
-            filtered_block_documents_query=filtered_block_documents_query,
-        )
-
-        # --- Query for Referenced Block Documents
-        # next build a recursive query for (potentially nested) block documents
-        # that reference the filtered block documents
-        block_document_references_query = (
-            sa.select(db.BlockDocumentReference)
-            .filter(
-                db.BlockDocumentReference.parent_block_document_id.in_(
-                    filtered_block_document_ids
-                )
-            )
-            .cte("block_document_references", recursive=True)
-        )
-        block_document_references_join = sa.select(db.BlockDocumentReference).join(
-            block_document_references_query,
-            db.BlockDocumentReference.parent_block_document_id
-            == block_document_references_query.c.reference_block_document_id,
-        )
-        recursive_block_document_references_cte = (
-            block_document_references_query.union_all(block_document_references_join)
-        )
-
-        # --- Final Query for All Block Documents
-        # build a query that unions:
-        # - the filtered block documents
-        # - with any block documents that are discovered as (potentially nested) references
-        all_block_documents_query = sa.union_all(
-            # first select the parent block
-            sa.select(
-                [
-                    db.BlockDocument,
-                    sa.null().label("reference_name"),
-                    sa.null().label("reference_parent_block_document_id"),
-                ]
-            )
-            .select_from(db.BlockDocument)
-            .where(db.BlockDocument.id.in_(filtered_block_document_ids)),
-            #
-            # then select any referenced blocks
-            sa.select(
-                [
-                    db.BlockDocument,
-                    recursive_block_document_references_cte.c.name,
-                    recursive_block_document_references_cte.c.parent_block_document_id,
-                ]
-            )
-            .select_from(db.BlockDocument)
-            .join(
-                recursive_block_document_references_cte,
-                db.BlockDocument.id
-                == recursive_block_document_references_cte.c.reference_block_document_id,
-            ),
-        ).cte("all_block_documents_query")
-
-        # the final union query needs to be `aliased` for proper ORM unpacking
-        # and also be sorted
-        return (
-            sa.select(
-                sa.orm.aliased(db.BlockDocument, all_block_documents_query),
-                all_block_documents_query.c.reference_name,
-                all_block_documents_query.c.reference_parent_block_document_id,
-            )
-            .select_from(all_block_documents_query)
-            .order_by(all_block_documents_query.c.name)
-        )
-
-    async def _handle_filtered_block_document_ids(
-        self, session, filtered_block_documents_query
-    ):
-        """Apply database-specific processing to a filtered block document query"""
-        return filtered_block_documents_query
 
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
@@ -393,15 +265,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
 
         result = await session.execute(notification_details_stmt)
         return result.fetchall()
-
-    async def _handle_filtered_block_document_ids(
-        self, session, filtered_block_documents_query
-    ):
-        """
-        Transform the filtered block document query into a CTE and select its `id`
-        """
-        filtered_cte = filtered_block_documents_query.cte("filtered_block_documents")
-        return sa.select(filtered_cte.c.id)
 
 
 class AioSqliteQueryComponents(BaseQueryComponents):
@@ -574,17 +437,3 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         await session.execute(delete_stmt)
 
         return notifications
-
-    async def _handle_filtered_block_document_ids(
-        self, session, filtered_block_documents_query
-    ):
-        """
-        On SQLite, including the filtered block document parameters confuses the
-        compiler and it passes positional parameters in the wrong order (it is
-        unclear why; SQLalchemy manual compilation works great. Switching to
-        `named` paramstyle also works but fails elsewhere in the codebase). To
-        resolve this, we materialize the filtered id query into a literal set of
-        IDs rather than leaving it as a SQL select.
-        """
-        result = await session.execute(filtered_block_documents_query)
-        return result.scalars().all()
