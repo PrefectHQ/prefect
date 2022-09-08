@@ -197,7 +197,7 @@ Or use the Prefect CLI command `prefect version`, which prints version and envir
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.3.2
+Version:             2.*
 API version:         0.8.0
 Python version:      3.9.10
 Git commit:          ef452c04
