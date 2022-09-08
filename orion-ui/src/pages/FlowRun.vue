@@ -39,6 +39,7 @@
           <DurationIconText :duration="flowRun.duration" />
           <FlowIconText :flow-id="flowRun.flowId" />
           <DeploymentIconText v-if="flowRun.deploymentId" :deployment-id="flowRun.deploymentId" />
+          <FlowRunStartTime :flow-run="flowRun" />
         </div>
 
         <p-divider />
@@ -66,6 +67,7 @@
     DurationIconText,
     FlowRunLogs,
     FlowRunTaskRuns,
+    FlowRunStartTime,
     FlowRunSubFlows,
     JsonView
   } from '@prefecthq/orion-design'
