@@ -472,12 +472,15 @@ class Block(BaseModel, ABC):
         """Generates a default code example for the current class"""
         qualified_name = to_qualified_name(cls)
         module_str = ".".join(qualified_name.split(".")[:-1])
+        class_name = cls.__name__
+        block_variable_name = f'{cls.get_block_type_slug().replace("-", "_")}_block'
+
         return dedent(
             f"""\
         ```python
-        from {module_str} import {cls.__name__}
+        from {module_str} import {class_name}
 
-        {cls.get_block_type_slug().replace("-", "_")}_block = {cls.__name__}.load("BLOCK_NAME")
+        {block_variable_name} = {class_name}.load("BLOCK_NAME")
         ```"""
         )
 

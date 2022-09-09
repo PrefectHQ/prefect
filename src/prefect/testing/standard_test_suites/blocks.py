@@ -36,8 +36,8 @@ class BlockStandardTestSuite(ABC):
         import_pattern = rf"from .* import {block.__name__}"
         assert (
             re.search(import_pattern, code_example) is not None
-        ), f"The code example for {block.__name__} is missing an import statement"
+        ), f"The code example for {block.__name__} is missing an import statement matching the pattern {import_pattern}"
         block_load_pattern = rf'.* = {block.__name__}\.load\("BLOCK_NAME"\)'
         assert re.search(
             block_load_pattern, code_example
-        ), f"The code example for {block.__name__} is missing a .load statement"
+        ), f"The code example for {block.__name__} is missing a .load statement matching the pattern {block_load_pattern}"
