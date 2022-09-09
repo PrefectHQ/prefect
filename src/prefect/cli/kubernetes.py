@@ -38,7 +38,7 @@ def manifest_orion(
         "default",
         "-n",
         "--namespace",
-        help="A Kubernetes namespace.",
+        help="A Kubernetes namespace to create Orion in.",
     ),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
 ):
@@ -71,13 +71,13 @@ def manifest_agent(
         get_prefect_image_name(),
         "-i",
         "--image-tag",
-        help="The tag of a Docker image to use for the Job.",
+        help="The tag of a Docker image to use for the Agent.",
     ),
     namespace: str = typer.Option(
         "default",
         "-n",
         "--namespace",
-        help="A Kubernetes namespace to create jobs in.",
+        help="A Kubernetes namespace to create agent in.",
     ),
     work_queue: str = typer.Option(
         "kubernetes",
