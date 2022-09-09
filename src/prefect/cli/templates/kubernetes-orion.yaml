@@ -19,14 +19,6 @@ spec:
         imagePullPolicy: "IfNotPresent"
         ports:
         - containerPort: 4200
-      - name: agent
-        image: ${image_name}
-        command: ["prefect", "agent", "start", "-q", "kubernetes"]
-        imagePullPolicy: "IfNotPresent"
-        env:
-          - name: PREFECT_API_URL
-            value: http://orion:4200/api
-
 ---
 apiVersion: v1
 kind: Service
