@@ -39,7 +39,9 @@ def manifest_orion(
     """
 
     template = Template(
-        (prefect.__module_path__ / "cli" / "templates" / "kubernetes.yaml").read_text()
+        (
+            prefect.__module_path__ / "cli" / "templates" / "kubernetes-orion.yaml"
+        ).read_text()
     )
     manifest = template.substitute(
         {
