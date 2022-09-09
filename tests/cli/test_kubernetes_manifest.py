@@ -21,7 +21,7 @@ def test_printing_the_orion_manifest():
     assert manifests
 
     deployment = next(m for m in manifests if m["kind"] == "Deployment")
-    assert deployment["metadata"]["name"] == "orion"
+    assert deployment["metadata"]["name"] == "prefect-orion"
 
     orion_container = deployment["spec"]["template"]["spec"]["containers"][0]
     assert orion_container["command"][0:3] == ["prefect", "orion", "start"]
