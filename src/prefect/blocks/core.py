@@ -339,8 +339,13 @@ class Block(BaseModel, ABC):
                 "No block type ID provided, either as an argument or on the block."
             )
 
-        data_keys = self.schema()["properties"].keys()
-        block_document_data = self.dict(include=data_keys)
+        # The keys passed to `include` must NOT be aliases, else some items will be missed
+        # i.e. must do `self.schema_` vs `self.schema` to get a `schema_ = Field(alias="schema")`
+        # reported from https://github.com/PrefectHQ/prefect-dbt/issues/54
+        data_keys = self.schema(by_alias=False)["properties"].keys()
+
+        # `block_document_data`` must return the aliased version for it to show in the UI
+        block_document_data = self.dict(by_alias=True, include=data_keys)
 
         # Iterate through and find blocks that already have saved block documents to
         # create references to those saved block documents.
