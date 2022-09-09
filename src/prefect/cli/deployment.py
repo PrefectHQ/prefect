@@ -188,6 +188,9 @@ async def set_schedule(
         help="Deployment schedule timezone string e.g. 'America/New_York'",
     ),
 ):
+    """
+    Set schedule for a given deployment.
+    """
     assert_deployment_name_format(name)
 
     interval_schedule = {
@@ -228,6 +231,9 @@ async def set_schedule(
 async def pause_schedule(
     name: str,
 ):
+    """
+    Pause schedule of a given deployment.
+    """
     assert_deployment_name_format(name)
     async with get_client() as client:
         try:
@@ -243,6 +249,9 @@ async def pause_schedule(
 async def resume_schedule(
     name: str,
 ):
+    """
+    Resume schedule of a given deployment.
+    """
     assert_deployment_name_format(name)
     async with get_client() as client:
         try:
