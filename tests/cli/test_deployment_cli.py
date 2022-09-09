@@ -1,7 +1,9 @@
 import pytest
+from datetime import timedelta
 
 from prefect import flow
 from prefect.deployments import Deployment
+from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.testing.cli import invoke_and_assert
 
 
@@ -313,3 +315,110 @@ class TestOutputMessages:
                 "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
             ),
         )
+
+
+class TestUpdatingDeployments:
+    @pytest.fixture
+    async def flojo(self, orion_client):
+        @flow
+        async def rence_griffith():
+            pass
+
+        flow_id = await orion_client.create_flow(rence_griffith)
+        old_record = IntervalSchedule(interval=timedelta(seconds=10.76))
+
+        deployment_id = await orion_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment",
+            version="git-commit-hash",
+            manifest_path="path/file.json",
+            schedule=old_record,
+            parameters={"foo": "bar"},
+            tags=["foo", "bar"],
+            parameter_openapi_schema={},
+        )
+
+    def test_updating_schedules(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["10.76"],  # 100 m record
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--interval",
+                "10.49",  # July 16, 1988
+            ],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["10.49"],  # flo-jo breaks the world record
+            expected_code=0,
+        )
+
+    def test_incompatible_schedule_parameters(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--interval",
+                "424242",
+                "--cron",
+                "i dont know cron syntax dont judge"
+            ],
+            expected_code=1,
+            expected_output_contains="Incompatible schedule parameters",
+        )
+
+    def test_pausing_and_resuming_schedules(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "pause-schedule",
+                "rence-griffith/test-deployment",
+            ],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'is_schedule_active': False"],
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "resume-schedule",
+                "rence-griffith/test-deployment",
+            ],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'is_schedule_active': True"],
+        )
+
