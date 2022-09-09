@@ -1,5 +1,6 @@
-import pytest
 from datetime import timedelta
+
+import pytest
 
 from prefect import flow
 from prefect.deployments import Deployment
@@ -379,7 +380,7 @@ class TestUpdatingDeployments:
                 "--interval",
                 "424242",
                 "--cron",
-                "i dont know cron syntax dont judge"
+                "i dont know cron syntax dont judge",
             ],
             expected_code=1,
             expected_output_contains="Incompatible schedule parameters",
@@ -421,4 +422,3 @@ class TestUpdatingDeployments:
             ],
             expected_output_contains=["'is_schedule_active': True"],
         )
-
