@@ -3,6 +3,7 @@ Command line interface for working with Orion on Kubernetes
 """
 from string import Template
 
+import typer
 import yaml
 
 import prefect
@@ -10,7 +11,7 @@ from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli.root import app
 from prefect.docker import get_prefect_image_name
 from prefect.infrastructure import KubernetesJob
-from prefect.settings import PREFECT_LOGGING_SERVER_LEVEL
+from prefect.settings import PREFECT_API_URL, PREFECT_LOGGING_SERVER_LEVEL
 
 kubernetes_app = PrefectTyper(
     name="kubernetes",
@@ -44,6 +45,51 @@ def manifest_orion(
         {
             "image_name": image_tag or get_prefect_image_name(),
             "log_level": log_level,
+        }
+    )
+    print(manifest)
+
+
+@manifest_app.command("agent")
+def manifest_agent(
+    api_url: str = SettingsOption(PREFECT_API_URL),
+    image_tag: str = typer.Option(
+        get_prefect_image_name(),
+        "-i",
+        "--image-tag",
+        help="The tag of a Docker image to use for the Job.",
+    ),
+    namespace: str = typer.Option(
+        "default",
+        "-n",
+        "--namespace",
+        help="A Kubernetes namespace to create jobs in.",
+    ),
+    work_queue: str = typer.Option(
+        "kubernetes",
+        "-q",
+        "--work-queue",
+        help="A work queue name for the agent to pull from.",
+    ),
+):
+    """
+    Generates a manifest for deploying Agent on Kubernetes.
+
+    Example:
+        $ prefect kubernetes manifest agent | kubectl apply -f -
+    """
+
+    template = Template(
+        (
+            prefect.__module_path__ / "cli" / "templates" / "kubernetes-agent.yaml"
+        ).read_text()
+    )
+    manifest = template.substitute(
+        {
+            "api_url": api_url,
+            "image_name": image_tag,
+            "namespace": namespace,
+            "work_queue": work_queue,
         }
     )
     print(manifest)
