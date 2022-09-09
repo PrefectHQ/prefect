@@ -1,5 +1,5 @@
 site_name: Prefect 2.0
-site_url: https://docs.prefect.io/
+site_url: https://deploy-preview-6747--prefect-orion.netlify.app
 repo_url: https://github.com/PrefectHQ/prefect
 edit_uri: edit/main/docs
 extra_css:
