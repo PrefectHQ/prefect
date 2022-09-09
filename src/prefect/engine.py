@@ -1319,6 +1319,9 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
     """
     try:
         yield
+    except Abort:
+        # Do not capture aborts as crashes
+        raise
     except BaseException as exc:
         state = exception_to_crashed_state(exc)
         logger = flow_run_logger(flow_run)
