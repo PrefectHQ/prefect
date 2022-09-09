@@ -331,6 +331,21 @@ def test_uses_service_account_name_setting(
     assert service_account_name == "foo"
 
 
+def test_uses_ttl_after_finished_setting(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+):
+    mock_watch.stream = _mock_pods_stream_that_returns_running_pod
+
+    KubernetesJob(command=["echo", "hello"], ttl_after_finished=123).run(MagicMock())
+    mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+    ttl_after_finished = mock_k8s_batch_client.create_namespaced_job.call_args[0][1][
+        "spec"
+    ]["ttlSecondsAfterFinished"]
+    assert ttl_after_finished == 123
+
+
 def test_defaults_to_unspecified_image_pull_policy(
     mock_k8s_client,
     mock_watch,
