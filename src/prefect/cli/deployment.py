@@ -1,6 +1,7 @@
 """
 Command line interface for working with deployments.
 """
+import json
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
@@ -528,7 +529,8 @@ async def build(
     elif interval:
         schedule = IntervalSchedule(interval=timedelta(seconds=interval))
     elif rrule:
-        schedule = RRuleSchedule(rrule=rrule)
+        rrule_parsed = json.loads(rrule)
+        schedule = RRuleSchedule(**rrule_parsed)
 
     # parse storage_block
     if storage_block:
