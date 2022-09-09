@@ -657,6 +657,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "SMB"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6J444m3vW6ukgBOCinSxLk/025f5562d3c165feb7a5df599578a6a8/samba_2010_logo_transparent_151x27.png?h=250"
 
     share_path: str = Field(
         ...,

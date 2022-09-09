@@ -41,3 +41,8 @@ class BlockStandardTestSuite(ABC):
         assert re.search(
             block_load_pattern, code_example
         ), f"The code example for {block.__name__} is missing a .load statement matching the pattern {block_load_pattern}"
+
+    def test_has_a_valid_image(self, block: Type[Block]):
+        assert (
+            block._logo_url is not None
+        ), f"{block.__name__} is missing a value for _logo_url"
