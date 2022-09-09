@@ -1,18 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: prefect-agent
   namespace: ${namespace}
   labels:
-    app: agent
+    app: prefect-agent
 spec:
   selector:
     matchLabels:
-      app: agent
+      app: prefect-agent
   replicas: 1
   template:
     metadata:
       labels:
-        app: agent
+        app: prefect-agent
     spec:
       containers:
       - name: agent
