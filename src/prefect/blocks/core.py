@@ -474,9 +474,11 @@ class Block(BaseModel, ABC):
         module_str = ".".join(qualified_name.split(".")[:-1])
         return dedent(
             f"""\
+        ```python
         from {module_str} import {cls.__name__}
 
-        {cls.get_block_type_slug().replace("-", "_")}_block = {cls.__name__}.load("BLOCK_NAME")"""
+        {cls.get_block_type_slug().replace("-", "_")}_block = {cls.__name__}.load("BLOCK_NAME")
+        ```"""
         )
 
     @classmethod

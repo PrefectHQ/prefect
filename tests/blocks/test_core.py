@@ -1506,12 +1506,22 @@ class TestGetDescription:
         assert A.get_description() == "But I will"
 
 
+class NoCodeExample(Block):
+    _block_type_name = "No code Example"
+
+    message: str
+
+
 class TestGetCodeExample:
     def test_no_code_example_configured(self):
-        class A(Block):
-            message: str
+        assert NoCodeExample.get_code_example() == dedent(
+            """\
+        ```python
+        from test_core import NoCodeExample
 
-        assert A.get_code_example() == None
+        no_code_example_block = NoCodeExample.load("BLOCK_NAME")
+        ```"""
+        )
 
     def test_code_example_from_docstring_example_heading(self, caplog):
         class A(Block):
