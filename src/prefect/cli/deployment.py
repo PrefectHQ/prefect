@@ -529,7 +529,10 @@ async def build(
     elif interval:
         schedule = IntervalSchedule(interval=timedelta(seconds=interval))
     elif rrule:
-        schedule = RRuleSchedule(**json.loads(rrule))
+        try:
+            schedule = RRuleSchedule(**json.loads(rrule))
+        except json.JSONDecodeError:
+            schedule = RRuleSchedule(rrule=rrule)
 
     # parse storage_block
     if storage_block:
