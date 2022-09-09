@@ -28,7 +28,12 @@ kubernetes_app.add_typer(manifest_app)
 
 @manifest_app.command("orion")
 def manifest_orion(
-    image_tag: str = None,
+    image_tag: str = typer.Option(
+        get_prefect_image_name(),
+        "-i",
+        "--image-tag",
+        help="The tag of a Docker image to use for the Orion.",
+    ),
     namespace: str = typer.Option(
         "default",
         "-n",
@@ -51,7 +56,7 @@ def manifest_orion(
     )
     manifest = template.substitute(
         {
-            "image_name": image_tag or get_prefect_image_name(),
+            "image_name": image_tag,
             "namespace": namespace,
             "log_level": log_level,
         }
