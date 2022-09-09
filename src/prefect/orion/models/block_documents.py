@@ -483,8 +483,6 @@ async def update_block_document(
                     session, block_document_reference_id=block_document_reference.id
                 )
 
-    await session.flush()
-
     return True
 
 

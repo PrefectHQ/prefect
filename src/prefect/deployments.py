@@ -549,23 +549,24 @@ class Deployment(BaseModel):
         if not name:
             raise ValueError("A deployment name must be provided.")
 
-        ## first see if an entrypoint can be determined
-        flow_file = getattr(flow, "__globals__", {}).get("__file__")
-        mod_name = getattr(flow, "__module__", None)
-        if not flow_file:
-            if not mod_name:
-                # todo, check if the file location was manually set already
-                raise ValueError("Could not determine flow's file location.")
-            module = importlib.import_module(mod_name)
-            flow_file = getattr(module, "__file__", None)
-            if not flow_file:
-                raise ValueError("Could not determine flow's file location.")
-
         # note that `deployment.load` only updates settings that were *not*
         # provided at initialization
         deployment = cls(name=name, **kwargs)
         deployment.flow_name = flow.name
         if not deployment.entrypoint:
+            ## first see if an entrypoint can be determined
+            flow_file = getattr(flow, "__globals__", {}).get("__file__")
+            mod_name = getattr(flow, "__module__", None)
+            if not flow_file:
+                if not mod_name:
+                    # todo, check if the file location was manually set already
+                    raise ValueError("Could not determine flow's file location.")
+                module = importlib.import_module(mod_name)
+                flow_file = getattr(module, "__file__", None)
+                if not flow_file:
+                    raise ValueError("Could not determine flow's file location.")
+
+            # set entrypoint
             entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
             deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
 

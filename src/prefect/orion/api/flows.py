@@ -6,13 +6,14 @@ from typing import List
 from uuid import UUID
 
 import pendulum
-import sqlalchemy as sa
 from fastapi import Depends, HTTPException, Path, Response, status
 from fastapi.param_functions import Body
 
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
+from prefect.orion.database.dependencies import provide_database_interface
+from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/flows", tags=["Flows"])
@@ -22,7 +23,7 @@ router = OrionRouter(prefix="/flows", tags=["Flows"])
 async def create_flow(
     flow: schemas.actions.FlowCreate,
     response: Response,
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.Flow:
     """Gracefully creates a new flow from the provided schema. If a flow with the
     same name already exists, the existing flow is returned.
@@ -31,7 +32,10 @@ async def create_flow(
     flow = schemas.core.Flow(**flow.dict())
 
     now = pendulum.now("UTC")
-    model = await models.flows.create_flow(session=session, flow=flow)
+
+    async with db.session_context(begin_transaction=True) as session:
+        model = await models.flows.create_flow(session=session, flow=flow)
+
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
     return model
@@ -41,12 +45,15 @@ async def create_flow(
 async def update_flow(
     flow: schemas.actions.FlowUpdate,
     flow_id: UUID = Path(..., description="The flow id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
     Updates a flow.
     """
-    result = await models.flows.update_flow(session=session, flow=flow, flow_id=flow_id)
+    async with db.session_context(begin_transaction=True) as session:
+        result = await models.flows.update_flow(
+            session=session, flow=flow, flow_id=flow_id
+        )
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found"
@@ -59,29 +66,31 @@ async def count_flows(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> int:
     """
     Count flows.
     """
-    return await models.flows.count_flows(
-        session=session,
-        flow_filter=flows,
-        flow_run_filter=flow_runs,
-        task_run_filter=task_runs,
-        deployment_filter=deployments,
-    )
+    async with db.session_context() as session:
+        return await models.flows.count_flows(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+        )
 
 
 @router.get("/name/{name}")
 async def read_flow_by_name(
     name: str = Path(..., description="The name of the flow"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.Flow:
     """
     Get a flow by name.
     """
-    flow = await models.flows.read_flow_by_name(session=session, name=name)
+    async with db.session_context() as session:
+        flow = await models.flows.read_flow_by_name(session=session, name=name)
     if not flow:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found"
@@ -92,12 +101,13 @@ async def read_flow_by_name(
 @router.get("/{id}")
 async def read_flow(
     flow_id: UUID = Path(..., description="The flow id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.Flow:
     """
     Get a flow by id.
     """
-    flow = await models.flows.read_flow(session=session, flow_id=flow_id)
+    async with db.session_context() as session:
+        flow = await models.flows.read_flow(session=session, flow_id=flow_id)
     if not flow:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found"
@@ -114,32 +124,34 @@ async def read_flows(
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
     sort: schemas.sorting.FlowSort = Body(schemas.sorting.FlowSort.NAME_ASC),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.Flow]:
     """
     Query for flows.
     """
-    return await models.flows.read_flows(
-        session=session,
-        flow_filter=flows,
-        flow_run_filter=flow_runs,
-        task_run_filter=task_runs,
-        deployment_filter=deployments,
-        sort=sort,
-        offset=offset,
-        limit=limit,
-    )
+    async with db.session_context() as session:
+        return await models.flows.read_flows(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            sort=sort,
+            offset=offset,
+            limit=limit,
+        )
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_flow(
     flow_id: UUID = Path(..., description="The flow id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
     Delete a flow by id.
     """
-    result = await models.flows.delete_flow(session=session, flow_id=flow_id)
+    async with db.session_context(begin_transaction=True) as session:
+        result = await models.flows.delete_flow(session=session, flow_id=flow_id)
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found"

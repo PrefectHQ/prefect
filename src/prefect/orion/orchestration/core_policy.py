@@ -197,7 +197,6 @@ class CacheInsertion(BaseOrchestrationRule):
                 task_run_state_id=validated_state.id,
             )
             context.session.add(new_cache_item)
-            await context.session.flush()
 
 
 class CacheRetrieval(BaseOrchestrationRule):
