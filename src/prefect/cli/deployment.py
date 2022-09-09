@@ -163,10 +163,10 @@ async def inspect(name: str):
 @deployment_app.command("set-schedule")
 async def set_schedule(
     name: str,
-    interval: Optional[int] = typer.Option(
+    interval: Optional[float] = typer.Option(
         None,
         "--interval",
-        help="An interval to schedule on, specified as an interger number of seconds",
+        help="An interval to schedule on, specified in seconds",
     ),
     interval_anchor: Optional[str] = typer.Option(
         None, "--anchor-date", help="The anchor date for an interval schedule"
