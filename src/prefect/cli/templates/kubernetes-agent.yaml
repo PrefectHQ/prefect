@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  namespace: ${namespace}
   labels:
     app: agent
-    namespace: ${namespace}
 spec:
   selector:
     matchLabels:
