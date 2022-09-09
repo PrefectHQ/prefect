@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prefect-orion
+  namespace: ${namespace}
   labels:
     app: prefect-orion
 spec:
@@ -26,6 +27,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: prefect-orion
+  namespace: ${namespace}
   labels:
     app: prefect-orion
 spec:

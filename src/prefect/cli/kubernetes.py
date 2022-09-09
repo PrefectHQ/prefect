@@ -29,6 +29,12 @@ kubernetes_app.add_typer(manifest_app)
 @manifest_app.command("orion")
 def manifest_orion(
     image_tag: str = None,
+    namespace: str = typer.Option(
+        "default",
+        "-n",
+        "--namespace",
+        help="A Kubernetes namespace.",
+    ),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
 ):
     """
@@ -46,6 +52,7 @@ def manifest_orion(
     manifest = template.substitute(
         {
             "image_name": image_tag or get_prefect_image_name(),
+            "namespace": namespace,
             "log_level": log_level,
         }
     )
