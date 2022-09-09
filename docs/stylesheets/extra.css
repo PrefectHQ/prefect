@@ -82,8 +82,8 @@ to force column width */
 .badge::before {
     background-color: #1860F2;
     color: white;
-    font-size: 0.8rem;
-    font-weight: normal;
+    font-size: 0.7rem;
+    font-weight: 700;
     padding: 4px 8px;
     margin-left: 0.5rem;
     vertical-align: super;
@@ -94,15 +94,15 @@ to force column width */
 .badge-api::before {
     background-color: #1860F2;
     color: white;
-    font-size: 0.8rem;
-    font-weight: normal;
+    font-size: 0.7rem;
+    font-weight: 700;
     padding: 4px 8px;
     text-align: center;
     border-radius: 5px;
 }
 
 .experimental::before {
-    background-color: #FCD14E;
+    background-color: #fccc3e;
     content: "Experimental";
 }
 
