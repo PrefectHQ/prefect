@@ -217,6 +217,9 @@ class KubernetesJob(Infrastructure):
         self,
         task_status: Optional[TaskStatus] = None,
     ) -> Optional[bool]:
+        if not self.command:
+            raise ValueError("Kubernetes job cannot be run with empty command.")
+
         # if a k8s cluster block is provided to the flow runner, use that
         if self.cluster_config:
             self.cluster_config.configure_client()

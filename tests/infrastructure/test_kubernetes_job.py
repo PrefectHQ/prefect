@@ -943,3 +943,9 @@ class TestLoadingPatchesFromFiles:
 
     def test_patch_from_json(self, example: KubernetesManifest, example_json: Path):
         assert KubernetesJob.customize_from_file(example_json) == example
+
+
+def test_run_requires_command():
+    job = KubernetesJob(command=[])
+    with pytest.raises(ValueError, match="cannot be run with empty command"):
+        job.run()
