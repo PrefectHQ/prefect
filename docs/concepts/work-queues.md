@@ -1,11 +1,10 @@
 ---
-description: Prefect work queues collect flow runs from deployments. Prefect agents poll work queues for new runs to execute.
+description: Prefect work queues route deployment flow runs to agents. Prefect agents poll work queues for new runs to execute.
 tags:
     - Orion
     - work queues
     - agents
     - orchestration
-    - filters
     - flow runs
     - deployments
     - schedules

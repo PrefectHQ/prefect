@@ -809,7 +809,7 @@ class TestReadBlockDocuments:
             b.id for b in block_documents if not b.is_anonymous
         }
 
-        # sorted by block type name, block document name
+        # sorted by block document name
         assert [rb.id for rb in read_blocks] == [
             b.id for b in block_documents if not b.is_anonymous
         ]

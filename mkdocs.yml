@@ -26,6 +26,7 @@ markdown_extensions:
             - name: mermaid
               class: mermaid
               format: !!python/name:pymdownx.superfences.fence_code_format
+    - pymdownx.details
     - pymdownx.tabbed
     - toc:
           permalink: true
@@ -79,8 +80,9 @@ nav:
             - tutorials/execution.md
             - tutorials/orion.md
             - tutorials/deployments.md
+            - tutorials/storage.md
             - tutorials/dask-ray-task-runners.md
-            # - tutorials/docker-flow-runner.md
+            - tutorials/docker.md
             # - tutorials/kubernetes-flow-runner.md
             - tutorials/testing.md
             - Prefect Cloud: ui/cloud-getting-started.md

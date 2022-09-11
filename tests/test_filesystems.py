@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -5,6 +6,8 @@ import pytest
 import prefect
 from prefect.filesystems import GitHub, LocalFileSystem, RemoteFileSystem
 from prefect.testing.utilities import AsyncMock
+
+TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
 
 
 class TestLocalFileSystem:
@@ -90,6 +93,41 @@ class TestRemoteFileSystem:
         assert fs._resolve_path(f"{base}/subdir") == f"{base}/subdir"
         assert fs._resolve_path("subdirectory") == f"{base}/subdirectory"
 
+    async def test_put_directory_flat(self):
+        fs = RemoteFileSystem(basepath="memory://flat")
+        await fs.put_directory(
+            os.path.join(TEST_PROJECTS_DIR, "flat-project"),
+            ignore_file=os.path.join(
+                TEST_PROJECTS_DIR, "flat-project", ".prefectignore"
+            ),
+        )
+        copied_files = set(fs.filesystem.glob("/flat/**"))
+
+        assert copied_files == {
+            "/flat/explicit_relative.py",
+            "/flat/implicit_relative.py",
+            "/flat/shared_libs.py",
+        }
+
+    async def test_put_directory_tree(self):
+        fs = RemoteFileSystem(basepath="memory://tree")
+        await fs.put_directory(
+            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
+            ignore_file=os.path.join(
+                TEST_PROJECTS_DIR, "tree-project", ".prefectignore"
+            ),
+        )
+        copied_files = set(fs.filesystem.glob("/tree/**"))
+
+        assert copied_files == {
+            "/tree/imports",
+            "/tree/imports/explicit_relative.py",
+            "/tree/imports/implicit_relative.py",
+            "/tree/shared_libs",
+            "/tree/shared_libs/bar.py",
+            "/tree/shared_libs/foo.py",
+        }
+
 
 class TestGitHub:
     async def test_subprocess_errors_are_surfaced(self):
@@ -103,27 +141,22 @@ class TestGitHub:
         class p:
             returncode = 0
 
-        expected_path = Path(".").absolute()
         mock = AsyncMock(return_value=p())
         monkeypatch.setattr(prefect.filesystems, "run_process", mock)
         g = GitHub(repository="prefect")
         await g.get_directory()
 
         assert mock.await_count == 1
-        assert mock.await_args[0][0] == f"git clone prefect {expected_path}"
+        assert f"git clone prefect" in mock.await_args[0][0]
 
     async def test_reference_default(self, monkeypatch):
         class p:
             returncode = 0
 
-        expected_path = Path(".").absolute()
         mock = AsyncMock(return_value=p())
         monkeypatch.setattr(prefect.filesystems, "run_process", mock)
         g = GitHub(repository="prefect", reference="2.0.0")
         await g.get_directory()
 
         assert mock.await_count == 1
-        assert (
-            mock.await_args[0][0]
-            == f"git clone prefect -b 2.0.0 --depth 1 {expected_path}"
-        )
+        assert f"git clone prefect -b 2.0.0 --depth 1" in mock.await_args[0][0]
