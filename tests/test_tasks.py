@@ -9,7 +9,7 @@ import anyio
 import pytest
 
 from prefect import flow, get_run_logger, tags
-from prefect.context import PrefectObjectRegistry
+from prefect.context import PrefectObjectRegistry, TaskRunContext, get_run_context
 from prefect.engine import get_state_for_result
 from prefect.exceptions import (
     MappingLengthMismatch,
@@ -622,6 +622,38 @@ class TestTaskRetries:
             "Retrying",
             "Completed",
         ]
+
+    async def test_task_retries_receive_latest_task_run_in_context(self):
+        contexts: List[TaskRunContext] = []
+
+        @task(retries=3)
+        def flaky_function():
+            contexts.append(get_run_context())
+            raise ValueError()
+
+        @flow
+        def test_flow():
+            flaky_function()
+
+        with pytest.raises(ValueError):
+            test_flow()
+
+        expected_state_names = [
+            "Running",
+            "Retrying",
+            "Retrying",
+            "Retrying",
+        ]
+        assert len(contexts) == len(expected_state_names)
+        for i, context in enumerate(contexts):
+            assert context.task_run.run_count == i + 1
+            assert context.task_run.state_name == expected_state_names[i]
+
+            if i > 0:
+                last_context = contexts[i - 1]
+                assert (
+                    last_context.start_time < context.start_time
+                ), "Timestamps should be increasing"
 
 
 class TestTaskCaching:
