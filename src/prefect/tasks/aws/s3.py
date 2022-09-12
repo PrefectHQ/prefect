@@ -102,12 +102,22 @@ class S3Upload(Task):
     Args:
         - bucket (str, optional): the name of the S3 Bucket to upload to
         - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
+        - upload_options (dict, optional): Additional options for s3 client
+            `upload_fileobj()` method `ExtraArgs` argument
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
 
-    def __init__(self, bucket: str = None, boto_kwargs: dict = None, **kwargs):
+    def __init__(
+        self,
+        bucket: str = None,
+        boto_kwargs: dict = None,
+        *,
+        upload_options: dict = None,
+        **kwargs,
+    ):
         self.bucket = bucket
+        self.upload_options = upload_options
 
         if boto_kwargs is None:
             self.boto_kwargs = {}
@@ -116,7 +126,7 @@ class S3Upload(Task):
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("bucket")
+    @defaults_from_attrs("bucket", "upload_options")
     def run(
         self,
         data: str,
@@ -124,6 +134,7 @@ class S3Upload(Task):
         credentials: dict = None,
         bucket: str = None,
         compression: str = None,
+        upload_options: dict = None,
     ):
         """
         Task run method.
@@ -140,6 +151,8 @@ class S3Upload(Task):
             - bucket (str, optional): the name of the S3 Bucket to upload to
             - compression (str, optional): specifies a file format for compression,
                 compressing data before upload. Currently supports `'gzip'`.
+            - upload_options (dict, optional): Additional options for s3 client
+                `upload_fileobj()` method `ExtraArgs` argument
 
         Returns:
             - str: the name of the Key the data payload was uploaded to
@@ -167,7 +180,9 @@ class S3Upload(Task):
             key = str(uuid.uuid4())
 
         # upload
-        s3_client.upload_fileobj(stream, Bucket=bucket, Key=key)
+        s3_client.upload_fileobj(
+            stream, Bucket=bucket, Key=key, ExtraArgs=upload_options
+        )
         return key
 
 

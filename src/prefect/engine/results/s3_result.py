@@ -25,7 +25,8 @@ class S3Result(Result):
         - boto3_kwargs (dict, optional): keyword arguments to pass on to boto3 when the [client
             session](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client)
             is initialized.
-        - upload_options (dict, optional): additional options for s3 client upload_fileobj() 'ExtraArgs' argument.
+        - upload_options (dict, optional): Additional options for s3 client
+            `upload_fileobj()` method `ExtraArgs` argument
         - **kwargs (Any, optional): any additional `Result` initialization options
     """  # noqa: E501
 
