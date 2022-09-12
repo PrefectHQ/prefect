@@ -18,7 +18,7 @@
   import { PageHeadingBlocksCatalogCreate, BlockTypeCardLayout, BlockSchemaCreateForm, BlockDocumentCreateNamed } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { computed, watchEffect } from 'vue'
   import { useRouter } from 'vue-router'
   import { routes } from '@/router'
   import { blockDocumentsApi } from '@/services/blockDocumentsApi'
@@ -39,24 +39,18 @@
   const blockTypeSubscription = useSubscriptionWithDependencies(blockTypesApi.getBlockTypeBySlug, blockTypeSubscriptionArgs)
   const blockType = computed(() => blockTypeSubscription.response)
 
-  const blockSchemaSubscriptionArgs = computed<Parameters<typeof blockSchemasApi.getBlockSchemas> | null>(() => {
+  const blockSchemaSubscriptionArgs = computed<Parameters<typeof blockSchemasApi.getBlockSchemaForBlockType> | null>(() => {
     if (!blockType.value) {
       return null
     }
 
-    return [
-      {
-        blockSchemas: {
-          blockTypeId: {
-            any_: [blockType.value.id],
-          },
-        },
-      },
-    ]
+    return [blockType.value.id]
   })
 
-  const blockSchemaSubscription = useSubscriptionWithDependencies(blockSchemasApi.getBlockSchemas, blockSchemaSubscriptionArgs)
-  const blockSchema = computed(() => blockSchemaSubscription.response?.[0])
+  const blockSchemaSubscription = useSubscriptionWithDependencies(blockSchemasApi.getBlockSchemaForBlockType, blockSchemaSubscriptionArgs)
+  const blockSchema = computed(() => blockSchemaSubscription.response)
+
+  watchEffect(() => console.log({ blockSchema }))
 
   function submit(request: BlockDocumentCreateNamed): void {
     blockDocumentsApi
