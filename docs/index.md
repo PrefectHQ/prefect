@@ -7,8 +7,6 @@ tags:
 
 # Welcome to Prefect 2
 
-<span style="margin-top: 0; margin-bottom: 0;">![Prefect 2 logo](./img/logos/prefect-2-logo-dark.png)</span>
-
 !!! help "Looking for Prefect 1 Core and Server?"
     Prefect 2 is now available for general use. See our [Migration Guide](/migration-guide/) to move your flows from Prefect 1 to Prefect 2.
 
