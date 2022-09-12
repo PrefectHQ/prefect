@@ -1,0 +1,8 @@
+recipeName: Parallel Subflows
+author: Prefect
+authorUrl: https://prefect.io
+description: Running subflows (or child flows) in parallel.
+topic: Flows
+recipeUrl: https://discourse.prefect.io/t/how-can-i-run-multiple-subflows-or-child-flows-in-parallel/96
+iconUrl: 
+  - /img/collections/python.png
