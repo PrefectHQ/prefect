@@ -90,7 +90,7 @@ class ContextModel(BaseModel):
         return cls.__var__.get(None)
 
     def copy(self, **kwargs):
-        """Remove the token on copy to avoid re-entrance errors"""
+        # Remove the token on copy to avoid re-entrance errors
         new = super().copy(**kwargs)
         new._token = None
         return new

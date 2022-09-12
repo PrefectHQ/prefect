@@ -1191,6 +1191,9 @@ async def orchestrate_task_run(
 
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
+        # Retrieve the latest metadata for the task run context
+        task_run = await client.read_task_run(task_run.id)
+
         try:
             args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
 
@@ -1199,7 +1202,9 @@ async def orchestrate_task_run(
             else:
                 logger.debug(f"Beginning execution...", extra={"state_message": True})
 
-            with task_run_context:
+            with task_run_context.copy(
+                update={"task_run": task_run, "start_time": pendulum.now("UTC")}
+            ):
                 if task.isasync:
                     result = await task.fn(*args, **kwargs)
                 else:
