@@ -68,7 +68,7 @@ import anyio
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
-    from anyio.abc import TaskGroup
+    import anyio.abc
 
 from prefect.logging import get_logger
 from prefect.orion.schemas.states import State
@@ -229,7 +229,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         # TODO: Consider adding `max_workers` support using anyio capacity limiters
 
         # Runtime attributes
-        self._task_group: TaskGroup = None
+        self._task_group: anyio.abc.TaskGroup = None
         self._results: Dict[UUID, Any] = {}
         self._keys: Set[UUID] = set()
         super().__init__()

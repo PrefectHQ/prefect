@@ -4,8 +4,8 @@ import sys
 import tempfile
 from typing import Optional
 
+import anyio.abc
 import sniffio
-from anyio.abc import TaskStatus
 from pydantic import Field
 from typing_extensions import Literal
 
@@ -56,7 +56,7 @@ class Process(Infrastructure):
     @sync_compatible
     async def run(
         self,
-        task_status: TaskStatus = None,
+        task_status: anyio.abc.TaskStatus = None,
     ) -> Optional[bool]:
         if not self.command:
             raise ValueError("Process cannot be run with empty command.")
