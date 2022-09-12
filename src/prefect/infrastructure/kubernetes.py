@@ -321,7 +321,7 @@ class KubernetesJob(Infrastructure):
                 }
             )
 
-        if self.finished_job_ttl:
+        if self.finished_job_ttl is not None:
             shortcuts.append(
                 {
                     "op": "add",
