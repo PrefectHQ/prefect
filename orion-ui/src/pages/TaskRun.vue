@@ -32,7 +32,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, StateBadge, DurationIconText, FlowRunIconText, JsonView } from '@prefecthq/orion-design'
+  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, StateBadge, DurationIconText, FlowRunIconText, JsonView, useFavicon } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -71,6 +71,9 @@
     flowRunDetailsSubscription.refresh()
     router.push(routes.flowRun(flowRunId.value!))
   }
+
+  const stateType = computed(() => taskRun.value?.stateType)
+  useFavicon(stateType)
 </script>
 
 <style>
