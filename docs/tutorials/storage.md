@@ -152,7 +152,7 @@ When you create flow runs from this deployment, the agent pulls the flow script 
 
 ## Infrastructure
 
-Similar to storage blocks, infrastructure [blocks](/concepts/blocks/) contain configuration for interacting with external systems. In the case of infrastructure this his includes settings that [agents](/concepts/work-queues/) use to create an execution environment for a flow run.
+Similar to storage blocks, infrastructure [blocks](/concepts/blocks/) contain configuration for interacting with external systems. Specifically, infrastructure includes settings that [agents](/concepts/work-queues/) use to create an execution environment for a flow run.
 
 Infrastructure includes configuration for environments such as:
 
