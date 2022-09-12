@@ -311,7 +311,7 @@ class DaskExecutor(Executor):
                 except Exception:
                     pass
             if scheduler_comm is not None:
-                scheduler_comm.close_rpc()
+                await scheduler_comm.close_rpc()
 
     def _pre_start_yield(self) -> None:
         from distributed import Event
