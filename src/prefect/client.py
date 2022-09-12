@@ -1126,12 +1126,15 @@ class OrionClient:
         return BlockType.parse_obj(response.json())
 
     async def read_block_schema_by_checksum(
-        self, checksum: str
+        self, checksum: str, version: Optional[str] = None
     ) -> schemas.core.BlockSchema:
         """
         Look up a block schema checksum
         """
         try:
+            url = f"/block_schemas/checksum/{checksum}"
+            if version is not None:
+                url = f"{url}?version={version}"
             response = await self._client.get(f"/block_schemas/checksum/{checksum}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
