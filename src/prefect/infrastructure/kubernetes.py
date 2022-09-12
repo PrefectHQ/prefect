@@ -64,8 +64,9 @@ class KubernetesJob(Infrastructure):
         pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 5).
         service_account_name: An optional string specifying which Kubernetes service account to use.
         stream_output: If set, stream output from the job to local standard output.
-        finished_job_ttl: Number of seconds to limit the lifetime of job that have finished execution.
-            Default to no lifetime.
+        finished_job_ttl: The number of seconds to retain jobs after completion. If set, finished jobs will
+            be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be
+            manually removed.
     """
 
     type: Literal["kubernetes-job"] = Field(
@@ -113,7 +114,7 @@ class KubernetesJob(Infrastructure):
     )
     finished_job_ttl: Optional[int] = Field(
         None,
-        description="Number of seconds to limit the lifetime of job that have finished execution.",
+        description="The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed.",
     )
 
     # internal-use only right now
