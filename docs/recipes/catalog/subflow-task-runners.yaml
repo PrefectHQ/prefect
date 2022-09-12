@@ -1,0 +1,8 @@
+recipeName: Subflow Task Runners
+author: Prefect
+authorUrl: https://prefect.io
+description: Subflows can use different task runners than their parent flows.
+topic: Flows
+recipeUrl: https://discourse.prefect.io/t/can-my-subflow-use-a-different-task-runner-than-my-parent-flow/101
+iconUrl: 
+  - /img/collections/python.png

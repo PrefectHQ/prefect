@@ -3,8 +3,8 @@ import enum
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Union
 
+import anyio.abc
 import yaml
-from anyio.abc import TaskStatus
 from pydantic import Field, validator
 from slugify import slugify
 from typing_extensions import Literal
@@ -209,8 +209,11 @@ class KubernetesJob(Infrastructure):
     @sync_compatible
     async def run(
         self,
-        task_status: Optional[TaskStatus] = None,
+        task_status: Optional[anyio.abc.TaskStatus] = None,
     ) -> Optional[bool]:
+        if not self.command:
+            raise ValueError("Kubernetes job cannot be run with empty command.")
+
         # if a k8s cluster block is provided to the flow runner, use that
         if self.cluster_config:
             self.cluster_config.configure_client()
@@ -336,7 +339,12 @@ class KubernetesJob(Infrastructure):
                     "op": "add",
                     "path": "/metadata/generateName",
                     "value": "prefect-job-"
-                    + stable_hash(*self.command, *self.env.keys(), *self.env.values()),
+                    # We generate a name using a hash of the primary job settings
+                    + stable_hash(
+                        *self.command,
+                        *self.env.keys(),
+                        *[v for v in self.env.values() if v is not None],
+                    ),
                 }
             )
 
@@ -563,4 +571,5 @@ class KubernetesJob(Infrastructure):
                 .replace("127.0.0.1", self._api_dns_name)
             )
 
-        return env
+        # Drop null values allowing users to "unset" variables
+        return {key: value for key, value in env.items() if value is not None}

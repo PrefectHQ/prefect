@@ -1,6 +1,7 @@
 """
 Command line interface for working with deployments.
 """
+import json
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
@@ -35,7 +36,6 @@ from prefect.orion.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.utilities.callables import parameter_schema
 from prefect.utilities.filesystem import set_default_ignore_file
 
 
@@ -311,7 +311,7 @@ async def apply(
         if deployment.work_queue_name is not None:
             app.console.print(
                 "\nTo execute flow runs from this deployment, start an agent "
-                f"that pulls work from the the {deployment.work_queue_name!r} work queue:"
+                f"that pulls work from the {deployment.work_queue_name!r} work queue:"
             )
             app.console.print(
                 f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"
@@ -529,7 +529,10 @@ async def build(
     elif interval:
         schedule = IntervalSchedule(interval=timedelta(seconds=interval))
     elif rrule:
-        schedule = RRuleSchedule(rrule=rrule)
+        try:
+            schedule = RRuleSchedule(**json.loads(rrule))
+        except json.JSONDecodeError:
+            schedule = RRuleSchedule(rrule=rrule)
 
     # parse storage_block
     if storage_block:
@@ -545,48 +548,50 @@ async def build(
     else:
         storage = None
 
-    ## docker default settings
-    # proxy for whether infra is docker-based
-    is_docker_based = hasattr(infrastructure, "image")
-
-    if not storage:
-        if is_docker_based:
-            # only update if a path is not already set
-            if not path:
-                path = "/opt/prefect/flows"
-        else:
-            path = str(Path(".").absolute())
-
-    # set up deployment object
-    deployment = Deployment(name=name, flow_name=flow.name)
-    await deployment.load()  # load server-side settings, if any
-
-    flow_parameter_schema = parameter_schema(flow)
-    entrypoint = (
-        f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
-    )
-    updates = dict(
-        path=path,
-        parameter_openapi_schema=flow_parameter_schema,
-        entrypoint=entrypoint,
-        description=deployment.description or flow.description,
-        version=version or deployment.version or flow.version,
-        tags=tags or None,
-        storage=storage,
-        infrastructure=infrastructure,
-        infra_overrides=infra_overrides or None,
-        schedule=schedule,
-        work_queue_name=work_queue_name,
-    )
-    await deployment.update(**updates, ignore_none=True)
-
-    ## process storage, move files around and process path logic
     if set_default_ignore_file(path="."):
         app.console.print(
             f"Default '.prefectignore' file written to {(Path('.') / '.prefectignore').absolute()}",
             style="green",
         )
 
+    # set up deployment object
+    entrypoint = (
+        f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
+    )
+    init_kwargs = dict(
+        path=path,
+        entrypoint=entrypoint,
+        version=version,
+        storage=storage,
+        infra_overrides=infra_overrides or {},
+    )
+
+    # if a schedule, tags, work_queue_name, or infrastructure are not provided via CLI,
+    # we let `build_from_flow` load them from the server
+    if schedule:
+        init_kwargs.update(schedule=schedule)
+    if tags:
+        init_kwargs.update(tags=tags)
+    if infrastructure:
+        init_kwargs.update(infrastructure=infrastructure)
+    if work_queue_name:
+        init_kwargs.update(work_queue_name=work_queue_name)
+
+    deployment_loc = output_file or f"{obj_name}-deployment.yaml"
+    deployment = await Deployment.build_from_flow(
+        flow=flow,
+        name=name,
+        output=deployment_loc,
+        skip_upload=False,
+        apply=False,
+        **init_kwargs,
+    )
+    app.console.print(
+        f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'.",
+        style="green",
+    )
+
+    # we process these separately for informative output
     if not skip_upload:
         if (
             deployment.storage
@@ -604,13 +609,6 @@ async def build(
                 style="green",
             )
 
-    deployment_loc = output_file or f"{obj_name}-deployment.yaml"
-    await deployment.to_yaml(deployment_loc)
-    app.console.print(
-        f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'.",
-        style="green",
-    )
-
     if _apply:
         deployment_id = await deployment.apply()
         app.console.print(
@@ -620,7 +618,7 @@ async def build(
         if deployment.work_queue_name is not None:
             app.console.print(
                 "\nTo execute flow runs from this deployment, start an agent "
-                f"that pulls work from the the {deployment.work_queue_name!r} work queue:"
+                f"that pulls work from the {deployment.work_queue_name!r} work queue:"
             )
             app.console.print(
                 f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"
