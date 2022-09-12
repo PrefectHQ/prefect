@@ -643,8 +643,8 @@ class TestTaskRetries:
             "Retrying",
             "Retrying",
             "Retrying",
-            "Failed",
         ]
+        assert len(contexts) == len(expected_state_names)
         for i, context in enumerate(contexts):
             assert context.task_run.run_count == i + 1
             assert context.task_run.state_name == expected_state_names[i]
