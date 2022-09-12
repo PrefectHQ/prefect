@@ -1,0 +1,8 @@
+recipeName: Azure Flow Storage
+author: Prefect
+authorUrl: https://prefect.io
+description: Create a flow deployment that uses Azure Blob storage for flow files.
+topic: Deployments
+recipeUrl: https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-azure/1312
+iconUrl: 
+  - /img/collections/azure.png

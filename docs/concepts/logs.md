@@ -10,6 +10,7 @@ tags:
     - logging
     - log formatters
     - configuration
+    - debug
 ---
 
 # Logging
