@@ -1,5 +1,5 @@
 ---
-description: View your flow runs in the Prefect 2.0 and Prefect Cloud UI.
+description: View and inspect your flow runs in the Prefect UI and Prefect Cloud.
 tags:
     - Orion
     - UI
@@ -132,7 +132,7 @@ Flows may end up in states other than Completed. This is where Prefect really he
 
 If you need to delete a flow or flow run: 
 
-In the Prefect UI or Prefect Cloud, go the the page for flow or flow run and the select the **Delete** command from the button to the right of the flow or flow run name.
+In the Prefect UI or Prefect Cloud, go the page for flow or flow run and the select the **Delete** command from the button to the right of the flow or flow run name.
 
 From the command line in your execution environment, you can delete a flow run by using the `prefect flow-run delete` CLI command, passing the ID of the flow run. 
 

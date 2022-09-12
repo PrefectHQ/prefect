@@ -234,6 +234,8 @@ class DockerContainer(Infrastructure):
         self,
         task_status: Optional[TaskStatus] = None,
     ) -> Optional[bool]:
+        if not self.command:
+            raise ValueError("Docker container cannot be run with empty command.")
 
         # The `docker` library uses requests instead of an async http library so it must
         # be run in a thread to avoid blocking the event loop.
@@ -575,4 +577,5 @@ class DockerContainer(Infrastructure):
                 .replace("127.0.0.1", "host.docker.internal")
             )
 
-        return env
+        # Drop null values allowing users to "unset" variables
+        return {key: value for key, value in env.items() if value is not None}
