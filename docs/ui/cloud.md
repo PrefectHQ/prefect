@@ -1,5 +1,5 @@
 ---
-description: Learn about using Prefect Cloud.
+description: Prefect Cloud provides a hosted coordination-as-a-service platform for your workflows.
 tags:
     - UI
     - dashboard
@@ -7,11 +7,12 @@ tags:
     - accounts
     - teams
     - workspaces
+    - SaaS
 ---
 
 # Welcome to Prefect Cloud
 
-Prefect Cloud is an orchestration-as-a-service platform. Prefect Cloud provides all the capabilities of the [Prefect UI](/ui/overview/) in a hosted environment, including:
+Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud provides all the capabilities of the [Prefect UI](/ui/overview/) in a hosted environment, including:
 
 - [Flow run](/ui/flow-runs/) summaries
 - Details of upcoming scheduled flow runs

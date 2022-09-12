@@ -1,9 +1,10 @@
 ---
-description: Learn more about Prefect Orion database use and configuration.
+description: The Prefect Orion database stores deployment and flow run data.
 tags:
     - Orion
     - database
     - metadata
+    - migrations
     - SQLite
     - PostgreSQL
 ---

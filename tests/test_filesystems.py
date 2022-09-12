@@ -141,27 +141,22 @@ class TestGitHub:
         class p:
             returncode = 0
 
-        expected_path = Path(".").absolute()
         mock = AsyncMock(return_value=p())
         monkeypatch.setattr(prefect.filesystems, "run_process", mock)
         g = GitHub(repository="prefect")
         await g.get_directory()
 
         assert mock.await_count == 1
-        assert mock.await_args[0][0] == f"git clone prefect {expected_path}"
+        assert f"git clone prefect" in mock.await_args[0][0]
 
     async def test_reference_default(self, monkeypatch):
         class p:
             returncode = 0
 
-        expected_path = Path(".").absolute()
         mock = AsyncMock(return_value=p())
         monkeypatch.setattr(prefect.filesystems, "run_process", mock)
         g = GitHub(repository="prefect", reference="2.0.0")
         await g.get_directory()
 
         assert mock.await_count == 1
-        assert (
-            mock.await_args[0][0]
-            == f"git clone prefect -b 2.0.0 --depth 1 {expected_path}"
-        )
+        assert f"git clone prefect -b 2.0.0 --depth 1" in mock.await_args[0][0]

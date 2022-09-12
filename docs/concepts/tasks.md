@@ -1,5 +1,5 @@
 ---
-description: Prefect tasks are functions that represents a discrete unit of work in a Prefect workflow.
+description: Prefect tasks represents a discrete unit of work in a Prefect workflow.
 tags:
     - tasks
     - task runs

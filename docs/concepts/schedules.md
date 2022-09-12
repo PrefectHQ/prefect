@@ -1,10 +1,11 @@
 ---
-description: Prefect lets you schedule when to automatically create new flow runs.
+description: Prefect can schedule when to automatically create new flow runs based on your deployments.
 tags:
     - flows
     - flow runs
     - deployments
     - schedules
+    - scheduling
     - cron
     - RRule
     - iCal
