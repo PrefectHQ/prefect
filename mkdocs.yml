@@ -1,4 +1,4 @@
-site_name: Prefect 2.0
+site_name: Prefect 2
 site_url: https://docs.prefect.io/
 repo_url: https://github.com/PrefectHQ/prefect
 edit_uri: edit/main/docs
@@ -70,7 +70,7 @@ plugins:
         scripts:
             - docs/collections/generate_catalog.py
 nav:
-    - Prefect 2.0: index.md
+    - Prefect 2: index.md
     - 'Getting Started':
         - Overview: getting-started/overview.md
         - Installation: getting-started/installation.md

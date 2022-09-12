@@ -9,8 +9,8 @@ tags:
 
 <span style="margin-top: 0; margin-bottom: 0;">![Prefect 2 logo](./img/logos/prefect-2-logo-dark.png)</span>
 
-!!! help "Looking for Prefect 1.0 Core and Server?"
-    Prefect 2 is now available for general use. See our [Migration Guide](/migration-guide/) to move your flows from Prefect 1 Prefect 2.
+!!! help "Looking for Prefect 1 Core and Server?"
+    Prefect 2 is now available for general use. See our [Migration Guide](/migration-guide/) to move your flows from Prefect 1 to Prefect 2.
 
     If you're looking for the [Prefect 1 Core and Server documentation](http://docs-v1.prefect.io/), they're available at [http://docs-v1.prefect.io/](http://docs-v1.prefect.io/).
 
@@ -41,7 +41,7 @@ Prefect 2 was designed for incremental adoption into your workflows. The documen
 
 Begin by [installing Prefect 2](/getting-started/installation/) on your machine, then follow one of our [friendly tutorials](/tutorials/first-steps/) to learn by example. See the [Getting Started overview](/getting-started/overview/) for more.
 
-Even if you have used Prefect 1.0 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps. Prefect 2 offers significant new functionality.
+Even if you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps. Prefect 2 offers significant new functionality.
 
 
 **Concepts**
