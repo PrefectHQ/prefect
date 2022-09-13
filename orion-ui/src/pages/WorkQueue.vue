@@ -42,10 +42,10 @@
 
 
 <script lang="ts" setup>
-  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunList, WorkQueueFlowRunsList, CodeBanner, localization, UnionFilters, useFlowRunFilterFromParameter } from '@prefecthq/orion-design'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter, useFlowRunFilterFromParameter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed, watch } from 'vue'
+  import { computed, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
   import { routes } from '@/router'
@@ -76,7 +76,7 @@
 
   const workQueueName = computed(() => workQueue.value?.name ?? '')
 
-  const flowRunFilter = computed(() => useFlowRunFilterFromParameter({ states: [], workQueues: [workQueueName.value] }).filter.value)
+  const flowRunFilter = computed(() => useRecentFlowRunFilter({ states: ref([]), workQueues: ref([workQueueName.value]) }).value)
 
   const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [flowRunFilter], subscriptionOptions)
   const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
