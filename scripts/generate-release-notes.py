@@ -94,7 +94,8 @@ def generate_release_notes(
 
     # Strip contributors from individual entries
     release_notes = ENTRY_REGEX.sub(
-        lambda match: f"- {match[0]} — {match[2]}", release_notes
+        lambda match: f"- {match.group(1)} — {match.group(3)}",
+        release_notes,
     )
 
     print(release_notes)
