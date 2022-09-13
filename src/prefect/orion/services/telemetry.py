@@ -42,36 +42,34 @@ class Telemetry(LoopService):
 
         Telemetry sessions last until the database is reset.
         """
-        session = await db.session()
-        async with session:
-            async with session.begin():
-                telemetry_session = await configuration.read_configuration(
-                    session, "TELEMETRY_SESSION"
+        async with db.session_context(begin_transaction=True) as session:
+            telemetry_session = await configuration.read_configuration(
+                session, "TELEMETRY_SESSION"
+            )
+
+            if telemetry_session is None:
+                self.logger.debug("No telemetry session found, setting")
+                session_id = str(uuid4())
+                session_start_timestamp = pendulum.now().to_iso8601_string()
+
+                telemetry_session = Configuration(
+                    key="TELEMETRY_SESSION",
+                    value={
+                        "session_id": session_id,
+                        "session_start_timestamp": session_start_timestamp,
+                    },
                 )
 
-                if telemetry_session is None:
-                    self.logger.debug("No telemetry session found, setting")
-                    session_id = str(uuid4())
-                    session_start_timestamp = pendulum.now().to_iso8601_string()
+                await configuration.write_configuration(session, telemetry_session)
 
-                    telemetry_session = Configuration(
-                        key="TELEMETRY_SESSION",
-                        value={
-                            "session_id": session_id,
-                            "session_start_timestamp": session_start_timestamp,
-                        },
-                    )
-
-                    await configuration.write_configuration(session, telemetry_session)
-
-                    self.session_id = session_id
-                    self.session_start_timestamp = session_start_timestamp
-                else:
-                    self.logger.debug("Session information retrieved from database")
-                    self.session_id = telemetry_session.value["session_id"]
-                    self.session_start_timestamp = telemetry_session.value[
-                        "session_start_timestamp"
-                    ]
+                self.session_id = session_id
+                self.session_start_timestamp = session_start_timestamp
+            else:
+                self.logger.debug("Session information retrieved from database")
+                self.session_id = telemetry_session.value["session_id"]
+                self.session_start_timestamp = telemetry_session.value[
+                    "session_start_timestamp"
+                ]
         self.logger.debug(
             f"Telemetry Session: {self.session_id}, {self.session_start_timestamp}"
         )

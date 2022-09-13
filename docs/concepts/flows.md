@@ -1,11 +1,13 @@
 ---
-description: Prefect flows are the foundational containers for workflow logic
+description: Prefect flows are the foundational containers for workflow logic.
 tags:
-    - Orion
     - flows
     - subflows
+    - workflows
+    - scripts
     - parameters
     - states
+    - final state
 ---
 
 # Flows
@@ -88,7 +90,7 @@ def hello_world(name="world"):
 
     In addition, if you put all of your workflow logic in a single flow function and any line of code fails, the entire flow will fail and must be retried from the beginning. This can be avoided by breaking up the code into multiple tasks.
 
-    Each Prefect workflow must contain one primary `@flow` function. From that flow function, you may call any number of other tasks, subflows, and even regular Python functions. You can pass parameters to your primary flow function that will be used elsewhere in the workflow, and the [final state](#final-state-determination) of that primary flow function determines the final state of your workflow.
+    Each Prefect workflow must contain one primary, entrypoint `@flow` function. From that flow function, you may call any number of other tasks, subflows, and even regular Python functions. You can pass parameters to your entrypoint flow function that will be used elsewhere in the workflow, and the [final state](#final-state-determination) of that entrypoint flow function determines the final state of your workflow.
 
     Prefect encourages "small tasks" &mdash; each one should represent a single logical step of your workflow. This allows Prefect to better contain task failures.
 
@@ -102,7 +104,7 @@ Flows allow a great deal of configuration by passing arguments to the decorator.
 | `name` | An optional name for the flow. If not provided, the name will be inferred from the function. |
 | `retries` | An optional number of times to retry on flow run failure. |
 | <span class="no-wrap">`retry_delay_seconds`</span> | An optional number of seconds to wait before retrying the flow after failure. This is only applicable if `retries` is nonzero. |
-| `task_runner` | The [task runner](/concepts/task-runners/) to use for task execution within the flow. If not provided, the `ConcurrentTaskRunner` will be used. |
+| `task_runner` | An optional [task runner](/concepts/task-runners/) to use for task execution within the flow when you `.submit()` tasks. If not provided and you `.submit()` tasks, the `ConcurrentTaskRunner` will be used. |
 | `timeout_seconds` | An optional number of seconds indicating a maximum runtime for the flow. If the flow exceeds this runtime, it will be marked as failed. Flow execution may continue until the next task is called. |
 | `validate_parameters` | Boolean indicating whether parameters passed to flows are validated by Pydantic. Default is `True`.  |
 | `version` | An optional version string for the flow. If not provided, we will attempt to create a version string as a hash of the file containing the wrapped function. If the file cannot be located, the version will be null. |
@@ -200,7 +202,7 @@ Subflows will block execution of the parent flow until completion. However, asyn
 
 Subflows differ from normal flows in that they will resolve any passed task futures into data. This allows data to be passed from the parent flow to the child easily.
 
-The relationship between a child and parent flow is tracked by creating a special task run in the the parent flow. This task run will mirror the state of the child flow run.
+The relationship between a child and parent flow is tracked by creating a special task run in the parent flow. This task run will mirror the state of the child flow run.
 
 A task that represents a subflow will be annotated as such in its `state_details` via the presence of a `child_flow_run_id` field.  A subflow can be identified via the presence of a `parent_task_run_id` on `state_details`.
 
@@ -275,7 +277,7 @@ Subflow says: Hello Marvin!
 </div>
 
 !!! tip "Subflows or tasks?"
-    In Prefect 2.0 you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question we hear is:
+    In Prefect 2 you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question we hear is:
 
     "When should I use a subflow instead of a task?"
 
