@@ -5,6 +5,8 @@ tags:
     - UI
     - deployments
     - flow runs
+    - schedules
+    - parameters
     - Prefect Cloud
 ---
 

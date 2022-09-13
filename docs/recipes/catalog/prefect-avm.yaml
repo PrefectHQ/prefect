@@ -1,0 +1,9 @@
+recipeName: Prefect Agent on Azure VM
+author: Prefect
+authorUrl: https://prefect.io
+description: Set up an Azure VM and run a Prefect agent.
+topic: Azure
+recipeUrl: https://github.com/PrefectHQ/prefect-recipes/tree/main/devops/infrastructure-as-code/azure/prefect-agent-on-avm
+iconUrl: 
+  - /img/collections/azure.png
+  - /img/collections/terraform.png

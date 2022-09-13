@@ -19,7 +19,6 @@ import prefect.settings
 from prefect import flow, task
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.infrastructure import Process
-from prefect.infrastructure.submission import submit_flow_run
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
     load_logging_config,
@@ -183,8 +182,10 @@ async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deploym
         logger_test_deployment
     )
 
-    assert await submit_flow_run(
-        flow_run, Process(env={"PREFECT_LOGGING_EXTRA_LOGGERS": "foo"})
+    assert (
+        await Process(env={"PREFECT_LOGGING_EXTRA_LOGGERS": "foo"})
+        .prepare_for_flow_run(flow_run)
+        .run()
     )
 
     state = (await orion_client.read_flow_run(flow_run.id)).state

@@ -366,6 +366,7 @@ class TestClientContextManager:
         assert startup.call_count == shutdown.call_count
         assert startup.call_count > 0
 
+    @pytest.mark.flaky(max_runs=3)
     @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
     async def test_client_context_lifespan_is_robust_to_mixed_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
@@ -613,6 +614,44 @@ async def test_create_then_read_deployment(
     assert lookup.storage_document_id == storage_document_id
     assert lookup.infrastructure_document_id == infrastructure_document_id
     assert lookup.parameter_openapi_schema == {}
+
+
+async def test_updating_deployment(
+    orion_client, infrastructure_document_id, storage_document_id
+):
+    @flow
+    def foo():
+        pass
+
+    flow_id = await orion_client.create_flow(foo)
+    schedule = IntervalSchedule(interval=timedelta(days=1))
+
+    deployment_id = await orion_client.create_deployment(
+        flow_id=flow_id,
+        name="test-deployment",
+        version="git-commit-hash",
+        manifest_path="path/file.json",
+        schedule=schedule,
+        parameters={"foo": "bar"},
+        tags=["foo", "bar"],
+        infrastructure_document_id=infrastructure_document_id,
+        storage_document_id=storage_document_id,
+        parameter_openapi_schema={},
+    )
+
+    initial_lookup = await orion_client.read_deployment(deployment_id)
+    assert initial_lookup.is_schedule_active
+    assert initial_lookup.schedule == schedule
+
+    updated_schedule = IntervalSchedule(interval=timedelta(seconds=86399))  # rude
+
+    await orion_client.update_deployment(
+        initial_lookup, schedule=updated_schedule, is_schedule_active=False
+    )
+
+    second_lookup = await orion_client.read_deployment(deployment_id)
+    assert not second_lookup.is_schedule_active
+    assert second_lookup.schedule == updated_schedule
 
 
 async def test_read_deployment_by_name(orion_client):

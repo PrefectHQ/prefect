@@ -1,9 +1,11 @@
 ---
-description: Task runners enable sequential, concurrent, parallel, or distributed execution of Prefect tasks.
+description: Prefect task runners let you specify the executors for tasks in a flow run, including returning a PrefectFuture contianing both results and state. 
 tags:
-    - Orion
     - tasks
     - task runners
+    - executors
+    - PrefectFuture
+    - submit
     - concurrent execution
     - sequential execution
     - parallel execution
@@ -23,7 +25,7 @@ Calling a task function from within a flow, using the default task settings, exe
 
 However, that's not the only way to run tasks!
 
-You can use the `.submit()` method on a task function to submit the task to a _task runner_. Using a task runner enables you to control whether tasks run sequentially, concurrently, or if you want to take advantage of a parallel or distributed execution libraries such as Dask or Ray.
+You can use the `.submit()` method on a task function to submit the task to a _task runner_. Using a task runner enables you to control whether tasks run sequentially, concurrently, or if you want to take advantage of a parallel or distributed execution library such as Dask or Ray.
 
 Using the `.submit()` method to submit a task also causes the task run to return a [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture), a Prefect object that contains both any _data_ returned by the task function and a [`State`](/api-ref/orion/schemas/states/), a Prefect object indicating the state of the task run.
 
@@ -47,8 +49,6 @@ In addition, the following Prefect-developed task runners for parallel or distri
 ## Using a task runner
 
 You do not need to specify a task runner for a flow unless your tasks require a specific type of execution. 
-
-If you don't specify a task runner for a flow, and you call a task with `.submit()` within the flow, Prefect uses the default `ConcurrentTaskRunner`.
 
 To configure your flow to use a specific task runner, import a task runner and assign it as an argument for the flow when the flow is defined.
 
@@ -75,6 +75,9 @@ def elevator():
 ```
 
 If you specify an uninitialized task runner class, a task runner instance of that type is created with the default settings. You can also pass additional configuration parameters for task runners that accept parameters, such as [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) and [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/).
+
+!!! tip "Default task runner"
+    If you don't specify a task runner for a flow and you call a task with `.submit()` within the flow, Prefect uses the default `ConcurrentTaskRunner`.
 
 ## Running tasks sequentially
 

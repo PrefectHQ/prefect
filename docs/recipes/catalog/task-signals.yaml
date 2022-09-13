@@ -1,0 +1,8 @@
+recipeName: Raise Task Exceptions
+author: Prefect
+authorUrl: https://prefect.io
+description: Raise a custom exception directly in a flow, which results in a Failed task run.
+topic: Tasks
+recipeUrl: https://discourse.prefect.io/t/how-can-i-stop-the-task-run-based-on-a-custom-logic/83
+iconUrl: 
+  - /img/collections/python.png
