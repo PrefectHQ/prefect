@@ -10,7 +10,7 @@ tags:
 
 # Filesystems
 
-A filesystem block is an object which allows you to read and write data from paths. Prefect provides multiple built-in file system types that cover a wide range of use cases. 
+A filesystem block is an object that allows you to read and write data from paths. Prefect provides multiple built-in file system types that cover a wide range of use cases. 
 
 - [`LocalFileSystem`](#local-file-system)
 - [`RemoteFileSystem`](#remote-file-system)
@@ -91,7 +91,7 @@ minio_block.save("minio")
 
 ## Azure
 
-The `Azure` file system block enables interaction with Azure Datalake and Azure Blob Storage. Under the hood, `Azure` uses [`adlfs`](https://github.com/fsspec/adlfs).
+The `Azure` file system block enables interaction with Azure Datalake and Azure Blob Storage. Under the hood, the `Azure` block uses [`adlfs`](https://github.com/fsspec/adlfs).
 
 `Azure` properties include:
 
@@ -124,7 +124,7 @@ You need to install `adlfs` to use it.
 
 ## GitHub
 
-The `GitHub` filesystem block enables interaction with GitHub repositories. 
+The `GitHub` filesystem block enables interaction with GitHub repositories. This block is currently read-only and limited to public repositories.
 
 `GitHub` properties include:
 
@@ -213,7 +213,7 @@ prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag 
 ```
 </div>
 
-You need to install `s3fs`to use it.
+You need to install `s3fs`to use this block.
 
 ## SMB
 
@@ -263,7 +263,7 @@ You must ensure that filesystem-specific libraries are installed in an execution
 
 In Dockerized deployments, you can leverage the `EXTRA_PIP_PACKAGES` environment variable. Those dependencies will be installed at runtime within your Docker container or Kubernetes Job before the flow starts running. 
 
-Here is an example showing how you can specify that in your deployment YAML manifest, in this case `s3fs`:
+Here is an example from a deployment YAML file showing how to specify the installation of `s3fs` from into your image:
 
 ```yaml
 infrastructure:

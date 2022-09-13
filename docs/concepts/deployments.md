@@ -196,7 +196,7 @@ You may specify additional options to further customize your deployment.
 
 ### Block identifiers
 
-When specifying a storage block with the `-sb` or `--storage-block` options, you may specify the block by passing its slug. The storage block slug is formatted as `block-type/block-name`. 
+When specifying a storage block with the `-sb` or `--storage-block` flag, you may specify the block by passing its slug. The storage block slug is formatted as `block-type/block-name`. 
 
 For example, `s3/example-block` is the slug for an S3 block named `example-block`.
 
@@ -205,7 +205,7 @@ In addition, when passing the storage block slug, you may pass just the block sl
 - `block-type/block-name` indicates just the block, including any path included in the block configuration.
 - `block-type/block-name/path` indicates a storage path in addition to any path included in the block configuration.
 
-When specifying an infrastructure block with the `-ib` or `--infra-block` options, you specify the block by passing its slug. The infrastructure block slug is formatted as `block-type/block-name`. 
+When specifying an infrastructure block with the `-ib` or `--infra-block` flag, you specify the block by passing its slug. The infrastructure block slug is formatted as `block-type/block-name`. 
 
 | Block name | Block class name | Block type for a slug |
 | --- | --- | --- |
