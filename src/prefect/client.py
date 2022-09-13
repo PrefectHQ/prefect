@@ -1034,7 +1034,7 @@ class OrionClient:
                 json=block_schema.dict(
                     json_compatible=True,
                     exclude_unset=True,
-                    include={"type", "block_type_id", "fields"},
+                    exclude={"id", "block_type", "checksum"},
                 ),
             )
         except httpx.HTTPStatusError as e:
@@ -1135,7 +1135,7 @@ class OrionClient:
             url = f"/block_schemas/checksum/{checksum}"
             if version is not None:
                 url = f"{url}?version={version}"
-            response = await self._client.get(f"/block_schemas/checksum/{checksum}")
+            response = await self._client.get(url)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
