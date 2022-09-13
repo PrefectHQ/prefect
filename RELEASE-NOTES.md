@@ -4,7 +4,7 @@
 
 ### Exciting New Features 🎉
 - Add `ECSTask` infrastructure block to run commands and flows on AWS ECS<br />
-    See [the documentation](https://prefecthq.github.io/prefect-aws/ecs/) in the [prefect-aws collection](https://prefecthq.github.io/prefect-aws/)
+    See [the documentation](https://prefecthq.github.io/prefect-aws/ecs/) in the [prefect-aws collection](https://prefecthq.github.io/prefect-aws/) and usage notes in the [our infrastructure guide](https://docs.prefect.io/concepts/infrastructure/#ecstask)
 
 ### Enhancements
 - Update the deployments CLI to better support CICD use cases — https://github.com/PrefectHQ/prefect/pull/6697
