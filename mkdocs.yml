@@ -82,10 +82,11 @@ nav:
             - tutorials/execution.md
             - tutorials/orion.md
             - tutorials/deployments.md
-            - tutorials/dask-ray-task-runners.md
+            - tutorials/storage.md
             - tutorials/docker.md
             # - tutorials/kubernetes-flow-runner.md
             - tutorials/testing.md
+            - tutorials/dask-ray-task-runners.md
             - Prefect Cloud: ui/cloud-getting-started.md
         - Migration Guide: migration-guide.md
         - Prefect Recipes: recipes/recipes.md
