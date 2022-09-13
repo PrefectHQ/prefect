@@ -12,9 +12,11 @@ import pytest
 import prefect.orion.utilities.schemas
 from prefect.orion.utilities.schemas import (
     DateTimeTZ,
+    FieldFrom,
     IDBaseModel,
     ORMBaseModel,
     PrefectBaseModel,
+    copy_model_fields,
     pydantic_subclass,
 )
 from prefect.testing.utilities import assert_does_not_warn
@@ -357,3 +359,30 @@ class TestDatetimeTZ:
         # typing as pendulum datetime doesn't result in pendulum datetime
         assert not isinstance(model.dtp, pendulum.DateTime)
         assert isinstance(model.dttz, pendulum.DateTime)
+
+
+class TestCopyModelFields:
+    class MyModel(PrefectBaseModel):
+        my_field: str = pydantic.Field(
+            "", description="Not much going on with this field"
+        )
+        my_constrained_field: str = pydantic.Field(
+            "", description="This string has a limit on it", max_length=100
+        )
+
+    async def test_from_utility_raises_on_bad_type(self):
+        with pytest.raises(TypeError):
+
+            @copy_model_fields
+            class MyBadTypeModel(PrefectBaseModel):
+                my_field: int = FieldFrom(self.MyModel)
+
+    async def test_from_utility_can_be_used_on_constrained_fields(self):
+        # should not error
+        @copy_model_fields
+        class MyConstrainedModel(PrefectBaseModel):
+            my_constrained_field: str = FieldFrom(self.MyModel)
+
+        # inherited fields should respect the constraint
+        with pytest.raises(pydantic.ValidationError):
+            MyConstrainedModel(my_constrained_field="x" * (100 + 1))
