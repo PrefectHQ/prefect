@@ -1,6 +1,7 @@
 """
 Command line interface for working with deployments.
 """
+import json
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
@@ -156,6 +157,109 @@ async def inspect(name: str):
             )
 
     app.console.print(Pretty(deployment_json))
+
+
+@deployment_app.command("set-schedule")
+async def set_schedule(
+    name: str,
+    interval: Optional[float] = typer.Option(
+        None,
+        "--interval",
+        help="An interval to schedule on, specified in seconds",
+    ),
+    interval_anchor: Optional[str] = typer.Option(
+        None, "--anchor-date", help="The anchor date for an interval schedule"
+    ),
+    rrule_string: Optional[str] = typer.Option(
+        None, "--rrule", help="Deployment schedule rrule string"
+    ),
+    cron_string: Optional[str] = typer.Option(
+        None, "--cron", help="Deployment schedule cron string"
+    ),
+    cron_day_or: Optional[str] = typer.Option(
+        None,
+        "--day_or",
+        help="Control how croniter handles `day` and `day_of_week` entries",
+    ),
+    timezone: Optional[str] = typer.Option(
+        None,
+        "--timezone",
+        help="Deployment schedule timezone string e.g. 'America/New_York'",
+    ),
+):
+    """
+    Set schedule for a given deployment.
+    """
+    assert_deployment_name_format(name)
+
+    interval_schedule = {
+        "interval": interval,
+        "interval_anchor": interval_anchor,
+        "timezone": timezone,
+    }
+    cron_schedule = {"cron": cron_string, "day_or": cron_day_or, "timezone": timezone}
+    rrule_schedule = {"rrule": rrule_string, "timezone": timezone}
+
+    def updated_schedule_check(schedule):
+        return any(v is not None for k, v in schedule.items() if k != "timezone")
+
+    updated_schedules = list(
+        filter(
+            updated_schedule_check, (interval_schedule, cron_schedule, rrule_schedule)
+        )
+    )
+
+    if len(updated_schedules) == 0:
+        exit_with_error("No deployment schedule updates provided")
+    if len(updated_schedules) > 1:
+        exit_with_error("Incompatible schedule parameters")
+
+    updated_schedule = {k: v for k, v in updated_schedules[0].items() if v is not None}
+
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
+
+        await client.update_deployment(deployment, schedule=updated_schedule)
+        exit_with_success("Updated deployment schedule!")
+
+
+@deployment_app.command("pause-schedule")
+async def pause_schedule(
+    name: str,
+):
+    """
+    Pause schedule of a given deployment.
+    """
+    assert_deployment_name_format(name)
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
+
+        await client.update_deployment(deployment, is_schedule_active=False)
+        exit_with_success(f"Paused schedule for deployment {name}")
+
+
+@deployment_app.command("resume-schedule")
+async def resume_schedule(
+    name: str,
+):
+    """
+    Resume schedule of a given deployment.
+    """
+    assert_deployment_name_format(name)
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
+
+        await client.update_deployment(deployment, is_schedule_active=True)
+        exit_with_success(f"Resumed schedule for deployment {name}")
 
 
 @deployment_app.command()
@@ -454,6 +558,16 @@ async def build(
         "-a",
         help="An optional flag to automatically register the resulting deployment with the API.",
     ),
+    param: List[str] = typer.Option(
+        None,
+        "--param",
+        help="An optional parameter override, values are parsed as JSON strings e.g. --param question=ultimate --param answer=42",
+    ),
+    params: str = typer.Option(
+        None,
+        "--params",
+        help='An optional parameter override in a JSON string format e.g. --params=\'{"question": "ultimate", "answer": 42}\'',
+    ),
 ):
     """
     Generate a deployment YAML from /path/to/file.py:flow_function
@@ -528,7 +642,10 @@ async def build(
     elif interval:
         schedule = IntervalSchedule(interval=timedelta(seconds=interval))
     elif rrule:
-        schedule = RRuleSchedule(rrule=rrule)
+        try:
+            schedule = RRuleSchedule(**json.loads(rrule))
+        except json.JSONDecodeError:
+            schedule = RRuleSchedule(rrule=rrule)
 
     # parse storage_block
     if storage_block:
@@ -550,10 +667,31 @@ async def build(
             style="green",
         )
 
+    if param and (params is not None):
+        exit_with_error("Can only pass one of `param` or `params` options")
+
+    parameters = dict()
+
+    if param:
+        for p in param or []:
+            k, unparsed_value = p.split("=", 1)
+            try:
+                v = json.loads(unparsed_value)
+                app.console.print(
+                    f"The parameter value {unparsed_value} is parsed as a JSON string"
+                )
+            except json.JSONDecodeError:
+                v = unparsed_value
+            parameters[k] = v
+
+    if params is not None:
+        parameters = json.loads(params)
+
     # set up deployment object
     entrypoint = (
         f"{Path(fpath).absolute().relative_to(Path('.').absolute())}:{obj_name}"
     )
+
     init_kwargs = dict(
         path=path,
         entrypoint=entrypoint,
@@ -561,6 +699,9 @@ async def build(
         storage=storage,
         infra_overrides=infra_overrides or {},
     )
+
+    if parameters:
+        init_kwargs["parameters"] = parameters
 
     # if a schedule, tags, work_queue_name, or infrastructure are not provided via CLI,
     # we let `build_from_flow` load them from the server
