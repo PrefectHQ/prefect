@@ -229,6 +229,8 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 ### ECSTask
 [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) infrastructure runs your flow in an ECS Task.
 
+> ⚠️ Note this infrastructure block is experimental. The intefaces within may change without notice.
+
 Requirements for `ECSTask`:
 - The ephemeral Orion API won't work with ECS directly. You must have an Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
 - `prefect-aws` [collection](https://github.com/PrefectHQ/prefect-aws) must be installed within the agent environment: `pip install prefect-aws`
