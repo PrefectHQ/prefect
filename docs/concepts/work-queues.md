@@ -22,8 +22,8 @@ To run orchestrated deployments, you must configure at least one agent (and its 
 1. [Start an agent](#agent-configuration)
 2. [Configure a work queue](#work-queue-configuration) (optional)
 
-!!! tip "Agent role has changed from Prefect 1.0"
-    Work queues are a new concept. The role of agents has changed from their implementation in Prefect 1.0. If you're familiar with that model, please take some time to understand the new work queue/agent model. It requires a little more setup, but offers much greater control and flexibility with how deployments are executed.
+!!! tip "Agent role has changed from Prefect 1"
+    Work queues are a new concept. The role of agents has changed from their implementation in Prefect 1. If you're familiar with that model, please take some time to understand the new work queue/agent model. It requires a little more setup, but offers much greater control and flexibility with how deployments are executed.
 
     Key changes: 
     

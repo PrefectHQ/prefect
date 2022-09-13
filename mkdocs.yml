@@ -1,4 +1,4 @@
-site_name: Prefect 2.0
+site_name: Prefect 2
 site_url: https://docs.prefect.io/
 repo_url: https://github.com/PrefectHQ/prefect
 edit_uri: edit/main/docs
@@ -47,7 +47,7 @@ theme:
         code: Source Code Pro
     icon:
         repo: fontawesome/brands/github
-    logo: img/logos/prefect-2.0-logo-mark-white.png
+    logo: img/logos/prefect-logo-mark-solid-white-500.png
     palette:
         primary: blue
         accent: blue
@@ -72,7 +72,7 @@ plugins:
             - docs/collections/generate_catalog.py
             - docs/recipes/generate_catalog.py
 nav:
-    - Prefect 2.0: index.md
+    - Prefect 2: index.md
     - 'Getting Started':
         - Overview: getting-started/overview.md
         - Installation: getting-started/installation.md
