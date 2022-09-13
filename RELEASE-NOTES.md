@@ -14,7 +14,7 @@
 - Update default infrastructure command to be set at runtime — https://github.com/PrefectHQ/prefect/pull/6610
 - Allow environment variables to be "unset" in infrastructure blocks — https://github.com/PrefectHQ/prefect/pull/6650
 - Add favicon switching feature for flow and task run pages — https://github.com/PrefectHQ/prefect/pull/6794
-- Update `Deployment.infrastructure` to accept types outside of the core library — https://github.com/PrefectHQ/prefect/pull/6674
+- Update `Deployment.infrastructure` to accept types outside of the core library i.e. custom infrastructure or from collections — https://github.com/PrefectHQ/prefect/pull/6674
 - Update `deployment build --rrule` input to allow start date and timezones — https://github.com/PrefectHQ/prefect/pull/6761
 
 ### Fixes
