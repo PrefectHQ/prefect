@@ -19,6 +19,7 @@ DEFAULT_MESSAGE_TEMPLATE = textwrap.dedent(
 
     Flow ID: {flow_id}
     Flow run ID: {flow_run_id}
+    Flow run url: {flow_run_url}
     """
 )
 
