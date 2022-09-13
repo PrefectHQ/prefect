@@ -166,31 +166,6 @@ You can also:
 - [Install SQLite on Red Hat Enterprise Linux (RHEL)](#install-sqlite-on-rhel).
 - Use [Prefect Cloud](/ui/cloud/) as your API server and orchestration engine.
 
-## Upgrading to 2.0b6
-
-In Prefect 2.0b6 we added breaking changes with respect to the [Blocks API](/api-ref/prefect/blocks/storage/). This API is an important abstraction you may have used already to create default [Storage](/concepts/storage/) or specifying `flow_storage` as part of a [`DeploymentSpec`](/concepts/deployments/#deployment-specifications). As a result, the backend API in 2.0b6 is incompatible with previous Prefect client versions.
-
-After the upgrade, your data will remain intact, but you will need to upgrade to 2.0b6 to continue using the Prefect Cloud 2 API.
-
-Actions needed on your end to upgrade, especially as a Prefect Cloud 2 user:
-
-- Upgrade Prefect 2 Python package: `pip install -U "prefect>=2.0b6"`
-- Restart any agent processes.
-- If you are using an agent running on Kubernetes, update the Prefect image version to 2.0b6 in your Kubernetes manifest and re-apply the deployment.
-
-You don't need to recreate any deployments or pause your schedules - stopping your agent process to perform an upgrade may result in some late runs, but those will be picked up once you restart your agent, so Don't Panic!
-
-## Upgrading to 2.0a10
-
-Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect Orion database. 
-
-Prior to 2.0a10, Prefect did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be upgraded automatically with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier.
-
-Resetting the database with the CLI command `prefect orion database reset` is not compatible a database from 2.0a9 or earlier. Instead, delete the database file `~/.prefect/orion.db`. Prefect automatically creates a new database on the next write.
-
-!!! warning "Resetting the database deletes data"
-    Note that resetting the database causes the loss of any existing data. 
-
 ## External requirements
 
 While Prefect works with many of your favorite tools and Python modules, it has a few external dependencies.
