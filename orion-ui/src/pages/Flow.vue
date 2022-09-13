@@ -30,10 +30,10 @@
 </template>
 
 <script lang="ts" setup>
-  import { UnionFilters, DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunList } from '@prefecthq/orion-design'
+  import { useFlowRunFilterFromParameter, DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunList, UnionFilters } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { routes } from '@/router/routes'
   import { deploymentsApi } from '@/services/deploymentsApi'
@@ -59,13 +59,7 @@
   const flowSubscription = useSubscription(flowsApi.getFlow, [flowId.value], subscriptionOptions)
   const flow = computed(() => flowSubscription.response)
 
-  const flowFilter = computed<UnionFilters>(() => ({
-    flows: {
-      id: {
-        any_: [flowId.value],
-      },
-    },
-  }))
+  const flowFilter = computed<UnionFilters>(() => useFlowRunFilterFromParameter({ flows: [flowId.value] }).filter.value)
 
   const flowDeploymentsSubscription = useSubscription(deploymentsApi.getDeployments, [flowFilter], subscriptionOptions)
   const flowDeployments = computed(() => flowDeploymentsSubscription.response ?? [])
