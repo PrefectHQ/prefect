@@ -4,8 +4,8 @@ import sys
 import tempfile
 from typing import Optional
 
+import anyio.abc
 import sniffio
-from anyio.abc import TaskStatus
 from pydantic import Field
 from typing_extensions import Literal
 
@@ -56,7 +56,7 @@ class Process(Infrastructure):
     @sync_compatible
     async def run(
         self,
-        task_status: TaskStatus = None,
+        task_status: anyio.abc.TaskStatus = None,
     ) -> Optional[bool]:
         if not self.command:
             raise ValueError("Process cannot be run with empty command.")
@@ -105,7 +105,13 @@ class Process(Infrastructure):
         os_environ = os.environ if include_os_environ else {}
         # The base environment must override the current environment or
         # the Prefect settings context may not be respected
-        return {**os_environ, **self._base_environment(), **self.env}
+        env = {**os_environ, **self._base_environment(), **self.env}
+
+        # Drop null values allowing users to "unset" variables
+        return {key: value for key, value in env.items() if value is not None}
+
+    def _base_flow_run_command(self):
+        return [sys.executable, "-m", "prefect.engine"]
 
 
 class ProcessResult(InfrastructureResult):

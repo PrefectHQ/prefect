@@ -39,6 +39,7 @@
           <DurationIconText :duration="flowRun.duration" />
           <FlowIconText :flow-id="flowRun.flowId" />
           <DeploymentIconText v-if="flowRun.deploymentId" :deployment-id="flowRun.deploymentId" />
+          <FlowRunStartTime :flow-run="flowRun" />
         </div>
 
         <p-divider />
@@ -66,8 +67,10 @@
     DurationIconText,
     FlowRunLogs,
     FlowRunTaskRuns,
+    FlowRunStartTime,
     FlowRunSubFlows,
-    JsonView
+    JsonView,
+    useFavicon
   } from '@prefecthq/orion-design'
   import { PDivider, media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
@@ -99,6 +102,9 @@
   function goToFlowRuns(): void {
     router.push(routes.flowRuns())
   }
+
+  const stateType = computed(() => flowRun.value?.stateType)
+  useFavicon(stateType)
 </script>
 
 <style>

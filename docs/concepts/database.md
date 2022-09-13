@@ -1,9 +1,10 @@
 ---
-description: Learn more about Prefect Orion database use and configuration.
+description: The Prefect Orion database stores deployment and flow run data.
 tags:
     - Orion
     - database
     - metadata
+    - migrations
     - SQLite
     - PostgreSQL
 ---
@@ -79,7 +80,7 @@ $ docker run -d --name orion_postgres -v oriondb:/var/lib/postgresql/data -p 543
 
 The above command:
 
-- Pulls the [latest](https://hub.docker.com/_/postgres?tab=tags) version of the official `postgres` Docker image, which is compatible with Prefect 2.0.
+- Pulls the [latest](https://hub.docker.com/_/postgres?tab=tags) version of the official `postgres` Docker image, which is compatible with Prefect 2.
 - Starts a container with the name `orion_postgres`.
 - Creates a database `orion` with a user `postgres` and `yourTopSecretPassword` password.
 - Mounts the PostgreSQL data to a Docker volume called `oriondb` to provide persistence if you ever have to restart or rebuild that container.
