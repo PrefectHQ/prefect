@@ -1,5 +1,5 @@
 ---
-description: Prefect infrastructure responsible for creating and monitoring the execution environment for flow runs associated with deployments.
+description: Prefect infrastructure is responsible for creating and monitoring the execution environment for flow runs associated with deployments.
 tags:
     - orchestration
     - infrastructure
@@ -7,6 +7,7 @@ tags:
     - deployments
     - Kubernetes
     - Docker
+    - ECS
 ---
 
 # Infrastructure
@@ -31,6 +32,7 @@ Infrastructure is specific to the environments in which flows will run. Prefect 
 - [`Process`](/api-ref/prefect/infrastructure/#prefect.infrastructure.process.Process) runs flows in a local subprocess.
 - [`DockerContainer`](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerContainer) runs flows in a Docker container.
 - [`KubernetesJob`](/api-ref/prefect/infrastructure/#prefect.infrastructure.kubernetes.KubernetesJob) runs flows in a Kubernetes Job.
+- [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) runs flows in an ECS Task.
 
 !!! question "What about tasks?"
     Flows and tasks can both use configuration objects to manage the environment in which code runs. 
@@ -53,6 +55,7 @@ For example, when creating your deployment files, the supported Prefect infrastr
 - `process`
 - `docker-container`
 - `kubernetes-job`
+- `ecs-task`
 
 <div class="terminal">
 ```bash
@@ -221,6 +224,29 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 | restart_policy | The Kubernetes restart policy to use for Jobs. |
 | service_account_name	| An optional string specifying which Kubernetes service account to use. | 
 | stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
+
+
+### ECSTask <span class="badge experimental"></span>
+
+[`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) infrastructure runs your flow in an ECS Task.
+
+!!! note "Experimental block"
+    This infrastructure block is experimental. The interfaces of this block may change without notice.
+
+Requirements for `ECSTask`:
+
+- The ephemeral Prefect Orion API won't work with ECS directly. You must have a Prefect Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
+- The `prefect-aws` [collection](https://github.com/PrefectHQ/prefect-aws) must be installed within the agent environment: `pip install prefect-aws`
+- The `ECSTask` and `AwsCredentials` blocks must be registered within the agent environment: `prefect block register -m prefect_aws.ecs`
+- You must configure remote [Storage](/concepts/storage/). Local storage is not supported for ECS tasks. The most commonly used type of storage with `ECSTask` is S3. If you leverage that type of block, make sure that [`s3fs`](https://s3fs.readthedocs.io/en/latest/) is installed within your agent and flow run environment. The easiest way to satisfy all the installation-related points mentioned above is to include the following commands in your Dockerfile:  
+
+```Dockerfile
+FROM prefecthq/prefect:2-python3.9  # example base image 
+RUN pip install s3fs prefect-aws
+RUN prefect block register -m prefect_aws.ecs
+```
+
+To get started using Prefect with ECS, check out the repository template [dataflow-ops](https://github.com/anna-geller/dataflow-ops) demonstrating ECS agent setup and various deployment configurations for using `ECSTask` block. 
 
 
 ## Docker images

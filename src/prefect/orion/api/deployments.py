@@ -7,7 +7,6 @@ from uuid import UUID
 
 import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
@@ -25,7 +24,6 @@ router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 async def create_deployment(
     deployment: schemas.actions.DeploymentCreate,
     response: Response,
-    session: AsyncSession = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.Deployment:
     """
@@ -39,34 +37,39 @@ async def create_deployment(
     # hydrate the input model into a full model
     deployment = schemas.core.Deployment(**deployment.dict())
 
-    # check to see if relevant blocks exist, allowing us throw a useful error message
-    # for debugging
-    if deployment.infrastructure_document_id is not None:
-        infrastructure_block = await models.block_documents.read_block_document_by_id(
-            session=session,
-            block_document_id=deployment.infrastructure_document_id,
-        )
-        if not infrastructure_block:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Error creating deployment. Could not find infrastructure block with id: {deployment.infrastructure_document_id}. This usually occurs when applying a deployment specification that was built against a different Prefect database / workspace.",
+    async with db.session_context(begin_transaction=True) as session:
+        # check to see if relevant blocks exist, allowing us throw a useful error message
+        # for debugging
+        if deployment.infrastructure_document_id is not None:
+            infrastructure_block = (
+                await models.block_documents.read_block_document_by_id(
+                    session=session,
+                    block_document_id=deployment.infrastructure_document_id,
+                )
             )
+            if not infrastructure_block:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Error creating deployment. Could not find infrastructure block with id: {deployment.infrastructure_document_id}. This usually occurs when applying a deployment specification that was built against a different Prefect database / workspace.",
+                )
 
-    if deployment.storage_document_id is not None:
-        infrastructure_block = await models.block_documents.read_block_document_by_id(
-            session=session,
-            block_document_id=deployment.storage_document_id,
-        )
-        if not infrastructure_block:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Error creating deployment. Could not find storage block with id: {deployment.storage_document_id}. This usually occurs when applying a deployment specification that was built against a different Prefect database / workspace.",
+        if deployment.storage_document_id is not None:
+            infrastructure_block = (
+                await models.block_documents.read_block_document_by_id(
+                    session=session,
+                    block_document_id=deployment.storage_document_id,
+                )
             )
+            if not infrastructure_block:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Error creating deployment. Could not find storage block with id: {deployment.storage_document_id}. This usually occurs when applying a deployment specification that was built against a different Prefect database / workspace.",
+                )
 
-    now = pendulum.now()
-    model = await models.deployments.create_deployment(
-        session=session, deployment=deployment
-    )
+        now = pendulum.now()
+        model = await models.deployments.create_deployment(
+            session=session, deployment=deployment
+        )
 
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
@@ -78,12 +81,12 @@ async def create_deployment(
 async def update_deployment(
     deployment: schemas.actions.DeploymentUpdate,
     deployment_id: str = Path(..., description="The deployment id", alias="id"),
-    session: AsyncSession = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
-    result = await models.deployments.update_deployment(
-        session=session, deployment_id=deployment_id, deployment=deployment
-    )
+    async with db.session_context(begin_transaction=True) as session:
+        result = await models.deployments.update_deployment(
+            session=session, deployment_id=deployment_id, deployment=deployment
+        )
     if not result:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Deployment not found.")
 
@@ -92,14 +95,15 @@ async def update_deployment(
 async def read_deployment_by_name(
     flow_name: str = Path(..., description="The name of the flow"),
     deployment_name: str = Path(..., description="The name of the deployment"),
-    session: AsyncSession = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.Deployment:
     """
     Get a deployment using the name of the flow and the deployment.
     """
-    deployment = await models.deployments.read_deployment_by_name(
-        session=session, name=deployment_name, flow_name=flow_name
-    )
+    async with db.session_context() as session:
+        deployment = await models.deployments.read_deployment_by_name(
+            session=session, name=deployment_name, flow_name=flow_name
+        )
     if not deployment:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Deployment not found")
     return deployment
@@ -108,14 +112,15 @@ async def read_deployment_by_name(
 @router.get("/{id}")
 async def read_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    session: AsyncSession = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.Deployment:
     """
     Get a deployment by id.
     """
-    deployment = await models.deployments.read_deployment(
-        session=session, deployment_id=deployment_id
-    )
+    async with db.session_context() as session:
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
     if not deployment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
@@ -131,20 +136,21 @@ async def read_deployments(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    session: AsyncSession = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.Deployment]:
     """
     Query for deployments.
     """
-    return await models.deployments.read_deployments(
-        session=session,
-        offset=offset,
-        limit=limit,
-        flow_filter=flows,
-        flow_run_filter=flow_runs,
-        task_run_filter=task_runs,
-        deployment_filter=deployments,
-    )
+    async with db.session_context() as session:
+        return await models.deployments.read_deployments(
+            session=session,
+            offset=offset,
+            limit=limit,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+        )
 
 
 @router.post("/count")
@@ -153,32 +159,33 @@ async def count_deployments(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    session: AsyncSession = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> int:
     """
     Count deployments.
     """
-    return await models.deployments.count_deployments(
-        session=session,
-        flow_filter=flows,
-        flow_run_filter=flow_runs,
-        task_run_filter=task_runs,
-        deployment_filter=deployments,
-    )
+    async with db.session_context() as session:
+        return await models.deployments.count_deployments(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+        )
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    session: AsyncSession = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
     Delete a deployment by id.
     """
-    result = await models.deployments.delete_deployment(
-        session=session, deployment_id=deployment_id
-    )
+    async with db.session_context(begin_transaction=True) as session:
+        result = await models.deployments.delete_deployment(
+            session=session, deployment_id=deployment_id
+        )
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
@@ -191,70 +198,74 @@ async def schedule_deployment(
     start_time: DateTimeTZ = Body(None, description="The earliest date to schedule"),
     end_time: DateTimeTZ = Body(None, description="The latest date to schedule"),
     max_runs: int = Body(None, description="The maximum number of runs to schedule"),
-    session: AsyncSession = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> None:
     """
     Schedule runs for a deployment. For backfills, provide start/end times in the past.
     """
-    await models.deployments.schedule_runs(
-        session=session,
-        deployment_id=deployment_id,
-        start_time=start_time,
-        end_time=end_time,
-        max_runs=max_runs,
-    )
+    async with db.session_context(begin_transaction=True) as session:
+        await models.deployments.schedule_runs(
+            session=session,
+            deployment_id=deployment_id,
+            start_time=start_time,
+            end_time=end_time,
+            max_runs=max_runs,
+        )
 
 
 @router.post("/{id}/set_schedule_active")
 async def set_schedule_active(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    session: AsyncSession = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> None:
     """
     Set a deployment schedule to active. Runs will be scheduled immediately.
     """
-    deployment = await models.deployments.read_deployment(
-        session=session, deployment_id=deployment_id
-    )
-    if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+    async with db.session_context(begin_transaction=True) as session:
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
         )
-    deployment.is_schedule_active = True
-    await session.flush()
+        if not deployment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+            )
+        deployment.is_schedule_active = True
 
 
 @router.post("/{id}/set_schedule_inactive")
 async def set_schedule_inactive(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    session: AsyncSession = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> None:
     """
     Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled
     state will be deleted.
     """
-    deployment = await models.deployments.read_deployment(
-        session=session, deployment_id=deployment_id
-    )
-    if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+    async with db.session_context(begin_transaction=False) as session:
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
         )
-    deployment.is_schedule_active = False
-    await session.flush()
+        if not deployment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+            )
+        deployment.is_schedule_active = False
+        # commit here to make the inactive schedule "visible" to the scheduler service
+        await session.commit()
 
-    # delete any auto scheduled runs
-    await models.deployments._delete_auto_scheduled_runs(
-        session=session, deployment_id=deployment_id, db=db
-    )
+        # delete any auto scheduled runs
+        await models.deployments._delete_auto_scheduled_runs(
+            session=session, deployment_id=deployment_id, db=db
+        )
+
+        await session.commit()
 
 
 @router.post("/{id}/create_flow_run")
 async def create_flow_run_from_deployment(
     flow_run: schemas.actions.DeploymentFlowRunCreate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    session: AsyncSession = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
     response: Response = None,
 ) -> schemas.core.FlowRun:
     """
@@ -265,53 +276,57 @@ async def create_flow_run_from_deployment(
 
     If no state is provided, the flow run will be created in a PENDING state.
     """
-    # get relevant info from the deployment
-    deployment = await models.deployments.read_deployment(
-        session=session, deployment_id=deployment_id
-    )
-
-    if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+    async with db.session_context(begin_transaction=True) as session:
+        # get relevant info from the deployment
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
         )
 
-    parameters = deployment.parameters
-    parameters.update(flow_run.parameters or {})
+        if not deployment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+            )
 
-    # hydrate the input model into a full flow run / state model
-    flow_run = schemas.core.FlowRun(
-        **flow_run.dict(
-            exclude={
-                "parameters",
-                "tags",
-                "infrastructure_document_id",
-            }
-        ),
-        flow_id=deployment.flow_id,
-        deployment_id=deployment.id,
-        parameters=parameters,
-        tags=set(deployment.tags).union(flow_run.tags),
-        infrastructure_document_id=(
-            flow_run.infrastructure_document_id or deployment.infrastructure_document_id
-        ),
-        work_queue_name=deployment.work_queue_name,
-    )
+        parameters = deployment.parameters
+        parameters.update(flow_run.parameters or {})
 
-    if not flow_run.state:
-        flow_run.state = schemas.states.Pending()
+        # hydrate the input model into a full flow run / state model
+        flow_run = schemas.core.FlowRun(
+            **flow_run.dict(
+                exclude={
+                    "parameters",
+                    "tags",
+                    "infrastructure_document_id",
+                }
+            ),
+            flow_id=deployment.flow_id,
+            deployment_id=deployment.id,
+            parameters=parameters,
+            tags=set(deployment.tags).union(flow_run.tags),
+            infrastructure_document_id=(
+                flow_run.infrastructure_document_id
+                or deployment.infrastructure_document_id
+            ),
+            work_queue_name=deployment.work_queue_name,
+        )
 
-    now = pendulum.now("UTC")
-    model = await models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
-    if model.created >= now:
-        response.status_code = status.HTTP_201_CREATED
-    return model
+        if not flow_run.state:
+            flow_run.state = schemas.states.Pending()
+
+        now = pendulum.now("UTC")
+        model = await models.flow_runs.create_flow_run(
+            session=session, flow_run=flow_run
+        )
+        if model.created >= now:
+            response.status_code = status.HTTP_201_CREATED
+        return model
 
 
 # DEPRECATED
 @router.get("/{id}/work_queue_check", deprecated=True)
 async def work_queue_check_for_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    session: AsyncSession = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.WorkQueue]:
     """
     Get list of work-queues that are able to pick up the specified deployment.
@@ -323,9 +338,10 @@ async def work_queue_check_for_deployment(
     between work queues and deployments.
     """
     try:
-        work_queues = await models.deployments.check_work_queues_for_deployment(
-            session=session, deployment_id=deployment_id
-        )
+        async with db.session_context() as session:
+            work_queues = await models.deployments.check_work_queues_for_deployment(
+                session=session, deployment_id=deployment_id
+            )
     except ObjectNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"

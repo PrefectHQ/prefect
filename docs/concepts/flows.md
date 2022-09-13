@@ -1,11 +1,13 @@
 ---
-description: Prefect flows are the foundational containers for workflow logic
+description: Prefect flows are the foundational containers for workflow logic.
 tags:
-    - Orion
     - flows
     - subflows
+    - workflows
+    - scripts
     - parameters
     - states
+    - final state
 ---
 
 # Flows
@@ -275,7 +277,7 @@ Subflow says: Hello Marvin!
 </div>
 
 !!! tip "Subflows or tasks?"
-    In Prefect 2.0 you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question we hear is:
+    In Prefect 2 you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question we hear is:
 
     "When should I use a subflow instead of a task?"
 
