@@ -1284,7 +1284,7 @@ class TestSaveBlock:
 
         assert loaded_inner_block == updated_inner_block
 
-    async def test_update_block_with_secrets(self, InnerBlock):
+    async def test_update_block_with_secrets(self):
         class HasSomethingToHide(Block):
             something_to_hide: SecretStr
 
@@ -1301,6 +1301,24 @@ class TestSaveBlock:
             loaded_shifty_block.something_to_hide.get_secret_value()
             == "a birthday present"
         )
+
+    async def test_block_with_alias(self):
+        class AliasBlock(Block):
+            type: str
+            schema_: str = Field(alias="schema")
+            real_name: str = Field(alias="an_alias")
+            threads: int = 4
+
+        alias_block = AliasBlock(
+            type="snowflake", schema="a_schema", an_alias="my_real_name", threads=8
+        )
+        await alias_block.save(name="my-aliased-block")
+
+        loaded_alias_block = await AliasBlock.load("my-aliased-block")
+        assert loaded_alias_block.type == "snowflake"
+        assert loaded_alias_block.schema_ == "a_schema"
+        assert loaded_alias_block.real_name == "my_real_name"
+        assert loaded_alias_block.threads == 8
 
 
 class TestToBlockType:
@@ -1506,12 +1524,22 @@ class TestGetDescription:
         assert A.get_description() == "But I will"
 
 
+class NoCodeExample(Block):
+    _block_type_name = "No code Example"
+
+    message: str
+
+
 class TestGetCodeExample:
     def test_no_code_example_configured(self):
-        class A(Block):
-            message: str
+        assert NoCodeExample.get_code_example() == dedent(
+            """\
+        ```python
+        from test_core import NoCodeExample
 
-        assert A.get_code_example() == None
+        no_code_example_block = NoCodeExample.load("BLOCK_NAME")
+        ```"""
+        )
 
     def test_code_example_from_docstring_example_heading(self, caplog):
         class A(Block):

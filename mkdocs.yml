@@ -69,6 +69,7 @@ plugins:
     gen-files:
         scripts:
             - docs/collections/generate_catalog.py
+            - docs/recipes/generate_catalog.py
 nav:
     - Prefect 2.0: index.md
     - 'Getting Started':
@@ -87,6 +88,7 @@ nav:
             - tutorials/testing.md
             - Prefect Cloud: ui/cloud-getting-started.md
         - Migration Guide: migration-guide.md
+        - Prefect Recipes: recipes/recipes.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md

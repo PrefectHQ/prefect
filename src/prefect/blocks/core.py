@@ -36,6 +36,7 @@ from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
+from prefect.utilities.importtools import to_qualified_name
 
 if TYPE_CHECKING:
     from prefect.client import OrionClient
@@ -338,8 +339,13 @@ class Block(BaseModel, ABC):
                 "No block type ID provided, either as an argument or on the block."
             )
 
-        data_keys = self.schema()["properties"].keys()
-        block_document_data = self.dict(include=data_keys)
+        # The keys passed to `include` must NOT be aliases, else some items will be missed
+        # i.e. must do `self.schema_` vs `self.schema` to get a `schema_ = Field(alias="schema")`
+        # reported from https://github.com/PrefectHQ/prefect-dbt/issues/54
+        data_keys = self.schema(by_alias=False)["properties"].keys()
+
+        # `block_document_data`` must return the aliased version for it to show in the UI
+        block_document_data = self.dict(by_alias=True, include=data_keys)
 
         # Iterate through and find blocks that already have saved block documents to
         # create references to those saved block documents.
@@ -459,7 +465,29 @@ class Block(BaseModel, ABC):
                         code_example = value.get("description")
                         break
 
+        if code_example is None:
+            # If no code example has been specified or extracted from the class
+            # docstring, generate a sensible default
+            code_example = cls._generate_code_example()
+
         return code_example
+
+    @classmethod
+    def _generate_code_example(cls) -> str:
+        """Generates a default code example for the current class"""
+        qualified_name = to_qualified_name(cls)
+        module_str = ".".join(qualified_name.split(".")[:-1])
+        class_name = cls.__name__
+        block_variable_name = f'{cls.get_block_type_slug().replace("-", "_")}_block'
+
+        return dedent(
+            f"""\
+        ```python
+        from {module_str} import {class_name}
+
+        {block_variable_name} = {class_name}.load("BLOCK_NAME")
+        ```"""
+        )
 
     @classmethod
     def _to_block_type(cls) -> BlockType:

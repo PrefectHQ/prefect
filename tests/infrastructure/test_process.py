@@ -89,6 +89,16 @@ def test_process_env_override_current_env_vars(monkeypatch, capsys):
     assert "VALUE-B" in out
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="bash calls are not working on Windows"
+)
+def test_process_env_unset_current_env_vars(monkeypatch, capsys):
+    monkeypatch.setenv("MYVAR", "VALUE-A")
+    assert Process(command=["bash", "-c", "echo $MYVAR"], env={"MYVAR": None}).run()
+    out, _ = capsys.readouterr()
+    assert "VALUE-A" not in out
+
+
 def test_process_created_then_marked_as_started(mock_open_process):
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     # By raising an exception when started is called we can assert the process
@@ -115,3 +125,18 @@ def test_task_status_receives_pid():
         task_status=fake_status
     )
     fake_status.started.assert_called_once_with(int(result.identifier))
+
+
+def test_run_requires_command():
+    process = Process(command=[])
+    with pytest.raises(ValueError, match="cannot be run with empty command"):
+        process.run()
+
+
+async def test_prepare_for_flow_run_uses_sys_executable(
+    deployment,
+    orion_client,
+):
+    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
+    infrastructure = Process().prepare_for_flow_run(flow_run)
+    assert infrastructure.command == [sys.executable, "-m", "prefect.engine"]

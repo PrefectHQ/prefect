@@ -23,8 +23,8 @@ from typing import (
     Union,
 )
 
+import anyio.abc
 import pendulum
-from anyio.abc import BlockingPortal, CancelScope, TaskGroup
 from pydantic import BaseModel, Field, PrivateAttr
 
 import prefect.logging
@@ -90,7 +90,7 @@ class ContextModel(BaseModel):
         return cls.__var__.get(None)
 
     def copy(self, **kwargs):
-        """Remove the token on copy to avoid re-entrance errors"""
+        # Remove the token on copy to avoid re-entrance errors
         new = super().copy(**kwargs)
         new._token = None
         return new
@@ -222,11 +222,11 @@ class FlowRunContext(RunContext):
 
     # The synchronous portal is only created for async flows for creating engine calls
     # from synchronous task and subflow calls
-    sync_portal: Optional[BlockingPortal] = None
-    timeout_scope: Optional[CancelScope] = None
+    sync_portal: Optional[anyio.abc.BlockingPortal] = None
+    timeout_scope: Optional[anyio.abc.CancelScope] = None
 
     # Task group that can be used for background tasks during the flow run
-    background_tasks: TaskGroup
+    background_tasks: anyio.abc.TaskGroup
 
     __var__ = ContextVar("flow_run")
 

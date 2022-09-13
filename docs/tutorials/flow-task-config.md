@@ -180,8 +180,6 @@ You can specify the cache key function using the `cache_key_fn` argument on a ta
 !!! note "Task results, retries, and caching"
     Task results are cached in memory during a flow run and peristed to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. As a result, task caching between flow runs is currently limited to flow runs with access to that local storage path.
 
-## Async tasks
-
 ### Task input hash
 
 One way to use `cache_key_fn` is to cache based on inputs by specifying `task_input_hash`. If the input parameters to the task are the same, Prefect returns the cached results rather than running the task again. 
@@ -323,9 +321,16 @@ For further details on cache key functions, see the [Caching](/concepts/tasks/#c
 
     That is why the examples here include `cache_expiration=timedelta(minutes=1)` so that tutorial cache keys do not remain in your database permanently.
 
-### Configuring task runners
+## Configuring task runners
 
-A more advanced configuration option for flows is [`task_runner`](/concepts/task-runners/), which enables you to specify the execution environment used for task runs within a flow. By default, Prefect runs tasks concurrently using the `ConcurrentTaskRunner` &mdash; you don't need to specify any `task_runner` on your flow to use this task runner. Prefect also includes a built-in `SequentialTaskRunner` if you need to run tasks sequentially.
+A more advanced configuration option for flows is to specify a [task runner](/concepts/task-runners/), which enables you to specify the execution environment used for task runs within a flow. 
+
+You must use `.submit()` to submit your task to a task runner. Calling the task directly from within a flow does not invoke the task runner for execution and will execute tasks sequentially. Tasks called directly without submitting to a task runner return the result data you'd expect from a Python function.
+
+Prefect provides two built-in task runners: 
+
+- [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner) can run tasks sequentially. 
+- [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) can run tasks concurrently, allowing tasks to switch when blocking on IO. Tasks will be submitted to a thread pool maintained by `anyio`.
 
 We'll cover the use cases for more advanced task runners for parallel and distributed execution in the [Dask and Ray task runners](/tutorials/dask-ray-task-runners/) tutorial. 
 

@@ -1,3 +1,11 @@
+---
+description: Welcome to Prefect 2!
+tags:
+    - overview
+    - quick start
+    - resources
+---
+
 # Getting Started
 
 Welcome to Prefect!  
