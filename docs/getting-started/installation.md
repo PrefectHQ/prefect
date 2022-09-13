@@ -137,9 +137,9 @@ If using Windows Subsystem for Linux (WSL), see [Linux installation notes](#linu
 
 ## Linux installation notes
 
-Currently, Prefect 2.0 requires SQLite 3.24 or newer.
+Currently, Prefect 2 requires SQLite 3.24 or newer.
 
-When installing Prefect 2.0 and using a SQLite backend on Linux, make sure your environment is using a compatible SQLite version. Some versions of Linux package a version of SQLite that cannot be used with Prefect 2.0.
+When installing Prefect 2 and using a SQLite backend on Linux, make sure your environment is using a compatible SQLite version. Some versions of Linux package a version of SQLite that cannot be used with Prefect 2.
 
 Known compatible releases include:
 
@@ -155,11 +155,11 @@ You can also:
 
 In Prefect 2.0b6 we added breaking changes with respect to the [Blocks API](/api-ref/prefect/blocks/storage/). This API is an important abstraction you may have used already to create default [Storage](/concepts/storage/) or specifying `flow_storage` as part of a [`DeploymentSpec`](/concepts/deployments/#deployment-specifications). As a result, the backend API in 2.0b6 is incompatible with previous Prefect client versions.
 
-After the upgrade, your data will remain intact, but you will need to upgrade to 2.0b6 to continue using the Cloud 2.0 API.
+After the upgrade, your data will remain intact, but you will need to upgrade to 2.0b6 to continue using the Prefect Cloud 2 API.
 
-Actions needed on your end to upgrade, especially as a Cloud 2.0 user:
+Actions needed on your end to upgrade, especially as a Prefect Cloud 2 user:
 
-- Upgrade Prefect 2.0 Python package: `pip install -U "prefect>=2.0b6"`
+- Upgrade Prefect 2 Python package: `pip install -U "prefect>=2.0b6"`
 - Restart any agent processes.
 - If you are using an agent running on Kubernetes, update the Prefect image version to 2.0b6 in your Kubernetes manifest and re-apply the deployment.
 
@@ -182,7 +182,7 @@ While Prefect works with many of your favorite tools and Python modules, it has 
 
 ### SQLite
 
-Prefect 2.0 uses SQLite as the default backing database, but it is not packaged with the Prefect installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
+Prefect 2 uses SQLite as the default backing database, but it is not packaged with the Prefect installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
 
 You can check your SQLite version by executing the following command in a terminal:
 
