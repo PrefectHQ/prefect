@@ -8,9 +8,11 @@
       <template #details>
         <FlowDetails v-if="flow" :flow="flow" />
       </template>
+
       <template #deployments>
         <DeploymentsTable :deployments="flowDeployments" @update="flowDeploymentsSubscription.refresh()" @delete="flowDeploymentsSubscription.refresh()" />
       </template>
+
       <template #runs>
         <FlowRunList v-if="flowRuns.length" :flow-runs="flowRuns" disabled :selected="[]" />
         <PEmptyResults v-else>

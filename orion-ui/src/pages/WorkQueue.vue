@@ -18,9 +18,11 @@
         <template #details>
           <WorkQueueDetails v-if="workQueue" :work-queue="workQueue" />
         </template>
+
         <template #upcoming-runs>
           <WorkQueueFlowRunsList v-if="workQueue" :work-queue="workQueue" />
         </template>
+
         <template #runs>
           <FlowRunList v-if="flowRuns.length" :flow-runs="flowRuns" disabled :selected="[]" />
           <PEmptyResults v-else>
