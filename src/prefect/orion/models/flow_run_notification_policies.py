@@ -17,6 +17,7 @@ DEFAULT_MESSAGE_TEMPLATE = textwrap.dedent(
     """
     Flow run {flow_name}/{flow_run_name} entered state `{flow_run_state_name}` at {flow_run_state_timestamp}.
 
+    State Message: {flow_run_state_message}
     Flow ID: {flow_id}
     Flow run ID: {flow_run_id}
     """
