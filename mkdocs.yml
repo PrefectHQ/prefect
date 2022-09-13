@@ -29,7 +29,8 @@ markdown_extensions:
     - pymdownx.details
     - pymdownx.tabbed
     - toc:
-          permalink: true
+        permalink: true
+    - pymdownx.snippets
 theme:
     name: material
     custom_dir: docs/overrides
@@ -81,7 +82,6 @@ nav:
             - tutorials/execution.md
             - tutorials/orion.md
             - tutorials/deployments.md
-            - tutorials/storage.md
             - tutorials/dask-ray-task-runners.md
             - tutorials/docker.md
             # - tutorials/kubernetes-flow-runner.md
@@ -217,6 +217,6 @@ nav:
         # - Testing Flow Runners: contributing/testing-flow-runners.md
 
 extra:
-  analytics:
-    provider: google
-    property: G-3M31G9B0QJ
+    analytics:
+        provider: google
+        property: G-3M31G9B0QJ
