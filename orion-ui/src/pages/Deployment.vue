@@ -55,7 +55,7 @@
   import { DeploymentDescription, FlowRunList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, UnionFilters } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed, watch, ref, Ref } from 'vue'
+  import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
   import { routes } from '@/router'
