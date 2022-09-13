@@ -62,7 +62,6 @@
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
 
-
   const deploymentId = useRouteParam('id')
   const router = useRouter()
   const showToast = useToast()
