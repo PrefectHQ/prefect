@@ -295,8 +295,6 @@ class TestInputValidation:
         )
 
 
-
-
 class TestOutputMessages:
     def test_message_with_work_queue_name(self, patch_import, tmp_path):
         invoke_and_assert(
