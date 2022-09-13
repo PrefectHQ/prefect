@@ -26,12 +26,14 @@ markdown_extensions:
             - name: mermaid
               class: mermaid
               format: !!python/name:pymdownx.superfences.fence_code_format
+    - pymdownx.details
     - pymdownx.tabbed
     - toc:
-          permalink: true
+        permalink: true
+    - pymdownx.snippets
 theme:
     name: material
-    custom_dir: overrides
+    custom_dir: docs/overrides
     favicon: img/favicon.png
     features:
         - toc.integrate
@@ -49,7 +51,6 @@ theme:
     palette:
         primary: blue
         accent: blue
-    custom_dir: docs/overrides
 plugins:
     autorefs: {}
     mkdocstrings:
@@ -69,6 +70,7 @@ plugins:
     gen-files:
         scripts:
             - docs/collections/generate_catalog.py
+            - docs/recipes/generate_catalog.py
 nav:
     - Prefect 2.0: index.md
     - 'Getting Started':
@@ -81,11 +83,12 @@ nav:
             - tutorials/orion.md
             - tutorials/deployments.md
             - tutorials/dask-ray-task-runners.md
-            # - tutorials/docker-flow-runner.md
+            - tutorials/docker.md
             # - tutorials/kubernetes-flow-runner.md
             - tutorials/testing.md
             - Prefect Cloud: ui/cloud-getting-started.md
         - Migration Guide: migration-guide.md
+        - Prefect Recipes: recipes/recipes.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
@@ -97,7 +100,7 @@ nav:
         - Agents & Work Queues: concepts/work-queues.md
         - Storage: concepts/storage.md
         - Blocks: concepts/blocks.md
-        - File Systems: concepts/filesystems.md
+        - Filesystems: concepts/filesystems.md
         - Schedules: concepts/schedules.md
         - Logging: concepts/logs.md
         - Database: concepts/database.md
@@ -214,6 +217,6 @@ nav:
         # - Testing Flow Runners: contributing/testing-flow-runners.md
 
 extra:
-  analytics:
-    provider: google
-    property: G-3M31G9B0QJ
+    analytics:
+        provider: google
+        property: G-3M31G9B0QJ

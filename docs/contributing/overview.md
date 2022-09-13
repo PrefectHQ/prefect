@@ -1,5 +1,5 @@
 ---
-description: Learn about contributing to Prefect 2.0.
+description: Learn about contributing to Prefect 2.
 tags:
     - open source
     - contributing
@@ -38,7 +38,7 @@ pip install $(./scripts/precommit-versions.py)
 ```
 </div>
 
-You'll need to run `black` and `isort` before a contribution can be accepted.
+You'll need to run `black`, `autoflake8`, and `isort` before a contribution can be accepted.
 
 !!! note "Windows support is under development"
     Support for Prefect on Windows is a work in progress.

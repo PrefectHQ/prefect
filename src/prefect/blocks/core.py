@@ -1,6 +1,7 @@
 import hashlib
 import inspect
 import logging
+import sys
 import warnings
 from abc import ABC
 from textwrap import dedent
@@ -25,11 +26,17 @@ from slugify import slugify
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
-from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
+from prefect.orion.schemas.core import (
+    DEFAULT_BLOCK_SCHEMA_VERSION,
+    BlockDocument,
+    BlockSchema,
+    BlockType,
+)
 from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
 from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
+from prefect.utilities.importtools import to_qualified_name
 
 if TYPE_CHECKING:
     from prefect.client import OrionClient
@@ -165,6 +172,16 @@ class Block(BaseModel, ABC):
         super().__init__(*args, **kwargs)
         self.block_initialization()
 
+    def __str__(self) -> str:
+        return self.__repr__()
+
+    def __repr_args__(self):
+        repr_args = super().__repr_args__()
+        data_keys = self.schema()["properties"].keys()
+        return [
+            (key, value) for key, value in repr_args if key is None or key in data_keys
+        ]
+
     def block_initialization(self) -> None:
         pass
 
@@ -176,6 +193,7 @@ class Block(BaseModel, ABC):
     # type name will default to the class name.
     _block_type_name: Optional[str] = None
     _block_type_slug: Optional[str] = None
+
     # Attributes used to set properties on a block type when registered
     # with Orion.
     _logo_url: Optional[HttpUrl] = None
@@ -188,6 +206,7 @@ class Block(BaseModel, ABC):
     _block_type_id: Optional[UUID] = None
     _block_schema_id: Optional[UUID] = None
     _block_schema_capabilities: Optional[List[str]] = None
+    _block_schema_version: Optional[str] = None
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
     _is_anonymous: Optional[bool] = None
@@ -219,6 +238,24 @@ class Block(BaseModel, ABC):
                 for c in getattr(base, "_block_schema_capabilities", []) or []
             }
         )
+
+    @classmethod
+    def _get_current_package_version(cls):
+        current_module = inspect.getmodule(cls)
+        if current_module:
+            top_level_module = sys.modules[
+                current_module.__name__.split(".")[0] or "__main__"
+            ]
+            try:
+                return str(top_level_module.__version__)
+            except AttributeError:
+                # Module does not have a __version__ attribute
+                pass
+        return DEFAULT_BLOCK_SCHEMA_VERSION
+
+    @classmethod
+    def get_block_schema_version(cls) -> str:
+        return cls._block_schema_version or cls._get_current_package_version()
 
     @classmethod
     def _to_block_schema_reference_dict(cls):
@@ -302,8 +339,13 @@ class Block(BaseModel, ABC):
                 "No block type ID provided, either as an argument or on the block."
             )
 
-        data_keys = self.schema()["properties"].keys()
-        block_document_data = self.dict(include=data_keys)
+        # The keys passed to `include` must NOT be aliases, else some items will be missed
+        # i.e. must do `self.schema_` vs `self.schema` to get a `schema_ = Field(alias="schema")`
+        # reported from https://github.com/PrefectHQ/prefect-dbt/issues/54
+        data_keys = self.schema(by_alias=False)["properties"].keys()
+
+        # `block_document_data`` must return the aliased version for it to show in the UI
+        block_document_data = self.dict(by_alias=True, include=data_keys)
 
         # Iterate through and find blocks that already have saved block documents to
         # create references to those saved block documents.
@@ -351,6 +393,7 @@ class Block(BaseModel, ABC):
             block_type_id=block_type_id or cls._block_type_id,
             block_type=cls._to_block_type(),
             capabilities=list(cls.get_block_capabilities()),
+            version=cls.get_block_schema_version(),
         )
 
     @classmethod
@@ -422,7 +465,29 @@ class Block(BaseModel, ABC):
                         code_example = value.get("description")
                         break
 
+        if code_example is None:
+            # If no code example has been specified or extracted from the class
+            # docstring, generate a sensible default
+            code_example = cls._generate_code_example()
+
         return code_example
+
+    @classmethod
+    def _generate_code_example(cls) -> str:
+        """Generates a default code example for the current class"""
+        qualified_name = to_qualified_name(cls)
+        module_str = ".".join(qualified_name.split(".")[:-1])
+        class_name = cls.__name__
+        block_variable_name = f'{cls.get_block_type_slug().replace("-", "_")}_block'
+
+        return dedent(
+            f"""\
+        ```python
+        from {module_str} import {class_name}
+
+        {block_variable_name} = {class_name}.load("BLOCK_NAME")
+        ```"""
+        )
 
     @classmethod
     def _to_block_type(cls) -> BlockType:
@@ -735,3 +800,40 @@ class Block(BaseModel, ABC):
         document_id = await self._save(name=name, overwrite=overwrite)
 
         return document_id
+
+    def _iter(self, *, include=None, exclude=None, **kwargs):
+        # Injects the `block_type_slug` into serialized payloads for dispatch
+        for key_value in super()._iter(include=include, exclude=exclude, **kwargs):
+            yield key_value
+
+        # Respect inclusion and exclusion still
+        if include and "block_type_slug" not in include:
+            return
+        if exclude and "block_type_slug" in exclude:
+            return
+
+        yield "block_type_slug", self.get_block_type_slug()
+
+    def __new__(cls: Type[Self], **kwargs) -> Self:
+        """
+        Create an instance of the Block subclass type if a `block_type_slug` is
+        present in the data payload.
+        """
+        block_type_slug = kwargs.pop("block_type_slug", None)
+        if block_type_slug:
+            subcls = lookup_type(cls, dispatch_key=block_type_slug)
+            m = super().__new__(subcls)
+            # NOTE: This is a workaround for an obscure issue where copied models were
+            #       missing attributes. This pattern is from Pydantic's
+            #       `BaseModel._copy_and_set_values`.
+            #       The issue this fixes could not be reproduced in unit tests that
+            #       directly targeted dispatch handling and was only observed when
+            #       copying then saving infrastructure blocks on deployment models.
+            object.__setattr__(m, "__dict__", kwargs)
+            object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
+            return m
+        else:
+            m = super().__new__(cls)
+            object.__setattr__(m, "__dict__", kwargs)
+            object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
+            return m

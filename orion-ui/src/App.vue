@@ -53,6 +53,7 @@
     notificationCreateRouteKey,
     notificationsApiKey,
     notificationsRouteKey,
+    taskRunRouteKey,
     settingsRouteKey,
     taskRunsApiKey,
     workQueueCreateRouteKey,
@@ -75,6 +76,7 @@
   import { logsApi } from '@/services/logsApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
+  import { healthCheck } from '@/utilities/api'
   import { can } from '@/utilities/permissions'
 
   provide(blockCapabilitiesApiKey, blockCapabilitiesApi)
@@ -114,6 +116,7 @@
   provide(notificationCreateRouteKey, routes.notificationCreate)
   provide(editNotificationRouteKey, routes.notificationEdit)
   provide(notificationsRouteKey, routes.notifications)
+  provide(taskRunRouteKey, routes.taskRun)
   provide(workQueuesRouteKey, routes.workQueues)
 
   const mobileMenuOpen = ref(false)
@@ -126,6 +129,8 @@
   function close(): void {
     mobileMenuOpen.value = false
   }
+
+  healthCheck()
 
   watchEffect(() => document.body.classList.toggle('body-scrolling-disabled', showMenu.value && !media.lg))
 </script>

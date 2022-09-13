@@ -13,6 +13,7 @@ from rich.table import Table
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli.orion_utils import check_orion_connection, ui_base_url
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import ObjectNotFound, ScriptError, exception_traceback
@@ -20,7 +21,9 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.importtools import load_script_as_module
 
 blocks_app = PrefectTyper(name="block", help="Commands for working with blocks.")
-blocktypes_app = PrefectTyper(name="type", help="Commands for working with blocks.")
+blocktypes_app = PrefectTyper(
+    name="type", help="Commands for working with blocks types."
+)
 app.add_typer(blocks_app, aliases=["blocks"])
 blocks_app.add_typer(blocktypes_app, aliases=["types"])
 
@@ -87,24 +90,32 @@ def _build_registered_blocks_table(registered_blocks: List[Type[Block]]):
 @blocks_app.command()
 async def register(
     module_name: Optional[str] = typer.Option(
-        None, "--module", "-m", help="Python module containing blocks to be registered"
+        None,
+        "--module",
+        "-m",
+        help="Python module containing block types to be registered",
     ),
     file_path: Optional[Path] = typer.Option(
-        None, "--file", "-f", help="Path to .py file containing blocks to be registered"
+        None,
+        "--file",
+        "-f",
+        help="Path to .py file containing block types to be registered",
     ),
 ):
     """
-    Register blocks within a module or file to be available for configuration via the UI.
-    If a block has already been registered, its registration will be updated to match the
-    block's current definition.
+    Register blocks types within a module or file.
+
+    This makes the blocks available for configuration via the UI.
+    If a block type has already been registered, its registration will be updated to
+    match the block's current definition.
 
     \b
     Examples:
         \b
-        Register blocks in a Python module:
+        Register block types in a Python module:
         $ prefect block register -m prefect_aws.credentials
         \b
-        Register blocks in a .py file:
+        Register block types in a .py file:
         $ prefect block register -f my_blocks.py
     """
     # Handles if both options are specified or if neither are specified
@@ -156,7 +167,7 @@ async def register(
 @blocks_app.command("ls")
 async def block_ls():
     """
-    View all configured Blocks.
+    View all configured blocks.
     """
     async with get_client() as client:
         blocks = await client.read_block_documents()
@@ -183,14 +194,12 @@ async def block_ls():
 @blocks_app.command("delete")
 async def block_delete(
     slug: Optional[str] = typer.Argument(
-        None, help="A Block slug: <BLOCK_TYPE_SLUG>/<BLOCK_NAME>"
+        None, help="A block slug. Formatted as '<BLOCK_TYPE_SLUG>/<BLOCK_NAME>'"
     ),
-    block_id: Optional[str] = typer.Option(
-        None, "--id", help="A Block id to search for if no slug is given"
-    ),
+    block_id: Optional[str] = typer.Option(None, "--id", help="A block id."),
 ):
     """
-    Delete a Block by slug or id.
+    Delete a configured block.
     """
     async with get_client() as client:
         if slug is None and block_id is not None:
@@ -210,7 +219,43 @@ async def block_delete(
             except ObjectNotFound:
                 exit_with_error(f"Block {slug!r} not found!")
         else:
-            exit_with_error("Must provide a Block slug or id")
+            exit_with_error("Must provide a block slug or id")
+
+
+@blocks_app.command("create")
+async def block_create(
+    block_type_slug: str = typer.Argument(
+        ...,
+        help="A block type slug. View available types with: prefect block type ls",
+        show_default=False,
+    ),
+):
+    """
+    Generate a link to the Prefect UI to create a block.
+    """
+    async with get_client() as client:
+        try:
+            block_type = await client.read_block_type_by_slug(block_type_slug)
+        except ObjectNotFound:
+            app.console.print(f"[red]Block type {block_type_slug!r} not found![/red]")
+            block_types = await client.read_block_types()
+            slugs = {block_type.slug for block_type in block_types}
+            app.console.print(f"Available block types: {', '.join(slugs)}")
+            raise typer.Exit(1)
+
+        connection_status = await check_orion_connection()
+        ui = ui_base_url(connection_status)
+
+        if not ui:
+            exit_with_error(
+                "Prefect must be configured to use a hosted Orion server or "
+                "Prefect Cloud to display the Prefect UI"
+            )
+
+        block_link = f"{ui}/blocks/catalog/{block_type.slug}/create"
+        app.console.print(
+            f"Create a {block_type_slug} block: {block_link}",
+        )
 
 
 @blocks_app.command("inspect")
@@ -223,7 +268,7 @@ async def block_inspect(
     ),
 ):
     """
-    Displays Block details slug or id.
+    Displays details about a configured block.
     """
     async with get_client() as client:
         if slug is None and block_id is not None:
@@ -242,14 +287,14 @@ async def block_inspect(
             except ObjectNotFound:
                 exit_with_error(f"Block {slug!r} not found!")
         else:
-            exit_with_error("Must provide a Block slug or id")
+            exit_with_error("Must provide a block slug or id")
         app.console.print(display_block(block_document))
 
 
 @blocktypes_app.command("ls")
 async def list_types():
     """
-    View all Block types.
+    List all block types.
     """
     async with get_client() as client:
         block_types = await client.read_block_types()
@@ -258,17 +303,20 @@ async def list_types():
         title="Block Types",
         show_lines=True,
     )
-    table.add_column("Name", style="blue", no_wrap=True)
-    table.add_column("Slug", style="italic cyan", no_wrap=True)
-    table.add_column("Description", style="blue", no_wrap=False, justify="right")
+
+    table.add_column("Block Type Slug", style="italic cyan", no_wrap=True)
+    table.add_column("Description", style="blue", no_wrap=False, justify="left")
+    table.add_column(
+        "Generate creation link", style="italic cyan", no_wrap=False, justify="left"
+    )
 
     for blocktype in sorted(block_types, key=lambda x: x.name):
         table.add_row(
-            str(blocktype.name),
             str(blocktype.slug),
             str(blocktype.description.splitlines()[0].partition(".")[0])
             if blocktype.description is not None
             else "",
+            f"prefect block create {blocktype.slug}",
         )
 
     app.console.print(table)
@@ -276,16 +324,16 @@ async def list_types():
 
 @blocktypes_app.command("inspect")
 async def blocktype_inspect(
-    slug: str = typer.Argument(..., help="A Block type slug"),
+    slug: str = typer.Argument(..., help="A block type slug"),
 ):
     """
-    Displays Block Type details.
+    Display details about a block type.
     """
     async with get_client() as client:
         try:
             block_type = await client.read_block_type_by_slug(slug)
         except ObjectNotFound:
-            exit_with_error(f"Block Type {slug!r} not found!")
+            exit_with_error(f"Block type {slug!r} not found!")
 
         app.console.print(display_block_type(block_type))
 

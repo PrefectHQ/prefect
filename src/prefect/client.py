@@ -72,7 +72,6 @@ from prefect.settings import (
     PREFECT_ORION_DATABASE_CONNECTION_URL,
 )
 from prefect.utilities.asyncutils import asyncnullcontext
-from prefect.utilities.hashing import stable_hash
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
@@ -602,8 +601,8 @@ class OrionClient:
             parent_task_run_id=parent_task_run_id,
             state=state,
             empirical_policy=schemas.core.FlowRunPolicy(
-                max_retries=flow.retries,
-                retry_delay_seconds=flow.retry_delay_seconds,
+                retries=flow.retries,
+                retry_delay=flow.retry_delay_seconds,
             ),
         )
 
@@ -1377,6 +1376,35 @@ class OrionClient:
 
         return UUID(deployment_id)
 
+    async def update_deployment(
+        self,
+        deployment,
+        schedule: schemas.schedules.SCHEDULE_TYPES = None,
+        is_schedule_active: bool = None,
+    ):
+        deployment_create = schemas.actions.DeploymentUpdate(
+            version=deployment.version,
+            schedule=schedule if schedule is not None else deployment.schedule,
+            is_schedule_active=is_schedule_active
+            if is_schedule_active is not None
+            else deployment.is_schedule_active,
+            description=deployment.description,
+            work_queue_name=deployment.work_queue_name,
+            tags=deployment.tags,
+            manifest_path=deployment.manifest_path,
+            path=deployment.path,
+            entrypoint=deployment.entrypoint,
+            parameters=deployment.parameters,
+            storage_document_id=deployment.storage_document_id,
+            infrastructure_document_id=deployment.infrastructure_document_id,
+            infra_overrides=deployment.infra_overrides,
+        )
+
+        response = await self._client.patch(
+            f"/deployments/{deployment.id}",
+            json=deployment_create.dict(json_compatible=True),
+        )
+
     async def _create_deployment_from_schema(
         self, schema: schemas.actions.DeploymentCreate
     ) -> UUID:
@@ -1676,15 +1704,15 @@ class OrionClient:
             state = schemas.states.Pending()
 
         task_run_data = schemas.actions.TaskRunCreate(
-            name=name or f"{task.name}-{stable_hash(task.task_key)[:8]}-{dynamic_key}",
+            name=name,
             flow_run_id=flow_run_id,
             task_key=task.task_key,
             dynamic_key=dynamic_key,
             tags=list(tags),
             task_version=task.version,
             empirical_policy=schemas.core.TaskRunPolicy(
-                max_retries=task.retries,
-                retry_delay_seconds=task.retry_delay_seconds,
+                retries=task.retries,
+                retry_delay=task.retry_delay_seconds,
             ),
             state=state,
             task_inputs=task_inputs or {},

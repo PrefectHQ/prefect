@@ -3,8 +3,8 @@ import enum
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Union
 
+import anyio.abc
 import yaml
-from anyio.abc import TaskStatus
 from pydantic import Field, validator
 from slugify import slugify
 from typing_extensions import Literal
@@ -12,7 +12,7 @@ from typing_extensions import Literal
 from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.docker import get_prefect_image_name
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.hashing import stable_hash
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.pydantic import JsonPatch
@@ -206,10 +206,14 @@ class KubernetesJob(Infrastructure):
         with open(filename, "r", encoding="utf-8") as f:
             return JsonPatch(yaml.load(f, yaml.SafeLoader))
 
+    @sync_compatible
     async def run(
         self,
-        task_status: Optional[TaskStatus] = None,
+        task_status: Optional[anyio.abc.TaskStatus] = None,
     ) -> Optional[bool]:
+        if not self.command:
+            raise ValueError("Kubernetes job cannot be run with empty command.")
+
         # if a k8s cluster block is provided to the flow runner, use that
         if self.cluster_config:
             self.cluster_config.configure_client()
@@ -315,7 +319,7 @@ class KubernetesJob(Infrastructure):
             shortcuts.append(
                 {
                     "op": "add",
-                    "path": "/spec/template/spec/containers/0/command",
+                    "path": "/spec/template/spec/containers/0/args",
                     "value": self.command,
                 }
             )
@@ -335,7 +339,12 @@ class KubernetesJob(Infrastructure):
                     "op": "add",
                     "path": "/metadata/generateName",
                     "value": "prefect-job-"
-                    + stable_hash(*self.command, *self.env.keys(), *self.env.values()),
+                    # We generate a name using a hash of the primary job settings
+                    + stable_hash(
+                        *self.command,
+                        *self.env.keys(),
+                        *[v for v in self.env.values() if v is not None],
+                    ),
                 }
             )
 
@@ -562,4 +571,5 @@ class KubernetesJob(Infrastructure):
                 .replace("127.0.0.1", self._api_dns_name)
             )
 
-        return env
+        # Drop null values allowing users to "unset" variables
+        return {key: value for key, value in env.items() if value is not None}

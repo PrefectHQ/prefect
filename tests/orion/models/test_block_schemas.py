@@ -624,6 +624,47 @@ class TestReadBlockSchemas:
         assert db_block_schema.fields == block_schema.fields
         assert db_block_schema.block_type_id == block_schema.block_type_id
 
+    async def test_read_block_schema_by_checksum_with_version(
+        self, session, client, block_type_x
+    ):
+        # Create two block schemas with the same checksum, but different versions
+        block_schema_0 = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                fields={}, block_type_id=block_type_x.id, version="1.0.1"
+            ),
+        )
+
+        block_schema_1 = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                fields={}, block_type_id=block_type_x.id, version="1.1.0"
+            ),
+        )
+
+        assert block_schema_0.checksum == block_schema_1.checksum
+
+        # Read first version with version query parameter
+        read_block_schema = await models.block_schemas.read_block_schema_by_checksum(
+            session=session, checksum=block_schema_0.checksum, version="1.0.1"
+        )
+
+        assert read_block_schema.id == block_schema_0.id
+
+        # Read second version with version
+        read_block_schema = await models.block_schemas.read_block_schema_by_checksum(
+            session=session, checksum=block_schema_1.checksum, version="1.1.0"
+        )
+
+        assert read_block_schema.id == block_schema_1.id
+
+        # Read without version. Should return most recently created block schema.
+        read_block_schema = await models.block_schemas.read_block_schema_by_checksum(
+            session=session, checksum=block_schema_0.checksum
+        )
+
+        assert read_block_schema.id == block_schema_1.id
+
     async def test_read_block_schema_does_not_hardcode_references(
         self, session, db, block_type_x
     ):
@@ -684,6 +725,8 @@ class TestReadBlockSchemas:
             c: int
 
         class X(Block):
+            _block_schema_version = "1.1.0"
+
             y: Y
             z: Z
 
@@ -780,6 +823,31 @@ class TestReadBlockSchemas:
         assert db_block_schemas[0].block_type_id == block_type_y.id
         assert db_block_schemas[1].block_type_id == block_type_x.id
 
+    async def test_read_all_block_schemas_with_block_type_and_version_filters(
+        self, session, nested_schemas
+    ):
+        A, X, Y, Z, block_type_x, block_type_y = nested_schemas
+
+        db_block_schemas = await models.block_schemas.read_block_schemas(
+            session=session,
+            block_schema_filter=schemas.filters.BlockSchemaFilter(
+                block_type_id=dict(any_=[block_type_x.id]),
+                version=dict(any_=[X._block_schema_version]),
+            ),
+        )
+
+        assert len(db_block_schemas) == 1
+        assert db_block_schemas[0].block_type_id == block_type_x.id
+
+        db_block_schemas = await models.block_schemas.read_block_schemas(
+            session=session,
+            block_schema_filter=schemas.filters.BlockSchemaFilter(
+                block_type_id=dict(any_=[block_type_x.id]), version=dict(any_=["1.1.1"])
+            ),
+        )
+
+        assert len(db_block_schemas) == 0
+
     async def test_read_block_schemas_with_capabilities_filter(
         self, session, block_schemas_with_capabilities
     ):
@@ -817,7 +885,9 @@ class TestReadBlockSchemas:
             block_schemas_with_capabilities[0].id
         ]
 
-    @pytest.mark.flaky  # Order of block schema references sometimes doesn't match
+    @pytest.mark.flaky(
+        max_runs=3
+    )  # Order of block schema references sometimes doesn't match
     async def test_read_block_schema_with_union(
         self, session, block_type_x, block_type_y, block_type_z
     ):

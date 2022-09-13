@@ -5,6 +5,7 @@ from typing import Dict
 from unittest import mock
 from unittest.mock import MagicMock
 
+import anyio
 import anyio.abc
 import kubernetes
 import kubernetes as k8s
@@ -117,7 +118,7 @@ def test_building_a_job_is_idempotent():
     assert first_time == second_time
 
 
-async def test_creates_job_by_building_a_manifest(
+def test_creates_job_by_building_a_manifest(
     mock_k8s_batch_client,
     mock_k8s_client,
     mock_watch,
@@ -127,7 +128,7 @@ async def test_creates_job_by_building_a_manifest(
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     k8s_job = KubernetesJob(command=["echo", "hello"])
     expected_manifest = k8s_job.build_job()
-    await k8s_job.run(fake_status)
+    k8s_job.run(fake_status)
     mock_k8s_client.read_namespaced_pod_status.assert_called_once()
 
     mock_k8s_batch_client.create_namespaced_job.assert_called_with(
@@ -138,14 +139,26 @@ async def test_creates_job_by_building_a_manifest(
     fake_status.started.assert_called_once()
 
 
-async def test_task_status_receives_job_name(
+def test_task_status_receives_job_name(
     mock_k8s_batch_client,
     mock_k8s_client,
     mock_watch,
 ):
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
-    result = await KubernetesJob(command=["echo", "hello"]).run(task_status=fake_status)
+    result = KubernetesJob(command=["echo", "hello"]).run(task_status=fake_status)
     fake_status.started.assert_called_once_with(result.identifier)
+
+
+async def test_task_group_start_returns_job_name(
+    mock_k8s_batch_client,
+    mock_k8s_client,
+    mock_watch,
+):
+    async with anyio.create_task_group() as tg:
+        status_result = await tg.start(
+            KubernetesJob(command=["echo", "hello"], name="test").run
+        )
+        assert status_result == "mock-k8s-v1-job"
 
 
 @pytest.mark.parametrize(
@@ -160,7 +173,7 @@ async def test_task_status_receives_job_name(
         ("infra9.-foo_bar^x", "infra9-foo-bar-x"),
     ],
 )
-async def test_job_name_creates_valid_name(
+def test_job_name_creates_valid_name(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
@@ -169,7 +182,7 @@ async def test_job_name_creates_valid_name(
 ):
     mock_watch.stream = _mock_pods_stream_that_returns_running_pod
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
-    await KubernetesJob(name=job_name, command=["echo", "hello"]).run(fake_status)
+    KubernetesJob(name=job_name, command=["echo", "hello"]).run(fake_status)
     mock_k8s_batch_client.create_namespaced_job.assert_called_once()
     call_name = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["metadata"][
         "generateName"
@@ -177,14 +190,14 @@ async def test_job_name_creates_valid_name(
     assert call_name == clean_name
 
 
-async def test_uses_image_setting(
+def test_uses_image_setting(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
 ):
     mock_watch.stream = _mock_pods_stream_that_returns_running_pod
 
-    await KubernetesJob(command=["echo", "hello"], image="foo").run(MagicMock())
+    KubernetesJob(command=["echo", "hello"], image="foo").run(MagicMock())
     mock_k8s_batch_client.create_namespaced_job.assert_called_once()
     image = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
         "template"
@@ -192,22 +205,63 @@ async def test_uses_image_setting(
     assert image == "foo"
 
 
-async def test_uses_labels_setting(
+def test_uses_labels_setting(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
 ):
     mock_watch.stream = _mock_pods_stream_that_returns_running_pod
 
-    await KubernetesJob(
-        command=["echo", "hello"], labels={"foo": "foo", "bar": "bar"}
-    ).run(MagicMock())
+    KubernetesJob(command=["echo", "hello"], labels={"foo": "foo", "bar": "bar"}).run(
+        MagicMock()
+    )
     mock_k8s_batch_client.create_namespaced_job.assert_called_once()
     labels = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["metadata"][
         "labels"
     ]
     assert labels["foo"] == "foo"
     assert labels["bar"] == "bar"
+
+
+async def test_sets_environment_variables(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+):
+
+    await KubernetesJob(
+        command=["echo", "hello"], env={"foo": "FOO", "bar": "BAR"}
+    ).run()
+    mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+
+    manifest = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]
+    pod = manifest["spec"]["template"]["spec"]
+    env = pod["containers"][0]["env"]
+    assert env == [
+        {"name": key, "value": value}
+        for key, value in {
+            **KubernetesJob._base_environment(),
+            "foo": "FOO",
+            "bar": "BAR",
+        }.items()
+    ]
+
+
+async def test_allows_unsetting_environment_variables(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+):
+    assert "PREFECT_TEST_MODE" in KubernetesJob._base_environment()
+    await KubernetesJob(
+        command=["echo", "hello"], env={"PREFECT_TEST_MODE": None}
+    ).run()
+    mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+    manifest = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]
+    pod = manifest["spec"]["template"]["spec"]
+    env = pod["containers"][0]["env"]
+    env_names = {variable["name"] for variable in env}
+    assert "PREFECT_TEST_MODE" not in env_names
 
 
 @pytest.mark.parametrize(
@@ -236,7 +290,7 @@ async def test_uses_labels_setting(
         ("$@*^$@/name", "$@*^$@/name"),
     ],
 )
-async def test_sanitizes_user_label_keys(
+def test_sanitizes_user_label_keys(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
@@ -245,9 +299,7 @@ async def test_sanitizes_user_label_keys(
 ):
     mock_watch.stream = _mock_pods_stream_that_returns_running_pod
 
-    await KubernetesJob(command=["echo", "hello"], labels={given: "foo"}).run(
-        MagicMock()
-    )
+    KubernetesJob(command=["echo", "hello"], labels={given: "foo"}).run(MagicMock())
     mock_k8s_batch_client.create_namespaced_job.assert_called_once()
     labels = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["metadata"][
         "labels"
@@ -271,7 +323,7 @@ async def test_sanitizes_user_label_keys(
         ("$@*^$@", "$@*^$@"),
     ],
 )
-async def test_sanitizes_user_label_values(
+def test_sanitizes_user_label_values(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
@@ -280,9 +332,7 @@ async def test_sanitizes_user_label_values(
 ):
     mock_watch.stream = _mock_pods_stream_that_returns_running_pod
 
-    await KubernetesJob(command=["echo", "hello"], labels={"foo": given}).run(
-        MagicMock()
-    )
+    KubernetesJob(command=["echo", "hello"], labels={"foo": given}).run(MagicMock())
     mock_k8s_batch_client.create_namespaced_job.assert_called_once()
     labels = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["metadata"][
         "labels"
@@ -290,14 +340,14 @@ async def test_sanitizes_user_label_values(
     assert labels["foo"] == expected
 
 
-async def test_uses_namespace_setting(
+def test_uses_namespace_setting(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
 ):
     mock_watch.stream = _mock_pods_stream_that_returns_running_pod
 
-    await KubernetesJob(command=["echo", "hello"], namespace="foo").run(MagicMock())
+    KubernetesJob(command=["echo", "hello"], namespace="foo").run(MagicMock())
     mock_k8s_batch_client.create_namespaced_job.assert_called_once()
     namespace = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["metadata"][
         "namespace"
@@ -305,14 +355,14 @@ async def test_uses_namespace_setting(
     assert namespace == "foo"
 
 
-async def test_uses_service_account_name_setting(
+def test_uses_service_account_name_setting(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
 ):
     mock_watch.stream = _mock_pods_stream_that_returns_running_pod
 
-    await KubernetesJob(command=["echo", "hello"], service_account_name="foo").run(
+    KubernetesJob(command=["echo", "hello"], service_account_name="foo").run(
         MagicMock()
     )
     mock_k8s_batch_client.create_namespaced_job.assert_called_once()
@@ -322,14 +372,14 @@ async def test_uses_service_account_name_setting(
     assert service_account_name == "foo"
 
 
-async def test_defaults_to_unspecified_image_pull_policy(
+def test_defaults_to_unspecified_image_pull_policy(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
 ):
     mock_watch.stream = _mock_pods_stream_that_returns_running_pod
 
-    await KubernetesJob(command=["echo", "hello"]).run(MagicMock())
+    KubernetesJob(command=["echo", "hello"]).run(MagicMock())
     mock_k8s_batch_client.create_namespaced_job.assert_called_once()
     call_image_pull_policy = mock_k8s_batch_client.create_namespaced_job.call_args[0][
         1
@@ -337,14 +387,14 @@ async def test_defaults_to_unspecified_image_pull_policy(
     assert call_image_pull_policy is None
 
 
-async def test_uses_specified_image_pull_policy(
+def test_uses_specified_image_pull_policy(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
 ):
     mock_watch.stream = _mock_pods_stream_that_returns_running_pod
 
-    await KubernetesJob(
+    KubernetesJob(
         command=["echo", "hello"],
         image_pull_policy=KubernetesImagePullPolicy.IF_NOT_PRESENT,
     ).run(MagicMock())
@@ -355,14 +405,14 @@ async def test_uses_specified_image_pull_policy(
     assert call_image_pull_policy == "IfNotPresent"
 
 
-async def test_defaults_to_unspecified_restart_policy(
+def test_defaults_to_unspecified_restart_policy(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
 ):
     mock_watch.stream = _mock_pods_stream_that_returns_running_pod
 
-    await KubernetesJob(command=["echo", "hello"]).run(MagicMock())
+    KubernetesJob(command=["echo", "hello"]).run(MagicMock())
     mock_k8s_batch_client.create_namespaced_job.assert_called_once()
     call_restart_policy = mock_k8s_batch_client.create_namespaced_job.call_args[0][1][
         "spec"
@@ -370,16 +420,16 @@ async def test_defaults_to_unspecified_restart_policy(
     assert call_restart_policy is None
 
 
-async def test_no_raise_on_submission_with_hosted_api(
+def test_no_raise_on_submission_with_hosted_api(
     mock_cluster_config,
     mock_k8s_batch_client,
     mock_k8s_client,
     use_hosted_orion,
 ):
-    await KubernetesJob(command=["echo", "hello"]).run(MagicMock())
+    KubernetesJob(command=["echo", "hello"]).run(MagicMock())
 
 
-async def test_defaults_to_incluster_config(
+def test_defaults_to_incluster_config(
     mock_k8s_client,
     mock_watch,
     mock_cluster_config,
@@ -388,13 +438,13 @@ async def test_defaults_to_incluster_config(
     mock_watch.stream = _mock_pods_stream_that_returns_running_pod
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
 
-    await KubernetesJob(command=["echo", "hello"]).run(fake_status)
+    KubernetesJob(command=["echo", "hello"]).run(fake_status)
 
     mock_cluster_config.load_incluster_config.assert_called_once()
     assert not mock_cluster_config.load_kube_config.called
 
 
-async def test_uses_cluster_config_if_not_in_cluster(
+def test_uses_cluster_config_if_not_in_cluster(
     mock_k8s_client,
     mock_watch,
     mock_cluster_config,
@@ -405,12 +455,12 @@ async def test_uses_cluster_config_if_not_in_cluster(
 
     mock_cluster_config.load_incluster_config.side_effect = ConfigException()
 
-    await KubernetesJob(command=["echo", "hello"]).run(fake_status)
+    KubernetesJob(command=["echo", "hello"]).run(fake_status)
 
     mock_cluster_config.load_kube_config.assert_called_once()
 
 
-async def test_allows_configurable_timeouts_for_pod_and_job_watches(
+def test_allows_configurable_timeouts_for_pod_and_job_watches(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
@@ -419,7 +469,7 @@ async def test_allows_configurable_timeouts_for_pod_and_job_watches(
         side_effect=_mock_pods_stream_that_returns_running_pod
     )
 
-    await KubernetesJob(
+    KubernetesJob(
         command=["echo", "hello"],
         pod_watch_timeout_seconds=42,
         job_watch_timeout_seconds=24,
@@ -443,7 +493,7 @@ async def test_allows_configurable_timeouts_for_pod_and_job_watches(
     )
 
 
-async def test_watches_the_right_namespace(
+def test_watches_the_right_namespace(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
@@ -452,7 +502,7 @@ async def test_watches_the_right_namespace(
         side_effect=_mock_pods_stream_that_returns_running_pod
     )
 
-    await KubernetesJob(command=["echo", "hello"], namespace="my-awesome-flows").run(
+    KubernetesJob(command=["echo", "hello"], namespace="my-awesome-flows").run(
         MagicMock()
     )
 
@@ -637,7 +687,7 @@ class TestCustomizingBaseJob:
 
         # the prefect-job container is still populated
         assert pod["containers"][0]["name"] == "prefect-job"
-        assert pod["containers"][0]["command"] == ["echo", "hello"]
+        assert pod["containers"][0]["args"] == ["echo", "hello"]
 
         assert pod["containers"][1] == {
             "name": "my-sidecar",
@@ -767,26 +817,50 @@ class TestCustomizingJob:
             customizations=[
                 {
                     "op": "add",
-                    "path": "/spec/template/spec/containers/0/command/0",
+                    "path": "/spec/template/spec/containers/0/args/0",
                     "value": "opentelemetry-instrument",
                 },
                 {
                     "op": "add",
-                    "path": "/spec/template/spec/containers/0/command/1",
+                    "path": "/spec/template/spec/containers/0/args/1",
                     "value": "--resource_attributes",
                 },
                 {
                     "op": "add",
-                    "path": "/spec/template/spec/containers/0/command/2",
+                    "path": "/spec/template/spec/containers/0/args/2",
                     "value": "service.name=my-cool-job",
                 },
             ],
         ).build_job()
 
-        assert manifest["spec"]["template"]["spec"]["containers"][0]["command"] == [
+        assert manifest["spec"]["template"]["spec"]["containers"][0]["args"] == [
             "opentelemetry-instrument",
             "--resource_attributes",
             "service.name=my-cool-job",
+            "echo",
+            "hello",
+        ]
+
+    def test_user_overriding_entrypoint_command(self):
+        """Users should be able to wrap the command-line with another command"""
+        manifest = KubernetesJob(
+            command=["echo", "hello"],
+            customizations=[
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/containers/0/command",
+                    "value": ["conda", "run", "-n", "foo"],
+                },
+            ],
+        ).build_job()
+
+        assert manifest["spec"]["template"]["spec"]["containers"][0]["command"] == [
+            "conda",
+            "run",
+            "-n",
+            "foo",
+        ]
+        assert manifest["spec"]["template"]["spec"]["containers"][0]["args"] == [
             "echo",
             "hello",
         ]
@@ -895,3 +969,9 @@ class TestLoadingPatchesFromFiles:
 
     def test_patch_from_json(self, example: KubernetesManifest, example_json: Path):
         assert KubernetesJob.customize_from_file(example_json) == example
+
+
+def test_run_requires_command():
+    job = KubernetesJob(command=[])
+    with pytest.raises(ValueError, match="cannot be run with empty command"):
+        job.run()

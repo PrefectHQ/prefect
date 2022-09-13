@@ -19,7 +19,6 @@ import prefect.settings
 from prefect import flow, task
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.infrastructure import Process
-from prefect.infrastructure.submission import submit_flow_run
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
     load_logging_config,
@@ -27,6 +26,7 @@ from prefect.logging.configuration import (
 )
 from prefect.logging.handlers import OrionHandler, OrionLogWorker
 from prefect.logging.loggers import (
+    disable_run_logger,
     flow_run_logger,
     get_logger,
     get_run_logger,
@@ -182,8 +182,10 @@ async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deploym
         logger_test_deployment
     )
 
-    assert await submit_flow_run(
-        flow_run, Process(env={"PREFECT_LOGGING_EXTRA_LOGGERS": "foo"})
+    assert (
+        await Process(env={"PREFECT_LOGGING_EXTRA_LOGGERS": "foo"})
+        .prepare_for_flow_run(flow_run)
+        .run()
     )
 
     state = (await orion_client.read_flow_run(flow_run.id)).state
@@ -1042,3 +1044,25 @@ async def test_run_logger_in_task(orion_client):
         "flow_run_id": str(flow_run.id),
         "flow_run_name": flow_run.name,
     }
+
+
+def test_disable_run_logger(caplog):
+    @task
+    def task_with_run_logger():
+        logger = get_run_logger()
+        logger.critical("wont show")
+        return 42
+
+    flow_run_logger = get_logger("prefect.flow_run")
+    task_run_logger = get_logger("prefect.task_run")
+    task_run_logger.disabled = True
+
+    with disable_run_logger():
+        num = task_with_run_logger.fn()
+        assert num == 42
+        assert flow_run_logger.disabled
+        assert task_run_logger.disabled
+
+    assert not flow_run_logger.disabled
+    assert task_run_logger.disabled  # was already disabled beforehand
+    assert caplog.record_tuples == [("null", logging.CRITICAL, "wont show")]

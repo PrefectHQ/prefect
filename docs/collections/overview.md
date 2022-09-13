@@ -6,11 +6,34 @@ tags:
     - collections
     - task library
     - contributing
+    - Airbyte
+    - AWS
+    - Azure
+    - CubeJS
+    - Dask
+    - Databricks
+    - dbt
+    - send email
+    - Fugue
+    - GCP
+    - GitHub
+    - Great Expectations
+    - Jupyter
+    - MetricFlow
+    - Monday
+    - OpenMetadata
+    - Ray
+    - Slack
+    - Snowflake
+    - SQLAlchemy
+    - Stitch
+    - Transform
+    - Twitter
 ---
 
 # Prefect Collections
 
-Prefect Collections are groupings of pre-built tasks and flows used to quickly build data flows with Prefect. 
+Prefect Collections are groupings of pre-built tasks and flows used to quickly build dataflows with Prefect. 
 
 Collections are grouped around the services with which they interact. For example, to download data from an S3 bucket, you could use the `s3_download` task from the `prefect-aws` collection, or if you want to send a Slack message as part of your flow you could use the `send_message` task from the `prefect-slack` collection. 
 
@@ -68,8 +91,8 @@ pip install cookiecutter
 cookiecutter https://github.com/PrefectHQ/prefect-collection-template
 ```
 
-After your project has been generated, refer to the MAINTAINER.md in the generated project for information about developing your collection.
+After your project has been generated, refer to the MAINTAINERS.md in the generated project for information about developing your collection.
 
 ### Listing in the Collections Catalog
 
-To list your collection in the Prefect Collections Catalog, submit a PR to the Prefect repository adding a file to the `docs/collections/catalog` directory with details about your collection. Please use `TEMPLATE.yaml` in that folder as guide.
+To list your collection in the Prefect Collections Catalog, submit a PR to the Prefect repository adding a file to the `docs/collections/catalog` directory with details about your collection. Please use `TEMPLATE.yaml` in that folder as a guide.
