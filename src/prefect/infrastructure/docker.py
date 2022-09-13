@@ -6,8 +6,8 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple
 
+import anyio.abc
 import packaging.version
-from anyio.abc import TaskStatus
 from pydantic import Field, validator
 from slugify import slugify
 from typing_extensions import Literal
@@ -232,7 +232,7 @@ class DockerContainer(Infrastructure):
     @sync_compatible
     async def run(
         self,
-        task_status: Optional[TaskStatus] = None,
+        task_status: Optional[anyio.abc.TaskStatus] = None,
     ) -> Optional[bool]:
         if not self.command:
             raise ValueError("Docker container cannot be run with empty command.")
@@ -577,4 +577,5 @@ class DockerContainer(Infrastructure):
                 .replace("127.0.0.1", "host.docker.internal")
             )
 
-        return env
+        # Drop null values allowing users to "unset" variables
+        return {key: value for key, value in env.items() if value is not None}
