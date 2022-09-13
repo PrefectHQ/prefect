@@ -885,7 +885,9 @@ class TestReadBlockSchemas:
             block_schemas_with_capabilities[0].id
         ]
 
-    @pytest.mark.flaky  # Order of block schema references sometimes doesn't match
+    @pytest.mark.flaky(
+        max_runs=3
+    )  # Order of block schema references sometimes doesn't match
     async def test_read_block_schema_with_union(
         self, session, block_type_x, block_type_y, block_type_z
     ):

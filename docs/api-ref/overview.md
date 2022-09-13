@@ -11,7 +11,7 @@ tags:
 
 # API Reference
 
-Prefect 2.0 provides a number of programmatic workflow interfaces. Each API is documented in this section. 
+Prefect 2 provides a number of programmatic workflow interfaces. Each API is documented in this section. 
 
 - The Prefect Python API is used to build, test, and execute workflows against the Orion workflow engine. This is the primary user-facing API.
 - The Prefect Orion Python API is used by the Orion server to work with workflow metadata and enforce orchestration logic. This API is primarily used by Orion developers.

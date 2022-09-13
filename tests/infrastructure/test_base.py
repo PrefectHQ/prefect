@@ -13,12 +13,7 @@ from prefect.infrastructure import (
     KubernetesJob,
     Process,
 )
-from prefect.infrastructure.submission import (
-    MIN_COMPAT_PREFECT_VERSION,
-    base_flow_run_environment,
-    base_flow_run_labels,
-    submit_flow_run,
-)
+from prefect.infrastructure.base import MIN_COMPAT_PREFECT_VERSION
 
 
 @pytest.fixture
@@ -51,7 +46,7 @@ class MockInfrastructure(Infrastructure):
     async def run(self, task_status=None):
         if task_status:
             task_status.started()
-        self._run(self.dict())
+        self._run(self.dict(exclude={"block_type_slug"}))
 
     def preview(self):
         return self.json()
@@ -89,10 +84,8 @@ async def test_flow_run_by_infrastructure_type(
 
     await patch_manifest_load(flow)
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
-    result = await submit_flow_run(
-        flow_run,
-        infrastructure=infrastructure_type(),
-    )
+    infrastructure = infrastructure_type().prepare_for_flow_run(flow_run)
+    result = await infrastructure.run()
 
     flow_run = await orion_client.read_flow_run(flow_run.id)
     assert flow_run.state.is_completed(), flow_run.state.message
@@ -105,7 +98,8 @@ async def test_submission_adds_flow_run_metadata(
     orion_client,
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
-    await submit_flow_run(flow_run, infrastructure=MockInfrastructure())
+    infrastructure = MockInfrastructure().prepare_for_flow_run(flow_run)
+    await infrastructure.run()
     MockInfrastructure._run.assert_called_once_with(
         {
             "type": "mock",
@@ -127,9 +121,10 @@ async def test_submission_does_not_mutate_original_object(
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
     obj = MockInfrastructure()
-    await submit_flow_run(flow_run, infrastructure=obj)
+    prepared = obj.prepare_for_flow_run(flow_run)
+    await prepared.run()
     assert obj.env == {}
-    assert obj.command == ["python", "-m", "prefect.engine"]
+    assert obj.command is None
     assert obj.labels == {}
     assert obj.name is None
 
@@ -139,10 +134,8 @@ async def test_submission_does_not_override_existing_command(
     orion_client,
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
-    await submit_flow_run(
-        flow_run,
-        infrastructure=MockInfrastructure(command=["test"]),
-    )
+    infrastructure = MockInfrastructure(command=["test"]).prepare_for_flow_run(flow_run)
+    await infrastructure.run()
     MockInfrastructure._run.call_args[0][0]["command"] == ["test"]
 
 
@@ -151,12 +144,12 @@ async def test_submission_does_not_override_existing_env(
     orion_client,
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
-    await submit_flow_run(
-        flow_run,
-        infrastructure=MockInfrastructure(env={"foo": "bar"}),
+    infrastructure = MockInfrastructure(env={"foo": "bar"}).prepare_for_flow_run(
+        flow_run
     )
+    await infrastructure.run()
     MockInfrastructure._run.call_args[0][0]["env"] == {
-        **base_flow_run_environment(flow_run),
+        **Infrastructure._base_flow_run_environment(flow_run),
         "foo": "bar",
     }
 
@@ -166,12 +159,12 @@ async def test_submission_does_not_override_existing_labels(
     orion_client,
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
-    await submit_flow_run(
-        flow_run,
-        infrastructure=MockInfrastructure(labels={"foo": "bar"}),
+    infrastructure = MockInfrastructure(labels={"foo": "bar"}).prepare_for_flow_run(
+        flow_run
     )
+    await infrastructure.run()
     MockInfrastructure._run.call_args[0][0]["labels"] == {
-        **base_flow_run_labels(flow_run),
+        **Infrastructure._base_flow_run_labels(flow_run),
         "foo": "bar",
     }
 
@@ -181,10 +174,8 @@ async def test_submission_does_not_override_existing_name(
     orion_client,
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
-    await submit_flow_run(
-        flow_run,
-        infrastructure=MockInfrastructure(name="test"),
-    )
+    infrastructure = MockInfrastructure(name="test").prepare_for_flow_run(flow_run)
+    await infrastructure.run()
     MockInfrastructure._run.call_args[0][0]["name"] == "test"
 
 
@@ -213,10 +204,11 @@ async def test_execution_is_compatible_with_old_prefect_container_version(
         deployment_id=deployment.id
     )
 
-    result = await submit_flow_run(
-        flow_run,
-        DockerContainer(image=get_prefect_image_name(MIN_COMPAT_PREFECT_VERSION)),
-    )
+    infrastructure = DockerContainer(
+        image=get_prefect_image_name(MIN_COMPAT_PREFECT_VERSION)
+    ).prepare_for_flow_run(flow_run)
+
+    result = await infrastructure.run()
     assert result.status_code == 0
     flow_run = await orion_client.read_flow_run(flow_run.id)
     assert flow_run.state.is_completed()

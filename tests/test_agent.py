@@ -1,4 +1,4 @@
-from unittest.mock import ANY, MagicMock
+from unittest.mock import MagicMock
 
 import pendulum
 import pytest
@@ -7,9 +7,11 @@ from prefect import flow
 from prefect.agent import OrionAgent
 from prefect.blocks.core import Block
 from prefect.exceptions import Abort
+from prefect.infrastructure.base import Infrastructure
 from prefect.orion import models, schemas
 from prefect.orion.schemas.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.dispatch import get_registry_for_type
 
 
 @pytest.fixture
@@ -193,7 +195,7 @@ async def test_agent_internal_submit_run_called(orion_client, deployment):
         agent.submit_run = AsyncMock()
         await agent.get_and_submit_flow_runs()
 
-    agent.submit_run.assert_awaited_once_with(flow_run)
+    agent.submit_run.assert_called_once_with(flow_run)
 
 
 async def test_agent_runs_multiple_work_queues(orion_client, session, flow):
@@ -242,12 +244,47 @@ async def test_agent_runs_multiple_work_queues(orion_client, session, flow):
 
 class TestInfrastructureIntegration:
     @pytest.fixture
-    def mock_submit(self, monkeypatch):
-        def mark_as_started(flow_run, infrastructure, task_status):
-            task_status.started()
+    def mock_infrastructure_run(self, monkeypatch) -> MagicMock:
+        """
+        Mocks all subtype implementations of `Infrastructure.run`.
 
-        mock = AsyncMock(side_effect=mark_as_started)
-        monkeypatch.setattr("prefect.agent.submit_flow_run", mock)
+        Yields a mock that is called with `self.dict()` when `run`
+        is awaited. The mock provides a few utilities for testing
+        error handling.
+
+        `pre_start_side_effect` and `post_start_side_effect` may be
+        set to callables to perform actions before or after the
+        task is reported as started.
+
+        `mark_as_started` may be set to `False` to prevent marking the
+        task as started.
+        """
+        mock = MagicMock()
+        mock.pre_start_side_effect = lambda: None
+        mock.post_start_side_effect = lambda: None
+        mock.mark_as_started = True
+
+        async def mock_run(self, task_status=None):
+            # Record the call immediately
+            result = mock(self.dict())
+
+            # Perform side-effects for testing error handling
+
+            mock.pre_start_side_effect()
+
+            if mock.mark_as_started:
+                task_status.started()
+
+            mock.post_start_side_effect()
+
+            return result
+
+        # Patch all infrastructure types
+        types = get_registry_for_type(Block)
+        for t in types.values():
+            if not issubclass(t, Infrastructure):
+                continue
+            monkeypatch.setattr(t, "run", mock_run)
 
         yield mock
 
@@ -259,7 +296,7 @@ class TestInfrastructureIntegration:
         yield mock
 
     async def test_agent_submits_using_the_retrieved_infrastructure(
-        self, orion_client, deployment, mock_submit
+        self, orion_client, deployment, mock_infrastructure_run
     ):
         infra_doc_id = deployment.infrastructure_document_id
 
@@ -275,10 +312,12 @@ class TestInfrastructureIntegration:
         ) as agent:
             await agent.get_and_submit_flow_runs()
 
-        mock_submit.assert_awaited_once_with(flow_run, infrastructure, task_status=ANY)
+        mock_infrastructure_run.assert_called_once_with(
+            infrastructure.prepare_for_flow_run(flow_run).dict()
+        )
 
     async def test_agent_submit_run_sets_pending_state(
-        self, orion_client, deployment, mock_submit
+        self, orion_client, deployment, mock_infrastructure_run
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
@@ -292,10 +331,15 @@ class TestInfrastructureIntegration:
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_pending()
-        mock_submit.assert_awaited_once()
+        mock_infrastructure_run.assert_called_once()
 
     async def test_agent_submit_run_waits_for_scheduled_time_before_submitting(
-        self, orion_client, deployment, monkeypatch, mock_submit, mock_anyio_sleep
+        self,
+        orion_client,
+        deployment,
+        mock_infrastructure_run,
+        monkeypatch,
+        mock_anyio_sleep,
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
@@ -317,11 +361,16 @@ class TestInfrastructureIntegration:
             >= flow_run.state.state_details.scheduled_time
         ), "Pending state time should be after the scheduled time"
         assert state.is_pending()
-        mock_submit.assert_awaited_once()
+        mock_infrastructure_run.assert_called_once()
 
     @pytest.mark.parametrize("return_state", [Scheduled(), Running()])
     async def test_agent_submit_run_aborts_if_server_returns_non_pending_state(
-        self, orion_client, deployment, return_state, mock_submit, mock_propose_state
+        self,
+        orion_client,
+        deployment,
+        mock_infrastructure_run,
+        return_state,
+        mock_propose_state,
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
@@ -337,7 +386,7 @@ class TestInfrastructureIntegration:
             mock_propose_state.return_value = return_state
             await agent.submit_run(flow_run)
 
-        mock_submit.assert_not_called()
+        mock_infrastructure_run.assert_not_called()
         assert flow_run.id not in agent.submitting_flow_run_ids
         agent.logger.info.assert_called_with(
             f"Aborted submission of flow run '{flow_run.id}': "
@@ -345,7 +394,7 @@ class TestInfrastructureIntegration:
         )
 
     async def test_agent_submit_run_aborts_if_flow_run_is_missing(
-        self, orion_client, deployment, mock_submit
+        self, orion_client, deployment, mock_infrastructure_run
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
@@ -362,7 +411,7 @@ class TestInfrastructureIntegration:
 
             await agent.submit_run(flow_run)
 
-        mock_submit.assert_not_called()
+        mock_infrastructure_run.assert_not_called()
         assert flow_run.id not in agent.submitting_flow_run_ids
         agent.logger.error.assert_called_with(
             f"Failed to update state of flow run '{flow_run.id}'",
@@ -370,7 +419,7 @@ class TestInfrastructureIntegration:
         )
 
     async def test_agent_submit_run_aborts_without_raising_if_server_raises_abort(
-        self, orion_client, deployment, mock_submit, mock_propose_state
+        self, orion_client, deployment, mock_infrastructure_run, mock_propose_state
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
@@ -386,7 +435,7 @@ class TestInfrastructureIntegration:
 
             await agent.submit_run(flow_run)
 
-        mock_submit.assert_not_called()
+        mock_infrastructure_run.assert_not_called()
         assert flow_run.id not in agent.submitting_flow_run_ids
         agent.logger.info.assert_called_with(
             f"Aborted submission of flow run '{flow_run.id}'. "
@@ -394,7 +443,7 @@ class TestInfrastructureIntegration:
         )
 
     async def test_agent_fails_flow_if_infrastructure_submission_fails(
-        self, orion_client, deployment, mock_submit
+        self, orion_client, deployment, mock_infrastructure_run
     ):
         infra_doc_id = deployment.infrastructure_document_id
         infra_document = await orion_client.read_block_document(infra_doc_id)
@@ -405,7 +454,10 @@ class TestInfrastructureIntegration:
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
 
-        mock_submit.side_effect = ValueError("Hello!")
+        def raise_value_error():
+            raise ValueError("Hello!")
+
+        mock_infrastructure_run.pre_start_side_effect = raise_value_error
 
         async with OrionAgent(
             [deployment.work_queue_name], prefetch_seconds=10
@@ -413,7 +465,9 @@ class TestInfrastructureIntegration:
             agent.logger = MagicMock()
             await agent.get_and_submit_flow_runs()
 
-        mock_submit.assert_awaited_once_with(flow_run, infrastructure, task_status=ANY)
+        mock_infrastructure_run.assert_called_once_with(
+            infrastructure.prepare_for_flow_run(flow_run)
+        )
         agent.logger.exception.assert_called_once_with(
             f"Failed to submit flow run '{flow_run.id}' to infrastructure."
         )
@@ -424,8 +478,43 @@ class TestInfrastructureIntegration:
         with pytest.raises(ValueError, match="Hello!"):
             raise result
 
-    async def test_agent_fails_flow_if_infrastructure_does_not_mark_as_started(
-        self, orion_client, deployment, mock_submit
+    async def test_agent_does_not_fail_flow_if_infrastructure_watch_fails(
+        self, orion_client, deployment, mock_infrastructure_run
+    ):
+        infra_doc_id = deployment.infrastructure_document_id
+        infra_document = await orion_client.read_block_document(infra_doc_id)
+        infrastructure = Block._from_block_document(infra_document)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+        )
+
+        def raise_value_error():
+            raise ValueError("Hello!")
+
+        mock_infrastructure_run.post_start_side_effect = raise_value_error
+
+        async with OrionAgent(
+            [deployment.work_queue_name], prefetch_seconds=10
+        ) as agent:
+            agent.logger = MagicMock()
+            await agent.get_and_submit_flow_runs()
+
+        mock_infrastructure_run.assert_called_once_with(
+            infrastructure.prepare_for_flow_run(flow_run)
+        )
+        agent.logger.exception.assert_called_once_with(
+            f"An error occured while monitoring flow run '{flow_run.id}'. "
+            "The flow run will not be marked as failed, but an issue may have "
+            "occurred."
+        )
+
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        assert state.is_pending(), f"State should be PENDING: {state!r}"
+
+    async def test_agent_logs_if_infrastructure_does_not_mark_as_started(
+        self, orion_client, deployment, mock_infrastructure_run
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
@@ -435,7 +524,7 @@ class TestInfrastructureIntegration:
         # This excludes calling `task_status.started()` which will throw an anyio error
         # when submission finishes without calling `started()`. The agent will treat
         # submission the same as if it had thrown an error.
-        mock_submit.side_effect = None
+        mock_infrastructure_run.mark_as_started = False
 
         async with OrionAgent(
             work_queues=[deployment.work_queue_name], prefetch_seconds=10
@@ -443,17 +532,12 @@ class TestInfrastructureIntegration:
             agent.logger = MagicMock()
             await agent.get_and_submit_flow_runs()
 
-        agent.logger.exception.assert_called_once_with(
-            f"Failed to submit flow run '{flow_run.id}' to infrastructure."
+        agent.logger.error.assert_called_once_with(
+            f"Infrastructure returned without reporting flow run '{flow_run.id}' "
+            "as started or raising an error. This behavior is not expected and "
+            "generally indicates improper implementation of infrastructure. The "
+            "flow run will not be marked as failed, but an issue may have occurred."
         )
-
-        state = (await orion_client.read_flow_run(flow_run.id)).state
-        assert state.is_failed()
-        result = await orion_client.resolve_datadoc(state.data)
-        with pytest.raises(
-            RuntimeError, match="Child exited without calling task_status.started"
-        ):
-            raise result
 
 
 async def test_agent_displays_message_on_work_queue_pause(

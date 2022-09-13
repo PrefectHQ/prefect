@@ -4,10 +4,10 @@ import sys
 import urllib.parse
 import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple
 
+import anyio.abc
 import packaging.version
-from anyio.abc import TaskStatus
 from pydantic import Field, validator
 from slugify import slugify
 from typing_extensions import Literal
@@ -139,6 +139,7 @@ class DockerContainer(Infrastructure):
 
     Attributes:
         auto_remove: If set, the container will be removed on completion. Otherwise,
+            the container will remain after exit for inspection.
         command: A list of strings specifying the command to run in the container to
             start the flow run. In most cases you should not override this.
         env: Environment variables to set for the container.
@@ -153,7 +154,6 @@ class DockerContainer(Infrastructure):
             used. If 'networks' is set, this cannot be set.
         networks: An optional list of strings specifying Docker networks to connect the
             container to.
-            the container will remain after exit for inspection.
         stream_output: If set, stream output from the container to local standard output.
         volumes: An optional list of volume mount strings in the format of
             "local_path:container_path".
@@ -232,19 +232,29 @@ class DockerContainer(Infrastructure):
     @sync_compatible
     async def run(
         self,
-        task_status: Optional[TaskStatus] = None,
+        task_status: Optional[anyio.abc.TaskStatus] = None,
     ) -> Optional[bool]:
+        if not self.command:
+            raise ValueError("Docker container cannot be run with empty command.")
 
         # The `docker` library uses requests instead of an async http library so it must
         # be run in a thread to avoid blocking the event loop.
-        container_id = await run_sync_in_worker_thread(self._create_and_start_container)
+        container = await run_sync_in_worker_thread(self._create_and_start_container)
 
         # Mark as started and return the container id
         if task_status:
-            task_status.started(container_id)
+            task_status.started(container.id)
 
         # Monitor the container
-        return await run_sync_in_worker_thread(self._watch_container, container_id)
+        container = await run_sync_in_worker_thread(
+            self._watch_container_safe, container
+        )
+
+        exit_code = container.attrs["State"].get("ExitCode")
+        return DockerContainerResult(
+            status_code=exit_code if exit_code is not None else -1,
+            identifier=container.id,
+        )
 
     def preview(self):
         # TODO: build and document a more sophisticated preview
@@ -272,7 +282,7 @@ class DockerContainer(Infrastructure):
             volumes=self.volumes,
         )
 
-    def _create_and_start_container(self) -> str:
+    def _create_and_start_container(self) -> "Container":
         docker_client = self._get_client()
 
         container_settings = self._build_container_settings(docker_client)
@@ -295,7 +305,7 @@ class DockerContainer(Infrastructure):
 
         docker_client.close()
 
-        return container.id
+        return container
 
     def _get_image_and_tag(self) -> Tuple[str, Optional[str]]:
         return parse_image_tag(self.image)
@@ -422,21 +432,40 @@ class DockerContainer(Infrastructure):
                 else:
                     raise
 
+        self.logger.info(
+            f"Docker container {container.name!r} has status {container.status!r}"
+        )
         return container
 
-    def _watch_container(self, container_id: str) -> bool:
+    def _watch_container_safe(self, container: "Container") -> "Container":
+        # Monitor the container capturing the latest snapshot while capturing
+        # not found errors
         docker_client = self._get_client()
 
         try:
-            container: "Container" = docker_client.containers.get(container_id)
+            for latest_container in self._watch_container(docker_client, container.id):
+                container = latest_container
         except docker.errors.NotFound:
-            self.logger.error(f"Docker container {container_id!r} was removed.")
-            return
+            # The container was removed during watching
+            self.logger.warning(
+                f"Docker container {container.name} was removed before we could wait "
+                "for its completion."
+            )
+        finally:
+            docker_client.close()
+
+        return container
+
+    def _watch_container(
+        self, docker_client: "DockerClient", container_id: str
+    ) -> Generator[None, None, "Container"]:
+        container: "Container" = docker_client.containers.get(container_id)
 
         status = container.status
         self.logger.info(
             f"Docker container {container.name!r} has status {container.status!r}"
         )
+        yield container
 
         for log in container.logs(stream=True):
             log: bytes
@@ -448,14 +477,10 @@ class DockerContainer(Infrastructure):
             self.logger.info(
                 f"Docker container {container.name!r} has status {container.status!r}"
             )
+        yield container
 
-        result = container.wait()
-        docker_client.close()
-
-        return DockerContainerResult(
-            status_code=result.get("StatusCode", -1),
-            identifier=container.id,
-        )
+        container.wait()
+        yield container
 
     def _get_client(self):
         try:
@@ -552,4 +577,5 @@ class DockerContainer(Infrastructure):
                 .replace("127.0.0.1", "host.docker.internal")
             )
 
-        return env
+        # Drop null values allowing users to "unset" variables
+        return {key: value for key, value in env.items() if value is not None}

@@ -229,6 +229,14 @@ class TestDeploymentBuild:
         assert d.name == "foo"
         assert d.path is not None
 
+    async def test_build_from_flow_doesnt_overwrite_path(self, flow_function):
+        d = await Deployment.build_from_flow(
+            flow=flow_function, name="foo", path="/my/custom/path"
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.path == "/my/custom/path"
+
     async def test_build_from_flow_gracefully_handles_readonly_storage(
         self, flow_function
     ):

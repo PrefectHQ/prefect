@@ -83,21 +83,28 @@ class TestCreateDeployment:
         infrastructure_document_id_2,
     ):
 
+        openapi_schema = {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "foo": {"title": "foo", "default": "Will", "type": "string"}
+            },
+        }
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 flow_id=flow.id,
                 infrastructure_document_id=infrastructure_document_id,
+                parameter_openapi_schema=openapi_schema,
             ),
         )
         original_update_time = deployment.updated
 
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert deployment.manifest_path == "file.json"
         assert deployment.parameters == {}
+        assert deployment.parameter_openapi_schema == openapi_schema
         assert deployment.tags == []
         assert deployment.infrastructure_document_id == infrastructure_document_id
 
@@ -107,15 +114,20 @@ class TestCreateDeployment:
             interval=datetime.timedelta(days=1)
         )
 
+        openapi_schema["properties"]["new"] = {
+            "title": "new",
+            "default": True,
+            "type": "bool",
+        }
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 flow_id=flow.id,
-                manifest_path="file.json",
                 schedule=schedule,
                 is_schedule_active=False,
                 parameters={"foo": "bar"},
+                parameter_openapi_schema=openapi_schema,
                 tags=["foo", "bar"],
                 infrastructure_document_id=infrastructure_document_id_2,
             ),
@@ -123,10 +135,10 @@ class TestCreateDeployment:
 
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert deployment.manifest_path == "file.json"
         assert not deployment.is_schedule_active
         assert deployment.schedule == schedule
         assert deployment.parameters == {"foo": "bar"}
+        assert deployment.parameter_openapi_schema == openapi_schema
         assert deployment.tags == ["foo", "bar"]
         assert deployment.updated > original_update_time
         assert deployment.infrastructure_document_id == infrastructure_document_id_2

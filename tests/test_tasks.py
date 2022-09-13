@@ -1,13 +1,15 @@
 import datetime
 import inspect
 import warnings
+from typing import Dict, List
 from unittest.mock import MagicMock
+from uuid import UUID
 
 import anyio
 import pytest
 
 from prefect import flow, get_run_logger, tags
-from prefect.context import PrefectObjectRegistry
+from prefect.context import PrefectObjectRegistry, TaskRunContext, get_run_context
 from prefect.engine import get_state_for_result
 from prefect.exceptions import (
     MappingLengthMismatch,
@@ -15,6 +17,7 @@ from prefect.exceptions import (
     ReservedArgumentError,
 )
 from prefect.futures import PrefectFuture
+from prefect.orion import models
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
@@ -619,6 +622,38 @@ class TestTaskRetries:
             "Retrying",
             "Completed",
         ]
+
+    async def test_task_retries_receive_latest_task_run_in_context(self):
+        contexts: List[TaskRunContext] = []
+
+        @task(retries=3)
+        def flaky_function():
+            contexts.append(get_run_context())
+            raise ValueError()
+
+        @flow
+        def test_flow():
+            flaky_function()
+
+        with pytest.raises(ValueError):
+            test_flow()
+
+        expected_state_names = [
+            "Running",
+            "Retrying",
+            "Retrying",
+            "Retrying",
+        ]
+        assert len(contexts) == len(expected_state_names)
+        for i, context in enumerate(contexts):
+            assert context.task_run.run_count == i + 1
+            assert context.task_run.state_name == expected_state_names[i]
+
+            if i > 0:
+                last_context = contexts[i - 1]
+                assert (
+                    last_context.start_time < context.start_time
+                ), "Timestamps should be increasing"
 
 
 class TestTaskCaching:
@@ -1947,6 +1982,195 @@ class TestTaskMap:
 
         futures = my_flow()
         assert [future.result() for future in futures] == [2, 3, 4]
+
+    @task
+    def echo(x):
+        return x
+
+    @task
+    def numbers():
+        return [1, 2, 3]
+
+    async def get_dependency_ids(self, session, flow_run_id) -> Dict[UUID, List[UUID]]:
+        graph = await models.flow_runs.read_task_run_dependencies(
+            session=session, flow_run_id=flow_run_id
+        )
+
+        return {x["id"]: [d.id for d in x["upstream_dependencies"]] for x in graph}
+
+    async def test_map_preserves_dependencies_between_futures_all_mapped_children(
+        self, session
+    ):
+        @flow
+        def my_flow():
+            """
+                    ┌─►add_together
+            numbers─┼─►add_together
+                    └─►add_together
+            """
+
+            numbers = TestTaskMap.numbers.submit()
+            return numbers, TestTaskMap.add_together.map(numbers, y=0)
+
+        numbers_future, add_futures = my_flow()
+        dependency_ids = await self.get_dependency_ids(
+            session, numbers_future.state_details.flow_run_id
+        )
+
+        assert [a.result() for a in add_futures] == [1, 2, 3]
+
+        assert dependency_ids[numbers_future.state_details.task_run_id] == []
+        assert all(
+            dependency_ids[a.state_details.task_run_id]
+            == [numbers_future.state_details.task_run_id]
+            for a in add_futures
+        )
+
+    async def test_map_preserves_dependencies_between_futures_all_mapped_children_multiple(
+        self, session
+    ):
+        @flow
+        def my_flow():
+            """
+            numbers1─┬►add_together
+                     ├►add_together
+            numbers2─┴►add_together
+            """
+
+            numbers1 = TestTaskMap.numbers.submit()
+            numbers2 = TestTaskMap.numbers.submit()
+            return (numbers1, numbers2), TestTaskMap.add_together.map(
+                numbers1, numbers2
+            )
+
+        numbers_futures, add_futures = my_flow()
+        dependency_ids = await self.get_dependency_ids(
+            session, numbers_futures[0].state_details.flow_run_id
+        )
+
+        assert [a.result() for a in add_futures] == [2, 4, 6]
+
+        assert all(
+            dependency_ids[n.state_details.task_run_id] == [] for n in numbers_futures
+        )
+        assert all(
+            set(dependency_ids[a.state_details.task_run_id])
+            == {n.state_details.task_run_id for n in numbers_futures}
+            and len(dependency_ids[a.state_details.task_run_id]) == 2
+            for a in add_futures
+        )
+
+    async def test_map_preserves_dependencies_between_futures_differing_parents(
+        self, session
+    ):
+        @flow
+        def my_flow():
+            """
+            x1─►add_together
+            x2─►add_together
+            """
+
+            x1 = TestTaskMap.echo.submit(1)
+            x2 = TestTaskMap.echo.submit(2)
+            return (x1, x2), TestTaskMap.add_together.map([x1, x2], y=0)
+
+        echo_futures, add_futures = my_flow()
+        dependency_ids = await self.get_dependency_ids(
+            session, echo_futures[0].state_details.flow_run_id
+        )
+
+        assert [a.result() for a in add_futures] == [1, 2]
+
+        assert all(
+            dependency_ids[e.state_details.task_run_id] == [] for e in echo_futures
+        )
+        assert all(
+            dependency_ids[a.state_details.task_run_id] == [e.state_details.task_run_id]
+            for a, e in zip(add_futures, echo_futures)
+        )
+
+    async def test_map_preserves_dependencies_between_futures_static_arg(self, session):
+        @flow
+        def my_flow():
+            """
+              ┌─►add_together
+            x─┼─►add_together
+              └─►add_together
+            """
+
+            x = TestTaskMap.echo.submit(1)
+            return x, TestTaskMap.add_together.map([1, 2, 3], y=x)
+
+        echo_future, add_futures = my_flow()
+        dependency_ids = await self.get_dependency_ids(
+            session, echo_future.state_details.flow_run_id
+        )
+
+        assert [a.result() for a in add_futures] == [2, 3, 4]
+
+        assert dependency_ids[echo_future.state_details.task_run_id] == []
+        assert all(
+            dependency_ids[a.state_details.task_run_id]
+            == [echo_future.state_details.task_run_id]
+            for a in add_futures
+        )
+
+    async def test_map_preserves_dependencies_between_futures_mixed_map(self, session):
+        @flow
+        def my_flow():
+            """
+            x─►add_together
+               add_together
+            """
+
+            x = TestTaskMap.echo.submit(1)
+            return x, TestTaskMap.add_together.map([x, 2], y=1)
+
+        echo_future, add_futures = my_flow()
+        dependency_ids = await self.get_dependency_ids(
+            session, echo_future.state_details.flow_run_id
+        )
+
+        assert [a.result() for a in add_futures] == [2, 3]
+
+        assert dependency_ids[echo_future.state_details.task_run_id] == []
+        assert dependency_ids[add_futures[0].state_details.task_run_id] == [
+            echo_future.state_details.task_run_id
+        ]
+        assert dependency_ids[add_futures[1].state_details.task_run_id] == []
+
+    async def test_map_preserves_dependencies_between_futures_deep_nesting(
+        self, session
+    ):
+        @flow
+        def my_flow():
+            """
+            x1─┬─►add_together
+            x2─┴─►add_together
+            """
+
+            x1 = TestTaskMap.echo.submit(1)
+            x2 = TestTaskMap.echo.submit(2)
+            return (x1, x2), TestTaskMap.add_together.map(
+                [[x1, x2], [x1, x2]], y=[[3], [4]]
+            )
+
+        echo_futures, add_futures = my_flow()
+        dependency_ids = await self.get_dependency_ids(
+            session, echo_futures[0].state_details.flow_run_id
+        )
+
+        assert [a.result() for a in add_futures] == [[1, 2, 3], [1, 2, 4]]
+
+        assert all(
+            dependency_ids[e.state_details.task_run_id] == [] for e in echo_futures
+        )
+        assert all(
+            set(dependency_ids[a.state_details.task_run_id])
+            == {e.state_details.task_run_id for e in echo_futures}
+            and len(dependency_ids[a.state_details.task_run_id]) == 2
+            for a in add_futures
+        )
 
     def test_map_can_take_flow_state_as_input(self):
         @flow
