@@ -4,10 +4,10 @@
 
 ### Exciting New Features 🎉
 - Add `ECSTask` infrastructure block to run commands and flows on AWS ECS<br />
-    See [the documentation](https://prefecthq.github.io/prefect-aws/ecs/) in the [prefect-aws collection](https://prefecthq.github.io/prefect-aws/) and usage notes in the [our infrastructure guide](https://docs.prefect.io/concepts/infrastructure/#ecstask)
+    See [the documentation](https://prefecthq.github.io/prefect-aws/ecs/) in the [prefect-aws collection](https://prefecthq.github.io/prefect-aws/) and usage notes in the [infrastructure guide](https://docs.prefect.io/concepts/infrastructure/#ecstask)
 
 ### Enhancements
-- Update the deployments CLI to better support CICD use cases — https://github.com/PrefectHQ/prefect/pull/6697
+- Update the deployments CLI to better support CI/CD use cases — https://github.com/PrefectHQ/prefect/pull/6697
 - Improve database query performance by removing unnecessary SQL transactions — https://github.com/PrefectHQ/prefect/pull/6714
 - Update blocks to dispatch instance creation using slugs — https://github.com/PrefectHQ/prefect/pull/6622
 - Add flow run start times to flow run metadata in UI — https://github.com/PrefectHQ/prefect/pull/6743
@@ -28,7 +28,7 @@
 - Task runner documentation fixes and clarifications — https://github.com/PrefectHQ/prefect/pull/6733
 - Add notes for Windows and Linux installation — https://github.com/PrefectHQ/prefect/pull/6750
 - Add a catalog of implementation recipes — https://github.com/PrefectHQ/prefect/pull/6408
-- Improve to storage and file systems documentation — https://github.com/PrefectHQ/prefect/pull/6756
+- Improve storage and file systems documentation — https://github.com/PrefectHQ/prefect/pull/6756
 - Add CSS for badges — https://github.com/PrefectHQ/prefect/pull/6655
 
 ### Contributors
