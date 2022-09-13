@@ -1,8 +1,10 @@
+import os
+import signal
 import subprocess
 import sys
 from contextlib import asynccontextmanager
 from io import TextIOBase
-from typing import List, Optional, TextIO, Tuple, Union
+from typing import Callable, List, Optional, TextIO, Tuple, Union
 
 import anyio
 import anyio.abc
@@ -115,3 +117,30 @@ async def stream_text(source: TextReceiveStream, sink: Optional[TextSink]):
             pass  # Consume the item but perform no action
         else:
             raise TypeError(f"Unsupported sink type {type(sink).__name__}")
+
+
+def kill_on_interrupt(pid: int, process_name: str, print_fn: Callable):
+    """Kill a process with the given `pid` when a SIGNINT is received."""
+
+    # In a non-windows enviornment first interrupt with send a SIGTERM, then
+    # subsequent interrupts will send SIGKILL. In Windows we use
+    # CTRL_BREAK_EVENT as SIGTERM is useless:
+    # https://bugs.python.org/issue26350
+    if sys.platform == "win32":
+
+        def stop_process(*args):
+            print_fn(f"\nStopping {process_name}...")
+            os.kill(pid, signal.CTRL_BREAK_EVENT)
+
+    else:
+
+        def stop_process(*args):
+            print_fn(f"\nStopping {process_name}...")
+            os.kill(pid, signal.SIGTERM)
+            signal.signal(signal.SIGINT, kill_process)
+
+        def kill_process(*args):
+            print_fn(f"\nKilling {process_name}...")
+            os.kill(pid, signal.SIGKILL)
+
+    signal.signal(signal.SIGINT, stop_process)

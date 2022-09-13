@@ -1,0 +1,10 @@
+recipeName: Prefect Orion on AKS
+author: Prefect
+authorUrl: https://prefect.io
+description: Deploy Prefect Orion to an Azure Kubernetes Service (AKS) Cluster with Azure Blob Storage.
+topic: Azure
+recipeUrl: https://github.com/PrefectHQ/prefect-recipes/tree/main/devops/infrastructure-as-code/azure/prefect-agent-on-aks
+iconUrl: 
+  - /img/collections/azure.png
+  - /img/collections/kubernetes.png
+  - /img/collections/terraform.png

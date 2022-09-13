@@ -441,8 +441,6 @@ async def set_flow_run_state(
 
         await context.validate_proposed_state()
 
-    await session.flush()
-
     if context.orchestration_error is not None:
         raise context.orchestration_error
 
