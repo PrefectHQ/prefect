@@ -161,6 +161,9 @@ When you run this command, Prefect:
 - Uploads your flow files to the configured storage location (local by default).
 - Submit your deployment to the work queue `test`. The work queue `test` will be created if it doesn't exist.
 
+!!! note "Uploading files may require storage filesystem libraries"
+    Note that the appropriate filesystem library supporting the storage location must be installed prior to building a deployment with a storage block. For example, the AWS S3 Storage block requires the [`s3fs`](https://s3fs.readthedocs.io/en/latest/) library.
+
 !!! tip "Ignore files or directories from a deployment"
     By default, Prefect uploads _all files_ in the current folder to the configured storage location (local by default) when you build a deployment.
 
@@ -181,9 +184,9 @@ You may specify additional options to further customize your deployment.
 |  `-q`. `--work-queue TEXT`        |  The work queue that will handle this deployment's runs. It will be created if it doesn't already exist. Defaults to `None`. Note that if a work queue is not set, work will not be scheduled.
 |  `-o`, `--output TEXT`            | Optional location for the YAML manifest generated as a result of the `build` step. You can version-control that file, but it's not required since the CLI can generate everything you need to define a deployment. |
 |  `-i`, `--infra`                   | The [infrastructure type](/concepts/infrastructure/) to use. (Default is `Process`) |
-|  `-ib`, `--infra-block TEXT`       | The [infrastructure block](#block-identifiers) to use, in `type/name` format. |
+|  `-ib`, `--infra-block TEXT`       | The [infrastructure block](#block-identifiers) to use, in `block-type/block-name` format. |
 |  `--override TEXT`       | One or more optional infrastructure overrides provided as a dot delimited path. For example, `env.env_key=env_value`. |
-|  <span class="no-wrap">`-sb`, `--storage-block TEXT`</span>    | The [storage block](#block-identifiers) to use in `type/name` format. |
+|  <span class="no-wrap">`-sb`, `--storage-block TEXT`</span>    | The [storage block](#block-identifiers) to use, in `block-type/block-name` or `block-type/block-name/path` format. Note that the appropriate library supporting the storage filesystem must be installed. |
 |  `--cron TEXT`    | A cron string that will be used to set a [`CronSchedule`](/concepts/schedules/) on the deployment. For example, `--cron "*/1 * * * *"` to create flow runs from that deployment every minute. |
 |  `--interval INTEGER`     | An integer specifying an interval (in seconds) that will be used to set an [`IntervalSchedule`](/concepts/schedules/) on the deployment. For example, `--interval 60` to create flow runs from that deployment every minute. |
 |  `--rrule TEXT`     | An `RRule` that will be used to set an [`RRuleSchedule`](/concepts/schedules/) on the deployment. For example, `--rrule 'FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9,10,11,12,13,14,15,16,17'` to create flow runs from that deployment every hour but only during business hours. |
@@ -193,18 +196,30 @@ You may specify additional options to further customize your deployment.
 
 ### Block identifiers
 
-You can provide storage (`-sb`) and infrastructure block (`-ib`) identifiers in your `deployment build` command. The required format of a block type consists of the `block-type` and `block-name` in the format `block-type/block-name`. Block name is the name that you provided when creating the block. The block type is the same name as the underlying file system or infrastructure block class, but split into separate words combined with hyphens. Here are some examples that illustrate the pattern:
+When specifying a storage block with the `-sb` or `--storage-block` flag, you may specify the block by passing its slug. The storage block slug is formatted as `block-type/block-name`. 
 
-| Block class name | Block type used in a deployment |
-| ------- | ----------- |
-| `GitHub` | `github` |
-| `RemoteFileSystem` | `remote-file-system` |
-| `S3` | `s3` |
-| `GCS` | `gcs` |
-| `Azure` | `azure` |
-| `DockerContainer` | `docker-container` |
-| `KubernetesJob` | `kubernetes-job` |
-| `Process` | `process` |
+For example, `s3/example-block` is the slug for an S3 block named `example-block`.
+
+In addition, when passing the storage block slug, you may pass just the block slug or the block slug and a path.
+
+- `block-type/block-name` indicates just the block, including any path included in the block configuration.
+- `block-type/block-name/path` indicates a storage path in addition to any path included in the block configuration.
+
+When specifying an infrastructure block with the `-ib` or `--infra-block` flag, you specify the block by passing its slug. The infrastructure block slug is formatted as `block-type/block-name`. 
+
+| Block name | Block class name | Block type for a slug |
+| --- | --- | --- |
+| Azure | `Azure` | `azure` |
+| Docker Container | `DockerContainer` | `docker-container` |
+| GitHub | `GitHub` | `github` |
+| GCS | `GCS` | `gcs` |
+| Kubernetes Job | `KubernetesJob` | `kubernetes-job` |
+| Process | `Process` | `process` |
+| Remote File System | `RemoteFileSystem` | `remote-file-system` |
+| S3 | `S3` | `s3` |
+| SMB | `SMB` | `smb` |
+
+Note that the appropriate library supporting the storage filesystem must be installed prior to building a deployment with a storage block. For example, the AWS S3 Storage block requires the [`s3fs`](https://s3fs.readthedocs.io/en/latest/) library. See [Storage](/concepts/storage/) for more information.
 
 ### deployment.yaml
 
