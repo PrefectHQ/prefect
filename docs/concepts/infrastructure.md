@@ -226,17 +226,19 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 | stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
 
 
-### ECSTask
+### ECSTask <span class="badge experimental"></span>
+
 [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) infrastructure runs your flow in an ECS Task.
 
-> ⚠️ Note this infrastructure block is experimental. The intefaces within may change without notice.
+!!! note "Experimental block"
+    This infrastructure block is experimental. The interfaces of this block may change without notice.
 
 Requirements for `ECSTask`:
 
-- The ephemeral Orion API won't work with ECS directly. You must have an Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
-- `prefect-aws` [collection](https://github.com/PrefectHQ/prefect-aws) must be installed within the agent environment: `pip install prefect-aws`
-- the `ECSTask` and `AwsCredentials` blocks must be registered within the agent environment: `prefect block register -m prefect_aws.ecs`
-- You must configure remote [Storage](/concepts/storage/). Local storage is not supported for ECS tasks. The most commonly used type of storage with `ECSTask` is S3. If you leverage that type of block, make sure that `s3fs` is installed within your agent and flow run environment. The easiest way to satisfy all the installation-related points mentioned above is to leverage the following commands in your Dockerfile:  
+- The ephemeral Prefect Orion API won't work with ECS directly. You must have a Prefect Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
+- The `prefect-aws` [collection](https://github.com/PrefectHQ/prefect-aws) must be installed within the agent environment: `pip install prefect-aws`
+- The `ECSTask` and `AwsCredentials` blocks must be registered within the agent environment: `prefect block register -m prefect_aws.ecs`
+- You must configure remote [Storage](/concepts/storage/). Local storage is not supported for ECS tasks. The most commonly used type of storage with `ECSTask` is S3. If you leverage that type of block, make sure that [`s3fs`](https://s3fs.readthedocs.io/en/latest/) is installed within your agent and flow run environment. The easiest way to satisfy all the installation-related points mentioned above is to include the following commands in your Dockerfile:  
 
 ```Dockerfile
 FROM prefecthq/prefect:2-python3.9  # example base image 
