@@ -22,7 +22,7 @@
           <WorkQueueFlowRunsList v-if="workQueue" :work-queue="workQueue" />
         </template>
         <template #runs>
-          <FlowRunList v-if="flowRuns.length" :flow-runs="flowRuns" disabled :selected="selectedFlowRuns" />
+          <FlowRunList v-if="flowRuns.length" :flow-runs="flowRuns" disabled :selected="[]" />
           <PEmptyResults v-else>
             <template #message>
               No runs from the last 7 days
@@ -40,10 +40,10 @@
 
 
 <script lang="ts" setup>
-  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunList, WorkQueueFlowRunsList, CodeBanner, localization, useFlowRunFilterFromParam } from '@prefecthq/orion-design'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunList, WorkQueueFlowRunsList, CodeBanner, localization, UnionFilters } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed, watch, ref, Ref } from 'vue'
+  import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
   import { routes } from '@/router'
@@ -69,28 +69,22 @@
     interval: 300000,
   }
 
-
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value], subscriptionOptions)
   const workQueue = computed(() => workQueueSubscription.response)
 
-  const workQueueName = async () => await workQueuesApi.getWorkQueue(workQueueId.value)
+  const workQueueName = computed(() => workQueue.value?.name ?? '')
 
+  const flowRunFilter = computed<UnionFilters>(() => ({
+    flow_runs: {
+      work_queue_name: {
+        any_: [workQueueName.value],
+      },
+      state: {},
+    },
+  }))
 
-  const WQfilter = async ()=> {
-    const { name } = await workQueueName()
-    const fill = useFlowRunFilterFromParam({ workQueues: [name] })
-    console.log('fill', fill.filter.value)
-    return fill.filter.value
-  }
-
-  console.log('filter', await WQfilter())
-
-
-  const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [await WQfilter()], subscriptionOptions)
+  const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [flowRunFilter], subscriptionOptions)
   const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
-
-  const selectedFlowRuns = ref([])
-
 
   const routeToQueues = (): void => {
     router.push(routes.workQueues())
