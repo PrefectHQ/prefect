@@ -2,13 +2,13 @@
 Reduced schemas for accepting API actions.
 """
 import re
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 from pydantic import Field, validator
 
 import prefect.orion.schemas as schemas
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion.utilities.schemas import From, PrefectBaseModel, copy_model_fields
 
 LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
 
@@ -31,135 +31,105 @@ def validate_block_document_name(value):
     return value
 
 
-class FlowCreate(
-    schemas.core.Flow.subclass(
-        name="FlowCreate",
-        include_fields=["name", "tags"],
-    )
-):
+@copy_model_fields
+class FlowCreate(PrefectBaseModel):
     """Data used by the Orion API to create a flow."""
 
+    name: str = From(schemas.core.Flow)
+    tags: List[str] = From(schemas.core.Flow)
+
     class Config:
         extra = "forbid"
 
 
-class FlowUpdate(
-    schemas.core.Flow.subclass(name="FlowUpdate", include_fields=["tags"])
-):
+@copy_model_fields
+class FlowUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a flow."""
 
+    tags: List[str] = From(schemas.core.Flow)
+
     class Config:
         extra = "forbid"
 
 
-class DeploymentCreate(
-    schemas.core.Deployment.subclass(
-        name="DeploymentCreate",
-        include_fields=[
-            "name",
-            "version",
-            "flow_id",
-            "schedule",
-            "is_schedule_active",
-            "work_queue_name",
-            "description",
-            "tags",
-            "parameters",
-            "manifest_path",
-            "parameter_openapi_schema",
-            "storage_document_id",
-            "path",
-            "entrypoint",
-            "infrastructure_document_id",
-            "infra_overrides",
-        ],
-    )
-):
+@copy_model_fields
+class DeploymentCreate(PrefectBaseModel):
     """Data used by the Orion API to create a deployment."""
 
+    name: str = From(schemas.core.Deployment)
+    version: Optional[str] = From(schemas.core.Deployment)
+    description: str = From(schemas.core.Deployment)
+    flow_id: UUID = From(schemas.core.Deployment)
+    schedule: schemas.schedules.SCHEDULE_TYPES = From(schemas.core.Deployment)
+    is_schedule_active: bool = From(schemas.core.Deployment)
+    infra_overrides: Dict[str, Any] = From(schemas.core.Deployment)
+    parameters: Dict[str, Any] = From(schemas.core.Deployment)
+    tags: List[str] = From(schemas.core.Deployment)
+    work_queue_name: Optional[str] = From(schemas.core.Deployment)
+    parameter_openapi_schema: Dict[str, Any] = From(schemas.core.Deployment)
+    path: str = From(schemas.core.Deployment)
+    entrypoint: str = From(schemas.core.Deployment)
+    manifest_path: str = From(schemas.core.Deployment)
+    storage_document_id: Optional[UUID] = From(schemas.core.Deployment)
+    infrastructure_document_id: Optional[UUID] = From(schemas.core.Deployment)
+
     class Config:
         extra = "forbid"
 
 
-class DeploymentUpdate(
-    schemas.core.Deployment.subclass(
-        name="DeploymentUpdate",
-        include_fields=[
-            "version",
-            "schedule",
-            "is_schedule_active",
-            "description",
-            "work_queue_name",
-            "tags",
-            "manifest_path",
-            "path",
-            "entrypoint",
-            "parameters",
-            "storage_document_id",
-            "infrastructure_document_id",
-            "infra_overrides",
-        ],
-    )
-):
+@copy_model_fields
+class DeploymentUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a deployment."""
 
+    version: Optional[str] = From(schemas.core.Deployment)
+    description: str = From(schemas.core.Deployment)
+    schedule: schemas.schedules.SCHEDULE_TYPES = From(schemas.core.Deployment)
+    is_schedule_active: bool = From(schemas.core.Deployment)
+    infra_overrides: Dict[str, Any] = From(schemas.core.Deployment)
+    parameters: Dict[str, Any] = From(schemas.core.Deployment)
+    tags: List[str] = From(schemas.core.Deployment)
+    work_queue_name: Optional[str] = From(schemas.core.Deployment)
+    path: str = From(schemas.core.Deployment)
+    entrypoint: str = From(schemas.core.Deployment)
+    manifest_path: str = From(schemas.core.Deployment)
+    storage_document_id: Optional[UUID] = From(schemas.core.Deployment)
+    infrastructure_document_id: Optional[UUID] = From(schemas.core.Deployment)
+
     class Config:
         extra = "forbid"
 
 
-class FlowRunUpdate(
-    schemas.core.FlowRun.subclass(
-        name="FlowRunUpdate",
-        include_fields=[
-            "flow_version",
-            "parameters",
-            "name",
-            "tags",
-            "empirical_policy",
-        ],
-    )
-):
+@copy_model_fields
+class FlowRunUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a flow run."""
 
+    name: str = From(schemas.core.FlowRun)
+    flow_version: str = From(schemas.core.FlowRun)
+    parameters: dict = From(schemas.core.FlowRun)
+    empirical_policy: schemas.core.FlowRunPolicy = From(schemas.core.FlowRun)
+    tags: List[str] = From(schemas.core.FlowRun)
+
     class Config:
         extra = "forbid"
 
 
-class StateCreate(
-    schemas.states.State.subclass(
-        name="StateCreate",
-        include_fields=[
-            "type",
-            "name",
-            "message",
-            "data",
-            "state_details",
-        ],
-    )
-):
+@copy_model_fields
+class StateCreate(PrefectBaseModel):
     """Data used by the Orion API to create a new state."""
 
+    type: schemas.states.StateType = From(schemas.states.State)
+    name: str = From(schemas.states.State)
+    timestamp: schemas.core.DateTimeTZ = From(schemas.states.State)
+    message: str = From(schemas.states.State)
+    data: schemas.data.DataDocument = From(schemas.states.State)
+    state_details: schemas.states.StateDetails = From(schemas.states.State)
+
     class Config:
-        extra = "forbid"
+        extra = "ignore"
 
 
-class TaskRunCreate(
-    schemas.core.TaskRun.subclass(
-        name="TaskRunCreate",
-        include_fields=[
-            "name",
-            "flow_run_id",
-            "task_key",
-            "dynamic_key",
-            "cache_key",
-            "cache_expiration",
-            "task_version",
-            "empirical_policy",
-            "tags",
-            "task_inputs",
-        ],
-    )
-):
+@copy_model_fields
+class TaskRunCreate(PrefectBaseModel):
     """Data used by the Orion API to create a task run"""
 
     # TaskRunCreate states must be provided as StateCreate objects
@@ -167,25 +137,29 @@ class TaskRunCreate(
         default=None, description="The state of the task run to create"
     )
 
-
-class FlowRunCreate(
-    schemas.core.FlowRun.subclass(
-        name="FlowRunCreate",
-        include_fields=[
-            "name",
-            "flow_id",
-            "deployment_id",
-            "flow_version",
-            "parameters",
-            "context",
-            "tags",
-            "idempotency_key",
-            "parent_task_run_id",
-            "empirical_policy",
-            "infrastructure_document_id",
+    name: str = From(schemas.core.TaskRun)
+    flow_run_id: UUID = From(schemas.core.TaskRun)
+    task_key: str = From(schemas.core.TaskRun)
+    dynamic_key: str = From(schemas.core.TaskRun)
+    cache_key: str = From(schemas.core.TaskRun)
+    cache_expiration: schemas.core.DateTimeTZ = From(schemas.core.TaskRun)
+    task_version: str = From(schemas.core.TaskRun)
+    empirical_policy: schemas.core.TaskRunPolicy = From(schemas.core.TaskRun)
+    tags: List[str] = From(schemas.core.TaskRun)
+    task_inputs: Dict[
+        str,
+        List[
+            Union[
+                schemas.core.TaskRunResult,
+                schemas.core.Parameter,
+                schemas.core.Constant,
+            ]
         ],
-    )
-):
+    ] = From(schemas.core.TaskRun)
+
+
+@copy_model_fields
+class FlowRunCreate(PrefectBaseModel):
     """Data used by the Orion API to create a flow run."""
 
     class Config:
@@ -196,21 +170,21 @@ class FlowRunCreate(
         default=None, description="The state of the flow run to create"
     )
 
+    name: str = From(schemas.core.FlowRun)
+    flow_id: UUID = From(schemas.core.FlowRun)
+    deployment_id: UUID = From(schemas.core.FlowRun)
+    flow_version: str = From(schemas.core.FlowRun)
+    parameters: dict = From(schemas.core.FlowRun)
+    context: dict = From(schemas.core.FlowRun)
+    parent_task_run_id: UUID = From(schemas.core.FlowRun)
+    infrastructure_document_id: Optional[UUID] = From(schemas.core.FlowRun)
+    empirical_policy: schemas.core.FlowRunPolicy = From(schemas.core.FlowRun)
+    tags: List[str] = From(schemas.core.FlowRun)
+    idempotency_key: str = From(schemas.core.FlowRun)
 
-class DeploymentFlowRunCreate(
-    schemas.core.FlowRun.subclass(
-        name="FlowRunCreate",
-        include_fields=[
-            "name",
-            "parameters",
-            "context",
-            "tags",
-            "idempotency_key",
-            "empirical_policy",
-            "infrastructure_document_id",
-        ],
-    )
-):
+
+@copy_model_fields
+class DeploymentFlowRunCreate(PrefectBaseModel):
     """Data used by the Orion API to create a flow run from a deployment."""
 
     class Config:
@@ -221,45 +195,47 @@ class DeploymentFlowRunCreate(
         default=None, description="The state of the flow run to create"
     )
 
+    name: Optional[str] = From(schemas.core.FlowRun)
+    parameters: dict = From(schemas.core.FlowRun)
+    context: dict = From(schemas.core.FlowRun)
+    infrastructure_document_id: Optional[UUID] = From(schemas.core.FlowRun)
+    empirical_policy: schemas.core.FlowRunPolicy = From(schemas.core.FlowRun)
+    tags: List[str] = From(schemas.core.FlowRun)
+    idempotency_key: str = From(schemas.core.FlowRun)
 
-class SavedSearchCreate(
-    schemas.core.SavedSearch.subclass(
-        name="SavedSearchCreate",
-        include_fields=["name", "filters"],
-    )
-):
+
+@copy_model_fields
+class SavedSearchCreate(PrefectBaseModel):
     """Data used by the Orion API to create a saved search."""
 
+    name: str = From(schemas.core.SavedSearch)
+    filters: List[schemas.core.SavedSearchFilter] = From(schemas.core.SavedSearch)
+
     class Config:
         extra = "forbid"
 
 
-class ConcurrencyLimitCreate(
-    schemas.core.ConcurrencyLimit.subclass(
-        name="ConcurrencyLimitCreate",
-        include_fields=["tag", "concurrency_limit"],
-    )
-):
+@copy_model_fields
+class ConcurrencyLimitCreate(PrefectBaseModel):
     """Data used by the Orion API to create a concurrency limit."""
 
+    tag: str = From(schemas.core.ConcurrencyLimit)
+    concurrency_limit: int = From(schemas.core.ConcurrencyLimit)
+
     class Config:
         extra = "forbid"
 
 
-class BlockTypeCreate(
-    schemas.core.BlockType.subclass(
-        name="BlockTypeCreate",
-        include_fields=[
-            "name",
-            "slug",
-            "logo_url",
-            "documentation_url",
-            "description",
-            "code_example",
-        ],
-    )
-):
+@copy_model_fields
+class BlockTypeCreate(PrefectBaseModel):
     """Data used by the Orion API to create a block type."""
+
+    name: str = From(schemas.core.BlockType)
+    slug: str = From(schemas.core.BlockType)
+    logo_url: Optional[schemas.core.HttpUrl] = From(schemas.core.BlockType)
+    documentation_url: Optional[schemas.core.HttpUrl] = From(schemas.core.BlockType)
+    description: Optional[str] = From(schemas.core.BlockType)
+    code_example: Optional[str] = From(schemas.core.BlockType)
 
     class Config:
         extra = "forbid"
@@ -270,43 +246,41 @@ class BlockTypeCreate(
     )
 
 
+@copy_model_fields
 class BlockTypeUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a block type."""
 
     class Config:
         extra = "forbid"
 
-    logo_url: Optional[str] = None
-    documentation_url: Optional[str] = None
-    description: Optional[str] = None
-    code_example: Optional[str] = None
+    logo_url: Optional[schemas.core.HttpUrl] = From(schemas.core.BlockType)
+    documentation_url: Optional[schemas.core.HttpUrl] = From(schemas.core.BlockType)
+    description: Optional[str] = From(schemas.core.BlockType)
+    code_example: Optional[str] = From(schemas.core.BlockType)
 
 
-class BlockSchemaCreate(
-    schemas.core.BlockSchema.subclass(
-        name="BlockSchemaCreate",
-        include_fields=["fields", "capabilities", "block_type_id", "version"],
-    )
-):
+@copy_model_fields
+class BlockSchemaCreate(PrefectBaseModel):
     """Data used by the Orion API to create a block schema."""
+
+    fields: dict = From(schemas.core.BlockSchema)
+    block_type_id: Optional[UUID] = From(schemas.core.BlockSchema)
+    capabilities: List[str] = From(schemas.core.BlockSchema)
+    version: str = From(schemas.core.BlockSchema)
 
     class Config:
         extra = "forbid"
 
 
-class BlockDocumentCreate(
-    schemas.core.BlockDocument.subclass(
-        name="BlockDocumentCreate",
-        include_fields=[
-            "name",
-            "data",
-            "block_schema_id",
-            "block_type_id",
-            "is_anonymous",
-        ],
-    )
-):
+@copy_model_fields
+class BlockDocumentCreate(PrefectBaseModel):
     """Data used by the Orion API to create a block document."""
+
+    name: Optional[str] = From(schemas.core.BlockDocument)
+    data: dict = From(schemas.core.BlockDocument)
+    block_schema_id: UUID = From(schemas.core.BlockDocument)
+    block_type_id: UUID = From(schemas.core.BlockDocument)
+    is_anonymous: bool = From(schemas.core.BlockDocument)
 
     class Config:
         extra = "forbid"
@@ -317,119 +291,113 @@ class BlockDocumentCreate(
     )
 
 
+@copy_model_fields
 class BlockDocumentUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a block document."""
 
+    data: dict = From(schemas.core.BlockDocument)
+
     class Config:
         extra = "forbid"
 
-    data: Optional[dict] = None
 
-
-class BlockDocumentReferenceCreate(
-    schemas.core.BlockDocumentReference.subclass(
-        name="BlockDocumentReferenceCreate",
-        include_fields=[
-            "id",
-            "name",
-            "parent_block_document_id",
-            "reference_block_document_id",
-        ],
-    )
-):
+@copy_model_fields
+class BlockDocumentReferenceCreate(PrefectBaseModel):
     """Data used to create block document reference."""
 
+    id: UUID = From(schemas.core.BlockDocumentReference)
+    parent_block_document_id: UUID = From(schemas.core.BlockDocumentReference)
+    reference_block_document_id: UUID = From(schemas.core.BlockDocumentReference)
+    name: str = From(schemas.core.BlockDocumentReference)
+
     class Config:
         extra = "forbid"
 
 
-class LogCreate(
-    schemas.core.Log.subclass(
-        name="LogCreate",
-        include_fields=[
-            "name",
-            "level",
-            "message",
-            "timestamp",
-            "flow_run_id",
-            "task_run_id",
-        ],
-    )
-):
+@copy_model_fields
+class LogCreate(PrefectBaseModel):
     """Data used by the Orion API to create a log."""
 
+    name: str = From(schemas.core.Log)
+    level: int = From(schemas.core.Log)
+    message: str = From(schemas.core.Log)
+    timestamp: schemas.core.DateTimeTZ = From(schemas.core.Log)
+    flow_run_id: UUID = From(schemas.core.Log)
+    task_run_id: Optional[UUID] = From(schemas.core.Log)
+
     class Config:
         extra = "forbid"
 
 
-class WorkQueueCreate(
-    schemas.core.WorkQueue.subclass(
-        "WorkQueueCreate",
-        include_fields=[
-            "name",
-            "description",
-            "is_paused",
-            "concurrency_limit",
-            # DEPRECATED: filters are deprecated
-            "filter",
-        ],
-    )
-):
+@copy_model_fields
+class WorkQueueCreate(PrefectBaseModel):
     """Data used by the Orion API to create a work queue."""
 
+    name: str = From(schemas.core.WorkQueue)
+    description: Optional[str] = From(schemas.core.WorkQueue)
+    is_paused: bool = From(schemas.core.WorkQueue)
+    concurrency_limit: Optional[int] = From(schemas.core.WorkQueue)
+
+    # DEPRECATED
+
+    filter: Optional[schemas.core.QueueFilter] = Field(
+        None,
+        description="Filter criteria for the work queue.",
+        deprecated=True,
+    )
+
     class Config:
         extra = "forbid"
 
 
-class WorkQueueUpdate(
-    schemas.core.WorkQueue.subclass(
-        "WorkQueueUpdate",
-        include_fields=[
-            "description",
-            "is_paused",
-            "concurrency_limit",
-            # DEPRECATED: filters are deprecated
-            "filter",
-        ],
-    )
-):
+@copy_model_fields
+class WorkQueueUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a work queue."""
 
-    class Config:
-        extra = "forbid"
+    description: Optional[str] = From(schemas.core.WorkQueue)
+    is_paused: bool = From(schemas.core.WorkQueue)
+    concurrency_limit: Optional[int] = From(schemas.core.WorkQueue)
 
-    # DEPRECATED: names should not be updated, left here only for backwards-compatibility
+    # DEPRECATED
+
+    filter: Optional[schemas.core.QueueFilter] = Field(
+        None,
+        description="Filter criteria for the work queue.",
+        deprecated=True,
+    )
+
+    # Names should not be updated, left here only for backwards-compatibility
     name: Optional[str] = Field(
         default=None, description="The name of the work queue.", deprecated=True
     )
 
+    class Config:
+        extra = "forbid"
 
-class FlowRunNotificationPolicyCreate(
-    schemas.core.FlowRunNotificationPolicy.subclass(
-        "FlowRunNotificationPolicyCreate",
-        include_fields=[
-            "is_active",
-            "state_names",
-            "tags",
-            "block_document_id",
-            "message_template",
-        ],
-    )
-):
+
+@copy_model_fields
+class FlowRunNotificationPolicyCreate(PrefectBaseModel):
     """Data used by the Orion API to create a flow run notification policy."""
+
+    is_active: bool = From(schemas.core.FlowRunNotificationPolicy)
+    state_names: List[str] = From(schemas.core.FlowRunNotificationPolicy)
+    tags: List[str] = From(schemas.core.FlowRunNotificationPolicy)
+    block_document_id: UUID = From(schemas.core.FlowRunNotificationPolicy)
+    message_template: str = From(schemas.core.FlowRunNotificationPolicy)
 
     class Config:
         extra = "forbid"
 
 
+@copy_model_fields
 class FlowRunNotificationPolicyUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a flow run notification policy."""
 
     class Config:
         extra = "forbid"
 
-    is_active: Optional[bool] = None
-    state_names: Optional[List[str]] = None
-    tags: Optional[List[str]] = None
-    block_document_id: Optional[UUID] = None
-    message_template: Optional[str] = None
+    is_active: Optional[bool] = From(schemas.core.FlowRunNotificationPolicy)
+    state_names: Optional[List[str]] = From(schemas.core.FlowRunNotificationPolicy)
+    tags: Optional[List[str]] = From(schemas.core.FlowRunNotificationPolicy)
+    block_document_id: Optional[UUID] = From(schemas.core.FlowRunNotificationPolicy)
+    message_template: Optional[str] = From(schemas.core.FlowRunNotificationPolicy)
