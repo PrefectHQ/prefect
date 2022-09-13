@@ -7,14 +7,12 @@ tags:
 
 # Welcome to Prefect 2
 
-<span style="margin-top: 0; margin-bottom: 0;">![Prefect 2 logo](./img/logos/prefect-2-logo-dark.png)</span>
-
-!!! help "Looking for Prefect 1.0 Core and Server?"
-    Prefect 2 is now available for general use. See our [Migration Guide](/migration-guide/) to move your flows from Prefect 1 Prefect 2.
+!!! help "Looking for Prefect 1 Core and Server?"
+    Prefect 2 is now available for general use. See our [Migration Guide](/migration-guide/) to move your flows from Prefect 1 to Prefect 2.
 
     If you're looking for the [Prefect 1 Core and Server documentation](http://docs-v1.prefect.io/), they're available at [http://docs-v1.prefect.io/](http://docs-v1.prefect.io/).
 
-## Prefect coordinates dataflows
+## Prefect coordinates your dataflow
 
 Prefect is [air traffic control for the modern data stack](https://www.prefect.io/guide/blog/the-global-coordination-plane#ATCfortheMDS). Monitor, coordinate, and orchestrate dataflows between and across your applications. Build pipelines, deploy them anywhere, and configure them remotely. You might just love your workflows again.
 
@@ -22,14 +20,14 @@ Prefect is [air traffic control for the modern data stack](https://www.prefect.i
 
 If you move data, you probably need the following functionality:
 
-- [schedules](concepts/schedules/)
+- [scheduling](concepts/schedules/)
 - [retries](concepts/tasks/#task-arguments)
 - [logging](concepts/logs/)
 - [caching](concepts/tasks/#caching)
 - [notifications](ui/notifications/)
 - [observability](/ui/overview/)
 
-Implementing all of these features for your dataflows is a huge pain that takes a lot of time &mdash; time that could be better used writing functional code.
+Implementing all of these features for your dataflows is a huge pain that takes a lot of time &mdash; time that could be better used writing domain-specific code.
 
 That's why Prefect 2 offers all this functionality and more! 
 
@@ -41,7 +39,7 @@ Prefect 2 was designed for incremental adoption into your workflows. The documen
 
 Begin by [installing Prefect 2](/getting-started/installation/) on your machine, then follow one of our [friendly tutorials](/tutorials/first-steps/) to learn by example. See the [Getting Started overview](/getting-started/overview/) for more.
 
-Even if you have used Prefect 1.0 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps. Prefect 2 offers significant new functionality.
+Even if you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps. Prefect 2 offers significant new functionality.
 
 
 **Concepts**
@@ -104,7 +102,12 @@ Prefect is often used with [Docker and Kubernetes](/concepts/deployments/).
 
 **Security first**
 
-Prefect helps you keep your data and code secure. Prefect's patented [hybrid execution model](https://www.prefect.io/why-prefect/hybrid-model/) means your data can stay in your environment while Prefect Cloud orchestrates your flows. Prefect, the company, is SOC2 Type II compliant and our enterprise product makes it easy for you to restrict access to the right people in your organization.
+Prefect helps you keep your data and code secure. Prefect's patented [hybrid execution model](https://www.prefect.io/why-prefect/hybrid-model/) means:
+
+- **(OSS)** Prefect's orchestration and execution layers can be managed independently
+- **(Cloud)** your data can stay in your environment while Prefect Cloud manages orchestration of your dataflow
+
+Prefect Technologies is SOC2 Type II compliant and our enterprise product makes it easy for you to restrict access to the right people in your organization.
 
 **A user friendly, interactive dashboard for your dataflows**
 

@@ -1,4 +1,4 @@
-site_name: Prefect 2.0
+site_name: Prefect 2
 site_url: https://docs.prefect.io/
 repo_url: https://github.com/PrefectHQ/prefect
 edit_uri: edit/main/docs
@@ -26,9 +26,11 @@ markdown_extensions:
             - name: mermaid
               class: mermaid
               format: !!python/name:pymdownx.superfences.fence_code_format
+    - pymdownx.details
     - pymdownx.tabbed
     - toc:
-          permalink: true
+        permalink: true
+    - pymdownx.snippets
 theme:
     name: material
     custom_dir: docs/overrides
@@ -45,7 +47,7 @@ theme:
         code: Source Code Pro
     icon:
         repo: fontawesome/brands/github
-    logo: img/logos/prefect-2.0-logo-mark-white.png
+    logo: img/logos/prefect-logo-mark-solid-white-500.png
     palette:
         primary: blue
         accent: blue
@@ -68,8 +70,9 @@ plugins:
     gen-files:
         scripts:
             - docs/collections/generate_catalog.py
+            - docs/recipes/generate_catalog.py
 nav:
-    - Prefect 2.0: index.md
+    - Prefect 2: index.md
     - 'Getting Started':
         - Overview: getting-started/overview.md
         - Installation: getting-started/installation.md
@@ -79,13 +82,13 @@ nav:
             - tutorials/execution.md
             - tutorials/orion.md
             - tutorials/deployments.md
-            - tutorials/storage.md
             - tutorials/dask-ray-task-runners.md
             - tutorials/docker.md
             # - tutorials/kubernetes-flow-runner.md
             - tutorials/testing.md
             - Prefect Cloud: ui/cloud-getting-started.md
         - Migration Guide: migration-guide.md
+        - Prefect Recipes: recipes/recipes.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
@@ -97,7 +100,7 @@ nav:
         - Agents & Work Queues: concepts/work-queues.md
         - Storage: concepts/storage.md
         - Blocks: concepts/blocks.md
-        - File Systems: concepts/filesystems.md
+        - Filesystems: concepts/filesystems.md
         - Schedules: concepts/schedules.md
         - Logging: concepts/logs.md
         - Database: concepts/database.md
@@ -214,6 +217,6 @@ nav:
         # - Testing Flow Runners: contributing/testing-flow-runners.md
 
 extra:
-  analytics:
-    provider: google
-    property: G-3M31G9B0QJ
+    analytics:
+        provider: google
+        property: G-3M31G9B0QJ
