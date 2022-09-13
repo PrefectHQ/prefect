@@ -4,7 +4,7 @@ Injected database interface dependencies
 import inspect
 from contextlib import ExitStack, contextmanager
 from functools import wraps
-from typing import Callable
+from typing import Callable, Type
 
 from prefect.orion.database.configurations import (
     AioSqliteConfiguration,
@@ -184,7 +184,7 @@ def temporary_orm_config(tmp_orm_config: BaseORMConfiguration):
 
 
 @contextmanager
-def temporary_interface_class(tmp_interface_class: BaseORMConfiguration):
+def temporary_interface_class(tmp_interface_class: Type[OrionDBInterface]):
     """
     Temporarily override the Orion interface class When the context is closed,
     the existing interface will be restored.
@@ -206,7 +206,7 @@ def temporary_database_interface(
     tmp_database_config: BaseDatabaseConfiguration = None,
     tmp_queries: BaseQueryComponents = None,
     tmp_orm_config: BaseORMConfiguration = None,
-    tmp_interface_class: type = None,
+    tmp_interface_class: Type[OrionDBInterface] = None,
 ):
     """
     Temporarily override the Orion database interface.
@@ -252,6 +252,6 @@ def set_orm_config(orm_config: BaseORMConfiguration):
     MODELS_DEPENDENCIES["orm"] = orm_config
 
 
-def set_interface_class(interface_class: type):
+def set_interface_class(interface_class: Type[OrionDBInterface]):
     """Set Orion interface class."""
     MODELS_DEPENDENCIES["interface_class"] = interface_class
