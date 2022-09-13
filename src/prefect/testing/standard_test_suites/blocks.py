@@ -1,3 +1,4 @@
+import re
 from abc import ABC, abstractmethod
 from typing import Type
 
@@ -28,3 +29,15 @@ class BlockStandardTestSuite(ABC):
             assert field.field_info.description.endswith(
                 "."
             ), f"{name} description on {block.__name__} does not end with a period"
+
+    def test_has_a_valid_code_example(self, block: Type[Block]):
+        code_example = block.get_code_example()
+        assert code_example is not None, f"{block.__name__} is missing a code example"
+        import_pattern = rf"from .* import {block.__name__}"
+        assert (
+            re.search(import_pattern, code_example) is not None
+        ), f"The code example for {block.__name__} is missing an import statement matching the pattern {import_pattern}"
+        block_load_pattern = rf'.* = {block.__name__}\.load\("BLOCK_NAME"\)'
+        assert re.search(
+            block_load_pattern, code_example
+        ), f"The code example for {block.__name__} is missing a .load statement matching the pattern {block_load_pattern}"

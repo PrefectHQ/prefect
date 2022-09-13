@@ -223,6 +223,47 @@ def test_uses_labels_setting(
     assert labels["bar"] == "bar"
 
 
+async def test_sets_environment_variables(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+):
+
+    await KubernetesJob(
+        command=["echo", "hello"], env={"foo": "FOO", "bar": "BAR"}
+    ).run()
+    mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+
+    manifest = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]
+    pod = manifest["spec"]["template"]["spec"]
+    env = pod["containers"][0]["env"]
+    assert env == [
+        {"name": key, "value": value}
+        for key, value in {
+            **KubernetesJob._base_environment(),
+            "foo": "FOO",
+            "bar": "BAR",
+        }.items()
+    ]
+
+
+async def test_allows_unsetting_environment_variables(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+):
+    assert "PREFECT_TEST_MODE" in KubernetesJob._base_environment()
+    await KubernetesJob(
+        command=["echo", "hello"], env={"PREFECT_TEST_MODE": None}
+    ).run()
+    mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+    manifest = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]
+    pod = manifest["spec"]["template"]["spec"]
+    env = pod["containers"][0]["env"]
+    env_names = {variable["name"] for variable in env}
+    assert "PREFECT_TEST_MODE" not in env_names
+
+
 @pytest.mark.parametrize(
     "given,expected",
     [
@@ -329,6 +370,21 @@ def test_uses_service_account_name_setting(
         "spec"
     ]["template"]["spec"]["serviceAccountName"]
     assert service_account_name == "foo"
+
+
+def test_uses_finished_job_ttl_setting(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+):
+    mock_watch.stream = _mock_pods_stream_that_returns_running_pod
+
+    KubernetesJob(command=["echo", "hello"], finished_job_ttl=123).run(MagicMock())
+    mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+    finished_job_ttl = mock_k8s_batch_client.create_namespaced_job.call_args[0][1][
+        "spec"
+    ]["ttlSecondsAfterFinished"]
+    assert finished_job_ttl == 123
 
 
 def test_defaults_to_unspecified_image_pull_policy(
@@ -928,3 +984,9 @@ class TestLoadingPatchesFromFiles:
 
     def test_patch_from_json(self, example: KubernetesManifest, example_json: Path):
         assert KubernetesJob.customize_from_file(example_json) == example
+
+
+def test_run_requires_command():
+    job = KubernetesJob(command=[])
+    with pytest.raises(ValueError, match="cannot be run with empty command"):
+        job.run()

@@ -3,8 +3,8 @@ import enum
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Union
 
+import anyio.abc
 import yaml
-from anyio.abc import TaskStatus
 from pydantic import Field, validator
 from slugify import slugify
 from typing_extensions import Literal
@@ -64,6 +64,9 @@ class KubernetesJob(Infrastructure):
         pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 5).
         service_account_name: An optional string specifying which Kubernetes service account to use.
         stream_output: If set, stream output from the job to local standard output.
+        finished_job_ttl: The number of seconds to retain jobs after completion. If set, finished jobs will
+            be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be
+            manually removed.
     """
 
     type: Literal["kubernetes-job"] = Field(
@@ -108,6 +111,10 @@ class KubernetesJob(Infrastructure):
     stream_output: bool = Field(
         True,
         description="If set, output will be streamed from the job to local standard output.",
+    )
+    finished_job_ttl: Optional[int] = Field(
+        None,
+        description="The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed.",
     )
 
     # internal-use only right now
@@ -209,8 +216,11 @@ class KubernetesJob(Infrastructure):
     @sync_compatible
     async def run(
         self,
-        task_status: Optional[TaskStatus] = None,
+        task_status: Optional[anyio.abc.TaskStatus] = None,
     ) -> Optional[bool]:
+        if not self.command:
+            raise ValueError("Kubernetes job cannot be run with empty command.")
+
         # if a k8s cluster block is provided to the flow runner, use that
         if self.cluster_config:
             self.cluster_config.configure_client()
@@ -312,6 +322,15 @@ class KubernetesJob(Infrastructure):
                 }
             )
 
+        if self.finished_job_ttl is not None:
+            shortcuts.append(
+                {
+                    "op": "add",
+                    "path": "/spec/ttlSecondsAfterFinished",
+                    "value": self.finished_job_ttl,
+                }
+            )
+
         if self.command:
             shortcuts.append(
                 {
@@ -336,7 +355,12 @@ class KubernetesJob(Infrastructure):
                     "op": "add",
                     "path": "/metadata/generateName",
                     "value": "prefect-job-"
-                    + stable_hash(*self.command, *self.env.keys(), *self.env.values()),
+                    # We generate a name using a hash of the primary job settings
+                    + stable_hash(
+                        *self.command,
+                        *self.env.keys(),
+                        *[v for v in self.env.values() if v is not None],
+                    ),
                 }
             )
 
@@ -563,4 +587,5 @@ class KubernetesJob(Infrastructure):
                 .replace("127.0.0.1", self._api_dns_name)
             )
 
-        return env
+        # Drop null values allowing users to "unset" variables
+        return {key: value for key, value in env.items() if value is not None}

@@ -1,9 +1,13 @@
 ---
-description: Learn how to access and configure the Prefect UI and Prefect Cloud.
+description: Gain overall visibility and coordination of your workflows with Prefect UI and Prefect Cloud.
 tags:
     - Orion
     - UI
     - dashboard
+    - visibility
+    - coordination
+    - coordination plane
+    - orchestration
     - Prefect Cloud
 ---
 

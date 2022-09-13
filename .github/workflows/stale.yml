@@ -9,11 +9,11 @@ jobs:
     steps:
       - uses: actions/stale@v5
         with:
-          debug-only: true
-          enable-statistics: true
           stale-issue-message: "This issue is stale because it has been open 30 days with no activity. To keep this issue open remove stale label or comment."
+          stale-issue-label: "status:stale"
           close-issue-message: "This issue was closed because it has been stale for 7 days with no activity. If this issue is important or you have more to add feel free to re-open it."
           stale-pr-message: "This pull request is stale because it has been open 30 days with no activity. To keep this pull request open remove stale label or comment."
+          stale-pr-label: "status:stale"
           close-pr-message: "This pull request was closed because it has been stale for 7 days with no activity. If this pull request is important or you have more to add feel free to re-open it."
           days-before-stale: 30
           days-before-close: 14

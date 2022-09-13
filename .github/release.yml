@@ -3,9 +3,7 @@
 changelog:
   exclude:
     labels:
-      - ignore-for-release
-    authors:
-      - octocat
+      - maintenance
   categories:
     - title: Breaking Changes
       labels:
@@ -22,6 +20,9 @@ changelog:
     - title: Documentation
       labels:
         - docs
-    - title: Other Changes
+    - title: Collections
+      labels:
+        - collections
+    - title: Uncategorized
       labels:
         - "*"

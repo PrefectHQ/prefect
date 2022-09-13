@@ -1,20 +1,20 @@
 ---
-description: Answers to frequently asked questions about Prefect 2.0.
+description: Answers to frequently asked questions about Prefect 2.
 tags:
     - FAQ
+    - frequently asked questions
     - questions
     - license
-    - Orion
     - databases
 ---
 
 # Frequently Asked Questions
-## Prefect 2.0
 
+## Prefect 2
 
-### How is Prefect 2.0 licensed?
+### How is Prefect 2 licensed?
 
-Prefect 2.0 is licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0), an [OSI approved](https://opensource.org/licenses/Apache-2.0) open-source license. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
+Prefect 2 is licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0), an [OSI approved](https://opensource.org/licenses/Apache-2.0) open-source license. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
 
 ## The Orion Engine
 
@@ -48,14 +48,14 @@ Orion is capable of governing **any** code through a well-defined series of stat
 
 To achieve this, we've leveraged the familiar tools of native Python: first class functions, type annotations, and `async` support. Users are free to implement as much &mdash; or as little &mdash; of the Orion engine as is useful for their objectives.
 
-### If I’m using Prefect Cloud 2.0, do I still need to run Orion locally?
+### If I’m using Prefect Cloud 2, do I still need to run Orion locally?
 
-No, Prefect Cloud 2.0 hosts an instance of Orion for you. In fact, each workspace in Prefect Could 2.0 corresponds directly to a single instance of Orion. See [Getting Started with Prefect Cloud](/ui/cloud-getting-started/) for more information.
+No, Prefect Cloud 2 hosts an instance of Orion for you. In fact, each workspace in Prefect Could 2 corresponds directly to a single instance of Prefect Orion. See [Getting Started with Prefect Cloud](/ui/cloud-getting-started/) for more information.
 
 
 ## Features
 
-### Does Prefect 2.0 support mapping?
+### Does Prefect 2 support mapping?
 
 Yes! For more information, see the [`Task.map` API reference](/api-ref/prefect/tasks/#prefect.tasks.Task.map)
 
@@ -96,6 +96,18 @@ def my_flow():
     y = task_2(wait_for=[x])
 ```
 
+### Can I run Prefect flows on Linux?
+
+Yes! 
+
+See the [Installation](/getting-started/installation/) documentation and [Linux installation notes](/getting-started/installation/#linux-installation-notes) for details on getting started with Prefect on Linux.
+
+### Can I run Prefect flows on Windows?
+
+Yes!
+
+See the [Installation](/getting-started/installation/) documentation and [Windows installation notes](/getting-started/installation/#windows-installation-notes) for details on getting started with Prefect on Windows.
+
 ### What external requirements does Prefect have?
 
 Prefect does not have any additional requirements besides those installed by `pip install --pre prefect`. The entire system, including the UI and services, can be run in a single process via `prefect orion start` and does not require Docker.
@@ -114,6 +126,6 @@ This answer will be updated with more concrete guidelines in the future.
 
 ## Relationship with other Prefect products
 
-### Can a flow written with Prefect 1.0 be orchestrated with Prefect 2.0 and vice versa?
+### Can a flow written with Prefect 1 be orchestrated with Prefect 2 and vice versa?
 
-No. Flows written with the Prefect 1.0 client must be rewritten with the Prefect 2.0 client. For most flows, this should take just a few minutes. See our [migration guide](/migration-guide/) and our [Upgrade to Prefect 2](https://www.prefect.io/guide/blog/upgrade-to-prefect-2/) post for more information.
+No. Flows written with the Prefect 1 client must be rewritten with the Prefect 2 client. For most flows, this should take just a few minutes. See our [migration guide](/migration-guide/) and our [Upgrade to Prefect 2](https://www.prefect.io/guide/blog/upgrade-to-prefect-2/) post for more information.
