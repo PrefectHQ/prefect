@@ -293,8 +293,10 @@ class Deployment(BaseModel):
     @validator("infrastructure", pre=True)
     def infrastructure_must_have_capabilities(cls, value):
         if isinstance(value, dict):
-            block_type = lookup_type(Block, value.pop("_block_type_slug"))
-            block = block_type(**value)
+            if "_block_type_slug" in value:
+                # Replace private attribute with public for dispatch
+                value["block_type_slug"] = value.pop("_block_type_slug")
+            block = Block(**value)
         elif value is None:
             return value
         else:

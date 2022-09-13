@@ -43,6 +43,19 @@ class TestDeploymentBasicInterface:
         d = Deployment(name="foo", infrastructure=CustomInfra())
         assert isinstance(d.infrastructure, CustomInfra)
 
+    async def test_infrastructure_accepts_arbitrary_infra_types_as_dicts(self):
+        class CustomInfra(Infrastructure):
+            type = "CustomInfra"
+
+            def run(self):
+                return 42
+
+            def preview(self):
+                return "woof!"
+
+        d = Deployment(name="foo", infrastructure=CustomInfra().dict())
+        assert isinstance(d.infrastructure, CustomInfra)
+
     async def test_default_work_queue_name(self):
         d = Deployment(name="foo")
         assert d.work_queue_name == "default"
