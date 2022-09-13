@@ -52,7 +52,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentDescription, FlowRunList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, UnionFilters, useFlowRunFilterFromParameter } from '@prefecthq/orion-design'
+  import { DeploymentDescription, FlowRunList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, UnionFilters, useFlowRunFilterFromParameter, useRecentFlowRunFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, ref, watch } from 'vue'
@@ -92,7 +92,7 @@
 
   const flowId = computed(() => deployment.value?.flowId ?? '')
 
-  const flowFilter = computed<UnionFilters>(() => useFlowRunFilterFromParameter({ flows: [flowId.value] }).filter.value)
+  const flowFilter = computed<UnionFilters>(() => useRecentFlowRunFilter({ flows: ref([flowId.value]) }).value)
 
   const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [flowFilter], subscriptionOptions)
   const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
