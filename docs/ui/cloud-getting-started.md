@@ -117,7 +117,7 @@ You can log out of Prefect Cloud by switching to a different profile.
 
 ### Changing workspaces
 
-If you need to change which workspace you're syncing with, use the `prefect cloud workspace set` Prefect CLI command while logged in, passing the the account handle and workspace name.
+If you need to change which workspace you're syncing with, use the `prefect cloud workspace set` Prefect CLI command while logged in, passing the account handle and workspace name.
 
 <div class="terminal">
 ```bash

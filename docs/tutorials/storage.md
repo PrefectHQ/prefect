@@ -142,7 +142,7 @@ Successfully loaded 'log-flow-s3'
 Deployment 'log-flow/log-flow-s3' successfully created with id
 '73b0288e-d5bb-4b37-847c-fa68fda39c81'.
 
-To execute flow runs from this deployment, start an agent that pulls work from the the 'test'
+To execute flow runs from this deployment, start an agent that pulls work from the 'test'
 work queue:
 $ prefect agent start -q 'test'
 ```
@@ -152,7 +152,7 @@ When you create flow runs from this deployment, the agent pulls the flow script 
 
 ## Infrastructure
 
-Similar to storage blocks, infrastructure [blocks](/concepts/blocks/) contain configuration for interacting with external systems. In the case of infrastructure this his includes settings that [agents](/concepts/work-queues/) use to create an execution environment for a flow run.
+Similar to storage blocks, infrastructure [blocks](/concepts/blocks/) contain configuration for interacting with external systems. Specifically, infrastructure includes settings that [agents](/concepts/work-queues/) use to create an execution environment for a flow run.
 
 Infrastructure includes configuration for environments such as:
 

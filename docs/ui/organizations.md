@@ -1,5 +1,5 @@
 ---
-description: Learn about using Prefect Cloud.
+description: Manage teams and organizations in Prefect Cloud.
 tags:
     - UI
     - dashboard

@@ -180,9 +180,7 @@ Prefect [blocks](/concepts/blocks/) enable you to create storage configurations 
 Agents and work queues bridge the Prefect Orion orchestration engine and API with your local execution environments.
 
 - Work queues are configured on the server. They contain logic that determines which flow runs a given queue will serve to waiting agents. 
-- Agents run in a local execution environment. They pick up work from a specific work queue and execute those flow runs.
-
-There is no default global work queue or agent, so to orchestrate flow runs you need to configure at least one work queue and agent. 
+- Agents run in a local execution environment. They pick up work from a specific work queue and execute those flow runs. 
 
 You can create work queues:
 

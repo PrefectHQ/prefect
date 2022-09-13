@@ -2,20 +2,19 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
-from typing import Iterator, List, Optional, Set
+from typing import Iterator, List, Optional, Set, Union
 from uuid import UUID
 
 import anyio
+import anyio.abc
 import anyio.to_process
 import pendulum
-from anyio.abc import TaskGroup
 
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client
 from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
-from prefect.infrastructure import Infrastructure, Process
-from prefect.infrastructure.submission import submit_flow_run
+from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
 from prefect.orion.schemas.data import DataDocument
@@ -42,7 +41,7 @@ class OrionAgent:
         self.submitting_flow_run_ids = set()
         self.started = False
         self.logger = get_logger("agent")
-        self.task_group: Optional[TaskGroup] = None
+        self.task_group: Optional[anyio.abc.TaskGroup] = None
         self.client: Optional[OrionClient] = None
 
         self._work_queue_cache_expiration: pendulum.DateTime = None
@@ -189,29 +188,73 @@ class OrionAgent:
         infra_document = BlockDocument(**doc_dict)
         infrastructure_block = Block._from_block_document(infra_document)
         # TODO: Here the agent may update the infrastructure with agent-level settings
-        return infrastructure_block
+
+        prepared_infrastructure = infrastructure_block.prepare_for_flow_run(flow_run)
+        return prepared_infrastructure
 
     async def submit_run(self, flow_run: FlowRun) -> None:
         """
-        Submit a flow run to the flow runner
+        Submit a flow run to the infrastructure
         """
         ready_to_submit = await self._propose_pending_state(flow_run)
 
         if ready_to_submit:
             infrastructure = await self.get_infrastructure(flow_run)
 
-            try:
-                # Wait for submission to be completed. Note that the submission function
-                # may continue to run in the background after this exits.
-                await self.task_group.start(submit_flow_run, flow_run, infrastructure)
-                self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
-            except Exception as exc:
-                self.logger.exception(
-                    f"Failed to submit flow run '{flow_run.id}' to infrastructure.",
-                )
-                await self._propose_failed_state(flow_run, exc)
+            # Wait for submission to be completed. Note that the submission function
+            # may continue to run in the background after this exits.
+            await self.task_group.start(
+                self._submit_run_and_capture_errors, flow_run, infrastructure
+            )
+            self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
 
         self.submitting_flow_run_ids.remove(flow_run.id)
+
+    async def _submit_run_and_capture_errors(
+        self,
+        flow_run: FlowRun,
+        infrastructure: Infrastructure,
+        task_status: anyio.abc.TaskStatus = None,
+    ) -> Union[InfrastructureResult, Exception]:
+
+        # Note: There is not a clear way to determine if task_status.started() has been
+        #       called without peeking at the internal `_future`. Ideally we could just
+        #       check if the flow run id has been removed from `submitting_flow_run_ids`
+        #       but it is not so simple to guarantee that this coroutine yields back
+        #       to `submit_run` to execute that line when exceptions are raised during
+        #       submission.
+        try:
+            result = await infrastructure.run(task_status=task_status)
+        except Exception as exc:
+            if not task_status._future.done():
+                # This flow run was being submitted and did not start successfully
+                self.logger.exception(
+                    f"Failed to submit flow run '{flow_run.id}' to infrastructure."
+                )
+                # Mark the task as started to prevent agent crash
+                task_status.started(exc)
+                await self._propose_failed_state(flow_run, exc)
+            else:
+                self.logger.exception(
+                    f"An error occured while monitoring flow run '{flow_run.id}'. "
+                    "The flow run will not be marked as failed, but an issue may have "
+                    "occurred."
+                )
+            return exc
+
+        if not task_status._future.done():
+            self.logger.error(
+                f"Infrastructure returned without reporting flow run '{flow_run.id}' "
+                "as started or raising an error. This behavior is not expected and "
+                "generally indicates improper implementation of infrastructure. The "
+                "flow run will not be marked as failed, but an issue may have occurred."
+            )
+            # Mark the task as started to prevent agent crash
+            task_status.started()
+
+        # TODO: Check the result for a bad exit code and proposing a crashed state for the
+        #       run
+        return result
 
     async def _propose_pending_state(self, flow_run: FlowRun) -> bool:
         state = flow_run.state

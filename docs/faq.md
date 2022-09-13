@@ -1,10 +1,10 @@
 ---
-description: Answers to frequently asked questions about Prefect 2.0.
+description: Answers to frequently asked questions about Prefect 2.
 tags:
     - FAQ
+    - frequently asked questions
     - questions
     - license
-    - Orion
     - databases
 ---
 
@@ -95,6 +95,18 @@ def my_flow():
     # task 2 will wait for task_1 to complete
     y = task_2(wait_for=[x])
 ```
+
+### Can I run Prefect flows on Linux?
+
+Yes! 
+
+See the [Installation](/getting-started/installation/) documentation and [Linux installation notes](/getting-started/installation/#linux-installation-notes) for details on getting started with Prefect on Linux.
+
+### Can I run Prefect flows on Windows?
+
+Yes!
+
+See the [Installation](/getting-started/installation/) documentation and [Windows installation notes](/getting-started/installation/#windows-installation-notes) for details on getting started with Prefect on Windows.
 
 ### What external requirements does Prefect have?
 
