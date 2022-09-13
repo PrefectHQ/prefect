@@ -351,15 +351,18 @@ class ORMBaseModel(IDBaseModel):
 
 
 @dataclass
-class _FromField:
+class _FieldFrom:
     """Container for holding the origin of a field's definition"""
 
     origin: Type[BaseModel]
 
 
-def From(origin: Type[BaseModel]) -> Any:
-    """Indicates that the given field is to be copied from another class"""
-    return _FromField(origin)
+def FieldFrom(origin: Type[BaseModel]) -> Any:
+    """
+    Indicates that the given field is to be copied from another class by
+    `copy_model_fields`.
+    """
+    return _FieldFrom(origin)
 
 
 def copy_model_fields(model_class: Type[B]) -> Type[B]:
@@ -392,7 +395,7 @@ def copy_model_fields(model_class: Type[B]) -> Type[B]:
 
     """
     for name, field in model_class.__fields__.items():
-        if not isinstance(field.default, _FromField):
+        if not isinstance(field.default, _FieldFrom):
             continue
 
         origin = field.default.origin
