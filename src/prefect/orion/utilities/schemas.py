@@ -5,6 +5,7 @@ import copy
 import datetime
 import json
 import os
+from dataclasses import dataclass
 from functools import partial
 from typing import Any, Dict, List, Optional, Set, Type, TypeVar
 from uuid import UUID, uuid4
@@ -347,3 +348,73 @@ class ORMBaseModel(IDBaseModel):
 
     def _reset_fields(self) -> Set[str]:
         return super()._reset_fields().union({"created", "updated"})
+
+
+@dataclass
+class _FromField:
+    """Container for holding the origin of a field's definition"""
+
+    origin: Type[BaseModel]
+
+
+def From(origin: Type[BaseModel]) -> Any:
+    """Indicates that the given field is to be copied from another class"""
+    return _FromField(origin)
+
+
+def copy_model_fields(model_class: Type[B]) -> Type[B]:
+    """
+    A class decorator which copies field definitions and field validators from other
+    Pydantic BaseModel classes.  This does _not_ make the model a subclass of any of
+    the copied field's owning classes, nor does this copy root validators from any of
+    those classes.  Note that you should still include the type hint for the field in
+    order to make typing explicit.
+
+    Use this decorator and the corresponding `From` field to compose response and
+    action schemas from other classes.
+
+    Example:
+
+        >>> from pydantic import BaseModel
+        >>> from prefect.orion.utilities.schemas import copy_model_fields, From
+        >>>
+        >>> class Parent(BaseModel):
+        ...     name: str
+        ...     sensitive: str
+        >>>
+        >>> @copy_model_fields
+        >>> class Derived(BaseModel):
+        ...     name: str = From(Parent)
+        ...     my_own: str
+
+        In this example, `Derived` will have the fields `name`, and `my_own`, with the
+        `name` field being a complete copy of the `Parent.name` field.
+
+    """
+    for name, field in model_class.__fields__.items():
+        if not isinstance(field.default, _FromField):
+            continue
+
+        origin = field.default.origin
+
+        origin_field = origin.__fields__[name]
+        if field.type_ != origin_field.type_:
+            if not issubclass(
+                origin_field.type_,
+                field.type_,
+            ):
+                raise TypeError(
+                    f"Field {name} ({field.type_}) does not match the type of the origin "
+                    f"field {origin_field.type_}"
+                )
+
+        model_class.__fields__[name] = copy.copy(origin_field)
+        if name in origin.__validators__:
+            # The type: ignores here are because pydantic has a mistyping for these
+            # __validators__ fields (TODO: file an upstream PR)
+            validators: list = list(origin.__validators__[name])  # type: ignore
+            if name in model_class.__validators__:
+                validators.extend(model_class.__validators__[name])  # type: ignore
+            model_class.__validators__[name] = validators  # type: ignore
+
+    return model_class
