@@ -1,7 +1,10 @@
+from datetime import timedelta
+
 import pytest
 
 from prefect import flow
 from prefect.deployments import Deployment
+from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.testing.cli import invoke_and_assert
 
 
@@ -165,6 +168,86 @@ class TestInputValidation:
             temp_dir=tmp_path,
         )
 
+    def test_param_overrides(self, patch_import, tmp_path):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+        )
+        deployment_id = d.apply()
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--param",
+                "foo=bar",
+                "--param",
+                'greenman_says={"parsed as json": "I am"}',
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.parameters["foo"] == "bar"
+        assert deployment.parameters["greenman_says"] == {"parsed as json": "I am"}
+
+    def test_parameters_override(self, patch_import, tmp_path):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+        )
+        deployment_id = d.apply()
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--params",
+                '{"greenman_says": {"parsed as json": "I am"}}',
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.parameters["greenman_says"] == {"parsed as json": "I am"}
+
+    def test_mixing_parameter_overrides(self, patch_import, tmp_path):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+        )
+        deployment_id = d.apply()
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--params",
+                '{"which": "parameter"}',
+                "--param",
+                "shouldbe:used",
+            ],
+            expected_code=1,
+            temp_dir=tmp_path,
+        )
+
     def test_parsing_rrule_schedule_string_literal(self, patch_import, tmp_path):
         invoke_and_assert(
             [
@@ -286,4 +369,110 @@ class TestOutputMessages:
                 "will not be able to pick up its runs. To add a work queue, "
                 "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
             ),
+        )
+
+
+class TestUpdatingDeployments:
+    @pytest.fixture
+    async def flojo(self, orion_client):
+        @flow
+        async def rence_griffith():
+            pass
+
+        flow_id = await orion_client.create_flow(rence_griffith)
+        old_record = IntervalSchedule(interval=timedelta(seconds=10.76))
+
+        deployment_id = await orion_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment",
+            version="git-commit-hash",
+            manifest_path="path/file.json",
+            schedule=old_record,
+            parameters={"foo": "bar"},
+            tags=["foo", "bar"],
+            parameter_openapi_schema={},
+        )
+
+    def test_updating_schedules(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["10.76"],  # 100 m record
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--interval",
+                "10.49",  # July 16, 1988
+            ],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["10.49"],  # flo-jo breaks the world record
+            expected_code=0,
+        )
+
+    def test_incompatible_schedule_parameters(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--interval",
+                "424242",
+                "--cron",
+                "i dont know cron syntax dont judge",
+            ],
+            expected_code=1,
+            expected_output_contains="Incompatible schedule parameters",
+        )
+
+    def test_pausing_and_resuming_schedules(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "pause-schedule",
+                "rence-griffith/test-deployment",
+            ],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'is_schedule_active': False"],
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "resume-schedule",
+                "rence-griffith/test-deployment",
+            ],
+            expected_code=0,
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'is_schedule_active': True"],
         )
