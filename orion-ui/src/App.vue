@@ -12,7 +12,7 @@
     </template>
     <ContextSidebar v-if="showMenu" class="app__sidebar" @click="close" />
     <suspense>
-      <RouterView />
+      <AppRouterView />
     </suspense>
   </div>
 </template>
@@ -62,7 +62,7 @@
   import { blockTypesApi } from './services/blockTypesApi'
   import { notificationsApi } from './services/notificationsApi'
   import ContextSidebar from '@/components/ContextSidebar.vue'
-  import RouterView from '@/pages/RouterView.vue'
+  import AppRouterView from '@/pages/AppRouterView.vue'
   import { routes } from '@/router/routes'
   import { blockCapabilitiesApi } from '@/services/blockCapabilitiesApi'
   import { deploymentsApi } from '@/services/deploymentsApi'
