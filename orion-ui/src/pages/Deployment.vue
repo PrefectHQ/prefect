@@ -96,7 +96,7 @@
   const flowRunsFilterArgs = computed<Parameters<typeof flowRunsApi.getFlowRuns> | null>(() => flowId.value.length ? [flowFilter.value] : null)
 
   const flowRunsSubscription = useSubscriptionWithDependencies(flowRunsApi.getFlowRuns, flowRunsFilterArgs)
-  const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
+  const flowRuns = computed(() => flowRunsSubscription.response ?? [])
 
   watch(deployment, () => {
     // If the deployment isn't deprecated and doesn't have a work queue, show the missing work queue message
