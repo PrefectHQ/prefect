@@ -52,10 +52,10 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentDescription, FlowRunList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, UnionFilters, useRecentFlowRunFilter } from '@prefecthq/orion-design'
+  import { DeploymentDescription, FlowRunList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
-  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed, ref, watch } from 'vue'
+  import { useSubscription, useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
+  import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
   import { routes } from '@/router'
@@ -90,11 +90,12 @@
     router.push(routes.deployments())
   }
 
-  const flowId = computed(() => deployment.value?.flowId ?? '')
+  const flowId = computed(() => deployment.value ? [deployment.value.flowId] : [])
+  const flowFilter = useRecentFlowRunFilter({ flows: flowId })
 
-  const flowFilter = computed<UnionFilters>(() => useRecentFlowRunFilter({ flows: [flowId.value] }).value)
+  const flowRunsFilterArgs = computed<Parameters<typeof flowRunsApi.getFlowRuns> | null>(() => flowId.value.length ? [flowFilter.value] : null)
 
-  const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [flowFilter], subscriptionOptions)
+  const flowRunsSubscription = useSubscriptionWithDependencies(flowRunsApi.getFlowRuns, flowRunsFilterArgs)
   const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
 
   watch(deployment, () => {
