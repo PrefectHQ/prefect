@@ -44,8 +44,8 @@
 <script lang="ts" setup>
   import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter, UnionFilters } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
-  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed, ref, watch } from 'vue'
+  import { useSubscription, useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
+  import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
   import { routes } from '@/router'
@@ -74,11 +74,12 @@
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value], subscriptionOptions)
   const workQueue = computed(() => workQueueSubscription.response)
 
-  const workQueueName = computed(() => workQueue.value?.name ?? '')
+  const workQueueName = computed(() => workQueue.value ? [workQueue.value.name] : [])
+  const flowRunFilter = useRecentFlowRunFilter({ states: ['Late'], workQueues: workQueueName })
 
-  const flowRunFilter = computed<UnionFilters>(() => useRecentFlowRunFilter({ states: [], workQueues: [workQueueName.value] }).value)
+  const flowRunsFilterArgs = computed<Parameters<typeof flowRunsApi.getFlowRuns> | null>(() => workQueueName.value.length ? [flowRunFilter.value] : null)
 
-  const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [flowRunFilter], subscriptionOptions)
+  const flowRunsSubscription = useSubscriptionWithDependencies(flowRunsApi.getFlowRuns, flowRunsFilterArgs)
   const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
 
   const routeToQueues = (): void => {
