@@ -2,7 +2,7 @@
 Reduced schemas for accepting API actions.
 """
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
 from pydantic import Field, root_validator, validator
@@ -38,6 +38,22 @@ def validate_block_document_name(value):
 class ActionBaseModel(PrefectBaseModel):
     class Config:
         extra = "forbid"
+
+    def __iter__(self):
+        # By default, `pydantic.BaseModel.__iter__` yields from `self.__dict__` directly
+        # instead  of going through `_iter`. We want tor retain our custom logic in
+        # `_iter` during `dict(model)` calls which is what Pydantic uses for
+        # `parse_obj(model)`
+        yield from self._iter(to_dict=True)
+
+    def _iter(self, *args, **kwargs) -> Generator[tuple, None, None]:
+        # Drop fields that are marked as `ignored` from json and dictionary outputs
+        exclude = kwargs.pop("exclude", None) or set()
+        for name, field in self.__fields__.items():
+            if field.field_info.extra.get("ignored"):
+                exclude.add(name)
+
+        return super()._iter(*args, **kwargs, exclude=exclude)
 
 
 @copy_model_fields
@@ -124,9 +140,12 @@ class StateCreate(ActionBaseModel):
     data: Optional[schemas.data.DataDocument] = FieldFrom(schemas.states.State)
     state_details: schemas.states.StateDetails = FieldFrom(schemas.states.State)
 
-    @classmethod
-    def from_state(cls, state: schemas.states.State) -> "StateCreate":
-        return cls(**state.dict(include=set(cls.__fields__.keys())))
+    # DEPRECATED
+
+    timestamp: Optional[schemas.core.DateTimeTZ] = Field(
+        default=None, repr=False, ignored=True
+    )
+    id: Optional[UUID] = Field(default=None, repr=False, ignored=True)
 
 
 @copy_model_fields
