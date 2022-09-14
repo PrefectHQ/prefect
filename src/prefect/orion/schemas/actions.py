@@ -341,7 +341,7 @@ class WorkQueueCreate(ActionBaseModel):
 
     filter: Optional[schemas.core.QueueFilter] = Field(
         None,
-        description="Filter criteria for the work queue.",
+        description="DEPRECATED: Filter criteria for the work queue.",
         deprecated=True,
     )
 
@@ -358,13 +358,13 @@ class WorkQueueUpdate(ActionBaseModel):
 
     filter: Optional[schemas.core.QueueFilter] = Field(
         None,
-        description="Filter criteria for the work queue.",
+        description="DEPRECATED: Filter criteria for the work queue.",
         deprecated=True,
     )
-
-    # Names should not be updated, left here only for backwards-compatibility
     name: Optional[str] = Field(
-        default=None, description="The name of the work queue.", deprecated=True
+        default=None,
+        description="DEPRECATED: The name of the work queue.",
+        deprecated=True,
     )
 
 
