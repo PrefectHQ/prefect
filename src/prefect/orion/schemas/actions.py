@@ -400,7 +400,7 @@ class WorkQueueUpdate(
 
     # DEPRECATED: names should not be updated, left here only for backwards-compatibility
     name: Optional[str] = Field(
-        None, description="The name of the work queue.", deprecated=True
+        default=None, description="The name of the work queue.", deprecated=True
     )
 
 

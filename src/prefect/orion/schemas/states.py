@@ -5,7 +5,7 @@ State schemas.
 import datetime
 import warnings
 from collections.abc import Iterable
-from typing import Generic, TypeVar, Union, overload
+from typing import Generic, Optional, TypeVar, Union, overload
 from uuid import UUID
 
 import pendulum

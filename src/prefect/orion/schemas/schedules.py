@@ -209,10 +209,10 @@ class CronSchedule(PrefectBaseModel):
     class Config:
         extra = "forbid"
 
-    cron: str = Field(..., example="0 0 * * *")
+    cron: str = Field(default=..., example="0 0 * * *")
     timezone: Optional[str] = Field(default=None, example="America/New_York")
     day_or: bool = Field(
-        True,
+        default=True,
         description=(
             "Control croniter behavior for handling day and day_of_week entries."
         ),

@@ -6,7 +6,7 @@ import datetime
 import json
 import os
 from functools import partial
-from typing import Any, Dict, List, Set, Type, TypeVar
+from typing import Any, Dict, List, Optional, Set, Type, TypeVar
 from uuid import UUID, uuid4
 
 import orjson

@@ -132,13 +132,13 @@ class FlowFilter(PrefectOperatorFilterBaseModel):
     """Filter for flows. Only flows matching all criteria will be returned."""
 
     id: Optional[FlowFilterId] = Field(
-        None, description="Filter criteria for `Flow.id`"
+        default=None, description="Filter criteria for `Flow.id`"
     )
     name: Optional[FlowFilterName] = Field(
-        None, description="Filter criteria for `Flow.name`"
+        default=None, description="Filter criteria for `Flow.name`"
     )
     tags: Optional[FlowFilterTags] = Field(
-        None, description="Filter criteria for `Flow.tags`"
+        default=None, description="Filter criteria for `Flow.tags`"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -429,37 +429,38 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
     """Filter flow runs. Only flow runs matching all criteria will be returned"""
 
     id: Optional[FlowRunFilterId] = Field(
-        None, description="Filter criteria for `FlowRun.id`"
+        default=None, description="Filter criteria for `FlowRun.id`"
     )
     name: Optional[FlowRunFilterName] = Field(
-        None, description="Filter criteria for `FlowRun.name`"
+        default=None, description="Filter criteria for `FlowRun.name`"
     )
     tags: Optional[FlowRunFilterTags] = Field(
-        None, description="Filter criteria for `FlowRun.tags`"
+        default=None, description="Filter criteria for `FlowRun.tags`"
     )
     deployment_id: Optional[FlowRunFilterDeploymentId] = Field(
-        None, description="Filter criteria for `FlowRun.deployment_id`"
+        default=None, description="Filter criteria for `FlowRun.deployment_id`"
     )
     work_queue_name: Optional[FlowRunFilterWorkQueueName] = Field(
-        None, description="Filter criteria for `FlowRun.work_queue_name"
+        default=None, description="Filter criteria for `FlowRun.work_queue_name"
     )
     state: Optional[FlowRunFilterState] = Field(
-        None, description="Filter criteria for `FlowRun.state`"
+        default=None, description="Filter criteria for `FlowRun.state`"
     )
     flow_version: Optional[FlowRunFilterFlowVersion] = Field(
-        None, description="Filter criteria for `FlowRun.flow_version`"
+        default=None, description="Filter criteria for `FlowRun.flow_version`"
     )
     start_time: Optional[FlowRunFilterStartTime] = Field(
-        None, description="Filter criteria for `FlowRun.start_time`"
+        default=None, description="Filter criteria for `FlowRun.start_time`"
     )
     expected_start_time: Optional[FlowRunFilterExpectedStartTime] = Field(
-        None, description="Filter criteria for `FlowRun.expected_start_time`"
+        default=None, description="Filter criteria for `FlowRun.expected_start_time`"
     )
     next_scheduled_start_time: Optional[FlowRunFilterNextScheduledStartTime] = Field(
-        None, description="Filter criteria for `FlowRun.next_scheduled_start_time`"
+        default=None,
+        description="Filter criteria for `FlowRun.next_scheduled_start_time`",
     )
     parent_task_run_id: Optional[FlowRunFilterParentTaskRunId] = Field(
-        None, description="Filter criteria for `FlowRun.parent_task_run_id`"
+        default=None, description="Filter criteria for `FlowRun.parent_task_run_id`"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -648,22 +649,22 @@ class TaskRunFilter(PrefectOperatorFilterBaseModel):
     """Filter task runs. Only task runs matching all criteria will be returned"""
 
     id: Optional[TaskRunFilterId] = Field(
-        None, description="Filter criteria for `TaskRun.id`"
+        default=None, description="Filter criteria for `TaskRun.id`"
     )
     name: Optional[TaskRunFilterName] = Field(
-        None, description="Filter criteria for `TaskRun.name`"
+        default=None, description="Filter criteria for `TaskRun.name`"
     )
     tags: Optional[TaskRunFilterTags] = Field(
-        None, description="Filter criteria for `TaskRun.tags`"
+        default=None, description="Filter criteria for `TaskRun.tags`"
     )
     state: Optional[TaskRunFilterState] = Field(
-        None, description="Filter criteria for `TaskRun.state`"
+        default=None, description="Filter criteria for `TaskRun.state`"
     )
     start_time: Optional[TaskRunFilterStartTime] = Field(
-        None, description="Filter criteria for `TaskRun.start_time`"
+        default=None, description="Filter criteria for `TaskRun.start_time`"
     )
     subflow_runs: Optional[TaskRunFilterSubFlowRuns] = Field(
-        None, description="Filter criteria for `TaskRun.subflow_run`"
+        default=None, description="Filter criteria for `TaskRun.subflow_run`"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -787,19 +788,19 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
     """Filter for deployments. Only deployments matching all criteria will be returned."""
 
     id: Optional[DeploymentFilterId] = Field(
-        None, description="Filter criteria for `Deployment.id`"
+        default=None, description="Filter criteria for `Deployment.id`"
     )
     name: Optional[DeploymentFilterName] = Field(
-        None, description="Filter criteria for `Deployment.name`"
+        default=None, description="Filter criteria for `Deployment.name`"
     )
     is_schedule_active: Optional[DeploymentFilterIsScheduleActive] = Field(
-        None, description="Filter criteria for `Deployment.is_schedule_active`"
+        default=None, description="Filter criteria for `Deployment.is_schedule_active`"
     )
     tags: Optional[DeploymentFilterTags] = Field(
-        None, description="Filter criteria for `Deployment.tags`"
+        default=None, description="Filter criteria for `Deployment.tags`"
     )
     work_queue_name: Optional[DeploymentFilterWorkQueueName] = Field(
-        None, description="Filter criteria for `Deployment.work_queue_name`"
+        default=None, description="Filter criteria for `Deployment.work_queue_name`"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -912,16 +913,16 @@ class LogFilter(PrefectOperatorFilterBaseModel):
     """Filter logs. Only logs matching all criteria will be returned"""
 
     level: Optional[LogFilterLevel] = Field(
-        None, description="Filter criteria for `Log.level`"
+        default=None, description="Filter criteria for `Log.level`"
     )
     timestamp: Optional[LogFilterTimestamp] = Field(
-        None, description="Filter criteria for `Log.timestamp`"
+        default=None, description="Filter criteria for `Log.timestamp`"
     )
     flow_run_id: Optional[LogFilterFlowRunId] = Field(
-        None, description="Filter criteria for `Log.flow_run_id`"
+        default=None, description="Filter criteria for `Log.flow_run_id`"
     )
     task_run_id: Optional[LogFilterTaskRunId] = Field(
-        None, description="Filter criteria for `Log.task_run_id`"
+        default=None, description="Filter criteria for `Log.task_run_id`"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -996,11 +997,11 @@ class BlockTypeFilter(PrefectFilterBaseModel):
     """Filter BlockTypes"""
 
     name: Optional[BlockTypeFilterName] = Field(
-        None, description="Filter criteria for `BlockType.name`"
+        default=None, description="Filter criteria for `BlockType.name`"
     )
 
     slug: Optional[BlockTypeFilterSlug] = Field(
-        None, description="Filter criteria for `BlockType.slug`"
+        default=None, description="Filter criteria for `BlockType.slug`"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -1083,16 +1084,16 @@ class BlockSchemaFilter(PrefectOperatorFilterBaseModel):
     """Filter BlockSchemas"""
 
     block_type_id: Optional[BlockSchemaFilterBlockTypeId] = Field(
-        None, description="Filter criteria for `BlockSchema.block_type_id`"
+        default=None, description="Filter criteria for `BlockSchema.block_type_id`"
     )
     block_capabilities: Optional[BlockSchemaFilterCapabilities] = Field(
-        None, description="Filter criteria for `BlockSchema.capabilities`"
+        default=None, description="Filter criteria for `BlockSchema.capabilities`"
     )
     id: Optional[BlockSchemaFilterId] = Field(
-        None, description="Filter criteria for `BlockSchema.id`"
+        default=None, description="Filter criteria for `BlockSchema.id`"
     )
     version: Optional[BlockSchemaFilterVersion] = Field(
-        None, description="Filter criteria for `BlockSchema.version`"
+        default=None, description="Filter criteria for `BlockSchema.version`"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -1171,7 +1172,7 @@ class BlockDocumentFilter(PrefectOperatorFilterBaseModel):
     """Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned"""
 
     id: Optional[BlockDocumentFilterId] = Field(
-        None, description="Filter criteria for `BlockDocument.id`"
+        default=None, description="Filter criteria for `BlockDocument.id`"
     )
     is_anonymous: Optional[BlockDocumentFilterIsAnonymous] = Field(
         # default is to exclude anonymous blocks
@@ -1182,10 +1183,10 @@ class BlockDocumentFilter(PrefectOperatorFilterBaseModel):
         ),
     )
     block_type_id: Optional[BlockDocumentFilterBlockTypeId] = Field(
-        None, description="Filter criteria for `BlockDocument.block_type_id`"
+        default=None, description="Filter criteria for `BlockDocument.block_type_id`"
     )
     name: Optional[BlockDocumentFilterName] = Field(
-        None, description="Filter criteria for `BlockDocument.name`"
+        default=None, description="Filter criteria for `BlockDocument.name`"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -1220,7 +1221,7 @@ class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
     """Filter FlowRunNotificationPolicies."""
 
     is_active: Optional[FlowRunNotificationPolicyFilterIsActive] = Field(
-        FlowRunNotificationPolicyFilterIsActive(eq_=False),
+        default=FlowRunNotificationPolicyFilterIsActive(eq_=False),
         description=("Filter criteria for `FlowRunNotificationPolicy.is_active`. "),
     )
 

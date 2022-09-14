@@ -134,7 +134,7 @@ If you are just using the imported object for a type signature, you should use t
 
 ```python
 # Correct
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from prefect.orion.schemas.states import State

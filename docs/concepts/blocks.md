@@ -125,7 +125,7 @@ All block values are encrypted before being stored, but if you have values that 
 Here's an example of an `AWSCredentials` block that uses `SecretStr`:
 
 ```python hl_lines="8"
-from typing import Optional
+from typing import Optional, Optional
 
 from prefect.blocks.core import Block
 from pydantic import SecretStr
@@ -171,7 +171,7 @@ Block are composable. This means that you can create a block that uses functiona
 To illustrate, here's a an expanded `AWSCredentials` block that includes the ability to get an authenticated session via the `boto3` library:
 
 ```python
-from typing import Optional
+from typing import Optional, Optional
 
 import boto3
 from prefect.blocks.core import Block

@@ -7,7 +7,7 @@ Example:
 
     >>> from prefect import flow, task
     >>> from prefect.task_runners import SequentialTaskRunner
-    >>> from typing import List
+    >>> from typing import Optional, List
     >>>
     >>> @task
     >>> def say_hello(name):

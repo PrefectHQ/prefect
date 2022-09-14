@@ -48,7 +48,9 @@ def raise_on_invalid_name(name: str) -> None:
 class Flow(ORMBaseModel):
     """An ORM representation of flow data."""
 
-    name: str = Field(..., description="The name of the flow", example="my-flow")
+    name: str = Field(
+        default=..., description="The name of the flow", example="my-flow"
+    )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of flow tags",
@@ -93,19 +95,19 @@ class FlowRunPolicy(PrefectBaseModel):
     # TODO: Determine how to separate between infrastructure and within-process level
     #       retries
     max_retries: int = Field(
-        0,
+        default=0,
         description="The maximum number of retries. Field is not used. Please use `retries` instead.",
         deprecated=True,
     )
     retry_delay_seconds: float = Field(
-        0,
+        default=0,
         description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
         deprecated=True,
     )
 
-    retries: Optional[int] = Field(None, description="The number of retries.")
+    retries: Optional[int] = Field(default=None, description="The number of retries.")
     retry_delay: Optional[int] = Field(
-        None, description="The delay time between retries, in seconds."
+        default=None, description="The delay time between retries, in seconds."
     )
 
     @root_validator
@@ -132,7 +134,7 @@ class FlowRun(ORMBaseModel):
         description="The name of the flow run. Defaults to a random slug if not specified.",
         example="my-flow-run",
     )
-    flow_id: UUID = Field(..., description="The id of the flow being run.")
+    flow_id: UUID = Field(default=..., description="The id of the flow being run.")
     state_id: Optional[UUID] = Field(
         default=None, description="The id of the flow run's current state."
     )
@@ -181,7 +183,7 @@ class FlowRun(ORMBaseModel):
     )
 
     run_count: int = Field(
-        0, description="The number of times the flow run was executed."
+        default=0, description="The number of times the flow run was executed."
     )
 
     expected_start_time: Optional[DateTimeTZ] = Field(
@@ -200,21 +202,23 @@ class FlowRun(ORMBaseModel):
         default=None, description="The actual end time."
     )
     total_run_time: datetime.timedelta = Field(
-        datetime.timedelta(0),
+        default=datetime.timedelta(0),
         description="Total run time. If the flow run was executed multiple times, the time of each run will be summed.",
     )
     estimated_run_time: datetime.timedelta = Field(
-        datetime.timedelta(0), description="A real-time estimate of the total run time."
+        default=datetime.timedelta(0),
+        description="A real-time estimate of the total run time.",
     )
     estimated_start_time_delta: datetime.timedelta = Field(
-        datetime.timedelta(0),
+        default=datetime.timedelta(0),
         description="The difference between actual and expected start time.",
     )
     auto_scheduled: bool = Field(
-        False, description="Whether or not the flow run was automatically scheduled."
+        default=False,
+        description="Whether or not the flow run was automatically scheduled.",
     )
     infrastructure_document_id: Optional[UUID] = Field(
-        None,
+        default=None,
         description="The block document defining infrastructure to use this flow run.",
     )
 
@@ -249,19 +253,19 @@ class TaskRunPolicy(PrefectBaseModel):
     """Defines of how a task run should retry."""
 
     max_retries: int = Field(
-        0,
+        default=0,
         description="The maximum number of retries. Field is not used. Please use `retries` instead.",
         deprecated=True,
     )
     retry_delay_seconds: float = Field(
-        0,
+        default=0,
         description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
         deprecated=True,
     )
 
-    retries: Optional[int] = Field(None, description="The number of retries.")
+    retries: Optional[int] = Field(default=None, description="The number of retries.")
     retry_delay: Optional[int] = Field(
-        None, description="The delay time between retries, in seconds."
+        default=None, description="The delay time between retries, in seconds."
     )
 
     @root_validator
@@ -318,12 +322,14 @@ class TaskRun(ORMBaseModel):
     """An ORM representation of task run data."""
 
     name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
-    flow_run_id: UUID = Field(..., description="The flow run id of the task run.")
+    flow_run_id: UUID = Field(
+        default=..., description="The flow run id of the task run."
+    )
     task_key: str = Field(
-        ..., description="A unique identifier for the task being run."
+        default=..., description="A unique identifier for the task being run."
     )
     dynamic_key: str = Field(
-        ...,
+        default=...,
         description="A dynamic key used to differentiate between multiple runs of the same task within the same flow run.",
     )
     cache_key: Optional[str] = Field(
@@ -359,7 +365,7 @@ class TaskRun(ORMBaseModel):
         default=None, description="The name of the current task run state."
     )
     run_count: int = Field(
-        0, description="The number of times the task run has been executed."
+        default=0, description="The number of times the task run has been executed."
     )
 
     expected_start_time: Optional[DateTimeTZ] = Field(
@@ -380,14 +386,15 @@ class TaskRun(ORMBaseModel):
         default=None, description="The actual end time."
     )
     total_run_time: datetime.timedelta = Field(
-        datetime.timedelta(0),
+        default=datetime.timedelta(0),
         description="Total run time. If the task run was executed multiple times, the time of each run will be summed.",
     )
     estimated_run_time: datetime.timedelta = Field(
-        datetime.timedelta(0), description="A real-time estimate of total run time."
+        default=datetime.timedelta(0),
+        description="A real-time estimate of total run time.",
     )
     estimated_start_time_delta: datetime.timedelta = Field(
-        datetime.timedelta(0),
+        default=datetime.timedelta(0),
         description="The difference between actual and expected start time.",
     )
 
@@ -406,21 +413,21 @@ class TaskRun(ORMBaseModel):
 class Deployment(ORMBaseModel):
     """An ORM representation of deployment data."""
 
-    name: str = Field(..., description="The name of the deployment.")
+    name: str = Field(default=..., description="The name of the deployment.")
     version: Optional[str] = Field(
-        None, description="An optional version for the deployment."
+        default=None, description="An optional version for the deployment."
     )
     description: Optional[str] = Field(
         default=None, description="A description for the deployment."
     )
     flow_id: UUID = Field(
-        ..., description="The flow id associated with the deployment."
+        default=..., description="The flow id associated with the deployment."
     )
     schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
         default=None, description="A schedule for the deployment."
     )
     is_schedule_active: bool = Field(
-        True, description="Whether or not the deployment schedule is active."
+        default=True, description="Whether or not the deployment schedule is active."
     )
     infra_overrides: Dict[str, Any] = Field(
         default_factory=dict,
@@ -436,7 +443,7 @@ class Deployment(ORMBaseModel):
         example=["tag-1", "tag-2"],
     )
     work_queue_name: Optional[str] = Field(
-        None,
+        default=None,
         description="The work queue for the deployment. If no work queue is set, work will not be scheduled.",
     )
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
@@ -456,11 +463,11 @@ class Deployment(ORMBaseModel):
         description="The path to the flow's manifest file, relative to the chosen storage.",
     )
     storage_document_id: Optional[UUID] = Field(
-        None,
+        default=None,
         description="The block document defining storage used for this flow.",
     )
     infrastructure_document_id: Optional[UUID] = Field(
-        None,
+        default=None,
         description="The block document defining infrastructure to use for flow runs.",
     )
 
@@ -473,8 +480,10 @@ class Deployment(ORMBaseModel):
 class ConcurrencyLimit(ORMBaseModel):
     """An ORM representation of a concurrency limit."""
 
-    tag: str = Field(..., description="A tag the concurrency limit is applied to.")
-    concurrency_limit: int = Field(..., description="The concurrency limit.")
+    tag: str = Field(
+        default=..., description="A tag the concurrency limit is applied to."
+    )
+    concurrency_limit: int = Field(default=..., description="The concurrency limit.")
     active_slots: List[UUID] = Field(
         default_factory=list,
         description="A list of active run ids using a concurrency slot",
@@ -484,22 +493,24 @@ class ConcurrencyLimit(ORMBaseModel):
 class BlockType(ORMBaseModel):
     """An ORM representation of a block type"""
 
-    name: str = Field(..., description="A block type's name")
-    slug: str = Field(..., description="A block type's slug")
+    name: str = Field(default=..., description="A block type's name")
+    slug: str = Field(default=..., description="A block type's slug")
     logo_url: Optional[HttpUrl] = Field(
-        None, description="Web URL for the block type's logo"
+        default=None, description="Web URL for the block type's logo"
     )
     documentation_url: Optional[HttpUrl] = Field(
-        None, description="Web URL for the block type's documentation"
+        default=None, description="Web URL for the block type's documentation"
     )
     description: Optional[str] = Field(
-        None, description="A short blurb about the corresponding block's intended use"
+        default=None,
+        description="A short blurb about the corresponding block's intended use",
     )
     code_example: Optional[str] = Field(
-        None, description="A code snippet demonstrating use of the corresponding block"
+        default=None,
+        description="A code snippet demonstrating use of the corresponding block",
     )
     is_protected: bool = Field(
-        False, description="Protected block types cannot be modified via API."
+        default=False, description="Protected block types cannot be modified via API."
     )
 
     @validator("name", check_fields=False)
@@ -511,20 +522,20 @@ class BlockType(ORMBaseModel):
 class BlockSchema(ORMBaseModel):
     """An ORM representation of a block schema."""
 
-    checksum: str = Field(..., description="The block schema's unique checksum")
+    checksum: str = Field(default=..., description="The block schema's unique checksum")
     fields: dict = Field(
         default_factory=dict, description="The block schema's field schema"
     )
-    block_type_id: Optional[UUID] = Field(..., description="A block type ID")
+    block_type_id: Optional[UUID] = Field(default=..., description="A block type ID")
     block_type: Optional[BlockType] = Field(
-        None, description="The associated block type"
+        default=None, description="The associated block type"
     )
     capabilities: List[str] = Field(
         default_factory=list,
         description="A list of Block capabilities",
     )
     version: str = Field(
-        DEFAULT_BLOCK_SCHEMA_VERSION,
+        default=DEFAULT_BLOCK_SCHEMA_VERSION,
         description="Human readable identifier for the block schema",
     )
 
@@ -533,41 +544,43 @@ class BlockSchemaReference(ORMBaseModel):
     """An ORM representation of a block schema reference."""
 
     parent_block_schema_id: UUID = Field(
-        ..., description="ID of block schema the reference is nested within"
+        default=..., description="ID of block schema the reference is nested within"
     )
     parent_block_schema: Optional[BlockSchema] = Field(
-        None, description="The block schema the reference is nested within"
+        default=None, description="The block schema the reference is nested within"
     )
     reference_block_schema_id: UUID = Field(
-        ..., description="ID of the nested block schema"
+        default=..., description="ID of the nested block schema"
     )
     reference_block_schema: Optional[BlockSchema] = Field(
-        None, description="The nested block schema"
+        default=None, description="The nested block schema"
     )
-    name: str = Field(..., description="The name that the reference is nested under")
+    name: str = Field(
+        default=..., description="The name that the reference is nested under"
+    )
 
 
 class BlockDocument(ORMBaseModel):
     """An ORM representation of a block document."""
 
     name: Optional[str] = Field(
-        None,
+        default=None,
         description="The block document's name. Not required for anonymous block documents.",
     )
     data: dict = Field(default_factory=dict, description="The block document's data")
-    block_schema_id: UUID = Field(..., description="A block schema ID")
+    block_schema_id: UUID = Field(default=..., description="A block schema ID")
     block_schema: Optional[BlockSchema] = Field(
-        None, description="The associated block schema"
+        default=None, description="The associated block schema"
     )
-    block_type_id: UUID = Field(..., description="A block type ID")
+    block_type_id: UUID = Field(default=..., description="A block type ID")
     block_type: Optional[BlockType] = Field(
-        None, description="The associated block type"
+        default=None, description="The associated block type"
     )
     block_document_references: Dict[str, Dict[str, Any]] = Field(
         default_factory=dict, description="Record of the block document's references"
     )
     is_anonymous: bool = Field(
-        False,
+        default=False,
         description="Whether the block is anonymous (anonymous blocks are usually created by Prefect automatically)",
     )
 
@@ -631,45 +644,50 @@ class BlockDocumentReference(ORMBaseModel):
     """An ORM representation of a block document reference."""
 
     parent_block_document_id: UUID = Field(
-        ..., description="ID of block document the reference is nested within"
+        default=..., description="ID of block document the reference is nested within"
     )
     parent_block_document: Optional[BlockDocument] = Field(
-        None, description="The block document the reference is nested within"
+        default=None, description="The block document the reference is nested within"
     )
     reference_block_document_id: UUID = Field(
-        ..., description="ID of the nested block document"
+        default=..., description="ID of the nested block document"
     )
     reference_block_document: Optional[BlockDocument] = Field(
-        None, description="The nested block document"
+        default=None, description="The nested block document"
     )
-    name: str = Field(..., description="The name that the reference is nested under")
+    name: str = Field(
+        default=..., description="The name that the reference is nested under"
+    )
 
 
 class Configuration(ORMBaseModel):
     """An ORM representation of account info."""
 
-    key: str = Field(..., description="Account info key")
-    value: dict = Field(..., description="Account info")
+    key: str = Field(default=..., description="Account info key")
+    value: dict = Field(default=..., description="Account info")
 
 
 class SavedSearchFilter(PrefectBaseModel):
     """A filter for a saved search model. Intended for use by the Prefect UI."""
 
-    object: str = Field(..., description="The object over which to filter.")
+    object: str = Field(default=..., description="The object over which to filter.")
     property: str = Field(
-        ..., description="The property of the object on which to filter."
+        default=..., description="The property of the object on which to filter."
     )
-    type: str = Field(..., description="The type of the property.")
+    type: str = Field(default=..., description="The type of the property.")
     operation: str = Field(
-        ..., description="The operator to apply to the object. For example, `equals`."
+        default=...,
+        description="The operator to apply to the object. For example, `equals`.",
     )
-    value: Any = Field(..., description="A JSON-compatible value for the filter.")
+    value: Any = Field(
+        default=..., description="A JSON-compatible value for the filter."
+    )
 
 
 class SavedSearch(ORMBaseModel):
     """An ORM representation of saved search data. Represents a set of filter criteria."""
 
-    name: str = Field(..., description="The name of the saved search.")
+    name: str = Field(default=..., description="The name of the saved search.")
     filters: List[SavedSearchFilter] = Field(
         default_factory=list, description="The filter set for the saved search."
     )
@@ -678,15 +696,15 @@ class SavedSearch(ORMBaseModel):
 class Log(ORMBaseModel):
     """An ORM representation of log data."""
 
-    name: str = Field(..., description="The logger name.")
-    level: int = Field(..., description="The log level.")
-    message: str = Field(..., description="The log message.")
-    timestamp: DateTimeTZ = Field(..., description="The log timestamp.")
+    name: str = Field(default=..., description="The logger name.")
+    level: int = Field(default=..., description="The log level.")
+    message: str = Field(default=..., description="The log message.")
+    timestamp: DateTimeTZ = Field(default=..., description="The log timestamp.")
     flow_run_id: UUID = Field(
-        ..., description="The flow run ID associated with the log."
+        default=..., description="The flow run ID associated with the log."
     )
     task_run_id: Optional[UUID] = Field(
-        None, description="The task run ID associated with the log."
+        default=None, description="The task run ID associated with the log."
     )
 
 
@@ -694,11 +712,11 @@ class QueueFilter(PrefectBaseModel):
     """Filter criteria definition for a work queue."""
 
     tags: Optional[List[str]] = Field(
-        None,
+        default=None,
         description="Only include flow runs with these tags in the work queue.",
     )
     deployment_ids: Optional[List[UUID]] = Field(
-        None,
+        default=None,
         description="Only include flow runs from these deployments in the work queue.",
     )
 
@@ -706,18 +724,18 @@ class QueueFilter(PrefectBaseModel):
 class WorkQueue(ORMBaseModel):
     """An ORM representation of a work queue"""
 
-    name: str = Field(..., description="The name of the work queue.")
+    name: str = Field(default=..., description="The name of the work queue.")
     description: Optional[str] = Field(
-        "", description="An optional description for the work queue."
+        default="", description="An optional description for the work queue."
     )
     is_paused: bool = Field(
-        False, description="Whether or not the work queue is paused."
+        default=False, description="Whether or not the work queue is paused."
     )
     concurrency_limit: Optional[int] = Field(
-        None, description="An optional concurrency limit for the work queue."
+        default=None, description="An optional concurrency limit for the work queue."
     )
     filter: Optional[QueueFilter] = Field(
-        None,
+        default=None,
         description="Deprecated field: Filter criteria for the work queue.",
         deprecated=True,
     )
@@ -731,16 +749,18 @@ class WorkQueue(ORMBaseModel):
 class FlowRunNotificationPolicy(ORMBaseModel):
     """An ORM representation of a flow run notification."""
 
-    is_active: bool = Field(True, description="Whether the policy is currently active")
+    is_active: bool = Field(
+        default=True, description="Whether the policy is currently active"
+    )
     state_names: List[str] = Field(
-        ..., description="The flow run states that trigger notifications"
+        default=..., description="The flow run states that trigger notifications"
     )
     tags: List[str] = Field(
-        ...,
+        default=...,
         description="The flow run tags that trigger notifications (set [] to disable)",
     )
     block_document_id: UUID = Field(
-        ..., description="The block document ID used for sending notifications"
+        default=..., description="The block document ID used for sending notifications"
     )
     message_template: Optional[str] = Field(
         default=None,
@@ -769,10 +789,10 @@ class Agent(ORMBaseModel):
         description="The name of the agent. If a name is not provided, it will be auto-generated.",
     )
     work_queue_id: UUID = Field(
-        ..., description="The work queue with which the agent is associated."
+        default=..., description="The work queue with which the agent is associated."
     )
     last_activity_time: Optional[DateTimeTZ] = Field(
-        None, description="The last time this agent polled for work."
+        default=None, description="The last time this agent polled for work."
     )
 
 
