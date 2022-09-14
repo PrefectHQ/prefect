@@ -80,7 +80,7 @@
   const flowRunsFilterArgs = computed<Parameters<typeof flowRunsApi.getFlowRuns> | null>(() => workQueueName.value.length ? [flowRunFilter.value] : null)
 
   const flowRunsSubscription = useSubscriptionWithDependencies(flowRunsApi.getFlowRuns, flowRunsFilterArgs)
-  const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
+  const flowRuns = computed(() => flowRunsSubscription.response ?? [])
 
   const routeToQueues = (): void => {
     router.push(routes.workQueues())
