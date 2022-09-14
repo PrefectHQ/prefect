@@ -163,7 +163,9 @@ class TaskRunCreate(
     """Data used by the Orion API to create a task run"""
 
     # TaskRunCreate states must be provided as StateCreate objects
-    state: StateCreate = Field(None, description="The state of the task run to create")
+    state: Optional[StateCreate] = Field(
+        default=None, description="The state of the task run to create"
+    )
 
 
 class FlowRunCreate(
@@ -190,7 +192,9 @@ class FlowRunCreate(
         extra = "forbid"
 
     # FlowRunCreate states must be provided as StateCreate objects
-    state: StateCreate = Field(None, description="The state of the flow run to create")
+    state: Optional[StateCreate] = Field(
+        default=None, description="The state of the flow run to create"
+    )
 
 
 class DeploymentFlowRunCreate(
@@ -213,7 +217,9 @@ class DeploymentFlowRunCreate(
         extra = "forbid"
 
     # FlowRunCreate states must be provided as StateCreate objects
-    state: StateCreate = Field(None, description="The state of the flow run to create")
+    state: Optional[StateCreate] = Field(
+        default=None, description="The state of the flow run to create"
+    )
 
 
 class SavedSearchCreate(

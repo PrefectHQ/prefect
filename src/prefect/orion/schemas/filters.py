@@ -66,7 +66,9 @@ class PrefectOperatorFilterBaseModel(PrefectFilterBaseModel):
 class FlowFilterId(PrefectFilterBaseModel):
     """Filter by `Flow.id`."""
 
-    any_: List[UUID] = Field(None, description="A list of flow ids to include")
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of flow ids to include"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -78,14 +80,14 @@ class FlowFilterId(PrefectFilterBaseModel):
 class FlowFilterName(PrefectFilterBaseModel):
     """Filter by `Flow.name`."""
 
-    any_: List[str] = Field(
-        None,
+    any_: Optional[List[str]] = Field(
+        default=None,
         description="A list of flow names to include",
         example=["my-flow-1", "my-flow-2"],
     )
 
-    like_: str = Field(
-        None,
+    like_: Optional[str] = Field(
+        default=None,
         description=(
             "A case-insensitive partial match. For example, "
             " passing 'marvin' will match "
@@ -106,12 +108,14 @@ class FlowFilterName(PrefectFilterBaseModel):
 class FlowFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `Flow.tags`."""
 
-    all_: List[str] = Field(
-        None,
+    all_: Optional[List[str]] = Field(
+        default=None,
         example=["tag-1", "tag-2"],
         description="A list of tags. Flows will be returned only if their tags are a superset of the list",
     )
-    is_null_: bool = Field(None, description="If true, only include flows without tags")
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only include flows without tags"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         from prefect.orion.utilities.database import json_has_all_keys
@@ -153,8 +157,12 @@ class FlowFilter(PrefectOperatorFilterBaseModel):
 class FlowRunFilterId(PrefectFilterBaseModel):
     """Filter by FlowRun.id."""
 
-    any_: List[UUID] = Field(None, description="A list of flow run ids to include")
-    not_any_: List[UUID] = Field(None, description="A list of flow run ids to exclude")
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of flow run ids to include"
+    )
+    not_any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of flow run ids to exclude"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -168,14 +176,14 @@ class FlowRunFilterId(PrefectFilterBaseModel):
 class FlowRunFilterName(PrefectFilterBaseModel):
     """Filter by `FlowRun.name`."""
 
-    any_: List[str] = Field(
-        None,
+    any_: Optional[List[str]] = Field(
+        default=None,
         description="A list of flow run names to include",
         example=["my-flow-run-1", "my-flow-run-2"],
     )
 
-    like_: str = Field(
-        None,
+    like_: Optional[str] = Field(
+        default=None,
         description=(
             "A case-insensitive partial match. For example, "
             " passing 'marvin' will match "
@@ -196,13 +204,13 @@ class FlowRunFilterName(PrefectFilterBaseModel):
 class FlowRunFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.tags`."""
 
-    all_: List[str] = Field(
-        None,
+    all_: Optional[List[str]] = Field(
+        default=None,
         example=["tag-1", "tag-2"],
         description="A list of tags. Flow runs will be returned only if their tags are a superset of the list",
     )
-    is_null_: bool = Field(
-        None, description="If true, only include flow runs without tags"
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only include flow runs without tags"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -221,11 +229,12 @@ class FlowRunFilterTags(PrefectOperatorFilterBaseModel):
 class FlowRunFilterDeploymentId(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.deployment_id`."""
 
-    any_: List[UUID] = Field(
-        None, description="A list of flow run deployment ids to include"
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of flow run deployment ids to include"
     )
-    is_null_: bool = Field(
-        None, description="If true, only include flow runs without deployment ids"
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include flow runs without deployment ids",
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -244,13 +253,14 @@ class FlowRunFilterDeploymentId(PrefectOperatorFilterBaseModel):
 class FlowRunFilterWorkQueueName(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.work_queue_name`."""
 
-    any_: List[str] = Field(
-        None,
+    any_: Optional[List[str]] = Field(
+        default=None,
         description="A list of work queue names to include",
         example=["work_queue_1", "work_queue_2"],
     )
-    is_null_: bool = Field(
-        None, description="If true, only include flow runs without work queue names"
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include flow runs without work queue names",
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -269,8 +279,8 @@ class FlowRunFilterWorkQueueName(PrefectOperatorFilterBaseModel):
 class FlowRunFilterStateType(PrefectFilterBaseModel):
     """Filter by `FlowRun.state_type`."""
 
-    any_: List[schemas.states.StateType] = Field(
-        None, description="A list of flow run state types to include"
+    any_: Optional[List[schemas.states.StateType]] = Field(
+        default=None, description="A list of flow run state types to include"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -281,8 +291,8 @@ class FlowRunFilterStateType(PrefectFilterBaseModel):
 
 
 class FlowRunFilterStateName(PrefectFilterBaseModel):
-    any_: List[str] = Field(
-        None, description="A list of flow run state names to include"
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of flow run state names to include"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -308,8 +318,8 @@ class FlowRunFilterState(PrefectOperatorFilterBaseModel):
 class FlowRunFilterFlowVersion(PrefectFilterBaseModel):
     """Filter by `FlowRun.flow_version`."""
 
-    any_: List[str] = Field(
-        None, description="A list of flow run flow_versions to include"
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of flow run flow_versions to include"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -322,14 +332,16 @@ class FlowRunFilterFlowVersion(PrefectFilterBaseModel):
 class FlowRunFilterStartTime(PrefectFilterBaseModel):
     """Filter by `FlowRun.start_time`."""
 
-    before_: DateTimeTZ = Field(
-        None, description="Only include flow runs starting at or before this time"
+    before_: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="Only include flow runs starting at or before this time",
     )
-    after_: DateTimeTZ = Field(
-        None, description="Only include flow runs starting at or after this time"
+    after_: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="Only include flow runs starting at or after this time",
     )
-    is_null_: bool = Field(
-        None, description="If true, only return flow runs without a start time"
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only return flow runs without a start time"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -350,12 +362,12 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
 class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
     """Filter by `FlowRun.expected_start_time`."""
 
-    before_: DateTimeTZ = Field(
-        None,
+    before_: Optional[DateTimeTZ] = Field(
+        default=None,
         description="Only include flow runs scheduled to start at or before this time",
     )
-    after_: DateTimeTZ = Field(
-        None,
+    after_: Optional[DateTimeTZ] = Field(
+        default=None,
         description="Only include flow runs scheduled to start at or after this time",
     )
 
@@ -371,12 +383,12 @@ class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
 class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
     """Filter by `FlowRun.next_scheduled_start_time`."""
 
-    before_: DateTimeTZ = Field(
-        None,
+    before_: Optional[DateTimeTZ] = Field(
+        default=None,
         description="Only include flow runs with a next_scheduled_start_time or before this time",
     )
-    after_: DateTimeTZ = Field(
-        None,
+    after_: Optional[DateTimeTZ] = Field(
+        default=None,
         description="Only include flow runs with a next_scheduled_start_time at or after this time",
     )
 
@@ -392,11 +404,12 @@ class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
 class FlowRunFilterParentTaskRunId(PrefectOperatorFilterBaseModel):
     """Filter by `FlowRun.parent_task_run_id`."""
 
-    any_: List[UUID] = Field(
-        None, description="A list of flow run parent_task_run_ids to include"
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of flow run parent_task_run_ids to include"
     )
-    is_null_: bool = Field(
-        None, description="If true, only include flow runs without parent_task_run_id"
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include flow runs without parent_task_run_id",
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -481,7 +494,9 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
 class TaskRunFilterId(PrefectFilterBaseModel):
     """Filter by `TaskRun.id`."""
 
-    any_: List[UUID] = Field(None, description="A list of task run ids to include")
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of task run ids to include"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -493,14 +508,14 @@ class TaskRunFilterId(PrefectFilterBaseModel):
 class TaskRunFilterName(PrefectFilterBaseModel):
     """Filter by `TaskRun.name`."""
 
-    any_: List[str] = Field(
-        None,
+    any_: Optional[List[str]] = Field(
+        default=None,
         description="A list of task run names to include",
         example=["my-task-run-1", "my-task-run-2"],
     )
 
-    like_: str = Field(
-        None,
+    like_: Optional[str] = Field(
+        default=None,
         description=(
             "A case-insensitive partial match. For example, "
             " passing 'marvin' will match "
@@ -521,13 +536,13 @@ class TaskRunFilterName(PrefectFilterBaseModel):
 class TaskRunFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `TaskRun.tags`."""
 
-    all_: List[str] = Field(
-        None,
+    all_: Optional[List[str]] = Field(
+        default=None,
         example=["tag-1", "tag-2"],
         description="A list of tags. Task runs will be returned only if their tags are a superset of the list",
     )
-    is_null_: bool = Field(
-        None, description="If true, only include task runs without tags"
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only include task runs without tags"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -546,8 +561,8 @@ class TaskRunFilterTags(PrefectOperatorFilterBaseModel):
 class TaskRunFilterStateType(PrefectFilterBaseModel):
     """Filter by `TaskRun.state_type`."""
 
-    any_: List[schemas.states.StateType] = Field(
-        None, description="A list of task run state types to include"
+    any_: Optional[List[schemas.states.StateType]] = Field(
+        default=None, description="A list of task run state types to include"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -558,8 +573,8 @@ class TaskRunFilterStateType(PrefectFilterBaseModel):
 
 
 class TaskRunFilterStateName(PrefectFilterBaseModel):
-    any_: List[str] = Field(
-        None, description="A list of task run state names to include"
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of task run state names to include"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -585,8 +600,8 @@ class TaskRunFilterState(PrefectOperatorFilterBaseModel):
 class TaskRunFilterSubFlowRuns(PrefectFilterBaseModel):
     """Filter by `TaskRun.subflow_run`."""
 
-    exists_: bool = Field(
-        None,
+    exists_: Optional[bool] = Field(
+        default=None,
         description="If true, only include task runs that are subflow run parents; if false, exclude parent task runs",
     )
 
@@ -602,14 +617,16 @@ class TaskRunFilterSubFlowRuns(PrefectFilterBaseModel):
 class TaskRunFilterStartTime(PrefectFilterBaseModel):
     """Filter by `TaskRun.start_time`."""
 
-    before_: DateTimeTZ = Field(
-        None, description="Only include task runs starting at or before this time"
+    before_: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="Only include task runs starting at or before this time",
     )
-    after_: DateTimeTZ = Field(
-        None, description="Only include task runs starting at or after this time"
+    after_: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="Only include task runs starting at or after this time",
     )
-    is_null_: bool = Field(
-        None, description="If true, only return task runs without a start time"
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only return task runs without a start time"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -671,7 +688,9 @@ class TaskRunFilter(PrefectOperatorFilterBaseModel):
 class DeploymentFilterId(PrefectFilterBaseModel):
     """Filter by `Deployment.id`."""
 
-    any_: List[UUID] = Field(None, description="A list of deployment ids to include")
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of deployment ids to include"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -683,14 +702,14 @@ class DeploymentFilterId(PrefectFilterBaseModel):
 class DeploymentFilterName(PrefectFilterBaseModel):
     """Filter by `Deployment.name`."""
 
-    any_: List[str] = Field(
-        None,
+    any_: Optional[List[str]] = Field(
+        default=None,
         description="A list of deployment names to include",
         example=["my-deployment-1", "my-deployment-2"],
     )
 
-    like_: str = Field(
-        None,
+    like_: Optional[str] = Field(
+        default=None,
         description=(
             "A case-insensitive partial match. For example, "
             " passing 'marvin' will match "
@@ -711,8 +730,8 @@ class DeploymentFilterName(PrefectFilterBaseModel):
 class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
     """Filter by `Deployment.work_queue_name`."""
 
-    any_: List[str] = Field(
-        None,
+    any_: Optional[List[str]] = Field(
+        default=None,
         description="A list of work queue names to include",
         example=["work_queue_1", "work_queue_2"],
     )
@@ -727,8 +746,8 @@ class DeploymentFilterWorkQueueName(PrefectFilterBaseModel):
 class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
     """Filter by `Deployment.is_schedule_active`."""
 
-    eq_: bool = Field(
-        None,
+    eq_: Optional[bool] = Field(
+        default=None,
         description="Only returns where deployment schedule is/is not active",
     )
 
@@ -742,13 +761,13 @@ class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
 class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
     """Filter by `Deployment.tags`."""
 
-    all_: List[str] = Field(
-        None,
+    all_: Optional[List[str]] = Field(
+        default=None,
         example=["tag-1", "tag-2"],
         description="A list of tags. Deployments will be returned only if their tags are a superset of the list",
     )
-    is_null_: bool = Field(
-        None, description="If true, only include deployments without tags"
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only include deployments without tags"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -803,8 +822,8 @@ class DeploymentFilter(PrefectOperatorFilterBaseModel):
 class LogFilterName(PrefectFilterBaseModel):
     """Filter by `Log.name`."""
 
-    any_: List[str] = Field(
-        None,
+    any_: Optional[List[str]] = Field(
+        default=None,
         description="A list of log names to include",
         example=["prefect.logger.flow_runs", "prefect.logger.task_runs"],
     )
@@ -819,14 +838,14 @@ class LogFilterName(PrefectFilterBaseModel):
 class LogFilterLevel(PrefectFilterBaseModel):
     """Filter by `Log.level`."""
 
-    ge_: int = Field(
-        None,
+    ge_: Optional[int] = Field(
+        default=None,
         description="Include logs with a level greater than or equal to this level",
         example=20,
     )
 
-    le_: int = Field(
-        None,
+    le_: Optional[int] = Field(
+        default=None,
         description="Include logs with a level less than or equal to this level",
         example=50,
     )
@@ -843,11 +862,13 @@ class LogFilterLevel(PrefectFilterBaseModel):
 class LogFilterTimestamp(PrefectFilterBaseModel):
     """Filter by `Log.timestamp`."""
 
-    before_: DateTimeTZ = Field(
-        None, description="Only include logs with a timestamp at or before this time"
+    before_: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="Only include logs with a timestamp at or before this time",
     )
-    after_: DateTimeTZ = Field(
-        None, description="Only include logs with a timestamp at or after this time"
+    after_: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="Only include logs with a timestamp at or after this time",
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -862,7 +883,9 @@ class LogFilterTimestamp(PrefectFilterBaseModel):
 class LogFilterFlowRunId(PrefectFilterBaseModel):
     """Filter by `Log.flow_run_id`."""
 
-    any_: List[UUID] = Field(None, description="A list of flow run IDs to include")
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of flow run IDs to include"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -874,7 +897,9 @@ class LogFilterFlowRunId(PrefectFilterBaseModel):
 class LogFilterTaskRunId(PrefectFilterBaseModel):
     """Filter by `Log.task_run_id`."""
 
-    any_: List[UUID] = Field(None, description="A list of task run IDs to include")
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of task run IDs to include"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -935,8 +960,8 @@ class FilterSet(PrefectBaseModel):
 class BlockTypeFilterName(PrefectFilterBaseModel):
     """Filter by `BlockType.name`"""
 
-    like_: str = Field(
-        None,
+    like_: Optional[str] = Field(
+        default=None,
         description=(
             "A case-insensitive partial match. For example, "
             " passing 'marvin' will match "
@@ -955,7 +980,9 @@ class BlockTypeFilterName(PrefectFilterBaseModel):
 class BlockTypeFilterSlug(PrefectFilterBaseModel):
     """Filter by `BlockType.slug`"""
 
-    any_: List[str] = Field(None, description=("A list of slugs to match"))
+    any_: Optional[List[str]] = Field(
+        default=None, description=("A list of slugs to match")
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -990,7 +1017,9 @@ class BlockTypeFilter(PrefectFilterBaseModel):
 class BlockSchemaFilterBlockTypeId(PrefectFilterBaseModel):
     """Filter by `BlockSchema.block_type_id`."""
 
-    any_: List[UUID] = Field(None, description="A list of block type ids to include")
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of block type ids to include"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -1002,7 +1031,9 @@ class BlockSchemaFilterBlockTypeId(PrefectFilterBaseModel):
 class BlockSchemaFilterId(PrefectFilterBaseModel):
     """Filter by BlockSchema.id"""
 
-    any_: List[UUID] = Field(None, description="A list of IDs to include")
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of IDs to include"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -1014,8 +1045,8 @@ class BlockSchemaFilterId(PrefectFilterBaseModel):
 class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
     """Filter by `BlockSchema.capabilities`"""
 
-    all_: List[str] = Field(
-        None,
+    all_: Optional[List[str]] = Field(
+        default=None,
         example=["write-storage", "read-storage"],
         description="A list of block capabilities. Block entities will be returned "
         "only if an associated block schema has a superset of the defined capabilities.",
@@ -1033,8 +1064,8 @@ class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
 class BlockSchemaFilterVersion(PrefectFilterBaseModel):
     """Filter by `BlockSchema.capabilities`"""
 
-    any_: List[str] = Field(
-        None,
+    any_: Optional[List[str]] = Field(
+        default=None,
         example=["2.0.0", "2.1.0"],
         description="A list of block schema versions.",
     )
@@ -1082,8 +1113,8 @@ class BlockSchemaFilter(PrefectOperatorFilterBaseModel):
 class BlockDocumentFilterIsAnonymous(PrefectFilterBaseModel):
     """Filter by `BlockDocument.is_anonymous`."""
 
-    eq_: bool = Field(
-        None,
+    eq_: Optional[bool] = Field(
+        default=None,
         description="Filter block documents for only those that are or are not anonymous.",
     )
 
@@ -1097,7 +1128,9 @@ class BlockDocumentFilterIsAnonymous(PrefectFilterBaseModel):
 class BlockDocumentFilterBlockTypeId(PrefectFilterBaseModel):
     """Filter by `BlockDocument.block_type_id`."""
 
-    any_: List[UUID] = Field(None, description="A list of block type ids to include")
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of block type ids to include"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -1109,7 +1142,9 @@ class BlockDocumentFilterBlockTypeId(PrefectFilterBaseModel):
 class BlockDocumentFilterId(PrefectFilterBaseModel):
     """Filter by `BlockDocument.id`."""
 
-    any_: List[UUID] = Field(None, description="A list of block ids to include")
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of block ids to include"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -1121,7 +1156,9 @@ class BlockDocumentFilterId(PrefectFilterBaseModel):
 class BlockDocumentFilterName(PrefectFilterBaseModel):
     """Filter by `BlockDocument.name`."""
 
-    any_: List[str] = Field(None, description="A list of block names to include")
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of block names to include"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -1167,8 +1204,8 @@ class BlockDocumentFilter(PrefectOperatorFilterBaseModel):
 class FlowRunNotificationPolicyFilterIsActive(PrefectFilterBaseModel):
     """Filter by `FlowRunNotificationPolicy.is_active`."""
 
-    eq_: bool = Field(
-        None,
+    eq_: Optional[bool] = Field(
+        default=None,
         description="Filter notification policies for only those that are or are not active.",
     )
 

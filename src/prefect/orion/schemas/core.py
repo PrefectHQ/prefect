@@ -68,12 +68,12 @@ class FlowRunnerSettings(PrefectBaseModel):
     This schema is agnostic to the types and configuration provided by clients
     """
 
-    type: str = Field(
-        None,
+    type: Optional[str] = Field(
+        default=None,
         description="The type of the flow runner which can be used by the client for dispatching.",
     )
-    config: dict = Field(
-        None, description="The configuration for the given flow runner type."
+    config: Optional[dict] = Field(
+        default=None, description="The configuration for the given flow runner type."
     )
 
     # The following is required for composite compatibility in the ORM
@@ -133,24 +133,26 @@ class FlowRun(ORMBaseModel):
         example="my-flow-run",
     )
     flow_id: UUID = Field(..., description="The id of the flow being run.")
-    state_id: UUID = Field(None, description="The id of the flow run's current state.")
-    deployment_id: UUID = Field(
-        None,
+    state_id: Optional[UUID] = Field(
+        default=None, description="The id of the flow run's current state."
+    )
+    deployment_id: Optional[UUID] = Field(
+        default=None,
         description="The id of the deployment associated with this flow run, if available.",
     )
-    work_queue_name: str = Field(
-        None, description="The work queue that handled this flow run."
+    work_queue_name: Optional[str] = Field(
+        default=None, description="The work queue that handled this flow run."
     )
-    flow_version: str = Field(
-        None,
+    flow_version: Optional[str] = Field(
+        default=None,
         description="The version of the flow executed in this flow run.",
         example="1.0",
     )
     parameters: dict = Field(
         default_factory=dict, description="Parameters for the flow run."
     )
-    idempotency_key: str = Field(
-        None,
+    idempotency_key: Optional[str] = Field(
+        default=None,
         description="An optional idempotency key for the flow run. Used to ensure the same flow run is not created multiple times.",
     )
     context: dict = Field(
@@ -166,31 +168,37 @@ class FlowRun(ORMBaseModel):
         description="A list of tags on the flow run",
         example=["tag-1", "tag-2"],
     )
-    parent_task_run_id: UUID = Field(
-        None,
+    parent_task_run_id: Optional[UUID] = Field(
+        default=None,
         description="If the flow run is a subflow, the id of the 'dummy' task in the parent flow used to track subflow state.",
     )
 
-    state_type: schemas.states.StateType = Field(
-        None, description="The type of the current flow run state."
+    state_type: Optional[schemas.states.StateType] = Field(
+        default=None, description="The type of the current flow run state."
     )
-    state_name: str = Field(None, description="The name of the current flow run state.")
+    state_name: Optional[str] = Field(
+        default=None, description="The name of the current flow run state."
+    )
 
     run_count: int = Field(
         0, description="The number of times the flow run was executed."
     )
 
-    expected_start_time: DateTimeTZ = Field(
-        None,
+    expected_start_time: Optional[DateTimeTZ] = Field(
+        default=None,
         description="The flow run's expected start time.",
     )
 
-    next_scheduled_start_time: DateTimeTZ = Field(
-        None,
+    next_scheduled_start_time: Optional[DateTimeTZ] = Field(
+        default=None,
         description="The next time the flow run is scheduled to start.",
     )
-    start_time: DateTimeTZ = Field(None, description="The actual start time.")
-    end_time: DateTimeTZ = Field(None, description="The actual end time.")
+    start_time: Optional[DateTimeTZ] = Field(
+        default=None, description="The actual start time."
+    )
+    end_time: Optional[DateTimeTZ] = Field(
+        default=None, description="The actual end time."
+    )
     total_run_time: datetime.timedelta = Field(
         datetime.timedelta(0),
         description="Total run time. If the flow run was executed multiple times, the time of each run will be summed.",
@@ -213,8 +221,8 @@ class FlowRun(ORMBaseModel):
     # relationships
     # flow: Flow = None
     # task_runs: List["TaskRun"] = Field(default_factory=list)
-    state: schemas.states.State = Field(
-        None, description="The current state of the flow run."
+    state: Optional[schemas.states.State] = Field(
+        default=None, description="The current state of the flow run."
     )
     # parent_task_run: "TaskRun" = None
 
@@ -318,14 +326,16 @@ class TaskRun(ORMBaseModel):
         ...,
         description="A dynamic key used to differentiate between multiple runs of the same task within the same flow run.",
     )
-    cache_key: str = Field(
-        None,
+    cache_key: Optional[str] = Field(
+        default=None,
         description="An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run.",
     )
-    cache_expiration: DateTimeTZ = Field(
-        None, description="Specifies when the cached state should expire."
+    cache_expiration: Optional[DateTimeTZ] = Field(
+        default=None, description="Specifies when the cached state should expire."
     )
-    task_version: str = Field(None, description="The version of the task being run.")
+    task_version: Optional[str] = Field(
+        default=None, description="The version of the task being run."
+    )
     empirical_policy: TaskRunPolicy = Field(
         default_factory=TaskRunPolicy,
     )
@@ -334,33 +344,41 @@ class TaskRun(ORMBaseModel):
         description="A list of tags for the task run.",
         example=["tag-1", "tag-2"],
     )
-    state_id: UUID = Field(None, description="The id of the current task run state.")
+    state_id: Optional[UUID] = Field(
+        default=None, description="The id of the current task run state."
+    )
     task_inputs: Dict[str, List[Union[TaskRunResult, Parameter, Constant]]] = Field(
         default_factory=dict,
         description="Tracks the source of inputs to a task run. Used for internal bookkeeping.",
     )
 
-    state_type: schemas.states.StateType = Field(
-        None, description="The type of the current task run state."
+    state_type: Optional[schemas.states.StateType] = Field(
+        default=None, description="The type of the current task run state."
     )
-    state_name: str = Field(None, description="The name of the current task run state.")
+    state_name: Optional[str] = Field(
+        default=None, description="The name of the current task run state."
+    )
     run_count: int = Field(
         0, description="The number of times the task run has been executed."
     )
 
-    expected_start_time: DateTimeTZ = Field(
-        None,
+    expected_start_time: Optional[DateTimeTZ] = Field(
+        default=None,
         description="The task run's expected start time.",
     )
 
     # the next scheduled start time will be populated
     # whenever the run is in a scheduled state
-    next_scheduled_start_time: DateTimeTZ = Field(
-        None,
+    next_scheduled_start_time: Optional[DateTimeTZ] = Field(
+        default=None,
         description="The next time the task run is scheduled to start.",
     )
-    start_time: DateTimeTZ = Field(None, description="The actual start time.")
-    end_time: DateTimeTZ = Field(None, description="The actual end time.")
+    start_time: Optional[DateTimeTZ] = Field(
+        default=None, description="The actual start time."
+    )
+    end_time: Optional[DateTimeTZ] = Field(
+        default=None, description="The actual end time."
+    )
     total_run_time: datetime.timedelta = Field(
         datetime.timedelta(0),
         description="Total run time. If the task run was executed multiple times, the time of each run will be summed.",
@@ -376,7 +394,9 @@ class TaskRun(ORMBaseModel):
     # relationships
     # flow_run: FlowRun = None
     # subflow_runs: List[FlowRun] = Field(default_factory=list)
-    state: schemas.states.State = Field(None, description="The current task run state.")
+    state: Optional[schemas.states.State] = Field(
+        default=None, description="The current task run state."
+    )
 
     @validator("name", pre=True)
     def set_name(cls, name):
@@ -390,12 +410,14 @@ class Deployment(ORMBaseModel):
     version: Optional[str] = Field(
         None, description="An optional version for the deployment."
     )
-    description: str = Field(None, description="A description for the deployment.")
+    description: Optional[str] = Field(
+        default=None, description="A description for the deployment."
+    )
     flow_id: UUID = Field(
         ..., description="The flow id associated with the deployment."
     )
-    schedule: schemas.schedules.SCHEDULE_TYPES = Field(
-        None, description="A schedule for the deployment."
+    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = Field(
+        default=None, description="A schedule for the deployment."
     )
     is_schedule_active: bool = Field(
         True, description="Whether or not the deployment schedule is active."
@@ -417,20 +439,20 @@ class Deployment(ORMBaseModel):
         None,
         description="The work queue for the deployment. If no work queue is set, work will not be scheduled.",
     )
-    parameter_openapi_schema: Dict[str, Any] = Field(
-        None,
+    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
+        default=None,
         description="The parameter schema of the flow, including defaults.",
     )
-    path: str = Field(
-        None,
+    path: Optional[str] = Field(
+        default=None,
         description="The path to the working directory for the workflow, relative to remote storage or an absolute path.",
     )
-    entrypoint: str = Field(
-        None,
+    entrypoint: Optional[str] = Field(
+        default=None,
         description="The path to the entrypoint for the workflow, relative to the `path`.",
     )
-    manifest_path: str = Field(
-        None,
+    manifest_path: Optional[str] = Field(
+        default=None,
         description="The path to the flow's manifest file, relative to the chosen storage.",
     )
     storage_document_id: Optional[UUID] = Field(
@@ -720,8 +742,8 @@ class FlowRunNotificationPolicy(ORMBaseModel):
     block_document_id: UUID = Field(
         ..., description="The block document ID used for sending notifications"
     )
-    message_template: str = Field(
-        None,
+    message_template: Optional[str] = Field(
+        default=None,
         description=(
             "A templatable notification message. Use {braces} to add variables. "
             f'Valid variables include: {listrepr(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=", ")}'

@@ -402,14 +402,14 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
     bucket_path: str = Field(
         ..., description="An S3 bucket path.", example="my-bucket/a-directory-within"
     )
-    aws_access_key_id: SecretStr = Field(
-        None,
+    aws_access_key_id: Optional[SecretStr] = Field(
+        default=None,
         title="AWS Access Key ID",
         description="Equivalent to the AWS_ACCESS_KEY_ID environment variable.",
         example="AKIAIOSFODNN7EXAMPLE",
     )
-    aws_secret_access_key: SecretStr = Field(
-        None,
+    aws_secret_access_key: Optional[SecretStr] = Field(
+        default=None,
         title="AWS Secret Access Key",
         description="Equivalent to the AWS_SECRET_ACCESS_KEY environment variable.",
         example="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",

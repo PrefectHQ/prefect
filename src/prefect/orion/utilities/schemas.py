@@ -342,8 +342,8 @@ class ORMBaseModel(IDBaseModel):
     class Config:
         orm_mode = True
 
-    created: DateTimeTZ = Field(None, repr=False)
-    updated: DateTimeTZ = Field(None, repr=False)
+    created: Optional[DateTimeTZ] = Field(default=None, repr=False)
+    updated: Optional[DateTimeTZ] = Field(default=None, repr=False)
 
     def _reset_fields(self) -> Set[str]:
         return super()._reset_fields().union({"created", "updated"})

@@ -178,8 +178,8 @@ class DockerContainer(Infrastructure):
         description="Tag of a Docker image to use. Defaults to the Prefect image.",
         default_factory=get_prefect_image_name,
     )
-    image_pull_policy: ImagePullPolicy = Field(
-        None, description="Specifies if the image should be pulled."
+    image_pull_policy: Optional[ImagePullPolicy] = Field(
+        default=None, description="Specifies if the image should be pulled."
     )
     image_registry: Optional[DockerRegistry] = None
     networks: List[str] = Field(

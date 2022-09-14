@@ -58,8 +58,10 @@ class State(IDBaseModel, Generic[R]):
     type: StateType
     name: str = None
     timestamp: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
-    message: str = Field(None, example="Run started")
-    data: DataDocument[R] = Field(None)
+    message: Optional[str] = Field(default=None, example="Run started")
+    data: Optional[DataDocument[R]] = Field(
+        default=None,
+    )
     state_details: StateDetails = Field(default_factory=StateDetails)
 
     @overload

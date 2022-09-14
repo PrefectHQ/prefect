@@ -38,8 +38,8 @@ class StateRejectDetails(PrefectBaseModel):
         "reject_details",
         description="The type of state transition detail. Used to ensure pydantic does not coerce into a different type.",
     )
-    reason: str = Field(
-        None, description="The reason why the state transition was rejected."
+    reason: Optional[str] = Field(
+        default=None, description="The reason why the state transition was rejected."
     )
 
 
@@ -50,8 +50,8 @@ class StateAbortDetails(PrefectBaseModel):
         "abort_details",
         description="The type of state transition detail. Used to ensure pydantic does not coerce into a different type.",
     )
-    reason: str = Field(
-        None, description="The reason why the state transition was aborted."
+    reason: Optional[str] = Field(
+        default=None, description="The reason why the state transition was aborted."
     )
 
 
@@ -66,8 +66,8 @@ class StateWaitDetails(PrefectBaseModel):
         ...,
         description="The length of time in seconds the client should wait before transitioning states.",
     )
-    reason: str = Field(
-        None, description="The reason why the state transition should wait."
+    reason: Optional[str] = Field(
+        default=None, description="The reason why the state transition should wait."
     )
 
 
