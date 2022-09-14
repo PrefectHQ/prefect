@@ -75,7 +75,7 @@
   const workQueue = computed(() => workQueueSubscription.response)
 
   const workQueueName = computed(() => workQueue.value ? [workQueue.value.name] : [])
-  const flowRunFilter = useRecentFlowRunFilter({ states: ['Late'], workQueues: workQueueName })
+  const flowRunFilter = useRecentFlowRunFilter({ states: [], workQueues: workQueueName })
 
   const flowRunsFilterArgs = computed<Parameters<typeof flowRunsApi.getFlowRuns> | null>(() => workQueueName.value.length ? [flowRunFilter.value] : null)
 
