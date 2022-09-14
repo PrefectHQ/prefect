@@ -562,7 +562,7 @@ class KubernetesAgent(Agent):
         env.update(self.env_vars)
         if run_config.env:
             env.update(run_config.env)
-        if "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS" not in env:
+        if env.get("PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "").lower() != "false":
             env["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] = str(self.log_to_cloud).lower()
         env.update(
             {
