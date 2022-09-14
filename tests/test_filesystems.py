@@ -45,7 +45,6 @@ class TestLocalFileSystem:
         await fs.get_directory(".", ".")
         
 
-
 class TestRemoteFileSystem:
     def test_must_contain_scheme(self):
         with pytest.raises(ValueError, match="must start with a scheme"):
