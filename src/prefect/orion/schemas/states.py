@@ -172,7 +172,7 @@ class State(IDBaseModel, Generic[R]):
 
         # if `type` is not in `values` it means the `type` didn't pass its own
         # validation check and an error will be raised after this function is called
-        if v is None and "type" in values:
+        if v is None and values.get("type"):
             v = " ".join([v.capitalize() for v in values.get("type").value.split("_")])
         return v
 
