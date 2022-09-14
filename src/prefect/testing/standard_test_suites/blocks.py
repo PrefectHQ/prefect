@@ -1,8 +1,10 @@
 import re
 from abc import ABC, abstractmethod
 from typing import Type
+from urllib.request import urlopen
 
 import pytest
+from PIL import Image
 
 from prefect.blocks.core import Block
 
@@ -43,6 +45,9 @@ class BlockStandardTestSuite(ABC):
         ), f"The code example for {block.__name__} is missing a .load statement matching the pattern {block_load_pattern}"
 
     def test_has_a_valid_image(self, block: Type[Block]):
+        logo_url = block._logo_url
         assert (
-            block._logo_url is not None
+            logo_url is not None
         ), f"{block.__name__} is missing a value for _logo_url"
+        img = Image.open(urlopen(logo_url))
+        assert img.width == img.height, f"{block.__name__}'s logo is not a square image"
