@@ -32,8 +32,8 @@
 <script lang="ts" setup>
   import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunList, UnionFilters, useRecentFlowRunFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
-  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed, ref } from 'vue'
+  import { useSubscription, useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
+  import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { routes } from '@/router/routes'
   import { deploymentsApi } from '@/services/deploymentsApi'
@@ -59,12 +59,13 @@
   const flowSubscription = useSubscription(flowsApi.getFlow, [flowId.value], subscriptionOptions)
   const flow = computed(() => flowSubscription.response)
 
-  const flowFilter = computed<UnionFilters>(() => useRecentFlowRunFilter({ flows: [flowId.value] }).value)
+  const flowFilter = useRecentFlowRunFilter({ flows: [flowId.value] })
+  const flowFilterArgs = computed<[filter: UnionFilters] | null>(() => flowId.value ? [flowFilter.value] : null)
 
-  const flowDeploymentsSubscription = useSubscription(deploymentsApi.getDeployments, [flowFilter], subscriptionOptions)
+  const flowDeploymentsSubscription = useSubscriptionWithDependencies(deploymentsApi.getDeployments, flowFilterArgs)
   const flowDeployments = computed(() => flowDeploymentsSubscription.response ?? [])
 
-  const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [flowFilter], subscriptionOptions)
+  const flowRunsSubscription = useSubscriptionWithDependencies(flowRunsApi.getFlowRuns, flowFilterArgs)
   const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
 
   function deleteFlow(): void {
