@@ -57,7 +57,7 @@ class TestCreateTaskRun:
         task_run_data = schemas.actions.TaskRunCreate(
             flow_run_id=flow_run.id,
             task_key="task-key",
-            state=states.Running(),
+            state=schemas.actions.StateCreate(type=schemas.states.StateType.RUNNING),
             dynamic_key="0",
         )
         response = await client.post(
@@ -77,7 +77,11 @@ class TestCreateTaskRun:
             json=schemas.actions.TaskRunCreate(
                 flow_run_id=flow_run.id,
                 task_key="a",
-                state=states.Completed(timestamp=pendulum.now().add(months=1)),
+                state=schemas.actions.StateCreate(
+                    type=schemas.states.StateType.COMPLETED,
+                    # This is no longer allowed
+                    # timestamp=pendulum.now().add(months=1),
+                ),
                 dynamic_key="0",
             ).dict(json_compatible=True),
         )
