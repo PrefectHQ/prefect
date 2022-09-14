@@ -42,7 +42,7 @@
 
 
 <script lang="ts" setup>
-  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter, UnionFilters } from '@prefecthq/orion-design'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
