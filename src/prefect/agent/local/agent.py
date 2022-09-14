@@ -201,7 +201,11 @@ class LocalAgent(Agent):
         if run_config is not None and run_config.env is not None:
             env.update(run_config.env)
 
-        # 6. Non-overrideable required env vars
+        # 6. Allow disabling of sending flow run logs
+        if env.get("PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "").lower() != "false":
+            env["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] = str(self.log_to_cloud).lower()
+
+        # 7. Non-overrideable required env vars
         env.update(
             {
                 "PREFECT__BACKEND": config.backend,
@@ -217,7 +221,6 @@ class LocalAgent(Agent):
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-                "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
                 "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             }
         )
