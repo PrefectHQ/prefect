@@ -91,16 +91,18 @@ class DeploymentUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a deployment."""
 
     version: Optional[str] = FieldFrom(schemas.core.Deployment)
-    description: str = FieldFrom(schemas.core.Deployment)
-    schedule: schemas.schedules.SCHEDULE_TYPES = FieldFrom(schemas.core.Deployment)
+    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
+        schemas.core.Deployment
+    )
+    description: Optional[str] = FieldFrom(schemas.core.Deployment)
     is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
-    infra_overrides: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
-    path: str = FieldFrom(schemas.core.Deployment)
-    entrypoint: str = FieldFrom(schemas.core.Deployment)
-    manifest_path: str = FieldFrom(schemas.core.Deployment)
+    path: Optional[str] = FieldFrom(schemas.core.Deployment)
+    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
+    entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
+    manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
 
@@ -112,8 +114,8 @@ class DeploymentUpdate(PrefectBaseModel):
 class FlowRunUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a flow run."""
 
-    name: str = FieldFrom(schemas.core.FlowRun)
-    flow_version: str = FieldFrom(schemas.core.FlowRun)
+    name: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
     parameters: dict = FieldFrom(schemas.core.FlowRun)
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
@@ -127,10 +129,10 @@ class StateCreate(PrefectBaseModel):
     """Data used by the Orion API to create a new state."""
 
     type: schemas.states.StateType = FieldFrom(schemas.states.State)
-    name: str = FieldFrom(schemas.states.State)
+    name: Optional[str] = FieldFrom(schemas.states.State)
     timestamp: schemas.core.DateTimeTZ = FieldFrom(schemas.states.State)
-    message: str = FieldFrom(schemas.states.State)
-    data: schemas.data.DataDocument = FieldFrom(schemas.states.State)
+    message: Optional[str] = FieldFrom(schemas.states.State)
+    data: Optional[schemas.data.DataDocument] = FieldFrom(schemas.states.State)
     state_details: schemas.states.StateDetails = FieldFrom(schemas.states.State)
 
     class Config:
@@ -395,7 +397,7 @@ class FlowRunNotificationPolicyCreate(PrefectBaseModel):
     state_names: List[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
     tags: List[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
     block_document_id: UUID = FieldFrom(schemas.core.FlowRunNotificationPolicy)
-    message_template: str = FieldFrom(schemas.core.FlowRunNotificationPolicy)
+    message_template: Optional[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
 
     class Config:
         extra = "forbid"
