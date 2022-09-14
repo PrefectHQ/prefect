@@ -66,7 +66,7 @@
   const flowDeployments = computed(() => flowDeploymentsSubscription.response ?? [])
 
   const flowRunsSubscription = useSubscriptionWithDependencies(flowRunsApi.getFlowRuns, flowFilterArgs)
-  const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
+  const flowRuns = computed(() => flowRunsSubscription.response ?? [])
 
   function deleteFlow(): void {
     router.push(routes.flows())
