@@ -61,21 +61,26 @@ class DeploymentCreate(PrefectBaseModel):
     """Data used by the Orion API to create a deployment."""
 
     name: str = FieldFrom(schemas.core.Deployment)
-    version: Optional[str] = FieldFrom(schemas.core.Deployment)
-    description: str = FieldFrom(schemas.core.Deployment)
     flow_id: UUID = FieldFrom(schemas.core.Deployment)
-    schedule: schemas.schedules.SCHEDULE_TYPES = FieldFrom(schemas.core.Deployment)
     is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
-    infra_overrides: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
+
+    manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
-    parameter_openapi_schema: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
-    path: str = FieldFrom(schemas.core.Deployment)
-    entrypoint: str = FieldFrom(schemas.core.Deployment)
-    manifest_path: str = FieldFrom(schemas.core.Deployment)
     storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
+    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
+        schemas.core.Deployment
+    )
+    description: Optional[str] = FieldFrom(schemas.core.Deployment)
+    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
+        schemas.core.Deployment
+    )
+    path: Optional[str] = FieldFrom(schemas.core.Deployment)
+    version: Optional[str] = FieldFrom(schemas.core.Deployment)
+    entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
+    infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
 
     class Config:
         extra = "forbid"
@@ -184,7 +189,7 @@ class FlowRunCreate(PrefectBaseModel):
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
-    idempotency_key: str = FieldFrom(schemas.core.FlowRun)
+    idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields
@@ -205,7 +210,7 @@ class DeploymentFlowRunCreate(PrefectBaseModel):
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
-    idempotency_key: str = FieldFrom(schemas.core.FlowRun)
+    idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields
@@ -293,7 +298,6 @@ class BlockDocumentCreate(PrefectBaseModel):
     class Config:
         extra = "forbid"
 
-    # validators
     _validate_name_format = validator("name", allow_reuse=True)(
         validate_block_document_name
     )

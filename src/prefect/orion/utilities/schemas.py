@@ -362,7 +362,7 @@ def FieldFrom(origin: Type[BaseModel]) -> Any:
     Indicates that the given field is to be copied from another class by
     `copy_model_fields`.
     """
-    return _FieldFrom(origin)
+    return _FieldFrom(origin=origin)
 
 
 def copy_model_fields(model_class: Type[B]) -> Type[B]:
@@ -401,7 +401,14 @@ def copy_model_fields(model_class: Type[B]) -> Type[B]:
         origin = field.default.origin
 
         origin_field = origin.__fields__[name]
-        if field.type_ != origin_field.type_:
+
+        # For safety, types defined on the model must match those of the origin
+        # We make an exception here for `Optional` where the model can make the same
+        # type definition nullable.
+        if (
+            field.type_ != origin_field.type_
+            and not field.type_ == Optional[origin_field.type_]
+        ):
             if not issubclass(
                 origin_field.type_,
                 field.type_,
@@ -411,7 +418,21 @@ def copy_model_fields(model_class: Type[B]) -> Type[B]:
                     f"field {origin_field.type_}"
                 )
 
-        model_class.__fields__[name] = copy.copy(origin_field)
+        # Create a copy of the origin field
+        new_field = copy.deepcopy(origin_field)
+
+        # Retain any validators from the model field
+        new_field.post_validators = new_field.post_validators or []
+        new_field.pre_validators = new_field.pre_validators or []
+        new_field.post_validators.extend(field.post_validators or [])
+        new_field.pre_validators.extend(field.pre_validators or [])
+
+        # Retain "optional" from the model field
+        new_field.required = field.required
+        new_field.allow_none = field.allow_none
+
+        model_class.__fields__[name] = new_field
+
         if name in origin.__validators__:
             # The type: ignores here are because pydantic has a mistyping for these
             # __validators__ fields (TODO: file an upstream PR)
