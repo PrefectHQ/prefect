@@ -71,7 +71,7 @@
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
   const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [filter], subscriptionOptions)
-  const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
+  const flowRuns = computed(() => flowRunsSubscription.response ?? [])
   const selectedFlowRuns = ref([])
 
   function clear(): void {
