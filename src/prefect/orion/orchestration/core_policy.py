@@ -24,6 +24,7 @@ from prefect.orion.orchestration.rules import (
     TaskOrchestrationContext,
 )
 from prefect.orion.schemas import filters, states
+from prefect.orion.schemas.states import StateType
 
 
 class CoreFlowPolicy(BaseOrchestrationPolicy):
@@ -34,6 +35,8 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             PreventTransitionsFromTerminalStates,
+            PreventTransitionsToCurrentState,
+            PreventBackwardsTransitions,
             WaitForScheduledTime,
             RetryFailedFlows,
         ]
@@ -49,6 +52,8 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
             CacheRetrieval,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             PreventTransitionsFromTerminalStates,
+            PreventTransitionsToCurrentState,
+            PreventBackwardsTransitions,
             WaitForScheduledTime,
             RetryFailedTasks,
             RenameReruns,
@@ -407,3 +412,53 @@ class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
         context: OrchestrationContext,
     ) -> None:
         await self.abort_transition(reason="This run has already terminated.")
+
+
+class PreventTransitionsToCurrentState(BaseOrchestrationRule):
+    """
+    Prevents transitions from terminal states.
+
+    Orchestration logic in Orion assumes that once runs enter a terminal state, no
+    further action will be taken on them. This rule prevents unintended transitions out
+    of terminal states and sents an instruction to the client to abort any execution.
+    """
+
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        if initial_state.type == proposed_state.type:
+            await self.abort_transition(
+                reason=f"This run is already in the {proposed_state.type} state."
+            )
+
+
+class PreventBackwardsTransitions(BaseOrchestrationRule):
+    STATE_PROGRESS = {
+        None: 0,
+        StateType.SCHEDULED: 1,
+        StateType.PENDING: 2,
+        StateType.RUNNING: 3,
+    }
+
+    FROM_STATES = [StateType.SCHEDULED, StateType.PENDING, StateType.RUNNING, None]
+    TO_STATES = [StateType.SCHEDULED, StateType.PENDING, StateType.RUNNING, None]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        if (
+            self.STATE_PROGRESS[proposed_state.type]
+            < self.STATE_PROGRESS[initial_state.type]
+        ):
+            await self.abort_transition(
+                reason=f"This run cannot transition back to the {proposed_state.type} state."
+            )
