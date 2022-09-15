@@ -318,3 +318,26 @@ def multi_task_job_json():
             },
         ],
     }
+
+
+class TestNewCluster:
+    def test_node_type_or_instance_pool(self):
+        assert (
+            NewCluster(spark_version="10.4.x-scala2.12", node_type_id=123).node_type_id
+            == "123"
+        )
+        assert (
+            NewCluster(
+                spark_version="10.4.x-scala2.12", instance_pool_id=1243
+            ).instance_pool_id
+            == "1243"
+        )
+        with pytest.raises(ValueError, match="Must specify"):
+            NewCluster(spark_version="10.4.x-scala2.12")
+
+        with pytest.raises(ValueError, match="Cannot specify"):
+            NewCluster(
+                spark_version="10.4.x-scala2.12",
+                instance_pool_id=1234,
+                node_type_id=123,
+            )
