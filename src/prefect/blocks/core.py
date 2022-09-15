@@ -21,6 +21,7 @@ from uuid import UUID, uuid4
 from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSection, DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
+from packaging.version import InvalidVersion, Version
 from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
 from slugify import slugify
 from typing_extensions import ParamSpec, Self, get_args, get_origin
@@ -247,9 +248,11 @@ class Block(BaseModel, ABC):
                 current_module.__name__.split(".")[0] or "__main__"
             ]
             try:
-                return str(top_level_module.__version__)
-            except AttributeError:
-                # Module does not have a __version__ attribute
+                version = Version(top_level_module.__version__)
+                # Strips off any local version information
+                return version.base_version
+            except (AttributeError, InvalidVersion):
+                # Module does not have a __version__ attribute or is not a parsable format
                 pass
         return DEFAULT_BLOCK_SCHEMA_VERSION
 
@@ -707,7 +710,8 @@ class Block(BaseModel, ABC):
 
             try:
                 block_schema = await client.read_block_schema_by_checksum(
-                    checksum=cls._calculate_schema_checksum()
+                    checksum=cls._calculate_schema_checksum(),
+                    version=cls.get_block_schema_version(),
                 )
             except prefect.exceptions.ObjectNotFound:
                 block_schema = await client.create_block_schema(
