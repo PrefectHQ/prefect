@@ -86,7 +86,7 @@ def test_printing_the_agent_manifest_with_no_args():
     )
     manifests = yaml.load_all(result.stdout, yaml.SafeLoader)
 
-    # Spot-check a few things.  This test is mostly just confirming that the output
+    # Spot-check a few things. This test is mostly just confirming that the output
     # looks roughly like a set of Kubernetes manifests in YAML.
     assert manifests
 
