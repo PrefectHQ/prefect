@@ -6,7 +6,7 @@ import datetime
 import json
 import os
 from functools import partial
-from typing import Any, Dict, List, Set, Type, TypeVar
+from typing import Any, Dict, List, Optional, Set, Type, TypeVar
 from uuid import UUID, uuid4
 
 import orjson
@@ -342,8 +342,8 @@ class ORMBaseModel(IDBaseModel):
     class Config:
         orm_mode = True
 
-    created: DateTimeTZ = Field(None, repr=False)
-    updated: DateTimeTZ = Field(None, repr=False)
+    created: Optional[DateTimeTZ] = Field(default=None, repr=False)
+    updated: Optional[DateTimeTZ] = Field(default=None, repr=False)
 
     def _reset_fields(self) -> Set[str]:
         return super()._reset_fields().union({"created", "updated"})
