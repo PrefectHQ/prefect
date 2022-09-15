@@ -260,7 +260,7 @@ class TestDeployFlow:
                             {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
                             {
                                 "name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS",
-                                "value": "true",
+                                "value": "false",
                             },
                             {
                                 "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
