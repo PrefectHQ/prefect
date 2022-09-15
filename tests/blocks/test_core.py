@@ -12,6 +12,7 @@ import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.blocks.system import Secret
 from prefect.client import OrionClient
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
@@ -512,7 +513,14 @@ class TestAPICompatibility:
         assert block_schema.version == "1.0.0"
 
     def test_create_block_schema_uses_prefect_version_for_built_in_blocks(self):
-        Secret.register_type_and_schema()
+        try:
+            Secret.register_type_and_schema()
+        except PrefectHTTPStatusError as exc:
+            if exc.response.status_code == 403:
+                pass
+            else:
+                raise exc
+
         block_schema = Secret._to_block_schema()
         assert block_schema.version == prefect.__version__
 
