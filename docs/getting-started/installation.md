@@ -15,6 +15,21 @@ tags:
 
 The first step to getting started with Prefect is installing the Prefect Python package. 
 
+<p align="left">
+    <a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
+        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect?color=0052FF&labelColor=090422"></a>
+    <a href="https://github.com/prefecthq/prefect/" alt="Stars">
+        <img src="https://img.shields.io/github/stars/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
+    <a href="https://pypi.python.org/pypi/prefect/" alt="Downloads">
+        <img src="https://img.shields.io/pypi/dm/prefect?color=0052FF&labelColor=090422" /></a>
+    <a href="https://github.com/prefecthq/prefect/pulse" alt="Activity">
+        <img src="https://img.shields.io/github/commit-activity/m/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
+    <a href="https://github.com/prefecthq/prefect/graphs/contributors" alt="Contributors">
+        <img src="https://img.shields.io/github/contributors/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
+    <a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
+        <img src="https://img.shields.io/pypi/pyversions/prefect?color=0052FF&labelColor=090422" /></a>
+</p>
+
 ## Set up Python
 
 <a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
@@ -31,9 +46,6 @@ We recommend installing Prefect 2 using a Python virtual environment manager suc
     See [Windows installation notes](#windows-installation-notes) and [Linux installation notes](#linux-installation-notes) for details on additional installation requirements and considerations.
 
 ## Install Prefect 
-
-<a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
-    <img src="https://badge.fury.io/py/prefect.svg" /></a>
 
 The following sections describe how to install Prefect in your development or execution environment.
 
@@ -81,6 +93,7 @@ If you'd like to install a version of Prefect for development:
 <div class="terminal">
 ```bash
 $ git clone https://github.com/PrefectHQ/prefect.git
+$ cd prefect
 $ pip install -e ".[dev]"
 $ pre-commit install
 ```
@@ -137,9 +150,9 @@ If using Windows Subsystem for Linux (WSL), see [Linux installation notes](#linu
 
 ## Linux installation notes
 
-Currently, Prefect 2.0 requires SQLite 3.24 or newer.
+Currently, Prefect 2 requires SQLite 3.24 or newer.
 
-When installing Prefect 2.0 and using a SQLite backend on Linux, make sure your environment is using a compatible SQLite version. Some versions of Linux package a version of SQLite that cannot be used with Prefect 2.0.
+When installing Prefect 2 and using a SQLite backend on Linux, make sure your environment is using a compatible SQLite version. Some versions of Linux package a version of SQLite that cannot be used with Prefect 2.
 
 Known compatible releases include:
 
@@ -147,34 +160,11 @@ Known compatible releases include:
 
 You can also: 
 
+- Use [Prefect Cloud](/ui/cloud/) as your API server and orchestration engine.
 - Use the `conda` virtual environment manager, which enables configuring a compatible SQLite version.
 - [Configure a PostgeSQL database](/concepts/database/#configuring_a_postgresql_database) as the Prefect backend database.
+- [Install SQLite on Red Hat Enterprise Linux (RHEL)](#install-sqlite-on-rhel).
 - Use [Prefect Cloud](/ui/cloud/) as your API server and orchestration engine.
-
-## Upgrading to 2.0b6
-
-In Prefect 2.0b6 we added breaking changes with respect to the [Blocks API](/api-ref/prefect/blocks/storage/). This API is an important abstraction you may have used already to create default [Storage](/concepts/storage/) or specifying `flow_storage` as part of a [`DeploymentSpec`](/concepts/deployments/#deployment-specifications). As a result, the backend API in 2.0b6 is incompatible with previous Prefect client versions.
-
-After the upgrade, your data will remain intact, but you will need to upgrade to 2.0b6 to continue using the Cloud 2.0 API.
-
-Actions needed on your end to upgrade, especially as a Cloud 2.0 user:
-
-- Upgrade Prefect 2.0 Python package: `pip install -U "prefect>=2.0b6"`
-- Restart any agent processes.
-- If you are using an agent running on Kubernetes, update the Prefect image version to 2.0b6 in your Kubernetes manifest and re-apply the deployment.
-
-You don't need to recreate any deployments or pause your schedules - stopping your agent process to perform an upgrade may result in some late runs, but those will be picked up once you restart your agent, so Don't Panic!
-
-## Upgrading to 2.0a10
-
-Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect Orion database. 
-
-Prior to 2.0a10, Prefect did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be upgraded automatically with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier.
-
-Resetting the database with the CLI command `prefect orion database reset` is not compatible a database from 2.0a9 or earlier. Instead, delete the database file `~/.prefect/orion.db`. Prefect automatically creates a new database on the next write.
-
-!!! warning "Resetting the database deletes data"
-    Note that resetting the database causes the loss of any existing data. 
 
 ## External requirements
 
@@ -182,7 +172,7 @@ While Prefect works with many of your favorite tools and Python modules, it has 
 
 ### SQLite
 
-Prefect 2.0 uses SQLite as the default backing database, but it is not packaged with the Prefect installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
+Prefect 2 uses SQLite as the default backing database, but it is not packaged with the Prefect installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
 
 You can check your SQLite version by executing the following command in a terminal:
 
@@ -210,3 +200,82 @@ Server:
   SQLite version:    3.32.3
 ```
 </div>
+
+### Install SQLite on RHEL
+
+The following steps are needed to install an appropriate version of SQLite on Red Hat Enterprise Linux (RHEL).
+
+Note that some RHEL instances have no C compiler, so you may need to check for and install `gcc` first:
+
+<div class="terminal">
+```bash
+yum install gcc
+```
+</div>
+
+Download and extract the tarball for SQLite.
+
+<div class="terminal">
+```bash
+wget https://www.sqlite.org/2022/sqlite-autoconf-3390200.tar.gz
+tar -xzf sqlite-autoconf-3390200.tar.gz
+```
+</div>
+
+Change to the extracted SQLite folder, then build and install SQLite.
+
+<div class="terminal">
+```bash
+cd sqlite-autoconf-3390200/
+./configure
+make
+make install
+```
+</div>
+
+Add `LD_LIBRARY_PATH` to your profile.
+
+<div class="terminal">
+```bash
+echo 'export LD_LIBRARY_PATH="/usr/local/lib"' >> /etc/profile
+```
+</div>
+
+Restart your shell to register these changes.
+
+Now you can install Prefect using `pip`.
+
+<div class="terminal">
+```bash
+pip3 install prefect
+```
+</div>
+
+## Upgrading from Prefect beta
+
+The following sections provide important notes for users upgrading from Prefect 2 beta releases.
+
+### Upgrading to 2.0b6
+
+In Prefect 2.0b6 we added breaking changes with respect to the [Blocks API](/api-ref/prefect/blocks/storage/). This API is an important abstraction you may have used already to create default [Storage](/concepts/storage/) or specifying `flow_storage` as part of a [`DeploymentSpec`](/concepts/deployments/#deployment-specifications). As a result, the backend API in 2.0b6 is incompatible with previous Prefect client versions.
+
+After the upgrade, your data will remain intact, but you will need to upgrade to 2.0b6 to continue using the Cloud 2.0 API.
+
+Actions needed on your end to upgrade, especially as a Prefect Cloud 2 user:
+
+- Upgrade Prefect 2 Python package: `pip install -U "prefect>=2.0b6"`
+- Restart any agent processes.
+- If you are using an agent running on Kubernetes, update the Prefect image version to 2.0b6 in your Kubernetes manifest and re-apply the deployment.
+
+You don't need to recreate any deployments or pause your schedules &mdash; stopping your agent process to perform an upgrade may result in some late runs, but those will be picked up once you restart your agent, so Don't Panic!
+
+### Upgrading to 2.0a10
+
+Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect Orion database. 
+
+Prior to 2.0a10, Prefect did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be upgraded automatically with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier.
+
+Resetting the database with the CLI command `prefect orion database reset` is not compatible a database from 2.0a9 or earlier. Instead, delete the database file `~/.prefect/orion.db`. Prefect automatically creates a new database on the next write.
+
+!!! warning "Resetting the database deletes data"
+    Note that resetting the database causes the loss of any existing data. 
