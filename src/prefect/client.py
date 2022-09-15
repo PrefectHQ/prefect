@@ -1376,6 +1376,35 @@ class OrionClient:
 
         return UUID(deployment_id)
 
+    async def update_deployment(
+        self,
+        deployment,
+        schedule: schemas.schedules.SCHEDULE_TYPES = None,
+        is_schedule_active: bool = None,
+    ):
+        deployment_create = schemas.actions.DeploymentUpdate(
+            version=deployment.version,
+            schedule=schedule if schedule is not None else deployment.schedule,
+            is_schedule_active=is_schedule_active
+            if is_schedule_active is not None
+            else deployment.is_schedule_active,
+            description=deployment.description,
+            work_queue_name=deployment.work_queue_name,
+            tags=deployment.tags,
+            manifest_path=deployment.manifest_path,
+            path=deployment.path,
+            entrypoint=deployment.entrypoint,
+            parameters=deployment.parameters,
+            storage_document_id=deployment.storage_document_id,
+            infrastructure_document_id=deployment.infrastructure_document_id,
+            infra_overrides=deployment.infra_overrides,
+        )
+
+        response = await self._client.patch(
+            f"/deployments/{deployment.id}",
+            json=deployment_create.dict(json_compatible=True),
+        )
+
     async def _create_deployment_from_schema(
         self, schema: schemas.actions.DeploymentCreate
     ) -> UUID:
