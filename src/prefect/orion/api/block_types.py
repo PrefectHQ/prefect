@@ -108,7 +108,7 @@ async def update_block_type(
     """
     async with db.session_context(begin_transaction=True) as session:
         # ensure system blocks are protected before update
-        await protect_system_blocks(session)
+        await install_protected_system_blocks(session)
 
         db_block_type = await models.block_types.read_block_type(
             session=session, block_type_id=block_type_id
@@ -134,7 +134,7 @@ async def delete_block_type(
 ):
     async with db.session_context(begin_transaction=True) as session:
         # ensure system blocks are protected before update
-        await protect_system_blocks(session)
+        await install_protected_system_blocks(session)
 
         db_block_type = await models.block_types.read_block_type(
             session=session, block_type_id=block_type_id
@@ -204,12 +204,14 @@ async def read_block_document_by_name_for_block_type(
     return block_document
 
 
-async def protect_system_blocks(session):
+async def install_protected_system_blocks(session):
     """Install block types that the system expects to be present"""
     for block in [
         prefect.blocks.system.JSON,
         prefect.blocks.system.DateTime,
         prefect.blocks.system.Secret,
+        prefect.filesystems.LocalFileSystem,
+        prefect.infrastructure.Process,
     ]:
         block_type = block._to_block_type()
         block_type.is_protected = True
@@ -229,4 +231,4 @@ async def install_system_block_types(
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
-        await protect_system_blocks(session)
+        await install_protected_system_blocks(session)
