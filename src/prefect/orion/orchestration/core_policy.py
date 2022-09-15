@@ -413,6 +413,15 @@ class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
 
 
 class PreventRedundantTransitions(BaseOrchestrationRule):
+    """
+    Prevents redundant transitions.
+
+    Under normal operation, this rule prevents the "backwards" progress of a run. This
+    rule will also help prevent multiple agents from attempting to orchestrate a run by
+    preventing transitions into the same state type. If any of these disallowed
+    transitions are attempted, this rule will abort the transition.
+    """
+
     STATE_PROGRESS = {
         None: 0,
         StateType.SCHEDULED: 1,
