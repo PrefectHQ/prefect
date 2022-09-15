@@ -208,8 +208,8 @@ class VertexAgent(Agent):
         if run_config is not None and run_config.env is not None:
             env.update(run_config.env)
 
-        # 4. Allow disabling of sending flow run logs
-        if env.get("PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "").lower() != "false":
+        # 4. Allow logs to be disabled by flow run settings but not enabled
+        if not self.log_to_cloud or "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS" not in env:
             env["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] = str(self.log_to_cloud).lower()
 
         # 5. Non-overrideable required env vars

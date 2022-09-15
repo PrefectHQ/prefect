@@ -562,7 +562,8 @@ class KubernetesAgent(Agent):
         env.update(self.env_vars)
         if run_config.env:
             env.update(run_config.env)
-        if env.get("PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "").lower() != "false":
+        # Allow logs to be disabled by flow run settings but not enabled
+        if not self.log_to_cloud or "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS" not in env:
             env["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] = str(self.log_to_cloud).lower()
         env.update(
             {
