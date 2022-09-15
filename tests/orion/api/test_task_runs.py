@@ -69,7 +69,7 @@ class TestCreateTaskRun:
         assert str(task_run.id) == response.json()["id"]
         assert task_run.state.type == task_run_data.state.type
 
-    async def test_create_task_run_with_state_sets_timestamp_on_server(
+    async def test_create_task_run_with_state_ignores_client_provided_timestamp(
         self, flow_run, client, session
     ):
         response = await client.post(
@@ -79,8 +79,7 @@ class TestCreateTaskRun:
                 task_key="a",
                 state=schemas.actions.StateCreate(
                     type=schemas.states.StateType.COMPLETED,
-                    # This is no longer allowed
-                    # timestamp=pendulum.now().add(months=1),
+                    timestamp=pendulum.now().add(months=1),
                 ),
                 dynamic_key="0",
             ).dict(json_compatible=True),
