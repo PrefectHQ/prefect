@@ -3,6 +3,7 @@ Tests for `TaskRunView`
 """
 import time
 import pytest
+from copy import copy
 import sys
 import os
 from unittest.mock import MagicMock, call
@@ -405,3 +406,68 @@ def test_task_run_view_iter_mapped():
             ),
         ]
     )
+
+
+def test_task_run_view_get_latest_returns_new_instance(patch_posts):
+    patch_posts(
+        [
+            {"data": {"task_run": [TASK_RUN_DATA_1]}},
+            {"data": {"task_run": [TASK_RUN_DATA_2]}},
+        ]
+    )
+
+    task_run = TaskRunView.from_task_run_id("fake-id")
+    task_run_2 = task_run.get_latest()
+
+    # Assert we have not mutated the original flow run object
+    assert task_run.task_run_id == "id-1"
+    assert task_run.name == "name-1"
+    assert task_run.task_id == "task-id-1"
+    assert task_run.task_slug == "task-slug-1"
+    assert task_run.map_index == "map_index-1"
+    # This state is deserialized at initialization
+    assert task_run.state == Success(message="state-1")
+
+    # Assert the new object has the data returned by the query
+    # In reality, the task run id would be the same because that's how lookups are
+    # performed
+    assert task_run_2.task_run_id == "id-2"
+    assert task_run_2.name == "name-2"
+    assert task_run_2.task_id == "task-id-2"
+    assert task_run_2.task_slug == "task-slug-2"
+    assert task_run_2.map_index == "map_index-2"
+    # This state is deserialized at initialization
+    assert task_run_2.state == Success(message="state-2")
+
+
+def test_task_run_view_get_latest_retains_cached_results(patch_post, tmpdir):
+    result = LocalResult(dir=tmpdir).write("test-object!")
+
+    # Instantiate a very minimal task run view
+    task_run = TaskRunView(
+        task_run_id="test",
+        task_id=None,
+        task_slug=None,
+        name=None,
+        # Roundtrip serialize/deserialize to drop the value from the result
+        state=State.deserialize(Success(result=result).serialize()),
+        map_index=-1,
+        flow_run_id=None,
+    )
+
+    task_run_data = TASK_RUN_DATA_1.copy()
+    # Attach a state with a result to the API response
+    task_run_data["serialized_state"] = Success(result=result).serialize()
+
+    patch_post(
+        {"data": {"task_run": [task_run_data]}},
+    )
+
+    result_value = task_run.get_result()
+    task_run_2 = task_run.get_latest()
+
+    # Cached results are transfered
+    assert task_run_2._result is result_value
+
+    # Can be accessed
+    assert task_run_2.get_result() is result_value

@@ -4,7 +4,7 @@ import json
 import sys
 import warnings
 from operator import attrgetter
-from typing import TYPE_CHECKING, Dict, Any
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 from packaging.version import parse
 
 import cloudpickle
@@ -52,14 +52,17 @@ def get_flow_image(flow: "Flow") -> str:
 
 
 def extract_flow_from_file(
-    file_path: str = None, file_contents: str = None, flow_name: str = None
+    file_path: str = None,
+    file_contents: Optional[Union[str, bytes]] = None,
+    flow_name: str = None,
 ) -> "Flow":
     """
     Extract a flow object from a file.
 
     Args:
         - file_path (str, optional): A file path pointing to a .py file containing a flow
-        - file_contents (str, optional): The string contents of a .py file containing a flow
+        - file_contents (Union[str, bytes], optional): The string or byte contents of a
+            .py file containing a flow
         - flow_name (str, optional): A specific name of a flow to extract from a file.
             If not set then the first flow object retrieved from file will be returned.
 
@@ -75,10 +78,14 @@ def extract_flow_from_file(
                 "Provide either `file_path` or `file_contents` but not both."
             )
 
-        with open(file_path, "r") as f:
-            contents = f.read()
+        with open(file_path, "rb") as f:
+            contents: Union[str, bytes] = f.read()
+
     elif file_contents is not None:
+        if not isinstance(file_contents, (str, bytes)):
+            raise TypeError("`file_contents` must be string or bytes.")
         contents = file_contents
+
     else:
         raise ValueError("Provide either `file_path` or `file_contents`.")
 

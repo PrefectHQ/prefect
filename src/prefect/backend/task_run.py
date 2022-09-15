@@ -392,3 +392,17 @@ class TaskRunView:
             return NotImplemented
 
         return other.task_run_id == self.task_run_id and other.state == self.state
+
+    def get_latest(self) -> "TaskRunView":
+        """
+        Get the a new copy of this object with the latest data from the API. Cached
+        result objects will be passed to the new object.
+
+        This will not mutate the current object.
+
+        Returns:
+            A new instance of `TaskRunView`.
+        """
+        latest_view = self.from_task_run_id(task_run_id=self.task_run_id)
+        latest_view._result = self._result
+        return latest_view

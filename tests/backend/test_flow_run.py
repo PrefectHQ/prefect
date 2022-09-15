@@ -238,6 +238,43 @@ def test_flow_run_view_get_all_task_runs(patch_post, patch_posts):
     assert len(tr) == 2
 
 
+def test_flow_run_view_get_all_task_runs_when_all_cached(patch_post, patch_posts):
+    patch_posts(
+        [
+            {"data": {"flow_run": [FLOW_RUN_DATA_1]}},
+        ]
+    )
+    flow_run = FlowRunView.from_flow_run_id("fake-id")
+
+    patch_post({"data": {"task_run": [TASK_RUN_DATA_FINISHED]}})
+    tr = flow_run.get_all_task_runs()
+    assert len(flow_run._cached_task_runs) == 1
+    assert len(tr) == 1
+
+    patch_post({"data": {"task_run": []}})
+    tr = flow_run.get_all_task_runs()
+    assert len(flow_run._cached_task_runs) == 1
+    assert len(tr) == 1
+
+
+def test_flow_run_view_get_all_task_runs_when_all_cached_from_initial_load(
+    patch_post, patch_posts
+):
+    patch_posts(
+        [
+            {"data": {"flow_run": [FLOW_RUN_DATA_1]}},
+            {"data": {"task_run": [TASK_RUN_DATA_FINISHED]}},
+        ]
+    )
+    flow_run = FlowRunView.from_flow_run_id("fake-id", load_static_tasks=True)
+    assert len(flow_run._cached_task_runs) == 1
+
+    patch_post({"data": {"task_run": []}})
+    tr = flow_run.get_all_task_runs()
+    assert len(flow_run._cached_task_runs) == 1
+    assert len(tr) == 1
+
+
 def test_flow_run_view_get_latest_returns_new_instance(patch_post, patch_posts):
     patch_posts(
         [
@@ -292,6 +329,50 @@ def test_flow_run_view_from_flow_run_id_where_clause(monkeypatch):
 
     assert (
         'flow_run(where: { id: { _eq: "id-1" } })'
+        in post.call_args[1]["params"]["query"]
+    )
+
+
+def test_flow_run_view_from_flow_run_id_where_clause_static_tasks(monkeypatch):
+    post = MagicMock(
+        return_value={
+            "data": {
+                "flow_run": [FLOW_RUN_DATA_1],
+                "task_run": [TASK_RUN_DATA_FINISHED],
+            }
+        }
+    )
+    monkeypatch.setattr("prefect.client.client.Client.post", post)
+
+    FlowRunView.from_flow_run_id(flow_run_id="id-1", load_static_tasks=True)
+
+    assert (
+        'task_run(where: { map_index: { _eq: -1 }, flow_run_id: { _eq: "id-1" }, id: { _nin: [] } })'
+        in post.call_args[1]["params"]["query"]
+    )
+
+
+def test_flow_run_view_from_flow_run_id_where_clause_static_tasks_excludes_cached_tasks(
+    monkeypatch,
+):
+    post = MagicMock(
+        return_value={
+            "data": {
+                "flow_run": [FLOW_RUN_DATA_1],
+                "task_run": [],
+            }
+        }
+    )
+    monkeypatch.setattr("prefect.client.client.Client.post", post)
+
+    FlowRunView.from_flow_run_id(
+        flow_run_id="id-1",
+        load_static_tasks=True,
+        _cached_task_runs=[TaskRunView._from_task_run_data(TASK_RUN_DATA_FINISHED)],
+    )
+
+    assert (
+        'task_run(where: { map_index: { _eq: -1 }, flow_run_id: { _eq: "id-1" }, id: { _nin: ["task-run-id-1"] } })'
         in post.call_args[1]["params"]["query"]
     )
 

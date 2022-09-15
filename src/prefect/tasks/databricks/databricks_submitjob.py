@@ -765,7 +765,7 @@ class DatabricksSubmitMultitaskRun(Task):
         - run_name (str, optional): An optional name for the run.
             The default value is "Job run created by Prefect flow run {flow_run_name}".
         - idempotency_token (str, optional): An optional token that can be used to guarantee
-            the idempotency of job run requests. Defaults to the flow run ID.
+            the idempotency of job run requests. Defaults to the Python object id.
         - access_control_list (List[AccessControlRequest]): List of permissions to set on the job.
         - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
             this run. By default the task will poll every 30 seconds.
@@ -1035,7 +1035,7 @@ class DatabricksSubmitMultitaskRun(Task):
             - run_name (str, optional): An optional name for the run.
                 The default value is "Job run created by Prefect flow run {flow_run_name}".
             - idempotency_token (str, optional): An optional token that can be used to guarantee
-                the idempotency of job run requests. Defaults to the flow run ID.
+                the idempotency of job run requests. Defaults to the Python object id.
             - access_control_list (List[AccessControlRequest]): List of permissions to set on the job.
             - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
                 this run. By default the task will poll every 30 seconds.
@@ -1063,7 +1063,7 @@ class DatabricksSubmitMultitaskRun(Task):
             or f"Job run created by Prefect flow run {prefect.context.flow_run_name}"
         )
         # Ensures that multiple job runs are not created on retries
-        idempotency_token = idempotency_token or prefect.context.flow_run_id
+        idempotency_token = idempotency_token or id(self)
 
         # Set polling_period_seconds on task because _handle_databricks_task_execution expects it
         if polling_period_seconds:

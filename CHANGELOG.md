@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.3.1 <Badge text="beta" type="success" />
+
+Released on September 7, 2022.
+
+### Fixes
+
+- Fix bug where flows with emoji characters pass `flow.validate()`, but fail to extract from file - [#6375](https://github.com/PrefectHQ/prefect/pull/6375)
+- Fix `FlowRunView` task run query errors when all task runs in the flwo run are cached - [#6572](https://github.com/PrefectHQ/prefect/pull/6572)
+- Update `FlowRunView` to avoid retrieval of cached static tasks during `latest` calls - [#6572](https://github.com/PrefectHQ/prefect/pull/6572)
+- Update `FlowRunView` to be robust to multithreaded usage - [#6572](https://github.com/PrefectHQ/prefect/pull/6572)
+
+### Task Library
+
+- Add state handler to log to Snowflake - [#5671](https://github.com/PrefectHQ/prefect/pull/5671)
+- Fix default idempotency token for `DatabricksSubmitMultitaskRun` - [#6412](https://github.com/PrefectHQ/prefect/pull/6412)
+- Fix custom tag type for Databricks `NewCluster` - [#6573](https://github.com/PrefectHQ/prefect/pull/6573)
+- Fix empty file handling in `S3List` task - [#6028](https://github.com/PrefectHQ/prefect/pull/6028)
+
+
+### Contributors
+
+- [Dennis Hinnenkamp](https://github.com/mcfuhrt)
+- [Edmondo Porcu](https://github.com/edmondo1984)
+- [Mate Hricz](https://github.com/matt9993)
+- [Stéphan Taljaard](https://github.com/taljaards)
+
 ## 1.3.0 <Badge text="beta" type="success" />
 
 Released on August 2, 2022.

@@ -95,6 +95,8 @@ class Client:
             `prefect auth` CLI
     """
 
+    logger = create_diagnostic_logger("client.diagnostics")
+
     def __init__(
         self,
         api_server: str = None,
@@ -102,7 +104,6 @@ class Client:
         tenant_id: str = None,
     ):
         self._attached_headers = {}  # type: Dict[str, str]
-        self.logger = create_diagnostic_logger("Diagnostics")
 
         # Hard-code the auth filepath location
         self._auth_file = Path(prefect.context.config.home_dir).absolute() / "auth.toml"
@@ -1189,6 +1190,11 @@ class Client:
         else:
             inputs["version_group_id"] = version_group_id
 
+        # Always send an idempotency key, defaulting to a unique identifier
+        # This will prevent multiple flow runs from being created if the client
+        # retries this request
+        inputs["idempotency_key"] = idempotency_key or uuid.uuid4().hex
+
         if parameters is not None:
             inputs["parameters"] = parameters
         if run_config is not None:
@@ -1197,8 +1203,6 @@ class Client:
             inputs["labels"] = labels
         if context is not None:
             inputs["context"] = context
-        if idempotency_key is not None:
-            inputs["idempotency_key"] = idempotency_key
         if scheduled_start_time is not None:
             inputs["scheduled_start_time"] = scheduled_start_time.isoformat()
         if run_name is not None:
