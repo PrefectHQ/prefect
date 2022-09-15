@@ -64,6 +64,9 @@ class KubernetesJob(Infrastructure):
         pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 5).
         service_account_name: An optional string specifying which Kubernetes service account to use.
         stream_output: If set, stream output from the job to local standard output.
+        finished_job_ttl: The number of seconds to retain jobs after completion. If set, finished jobs will
+            be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be
+            manually removed.
     """
 
     type: Literal["kubernetes-job"] = Field(
@@ -108,6 +111,10 @@ class KubernetesJob(Infrastructure):
     stream_output: bool = Field(
         True,
         description="If set, output will be streamed from the job to local standard output.",
+    )
+    finished_job_ttl: Optional[int] = Field(
+        None,
+        description="The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed.",
     )
 
     # internal-use only right now
@@ -312,6 +319,15 @@ class KubernetesJob(Infrastructure):
                     "op": "add",
                     "path": "/spec/template/spec/serviceAccountName",
                     "value": self.service_account_name,
+                }
+            )
+
+        if self.finished_job_ttl is not None:
+            shortcuts.append(
+                {
+                    "op": "add",
+                    "path": "/spec/ttlSecondsAfterFinished",
+                    "value": self.finished_job_ttl,
                 }
             )
 
