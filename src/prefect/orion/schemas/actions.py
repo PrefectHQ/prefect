@@ -143,7 +143,9 @@ class StateCreate(ActionBaseModel):
     # DEPRECATED
 
     timestamp: Optional[schemas.core.DateTimeTZ] = Field(
-        default=None, repr=False, ignored=True
+        default=None,
+        repr=False,
+        ignored=True,
     )
     id: Optional[UUID] = Field(default=None, repr=False, ignored=True)
 

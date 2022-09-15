@@ -310,7 +310,7 @@ class TestSetTaskRunState:
         assert run.state.name == "Test State"
         assert run.run_count == 1
 
-    async def test_set_task_run_errors_if_client_provides_timestamp(
+    async def test_set_task_run_ignores_client_provided_timestamp(
         self, flow_run, client
     ):
         response = await client.post(
@@ -323,7 +323,9 @@ class TestSetTaskRunState:
                 )
             ),
         )
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_201_CREATED
+        state = schemas.states.State.parse_obj(response.json()["state"])
+        assert state.timestamp < pendulum.now(), "The timestamp should be overwritten"
 
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1
