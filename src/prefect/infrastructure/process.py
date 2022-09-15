@@ -46,10 +46,10 @@ class Process(Infrastructure):
     """
 
     type: Literal["process"] = Field(
-        "process", description="The type of infrastructure."
+        default="process", description="The type of infrastructure."
     )
     stream_output: bool = Field(
-        True,
+        default=True,
         description="If set, output will be streamed from the process to local standard output.",
     )
 
