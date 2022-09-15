@@ -373,13 +373,13 @@ def copy_model_fields(model_class: Type[B]) -> Type[B]:
     those classes.  Note that you should still include the type hint for the field in
     order to make typing explicit.
 
-    Use this decorator and the corresponding `From` field to compose response and
+    Use this decorator and the corresponding `FieldFrom` to compose response and
     action schemas from other classes.
 
     Example:
 
         >>> from pydantic import BaseModel
-        >>> from prefect.orion.utilities.schemas import copy_model_fields, From
+        >>> from prefect.orion.utilities.schemas import copy_model_fields, FieldFrom
         >>>
         >>> class Parent(BaseModel):
         ...     name: str
@@ -387,7 +387,7 @@ def copy_model_fields(model_class: Type[B]) -> Type[B]:
         >>>
         >>> @copy_model_fields
         >>> class Derived(BaseModel):
-        ...     name: str = From(Parent)
+        ...     name: str = FieldFrom(Parent)
         ...     my_own: str
 
         In this example, `Derived` will have the fields `name`, and `my_own`, with the
