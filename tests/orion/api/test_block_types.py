@@ -365,9 +365,14 @@ class TestUpdateBlockType:
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert response.json()["detail"] == "protected block types cannot be updated."
 
-    async def test_update_block_type_ensures_system_blocks_are_protected(self, client, system_block_type, monkeypatch):
+    async def test_update_block_type_ensures_system_blocks_are_protected(
+        self, client, system_block_type, monkeypatch
+    ):
         mock_block_protection = AsyncMock()
-        monkeypatch.setattr("prefect.orion.api.block_types.install_protected_system_blocks", mock_block_protection)
+        monkeypatch.setattr(
+            "prefect.orion.api.block_types.install_protected_system_blocks",
+            mock_block_protection,
+        )
         await client.patch(
             f"/block_types/{system_block_type.id}",
             json=BlockTypeUpdate(
@@ -394,9 +399,14 @@ class TestDeleteBlockType:
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert response.json()["detail"] == "protected block types cannot be deleted."
 
-    async def test_dete_block_type_ensures_system_blocks_are_protected(self, client, system_block_type, monkeypatch):
+    async def test_dete_block_type_ensures_system_blocks_are_protected(
+        self, client, system_block_type, monkeypatch
+    ):
         mock_block_protection = AsyncMock()
-        monkeypatch.setattr("prefect.orion.api.block_types.install_protected_system_blocks", mock_block_protection)
+        monkeypatch.setattr(
+            "prefect.orion.api.block_types.install_protected_system_blocks",
+            mock_block_protection,
+        )
         await client.delete(f"/block_types/{system_block_type.id}")
         mock_block_protection.assert_called()
 
