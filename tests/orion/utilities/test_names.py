@@ -20,4 +20,7 @@ from prefect.orion.utilities.names import obfuscate_string
     ],
 )
 def test_obfuscate_string(s, expected):
-    assert obfuscate_string(s) == expected
+    # default is not to reveal any characters
+    assert obfuscate_string(s) == obfuscate_string(s, show_tail=False) == "*" * 8
+    # show tail
+    assert obfuscate_string(s, show_tail=True) == expected
