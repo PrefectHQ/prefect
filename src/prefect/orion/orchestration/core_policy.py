@@ -35,7 +35,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             PreventTransitionsFromTerminalStates,
-            PreventBackwardsTransitions,
+            PreventRedundantTransitions,
             WaitForScheduledTime,
             RetryFailedFlows,
         ]
@@ -51,7 +51,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
             CacheRetrieval,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             PreventTransitionsFromTerminalStates,
-            PreventBackwardsTransitions,
+            PreventRedundantTransitions,
             WaitForScheduledTime,
             RetryFailedTasks,
             RenameReruns,
@@ -445,5 +445,5 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
             <= self.STATE_PROGRESS[initial_state_type]
         ):
             await self.abort_transition(
-                reason=f"This run cannot to the {proposed_state.type} state."
+                reason=f"This run cannot transition to the {proposed_state.type} state."
             )
