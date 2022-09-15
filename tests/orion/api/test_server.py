@@ -1,5 +1,5 @@
 from hashlib import sha256
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
@@ -18,6 +18,7 @@ from prefect.settings import (
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     temporary_settings,
 )
+from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dispatch import get_registry_for_type
 from prefect.utilities.hashing import hash_objects
 
