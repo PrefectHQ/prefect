@@ -18,9 +18,9 @@ from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import (
     ObjectNotFound,
+    PrefectHTTPStatusError,
     ScriptError,
     exception_traceback,
-    PrefectHTTPStatusError,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.importtools import load_script_as_module
