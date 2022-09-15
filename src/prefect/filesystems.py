@@ -123,10 +123,19 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Defaults to copying the entire contents of the block's basepath to the current working directory.
         """
         if from_path is None:
-            from_path = Path(self.basepath).expanduser()
+            from_path = Path(self.basepath).expanduser().resolve()
+        else:
+            from_path = Path(from_path).resolve()
 
         if local_path is None:
-            local_path = Path(".").absolute()
+            local_path = Path(".").resolve()
+        else:
+            local_path = Path(local_path).resolve()
+
+        if from_path == local_path:
+            # If the paths are the same there is no need to copy
+            # and we avoid shutil.copytree raising an error
+            return
 
         if sys.version_info < (3, 8):
             shutil.copytree(from_path, local_path)
