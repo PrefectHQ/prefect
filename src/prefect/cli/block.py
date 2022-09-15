@@ -61,9 +61,6 @@ def display_block_type(block_type):
         end_section=True,
     )
 
-    # for k, v in block_type.data.items():
-    #     block_type_table.add_row(k, v)
-
     return block_type_table
 
 

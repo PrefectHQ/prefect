@@ -26,6 +26,7 @@ from slugify import slugify
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.orion.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
@@ -691,6 +692,7 @@ class Block(BaseModel, ABC):
                         if Block.is_block_class(type_):
                             await type_.register_type_and_schema(client=client)
 
+            exception_stack = list()
             try:
                 block_type = await client.read_block_type_by_slug(
                     slug=cls.get_block_type_slug()
@@ -702,6 +704,8 @@ class Block(BaseModel, ABC):
                 block_type = await client.create_block_type(
                     block_type=cls._to_block_type()
                 )
+            except PrefectHTTPStatusError as exc:
+                exception_stack.append(exc)
 
             cls._block_type_id = block_type.id
 
@@ -715,6 +719,10 @@ class Block(BaseModel, ABC):
                 )
 
             cls._block_schema_id = block_schema.id
+
+            if exception_stack:
+                # reraise any exceptions encountered while trying to update Block Types and Schemas
+                raise exception_stack[0]
 
     async def _save(
         self,
@@ -750,7 +758,13 @@ class Block(BaseModel, ABC):
         async with prefect.client.get_client() as client:
 
             # Ensure block type and schema are registered before saving block document.
-            await self.register_type_and_schema(client=client)
+            try:
+                await self.register_type_and_schema(client=client)
+            except PrefectHTTPStatusError as exc:
+                if exc.response.status_code == 403:
+                    pass  # do not fail when trying to update a protected block
+                else:
+                    raise exc
 
             try:
                 block_document = await client.create_block_document(
