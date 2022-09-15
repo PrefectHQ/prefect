@@ -250,6 +250,10 @@ class TestDeployFlow:
                                 "name": "PREFECT__LOGGING__LEVEL",
                                 "value": config.logging.level,
                             },
+                            {
+                                "name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS",
+                                "value": "true",
+                            },
                             {"name": "PREFECT__BACKEND", "value": config.backend},
                             {
                                 "name": "PREFECT__CLOUD__API",
@@ -258,10 +262,6 @@ class TestDeployFlow:
                             {"name": "PREFECT__CLOUD__API_KEY", "value": ""},
                             {"name": "PREFECT__CLOUD__TENANT_ID", "value": ""},
                             {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
-                            {
-                                "name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS",
-                                "value": "false",
-                            },
                             {
                                 "name": "PREFECT__CONTEXT__FLOW_RUN_ID",
                                 "value": "flow-run-id",
