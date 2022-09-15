@@ -40,7 +40,7 @@ Add workflow features like retries, distributed execution, scheduling, caching, 
 
 ```python
 from prefect import flow, task
-from typing import Optional, List
+from typing import List
 import httpx
 
 
