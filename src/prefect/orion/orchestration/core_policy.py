@@ -35,7 +35,6 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             PreventTransitionsFromTerminalStates,
-            PreventTransitionsToCurrentState,
             PreventBackwardsTransitions,
             WaitForScheduledTime,
             RetryFailedFlows,
@@ -52,7 +51,6 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
             CacheRetrieval,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             PreventTransitionsFromTerminalStates,
-            PreventTransitionsToCurrentState,
             PreventBackwardsTransitions,
             WaitForScheduledTime,
             RetryFailedTasks,
@@ -414,31 +412,7 @@ class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
         await self.abort_transition(reason="This run has already terminated.")
 
 
-class PreventTransitionsToCurrentState(BaseOrchestrationRule):
-    """
-    Prevents transitions from terminal states.
-
-    Orchestration logic in Orion assumes that once runs enter a terminal state, no
-    further action will be taken on them. This rule prevents unintended transitions out
-    of terminal states and sents an instruction to the client to abort any execution.
-    """
-
-    FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = ALL_ORCHESTRATION_STATES
-
-    async def before_transition(
-        self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: OrchestrationContext,
-    ) -> None:
-        if initial_state.type == proposed_state.type:
-            await self.abort_transition(
-                reason=f"This run is already in the {proposed_state.type} state."
-            )
-
-
-class PreventBackwardsTransitions(BaseOrchestrationRule):
+class PreventRedundantTransitions(BaseOrchestrationRule):
     STATE_PROGRESS = {
         None: 0,
         StateType.SCHEDULED: 1,
@@ -455,10 +429,12 @@ class PreventBackwardsTransitions(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
+        initial_state_type = initial_state.type if initial_state else None
+        proposed_state_type = proposed_state.type if proposed_state else None
         if (
-            self.STATE_PROGRESS[proposed_state.type]
-            < self.STATE_PROGRESS[initial_state.type]
+            self.STATE_PROGRESS[proposed_state_type]
+            <= self.STATE_PROGRESS[initial_state_type]
         ):
             await self.abort_transition(
-                reason=f"This run cannot transition back to the {proposed_state.type} state."
+                reason=f"This run cannot to the {proposed_state.type} state."
             )
