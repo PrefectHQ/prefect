@@ -52,7 +52,7 @@ As a personal account owner, you can create a [workspace](#workspaces) and invit
 
 A workspace is an isolated environment within Prefect Cloud for your flows and deployments. Workspaces could be used in any way you like to organize or compartmentalize your workflows. For example, you could use separate workspaces to isolate dev, staging, and prod environments, or to provide separation between different teams.
 
-While in the current beta phase, Prefect Cloud allows only one workspace per personal user account and three collaborators. In the future, Prefect Cloud will enable users to create multiple workspaces and optionally invite additional collaborators to workspaces.
+Prefect Cloud allows one workspace per personal user account and three collaborators on a [Starter](https://www.prefect.io/pricing/) plan. See [Pricing](https://www.prefect.io/pricing/) if you need additional workspaces or users.  
 
 Each workspace keeps track of its own:
 
