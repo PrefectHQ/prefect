@@ -44,7 +44,9 @@ async def create_block_schema(
         block_schema_checksum = Block._calculate_schema_checksum(block_schema.fields)
         existing_block_schema = (
             await models.block_schemas.read_block_schema_by_checksum(
-                session=session, checksum=block_schema_checksum
+                session=session,
+                checksum=block_schema_checksum,
+                version=block_schema.version,
             )
         )
         if existing_block_schema:
