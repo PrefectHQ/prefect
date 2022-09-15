@@ -57,6 +57,7 @@ As mentioned previously, storage blocks contain configuration for interacting wi
 - Google Cloud Storage
 - SMB shares
 - GitHub repositories
+- Docker image
 
 Storage blocks enable Prefect to save and reference deployment artifacts (such as your flow scripts) to a location where they can be retrieved for future flow run execution. 
 
