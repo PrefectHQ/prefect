@@ -8,11 +8,13 @@
       <template #details>
         <FlowDetails v-if="flow" :flow="flow" />
       </template>
+
       <template #deployments>
         <DeploymentsTable :deployments="flowDeployments" @update="flowDeploymentsSubscription.refresh()" @delete="flowDeploymentsSubscription.refresh()" />
       </template>
+
       <template #runs>
-        <FlowRunList v-if="flowRuns.length" :flow-runs="flowRuns" disabled :selected="selectedFlowRuns" />
+        <FlowRunList v-if="flowRuns.length" :flow-runs="flowRuns" disabled :selected="[]" />
         <PEmptyResults v-else>
           <template #message>
             No runs from the last 7 days
@@ -28,10 +30,10 @@
 </template>
 
 <script lang="ts" setup>
-  import { UnionFilters, DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunList, useFlowRunFilterFromParam } from '@prefecthq/orion-design'
+  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunList, UnionFilters, useRecentFlowRunFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
-  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed, ref, Ref } from 'vue'
+  import { useSubscription, useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
+  import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { routes } from '@/router/routes'
   import { deploymentsApi } from '@/services/deploymentsApi'
@@ -57,23 +59,14 @@
   const flowSubscription = useSubscription(flowsApi.getFlow, [flowId.value], subscriptionOptions)
   const flow = computed(() => flowSubscription.response)
 
-  const flowDeploymentFilter = computed<UnionFilters>(() => ({
-    flows: {
-      id: {
-        any_: [flowId.value],
-      },
-    },
-  }))
+  const flowFilter = useRecentFlowRunFilter({ flows: [flowId.value] })
+  const flowFilterArgs = computed<[filter: UnionFilters] | null>(() => flowId.value ? [flowFilter.value] : null)
 
-  const flowDeploymentsSubscription = useSubscription(deploymentsApi.getDeployments, [flowDeploymentFilter], subscriptionOptions)
+  const flowDeploymentsSubscription = useSubscriptionWithDependencies(deploymentsApi.getDeployments, flowFilterArgs)
   const flowDeployments = computed(() => flowDeploymentsSubscription.response ?? [])
 
-  const flows: Ref<string[]> = ref<string[]>([flowId.value])
-  const filter =  useFlowRunFilterFromParam({ flows: flows.value })
-  console.log('filter on flow page', filter.filter)
-  const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [filter.filter.value], subscriptionOptions)
-  const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
-  const selectedFlowRuns = ref([])
+  const flowRunsSubscription = useSubscriptionWithDependencies(flowRunsApi.getFlowRuns, flowFilterArgs)
+  const flowRuns = computed(() => flowRunsSubscription.response ?? [])
 
   function deleteFlow(): void {
     router.push(routes.flows())
