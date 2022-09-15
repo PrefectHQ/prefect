@@ -736,7 +736,7 @@ class WorkQueue(ORMBaseModel):
     )
     filter: Optional[QueueFilter] = Field(
         default=None,
-        description="Deprecated field: Filter criteria for the work queue.",
+        description="DEPRECATED: Filter criteria for the work queue.",
         deprecated=True,
     )
 
