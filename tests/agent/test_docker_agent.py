@@ -233,7 +233,9 @@ def test_populate_env_vars_sets_log_to_cloud(flag, api, config_with_api_key):
         (False, "false", "false"),
     ],
 )
-def test_populate_env_vars_respect_send_flow_run_logs(no_cloud_logs, send_flow_run_logs, result, api, config_with_api_key):
+def test_populate_env_vars_respect_send_flow_run_logs(
+    no_cloud_logs, send_flow_run_logs, result, api, config_with_api_key
+):
     agent = DockerAgent(labels=["42", "marvin"], no_cloud_logs=no_cloud_logs)
 
     run = DockerRun(
@@ -241,14 +243,16 @@ def test_populate_env_vars_respect_send_flow_run_logs(no_cloud_logs, send_flow_r
     )
 
     env_vars = agent.populate_env_vars(
-        GraphQLResult({
-            "id": "id",
-            "name": "name",
-            "flow": {"id": "foo"},
-            "run_config": run.serialize()
-        }),
+        GraphQLResult(
+            {
+                "id": "id",
+                "name": "name",
+                "flow": {"id": "foo"},
+                "run_config": run.serialize(),
+            }
+        ),
         "test-image",
-        run_config=run
+        run_config=run,
     )
     assert env_vars["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == result
 
