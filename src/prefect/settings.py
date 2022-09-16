@@ -397,6 +397,18 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
+PREFECT_ORION_BLOCKS_REGISTER_ON_START = Setting(
+    bool,
+    default=True,
+    description=textwrap.dedent(
+        """
+        If set, any block types that have been imported will be registered with the 
+        backend on application startup. If not set, block types must be manually 
+        registered.
+        """
+    ),
+)
+
 PREFECT_ORION_DATABASE_PASSWORD = Setting(
     str,
     default=None,
