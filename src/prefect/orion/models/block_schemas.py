@@ -10,11 +10,6 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-from prefect.blocks.core import (
-    Block,
-    _collect_nested_reference_strings,
-    _get_non_block_reference_definitions,
-)
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
@@ -47,6 +42,8 @@ async def create_block_schema(
     Returns:
         block_schema: an ORM block schema model
     """
+    from prefect.blocks.core import Block, _get_non_block_reference_definitions
+
     insert_values = block_schema.dict(
         shallow=True,
         exclude_unset=False,
@@ -227,6 +224,8 @@ def _get_fields_for_child_schema(
     dictionary based on the information extracted from `base_fields` using the `reference_name`. `reference_block_type`
     is used to disambiguate fields that have a union type.
     """
+    from prefect.blocks.core import _collect_nested_reference_strings
+
     spec_reference = base_fields["properties"][reference_name]
     sub_block_schema_fields = None
     reference_strings = _collect_nested_reference_strings(spec_reference)
