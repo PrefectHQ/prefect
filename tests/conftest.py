@@ -33,7 +33,6 @@ import prefect
 import prefect.settings
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
-    PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
@@ -270,7 +269,6 @@ def pytest_sessionstart(session):
             PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
             # Disable connection to an API
             PREFECT_API_URL: None,
-            PREFECT_API_KEY: None,
             # Disable pretty CLI output for easier assertions
             PREFECT_CLI_COLORS: False,
             PREFECT_CLI_WRAP_LINES: False,
@@ -319,9 +317,6 @@ def safety_check_settings():
     # Safety check for connection to an external API
     assert (
         PREFECT_API_URL.value() is None
-    ), "Tests should not be run connected to an external API."
-    assert (
-        PREFECT_API_KEY.value() is None
     ), "Tests should not be run connected to an external API."
     # Safety check for home directory
     assert (
