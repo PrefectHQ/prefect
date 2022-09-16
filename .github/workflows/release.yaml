@@ -161,7 +161,8 @@ jobs:
           labels: ${{ steps.metadata.outputs.labels }}
           outputs: type=docker,dest=/tmp/image-conda.tar
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # We do not cache Conda image layers because they very big and slow to upload
+          # cache-to: type=gha,mode=max
 
       - name: Test docker image
         run: |
