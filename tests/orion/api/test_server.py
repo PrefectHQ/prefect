@@ -1,3 +1,4 @@
+from hashlib import sha256
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -5,6 +6,7 @@ import pytest
 import toml
 from fastapi import APIRouter, status, testclient
 
+from prefect.blocks.core import Block
 from prefect.orion.api.server import (
     API_ROUTERS,
     _memoize_block_auto_registration,
@@ -17,6 +19,8 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.dispatch import get_registry_for_type
+from prefect.utilities.hashing import hash_objects
 
 
 async def test_validation_error_handler(client):
@@ -194,95 +198,89 @@ class TestCreateOrionAPI:
 
 
 class TestMemoizeBlockAutoRegistration:
-    # @pytest.fixture(autouse=True)
-    # def enable_memoization(self, tmp_path):
-    #     with temporary_settings(
-    #         {
-    #             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: True,
-    #             PREFECT_MEMO_STORE_PATH: tmp_path / "memo_store.toml",
-    #         }
-    #     ):
-    #         yield
-
-    # @pytest.fixture
-    # def memo_store_with_mismatched_key(self):
-    #     PREFECT_MEMO_STORE_PATH.value().write_text(
-    #         toml.dumps({"block_auto_registration": "not-a-real-key"})
-    #     )
-
-    # @pytest.fixture
-    # def current_block_registry_hash(self):
-    #     return hash_objects(get_registry_for_type(Block), hash_algo=sha256)
-
-    # @pytest.fixture
-    # def memo_store_with_accurate_key(self, current_block_registry_hash):
-    #     PREFECT_MEMO_STORE_PATH.value().write_text(
-    #         toml.dumps({"block_auto_registration": current_block_registry_hash})
-    #     )
-
-    async def test_runs_wrapped_function_on_missing_key(self):
-
+    @pytest.fixture(autouse=True)
+    def enable_memoization(self, tmp_path):
         with temporary_settings(
             {
                 PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: True,
+                PREFECT_MEMO_STORE_PATH: tmp_path / "memo_store.toml",
             }
         ):
-            assert not PREFECT_MEMO_STORE_PATH.value().exists()
+            yield
+
+    @pytest.fixture
+    def memo_store_with_mismatched_key(self):
+        PREFECT_MEMO_STORE_PATH.value().write_text(
+            toml.dumps({"block_auto_registration": "not-a-real-key"})
+        )
+
+    @pytest.fixture
+    def current_block_registry_hash(self):
+        return hash_objects(get_registry_for_type(Block), hash_algo=sha256)
+
+    @pytest.fixture
+    def memo_store_with_accurate_key(self, current_block_registry_hash):
+        PREFECT_MEMO_STORE_PATH.value().write_text(
+            toml.dumps({"block_auto_registration": current_block_registry_hash})
+        )
+
+    async def test_runs_wrapped_function_on_missing_key(self):
+        assert not PREFECT_MEMO_STORE_PATH.value().exists()
+        assert (
+            PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value()
+        ), "Memoization is not enabled"
+
+        test_func = AsyncMock()
+
+        await _memoize_block_auto_registration(test_func)()
+
+        test_func.assert_called_once()
+
+        assert PREFECT_MEMO_STORE_PATH.value().exists(), "Memo store was not created"
+        assert (
+            toml.load(PREFECT_MEMO_STORE_PATH.value()).get("block_auto_registration")
+            is not None
+        ), "Key was not added to memo store"
+
+    async def test_runs_wrapped_function_on_mismatched_key(
+        self,
+        memo_store_with_mismatched_key,
+        current_block_registry_hash,
+    ):
+        assert (
+            PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value()
+        ), "Memoization is not enabled"
+
+        test_func = AsyncMock()
+
+        await _memoize_block_auto_registration(test_func)()
+
+        test_func.assert_called_once()
+
+        assert (
+            toml.load(PREFECT_MEMO_STORE_PATH.value()).get("block_auto_registration")
+            == current_block_registry_hash
+        ), "Key was not updated in memo store"
+
+    async def test_runs_wrapped_function_when_memoization_disabled(
+        self, memo_store_with_accurate_key
+    ):
+        with temporary_settings(
+            {
+                PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
+            }
+        ):
             test_func = AsyncMock()
 
             await _memoize_block_auto_registration(test_func)()
 
             test_func.assert_called_once()
 
-            assert (
-                PREFECT_MEMO_STORE_PATH.value().exists()
-            ), "Memo store was not created"
-            assert (
-                toml.load(PREFECT_MEMO_STORE_PATH.value()).get(
-                    "block_auto_registration"
-                )
-                is not None
-            ), "Key was not added to memo store"
+    async def test_skips_wrapped_function_on_matching_key(
+        self, memo_store_with_accurate_key
+    ):
+        test_func = AsyncMock()
 
-    # async def test_runs_wrapped_function_on_mismatched_key(
-    #     self,
-    #     memo_store_with_mismatched_key,
-    #     current_block_registry_hash,
-    # ):
-    #     assert (
-    #         PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value()
-    #     ), "Memoization is not enabled"
+        await _memoize_block_auto_registration(test_func)()
 
-    #     test_func = AsyncMock()
-
-    #     await _memoize_block_auto_registration(test_func)()
-
-    #     test_func.assert_called_once()
-
-    #     assert (
-    #         toml.load(PREFECT_MEMO_STORE_PATH.value()).get("block_auto_registration")
-    #         == current_block_registry_hash
-    #     ), "Key was not updated in memo store"
-
-    # async def test_runs_wrapped_function_when_memoization_disabled(
-    #     self, memo_store_with_accurate_key
-    # ):
-    #     with temporary_settings(
-    #         {
-    #             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
-    #         }
-    #     ):
-    #         test_func = AsyncMock()
-
-    #         await _memoize_block_auto_registration(test_func)()
-
-    #         test_func.assert_called_once()
-
-    # async def test_skips_wrapped_function_on_matching_key(
-    #     self, memo_store_with_accurate_key
-    # ):
-    #     test_func = AsyncMock()
-
-    #     await _memoize_block_auto_registration(test_func)()
-
-    #     test_func.assert_not_called()
+        test_func.assert_not_called()
