@@ -45,6 +45,8 @@ class Process(Infrastructure):
         name: A name for the process. For display purposes only.
     """
 
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
+
     type: Literal["process"] = Field(
         default="process", description="The type of infrastructure."
     )
