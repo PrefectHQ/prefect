@@ -1169,11 +1169,22 @@ async def orchestrate_task_run(
         # Resolve futures in any non-data dependencies to ensure they are ready
         await resolve_inputs(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
-        return await propose_state(
-            client,
-            Pending(name="NotReady", message=str(upstream_exc)),
-            task_run_id=task_run.id,
-        )
+        if task_run.state.is_pending():
+            # if orchestrating a run already in a pending state, force orchestration to
+            # update the state name
+            return await propose_state(
+                client,
+                Pending(name="NotReady", message=str(upstream_exc)),
+                task_run_id=task_run.id,
+                force=True,
+            )
+        else:
+            return await propose_state(
+                client,
+                Pending(name="NotReady", message=str(upstream_exc)),
+                task_run_id=task_run.id,
+                force=False,
+            )
 
     # Generate the cache key to attach to proposed states
     cache_key = (
@@ -1412,6 +1423,7 @@ async def propose_state(
     client: OrionClient,
     state: State,
     backend_state_data: DataDocument = None,
+    force: bool = False,
     task_run_id: UUID = None,
     flow_run_id: UUID = None,
 ) -> State:
@@ -1461,11 +1473,11 @@ async def propose_state(
     # Attempt to set the state
     if task_run_id:
         response = await client.set_task_run_state(
-            task_run_id, state, backend_state_data=backend_state_data
+            task_run_id, state, backend_state_data=backend_state_data, force=force,
         )
     elif flow_run_id:
         response = await client.set_flow_run_state(
-            flow_run_id, state, backend_state_data=backend_state_data
+            flow_run_id, state, backend_state_data=backend_state_data, force=force,
         )
     else:
         raise ValueError(
