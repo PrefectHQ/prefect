@@ -198,7 +198,7 @@ class TestCreateOrionAPI:
 
 
 class TestMemoizeBlockAutoRegistration:
-    @pytest.fixture
+    @pytest.fixture(autouse=True)
     def enable_memoization(self, tmp_path):
         with temporary_settings(
             {
@@ -230,7 +230,7 @@ class TestMemoizeBlockAutoRegistration:
             toml.dumps({"block_auto_registration": current_block_registry_hash})
         )
 
-    async def test_runs_wrapped_function_on_missing_key(self, enable_memoization):
+    async def test_runs_wrapped_function_on_missing_key(self):
         assert not PREFECT_MEMO_STORE_PATH.value().exists()
         assert (
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value()
@@ -251,7 +251,6 @@ class TestMemoizeBlockAutoRegistration:
     async def test_runs_wrapped_function_on_mismatched_key(
         self,
         memo_store_with_mismatched_key,
-        enable_memoization,
         current_block_registry_hash,
     ):
         assert (
@@ -272,14 +271,19 @@ class TestMemoizeBlockAutoRegistration:
     async def test_runs_wrapped_function_when_memoization_disabled(
         self, memo_store_with_accurate_key
     ):
-        test_func = AsyncMock()
+        with temporary_settings(
+            {
+                PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
+            }
+        ):
+            test_func = AsyncMock()
 
-        await _memoize_block_auto_registration(test_func)()
+            await _memoize_block_auto_registration(test_func)()
 
-        test_func.assert_called_once()
+            test_func.assert_called_once()
 
     async def test_skips_wrapped_function_on_matching_key(
-        self, enable_memoization, memo_store_with_accurate_key
+        self, memo_store_with_accurate_key
     ):
         test_func = AsyncMock()
 
