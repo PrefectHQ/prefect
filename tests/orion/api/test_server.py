@@ -242,45 +242,45 @@ class TestMemoizeBlockAutoRegistration:
             is not None
         ), "Key was not added to memo store"
 
-    async def test_runs_wrapped_function_on_mismatched_key(
-        self,
-        memo_store_with_mismatched_key,
-        current_block_registry_hash,
-    ):
-        assert (
-            PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value()
-        ), "Memoization is not enabled"
+    # async def test_runs_wrapped_function_on_mismatched_key(
+    #     self,
+    #     memo_store_with_mismatched_key,
+    #     current_block_registry_hash,
+    # ):
+    #     assert (
+    #         PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value()
+    #     ), "Memoization is not enabled"
 
-        test_func = AsyncMock()
+    #     test_func = AsyncMock()
 
-        await _memoize_block_auto_registration(test_func)()
+    #     await _memoize_block_auto_registration(test_func)()
 
-        test_func.assert_called_once()
+    #     test_func.assert_called_once()
 
-        assert (
-            toml.load(PREFECT_MEMO_STORE_PATH.value()).get("block_auto_registration")
-            == current_block_registry_hash
-        ), "Key was not updated in memo store"
+    #     assert (
+    #         toml.load(PREFECT_MEMO_STORE_PATH.value()).get("block_auto_registration")
+    #         == current_block_registry_hash
+    #     ), "Key was not updated in memo store"
 
-    async def test_runs_wrapped_function_when_memoization_disabled(
-        self, memo_store_with_accurate_key
-    ):
-        with temporary_settings(
-            {
-                PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
-            }
-        ):
-            test_func = AsyncMock()
+    # async def test_runs_wrapped_function_when_memoization_disabled(
+    #     self, memo_store_with_accurate_key
+    # ):
+    #     with temporary_settings(
+    #         {
+    #             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
+    #         }
+    #     ):
+    #         test_func = AsyncMock()
 
-            await _memoize_block_auto_registration(test_func)()
+    #         await _memoize_block_auto_registration(test_func)()
 
-            test_func.assert_called_once()
+    #         test_func.assert_called_once()
 
-    async def test_skips_wrapped_function_on_matching_key(
-        self, memo_store_with_accurate_key
-    ):
-        test_func = AsyncMock()
+    # async def test_skips_wrapped_function_on_matching_key(
+    #     self, memo_store_with_accurate_key
+    # ):
+    #     test_func = AsyncMock()
 
-        await _memoize_block_auto_registration(test_func)()
+    #     await _memoize_block_auto_registration(test_func)()
 
-        test_func.assert_not_called()
+    #     test_func.assert_not_called()
