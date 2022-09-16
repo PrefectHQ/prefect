@@ -223,7 +223,7 @@ def test_populate_env_vars_sets_log_to_cloud(flag, api, config_with_api_key):
 
 
 @pytest.mark.parametrize(
-    "no_cloud_logs,send_flow_run_logs,result",
+    "disabled_on_agent,enabled_by_run,expected",
     [
         # Ignore env var when --no-cloud-logs
         (True, "true", "false"),
@@ -234,12 +234,12 @@ def test_populate_env_vars_sets_log_to_cloud(flag, api, config_with_api_key):
     ],
 )
 def test_populate_env_vars_respect_send_flow_run_logs(
-    no_cloud_logs, send_flow_run_logs, result, api, config_with_api_key
+    disabled_on_agent, enabled_by_run, expected, api, config_with_api_key
 ):
-    agent = DockerAgent(labels=["42", "marvin"], no_cloud_logs=no_cloud_logs)
+    agent = DockerAgent(labels=["42", "marvin"], no_cloud_logs=disabled_on_agent)
 
     run = DockerRun(
-        env={"PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": send_flow_run_logs},
+        env={"PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": enabled_by_run},
     )
 
     env_vars = agent.populate_env_vars(
@@ -254,7 +254,7 @@ def test_populate_env_vars_respect_send_flow_run_logs(
         "test-image",
         run_config=run,
     )
-    assert env_vars["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == result
+    assert env_vars["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == expected
 
 
 def test_populate_env_vars_from_run_config(api):
