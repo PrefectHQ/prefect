@@ -182,26 +182,26 @@ async def task_run_states(session, task_run, task_run_state):
 
 
 @pytest.fixture
-async def storage_document_id(orion_client, block_document, tmpdir):
+async def storage_document_id(orion_client, tmpdir):
     return await LocalFileSystem(basepath=str(tmpdir)).save(
         name="local-test", client=orion_client
     )
 
 
 @pytest.fixture
-async def storage_document_id_2(orion_client, block_document):
+async def storage_document_id_2(orion_client):
     return await LocalFileSystem().save(name="distinct-local-test", client=orion_client)
 
 
 @pytest.fixture
-async def infrastructure_document_id(orion_client, block_document):
+async def infrastructure_document_id(orion_client):
     return await Process(env={"MY_TEST_VARIABLE": 1})._save(
         is_anonymous=True, client=orion_client
     )
 
 
 @pytest.fixture
-async def infrastructure_document_id_2(orion_client, block_document):
+async def infrastructure_document_id_2(orion_client):
     return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(
         is_anonymous=True, client=orion_client
     )
