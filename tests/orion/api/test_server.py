@@ -224,7 +224,6 @@ class TestMemoizeBlockAutoRegistration:
             toml.dumps({"block_auto_registration": current_block_registry_hash})
         )
 
-    @pytest.mark.flaky
     async def test_runs_wrapped_function_on_missing_key(self):
         assert not PREFECT_MEMO_STORE_PATH.value().exists()
         assert (
@@ -243,7 +242,6 @@ class TestMemoizeBlockAutoRegistration:
             is not None
         ), "Key was not added to memo store"
 
-    @pytest.mark.flaky
     async def test_runs_wrapped_function_on_mismatched_key(
         self,
         memo_store_with_mismatched_key,
