@@ -241,7 +241,7 @@ async def work_queue(session):
 async def block_type_x(session):
     block_type = await models.block_types.create_block_type(
         session=session,
-        block_type=schemas.actions.BlockTypeCreate(name="x", slug="x"),
+        block_type=schemas.actions.BlockTypeCreate(name="x", slug="x-fixture"),
     )
     await session.commit()
     return block_type
