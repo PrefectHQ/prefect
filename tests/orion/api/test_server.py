@@ -1,3 +1,4 @@
+import asyncio
 from hashlib import sha256
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -236,6 +237,8 @@ class TestMemoizeBlockAutoRegistration:
 
         test_func.assert_called_once()
 
+        await asyncio.sleep(10)
+
         assert PREFECT_MEMO_STORE_PATH.value().exists(), "Memo store was not created"
         assert (
             toml.load(PREFECT_MEMO_STORE_PATH.value()).get("block_auto_registration")
@@ -256,6 +259,8 @@ class TestMemoizeBlockAutoRegistration:
         await _memoize_block_auto_registration(test_func)()
 
         test_func.assert_called_once()
+
+        await asyncio.sleep(10)
 
         assert (
             toml.load(PREFECT_MEMO_STORE_PATH.value()).get("block_auto_registration")
