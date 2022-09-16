@@ -3,10 +3,8 @@ import warnings
 
 import pendulum
 import pytest
-import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.blocks.core import Block
 from prefect.blocks.notifications import NotificationBlock
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
@@ -247,22 +245,12 @@ async def work_queue(session):
 
 @pytest.fixture
 async def block_type_x(session):
-    # Ignore warnings caused by block reuse in fixtuer
-    warnings.filterwarnings("ignore", category=UserWarning)
-    # TODO: In some cases, this fixture can run more than once which results in a
-    #       failure due to the block already existing. Instead of failing, we'll read
-    #       the existing block
-    try:
-        block_type = await models.block_types.create_block_type(
-            session=session,
-            block_type=schemas.actions.BlockTypeCreate(name="x", slug="x"),
-        )
-        await session.commit()
-        return block_type
-    except sa.exc.IntegrityError:
-        return await models.block_types.read_block_type_by_slug(
-            session=session, block_type_slug="x"
-        )
+    block_type = await models.block_types.create_block_type(
+        session=session,
+        block_type=schemas.actions.BlockTypeCreate(name="x", slug="x-fixture"),
+    )
+    await session.commit()
+    return block_type
 
 
 @pytest.fixture
@@ -285,7 +273,6 @@ async def block_type_z(session):
 
 @pytest.fixture
 async def block_schema(session, block_type_x):
-    # TODO: See `block_type_x` for integrity error description
     fields = {
         "title": "x",
         "type": "object",
@@ -294,20 +281,15 @@ async def block_schema(session, block_type_x):
         "block_schema_references": {},
         "block_type_slug": block_type_x.slug,
     }
-    try:
-        block_schema = await models.block_schemas.create_block_schema(
-            session=session,
-            block_schema=schemas.actions.BlockSchemaCreate(
-                fields=fields,
-                block_type_id=block_type_x.id,
-            ),
-        )
-        await session.commit()
-        return block_schema
-    except sa.exc.IntegrityError:
-        return await models.block_schemas.read_block_schema_by_checksum(
-            Block._calculate_schema_checksum(fields)
-        )
+    block_schema = await models.block_schemas.create_block_schema(
+        session=session,
+        block_schema=schemas.actions.BlockSchemaCreate(
+            fields=fields,
+            block_type_id=block_type_x.id,
+        ),
+    )
+    await session.commit()
+    return block_schema
 
 
 @pytest.fixture
