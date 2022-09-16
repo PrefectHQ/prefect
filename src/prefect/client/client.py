@@ -95,6 +95,8 @@ class Client:
             `prefect auth` CLI
     """
 
+    logger = create_diagnostic_logger("client.diagnostics")
+
     def __init__(
         self,
         api_server: str = None,
@@ -102,7 +104,6 @@ class Client:
         tenant_id: str = None,
     ):
         self._attached_headers = {}  # type: Dict[str, str]
-        self.logger = create_diagnostic_logger("Diagnostics")
 
         # Hard-code the auth filepath location
         self._auth_file = Path(prefect.context.config.home_dir).absolute() / "auth.toml"
