@@ -445,5 +445,5 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
             <= self.STATE_PROGRESS[initial_state_type]
         ):
             await self.abort_transition(
-                reason=f"This run cannot transition to the {proposed_state.type} state."
+                reason=f"This run cannot transition to the {proposed_state_type} state from the {initial_state_type}."
             )
