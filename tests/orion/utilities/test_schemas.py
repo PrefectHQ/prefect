@@ -2,7 +2,7 @@ import datetime
 import importlib
 import os
 from contextlib import contextmanager
-from typing import Type
+from typing import Optional, Type
 from uuid import UUID, uuid4
 
 import pendulum
@@ -12,9 +12,11 @@ import pytest
 import prefect.orion.utilities.schemas
 from prefect.orion.utilities.schemas import (
     DateTimeTZ,
+    FieldFrom,
     IDBaseModel,
     ORMBaseModel,
     PrefectBaseModel,
+    copy_model_fields,
     pydantic_subclass,
 )
 from prefect.testing.utilities import assert_does_not_warn
@@ -357,3 +359,78 @@ class TestDatetimeTZ:
         # typing as pendulum datetime doesn't result in pendulum datetime
         assert not isinstance(model.dtp, pendulum.DateTime)
         assert isinstance(model.dttz, pendulum.DateTime)
+
+
+class TestCopyModelFields:
+    class MyModel(PrefectBaseModel):
+        my_field: str = pydantic.Field(
+            "", description="Not much going on with this field"
+        )
+        my_constrained_field: str = pydantic.Field(
+            "", description="This string has a limit on it", max_length=100
+        )
+
+        @pydantic.validator("my_field")
+        def validate_my_field(cls, value):
+            if value == "bad":
+                raise ValueError("Value is BAD!")
+            return value
+
+    async def test_from_utility_raises_on_bad_type(self):
+        with pytest.raises(TypeError):
+
+            @copy_model_fields
+            class MyBadTypeModel(PrefectBaseModel):
+                my_field: int = FieldFrom(self.MyModel)
+
+    async def test_from_utility_can_be_used_on_constrained_fields(self):
+        # should not error
+        @copy_model_fields
+        class MyConstrainedModel(PrefectBaseModel):
+            my_constrained_field: str = FieldFrom(self.MyModel)
+
+        # inherited fields should respect the constraint
+        with pytest.raises(pydantic.ValidationError):
+            MyConstrainedModel(my_constrained_field="x" * (100 + 1))
+
+    async def test_validators_are_retained(self):
+        @copy_model_fields
+        class MyValidatedModel(PrefectBaseModel):
+            my_field: str = FieldFrom(self.MyModel)
+
+        with pytest.raises(pydantic.ValidationError, match="Value is BAD"):
+            MyValidatedModel(my_field="bad")
+
+    async def test_validators_can_be_added(self):
+        @copy_model_fields
+        class MyValidatedModel(PrefectBaseModel):
+            my_field: str = FieldFrom(self.MyModel)
+
+            @pydantic.validator("my_field")
+            def validate_my_field_again(cls, value):
+                if value == "very bad":
+                    raise ValueError("Value is VERY BAD")
+                return value
+
+        # Original validator exists still
+        with pytest.raises(pydantic.ValidationError, match="Value is BAD"):
+            MyValidatedModel(my_field="bad")
+
+        with pytest.raises(pydantic.ValidationError, match="Value is VERY BAD"):
+            MyValidatedModel(my_field="very bad")
+
+    async def test_allows_type_to_be_optional(self):
+        @copy_model_fields
+        class MyOptionalTypeModel(PrefectBaseModel):
+            my_field: Optional[str] = FieldFrom(self.MyModel)
+
+        model = MyOptionalTypeModel(my_field=None)
+        assert model.my_field is None
+
+    async def test_retains_default_values(self):
+        @copy_model_fields
+        class MyOptionalTypeModel(PrefectBaseModel):
+            my_field: str = FieldFrom(self.MyModel)
+
+        model = MyOptionalTypeModel()
+        assert model.my_field == ""

@@ -6,6 +6,7 @@ from typing import Dict, Type, Union
 from uuid import UUID, uuid4
 
 import pytest
+from packaging.version import Version
 from pydantic import BaseModel, Field, SecretBytes, SecretStr
 
 import prefect
@@ -522,7 +523,7 @@ class TestAPICompatibility:
                 raise exc
 
         block_schema = Secret._to_block_schema()
-        assert block_schema.version == prefect.__version__
+        assert block_schema.version == Version(prefect.__version__).base_version
 
     def test_collecting_capabilities(self):
         class CanRun(Block):
@@ -815,6 +816,34 @@ class TestRegisterBlockTypeAndSchema:
         )
         assert block_schema is not None
         assert block_schema.fields == self.NewBlock.schema()
+
+    async def test_register_new_block_schema_when_version_changes(
+        self, orion_client: OrionClient
+    ):
+        # Ignore warning caused by matching key in registry
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+        await self.NewBlock.register_type_and_schema()
+
+        block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=self.NewBlock._calculate_schema_checksum()
+        )
+        assert block_schema is not None
+        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
+
+        self.NewBlock._block_schema_version = "new_version"
+
+        await self.NewBlock.register_type_and_schema()
+
+        block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=self.NewBlock._calculate_schema_checksum()
+        )
+        assert block_schema is not None
+        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.version == "new_version"
+
+        self.NewBlock._block_schema_version = None
 
     async def test_register_nested_block(self, orion_client: OrionClient):
         class Big(Block):
