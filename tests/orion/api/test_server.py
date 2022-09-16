@@ -208,12 +208,6 @@ class TestMemoizeBlockAutoRegistration:
         ):
             yield
 
-    @pytest.fixture(autouse=True)
-    def clean_up_memo_store(self):
-        yield
-        if PREFECT_MEMO_STORE_PATH.value().exists():
-            PREFECT_MEMO_STORE_PATH.value().unlink()
-
     @pytest.fixture
     def memo_store_with_mismatched_key(self):
         PREFECT_MEMO_STORE_PATH.value().write_text(
