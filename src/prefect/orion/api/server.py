@@ -7,6 +7,7 @@ import mimetypes
 import os
 from functools import partial, wraps
 from hashlib import sha256
+from textwrap import dedent
 from typing import Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
 
 import sqlalchemy as sa
@@ -270,7 +271,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
                 "block_auto_registration"
             )
             if current_blocks_loading_hash == saved_blocks_loading_hash:
-                if PREFECT_DEBUG_MODE:
+                if PREFECT_DEBUG_MODE.value():
                     logger.debug(
                         "Skipping block loading due to matching hash for block "
                         "auto-registration found in memo store"
@@ -280,8 +281,26 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
         await fn(*args, **kwargs)
 
         if current_blocks_loading_hash is not None:
+            print(
+                dedent(
+                    f"""
+            Writing to memo store...
+            memo store path: {PREFECT_MEMO_STORE_PATH.value()}
+            Current contents: {toml.load(memo_store_path) if memo_store_path.exists() else "Nothing"}
+            """
+                )
+            )
             memo_store_path.write_text(
                 toml.dumps({"block_auto_registration": current_blocks_loading_hash})
+            )
+            print(
+                dedent(
+                    f"""
+            Wrote to memo store...
+            memo store path: {PREFECT_MEMO_STORE_PATH.value()}
+            Current contents: {toml.load(memo_store_path)}
+            """
+                )
             )
 
     return wrapper
