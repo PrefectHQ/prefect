@@ -227,6 +227,9 @@ class TestMemoizeBlockAutoRegistration:
 
     async def test_runs_wrapped_function_on_missing_key(self, enable_memoization):
         assert not PREFECT_MEMO_STORE_PATH.value().exists()
+        assert (
+            PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value()
+        ), "Memoization is not enabled"
 
         test_func = AsyncMock()
 
@@ -246,6 +249,9 @@ class TestMemoizeBlockAutoRegistration:
         enable_memoization,
         current_block_registry_hash,
     ):
+        assert (
+            PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value()
+        ), "Memoization is not enabled"
         test_func = AsyncMock()
 
         await _memoize_block_auto_registration(test_func)()
