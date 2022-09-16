@@ -246,6 +246,10 @@ APP_CACHE: Dict[Tuple[prefect.settings.Settings, bool], FastAPI] = {}
 
 
 def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
+    """
+    Decorator to handle skipping the wrapped function if the block registry has
+    not changed since the last invocation
+    """
     import toml
 
     from prefect.blocks.core import Block
@@ -254,7 +258,8 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
     @wraps(fn)
     async def wrapper(*args, **kwargs):
         if not PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value():
-            return await fn(*args, **kwargs)
+            await fn(*args, **kwargs)
+            return
 
         blocks_registry = get_registry_for_type(Block)
         current_blocks_loading_hash = hash_objects(blocks_registry, hash_algo=sha256)

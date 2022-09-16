@@ -199,8 +199,13 @@ class TestCreateOrionAPI:
 
 class TestMemoizeBlockAutoRegistration:
     @pytest.fixture
-    def enable_memoization(self):
-        with temporary_settings({PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: True}):
+    def enable_memoization(self, tmp_path):
+        with temporary_settings(
+            {
+                PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: True,
+                PREFECT_MEMO_STORE_PATH: tmp_path / "memo_store.toml",
+            }
+        ):
             yield
 
     @pytest.fixture(autouse=True)
@@ -252,6 +257,7 @@ class TestMemoizeBlockAutoRegistration:
         assert (
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value()
         ), "Memoization is not enabled"
+
         test_func = AsyncMock()
 
         await _memoize_block_auto_registration(test_func)()
