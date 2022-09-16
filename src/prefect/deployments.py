@@ -13,7 +13,8 @@ import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from prefect.blocks.core import Block
-from prefect.client import OrionClient, get_client, inject_client
+from prefect.client import OrionClient, get_client
+from prefect.client.orion import inject_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
 from prefect.filesystems import LocalFileSystem
