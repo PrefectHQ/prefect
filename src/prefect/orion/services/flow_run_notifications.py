@@ -5,7 +5,6 @@ import asyncio
 
 import sqlalchemy as sa
 
-from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
@@ -79,6 +78,8 @@ class FlowRunNotifications(LoopService):
                     f"from policy {notification.flow_run_notification_policy_id}"
                 )
                 return
+
+            from prefect.blocks.core import Block
 
             block = Block._from_block_document(
                 await schemas.core.BlockDocument.from_orm_model(
