@@ -27,7 +27,7 @@ from slugify import slugify
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
-from prefect.client import inject_client
+from prefect.client.orion import inject_client
 from prefect.orion.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
