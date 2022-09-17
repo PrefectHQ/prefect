@@ -1,6 +1,6 @@
-import asyncio
 from hashlib import sha256
-from unittest.mock import MagicMock
+from pathlib import Path
+from unittest.mock import MagicMock, mock_open, patch
 from uuid import uuid4
 
 import pytest
@@ -225,7 +225,9 @@ class TestMemoizeBlockAutoRegistration:
             toml.dumps({"block_auto_registration": current_block_registry_hash})
         )
 
-    async def test_runs_wrapped_function_on_missing_key(self):
+    async def test_runs_wrapped_function_on_missing_key(
+        self, current_block_registry_hash
+    ):
         assert not PREFECT_MEMO_STORE_PATH.value().exists()
         assert (
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value()
@@ -233,17 +235,21 @@ class TestMemoizeBlockAutoRegistration:
 
         test_func = AsyncMock()
 
-        await _memoize_block_auto_registration(test_func)()
+        open_mock = mock_open()
+        exists_mock = MagicMock()
+        exists_mock.return_value = False
+
+        with patch.object(Path, "exists", exists_mock):
+            with patch.object(Path, "open", open_mock):
+                await _memoize_block_auto_registration(test_func)()
 
         test_func.assert_called_once()
 
-        await asyncio.sleep(10)
-
-        assert PREFECT_MEMO_STORE_PATH.value().exists(), "Memo store was not created"
-        assert (
-            toml.load(PREFECT_MEMO_STORE_PATH.value()).get("block_auto_registration")
-            is not None
-        ), "Key was not added to memo store"
+        exists_mock.assert_called_once()
+        open_mock.assert_called_once()
+        open_mock().write.assert_called_once_with(
+            f'block_auto_registration = "{current_block_registry_hash}"\n'
+        )
 
     async def test_runs_wrapped_function_on_mismatched_key(
         self,
@@ -256,16 +262,22 @@ class TestMemoizeBlockAutoRegistration:
 
         test_func = AsyncMock()
 
-        await _memoize_block_auto_registration(test_func)()
+        open_mock = mock_open(
+            read_data=f'block_auto_registration = "{current_block_registry_hash}"\n'
+        )
+        exists_mock = MagicMock()
+        exists_mock.return_value = True
+
+        with patch.object(Path, "exists", exists_mock):
+            with patch.object(Path, "open", open_mock):
+                await _memoize_block_auto_registration(test_func)()
 
         test_func.assert_called_once()
 
-        await asyncio.sleep(10)
-
-        assert (
-            toml.load(PREFECT_MEMO_STORE_PATH.value()).get("block_auto_registration")
-            == current_block_registry_hash
-        ), "Key was not updated in memo store"
+        exists_mock.assert_called_once()
+        open_mock().write.assert_called_once_with(
+            f'block_auto_registration = "{current_block_registry_hash}"\n'
+        )
 
     async def test_runs_wrapped_function_when_memoization_disabled(
         self, memo_store_with_accurate_key

@@ -269,7 +269,10 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
             saved_blocks_loading_hash = toml.load(memo_store_path).get(
                 "block_auto_registration"
             )
-            if current_blocks_loading_hash == saved_blocks_loading_hash:
+            if (
+                saved_blocks_loading_hash is not None
+                and current_blocks_loading_hash == saved_blocks_loading_hash
+            ):
                 if PREFECT_DEBUG_MODE.value():
                     logger.debug(
                         "Skipping block loading due to matching hash for block "
