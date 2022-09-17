@@ -27,7 +27,10 @@ def get_call_parameters(
     Raises a ParameterBindError if the arguments/kwargs are not valid for the function
     """
     try:
-        bound_signature = inspect.signature(fn).bind(*call_args, **call_kwargs)
+        signature_fn = inspect.signature(fn)
+        if "self" in signature_fn.parameters:
+            raise TypeError(f"Decorator does not support class methods")
+        bound_signature = signature_fn.bind(*call_args, **call_kwargs)
     except TypeError as exc:
         raise ParameterBindError.from_bind_failure(fn, exc, call_args, call_kwargs)
     bound_signature.apply_defaults()
