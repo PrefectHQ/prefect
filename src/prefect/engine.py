@@ -29,7 +29,8 @@ from typing_extensions import Literal
 
 import prefect
 import prefect.context
-from prefect.client import OrionClient, get_client, inject_client
+from prefect.client import OrionClient, get_client
+from prefect.client.orion import inject_client
 from prefect.context import (
     FlowRunContext,
     PrefectObjectRegistry,
