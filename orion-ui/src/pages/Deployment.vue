@@ -90,10 +90,10 @@
     router.push(routes.deployments())
   }
 
-  const flowId = computed(() => deployment.value ? [deployment.value.flowId] : [])
-  const flowFilter = useRecentFlowRunFilter({ flows: flowId })
 
-  const flowRunsFilterArgs = computed<Parameters<typeof flowRunsApi.getFlowRuns> | null>(() => flowId.value.length ? [flowFilter.value] : null)
+  const flowFilter = useRecentFlowRunFilter({ deployments: [deploymentId.value] })
+
+  const flowRunsFilterArgs = computed<Parameters<typeof flowRunsApi.getFlowRuns> | null>(() => [flowFilter.value])
 
   const flowRunsSubscription = useSubscriptionWithDependencies(flowRunsApi.getFlowRuns, flowRunsFilterArgs)
   const flowRuns = computed(() => flowRunsSubscription.response ?? [])

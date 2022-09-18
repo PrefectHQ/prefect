@@ -1,7 +1,7 @@
 <template>
   <p-layout-default class="flow-runs">
     <template #header>
-      <PageHeadingFlowRuns />
+      <PageHeadingFlowRuns v-model:selected="selectedFilterType" />
     </template>
 
     <template v-if="loaded">
@@ -42,10 +42,11 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute } from '@prefecthq/orion-design'
-  import { PEmptyResults, media } from '@prefecthq/prefect-design'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute, stateType } from '@prefecthq/orion-design'
+  import { PEmptyResults, media, formatDateTimeNumeric } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, ref } from 'vue'
+  import { startOfToday, subDays } from 'date-fns'
+  import { computed, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import FlowRunsFilter from '@/components/FlowRunsFilter.vue'
   import { routes } from '@/router'
@@ -58,11 +59,30 @@
   const loaded = computed(() => flowRunsCountAllSubscription.executed)
   const empty = computed(() => flowRunsCountAllSubscription.response === 0)
 
-  const { filter, hasFilters, startDate, endDate, name, sort } = useFlowRunFilterFromRoute()
+  const { filter, hasFilters, startDate, endDate, name, sort, states } = useFlowRunFilterFromRoute()
+
+  const selectedFilterType = ref('week')
+
+  watch(selectedFilterType, async ()=> {
+    await router.push(routes.flowRuns())
+    if (selectedFilterType.value === 'noScheduled') {
+      states.value = stateType.filter(state => state !== 'scheduled')
+      startDate.value = formatDateTimeNumeric(subDays(startOfToday(), 7))
+      return
+    } if (selectedFilterType.value === 'day') {
+      startDate.value = formatDateTimeNumeric(subDays(startOfToday(), 1))
+      states.value = []
+      return
+    } if (selectedFilterType.value === 'day') {
+      states.value = []
+      startDate.value = formatDateTimeNumeric(subDays(startOfToday(), 7))
+    }
+  })
 
   const subscriptionOptions = {
     interval: 30000,
   }
+
 
   const flowRunCountSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [filter], subscriptionOptions)
   const flowRunCount = computed(() => flowRunCountSubscription.response)
@@ -75,7 +95,7 @@
   const selectedFlowRuns = ref([])
 
   function clear(): void {
-    router.push(routes.flowRuns())
+    selectedFilterType.value = 'week'
   }
 </script>
 
