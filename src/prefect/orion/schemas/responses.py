@@ -3,7 +3,7 @@ Schemas for special responses from the Orion API.
 """
 
 import datetime
-from typing import List
+from typing import List, Optional
 
 from pydantic import Field
 from typing_extensions import Literal
@@ -26,7 +26,7 @@ class StateAcceptDetails(PrefectBaseModel):
     """Details associated with an ACCEPT state transition."""
 
     type: Literal["accept_details"] = Field(
-        "accept_details",
+        default="accept_details",
         description="The type of state transition detail. Used to ensure pydantic does not coerce into a different type.",
     )
 
@@ -35,11 +35,11 @@ class StateRejectDetails(PrefectBaseModel):
     """Details associated with a REJECT state transition."""
 
     type: Literal["reject_details"] = Field(
-        "reject_details",
+        default="reject_details",
         description="The type of state transition detail. Used to ensure pydantic does not coerce into a different type.",
     )
-    reason: str = Field(
-        None, description="The reason why the state transition was rejected."
+    reason: Optional[str] = Field(
+        default=None, description="The reason why the state transition was rejected."
     )
 
 
@@ -47,11 +47,11 @@ class StateAbortDetails(PrefectBaseModel):
     """Details associated with an ABORT state transition."""
 
     type: Literal["abort_details"] = Field(
-        "abort_details",
+        default="abort_details",
         description="The type of state transition detail. Used to ensure pydantic does not coerce into a different type.",
     )
-    reason: str = Field(
-        None, description="The reason why the state transition was aborted."
+    reason: Optional[str] = Field(
+        default=None, description="The reason why the state transition was aborted."
     )
 
 
@@ -59,32 +59,35 @@ class StateWaitDetails(PrefectBaseModel):
     """Details associated with a WAIT state transition."""
 
     type: Literal["wait_details"] = Field(
-        "wait_details",
+        default="wait_details",
         description="The type of state transition detail. Used to ensure pydantic does not coerce into a different type.",
     )
     delay_seconds: int = Field(
-        ...,
+        default=...,
         description="The length of time in seconds the client should wait before transitioning states.",
     )
-    reason: str = Field(
-        None, description="The reason why the state transition should wait."
+    reason: Optional[str] = Field(
+        default=None, description="The reason why the state transition should wait."
     )
 
 
 class HistoryResponseState(PrefectBaseModel):
     """Represents a single state's history over an interval."""
 
-    state_type: schemas.states.StateType = Field(..., description="The state type.")
-    state_name: str = Field(..., description="The state name.")
+    state_type: schemas.states.StateType = Field(
+        default=..., description="The state type."
+    )
+    state_name: str = Field(default=..., description="The state name.")
     count_runs: int = Field(
-        ...,
+        default=...,
         description="The number of runs in the specified state during the interval.",
     )
     sum_estimated_run_time: datetime.timedelta = Field(
-        ..., description="The total estimated run time of all runs during the interval."
+        default=...,
+        description="The total estimated run time of all runs during the interval.",
     )
     sum_estimated_lateness: datetime.timedelta = Field(
-        ...,
+        default=...,
         description="The sum of differences between actual and expected start time during the interval.",
     )
 
@@ -93,9 +96,11 @@ class HistoryResponse(PrefectBaseModel):
     """Represents a history of aggregation states over an interval"""
 
     interval_start: DateTimeTZ = Field(
-        ..., description="The start date of the interval."
+        default=..., description="The start date of the interval."
     )
-    interval_end: DateTimeTZ = Field(..., description="The end date of the interval.")
+    interval_end: DateTimeTZ = Field(
+        default=..., description="The end date of the interval."
+    )
     states: List[HistoryResponseState] = Field(
-        ..., description="A list of state histories during the interval."
+        default=..., description="A list of state histories during the interval."
     )
