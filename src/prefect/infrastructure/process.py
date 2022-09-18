@@ -45,11 +45,13 @@ class Process(Infrastructure):
         name: A name for the process. For display purposes only.
     """
 
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
+
     type: Literal["process"] = Field(
-        "process", description="The type of infrastructure."
+        default="process", description="The type of infrastructure."
     )
     stream_output: bool = Field(
-        True,
+        default=True,
         description="If set, output will be streamed from the process to local standard output.",
     )
 
