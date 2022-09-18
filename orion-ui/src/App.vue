@@ -124,7 +124,7 @@
   function close(): void {
     mobileMenuOpen.value = false
   }
-
+  console.log('by healthCheck 11')
   healthCheck()
 
   watchEffect(() => document.body.classList.toggle('body-scrolling-disabled', showMenu.value && !media.lg))

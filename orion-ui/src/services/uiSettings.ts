@@ -1,5 +1,7 @@
 
+import { showToast } from '@prefecthq/prefect-design'
 import axios, { AxiosResponse } from 'axios'
+import ConnectionToastMessage from '@/components/ConnectionToastMessage.vue'
 import { MODE } from '@/utilities/meta'
 
 type SettingsResponse = {
@@ -18,22 +20,39 @@ export class UiSettings {
 
   public static async load(): Promise<Settings> {
     if (this.settings !== null) {
+      console.log('settings')
       return this.settings
     }
 
     if (this.promise !== null) {
-      return this.promise
+      console.log('not null', this.promise)
+
+      return await this.promise
     }
 
     this.promise = new Promise(resolve => {
       return axios.get<SettingsResponse>('/ui-settings', {
         baseURL: this.baseUrl,
+      }).catch((error) => {
+        console.log('in catch error', error)
+        if (!error.status) {
+          const toastMessage = ConnectionToastMessage
+          showToast(toastMessage, 'error', { timeout: false })
+        }
       }).then(mapSettingsResponse).then(resolve)
     })
 
-    const settings = await this.promise
+    console.log('prom', this.promise)
 
-    return this.settings = settings
+    try {
+      const settings = await this.promise
+
+      return this.settings = settings
+    } catch (again) {
+      console.log('againerror', again)
+    }
+
+
   }
 
   public static async get<T extends keyof Settings>(setting: T, defaultValue?: Settings[T]): Promise<Settings[T]> {
@@ -54,6 +73,7 @@ export class UiSettings {
 }
 
 function mapSettingsResponse(response: AxiosResponse<SettingsResponse>): Settings {
+  console.log('in map')
   const settings = response.data
 
   return {
