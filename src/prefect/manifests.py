@@ -13,8 +13,10 @@ from prefect.utilities.callables import ParameterSchema
 class Manifest(BaseModel):
     """A JSON representation of a flow."""
 
-    flow_name: str = Field(..., description="The name of the flow.")
-    import_path: str = Field(..., description="The relative import path for the flow.")
+    flow_name: str = Field(default=..., description="The name of the flow.")
+    import_path: str = Field(
+        default=..., description="The relative import path for the flow."
+    )
     parameter_openapi_schema: ParameterSchema = Field(
-        ..., description="The OpenAPI schema of the flow's parameters."
+        default=..., description="The OpenAPI schema of the flow's parameters."
     )

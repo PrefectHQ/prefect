@@ -1,8 +1,8 @@
 import abc
 from typing import TYPE_CHECKING, Dict, List, Optional
 
+import anyio.abc
 import pydantic
-from anyio.abc import TaskStatus
 from typing_extensions import Self
 
 import prefect
@@ -30,7 +30,7 @@ class Infrastructure(Block, abc.ABC):
 
     type: str
 
-    env: Dict[str, str] = pydantic.Field(
+    env: Dict[str, Optional[str]] = pydantic.Field(
         default_factory=dict,
         title="Environment",
         description="Environment variables to set in the configured infrastructure.",
@@ -40,17 +40,18 @@ class Infrastructure(Block, abc.ABC):
         description="Labels applied to the infrastructure for metadata purposes.",
     )
     name: Optional[str] = pydantic.Field(
-        None, description="Name applied to the infrastructure for identification."
+        default=None,
+        description="Name applied to the infrastructure for identification.",
     )
     command: Optional[List[str]] = pydantic.Field(
-        None,
+        default=None,
         description="The command to run in the infrastructure.",
     )
 
     @abc.abstractmethod
     async def run(
         self,
-        task_status: TaskStatus = None,
+        task_status: anyio.abc.TaskStatus = None,
     ) -> InfrastructureResult:
         """
         Run the infrastructure.

@@ -272,6 +272,9 @@ def create_app(
 
     async def add_block_types():
         """Add all registered blocks to the database"""
+        if not prefect.settings.PREFECT_ORION_BLOCKS_REGISTER_ON_START:
+            return
+
         from prefect.blocks.core import Block
         from prefect.orion.database.dependencies import provide_database_interface
         from prefect.orion.models.block_schemas import create_block_schema
