@@ -7,7 +7,6 @@ from uuid import UUID
 from fastapi import Body, Depends, HTTPException, Path, Query, Response, status
 from fastapi.responses import Response
 
-from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.database.dependencies import provide_database_interface
@@ -24,6 +23,7 @@ async def create_block_schema(
     response: Response,
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockSchema:
+    from prefect.blocks.core import Block
 
     async with db.session_context(begin_transaction=True) as session:
         # check if the requested block type is protected
@@ -44,7 +44,9 @@ async def create_block_schema(
         block_schema_checksum = Block._calculate_schema_checksum(block_schema.fields)
         existing_block_schema = (
             await models.block_schemas.read_block_schema_by_checksum(
-                session=session, checksum=block_schema_checksum
+                session=session,
+                checksum=block_schema_checksum,
+                version=block_schema.version,
             )
         )
         if existing_block_schema:

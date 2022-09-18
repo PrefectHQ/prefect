@@ -40,6 +40,10 @@ class TestLocalFileSystem:
         assert fs._resolve_path(tmp_path / "subdirectory") == tmp_path / "subdirectory"
         assert fs._resolve_path("subdirectory") == tmp_path / "subdirectory"
 
+    async def test_get_directory_duplicate_directory(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+        await fs.get_directory(".", ".")
+
 
 class TestRemoteFileSystem:
     def test_must_contain_scheme(self):
