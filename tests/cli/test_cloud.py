@@ -64,7 +64,7 @@ def mock_select_workspace(workspaces):
 
 def test_invalid_login(monkeypatch):
     monkeypatch.setattr(
-        "prefect.cli.cloud.get_cloud_client", get_unauthorized_mock_cloud_client
+        "prefect.client.cloud.get_cloud_client", get_unauthorized_mock_cloud_client
     )
 
     invoke_and_assert(

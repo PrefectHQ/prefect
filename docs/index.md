@@ -7,10 +7,8 @@ tags:
 
 # Welcome to Prefect 2
 
-<span style="margin-top: 0; margin-bottom: 0;">![Prefect 2 logo](./img/logos/prefect-2-logo-dark.png)</span>
-
-!!! help "Looking for Prefect 1.0 Core and Server?"
-    Prefect 2 is now available for general use. See our [Migration Guide](/migration-guide/) to move your flows from Prefect 1 Prefect 2.
+!!! help "Looking for Prefect 1 Core and Server?"
+    Prefect 2 is now available for general use. See our [Migration Guide](/migration-guide/) to move your flows from Prefect 1 to Prefect 2.
 
     If you're looking for the [Prefect 1 Core and Server documentation](http://docs-v1.prefect.io/), they're available at [http://docs-v1.prefect.io/](http://docs-v1.prefect.io/).
 
@@ -41,7 +39,7 @@ Prefect 2 was designed for incremental adoption into your workflows. The documen
 
 Begin by [installing Prefect 2](/getting-started/installation/) on your machine, then follow one of our [friendly tutorials](/tutorials/first-steps/) to learn by example. See the [Getting Started overview](/getting-started/overview/) for more.
 
-Even if you have used Prefect 1.0 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps. Prefect 2 offers significant new functionality.
+Even if you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps. Prefect 2 offers significant new functionality.
 
 
 **Concepts**
@@ -197,31 +195,6 @@ Click on your flow name to see logs and other details.
 
 ![screenshot of prefect orion dashboard with logs, radar plot, and flow info](./img/intro-ui-logs.png)
 
-Let's show how the aforementioned basic example can be expanded to run concurrently!
-
-### Simple concurrency
-
-By changing the task calls to use the `.submit()` method, the tasks will be submitted to a worker for execution. This allows multiple tasks to run at once! Prefect 2 comes with built-in threaded concurrency and only this one line change is needed to begin using it.
-
-```python hl_lines="13"
-from prefect import flow, task
-import httpx
-
-@task(retries=3)
-def get_stars(repo):
-    url = f"https://api.github.com/repos/{repo}"
-    count = httpx.get(url).json()["stargazers_count"]
-    print(f"{repo} has {count} stars!")
-
-@flow()
-def github_stars(repos):
-    for repo in repos:
-        get_stars.submit(repo)
-
-# call the flow!
-if __name__ == "__main__":
-    github_stars(["PrefectHQ/Prefect", "PrefectHQ/prefect-aws",  "PrefectHQ/prefect-dbt"])
-```
 
 The above example just scratch the surface of how Prefect can help you coordinate your dataflows.
 

@@ -74,7 +74,7 @@ If you defined a different type of storage block, such as Azure or GCS, you'll n
 
 ## Using infrastructure blocks with deployments
 
-To use an infrastructure block when building a deployment, the process is similar to using a storage block. You can specify a custom infastructure block to the `prefect deployment build` command with the `-ib` or `--infra-block` options, passing the type and name of the block in the in the format `type/name`, with `type` and `name` separated by a forward slash. 
+To use an infrastructure block when building a deployment, the process is similar to using a storage block. You can specify a custom infrastructure block to the `prefect deployment build` command with the `-ib` or `--infra-block` options, passing the type and name of the block in the in the format `type/name`, with `type` and `name` separated by a forward slash. 
 
 - `type` is the type of storage block, such as `docker-container`, `kubernetes-job`, or `process`.
 - `name` is the name you specified when creating the block.
@@ -131,7 +131,7 @@ Open the Prefect UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/) and sele
 
 ## Edit the deployment in the UI
 
-`log_flow` exepcts a runtime parameter for its greeting, and we didn't provide one as part of this deployment yet. We could edit `log-flow-docker-deployment.yaml` to add a parameter and apply the edited YAML to update the deployment on the API.
+`log_flow` expects a runtime parameter for its greeting, and we didn't provide one as part of this deployment yet. We could edit `log-flow-docker-deployment.yaml` to add a parameter and apply the edited YAML to update the deployment on the API.
 
 Instead, let's edit the deployment through the Prefect UI. Select **log-flow/log-flow-docker** to see the deployment's details.
 

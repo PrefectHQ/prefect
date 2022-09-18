@@ -8,20 +8,21 @@ tags:
     - RemoteFileSystem
 ---
 
-# File systems
+# Filesystems
 
-A file system block is an object which allows you to read and write data from paths. Prefect provides multiple built-in file system types that cover a wide range of use cases. 
+A filesystem block is an object that allows you to read and write data from paths. Prefect provides multiple built-in file system types that cover a wide range of use cases. 
 
--  [`LocalFileSystem`](#local-file-system)
--  [`RemoteFileSystem`](#remote-file-system)
--  [`S3`](#s3)
--  [`GCS`](#gcs)
--  [`Azure`](#azure)
--  [`SMB`](#smb)
+- [`LocalFileSystem`](#local-file-system)
+- [`RemoteFileSystem`](#remote-file-system)
+- [`Azure`](#azure)
+- [`GitHub`](#github)
+- [`GCS`](#gcs)
+- [`S3`](#s3)
+- [`SMB`](#smb)
 
 Additional file system types are available in [Prefect Collections](/collections/overview/).
 
-## Local file system
+## Local filesystem
 
 The `LocalFileSystem` block enables interaction with the files in your current development environment. 
 
@@ -37,7 +38,7 @@ from prefect.filesystems import LocalFileSystem
 fs = LocalFileSystem(basepath="/foo/bar")
 ```
 
-!!! note "Limited access to local file system"
+!!! warning "Limited access to local file system"
     Be aware that `LocalFileSystem` access is limited to the exact path provided. This file system may not be ideal for some use cases. The execution environment for your workflows may not have the same file system as the enviornment you are writing and deploying your code on. 
     
     Use of this file system can limit the availability of results after a flow run has completed or prevent the code for a flow from being retrieved successfully at the start of a run.
@@ -72,8 +73,7 @@ You may need to install additional libraries to use some remote storage types.
 
 ### RemoteFileSystem examples
 
-How can we use `RemoteFileSystem` to store our flow code? 
-The following is a use case where we use [MinIO](https://min.io/) as a storage backend:
+How can we use `RemoteFileSystem` to store our flow code? The following is a use case where we use [MinIO](https://min.io/) as a storage backend:
 
 ```python
 from prefect.filesystems import RemoteFileSystem
@@ -89,6 +89,99 @@ minio_block = RemoteFileSystem(
 minio_block.save("minio")
 ```
 
+## Azure
+
+The `Azure` file system block enables interaction with Azure Datalake and Azure Blob Storage. Under the hood, the `Azure` block uses [`adlfs`](https://github.com/fsspec/adlfs).
+
+`Azure` properties include:
+
+| Property | Description |
+| --- | --- |
+| basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
+| azure_storage_connection_string | Azure storage connection string. |
+| azure_storage_account_name | Azure storage account name. |
+| azure_storage_account_key | Azure storage account key. |
+
+
+To create a block:
+
+```python
+from prefect.filesystems import Azure
+
+block = Azure(basepath="my-bucket/folder/")
+block.save("dev")
+```
+
+To use it in a deployment:
+
+<div class="terminal">
+```bash
+prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb az/dev
+```
+</div>
+
+You need to install `adlfs` to use it.
+
+## GitHub
+
+The `GitHub` filesystem block enables interaction with GitHub repositories. This block is currently read-only and limited to public repositories.
+
+`GitHub` properties include:
+
+| Property | Description |
+| --- | --- |
+| reference | An optional reference to pin to, such as a branch name or tag. |
+| repository | The URL of a GitHub repository to read from, in either HTTPS or SSH format. |
+
+To create a block:
+
+```python
+from prefect.filesystems import GitHub
+
+block = GitHub(repository="https://github.com/my-repo/")
+block.get_directory("folder-in-repo") # specify a subfolder of repo
+block.save("dev")
+```
+
+To use it in a deployment:
+
+<div class="terminal">
+```bash
+prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb github/dev
+```
+</div>
+
+## GCS
+
+The `GCS` file system block enables interaction with Google Cloud Storage. Under the hood, `GCS` uses [`gcsfs`](https://gcsfs.readthedocs.io/en/latest/).
+
+`GCS` properties include:
+
+| Property | Description |
+| --- | --- |
+| basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
+| service_account_info | The contents of a service account keyfile as a JSON string.                                                                  |
+| project | The project the GCS bucket resides in. If not provided, the project will be inferred from the credentials or environment.    |
+
+
+To create a block:
+
+```python
+from prefect.filesystems import GCS
+
+block = GCS(basepath="my-bucket/folder/")
+block.save("dev")
+```
+
+To use it in a deployment:
+
+<div class="terminal">
+```bash
+prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb gcs/dev
+```
+</div>
+
+You need to install `gcsfs`to use it.
 
 ## S3
 
@@ -113,73 +206,14 @@ block.save("dev")
 ```
 
 To use it in a deployment:
+
+<div class="terminal">
 ```bash
 prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb s3/dev
 ```
+</div>
 
-You need to install `s3fs`to use it.
-
-
-## GCS
-
-The `GCS` file system block enables interaction with Google Cloud Storage. Under the hood, `GCS` uses [`gcsfs`](https://gcsfs.readthedocs.io/en/latest/).
-
-`GCS` properties include:
-
-| Property | Description                                                                                                                  |
-| --- |------------------------------------------------------------------------------------------------------------------------------|
-| basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
-| service_account_info | The contents of a service account keyfile as a JSON string.                                                                  |
-| project | The project the GCS bucket resides in. If not provided, the project will be inferred from the credentials or environment.    |
-
-
-To create a block:
-
-```python
-from prefect.filesystems import GCS
-
-block = GCS(basepath="my-bucket/folder/")
-block.save("dev")
-```
-
-To use it in a deployment:
-```bash
-prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb gcs/dev
-```
-
-You need to install `gcsfs`to use it.
-
-
-## Azure
-
-The `Azure` file system block enables interaction with Azure Datalake and Azure Blob Storage. Under the hood, `Azure` uses [`adlfs`](https://github.com/fsspec/adlfs).
-
-`Azure` properties include:
-
-| Property | Description                                                                                                                  |
-| --- |------------------------------------------------------------------------------------------------------------------------------|
-| basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
-| azure_storage_connection_string | Azure storage connection string. |
-| azure_storage_account_name | Azure storage account name. |
-| azure_storage_account_key | Azure storage account key. |
-
-
-To create a block:
-
-```python
-from prefect.filesystems import Azure
-
-block = Azure(basepath="my-bucket/folder/")
-block.save("dev")
-```
-
-To use it in a deployment:
-```bash
-prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb az/dev
-```
-
-You need to install `adlfs` to use it.
-
+You need to install `s3fs`to use this block.
 
 ## SMB
 
@@ -187,8 +221,8 @@ The `SMB` file system block enables interaction with SMB shared network storage.
 
 `SMB` properties include:
 
-| Property | Description                                                                                                                  |
-| --- |------------------------------------------------------------------------------------------------------------------------------|
+| Property | Description |
+| --- | --- |
 | basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
 | smb_host | Hostname or IP address where SMB network share is located. |
 | smb_port | Port for SMB network share (defaults to 445). |
@@ -206,9 +240,12 @@ block.save("dev")
 ```
 
 To use it in a deployment:
+
+<div class="terminal">
 ```bash
 prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb smb/dev
 ```
+</div>
 
 You need to install `smbprotocol` to use it.
 
@@ -218,11 +255,15 @@ You need to install `smbprotocol` to use it.
 If you leverage `S3`, `GCS`, or `Azure` storage blocks, and you don't explicitly configure credentials on the respective storage block, those credentials will be inferred from the environment. Make sure to set those either explicitly on the block or as environment variables, configuration files, or IAM roles within both the build and runtime environment for your deployments.
 
 
-## Filesystem-specific package dependencies in Docker images
+## Filesystem package dependencies
 
-The core package and Prefect base images don't include filesystem-specific package dependencies such as `s3fs`, `gcsfs` or `adlfs`. To solve that problem in dockerized deployments, you can leverage the `EXTRA_PIP_PACKAGES` environment variable. Those dependencies will be installed at runtime within your Docker container or Kubernetes Job before the flow starts running. 
+A Prefect installation and doesn't include filesystem-specific package dependencies such as `s3fs`, `gcsfs` or `adlfs`. This includes Prefect base Docker images.
 
-Here is an example showing how you can specify that in your deployment YAML manifest:
+You must ensure that filesystem-specific libraries are installed in an execution environment where they will be used by flow runs.
+
+In Dockerized deployments, you can leverage the `EXTRA_PIP_PACKAGES` environment variable. Those dependencies will be installed at runtime within your Docker container or Kubernetes Job before the flow starts running. 
+
+Here is an example from a deployment YAML file showing how to specify the installation of `s3fs` from into your image:
 
 ```yaml
 infrastructure:
@@ -231,6 +272,7 @@ infrastructure:
     EXTRA_PIP_PACKAGES: s3fs  # could be gcsfs, adlfs, etc.
 ```
 
+You may specify multiple dependencies by providing a comma-delimted list.
 
 ## Saving and loading file systems
 

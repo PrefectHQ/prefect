@@ -23,6 +23,7 @@ def flow_function():
 @pytest.fixture(scope="module")
 def test_block():
     class x(Block):
+        _block_type_slug = "x-fixture"
         _logo_url = "https://en.wiktionary.org/wiki/File:LetterX.svg"
         _documentation_url = "https://en.wiktionary.org/wiki/X"
         foo: str

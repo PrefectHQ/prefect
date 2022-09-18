@@ -136,7 +136,7 @@ class TestReadBlockTypes:
 
     async def test_read_block_type_by_name(self, session, block_type_x):
         db_block_type = await models.block_types.read_block_type_by_slug(
-            session=session, block_type_slug=block_type_x.name
+            session=session, block_type_slug=block_type_x.slug
         )
 
         assert db_block_type.id == block_type_x.id

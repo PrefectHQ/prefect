@@ -6,9 +6,9 @@ from typing import Iterator, List, Optional, Set, Union
 from uuid import UUID
 
 import anyio
+import anyio.abc
 import anyio.to_process
 import pendulum
-from anyio.abc import TaskGroup, TaskStatus
 
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client
@@ -41,7 +41,7 @@ class OrionAgent:
         self.submitting_flow_run_ids = set()
         self.started = False
         self.logger = get_logger("agent")
-        self.task_group: Optional[TaskGroup] = None
+        self.task_group: Optional[anyio.abc.TaskGroup] = None
         self.client: Optional[OrionClient] = None
 
         self._work_queue_cache_expiration: pendulum.DateTime = None
@@ -214,7 +214,7 @@ class OrionAgent:
         self,
         flow_run: FlowRun,
         infrastructure: Infrastructure,
-        task_status: TaskStatus = None,
+        task_status: anyio.abc.TaskStatus = None,
     ) -> Union[InfrastructureResult, Exception]:
 
         # Note: There is not a clear way to determine if task_status.started() has been

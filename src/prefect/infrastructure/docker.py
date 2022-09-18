@@ -6,8 +6,8 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple
 
+import anyio.abc
 import packaging.version
-from anyio.abc import TaskStatus
 from pydantic import Field, validator
 from slugify import slugify
 from typing_extensions import Literal
@@ -102,17 +102,18 @@ class DockerRegistry(BaseDockerLogin):
 
     _block_type_name = "Docker Registry"
     username: str = Field(
-        ..., description="The username to log into the registry with."
+        default=..., description="The username to log into the registry with."
     )
     password: SecretStr = Field(
-        ..., description="The password to log into the registry with."
+        default=..., description="The password to log into the registry with."
     )
     registry_url: str = Field(
-        ...,
+        default=...,
         description='The URL to the registry. Generally, "http" or "https" can be omitted.',
     )
     reauth: bool = Field(
-        True, description="Whether or not to reauthenticate on each interaction."
+        default=True,
+        description="Whether or not to reauthenticate on each interaction.",
     )
 
     @sync_compatible
@@ -172,14 +173,14 @@ class DockerContainer(Infrastructure):
     """
 
     type: Literal["docker-container"] = Field(
-        "docker-container", description="The type of infrastructure."
+        default="docker-container", description="The type of infrastructure."
     )
     image: str = Field(
-        description="Tag of a Docker image to use. Defaults to the Prefect image.",
         default_factory=get_prefect_image_name,
+        description="Tag of a Docker image to use. Defaults to the Prefect image.",
     )
-    image_pull_policy: ImagePullPolicy = Field(
-        None, description="Specifies if the image should be pulled."
+    image_pull_policy: Optional[ImagePullPolicy] = Field(
+        default=None, description="Specifies if the image should be pulled."
     )
     image_registry: Optional[DockerRegistry] = None
     networks: List[str] = Field(
@@ -187,18 +188,19 @@ class DockerContainer(Infrastructure):
         description="A list of strings specifying Docker networks to connect the container to.",
     )
     network_mode: Optional[str] = Field(
-        None,
+        default=None,
         description="The network mode for the created container (e.g. host, bridge). If 'networks' is set, this cannot be set.",
     )
     auto_remove: bool = Field(
-        False, description="If set, the container will be removed on completion."
+        default=False,
+        description="If set, the container will be removed on completion.",
     )
     volumes: List[str] = Field(
         default_factory=list,
         description='A list of volume mount strings in the format of "local_path:container_path".',
     )
     stream_output: bool = Field(
-        True,
+        default=True,
         description="If set, the output will be streamed from the container to local standard output.",
     )
 
@@ -232,7 +234,7 @@ class DockerContainer(Infrastructure):
     @sync_compatible
     async def run(
         self,
-        task_status: Optional[TaskStatus] = None,
+        task_status: Optional[anyio.abc.TaskStatus] = None,
     ) -> Optional[bool]:
         if not self.command:
             raise ValueError("Docker container cannot be run with empty command.")
@@ -577,4 +579,5 @@ class DockerContainer(Infrastructure):
                 .replace("127.0.0.1", "host.docker.internal")
             )
 
-        return env
+        # Drop null values allowing users to "unset" variables
+        return {key: value for key, value in env.items() if value is not None}
