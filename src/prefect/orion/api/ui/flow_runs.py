@@ -19,18 +19,20 @@ router = OrionRouter(prefix="/ui/flow_runs", tags=["Flow Runs", "UI"])
 
 
 class SimpleFlowRun(PrefectBaseModel):
-    id: UUID = Field(..., description="The flow run id.")
-    state_type: schemas.states.StateType = Field(..., description="The state type.")
+    id: UUID = Field(default=..., description="The flow run id.")
+    state_type: schemas.states.StateType = Field(
+        default=..., description="The state type."
+    )
     timestamp: DateTimeTZ = Field(
-        ...,
+        default=...,
         description="The start time of the run, or the expected start time "
         "if it hasn't run yet.",
     )
     duration: datetime.timedelta = Field(
-        ..., description="The total run time of the run."
+        default=..., description="The total run time of the run."
     )
     lateness: datetime.timedelta = Field(
-        ..., description="The delay between the expected and actual start time."
+        default=..., description="The delay between the expected and actual start time."
     )
 
 

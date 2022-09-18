@@ -18,19 +18,13 @@ jobs:
 
     strategy:
       matrix:
-        # Run Windows tests on 3.9
-        os:
-          - "windows-latest"
         # We only test Windows against 3.9 currently.
         python-version:
           - "3.9"
-        # Do not run service tests on Windows
-        pytest-options:
-           - "--exclude-services"
 
       fail-fast: false
 
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     timeout-minutes: 45
 
     steps:
@@ -53,62 +47,12 @@ jobs:
           cache: "pip"
           cache-dependency-path: "requirements*.txt"
 
-      - name: Pin requirements to lower bounds
-        if: ${{ matrix.lower-bound-requirements }}
-        # Creates lower bound files then replaces the input files so we can do a normal install
-        run: |
-          ./scripts/generate-lower-bounds.py requirements.txt > requirements-lower.txt
-          ./scripts/generate-lower-bounds.py requirements-dev.txt > requirements-dev-lower.txt
-          mv requirements-lower.txt requirements.txt
-          mv requirements-dev-lower.txt requirements-dev.txt
-
-      - name: Build test image
-        if: ${{ matrix.build-docker-images }}
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
-          #       so that CI test runs are faster
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            PREFECT_EXTRAS=[dev]
-          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}
-          outputs: type=docker,dest=/tmp/image.tar
-
-      - name: Test Docker image
-        if: ${{ matrix.build-docker-images }}
-        run: |
-          docker load --input /tmp/image.tar
-          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
-
-      - name: Build Conda flavored test image
-        if: ${{ matrix.build-docker-images }}
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            BASE_IMAGE=prefect-conda
-            PREFECT_EXTRAS=[dev]
-          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}-conda
-          outputs: type=docker,dest=/tmp/image-conda.tar
-
-      - name: Test Conda flavored Docker image
-        if: ${{ matrix.build-docker-images }}
-        run: |
-          docker load --input /tmp/image-conda.tar
-          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }}-conda prefect version
-          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }}-conda conda --version
-
       - name: Install packages
         run: |
           python -m pip install --upgrade pip
-          # If using not using lower bounds, upgrade eagerly to get the latest versions despite caching
-          pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
+          pip install--upgrade --upgrade-strategy eager -e .[dev]
 
       - name: Run tests
         run: |
           # Parallelize tests by scope to reduce expensive service fixture duplication
-          # Do not allow the test suite to build images, as we want the prebuilt images to be tested
-          # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests -vv --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 ${{ matrix.pytest-options }}
+          pytest tests -vv --numprocesses auto --dist loadscope --exclude-services --durations=25

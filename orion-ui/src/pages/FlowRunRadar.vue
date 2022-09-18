@@ -22,7 +22,7 @@
   const options = { interval:  5000 }
 
   const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId.value], options)
-  const flowRun = computed(()=> flowRunDetailsSubscription.response)
+  const flowRun = computed(() => flowRunDetailsSubscription.response)
 
   function goToFlowRuns(): void {
     router.push(routes.flowRuns())

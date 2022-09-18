@@ -36,13 +36,13 @@ class KubernetesClusterConfig(Block):
     """
 
     _block_type_name = "Kubernetes Cluster Config"
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/8e4792f00a0c808ad1ad5126126fa5f8/Kubernetes_logo_without_workmark.svg.png?h=250"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/20445025358491b8b72600b8f996125b/Kubernetes_logo_without_workmark.svg.png?h=250"
 
     config: Dict = Field(
-        ..., description="The entire contents of a kubectl config file."
+        default=..., description="The entire contents of a kubectl config file."
     )
     context_name: str = Field(
-        ..., description="The name of the kubectl context to use."
+        default=..., description="The name of the kubectl context to use."
     )
 
     @classmethod

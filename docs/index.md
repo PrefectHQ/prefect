@@ -195,31 +195,6 @@ Click on your flow name to see logs and other details.
 
 ![screenshot of prefect orion dashboard with logs, radar plot, and flow info](./img/intro-ui-logs.png)
 
-Let's show how the aforementioned basic example can be expanded to run concurrently!
-
-### Simple concurrency
-
-By changing the task calls to use the `.submit()` method, the tasks will be submitted to a worker for execution. This allows multiple tasks to run at once! Prefect 2 comes with built-in threaded concurrency and only this one line change is needed to begin using it.
-
-```python hl_lines="13"
-from prefect import flow, task
-import httpx
-
-@task(retries=3)
-def get_stars(repo):
-    url = f"https://api.github.com/repos/{repo}"
-    count = httpx.get(url).json()["stargazers_count"]
-    print(f"{repo} has {count} stars!")
-
-@flow()
-def github_stars(repos):
-    for repo in repos:
-        get_stars.submit(repo)
-
-# call the flow!
-if __name__ == "__main__":
-    github_stars(["PrefectHQ/Prefect", "PrefectHQ/prefect-aws",  "PrefectHQ/prefect-dbt"])
-```
 
 The above example just scratch the surface of how Prefect can help you coordinate your dataflows.
 
