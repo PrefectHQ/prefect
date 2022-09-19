@@ -1,14 +1,22 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
+import toml
 from fastapi import APIRouter, status, testclient
 
 from prefect.orion.api.server import (
     API_ROUTERS,
+    _memoize_block_auto_registration,
     create_orion_api,
     method_paths_from_routes,
 )
+from prefect.settings import (
+    PREFECT_MEMO_STORE_PATH,
+    PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
+    temporary_settings,
+)
+from prefect.testing.utilities import AsyncMock
 
 
 async def test_validation_error_handler(client):
@@ -183,3 +191,118 @@ class TestCreateOrionAPI:
         client = testclient.TestClient(app)
         client.get("/logs/").raise_for_status()
         logs_get.assert_called_once()
+
+
+class TestMemoizeBlockAutoRegistration:
+    @pytest.fixture(autouse=True)
+    def enable_memoization(self, tmp_path):
+        with temporary_settings(
+            {
+                PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: True,
+                PREFECT_MEMO_STORE_PATH: tmp_path / "memo_store.toml",
+            }
+        ):
+            yield
+
+    @pytest.fixture
+    def memo_store_with_mismatched_key(self):
+        PREFECT_MEMO_STORE_PATH.value().write_text(
+            toml.dumps({"block_auto_registration": "not-a-real-key"})
+        )
+
+    @pytest.fixture
+    def current_block_registry_hash(self):
+        return "abcd1234"
+
+    @pytest.fixture
+    def memo_store_with_accurate_key(self, current_block_registry_hash):
+        PREFECT_MEMO_STORE_PATH.value().write_text(
+            toml.dumps({"block_auto_registration": current_block_registry_hash})
+        )
+
+    async def test_runs_wrapped_function_on_missing_key(
+        self, current_block_registry_hash
+    ):
+        assert not PREFECT_MEMO_STORE_PATH.value().exists()
+        assert (
+            PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value()
+        ), "Memoization is not enabled"
+
+        test_func = AsyncMock()
+
+        # hashing fails randomly fails when running full test suite
+        # mocking the hash stabilizes this test
+        with patch("prefect.orion.api.server.hash_objects") as mock:
+            mock.return_value = current_block_registry_hash
+            await _memoize_block_auto_registration(test_func)()
+
+        test_func.assert_called_once()
+
+        assert PREFECT_MEMO_STORE_PATH.value().exists(), "Memo store was not created"
+        assert (
+            toml.load(PREFECT_MEMO_STORE_PATH.value()).get("block_auto_registration")
+            == current_block_registry_hash
+        ), "Key was not added to memo store"
+
+    async def test_runs_wrapped_function_on_mismatched_key(
+        self,
+        memo_store_with_mismatched_key,
+        current_block_registry_hash,
+    ):
+        assert (
+            PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value()
+        ), "Memoization is not enabled"
+
+        test_func = AsyncMock()
+
+        # hashing fails randomly fails when running full test suite
+        # mocking the hash stabilizes this test
+        with patch("prefect.orion.api.server.hash_objects") as mock:
+            mock.return_value = current_block_registry_hash
+            await _memoize_block_auto_registration(test_func)()
+
+        test_func.assert_called_once()
+
+        assert (
+            toml.load(PREFECT_MEMO_STORE_PATH.value()).get("block_auto_registration")
+            == current_block_registry_hash
+        ), "Key was not updated in memo store"
+
+    async def test_runs_wrapped_function_when_memoization_disabled(
+        self, memo_store_with_accurate_key
+    ):
+        with temporary_settings(
+            {
+                PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
+            }
+        ):
+            test_func = AsyncMock()
+
+            await _memoize_block_auto_registration(test_func)()
+
+            test_func.assert_called_once()
+
+    async def test_skips_wrapped_function_on_matching_key(
+        self, current_block_registry_hash, memo_store_with_accurate_key
+    ):
+        test_func = AsyncMock()
+
+        # hashing fails randomly fails when running full test suite
+        # mocking the hash stabilizes this test
+        with patch("prefect.orion.api.server.hash_objects") as mock:
+            mock.return_value = current_block_registry_hash
+            await _memoize_block_auto_registration(test_func)()
+
+        test_func.assert_not_called()
+
+    async def test_runs_wrapped_function_when_hashing_fails(
+        self, memo_store_with_accurate_key
+    ):
+
+        test_func = AsyncMock()
+
+        with patch("prefect.orion.api.server.hash_objects") as mock:
+            mock.return_value = None
+            await _memoize_block_auto_registration(test_func)()
+
+        test_func.assert_called_once()
