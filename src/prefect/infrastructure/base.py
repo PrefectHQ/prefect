@@ -40,10 +40,11 @@ class Infrastructure(Block, abc.ABC):
         description="Labels applied to the infrastructure for metadata purposes.",
     )
     name: Optional[str] = pydantic.Field(
-        None, description="Name applied to the infrastructure for identification."
+        default=None,
+        description="Name applied to the infrastructure for identification.",
     )
     command: Optional[List[str]] = pydantic.Field(
-        None,
+        default=None,
         description="The command to run in the infrastructure.",
     )
 
