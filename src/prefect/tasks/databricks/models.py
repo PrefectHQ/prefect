@@ -68,8 +68,8 @@ class InitScriptInfo(BaseModel):
 
 class NewCluster(BaseModel, extra=Extra.allow):
     spark_version: str
-    node_type_id: str
     spark_conf: Dict = Field(default_factory=dict)
+    node_type_id: Optional[str] = None
     autoscale: Optional[AutoScale] = None
     num_workers: Optional[int] = None
     aws_attributes: Optional[AwsAttributes] = None
@@ -85,6 +85,18 @@ class NewCluster(BaseModel, extra=Extra.allow):
     policy_id: Optional[str] = None
     data_security_mode: Optional[str] = None
     single_user_name: Optional[str] = None
+
+    @validator("instance_pool_id", always=True, pre=True)
+    def node_type_or_instance_pool(cls, instance_pool_id, values):
+        node_type_id = values.get("node_type_id")
+        if instance_pool_id is not None and node_type_id is not None:
+            raise ValueError(
+                "Cannot specify instance_pool_id if node_type_id has been specified"
+            )
+
+        if instance_pool_id is None and node_type_id is None:
+            raise ValueError("Must specify either instance_pool_id or node_type_id")
+        return instance_pool_id
 
 
 class NotebookTask(BaseModel):
