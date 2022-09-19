@@ -40,6 +40,9 @@ pip install $(./scripts/precommit-versions.py)
 
 You'll need to run `black`, `autoflake8`, and `isort` before a contribution can be accepted.
 
+!!! tip "Building the Prefect UI"
+    If you intend to run a local Prefect Orion server during development, you must first build the UI. See [UI development](#ui-development) for instructions.
+
 !!! note "Windows support is under development"
     Support for Prefect on Windows is a work in progress.
 

@@ -270,7 +270,7 @@ The simplest Prefect map takes a tasks and applies it to each element of its inp
 from prefect import flow, task
 
 @task
-def print_nums(n):
+def print_nums(nums):
     for n in nums:
         print(n)
 
