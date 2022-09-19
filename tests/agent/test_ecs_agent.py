@@ -742,6 +742,28 @@ class TestGetRunTaskKwargs:
             env = {item["name"]: item["value"] for item in env_list}
             assert env["PREFECT__LOGGING__LEVEL"] == expected_logging_level
 
+    @pytest.mark.parametrize(
+        "disabled_on_agent,enabled_by_run,expected",
+        [
+            # Ignore env var when --no-cloud-logs
+            (True, "true", "false"),
+            (True, "false", "false"),
+            # Respect env var when --no-cloud-logs NOT set
+            (False, "true", "true"),
+            (False, "false", "false"),
+        ],
+    )
+    def test_send_flow_run_logs_override(
+        self, disabled_on_agent, enabled_by_run, expected
+    ):
+        kwargs = self.get_run_task_kwargs(
+            ECSRun(env={"PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": enabled_by_run}),
+            no_cloud_logs=disabled_on_agent,
+        )
+        env_list = kwargs["overrides"]["containerOverrides"][0]["environment"]
+        env = {item["name"]: item["value"] for item in env_list}
+        assert env["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == expected
+
 
 class TestDeployFlow:
     def deploy_flow(self, run_config, storage=None, **kwargs):

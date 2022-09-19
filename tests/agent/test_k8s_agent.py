@@ -1116,6 +1116,32 @@ class TestK8sAgentRunConfig:
         assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
         assert env["PREFECT__CLOUD__TENANT_ID"] == tenant_id
 
+    @pytest.mark.parametrize(
+        "disabled_on_agent,enabled_by_run,expected",
+        [
+            # Ignore env var when --no-cloud-logs
+            (True, "true", "false"),
+            (True, "false", "false"),
+            # Respect env var when --no-cloud-logs NOT set
+            (False, "true", "true"),
+            (False, "false", "false"),
+        ],
+    )
+    def test_environment_handles_send_flow_run_logs(
+        self, disabled_on_agent, enabled_by_run, expected
+    ):
+        flow_run = self.build_flow_run(
+            KubernetesRun(env={"PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": enabled_by_run})
+        )
+
+        agent = KubernetesAgent(namespace="testing", no_cloud_logs=disabled_on_agent)
+        job = agent.generate_job_spec(flow_run)
+
+        env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
+        env = {item["name"]: item["value"] for item in env_list}
+
+        assert env["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == expected
+
     def test_environment_has_api_key_from_disk(self, monkeypatch):
         """Check that the API key is passed through from the on disk cache"""
         tenant_id = str(uuid.uuid4())

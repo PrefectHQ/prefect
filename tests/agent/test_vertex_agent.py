@@ -107,6 +107,33 @@ class TestEnvVars:
         expected["c"] = 2
         assert env == expected
 
+    @pytest.mark.parametrize(
+        "disabled_on_agent,enabled_by_run,expected",
+        [
+            # Ignore env var when --no-cloud-logs
+            (True, "true", "false"),
+            (True, "false", "false"),
+            # Respect env var when --no-cloud-logs NOT set
+            (False, "true", "true"),
+            (False, "false", "false"),
+        ],
+    )
+    def test_environment_send_flow_run_logs(
+        self, project, region, disabled_on_agent, enabled_by_run, expected
+    ):
+        agent = VertexAgent(
+            project,
+            region,
+            no_cloud_logs=disabled_on_agent,
+        )
+        run_config = UniversalRun(
+            env={"PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": enabled_by_run}
+        )
+        flow_run = graphql_result(run_config)
+
+        env = agent.populate_env_vars(flow_run)
+        assert env["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == expected
+
     def test_environment_has_api_key_from_config(self, agent, config_with_api_key):
         run_config = UniversalRun()
         flow_run = graphql_result(run_config)
