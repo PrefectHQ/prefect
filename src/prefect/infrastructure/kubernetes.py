@@ -69,6 +69,8 @@ class KubernetesJob(Infrastructure):
             manually removed.
     """
 
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/20445025358491b8b72600b8f996125b/Kubernetes_logo_without_workmark.svg.png?h=250"
+
     type: Literal["kubernetes-job"] = Field(
         default="kubernetes-job", description="The type of infrastructure."
     )
