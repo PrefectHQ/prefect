@@ -115,12 +115,27 @@ def test_populate_env_vars(monkeypatch, backend, config_with_api_key):
     assert env_vars == expected
 
 
-@pytest.mark.parametrize("flag", [True, False])
-def test_populate_env_vars_sets_log_to_cloud(flag):
-    agent = LocalAgent(no_cloud_logs=flag)
-    assert agent.log_to_cloud is not flag
+@pytest.mark.parametrize(
+    "disabled_on_agent,enabled_by_run,expected",
+    [
+        # Ignore env var when --no-cloud-logs
+        (True, "true", "false"),
+        (True, "false", "false"),
+        # Respect env var when --no-cloud-logs NOT set
+        (False, "true", "true"),
+        (False, "false", "false"),
+    ],
+)
+def test_populate_env_vars_sets_log_to_cloud(
+    disabled_on_agent, enabled_by_run, expected
+):
+    agent = LocalAgent(
+        no_cloud_logs=disabled_on_agent,
+        env_vars={"PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": enabled_by_run},
+    )
+    assert agent.log_to_cloud is not disabled_on_agent
     env_vars = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
-    assert env_vars["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == str(not flag).lower()
+    assert env_vars["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == expected
 
 
 def test_environment_has_api_key_from_config(config_with_api_key):

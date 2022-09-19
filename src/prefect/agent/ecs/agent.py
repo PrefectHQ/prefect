@@ -515,6 +515,9 @@ class ECSAgent(Agent):
         env.update(self.env_vars)
         if run_config.env:
             env.update(run_config.env)
+        # Allow logs to be disabled by flow run settings but not enabled
+        if not self.log_to_cloud or "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS" not in env:
+            env["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] = str(self.log_to_cloud).lower()
         env.update(
             {
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
@@ -523,7 +526,6 @@ class ECSAgent(Agent):
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
-                "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
                 "PREFECT__CLOUD__API_KEY": self.flow_run_api_key or "",
                 "PREFECT__CLOUD__TENANT_ID": (
                     # Providing a tenant id is only necessary when authenticating

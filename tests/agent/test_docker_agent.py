@@ -222,6 +222,41 @@ def test_populate_env_vars_sets_log_to_cloud(flag, api, config_with_api_key):
     assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(not flag).lower()
 
 
+@pytest.mark.parametrize(
+    "disabled_on_agent,enabled_by_run,expected",
+    [
+        # Ignore env var when --no-cloud-logs
+        (True, "true", "false"),
+        (True, "false", "false"),
+        # Respect env var when --no-cloud-logs NOT set
+        (False, "true", "true"),
+        (False, "false", "false"),
+    ],
+)
+def test_populate_env_vars_respect_send_flow_run_logs(
+    disabled_on_agent, enabled_by_run, expected, api, config_with_api_key
+):
+    agent = DockerAgent(labels=["42", "marvin"], no_cloud_logs=disabled_on_agent)
+
+    run = DockerRun(
+        env={"PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": enabled_by_run},
+    )
+
+    env_vars = agent.populate_env_vars(
+        GraphQLResult(
+            {
+                "id": "id",
+                "name": "name",
+                "flow": {"id": "foo"},
+                "run_config": run.serialize(),
+            }
+        ),
+        "test-image",
+        run_config=run,
+    )
+    assert env_vars["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == expected
+
+
 def test_populate_env_vars_from_run_config(api):
     agent = DockerAgent(env_vars={"KEY1": "VAL1", "KEY2": "VAL2"})
 
