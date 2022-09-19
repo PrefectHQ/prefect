@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.4.0 <Badge text="beta" type="success" />
+
+Released on September 19, 2022.
+
+### Enhancements
+
+- Add `get_latest` to `TaskRunView` (https://github.com/PrefectHQ/prefect/pull/6749)
+- Update agents to allow logs to be disabled with `PREFECT__CLOUD__SEND_FLOW_RUN_LOGS` (https://github.com/PrefectHQ/prefect/pull/6833)
+
+### Fixes
+
+- Fix bug where `scheduler_comm.close_rpc()` was not awaited in `DaskExecutor` (https://github.com/PrefectHQ/prefect/pull/6793) 
+- Fix bug where the Prefect diagnostics logger could duplicate output (https://github.com/PrefectHQ/prefect/pull/6832) 
+
 ## 1.3.1 <Badge text="beta" type="success" />
 
 Released on September 7, 2022.
