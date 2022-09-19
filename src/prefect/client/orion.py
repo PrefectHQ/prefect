@@ -75,8 +75,8 @@ def inject_client(fn):
             kwargs.pop("client", None)  # Remove null values
             client_context = get_client()
 
-        async with client_context as client:
-            kwargs.setdefault("client", client)
+        async with client_context as new_client:
+            kwargs.setdefault("client", new_client or client)
             return await fn(*args, **kwargs)
 
     return with_injected_client
