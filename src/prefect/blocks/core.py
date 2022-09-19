@@ -27,8 +27,8 @@ from slugify import slugify
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
-from prefect.exceptions import PrefectHTTPStatusError
 from prefect.client.orion import inject_client
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.orion.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
@@ -700,9 +700,7 @@ class Block(BaseModel, ABC):
                 block_type_id=block_type.id, block_type=cls._to_block_type()
             )
         except prefect.exceptions.ObjectNotFound:
-            block_type = await client.create_block_type(
-                block_type=cls._to_block_type()
-            )
+            block_type = await client.create_block_type(block_type=cls._to_block_type())
         except PrefectHTTPStatusError as exc:
             exception_stack.append(exc)
 
