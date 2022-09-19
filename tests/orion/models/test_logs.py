@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from prefect.orion import models
 from prefect.orion.schemas.actions import LogCreate
+from prefect.orion.schemas.core import Log
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.sorting import LogSort
 
@@ -68,7 +69,10 @@ class TestCreateLogs:
         read_logs = result.scalars().unique().all()
 
         for i, log in enumerate(read_logs):
-            assert LogCreate.from_orm(log) == log_data[i]
+            assert (
+                Log.from_orm(log).dict(exclude={"created", "id", "updated"})
+                == log_data[i]
+            )
 
 
 class TestReadLogs:

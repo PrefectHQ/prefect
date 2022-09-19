@@ -2,6 +2,7 @@ import asyncio
 
 from prefect.blocks import system
 from prefect.client import OrionClient
+from prefect.settings import PREFECT_ORION_BLOCKS_REGISTER_ON_START, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
 TEST_BLOCK_CODE = """\
@@ -163,30 +164,31 @@ def test_listing_blocks_after_saving_a_block():
 
 
 def test_listing_system_block_types():
-    expected_output = (
-        "Block Types",
-        "Slug",
-        "Description",
-        "slack",
-        "date-time",
-        "docker-container",
-        "gcs",
-        "json",
-        "kubernetes-cluster-config",
-        "kubernetes-job",
-        "local-file-system",
-        "process",
-        "remote-file-system",
-        "s3",
-        "secret",
-        "slack-webhook",
-    )
+    with temporary_settings({PREFECT_ORION_BLOCKS_REGISTER_ON_START: True}):
+        expected_output = (
+            "Block Types",
+            "Slug",
+            "Description",
+            "slack",
+            "date-time",
+            "docker-container",
+            "gcs",
+            "json",
+            "kubernetes-cluster-config",
+            "kubernetes-job",
+            "local-file-system",
+            "process",
+            "remote-file-system",
+            "s3",
+            "secret",
+            "slack-webhook",
+        )
 
-    invoke_and_assert(
-        ["block", "type", "ls"],
-        expected_code=0,
-        expected_output_contains=expected_output,
-    )
+        invoke_and_assert(
+            ["block", "type", "ls"],
+            expected_code=0,
+            expected_output_contains=expected_output,
+        )
 
 
 def test_inspecting_a_block():

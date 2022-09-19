@@ -5,7 +5,7 @@ State schemas.
 import datetime
 import warnings
 from collections.abc import Iterable
-from typing import Generic, TypeVar, Union, overload
+from typing import Generic, Optional, TypeVar, Union, overload
 from uuid import UUID
 
 import pendulum
@@ -56,10 +56,12 @@ class State(IDBaseModel, Generic[R]):
         orm_mode = True
 
     type: StateType
-    name: str = None
+    name: Optional[str] = Field(default=None)
     timestamp: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
-    message: str = Field(None, example="Run started")
-    data: DataDocument[R] = Field(None)
+    message: Optional[str] = Field(default=None, example="Run started")
+    data: Optional[DataDocument[R]] = Field(
+        default=None,
+    )
     state_details: StateDetails = Field(default_factory=StateDetails)
 
     @overload
@@ -170,7 +172,7 @@ class State(IDBaseModel, Generic[R]):
 
         # if `type` is not in `values` it means the `type` didn't pass its own
         # validation check and an error will be raised after this function is called
-        if v is None and "type" in values:
+        if v is None and values.get("type"):
             v = " ".join([v.capitalize() for v in values.get("type").value.split("_")])
         return v
 

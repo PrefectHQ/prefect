@@ -22,7 +22,8 @@ from uuid import UUID
 
 import anyio
 
-from prefect.client import OrionClient, inject_client
+from prefect.client import OrionClient
+from prefect.client.orion import inject_client
 from prefect.orion.schemas.states import State
 from prefect.utilities.asyncutils import (
     A,
