@@ -24,7 +24,7 @@ export class UiSettings {
     }
 
     if (this.promise !== null) {
-      return await this.promise
+      return this.promise
     }
 
     this.promise = new Promise(resolve => {
@@ -38,12 +38,9 @@ export class UiSettings {
       }).then(mapSettingsResponse).then(resolve)
     })
 
-
     const settings = await this.promise
 
     return this.settings = settings
-
-
   }
 
   public static async get<T extends keyof Settings>(setting: T, defaultValue?: Settings[T]): Promise<Settings[T]> {

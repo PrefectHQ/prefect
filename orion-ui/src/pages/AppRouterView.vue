@@ -13,7 +13,6 @@
   import { provide } from 'vue'
   import { UiSettings } from '@/services/uiSettings'
 
-
   const baseUrl = await UiSettings.get('apiUrl')
 
   const api = createApi({
