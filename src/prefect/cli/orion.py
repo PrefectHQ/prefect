@@ -124,7 +124,7 @@ async def start(
                 command=[
                     "uvicorn",
                     "--app-dir",
-                    str(prefect.__module_path__.parent),
+                    "../..",
                     "--factory",
                     "prefect.orion.api.server:create_app",
                     "--host",
