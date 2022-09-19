@@ -20,13 +20,10 @@ export class UiSettings {
 
   public static async load(): Promise<Settings> {
     if (this.settings !== null) {
-      console.log('settings')
       return this.settings
     }
 
     if (this.promise !== null) {
-      console.log('not null', this.promise)
-
       return await this.promise
     }
 
@@ -34,7 +31,6 @@ export class UiSettings {
       return axios.get<SettingsResponse>('/ui-settings', {
         baseURL: this.baseUrl,
       }).catch((error) => {
-        console.log('in catch error', error)
         if (!error.status) {
           const toastMessage = ConnectionToastMessage
           showToast(toastMessage, 'error', { timeout: false })
@@ -42,15 +38,10 @@ export class UiSettings {
       }).then(mapSettingsResponse).then(resolve)
     })
 
-    console.log('prom', this.promise)
 
-    try {
-      const settings = await this.promise
+    const settings = await this.promise
 
-      return this.settings = settings
-    } catch (again) {
-      console.log('againerror', again)
-    }
+    return this.settings = settings
 
 
   }
@@ -73,7 +64,6 @@ export class UiSettings {
 }
 
 function mapSettingsResponse(response: AxiosResponse<SettingsResponse>): Settings {
-  console.log('in map')
   const settings = response.data
 
   return {

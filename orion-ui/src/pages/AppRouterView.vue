@@ -13,11 +13,9 @@
   import { provide } from 'vue'
   import { UiSettings } from '@/services/uiSettings'
 
-  try {
-    const baseUrl = await UiSettings.get('apiUrl')
-  } catch (err) {
-    console.log('error', err)
-  }
+
+  const baseUrl = await UiSettings.get('apiUrl')
+
   const api = createApi({
     baseUrl,
   })
