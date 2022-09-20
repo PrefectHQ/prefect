@@ -251,6 +251,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
     import toml
 
     from prefect.blocks.core import Block
+    from prefect.orion.models.block_registration import _load_collection_blocks_data
     from prefect.utilities.dispatch import get_registry_for_type
 
     @wraps(fn)
@@ -260,7 +261,10 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
             return
 
         blocks_registry = get_registry_for_type(Block)
-        current_blocks_loading_hash = hash_objects(blocks_registry, hash_algo=sha256)
+        collection_blocks_data = await _load_collection_blocks_data()
+        current_blocks_loading_hash = hash_objects(
+            blocks_registry, collection_blocks_data, hash_algo=sha256
+        )
 
         memo_store_path = PREFECT_MEMO_STORE_PATH.value()
         if memo_store_path.exists():
