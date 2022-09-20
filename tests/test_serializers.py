@@ -33,7 +33,7 @@ class MyDataclass:
 
 
 # Simple test cases that all serializers should support roundtrips for
-SIMPLE_CASES = [
+SERIALIZER_TEST_CASES = [
     1,
     "test",
     {"foo": "bar"},
@@ -125,7 +125,7 @@ class TestBaseSerializer:
 
 
 class TestPickleSerializer:
-    @pytest.mark.parametrize("data", SIMPLE_CASES)
+    @pytest.mark.parametrize("data", SERIALIZER_TEST_CASES)
     def test_simple_roundtrip(self, data):
         serializer = PickleSerializer()
         serialized = serializer.dumps(data)
@@ -172,7 +172,7 @@ class TestPickleSerializer:
 
 
 class TestJSONSerializer:
-    @pytest.mark.parametrize("data", SIMPLE_CASES)
+    @pytest.mark.parametrize("data", SERIALIZER_TEST_CASES)
     def test_simple_roundtrip(self, data):
         serializer = JSONSerializer()
         serialized = serializer.dumps(data)
