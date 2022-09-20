@@ -165,13 +165,15 @@ class State(IDBaseModel, Generic[R]):
 
 
 def Scheduled(
-    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
+    scheduled_time: datetime.datetime = None, cls: Type[State] = State, **kwargs
 ) -> State:
     """Convenience function for creating `Scheduled` states.
 
     Returns:
         State: a Scheduled state
     """
+    # NOTE: `scheduled_time` must come first for backwards compatibility
+
     state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
     if scheduled_time is None:
         scheduled_time = pendulum.now("UTC")
@@ -237,7 +239,7 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
 
 
 def AwaitingRetry(
-    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
+    scheduled_time: datetime.datetime = None, cls: Type[State] = State, **kwargs
 ) -> State:
     """Convenience function for creating `AwaitingRetry` states.
 
@@ -259,7 +261,7 @@ def Retrying(cls: Type[State] = State, **kwargs) -> State:
 
 
 def Late(
-    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
+    scheduled_time: datetime.datetime = None, cls: Type[State] = State, **kwargs
 ) -> State:
     """Convenience function for creating `Late` states.
 
