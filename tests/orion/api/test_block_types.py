@@ -13,6 +13,7 @@ from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockTypeCreate, BlockTypeUpdate
 from prefect.orion.schemas.core import BlockDocument, BlockType
+from prefect.testing.utilities import AsyncMock
 from tests.orion.models.test_block_types import CODE_EXAMPLE
 
 CODE_EXAMPLE = dedent(
@@ -364,6 +365,22 @@ class TestUpdateBlockType:
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert response.json()["detail"] == "protected block types cannot be updated."
 
+    async def test_update_block_type_ensures_system_blocks_are_protected(
+        self, client, system_block_type, monkeypatch
+    ):
+        mock_block_protection = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.orion.api.block_types.install_protected_system_blocks",
+            mock_block_protection,
+        )
+        await client.patch(
+            f"/block_types/{system_block_type.id}",
+            json=BlockTypeUpdate(
+                description="Hi there!",
+            ).dict(json_compatible=True),
+        )
+        mock_block_protection.assert_called()
+
 
 class TestDeleteBlockType:
     async def test_delete_block_type(self, client, block_type_x):
@@ -381,6 +398,17 @@ class TestDeleteBlockType:
         response = await client.delete(f"/block_types/{system_block_type.id}")
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert response.json()["detail"] == "protected block types cannot be deleted."
+
+    async def test_dete_block_type_ensures_system_blocks_are_protected(
+        self, client, system_block_type, monkeypatch
+    ):
+        mock_block_protection = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.orion.api.block_types.install_protected_system_blocks",
+            mock_block_protection,
+        )
+        await client.delete(f"/block_types/{system_block_type.id}")
+        mock_block_protection.assert_called()
 
 
 class TestReadBlockDocumentsForBlockType:
@@ -491,3 +519,10 @@ class TestSystemBlockTypes:
         # load the datetime block
         api_block = await prefect.blocks.system.DateTime.load("my-test-date-time")
         assert api_block.value == pendulum.datetime(2022, 1, 1, tz="UTC")
+
+    async def test_system_block_types_are_protected(self, client, session):
+        # install system blocks
+        await client.post("/block_types/install_system_block_types")
+        # read date-time system block
+        response = await client.get(f"/block_types/slug/date-time")
+        assert response.json()["is_protected"]
