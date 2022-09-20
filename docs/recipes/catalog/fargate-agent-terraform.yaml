@@ -1,4 +1,4 @@
-recipeName: ECS Fargate Agent with Terraform
+recipeName: Agent on ECS Fargate with Terraform
 author: Prefect
 authorUrl: https://prefect.io
 description: Run a Prefect 2 agent on ECS Fargate using Terraform.

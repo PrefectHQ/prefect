@@ -1,4 +1,4 @@
-recipeName: ECS Fargate Agent with AWS CLI
+recipeName: Agent on ECS Fargate with AWS CLI
 author: Prefect
 authorUrl: https://prefect.io
 description: Run a Prefect 2 agent on ECS Fargate using the AWS CLI.
