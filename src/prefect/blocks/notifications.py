@@ -52,7 +52,7 @@ class AppriseNotificationBlock(NotificationBlock):
 
 # TODO: Move to prefect-slack once collection block auto-registration is
 # available
-class SlackWebhook(NotificationBlock):
+class SlackWebhook(AppriseNotificationBlock):
     """
     Enables sending notifications via a provided Slack webhook.
 
@@ -79,15 +79,6 @@ class SlackWebhook(NotificationBlock):
         description="Slack incoming webhook URL used to send notifications.",
         example="https://hooks.slack.com/XXX",
     )
-
-    def block_initialization(self) -> None:
-        from slack_sdk.webhook.async_client import AsyncWebhookClient
-
-        self._async_webhook_client = AsyncWebhookClient(url=self.url.get_secret_value())
-
-    @sync_compatible
-    async def notify(self, body: str, subject: Optional[str] = None):
-        await self._async_webhook_client.send(text=body)
 
 
 class TeamsWebhook(NotificationBlock):
