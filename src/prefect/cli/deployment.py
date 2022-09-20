@@ -29,13 +29,14 @@ from prefect.exceptions import (
     ScriptError,
     exception_traceback,
 )
-from prefect.infrastructure import DockerContainer, KubernetesJob, Process
+from prefect.infrastructure.base import Block
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.orion.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
 )
+from prefect.utilities.dispatch import get_registry_for_type, lookup_type
 from prefect.utilities.filesystem import set_default_ignore_file
 
 
@@ -464,10 +465,14 @@ async def delete(
             exit_with_error("Must provide a deployment name or id")
 
 
-class Infra(str, Enum):
-    kubernetes = KubernetesJob.get_block_type_slug()
-    process = Process.get_block_type_slug()
-    docker = DockerContainer.get_block_type_slug()
+InfrastructureSlugs = Enum(
+    "InfastructureSlugs",
+    {
+        slug: slug
+        for slug, block in get_registry_for_type(Block).items()
+        if "run-infrastructure" in block.get_block_capabilities()
+    },
+)
 
 
 @deployment_app.command()
@@ -498,7 +503,7 @@ async def build(
             "Note that if a work queue is not set, work will not be scheduled."
         ),
     ),
-    infra_type: Infra = typer.Option(
+    infra_type: InfrastructureSlugs = typer.Option(
         None,
         "--infra",
         "-i",
@@ -625,12 +630,8 @@ async def build(
     if infra_block:
         infrastructure = await Block.load(infra_block)
     elif infra_type:
-        if infra_type == Infra.kubernetes:
-            infrastructure = KubernetesJob()
-        elif infra_type == Infra.docker:
-            infrastructure = DockerContainer()
-        elif infra_type == Infra.process:
-            infrastructure = Process()
+        # Create an instance of the given type
+        infrastructure = lookup_type(Block, infra_type.value)()
     else:
         # will reset to a default of Process is no infra is present on the
         # server-side definition of this deployment

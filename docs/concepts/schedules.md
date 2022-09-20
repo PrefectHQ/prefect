@@ -26,7 +26,7 @@ There are four recommended ways to create a schedule for a deployment:
 
 ## Creating schedules through the UI
 
-You can add, modify, and view schedules by selecting **Edit** under the three dot menu next to a Deployment in the **Deployments** tab of the [Prefect UI](ui/overview.md). 
+You can add, modify, and view schedules by selecting **Edit** under the three dot menu next to a Deployment in the **Deployments** tab of the [Prefect UI](/ui/overview.md). 
 
 ![Deployment edit button](../img/concepts/edit-schedule-callout.png)
 
@@ -115,7 +115,7 @@ The `day_or` property defaults to `True`, matching `cron`, which connects those 
     
     Longer schedules, such as one that fires at 9am every morning, will adjust for DST automatically.
   
-  See the Python [CronSchedule class docs](https://docs.prefect.io/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.CronSchedule) for more information. 
+  See the Python [CronSchedule class docs](/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.CronSchedule) for more information. 
 
 
 ## Interval
@@ -147,7 +147,7 @@ Note that the `anchor_date` does not indicate a "start time" for the schedule, b
     
     For longer intervals, like a daily schedule, the interval schedule will adjust for DST boundaries so that the clock-hour remains constant. This means that a daily schedule that always fires at 9am will observe DST and continue to fire at 9am in the local time zone.
 
-See the Python [IntervalSchedule class docs](https://docs.prefect.io/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.IntervalSchedule) for more information. 
+See the Python [IntervalSchedule class docs](/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.IntervalSchedule) for more information. 
 
 ## RRule
 
@@ -183,7 +183,7 @@ schedule:
 
 
 
-See the Python [RRuleSchedule class docs](https://docs.prefect.io/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.RRuleSchedule) for more information. 
+See the Python [RRuleSchedule class docs](/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.RRuleSchedule) for more information. 
 
 
 ## The `Scheduler` service
@@ -203,7 +203,7 @@ PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME='100 days, 0:00:00'
 ```
 </div>
 
-See the [Settings docs](settings.md) for more information on altering your settings.
+See the [Settings docs](/concepts/settings/) for more information on altering your settings.
 
 These settings mean that if a deployment has an hourly schedule, the default settings will create runs for the next 4 days (or 100 hours). If it has a weekly schedule, the default settings will maintain the next 14 runs (up to 100 days in the future).
 
