@@ -81,7 +81,7 @@ class SlackWebhook(AppriseNotificationBlock):
     )
 
 
-class TeamsWebhook(NotificationBlock):
+class TeamsWebhook(AppriseNotificationBlock):
     """
     Enables sending notifications via a provided Microsoft Teams webhook.
     Args:
@@ -104,13 +104,4 @@ class TeamsWebhook(NotificationBlock):
         description="The Teams incoming webhook URL used to send notifications.",
         example="https://your-org.webhook.office.com/webhookb2/XXX/IncomingWebhook/YYY/ZZZ",
     )
-
-    def block_initialization(self) -> None:
-        from httpx import AsyncClient
-        self._async_webhook_client = AsyncClient()
-
-    @sync_compatible
-    async def notify(self, body: str, subject: Optional[str] = None):
-        print(self.url.get_secret_value())
-        await self._async_webhook_client.post(url=self.url.get_secret_value(), json={"text": body})
 
