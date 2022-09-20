@@ -1,7 +1,11 @@
 import asyncio
 
+import pytest
+
 from prefect.blocks import system
 from prefect.client import OrionClient
+from prefect.exceptions import ObjectNotFound
+from prefect.settings import PREFECT_ORION_BLOCKS_REGISTER_ON_START, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
 TEST_BLOCK_CODE = """\
@@ -20,7 +24,7 @@ class TestForFileRegister(Block):
 
 def test_register_blocks_from_module():
     invoke_and_assert(
-        ["block", "register", "-m", "prefect.blocks.system"],
+        ["block", "register", "-m", "prefect.blocks.core"],
         expected_code=0,
         expected_output_contains=["Successfully registered", "blocks"],
     )
@@ -163,28 +167,126 @@ def test_listing_blocks_after_saving_a_block():
 
 
 def test_listing_system_block_types():
-    expected_output = (
-        "Block Types",
-        "Name",
-        "Slug",
-        "Description",
-        "Slack",
-        "Date Time",
-        "Docker Container",
-        "GCS",
-        "JSON",
-        "Kubernetes Cluster Config",
-        "Kubernetes Job",
-        "Local File System",
-        "Process",
-        "Remote File System",
-        "S3",
-        "Secret",
-        "Slack Webhook",
+    with temporary_settings({PREFECT_ORION_BLOCKS_REGISTER_ON_START: True}):
+        expected_output = (
+            "Block Types",
+            "Slug",
+            "Description",
+            "slack",
+            "date-time",
+            "docker-container",
+            "gcs",
+            "json",
+            "kubernetes-cluster-config",
+            "kubernetes-job",
+            "local-file-system",
+            "process",
+            "remote-file-system",
+            "s3",
+            "secret",
+            "slack-webhook",
+        )
+
+        invoke_and_assert(
+            ["block", "type", "ls"],
+            expected_code=0,
+            expected_output_contains=expected_output,
+        )
+
+
+def test_inspecting_a_block():
+    system.JSON(value="a simple json blob").save("jsonblob")
+
+    expected_output = ("Block Type", "Block id", "value", "a simple json blob")
+
+    invoke_and_assert(
+        ["block", "inspect", "json/jsonblob"],
+        expected_code=0,
+        expected_output_contains=expected_output,
+    )
+
+
+def test_deleting_a_block():
+    system.JSON(value="don't delete me please").save("pleasedonterase")
+
+    invoke_and_assert(
+        ["block", "delete", "json/pleasedonterase"],
+        expected_code=0,
     )
 
     invoke_and_assert(
-        ["block", "type", "ls"],
+        ["block", "inspect", "json/pleasedonterase"],
+        expected_code=1,
+    )
+
+
+def test_inspecting_a_block_type(tmp_path):
+    test_file_path = tmp_path / "test.py"
+
+    with open(test_file_path, "w") as f:
+        f.write(TEST_BLOCK_CODE)
+
+    invoke_and_assert(
+        ["block", "register", "-f", str(test_file_path)],
         expected_code=0,
+        expected_output_contains="Successfully registered 1 block",
+    )
+
+    expected_output = [
+        "Slug",
+        "Block Type id",
+        "Description",
+        "TestForFileRegister",
+        "testforfileregister",
+    ]
+
+    invoke_and_assert(
+        ["block", "type", "inspect", "testforfileregister"],
+        expected_code=0,
+        expected_output_contains=expected_output,
+    )
+
+
+def test_deleting_a_block_type(tmp_path, orion_client):
+    test_file_path = tmp_path / "test.py"
+
+    with open(test_file_path, "w") as f:
+        f.write(TEST_BLOCK_CODE)
+
+    invoke_and_assert(
+        ["block", "register", "-f", str(test_file_path)],
+        expected_code=0,
+        expected_output_contains="Successfully registered 1 block",
+    )
+
+    expected_output = [
+        "Deleted Block Type",
+        "testforfileregister",
+    ]
+
+    invoke_and_assert(
+        ["block", "type", "delete", "testforfileregister"],
+        expected_code=0,
+        expected_output_contains=expected_output,
+    )
+
+    with pytest.raises(ObjectNotFound):
+        block_type = asyncio.run(
+            orion_client.read_block_type_by_slug(slug="testforfileregister")
+        )
+
+
+def test_deleting_a_protected_block_type(tmp_path, orion_client):
+    invoke_and_assert(
+        ["block", "register", "-m", "prefect.blocks.system"],
+        expected_code=0,
+        expected_output_contains=["Successfully registered", "blocks"],
+    )
+
+    expected_output = "is a protected block"
+
+    invoke_and_assert(
+        ["block", "type", "delete", "json"],
+        expected_code=1,
         expected_output_contains=expected_output,
     )

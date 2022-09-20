@@ -126,12 +126,6 @@ async def update_flow_run(
     Returns:
         bool: whether or not matching rows were found to update
     """
-
-    if not isinstance(flow_run, schemas.actions.FlowRunUpdate):
-        raise ValueError(
-            f"Expected parameter flow_run to have type schemas.actions.FlowRunUpdate, got {type(flow_run)!r} instead"
-        )
-
     update_stmt = (
         sa.update(db.FlowRun).where(db.FlowRun.id == flow_run_id)
         # exclude_unset=True allows us to only update values provided by
@@ -272,6 +266,7 @@ class DependencyResult(PrefectBaseModel):
     end_time: Optional[datetime.datetime]
     total_run_time: Optional[datetime.timedelta]
     estimated_run_time: Optional[datetime.timedelta]
+    untrackable_result: bool
 
 
 async def read_task_run_dependencies(
@@ -298,6 +293,11 @@ async def read_task_run_dependencies(
 
     for task_run in task_runs:
         inputs = list(set(chain(*task_run.task_inputs.values())))
+        untrackable_result_status = (
+            False
+            if task_run.state is None
+            else task_run.state.state_details.untrackable_result
+        )
         dependency_graph.append(
             {
                 "id": task_run.id,
@@ -308,6 +308,7 @@ async def read_task_run_dependencies(
                 "end_time": task_run.end_time,
                 "total_run_time": task_run.total_run_time,
                 "estimated_run_time": task_run.estimated_run_time,
+                "untrackable_result": untrackable_result_status,
             }
         )
 
@@ -439,8 +440,6 @@ async def set_flow_run_state(
             context = await stack.enter_async_context(rule(context))
 
         await context.validate_proposed_state()
-
-    await session.flush()
 
     if context.orchestration_error is not None:
         raise context.orchestration_error

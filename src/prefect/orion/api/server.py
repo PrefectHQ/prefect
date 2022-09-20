@@ -5,8 +5,9 @@ Defines the Orion FastAPI app.
 import asyncio
 import mimetypes
 import os
-from functools import partial
-from typing import Dict, List, Mapping, Optional, Tuple
+from functools import partial, wraps
+from hashlib import sha256
+from typing import Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, FastAPI, Request, status
@@ -28,6 +29,12 @@ from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.models.block_schemas import read_block_schema_by_checksum
 from prefect.orion.models.block_types import read_block_type_by_slug, update_block_type
 from prefect.orion.utilities.server import method_paths_from_routes
+from prefect.settings import (
+    PREFECT_DEBUG_MODE,
+    PREFECT_MEMO_STORE_PATH,
+    PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
+)
+from prefect.utilities.hashing import hash_objects
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
@@ -238,6 +245,51 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
 APP_CACHE: Dict[Tuple[prefect.settings.Settings, bool], FastAPI] = {}
 
 
+def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
+    """
+    Decorator to handle skipping the wrapped function if the block registry has
+    not changed since the last invocation
+    """
+    import toml
+
+    from prefect.blocks.core import Block
+    from prefect.utilities.dispatch import get_registry_for_type
+
+    @wraps(fn)
+    async def wrapper(*args, **kwargs):
+        if not PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION.value():
+            await fn(*args, **kwargs)
+            return
+
+        blocks_registry = get_registry_for_type(Block)
+        current_blocks_loading_hash = hash_objects(blocks_registry, hash_algo=sha256)
+
+        memo_store_path = PREFECT_MEMO_STORE_PATH.value()
+        if memo_store_path.exists():
+            saved_blocks_loading_hash = toml.load(memo_store_path).get(
+                "block_auto_registration"
+            )
+            if (
+                saved_blocks_loading_hash is not None
+                and current_blocks_loading_hash == saved_blocks_loading_hash
+            ):
+                if PREFECT_DEBUG_MODE.value():
+                    logger.debug(
+                        "Skipping block loading due to matching hash for block "
+                        "auto-registration found in memo store"
+                    )
+                return
+
+        await fn(*args, **kwargs)
+
+        if current_blocks_loading_hash is not None:
+            memo_store_path.write_text(
+                toml.dumps({"block_auto_registration": current_blocks_loading_hash})
+            )
+
+    return wrapper
+
+
 def create_app(
     settings: prefect.settings.Settings = None,
     ephemeral: bool = False,
@@ -270,8 +322,12 @@ def create_app(
             db = provide_database_interface()
             await db.create_db()
 
+    @_memoize_block_auto_registration
     async def add_block_types():
         """Add all registered blocks to the database"""
+        if not prefect.settings.PREFECT_ORION_BLOCKS_REGISTER_ON_START:
+            return
+
         from prefect.blocks.core import Block
         from prefect.orion.database.dependencies import provide_database_interface
         from prefect.orion.models.block_schemas import create_block_schema

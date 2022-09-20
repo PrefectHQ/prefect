@@ -4,6 +4,7 @@ tags:
     - standards
     - code style
     - coding practices
+    - contributing
 ---
 
 # Code style and practices
@@ -172,10 +173,10 @@ Created work queue with properties:
     deployment_ids - None
 
 Start an agent to pick up flows from the created work queue:
-    prefect agent start '940f9828-c820-4148-9526-ea8107082bda'
+    prefect agent start -q 'abcde'
 
 Inspect the created work queue:
-    prefect work-queue inspect '940f9828-c820-4148-9526-ea8107082bda'
+    prefect work-queue inspect 'abcde'
 
 ```
 
@@ -206,19 +207,19 @@ output_msg = dedent(
         deployment_ids - {deployment_ids or None}
 
     Start an agent to pick up flows from the created work queue:
-        prefect agent start '{result}'
+        prefect agent start -q {name!r}
 
     Inspect the created work queue:
-        prefect work-queue inspect '{result}'
+        prefect work-queue inspect {name!r}
     """
 )
 ```
 
 ## API Versioning
 
-The Prefect 2.0 client can be run separately from the Prefect 2.0 orchestration server and communicate entirely via an API. Among other things, the Prefect client includes anything that runs task or flow code, (e.g. agents, and the Python client) or any consumer of Prefect metadata, (e.g. the Prefect UI, and CLI). The Orion server stores this metadata and serves it via the REST API.
+The Prefect 2 client can be run separately from the Prefect 2 orchestration server and communicate entirely via an API. Among other things, the Prefect client includes anything that runs task or flow code, (e.g. agents, and the Python client) or any consumer of Prefect metadata, (e.g. the Prefect UI, and CLI). The Orion server stores this metadata and serves it via the REST API.
 
-Sometimes, we make breaking changes to the API (for good reasons). In order to check that a Prefect 2.0 client is compatible with the API it's making requests to, every API call the client makes includes a three-component `API_VERSION` header with major, minor, and patch versions.
+Sometimes, we make breaking changes to the API (for good reasons). In order to check that a Prefect 2 client is compatible with the API it's making requests to, every API call the client makes includes a three-component `API_VERSION` header with major, minor, and patch versions.
 
 For example, a request with the `X-PREFECT-API-VERSION=3.2.1` header has a major version of `3`, minor version `2`, and patch version `1`.
 

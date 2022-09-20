@@ -1,11 +1,14 @@
 import abc
 import glob
+import io
 import json
+import os
 import shutil
 import sys
+import tempfile
 import urllib.parse
-from pathlib import Path
-from typing import Optional
+from pathlib import Path, PurePath
+from typing import Any, Dict, Optional
 
 import anyio
 import fsspec
@@ -14,6 +17,7 @@ from pydantic import Field, SecretStr, validator
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import filter_files
+from prefect.utilities.processutils import run_process
 
 
 class ReadableFileSystem(Block, abc.ABC):
@@ -25,14 +29,44 @@ class ReadableFileSystem(Block, abc.ABC):
 
 
 class WritableFileSystem(Block, abc.ABC):
-    _block_schema_capabilities = ["write-path"]
+    _block_schema_capabilities = ["read-path", "write-path"]
+
+    @abc.abstractmethod
+    async def read_path(self, path: str) -> bytes:
+        pass
 
     @abc.abstractmethod
     async def write_path(self, path: str, content: bytes) -> None:
         pass
 
 
-class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
+class ReadableDeploymentStorage(Block, abc.ABC):
+    _block_schema_capabilities = ["get-directory"]
+
+    @abc.abstractmethod
+    async def get_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> None:
+        pass
+
+
+class WritableDeploymentStorage(Block, abc.ABC):
+    _block_schema_capabilities = ["get-directory", "put-directory"]
+
+    @abc.abstractmethod
+    async def get_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> None:
+        pass
+
+    @abc.abstractmethod
+    async def put_directory(
+        self, local_path: str = None, to_path: str = None, ignore_file: str = None
+    ) -> None:
+        pass
+
+
+class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on a local file system.
 
@@ -48,7 +82,9 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
     _block_type_name = "Local File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/EVKjxM7fNyi4NGUSkeTEE/95c958c5dd5a56c59ea5033e919c1a63/image1.png?h=250"
 
-    basepath: Optional[str] = None
+    basepath: Optional[str] = Field(
+        default=None, description="Default local path for this block to write to."
+    )
 
     @validator("basepath", pre=True)
     def cast_pathlib(cls, value):
@@ -71,9 +107,9 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
             path = basepath / path
         else:
             path = path.resolve()
-            if not basepath in path.parents:
+            if not basepath in path.parents and (basepath != path):
                 raise ValueError(
-                    f"Attempted to write to path {path} outside of the base path {basepath}."
+                    f"Provided path {path} is outside of the base path {basepath}."
                 )
 
         return path
@@ -87,10 +123,19 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
         Defaults to copying the entire contents of the block's basepath to the current working directory.
         """
         if from_path is None:
-            from_path = Path(self.basepath).expanduser()
+            from_path = Path(self.basepath).expanduser().resolve()
+        else:
+            from_path = Path(from_path).resolve()
 
         if local_path is None:
-            local_path = Path(".").absolute()
+            local_path = Path(".").resolve()
+        else:
+            local_path = Path(local_path).resolve()
+
+        if from_path == local_path:
+            # If the paths are the same there is no need to copy
+            # and we avoid shutil.copytree raising an error
+            return
 
         if sys.version_info < (3, 8):
             shutil.copytree(from_path, local_path)
@@ -169,7 +214,7 @@ class LocalFileSystem(ReadableFileSystem, WritableFileSystem):
             await f.write(content)
 
 
-class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
+class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on a remote file system.
 
@@ -188,8 +233,15 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
     _block_type_name = "Remote File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CxjycqILlT9S9YchI7o1q/ee62e2089dfceb19072245c62f0c69d2/image12.png?h=250"
 
-    basepath: str
-    settings: dict = Field(default_factory=dict)
+    basepath: str = Field(
+        default=...,
+        description="Default path for this block to write to.",
+        example="s3://my-bucket/my-folder/",
+    )
+    settings: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional settings to pass through to fsspec.",
+    )
 
     # Cache for the configured fsspec file system used for access
     _filesystem: fsspec.AbstractFileSystem = None
@@ -244,6 +296,8 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         """
         if from_path is None:
             from_path = str(self.basepath)
+        else:
+            from_path = self._resolve_path(from_path)
 
         if local_path is None:
             local_path = Path(".").absolute()
@@ -264,6 +318,8 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         """
         if to_path is None:
             to_path = str(self.basepath)
+        else:
+            to_path = self._resolve_path(to_path)
 
         if local_path is None:
             local_path = "."
@@ -273,16 +329,21 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
             with open(ignore_file, "r") as f:
                 ignore_patterns = f.readlines()
 
-            included_files = filter_files(local_path, ignore_patterns)
+            included_files = filter_files(
+                local_path, ignore_patterns, include_dirs=True
+            )
 
         counter = 0
-        for f in glob.glob("**", recursive=True):
-            if ignore_file and f not in included_files:
+        for f in glob.glob(os.path.join(local_path, "**"), recursive=True):
+            relative_path = PurePath(f).relative_to(local_path)
+            if included_files and str(relative_path) not in included_files:
                 continue
+
             if to_path.endswith("/"):
-                fpath = to_path + f
+                fpath = to_path + relative_path.as_posix()
             else:
-                fpath = to_path + "/" + f
+                fpath = to_path + "/" + relative_path.as_posix()
+
             if Path(f).is_dir():
                 pass
             else:
@@ -290,7 +351,9 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
                     self.filesystem.put_file(f, fpath, overwrite=True)
                 else:
                     self.filesystem.put_file(f, fpath)
+
             counter += 1
+
         return counter
 
     async def read_path(self, path: str) -> bytes:
@@ -329,7 +392,7 @@ class RemoteFileSystem(ReadableFileSystem, WritableFileSystem):
         return self._filesystem
 
 
-class S3(ReadableFileSystem, WritableFileSystem):
+class S3(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on AWS S3.
 
@@ -346,10 +409,22 @@ class S3(ReadableFileSystem, WritableFileSystem):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1jbV4lceHOjGgunX15lUwT/db88e184d727f721575aeb054a37e277/aws.png?h=250"
 
     bucket_path: str = Field(
-        ..., description="An S3 bucket path", example="my-bucket/a-directory-within"
+        default=...,
+        description="An S3 bucket path.",
+        example="my-bucket/a-directory-within",
     )
-    aws_access_key_id: SecretStr = Field(None, title="AWS Access Key ID")
-    aws_secret_access_key: SecretStr = Field(None, title="AWS Secret Access Key")
+    aws_access_key_id: Optional[SecretStr] = Field(
+        default=None,
+        title="AWS Access Key ID",
+        description="Equivalent to the AWS_ACCESS_KEY_ID environment variable.",
+        example="AKIAIOSFODNN7EXAMPLE",
+    )
+    aws_secret_access_key: Optional[SecretStr] = Field(
+        default=None,
+        title="AWS Secret Access Key",
+        description="Equivalent to the AWS_SECRET_ACCESS_KEY environment variable.",
+        example="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    )
 
     _remote_file_system: RemoteFileSystem = None
 
@@ -373,7 +448,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
         """
-        Downloads a directory from a given remote path to a local direcotry.
+        Downloads a directory from a given remote path to a local directory.
 
         Defaults to downloading the entire contents of the block's basepath to the current working directory.
         """
@@ -388,7 +463,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
         ignore_file: Optional[str] = None,
     ) -> int:
         """
-        Uploads a directory from a given local path to a remote direcotry.
+        Uploads a directory from a given local path to a remote directory.
 
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
@@ -403,7 +478,7 @@ class S3(ReadableFileSystem, WritableFileSystem):
         return await self.filesystem.write_path(path=path, content=content)
 
 
-class GCS(ReadableFileSystem, WritableFileSystem):
+class GCS(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on Google Cloud Storage.
 
@@ -419,13 +494,16 @@ class GCS(ReadableFileSystem, WritableFileSystem):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CD4wwbiIKPkZDt4U3TEuW/c112fe85653da054b6d5334ef662bec4/gcp.png?h=250"
 
     bucket_path: str = Field(
-        ..., description="A GCS bucket path", example="my-bucket/a-directory-within"
+        default=...,
+        description="A GCS bucket path.",
+        example="my-bucket/a-directory-within",
     )
     service_account_info: Optional[SecretStr] = Field(
-        None, description="The contents of a service account keyfile as a JSON string."
+        default=None,
+        description="The contents of a service account keyfile as a JSON string.",
     )
     project: Optional[str] = Field(
-        None,
+        default=None,
         description="The project the GCS bucket resides in. If not provided, the project will be inferred from the credentials or environment.",
     )
 
@@ -484,7 +562,7 @@ class GCS(ReadableFileSystem, WritableFileSystem):
         return await self.filesystem.write_path(path=path, content=content)
 
 
-class Azure(ReadableFileSystem, WritableFileSystem):
+class Azure(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on Azure Datalake and Azure Blob Storage.
 
@@ -501,24 +579,24 @@ class Azure(ReadableFileSystem, WritableFileSystem):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6AiQ6HRIft8TspZH7AfyZg/39fd82bdbb186db85560f688746c8cdd/azure.png?h=250"
 
     bucket_path: str = Field(
-        ...,
-        description="An Azure storage bucket path",
+        default=...,
+        description="An Azure storage bucket path.",
         example="my-bucket/a-directory-within",
     )
     azure_storage_connection_string: Optional[SecretStr] = Field(
-        None,
+        default=None,
         title="Azure storage connection string",
-        description="Equivalent to the AZURE_STORAGE_CONNECTION_STRING environment variable",
+        description="Equivalent to the AZURE_STORAGE_CONNECTION_STRING environment variable.",
     )
     azure_storage_account_name: Optional[SecretStr] = Field(
-        None,
+        default=None,
         title="Azure storage account name",
-        description="Equivalent to the AZURE_STORAGE_ACCOUNT_NAME environment variable",
+        description="Equivalent to the AZURE_STORAGE_ACCOUNT_NAME environment variable.",
     )
     azure_storage_account_key: Optional[SecretStr] = Field(
-        None,
+        default=None,
         title="Azure storage account key",
-        description="Equivalent to the AZURE_STORAGE_ACCOUNT_KEY environment variable",
+        description="Equivalent to the AZURE_STORAGE_ACCOUNT_KEY environment variable.",
     )
     _remote_file_system: RemoteFileSystem = None
 
@@ -578,7 +656,7 @@ class Azure(ReadableFileSystem, WritableFileSystem):
         return await self.filesystem.write_path(path=path, content=content)
 
 
-class SMB(ReadableFileSystem, WritableFileSystem):
+class SMB(WritableFileSystem, WritableDeploymentStorage):
     """
     Store data as a file on a SMB share.
 
@@ -593,26 +671,26 @@ class SMB(ReadableFileSystem, WritableFileSystem):
     """
 
     _block_type_name = "SMB"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6J444m3vW6ukgBOCinSxLk/025f5562d3c165feb7a5df599578a6a8/samba_2010_logo_transparent_151x27.png?h=250"
 
     share_path: str = Field(
-        ...,
-        description="SMB target (requires <SHARE>, followed by <PATH>)",
+        default=...,
+        description="SMB target (requires <SHARE>, followed by <PATH>).",
         example="/SHARE/dir/subdir",
     )
     smb_username: Optional[SecretStr] = Field(
-        None,
+        default=None,
         title="SMB Username",
-        description="Username with access to the target SMB SHARE",
+        description="Username with access to the target SMB SHARE.",
     )
     smb_password: Optional[SecretStr] = Field(
-        None,
-        title="SMB Password",
+        default=None, title="SMB Password", description="Password for SMB access."
     )
     smb_host: str = Field(
-        ..., tile="SMB server/hostname", description="SMB server/hostname"
+        default=..., tile="SMB server/hostname", description="SMB server/hostname."
     )
     smb_port: Optional[int] = Field(
-        None, title="SMB port", description="SMB port (default: 445)"
+        default=None, title="SMB port", description="SMB port (default: 445)."
     )
 
     _remote_file_system: RemoteFileSystem = None
@@ -671,3 +749,65 @@ class SMB(ReadableFileSystem, WritableFileSystem):
 
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
+
+
+class GitHub(ReadableDeploymentStorage):
+    """
+    Interact with files stored on public GitHub repositories.
+    """
+
+    _block_type_name = "GitHub"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/187oCWsD18m5yooahq1vU0/ace41e99ab6dc40c53e5584365a33821/github.png?h=250"
+
+    repository: str = Field(
+        default=...,
+        description="The URL of a GitHub repository to read from, in either HTTPS or SSH format.",
+    )
+    reference: Optional[str] = Field(
+        default=None,
+        description="An optional reference to pin to; can be a branch name or tag.",
+    )
+
+    async def get_directory(
+        self, from_path: str = None, local_path: str = None
+    ) -> None:
+        """
+        Clones a GitHub project specified in `from_path` to the provided `local_path`; defaults to cloning
+        the repository reference configured on the Block to the present working directory.
+
+        Args:
+            from_path: If provided, interpreted as a subdirectory of the underlying repository that will
+                be copied to the provided local path.
+            local_path: A local path to clone to; defaults to present working directory.
+        """
+        cmd = "git clone"
+
+        cmd += f" {self.repository}"
+        if self.reference:
+            cmd += f" -b {self.reference} --depth 1"
+
+        if local_path is None:
+            local_path = Path(".").absolute()
+
+        if not from_path:
+            from_path = ""
+
+        # in this case, we clone to a temporary directory and move the subdirectory over
+        tmp_dir = None
+        tmp_dir = tempfile.TemporaryDirectory(suffix="prefect")
+        path_to_move = str(Path(tmp_dir.name).joinpath(from_path))
+        cmd += f" {tmp_dir.name} && cp -R {path_to_move}/."
+
+        cmd += f" {local_path}"
+
+        try:
+            err_stream = io.StringIO()
+            out_stream = io.StringIO()
+            process = await run_process(cmd, stream_output=(out_stream, err_stream))
+        finally:
+            if tmp_dir:
+                tmp_dir.cleanup()
+
+        if process.returncode != 0:
+            err_stream.seek(0)
+            raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")

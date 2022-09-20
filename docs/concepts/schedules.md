@@ -1,10 +1,11 @@
 ---
-description: Prefect lets you schedule when to automatically create new flow runs.
+description: Prefect can schedule when to automatically create new flow runs based on your deployments.
 tags:
     - flows
     - flow runs
     - deployments
     - schedules
+    - scheduling
     - cron
     - RRule
     - iCal
@@ -16,9 +17,16 @@ Schedules tell the Prefect API how to create new flow runs for you automatically
 
 You can add a schedule to any flow [deployment](/concepts/deployments/). The Prefect `Scheduler` service periodically reviews every deployment and creates new flow runs according to the schedule configured for the deployment.
 
+There are four recommended ways to create a schedule for a deployment:
+
+- Use the Prefect UI
+- Use the `cron`, `interval`, or `rrule` flags with the CLI  `deployment build` command
+- Use the `schedule` parameter with a Python deployment file
+- Manually edit the deployment YAML file's `schedule` section
+
 ## Creating schedules through the UI
 
-You can add, modify, and view schedules by selecting **Edit** under the three dot menu next to a Deployment in the **Deployments** tab of the [Prefect UI](ui/overview.md). 
+You can add, modify, and view schedules by selecting **Edit** under the three dot menu next to a Deployment in the **Deployments** tab of the [Prefect UI](/ui/overview.md). 
 
 ![Deployment edit button](../img/concepts/edit-schedule-callout.png)
 
@@ -26,7 +34,7 @@ To create a schedule from the UI, select **Add**.
 
 ![Prefect UI with Add button called out under Scheduling heading](../img/concepts/add-schedule-callout.png)
 
-Select Interval or Cron to create a schedule through the UI.
+Then select **Interval** or **Cron** to create a schedule.
 
 ![Prefect UI with Interval button selected](../img/concepts/interval-schedule.png)
 
@@ -39,9 +47,39 @@ Prefect supports several types of schedules that cover a wide range of use cases
 - [`RRule`](#rrules) is best suited for deployments that rely on calendar logic for simple recurring schedules, irregular intervals, exclusions, or day-of-month adjustments.
 
 
-## Creating schedules through the deployment YAML file
+## Creating schedules through the CLI with the `deployment build` command
 
-You may create a schedule by including a `schedule` section as part of the [deployment YAML file](/concepts/deployments/#deploymentyaml) for a deployment. Here's an example that uses cron and specifies a timezone. 
+When you build a deployment from the CLI you can use `cron`, `interval`, or `rrule` flags to set a schedule. 
+
+<div class="terminal">
+```bash
+prefect deployment build demo.py:pipeline -n etl --cron "0 0 * * *"
+```
+</div>
+
+This schedule will create flow runs for this deployment every day at midnight. You cannot set a timezone for your schedule from the CLI at the present time.
+
+`interval` and `rrule` are the other two command line schedule flags.
+
+## Creating schedules through a Python deployment file
+
+Here's how you create the equivalent schedule in a Python deployment file, with a timezone specified.
+
+```python
+from prefect.orion.schemas.schedules import CronSchedule
+
+cron_demo = Deployment.build_from_flow(
+    pipeline,
+    "etl",
+    schedule=(CronSchedule(cron="0 0 * * *", timezone="America/Chicago"))
+)
+```
+
+`IntervalSchedule` and `RRuleSchedule` are the other two Python class schedule options.
+
+## Creating schedules through a deployment YAML file's `schedule` section
+
+Alternatively, you can edit the `schedule` section of the [deployment YAML file](/concepts/deployments/#deploymentyaml). 
 
 ```yaml
 schedule:
@@ -49,7 +87,7 @@ schedule:
   timezone: America/Chicago
 ```
 
-This schedule will set flow runs in a deployment every day at midnight Central Time (CT).
+Let's discuss the three schedule types in more detail.
 
 ## Cron
 
@@ -76,17 +114,21 @@ The `day_or` property defaults to `True`, matching `cron`, which connects those 
     The `cron` rules for DST are based on schedule times, not intervals. This means that an hourly `cron` schedule fires on every new schedule hour, not every elapsed hour. For example, when clocks are set back, this results in a two-hour pause as the schedule will fire _the first time_ 1am is reached and _the first time_ 2am is reached, 120 minutes later. 
     
     Longer schedules, such as one that fires at 9am every morning, will adjust for DST automatically.
+  
+  See the Python [CronSchedule class docs](/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.CronSchedule) for more information. 
 
 
 ## Interval
 
-An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed from an optional `anchor_date`. For example, here's the a schedule for every 10 minutes.
+An `Interval` schedule creates new flow runs on a regular interval measured in seconds. Intervals are computed from an optional `anchor_date`. For example, here's how you can create a schedule for every 10 minutes in the deployent YAML file.
 
 ```yaml
 schedule:
   interval: 600
   timezone: America/Chicago 
 ```
+
+
 
 `Interval` properties include:
 
@@ -104,6 +146,8 @@ Note that the `anchor_date` does not indicate a "start time" for the schedule, b
     For example, an hourly schedule will fire every UTC hour, even across DST boundaries. When clocks are set back, this will result in two runs that _appear_ to both be scheduled for 1am local time, even though they are an hour apart in UTC time. 
     
     For longer intervals, like a daily schedule, the interval schedule will adjust for DST boundaries so that the clock-hour remains constant. This means that a daily schedule that always fires at 9am will observe DST and continue to fire at 9am in the local time zone.
+
+See the Python [IntervalSchedule class docs](/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.IntervalSchedule) for more information. 
 
 ## RRule
 
@@ -138,6 +182,10 @@ schedule:
     Note that as a calendar-oriented standard, `RRules` are sensitive to the initial timezone provided. A 9am daily schedule with a DST-aware start date will maintain a local 9am time through DST boundaries. A 9am daily schedule with a UTC start date will maintain a 9am UTC time.
 
 
+
+See the Python [RRuleSchedule class docs](/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.RRuleSchedule) for more information. 
+
+
 ## The `Scheduler` service
 
 The `Scheduler` service is started automatically when `prefect orion start` is run and it is a built-in service of Prefect Cloud. 
@@ -155,7 +203,7 @@ PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME='100 days, 0:00:00'
 ```
 </div>
 
-See the [Settings docs](settings.md) for more information on altering your settings.
+See the [Settings docs](/concepts/settings/) for more information on altering your settings.
 
 These settings mean that if a deployment has an hourly schedule, the default settings will create runs for the next 4 days (or 100 hours). If it has a weekly schedule, the default settings will maintain the next 14 runs (up to 100 days in the future).
 

@@ -7,25 +7,24 @@ tags:
     - tasks
     - flows
     - subflows
-    - async
 ---
 
 # First steps
 
 If you've never used Prefect before, let's start by exploring the core elements of Prefect workflows: flows and tasks.
 
-If you have used Prefect 1.0 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps, particularly [Run a flow within a flow](#run-a-flow-within-a-flow). Prefect 2.0 flows and subflows offer significant new functionality.
+If you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps, particularly [Run a flow within a flow](#run-a-flow-within-a-flow). Prefect 2 flows and subflows offer significant new functionality.
 
 ## Prerequisites
 
-These tutorials assume you have [installed Prefect 2.0](/getting-started/installation/) in your virtual environment along with Python 3.7 or newer. 
+These tutorials assume you have [installed Prefect 2](/getting-started/installation/) in your virtual environment along with Python 3.7 or newer. 
 ## Flows, tasks, and subflows
 
 Let's start with the basics, defining the central components of Prefect workflows.
 
 A [flow](/concepts/flows/) is the basis of all Prefect workflows. A flow is a Python function decorated with a `@flow` decorator. 
 
-A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represents distinct pieces of work executed within a flow. 
+A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent distinct pieces of work executed within a flow. 
 
 All Prefect workflows are defined within the context of a flow. Every Prefect workflow must contain at least one flow function that serves as the entrypoint for execution of the flow. 
 

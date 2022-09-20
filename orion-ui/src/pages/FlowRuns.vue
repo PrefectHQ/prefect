@@ -9,25 +9,7 @@
         <FlowRunsPageEmptyState />
       </template>
       <template v-else>
-        <div class="flow-runs__filters">
-          <div class="flow-runs__date-filters">
-            <p-label label="Start Date">
-              <PDateInput v-model="startDate" show-time />
-            </p-label>
-            <p-label label="End Date">
-              <PDateInput v-model="endDate" show-time />
-            </p-label>
-          </div>
-          <div class="flow-runs__meta-filters">
-            <StateSelect v-model:selected="states" empty-message="All run states" />
-            <FlowCombobox v-model:selected="flows" empty-message="All flows" />
-            <DeploymentCombobox v-model:selected="deployments" empty-message="All deployments" />
-            <PTagsInput v-model="tags" empty-message="All Tags" inline />
-            <template v-if="!media.md">
-              <SearchInput v-model="flowRunSearchTerm" placeholder="Search by run name" label="Search by run name" />
-            </template>
-          </div>
-        </div>
+        <FlowRunsFilter />
 
         <template v-if="media.md">
           <FlowRunsScatterPlot :history="flowRunHistory" v-bind="{ startDate, endDate }" class="flow-runs__chart" />
@@ -37,7 +19,7 @@
           <div class="flow-runs__list-controls">
             <ResultsCount :count="flowRunCount" class="mr-auto" />
             <template v-if="media.md">
-              <SearchInput v-model="flowRunSearchTerm" placeholder="Search by run name" label="Search by run name" />
+              <SearchInput v-model="name" placeholder="Search by run name" label="Search by run name" />
             </template>
             <FlowRunsSort v-model="sort" />
           </div>
@@ -60,12 +42,12 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunSortValues, FlowRunList, FlowRunsScatterPlot, StateSelect, StateType, DeploymentCombobox, FlowCombobox, useFlowRunFilter, SearchInput, ResultsCount } from '@prefecthq/orion-design'
-  import { PTagsInput, PDateInput, PEmptyResults, formatDateTimeNumeric, parseDateTimeNumeric, media } from '@prefecthq/prefect-design'
-  import { useDebouncedRef, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
-  import { addDays, endOfToday, startOfToday, subDays } from 'date-fns'
-  import { computed, Ref, ref } from 'vue'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute } from '@prefecthq/orion-design'
+  import { PEmptyResults, media } from '@prefecthq/prefect-design'
+  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
+  import FlowRunsFilter from '@/components/FlowRunsFilter.vue'
   import { routes } from '@/router'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { uiApi } from '@/services/uiApi'
@@ -76,49 +58,7 @@
   const loaded = computed(() => flowRunsCountAllSubscription.executed)
   const empty = computed(() => flowRunsCountAllSubscription.response === 0)
 
-  const sort = ref<FlowRunSortValues>('EXPECTED_START_TIME_DESC')
-
-  const defaultStartDate = formatDateTimeNumeric(subDays(startOfToday(), 7))
-  const startDateParam = useRouteQueryParam('start-date', defaultStartDate)
-
-  const startDate = computed({
-    get() {
-      return parseDateTimeNumeric(startDateParam.value)
-    },
-    set(value: Date) {
-      startDateParam.value = formatDateTimeNumeric(value)
-    },
-  })
-
-  const defaultEndDate = formatDateTimeNumeric(addDays(endOfToday(), 1))
-  const endDateParam = useRouteQueryParam('end-date', defaultEndDate)
-
-  const endDate = computed({
-    get() {
-      return parseDateTimeNumeric(endDateParam.value)
-    },
-    set(value: Date) {
-      endDateParam.value = formatDateTimeNumeric(value)
-    },
-  })
-
-  const flowRunSearchTerm = ref<string>('')
-  const flowRunsSearchTermDebounced = useDebouncedRef(flowRunSearchTerm, 1200)
-
-  const states = useRouteQueryParam('state', []) as Ref<StateType[]>
-  const deployments = useRouteQueryParam('deployment', [])
-  const flows = useRouteQueryParam('flow', [])
-  const tags = useRouteQueryParam('tag', [])
-  const filter = useFlowRunFilter({ states, deployments, flows, tags, startDate, endDate, sort, name: flowRunsSearchTermDebounced })
-
-  const hasFilters = computed(() => {
-    return states.value.length ||
-      deployments.value.length ||
-      flows.value.length ||
-      tags.value.length ||
-      startDateParam.value !== defaultStartDate ||
-      endDateParam.value !== defaultEndDate
-  })
+  const { filter, hasFilters, startDate, endDate, name, sort } = useFlowRunFilterFromRoute()
 
   const subscriptionOptions = {
     interval: 30000,
@@ -131,7 +71,7 @@
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
   const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [filter], subscriptionOptions)
-  const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
+  const flowRuns = computed(() => flowRunsSubscription.response ?? [])
   const selectedFlowRuns = ref([])
 
   function clear(): void {
@@ -140,32 +80,15 @@
 </script>
 
 <style>
-.flow-runs__filters,
-.flow-runs__date-filters,
-.flow-runs__meta-filters,
 .flow-runs__list { @apply
   grid
   gap-2
-}
-
-.flow-runs__date-filters { @apply
-  grid-cols-2
-}
-
-.flow-runs__meta-filters { @apply
-  grid-cols-1
 }
 
 .flow-runs__list-controls { @apply
   flex
   gap-2
   items-center
-}
-
-@screen md {
-  .flow-runs__meta-filters { @apply
-    grid-cols-4
-  }
 }
 
 .flow-runs__chart {

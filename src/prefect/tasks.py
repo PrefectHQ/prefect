@@ -90,6 +90,7 @@ class Task(Generic[P, R]):
     "Returns" respectively.
 
     Args:
+        fn: The function defining the task.
         name: An optional name for the task; if not provided, the name will be inferred
             from the given function.
         description: An optional string description for the task.
@@ -545,8 +546,9 @@ class Task(Generic[P, R]):
         Must be called within a flow function. If writing an async task, this
         call must be awaited.
 
-        Must be called with an iterable per task function argument. All
-        iterables must be the same length.
+        Must be called with at least one iterable and all iterables must be
+        the same length. Any arguments that are not iterable will be treated as
+        a static value and each task run will recieve the same value.
 
         Will create as many task runs as the length of the iterable(s) in the
         backing API and submit the task runs to the flow's task runner. This
@@ -557,10 +559,11 @@ class Task(Generic[P, R]):
         for sync tasks and they are fully resolved on submission.
 
         Args:
-            *args: Iterable arguments to run the tasks with
+            *args: Iterable and static arguments to run the tasks with
             return_state: Return a list of Prefect States that wrap the results
-                of each task run.
-            wait_for: Upstream task futures to wait for before starting the task
+              of each task run.
+            wait_for: Upstream task futures to wait for before starting the
+              task
             **kwargs: Keyword iterable arguments to run the task with
 
         Returns:
@@ -576,38 +579,42 @@ class Task(Generic[P, R]):
             >>> def my_task(x):
             >>>     return x + 1
 
-            Run a map in a flow
+            Create mapped tasks
 
             >>> from prefect import flow
             >>> @flow
             >>> def my_flow():
             >>>     my_task.map([1, 2, 3])
 
-            Wait for mapping to finish
+            Wait for all mapped tasks to finish
 
             >>> @flow
             >>> def my_flow():
             >>>     futures = my_task.map([1, 2, 3])
             >>>     for future in futures:
             >>>         future.wait()
+            >>>     # Now all of the mapped tasks have finished
+            >>>     my_task(10)
 
-            Use the result from a map in a flow
+            Use the result from mapped tasks in a flow
 
             >>> @flow
             >>> def my_flow():
             >>>     futures = my_task.map([1, 2, 3])
             >>>     for future in futures:
-            >>>         future.result()
+            >>>         print(future.result())
             >>> my_flow()
-            [2, 3, 4]
+            2
+            3
+            4
 
             Enforce ordering between tasks that do not exchange data
             >>> @task
-            >>> def task_1():
+            >>> def task_1(x):
             >>>     pass
             >>>
             >>> @task
-            >>> def task_2():
+            >>> def task_2(y):
             >>>     pass
             >>>
             >>> @flow
@@ -616,6 +623,34 @@ class Task(Generic[P, R]):
             >>>
             >>>     # task 2 will wait for task_1 to complete
             >>>     y = task_2.map([1, 2, 3], wait_for=[x])
+
+            Use a non-iterable input as a constant across mapped tasks
+            >>> @task
+            >>> def display(prefix, item):
+            >>>    print(prefix, item)
+            >>>
+            >>> @flow
+            >>> def my_flow():
+            >>>     display.map("Check it out: ", [1, 2, 3])
+            >>>
+            >>> my_flow()
+            Check it out: 1
+            Check it out: 2
+            Check it out: 3
+
+            Use `unmapped` to treat an iterable argument as a constant
+            >>> from prefect import unmapped
+            >>>
+            >>> @task
+            >>> def add_n_to_items(items, n):
+            >>>     return [item + n for item in items]
+            >>>
+            >>> @flow
+            >>> def my_flow():
+            >>>     return add_n_to_items.map(unmapped([10, 20]), n=[1, 2, 3])
+            >>>
+            >>> my_flow()
+            [[11, 21], [12, 22], [13, 23]]
         """
 
         from prefect.engine import enter_task_run_engine

@@ -1,4 +1,5 @@
 import logging
+from contextlib import contextmanager
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
@@ -29,7 +30,11 @@ class PrefectLogAdapter(logging.LoggerAdapter):
 @lru_cache()
 def get_logger(name: str = None) -> logging.Logger:
     """
-    Get a `prefect` logger. For use within Prefect.
+    Get a `prefect` logger. These loggers are intended for internal use within the
+    `prefect` package.
+
+    See `get_run_logger` for retrieving loggers for use within task or flow runs.
+    By default, only run-related loggers are connected to the `OrionHandler`.
     """
 
     parent_logger = logging.getLogger("prefect")
@@ -54,6 +59,9 @@ def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logge
     The logger will be named either `prefect.task_runs` or `prefect.flow_runs`.
     Contextual data about the run will be attached to the log records.
 
+    These loggers are connected to the `OrionHandler` by default to send log records to
+    the API.
+
     Arguments:
         context: A specific context may be provided as an override. By default, the
             context is inferred from global state and this should not be needed.
@@ -73,6 +81,11 @@ def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logge
             flow_run_context = context
         elif isinstance(context, prefect.context.TaskRunContext):
             task_run_context = context
+        else:
+            raise TypeError(
+                f"Received unexpected type {type(context).__name__!r} for context. "
+                "Expected one of 'None', 'FlowRunContext', or 'TaskRunContext'."
+            )
 
     # Determine if this is a task or flow run logger
     if task_run_context:
@@ -87,6 +100,11 @@ def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logge
         logger = flow_run_logger(
             flow_run=flow_run_context.flow_run, flow=flow_run_context.flow, **kwargs
         )
+    elif (
+        get_logger("prefect.flow_run").disabled
+        and get_logger("prefect.task_run").disabled
+    ):
+        logger = logging.getLogger("null")
     else:
         raise RuntimeError("There is no active flow or task run context.")
 
@@ -144,3 +162,21 @@ def task_run_logger(
             **kwargs,
         },
     )
+
+
+@contextmanager
+def disable_run_logger():
+    flow_run_logger = get_logger("prefect.flow_run")
+    task_run_logger = get_logger("prefect.task_run")
+
+    # determine if it's already disabled
+    flow_run_logger_disabled = flow_run_logger.disabled
+    task_run_logger_disabled = task_run_logger.disabled
+    try:
+        flow_run_logger.disabled = True
+        task_run_logger.disabled = True
+        yield
+    finally:
+        # return to original state
+        flow_run_logger.disabled = flow_run_logger_disabled
+        task_run_logger.disabled = task_run_logger_disabled

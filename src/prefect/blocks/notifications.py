@@ -44,7 +44,12 @@ class SlackWebhook(NotificationBlock):
     _block_type_name = "Slack Webhook"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/7dkzINU9r6j44giEFuHuUC/85d4cd321ad60c1b1e898bc3fbd28580/5cb480cd5f1b6d3fbadece79.png?h=250"
 
-    url: SecretStr = Field(..., title="Webhook URL")
+    url: SecretStr = Field(
+        default=...,
+        title="Webhook URL",
+        description="Slack incoming webhook URL used to send notifications.",
+        example="https://hooks.slack.com/XXX",
+    )
 
     def block_initialization(self) -> None:
         from slack_sdk.webhook.async_client import AsyncWebhookClient

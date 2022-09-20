@@ -125,6 +125,22 @@ def flatdict_to_dict(
 T = TypeVar("T")
 
 
+def isiterable(obj: Any) -> bool:
+    """
+    Return a boolean indicating if an object is iterable.
+
+    Excludes types that are iterable but typically used as singletons:
+    - str
+    - bytes
+    """
+    try:
+        iter(obj)
+    except TypeError:
+        return False
+    else:
+        return not isinstance(obj, (str, bytes))
+
+
 def ensure_iterable(obj: Union[T, Iterable[T]]) -> Iterable[T]:
     if isinstance(obj, Sequence) or isinstance(obj, Set):
         return obj

@@ -6,19 +6,20 @@ import importlib
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from prefect.blocks.core import Block
-from prefect.client import OrionClient, get_client, inject_client
+from prefect.client import OrionClient, get_client
+from prefect.client.orion import inject_client
 from prefect.context import PrefectObjectRegistry
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
-from prefect.infrastructure import DockerContainer, KubernetesJob, Process
+from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -51,14 +52,13 @@ async def load_flow_from_flow_run(
             storage_block = LocalFileSystem(basepath=basepath)
 
         sys.path.insert(0, ".")
-        # TODO: append deployment.path
-        await storage_block.get_directory(from_path=None, local_path=".")
+        await storage_block.get_directory(from_path=deployment.path, local_path=".")
 
     flow_run_logger(flow_run).debug(
         f"Loading flow for deployment {deployment.name!r}..."
     )
 
-    import_path = Path(deployment.path) / deployment.entrypoint
+    import_path = deployment.entrypoint
 
     # for backwards compat
     if deployment.manifest_path:
@@ -102,9 +102,11 @@ class Deployment(BaseModel):
         name: A name for the deployment (required).
         version: An optional version for the deployment; defaults to the flow's version
         description: An optional description of the deployment; defaults to the flow's description
-        tags: An optional list of tags to associate with this deployment
+        tags: An optional list of tags to associate with this deployment; note that tags are
+            used only for organizational purposes. For delegating work to agents, see `work_queue_name`.
         schedule: A schedule to run this deployment on, once registered
-        flow_name: The name of the flow this deployment encapsulates
+        work_queue_name: The work queue that will handle this deployment's runs
+        flow: The name of the flow this deployment encapsulates
         parameters: A dictionary of parameter values to pass to runs created from this deployment
         infrastructure: An optional infrastructure block used to configure infrastructure for runs;
             if not provided, will default to running this deployment in Agent subprocesses
@@ -124,8 +126,12 @@ class Deployment(BaseModel):
         >>> from my_project.flows import my_flow
         >>> from prefect.deployments import Deployment
         >>>
-        >>> deployment = Deployment(name="example", version="1", tags=["demo"])
-        >>> deployment.build_from_flow(my_flow)
+        >>> deployment = Deployment.build_from_flow(
+        ...     flow=my_flow,
+        ...     name="example",
+        ...     version="1",
+        ...     tags=["demo"],
+        >>> )
         >>> deployment.apply()
 
         Create a new deployment with custom storage and an infrastructure override:
@@ -135,20 +141,21 @@ class Deployment(BaseModel):
         >>> from prefect.filesystems import S3
 
         >>> storage = S3.load("dev-bucket") # load a pre-defined block
-        >>> deployment = Deployment(
+        >>> deployment = Deployment.build_from_flow(
+        ...     flow=my_flow,
         ...     name="s3-example",
         ...     version="2",
         ...     tags=["aws"],
         ...     storage=storage,
         ...     infra_overrides=dict("env.PREFECT_LOGGING_LEVEL"="DEBUG"),
         >>> )
-        >>> deployment.build_from_flow(my_flow)
         >>> deployment.apply()
 
     """
 
     class Config:
         validate_assignment = True
+        extra = "forbid"
 
     @property
     def _editable_fields(self) -> List[str]:
@@ -162,10 +169,32 @@ class Deployment(BaseModel):
             "schedule",
             "infra_overrides",
         ]
+
+        # if infrastructure is baked as a pre-saved block, then
+        # editing its fields will not update anything
         if self.infrastructure._block_document_id:
             return editable_fields
         else:
             return editable_fields + ["infrastructure"]
+
+    @property
+    def location(self) -> str:
+        """
+        The 'location' that this deployment points to is given by `path` alone
+        in the case of no remote storage, and otherwise by `storage.basepath / path`.
+
+        The underlying flow entrypoint is interpreted relative to this location.
+        """
+        location = ""
+        if self.storage:
+            location = (
+                self.storage.basepath + "/"
+                if not self.storage.basepath.endswith("/")
+                else ""
+            )
+        if self.path:
+            location += self.path
+        return location
 
     @sync_compatible
     async def to_yaml(self, path: Path) -> None:
@@ -210,32 +239,39 @@ class Deployment(BaseModel):
             all_fields["storage"][
                 "_block_type_slug"
             ] = self.storage.get_block_type_slug()
+        if all_fields["infrastructure"]:
+            all_fields["infrastructure"][
+                "_block_type_slug"
+            ] = self.infrastructure.get_block_type_slug()
         return all_fields
 
     # top level metadata
     name: str = Field(..., description="The name of the deployment.")
-    description: str = Field(
-        None, description="An optional description of the deployment."
+    description: Optional[str] = Field(
+        default=None, description="An optional description of the deployment."
     )
-    version: str = Field(None, description="An optional version for the deployment.")
-    tags: List[str] = Field(default_factory=list)
+    version: Optional[str] = Field(
+        default=None, description="An optional version for the deployment."
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="One of more tags to apply to this deployment.",
+    )
     schedule: schemas.schedules.SCHEDULE_TYPES = None
-    flow_name: str = Field(None, description="The name of the flow.")
+    flow_name: Optional[str] = Field(default=None, description="The name of the flow.")
     work_queue_name: Optional[str] = Field(
-        None,
+        "default",
         description="The work queue for the deployment.",
         yaml_comment="The work queue that will handle this deployment's runs",
     )
 
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
-    manifest_path: str = Field(
-        None,
+    manifest_path: Optional[str] = Field(
+        default=None,
         description="The path to the flow's manifest file, relative to the chosen storage.",
     )
-    infrastructure: Union[DockerContainer, KubernetesJob, Process] = Field(
-        default_factory=Process
-    )
+    infrastructure: Infrastructure = Field(default_factory=Process)
     infra_overrides: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",
@@ -244,23 +280,61 @@ class Deployment(BaseModel):
         None,
         help="The remote storage to use for this workflow.",
     )
-    path: str = Field(
-        None,
+    path: Optional[str] = Field(
+        default=None,
         description="The path to the working directory for the workflow, relative to remote storage or an absolute path.",
     )
-    entrypoint: str = Field(
-        None,
+    entrypoint: Optional[str] = Field(
+        default=None,
         description="The path to the entrypoint for the workflow, relative to the `path`.",
     )
     parameter_openapi_schema: ParameterSchema = Field(
-        None, description="The parameter schema of the flow, including defaults."
+        default_factory=ParameterSchema,
+        description="The parameter schema of the flow, including defaults.",
     )
 
-    @validator("storage", pre=True)
-    def cast_storage_to_block_type(cls, value):
+    @validator("infrastructure", pre=True)
+    def infrastructure_must_have_capabilities(cls, value):
         if isinstance(value, dict):
-            block = lookup_type(Block, value.pop("_block_type_slug"))
-            return block(**value)
+            if "_block_type_slug" in value:
+                # Replace private attribute with public for dispatch
+                value["block_type_slug"] = value.pop("_block_type_slug")
+            block = Block(**value)
+        elif value is None:
+            return value
+        else:
+            block = value
+
+        if "run-infrastructure" not in block.get_block_capabilities():
+            raise ValueError(
+                "Infrastructure block must have 'run-infrastructure' capabilities."
+            )
+        return block
+
+    @validator("storage", pre=True)
+    def storage_must_have_capabilities(cls, value):
+        if isinstance(value, dict):
+            block_type = lookup_type(Block, value.pop("_block_type_slug"))
+            block = block_type(**value)
+        elif value is None:
+            return value
+        else:
+            block = value
+
+        capabilities = block.get_block_capabilities()
+        if "get-directory" not in capabilities:
+            raise ValueError(
+                "Remote Storage block must have 'get-directory' capabilities."
+            )
+        return block
+
+    @validator("parameter_openapi_schema", pre=True)
+    def handle_openapi_schema(cls, value):
+        """
+        This method ensures setting a value of `None` is handled gracefully.
+        """
+        if value is None:
+            return ParameterSchema()
         return value
 
     @classmethod
@@ -268,13 +342,36 @@ class Deployment(BaseModel):
     async def load_from_yaml(cls, path: str):
         with open(str(path), "r") as f:
             data = yaml.safe_load(f)
+
+            # load blocks from server to ensure secret values are properly hydrated
+            if data["storage"]:
+                block_doc_name = data["storage"].get("_block_document_name")
+                # if no doc name, this block is not stored on the server
+                if block_doc_name:
+                    block_slug = data["storage"]["_block_type_slug"]
+                    block = await Block.load(f"{block_slug}/{block_doc_name}")
+                    data["storage"] = block
+
+            if data["infrastructure"]:
+                block_doc_name = data["infrastructure"].get("_block_document_name")
+                # if no doc name, this block is not stored on the server
+                if block_doc_name:
+                    block_slug = data["infrastructure"]["_block_type_slug"]
+                    block = await Block.load(f"{block_slug}/{block_doc_name}")
+                    data["infrastructure"] = block
+
             return cls(**data)
 
     @sync_compatible
     async def load(self) -> bool:
         """
         Queries the API for a deployment with this name for this flow, and if found, prepopulates
-        settings.  Returns a boolean specifying whether a load was successful or not.
+        any settings that were not set at initialization.
+
+        Returns a boolean specifying whether a load was successful or not.
+
+        Raises:
+            - ValueError: if both name and flow name are not set
         """
         if not self.name or not self.flow_name:
             raise ValueError("Both a deployment name and flow name must be provided.")
@@ -332,39 +429,59 @@ class Deployment(BaseModel):
             setattr(self, key, value)
 
     @sync_compatible
-    async def upload_to_storage(self, storage_block: Block = None) -> Optional[int]:
+    async def upload_to_storage(
+        self, storage_block: str = None, ignore_file: str = ".prefectignore"
+    ) -> Optional[int]:
         """
         Uploads the workflow this deployment represents using a provided storage block;
         if no block is provided, defaults to configuring self for local storage.
+
+        Args:
+            storage_block: a string reference a remote storage block slug `$type/$name`; if provided,
+                used to upload the workflow's project
+            ignore_file: an optional path to a `.prefectignore` file that specifies filename patterns
+                to ignore when uploading to remote storage; if not provided, looks for `.prefectignore`
+                in the current working directory
         """
         deployment_path = None
         file_count = None
         if storage_block:
-            template = await Block.load(storage_block)
-            self.storage = template.copy(
-                exclude={"_block_document_id", "_block_document_name", "_is_anonymous"}
-            )
+            storage = await Block.load(storage_block)
+
+            if "put-directory" not in storage.get_block_capabilities():
+                raise BlockMissingCapabilities(
+                    f"Storage block {storage!r} missing 'put-directory' capability."
+                )
+
+            self.storage = storage
 
             # upload current directory to storage location
-            file_count = await self.storage.put_directory(ignore_file=".prefectignore")
-        elif not self.storage:
-            # default storage, no need to move anything around
-            self.storage = None
-            deployment_path = str(Path(".").absolute())
-        else:
-            file_count = await self.storage.put_directory(ignore_file=".prefectignore")
+            file_count = await self.storage.put_directory(
+                ignore_file=ignore_file, to_path=self.path
+            )
+        elif self.storage:
+            if "put-directory" not in self.storage.get_block_capabilities():
+                raise BlockMissingCapabilities(
+                    f"Storage block {self.storage!r} missing 'put-directory' capability."
+                )
+
+            file_count = await self.storage.put_directory(
+                ignore_file=ignore_file, to_path=self.path
+            )
 
         # persists storage now in case it contains secret values
         if self.storage and not self.storage._block_document_id:
             await self.storage._save(is_anonymous=True)
 
-        self.path = deployment_path
         return file_count
 
     @sync_compatible
-    async def apply(self) -> UUID:
+    async def apply(self, upload: bool = False) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
+
+        Args:
+            upload: if True, deployment files are automatically uploaded to remote storage
         """
         if not self.name or not self.flow_name:
             raise ValueError("Both a deployment name and flow name must be set.")
@@ -379,6 +496,9 @@ class Deployment(BaseModel):
                 infrastructure_document_id = await self.infrastructure._save(
                     is_anonymous=True,
                 )
+
+            if upload:
+                await self.upload_to_storage()
 
             # we assume storage was already saved
             storage_document_id = getattr(self.storage, "_block_document_id", None)
@@ -403,43 +523,87 @@ class Deployment(BaseModel):
 
             return deployment_id
 
+    @classmethod
     @sync_compatible
-    async def build_from_flow(self, f: Flow, output: str = None):
+    async def build_from_flow(
+        cls,
+        flow: Flow,
+        name: str,
+        output: str = None,
+        skip_upload: bool = False,
+        apply: bool = False,
+        **kwargs,
+    ) -> "Deployment":
         """
-        Configure this deployment for a given flow.
+        Configure a deployment for a given flow.
 
-        Note that this method loads any settings that may already be configured for this deployment
+        Note that this method loads any settings that may already be configured for the named deployment
         server-side (e.g., schedules, default parameter values, etc.).
 
-        Optionally writes the full specification as a YAML file in the location specified by `output`.
+        Args:
+            flow: A flow function to deploy
+            name: A name for the deployment
+            output (optional): if provided, the full deployment specification will be written as a YAML
+                file in the location specified by `output`
+            skip_upload: if True, deployment files are not automatically uploaded to remote storage
+            apply: if True, the deployment is automatically registered with the API
+            **kwargs: other keyword arguments to pass to the constructor for the `Deployment` class
         """
-        ## first see if an entrypoint can be determined
-        flow_file = getattr(f, "__globals__", {}).get("__file__")
-        mod_name = getattr(f, "__module__", None)
-        if not flow_file:
-            if not mod_name:
-                # todo, check if the file location was manually set already
-                raise ValueError("Could not determine flow's file location.")
-            module = importlib.import_module(mod_name)
-            flow_file = getattr(module, "__file__", None)
-            if not flow_file:
-                raise ValueError("Could not determine flow's file location.")
+        if not name:
+            raise ValueError("A deployment name must be provided.")
 
-        self.flow_name = f.name
-        await self.load()
+        # note that `deployment.load` only updates settings that were *not*
+        # provided at initialization
+        deployment = cls(name=name, **kwargs)
+        deployment.flow_name = flow.name
+        if not deployment.entrypoint:
+            ## first see if an entrypoint can be determined
+            flow_file = getattr(flow, "__globals__", {}).get("__file__")
+            mod_name = getattr(flow, "__module__", None)
+            if not flow_file:
+                if not mod_name:
+                    # todo, check if the file location was manually set already
+                    raise ValueError("Could not determine flow's file location.")
+                module = importlib.import_module(mod_name)
+                flow_file = getattr(module, "__file__", None)
+                if not flow_file:
+                    raise ValueError("Could not determine flow's file location.")
+
+            # set entrypoint
+            entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
+            deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
+
+        await deployment.load()
 
         # set a few attributes for this flow object
-        self.entrypoint = f"{Path(flow_file).absolute()}:{f.fn.__name__}"
-        self.parameter_openapi_schema = parameter_schema(f)
-        if not self.version:
-            self.version = f.version
-        if not self.description:
-            self.description = f.description
+        deployment.parameter_openapi_schema = parameter_schema(flow)
 
-        # if no storage is set, assume local for now
-        # TODO: revisit with Docker integration
-        # note: this method call sets `self.path`
-        await self.upload_to_storage()
+        if not deployment.version:
+            deployment.version = flow.version
+        if not deployment.description:
+            deployment.description = flow.description
+
+        # proxy for whether infra is docker-based
+        is_docker_based = hasattr(deployment.infrastructure, "image")
+
+        if not deployment.storage and not is_docker_based and not deployment.path:
+            deployment.path = str(Path(".").absolute())
+        elif not deployment.storage and is_docker_based:
+            # only update if a path is not already set
+            if not deployment.path:
+                deployment.path = "/opt/prefect/flows"
+
+        if not skip_upload:
+            if (
+                deployment.storage
+                and "put-directory" in deployment.storage.get_block_capabilities()
+            ):
+                await deployment.upload_to_storage()
 
         if output:
-            await self.to_yaml(output)
+            await deployment.to_yaml(output)
+
+        if apply:
+            await deployment.apply()
+
+        return deployment

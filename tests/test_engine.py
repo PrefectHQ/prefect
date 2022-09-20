@@ -1,21 +1,28 @@
 import time
 from contextlib import contextmanager
 from functools import partial
+from typing import List
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import anyio
 import pendulum
 import pytest
+from pydantic import BaseModel
 
+import prefect.flows
 from prefect import engine, flow, task
 from prefect.context import FlowRunContext
 from prefect.engine import (
     begin_flow_run,
+    create_and_begin_subflow_run,
+    create_then_begin_flow_run,
+    link_state_to_result,
     orchestrate_flow_run,
     orchestrate_task_run,
     retrieve_flow_then_begin_flow_run,
 )
-from prefect.exceptions import ParameterTypeError
+from prefect.exceptions import Abort, ParameterTypeError, SignatureMismatchError
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.states import (
@@ -34,26 +41,71 @@ from prefect.utilities.pydantic import PartialModel
 
 
 @pytest.fixture
-def mock_client_sleep(monkeypatch):
+async def patch_manifest_load(monkeypatch):
+    async def patch_manifest(f):
+        async def anon(*args, **kwargs):
+            return f
+
+        monkeypatch.setattr(
+            engine,
+            "load_flow_from_flow_run",
+            anon,
+        )
+        return f
+
+    return patch_manifest
+
+
+@pytest.fixture
+def parameterized_flow():
+    @flow
+    def flow_for_tests(dog: str, cat: int):
+        """Flow for testing functions"""
+
+    return flow_for_tests
+
+
+@pytest.fixture
+def flow_run_caplog(caplog):
     """
-    Mock sleep used by the orion_client to not actually sleep but to set the
-    current time to now + sleep delay seconds.
+    Capture logging from flow runs to ensure messages are correct.
     """
-    original_now = pendulum.now
-    time_shift = 0
+    import logging
 
-    async def callback(delay_in_seconds):
-        nonlocal time_shift
-        time_shift += delay_in_seconds
+    logger = logging.getLogger("prefect.flow_runs")
+    logger2 = logging.getLogger("prefect")
+    logger.propagate = True
+    logger2.propagate = True
 
-    monkeypatch.setattr(
-        "pendulum.now", lambda *args: original_now(*args).add(seconds=time_shift)
-    )
+    try:
+        yield caplog
+    finally:
+        logger.propagate = False
 
-    sleep = AsyncMock(side_effect=callback)
-    monkeypatch.setattr("prefect.client.sleep", sleep)
 
-    return sleep
+@pytest.fixture
+async def get_flow_run_context(orion_client, local_filesystem):
+    partial_ctx = PartialModel(FlowRunContext)
+
+    @flow
+    def foo():
+        pass
+
+    test_task_runner = SequentialTaskRunner()
+    flow_run = await orion_client.create_flow_run(foo)
+
+    async def _get_flow_run_context():
+        async with anyio.create_task_group() as tg:
+            partial_ctx.background_tasks = tg
+            return partial_ctx.finalize(
+                flow=foo,
+                flow_run=flow_run,
+                client=orion_client,
+                task_runner=test_task_runner,
+                result_filesystem=local_filesystem,
+            )
+
+    return _get_flow_run_context
 
 
 class TestOrchestrateTaskRun:
@@ -61,7 +113,7 @@ class TestOrchestrateTaskRun:
         self,
         orion_client,
         flow_run,
-        mock_client_sleep,
+        mock_anyio_sleep,
         local_filesystem,
         monkeypatch,
     ):
@@ -81,22 +133,22 @@ class TestOrchestrateTaskRun:
             ),
         )
 
-        state = await orchestrate_task_run(
-            task=foo,
-            task_run=task_run,
-            parameters={},
-            wait_for=None,
-            result_filesystem=local_filesystem,
-            interruptible=False,
-            client=orion_client,
-        )
+        with mock_anyio_sleep.assert_sleeps_for(5 * 60):
+            state = await orchestrate_task_run(
+                task=foo,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_filesystem=local_filesystem,
+                interruptible=False,
+                client=orion_client,
+            )
 
-        mock_client_sleep.assert_awaited_once()
         assert state.is_completed()
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
-        self, orion_client, flow_run, mock_client_sleep, local_filesystem
+        self, orion_client, flow_run, mock_anyio_sleep, local_filesystem
     ):
         @task
         def foo():
@@ -124,12 +176,12 @@ class TestOrchestrateTaskRun:
             client=orion_client,
         )
 
-        mock_client_sleep.assert_not_called()
+        mock_anyio_sleep.assert_not_called()
         assert state.is_completed()
         assert state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
-        self, mock_client_sleep, orion_client, flow_run, local_filesystem
+        self, mock_anyio_sleep, orion_client, flow_run, local_filesystem
     ):
         # Define a task that fails once and then succeeds
         mock = MagicMock()
@@ -152,24 +204,19 @@ class TestOrchestrateTaskRun:
         )
 
         # Actually run the task
-        state = await orchestrate_task_run(
-            task=flaky_function,
-            task_run=task_run,
-            parameters={},
-            wait_for=None,
-            result_filesystem=local_filesystem,
-            interruptible=False,
-            client=orion_client,
-        )
+        with mock_anyio_sleep.assert_sleeps_for(43):
+            state = await orchestrate_task_run(
+                task=flaky_function,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_filesystem=local_filesystem,
+                interruptible=False,
+                client=orion_client,
+            )
 
         # Check for a proper final result
         assert state.result() == 1
-
-        # Assert that the sleep was called
-        # due to network time and rounding, the expected sleep time will be less than
-        # 43 seconds so we test a window
-        mock_client_sleep.assert_awaited_once()
-        assert 40 < mock_client_sleep.call_args[0][0] < 43
 
         # Check expected state transitions
         states = await orion_client.read_task_run_states(task_run.id)
@@ -207,11 +254,14 @@ class TestOrchestrateTaskRun:
         # Create a future to wrap the upstream task, have it resolve to the given
         # incomplete state
         future = PrefectFuture(
-            task_run=upstream_task_run,
-            run_key=str(upstream_task_run.id),
+            key=str(upstream_task_run.id),
+            name="foo",
             task_runner=None,
             _final_state=upstream_task_state,
         )
+        # simulate assigning task run to the future
+        future.task_run = upstream_task_run
+        future._submitted.set()
 
         # Create a task run to test
         task_run = await orion_client.create_task_run(
@@ -362,11 +412,13 @@ class TestOrchestrateFlowRun:
         )
 
     async def test_waits_until_scheduled_start_time(
-        self, orion_client, mock_client_sleep, partial_flow_run_context
+        self, orion_client, mock_anyio_sleep, partial_flow_run_context
     ):
         @flow
         def foo():
             return 1
+
+        partial_flow_run_context.background_tasks = anyio.create_task_group()
 
         flow_run = await orion_client.create_flow_run(
             flow=foo,
@@ -377,25 +429,26 @@ class TestOrchestrateFlowRun:
                 ),
             ),
         )
+        with mock_anyio_sleep.assert_sleeps_for(5 * 60):
+            state = await orchestrate_flow_run(
+                flow=foo,
+                flow_run=flow_run,
+                parameters={},
+                client=orion_client,
+                interruptible=False,
+                partial_flow_run_context=partial_flow_run_context,
+            )
 
-        state = await orchestrate_flow_run(
-            flow=foo,
-            flow_run=flow_run,
-            parameters={},
-            client=orion_client,
-            interruptible=False,
-            partial_flow_run_context=partial_flow_run_context,
-        )
-
-        mock_client_sleep.assert_awaited_once()
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
-        self, orion_client, mock_client_sleep, partial_flow_run_context
+        self, orion_client, mock_anyio_sleep, partial_flow_run_context
     ):
         @flow
         def foo():
             return 1
+
+        partial_flow_run_context.background_tasks = anyio.create_task_group()
 
         flow_run = await orion_client.create_flow_run(
             flow=foo,
@@ -417,13 +470,15 @@ class TestOrchestrateFlowRun:
                 partial_flow_run_context=partial_flow_run_context,
             )
 
-        mock_client_sleep.assert_not_called()
+        mock_anyio_sleep.assert_not_called()
         assert state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
-        self, orion_client, mock_client_sleep, partial_flow_run_context
+        self, orion_client, mock_anyio_sleep, partial_flow_run_context
     ):
         flow_run_count = 0
+
+        partial_flow_run_context.background_tasks = anyio.create_task_group()
 
         @flow(retries=1, retry_delay_seconds=43)
         def flaky_function():
@@ -439,23 +494,18 @@ class TestOrchestrateFlowRun:
             flow=flaky_function, state=Pending()
         )
 
-        state = await orchestrate_flow_run(
-            flow=flaky_function,
-            flow_run=flow_run,
-            parameters={},
-            client=orion_client,
-            interruptible=False,
-            partial_flow_run_context=partial_flow_run_context,
-        )
+        with mock_anyio_sleep.assert_sleeps_for(43):
+            state = await orchestrate_flow_run(
+                flow=flaky_function,
+                flow_run=flow_run,
+                parameters={},
+                client=orion_client,
+                interruptible=False,
+                partial_flow_run_context=partial_flow_run_context,
+            )
 
         # Check for a proper final result
         assert state.result() == 1
-
-        # Assert that the sleep was called
-        # due to network time and rounding, the expected sleep time will be less than
-        # 43 seconds so we test a window
-        mock_client_sleep.assert_awaited_once()
-        assert 40 < mock_client_sleep.call_args[0][0] < 43
 
         # Check expected state transitions
         states = await orion_client.read_flow_run_states(flow_run.id)
@@ -591,7 +641,7 @@ class TestFlowRunCrashes:
         self, flow_run, orion_client, monkeypatch, interrupt_type
     ):
         monkeypatch.setattr(
-            "prefect.client.OrionClient.propose_state",
+            "prefect.engine.propose_state",
             MagicMock(side_effect=interrupt_type()),
         )
 
@@ -668,6 +718,29 @@ class TestFlowRunCrashes:
         assert flow_run.state.type != StateType.CRASHED
         assert "exceeded timeout" in flow_run.state.message
 
+    async def test_aborts_are_not_crashes(self, flow_run, orion_client):
+        """
+        Since aborts are base exceptions, we want to ensure that they are not marked as
+        crashes
+        """
+
+        @flow
+        async def my_flow():
+            raise Abort()
+
+        with pytest.raises(Abort):
+            # ^ the exception should be re-raised
+            await begin_flow_run(
+                flow=my_flow,
+                parameters={},
+                flow_run=flow_run,
+                client=orion_client,
+            )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+
+        assert flow_run.state.type != StateType.CRASHED
+
     async def test_timeouts_do_not_hide_crashes(self, flow_run, orion_client):
         """
         Since timeouts capture anyio cancellations, we want to ensure that something
@@ -704,6 +777,7 @@ class TestFlowRunCrashes:
             in flow_run.state.message
         )
 
+    @pytest.mark.flaky(max_runs=3)
     async def test_interrupt_flow(self):
         i = 0
 
@@ -859,21 +933,6 @@ class TestTaskRunCrashes:
 
 
 class TestDeploymentFlowRun:
-    @pytest.fixture
-    async def patch_manifest_load(self, monkeypatch):
-        async def patch_manifest(f):
-            async def anon(*args, **kwargs):
-                return f
-
-            monkeypatch.setattr(
-                engine,
-                "load_flow_from_flow_run",
-                anon,
-            )
-            return f
-
-        return patch_manifest
-
     async def create_deployment(self, client, flow):
         flow_id = await client.create_flow(flow)
         return await client.create_deployment(
@@ -898,6 +957,37 @@ class TestDeploymentFlowRun:
             flow_run.id, client=orion_client
         )
         assert state.result() == 1
+
+    async def test_retries_loaded_from_flow_definition(
+        self, orion_client, patch_manifest_load, mock_anyio_sleep
+    ):
+        @flow(retries=2, retry_delay_seconds=3)
+        def my_flow(x: int):
+            raise ValueError()
+
+        await patch_manifest_load(my_flow)
+        deployment_id = await self.create_deployment(orion_client, my_flow)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"x": 1}
+        )
+        assert flow_run.empirical_policy.retries == None
+        assert flow_run.empirical_policy.retry_delay == None
+
+        with mock_anyio_sleep.assert_sleeps_for(
+            my_flow.retries * my_flow.retry_delay_seconds,
+            # Allow an extra second tolerance per retry to account for rounding
+            extra_tolerance=my_flow.retries,
+        ):
+            state = await retrieve_flow_then_begin_flow_run(
+                flow_run.id, client=orion_client
+            )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.empirical_policy.retries == 2
+        assert flow_run.empirical_policy.retry_delay == 3
+        assert state.is_failed()
+        assert flow_run.run_count == 3
 
     async def test_failed_run(self, orion_client, patch_manifest_load):
         @flow
@@ -955,7 +1045,10 @@ class TestDeploymentFlowRun:
             flow_run.id, client=orion_client
         )
         assert state.is_failed()
-        assert state.message == "Flow run received invalid parameters."
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - x: value is not a valid integer')"
+        )
         with pytest.raises(ParameterTypeError, match="value is not a valid integer"):
             state.result()
 
@@ -1034,3 +1127,354 @@ class TestDynamicKeyHandling:
         task_runs = await orion_client.read_task_runs()
 
         assert sorted([int(run.dynamic_key) for run in task_runs]) == [0, 0, 1, 1]
+
+
+class TestCreateThenBeginFlowRun:
+    async def test_handles_bad_parameter_types(self, orion_client, parameterized_flow):
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"dog": [1, 2], "cat": "not an int"},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
+        )
+        assert type(state.data.decode()) == ParameterTypeError
+
+    async def test_handles_signature_mismatches(self, orion_client, parameterized_flow):
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
+        )
+        assert type(state.data.decode()) == SignatureMismatchError
+
+    async def test_does_not_raise_signature_mismatch_on_missing_default_args(
+        self, orion_client
+    ):
+        @flow
+        def flow_use_and_return_defaults(foo: str = "bar", bar: int = 1):
+            """Flow for testing functions"""
+            assert foo == "bar"
+            assert bar == 1
+            return foo, bar
+
+        state = await create_then_begin_flow_run(
+            flow=flow_use_and_return_defaults,
+            parameters={},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.COMPLETED
+        assert state.data.decode() == ("bar", 1)
+
+    async def test_handles_other_errors(
+        self, orion_client, parameterized_flow, monkeypatch
+    ):
+        def raise_unspecified_exception(*args, **kwargs):
+            raise Exception("I am another exception!")
+
+        # Patch validate_parameters to check for other exception case handling
+        monkeypatch.setattr(
+            prefect.flows.Flow, "validate_parameters", raise_unspecified_exception
+        )
+
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: Exception('I am another exception!')"
+        )
+        assert type(state.data.decode()) == Exception
+
+
+class TestRetrieveFlowThenBeginFlowRun:
+    async def test_handles_bad_parameter_types(
+        self, orion_client, patch_manifest_load, parameterized_flow
+    ):
+        await patch_manifest_load(parameterized_flow)
+        flow_id = await orion_client.create_flow(parameterized_flow)
+        dep_id = await orion_client.create_deployment(
+            flow_id,
+            name="test",
+            manifest_path="path/file.json",
+        )
+        new_flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id=dep_id, parameters={"dog": [1], "cat": "not an int"}
+        )
+        state = await retrieve_flow_then_begin_flow_run(flow_run_id=new_flow_run.id)
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
+        )
+        assert type(state.data.decode()) == ParameterTypeError
+
+    async def test_handles_signature_mismatches(self, orion_client, parameterized_flow):
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
+        )
+        assert type(state.data.decode()) == SignatureMismatchError
+
+    async def test_handles_other_errors(
+        self, orion_client, parameterized_flow, monkeypatch
+    ):
+        def raise_unspecified_exception(*args, **kwargs):
+            raise Exception("I am another exception!")
+
+        # Patch validate_parameters to check for other exception case handling
+        monkeypatch.setattr(
+            prefect.flows.Flow, "validate_parameters", raise_unspecified_exception
+        )
+
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: Exception('I am another exception!')"
+        )
+        assert type(state.data.decode()) == Exception
+
+
+class TestCreateAndBeginSubflowRun:
+    async def test_handles_bad_parameter_types(
+        self,
+        orion_client,
+        parameterized_flow,
+        get_flow_run_context,
+    ):
+        with await get_flow_run_context() as ctx:
+            state = await create_and_begin_subflow_run(
+                flow=parameterized_flow,
+                parameters={"dog": [1, 2], "cat": "not an int"},
+                return_type="state",
+                client=orion_client,
+            )
+            assert state.type == StateType.FAILED
+            assert (
+                state.message
+                == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
+            )
+            assert type(state.data.decode()) == ParameterTypeError
+
+    async def test_handles_signature_mismatches(
+        self,
+        orion_client,
+        parameterized_flow,
+        get_flow_run_context,
+    ):
+        with await get_flow_run_context() as ctx:
+            state = await create_and_begin_subflow_run(
+                flow=parameterized_flow,
+                parameters={"puppy": "a string", "kitty": 42},
+                return_type="state",
+                client=orion_client,
+            )
+            assert state.type == StateType.FAILED
+            assert (
+                state.message
+                == "Validation of flow parameters failed with error: SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
+            )
+            assert type(state.data.decode()) == SignatureMismatchError
+
+    async def test_handles_other_errors(
+        self, orion_client, parameterized_flow, monkeypatch
+    ):
+        def raise_unspecified_exception(*args, **kwargs):
+            raise Exception("I am another exception!")
+
+        # Patch validate_parameters to check for other exception case handling
+        monkeypatch.setattr(
+            prefect.flows.Flow, "validate_parameters", raise_unspecified_exception
+        )
+
+        state = await create_then_begin_flow_run(
+            flow=parameterized_flow,
+            parameters={"puppy": "a string", "kitty": 42},
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.FAILED
+        assert (
+            state.message
+            == "Validation of flow parameters failed with error: Exception('I am another exception!')"
+        )
+        assert type(state.data.decode()) == Exception
+
+
+class TestLinkStateToResult:
+    @pytest.fixture
+    def state(self):
+        return State(id=uuid4(), type=StateType.COMPLETED)
+
+    class RandomTestClass:
+        pass
+
+    class PydanticTestClass(BaseModel):
+        num: int
+        list_of_ints: List[int]
+
+    @pytest.mark.parametrize(
+        "test_input", [True, False, -5, 0, 1, 256, ..., None, NotImplemented]
+    )
+    async def test_link_state_to_result_with_untrackables(
+        self, test_input, get_flow_run_context, state
+    ):
+
+        with await get_flow_run_context() as ctx:
+            link_state_to_result(state=state, result=test_input)
+            assert ctx.task_run_results == {}
+
+    @pytest.mark.parametrize("test_input", [-6, 257, "Hello", RandomTestClass()])
+    async def test_link_state_to_result_with_single_trackables(
+        self, get_flow_run_context, test_input, state
+    ):
+        input_id = id(test_input)
+
+        with await get_flow_run_context() as ctx:
+            link_state_to_result(state=state, result=test_input)
+            assert ctx.task_run_results == {input_id: state}
+
+    @pytest.mark.parametrize(
+        "test_inputs",
+        [
+            [-6, 257],
+            [-42, RandomTestClass()],
+            [4200, "Test", RandomTestClass()],
+        ],
+    )
+    async def test_link_state_to_result_with_multiple_unnested_trackables(
+        self, get_flow_run_context, test_inputs, state
+    ):
+        input_ids = []
+        with await get_flow_run_context() as ctx:
+            for test_input in test_inputs:
+                input_ids.append(id(test_input))
+                link_state_to_result(state=state, result=test_input)
+            assert ctx.task_run_results == {id: state for id in input_ids}
+
+    @pytest.mark.parametrize(
+        "test_input",
+        [
+            [True],
+            (False,),
+            [1, 2, 3],
+            (1, 2, 3),
+        ],
+    )
+    async def test_link_state_to_result_with_list_or_tuple_of_untrackables(
+        self, get_flow_run_context, test_input, state
+    ):
+        with await get_flow_run_context() as ctx:
+            link_state_to_result(state=state, result=test_input)
+            assert ctx.task_run_results == {id(test_input): state}
+
+    @pytest.mark.parametrize(
+        "test_input",
+        [
+            ["Test", 1, RandomTestClass()],
+            ("Test", 1, RandomTestClass()),
+        ],
+    )
+    async def test_link_state_to_result_with_list_or_tuple_of_mixed(
+        self, get_flow_run_context, test_input, state
+    ):
+        with await get_flow_run_context() as ctx:
+            link_state_to_result(state=state, result=test_input)
+            assert ctx.task_run_results == {
+                id(test_input[0]): state,
+                id(test_input[2]): state,
+                id(test_input): state,
+            }
+
+    async def test_link_state_to_result_with_nested_list(
+        self, get_flow_run_context, state
+    ):
+        test_input = [1, [-6, [1, 2, 3]]]
+
+        with await get_flow_run_context() as ctx:
+            link_state_to_result(state=state, result=test_input)
+            assert ctx.task_run_results == {
+                id(test_input): state,
+                id(test_input[1]): state,
+            }
+
+    async def test_link_state_to_result_with_nested_pydantic_class(
+        self, get_flow_run_context, state
+    ):
+        pydantic_instance = self.PydanticTestClass(num=42, list_of_ints=[1, 257])
+
+        test_input = [-7, pydantic_instance, 1]
+
+        with await get_flow_run_context() as ctx:
+            link_state_to_result(state=state, result=test_input)
+            assert ctx.task_run_results == {
+                id(test_input): state,
+                id(test_input[0]): state,
+                id(test_input[1]): state,
+            }
+
+    async def test_link_state_to_result_with_pydantic_class(
+        self, get_flow_run_context, state
+    ):
+        pydantic_instance = self.PydanticTestClass(num=42, list_of_ints=[1, 257])
+
+        with await get_flow_run_context() as ctx:
+            link_state_to_result(state=state, result=pydantic_instance)
+            assert ctx.task_run_results == {
+                id(pydantic_instance): state,
+                id(pydantic_instance.list_of_ints): state,
+            }
+
+    @pytest.mark.parametrize(
+        "test_input,expected_status",
+        [
+            (True, True),
+            (-5, True),
+            (-6, False),
+            ("Hello", False),
+            (RandomTestClass(), False),
+            ([0, 257], True),
+            ([False, "Test", RandomTestClass()], True),
+            ([-256, RandomTestClass()], False),
+            ([-6, 257], False),
+            ([-42, RandomTestClass()], False),
+            ([4200, "Test", RandomTestClass()], False),
+            (PydanticTestClass(num=42, list_of_ints=[1, 2, 3]), True),
+            (PydanticTestClass(num=257, list_of_ints=[1, 2, 3]), False),
+        ],
+    )
+    async def test_link_state_to_result_marks_trackability_in_state_details(
+        self, get_flow_run_context, test_input, expected_status, state
+    ):
+
+        with await get_flow_run_context():
+            link_state_to_result(state=state, result=test_input)
+            assert state.state_details.untrackable_result == expected_status
