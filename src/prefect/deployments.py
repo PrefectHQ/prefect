@@ -6,19 +6,20 @@ import importlib
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from prefect.blocks.core import Block
-from prefect.client import OrionClient, get_client, inject_client
+from prefect.client import OrionClient, get_client
+from prefect.client.orion import inject_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
-from prefect.infrastructure import DockerContainer, KubernetesJob, Process
+from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -246,16 +247,18 @@ class Deployment(BaseModel):
 
     # top level metadata
     name: str = Field(..., description="The name of the deployment.")
-    description: str = Field(
-        None, description="An optional description of the deployment."
+    description: Optional[str] = Field(
+        default=None, description="An optional description of the deployment."
     )
-    version: str = Field(None, description="An optional version for the deployment.")
+    version: Optional[str] = Field(
+        default=None, description="An optional version for the deployment."
+    )
     tags: List[str] = Field(
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
     schedule: schemas.schedules.SCHEDULE_TYPES = None
-    flow_name: str = Field(None, description="The name of the flow.")
+    flow_name: Optional[str] = Field(default=None, description="The name of the flow.")
     work_queue_name: Optional[str] = Field(
         "default",
         description="The work queue for the deployment.",
@@ -264,13 +267,11 @@ class Deployment(BaseModel):
 
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
-    manifest_path: str = Field(
-        None,
+    manifest_path: Optional[str] = Field(
+        default=None,
         description="The path to the flow's manifest file, relative to the chosen storage.",
     )
-    infrastructure: Union[DockerContainer, KubernetesJob, Process] = Field(
-        default_factory=Process
-    )
+    infrastructure: Infrastructure = Field(default_factory=Process)
     infra_overrides: Dict[str, Any] = Field(
         default_factory=dict,
         description="Overrides to apply to the base infrastructure block at runtime.",
@@ -279,12 +280,12 @@ class Deployment(BaseModel):
         None,
         help="The remote storage to use for this workflow.",
     )
-    path: str = Field(
-        None,
+    path: Optional[str] = Field(
+        default=None,
         description="The path to the working directory for the workflow, relative to remote storage or an absolute path.",
     )
-    entrypoint: str = Field(
-        None,
+    entrypoint: Optional[str] = Field(
+        default=None,
         description="The path to the entrypoint for the workflow, relative to the `path`.",
     )
     parameter_openapi_schema: ParameterSchema = Field(
@@ -295,8 +296,10 @@ class Deployment(BaseModel):
     @validator("infrastructure", pre=True)
     def infrastructure_must_have_capabilities(cls, value):
         if isinstance(value, dict):
-            block_type = lookup_type(Block, value.pop("_block_type_slug"))
-            block = block_type(**value)
+            if "_block_type_slug" in value:
+                # Replace private attribute with public for dispatch
+                value["block_type_slug"] = value.pop("_block_type_slug")
+            block = Block(**value)
         elif value is None:
             return value
         else:
