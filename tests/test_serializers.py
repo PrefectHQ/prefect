@@ -1,18 +1,47 @@
+import json
 import sys
+import uuid
+from dataclasses import dataclass
 from pathlib import Path
-from uuid import UUID
+from unittest.mock import MagicMock
 
 import pydantic
 import pytest
 
-from prefect.serializers import JSONSerializer, PickleSerializer, Serializer
+from prefect.serializers import (
+    JSONSerializer,
+    PickleSerializer,
+    Serializer,
+    prefect_json_object_decoder,
+    prefect_json_object_encoder,
+)
 from prefect.utilities.dispatch import get_registry_for_type
 
 # Freeze a UUID for deterministic tests
-TEST_UUID = UUID("a53e3495-d681-4a53-84b8-9d9542f7237c")
+TEST_UUID = uuid.UUID("a53e3495-d681-4a53-84b8-9d9542f7237c")
+
+
+class MyModel(pydantic.BaseModel):
+    x: int
+    y: uuid.UUID
+
+
+@dataclass
+class MyDataclass:
+    x: int
+    y: str
+
 
 # Simple test cases that all serializers should support roundtrips for
-SIMPLE_CASES = [1, "test", {"foo": "bar"}, ["x", "y"], TEST_UUID]
+SIMPLE_CASES = [
+    1,
+    "test",
+    {"foo": "bar"},
+    ["x", "y"],
+    TEST_UUID,
+    MyModel(x=1, y=TEST_UUID),
+    MyDataclass(x=1, y="test"),
+]
 
 
 class TestBaseSerializer:
@@ -124,3 +153,90 @@ class TestJSONSerializer:
         serializer = JSONSerializer()
         serialized = serializer.dumps(data)
         assert serializer.loads(serialized) == data
+
+    def test_allows_orjson(self):
+        # orjson does not support hooks
+        serializer = JSONSerializer(
+            jsonlib="orjson", object_encoder=None, object_decoder=None
+        )
+        serialized = serializer.dumps("test")
+        assert serializer.loads(serialized) == "test"
+
+    def test_uses_alternative_json_library(self, monkeypatch):
+        dumps_mock = MagicMock()
+        loads_mock = MagicMock()
+        monkeypatch.setattr("orjson.dumps", dumps_mock)
+        monkeypatch.setattr("orjson.loads", loads_mock)
+        serializer = JSONSerializer(jsonlib="orjson")
+        serializer.dumps("test")
+        serializer.loads(b"test")
+        dumps_mock.assert_called_once_with("test", default=prefect_json_object_encoder)
+        loads_mock.assert_called_once_with(
+            "test", object_hook=prefect_json_object_decoder
+        )
+
+    def test_allows_custom_encoder(self, monkeypatch):
+        fake_object_encoder = MagicMock(return_value="foobar!")
+        prefect_object_encoder = MagicMock()
+
+        monkeypatch.setattr(
+            "prefect.fake_object_encoder", fake_object_encoder, raising=False
+        )
+        monkeypatch.setattr(
+            "prefect.serializers.prefect_json_object_encoder",
+            prefect_object_encoder,
+        )
+
+        serializer = JSONSerializer(object_encoder="prefect.fake_object_encoder")
+
+        # Encoder hooks are only called for unsuipported objects
+        obj = uuid.uuid4()
+        result = serializer.dumps(obj)
+        assert result == b'"foobar!"'
+        prefect_object_encoder.assert_not_called()
+        fake_object_encoder.assert_called_once_with(obj)
+
+    def test_allows_custom_decoder(self, monkeypatch):
+        fake_object_decoder = MagicMock(return_value="test")
+        prefect_object_decoder = MagicMock()
+
+        monkeypatch.setattr(
+            "prefect.fake_object_decoder", fake_object_decoder, raising=False
+        )
+
+        monkeypatch.setattr(
+            "prefect.serializers.prefect_json_object_decoder",
+            prefect_object_decoder,
+        )
+
+        serializer = JSONSerializer(object_decoder="prefect.fake_object_decoder")
+
+        # Decoder hooks are only called for dicts
+        assert serializer.loads(json.dumps({"foo": "bar"}).encode()) == "test"
+        fake_object_decoder.assert_called_once_with({"foo": "bar"})
+        prefect_object_decoder.assert_not_called()
+
+    def test_allows_custom_kwargs(self, monkeypatch):
+        dumps_mock = MagicMock()
+        loads_mock = MagicMock()
+        monkeypatch.setattr("json.dumps", dumps_mock)
+        monkeypatch.setattr("json.loads", loads_mock)
+        serializer = JSONSerializer(
+            dumps_kwargs={"foo": "bar"}, loads_kwargs={"bar": "foo"}
+        )
+        serializer.dumps("test")
+        serializer.loads(b"test")
+        dumps_mock.assert_called_once_with(
+            "test", default=prefect_json_object_encoder, foo="bar"
+        )
+        loads_mock.assert_called_once_with(
+            "test", object_hook=prefect_json_object_decoder, bar="foo"
+        )
+
+    def test_does_not_allow_object_hook_collision(self):
+        with pytest.raises(pydantic.ValidationError):
+            JSONSerializer(loads_kwargs={"object_hook": "foo"})
+
+    def test_does_not_allow_default_collision(self):
+        with pytest.raises(pydantic.ValidationError):
+            JSONSerializer(loads_kwargs={"default": "foo"})

@@ -5,7 +5,7 @@ These serializers are registered for use with `DataDocument` types
 """
 import base64
 import json
-from typing import TYPE_CHECKING, Any, Callable, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 import cloudpickle
 
@@ -39,57 +39,28 @@ def _exception_group_reduce_patch(self: ExceptionGroup):
     return (self.__class__, (self.exceptions,))
 
 
-class PrefectJSONEncoder(json.encoder.JSONEncoder):
-    def default(self, obj):
-        try:
-            return {
-                "__class__": to_qualified_name(obj.__class__),
-                "data": pydantic_encoder(obj),
-            }
-        except TypeError:
-            # Allow the superlcass to raise the `TypeError`
-            pass
-        return super().default(obj)
+def prefect_json_object_encoder(obj: Any) -> Any:
+    """
+    `JSONEncoder.default` for encoding objects into JSON with extended type support.
+
+    Raises a `TypeError` to fallback on other encoders on failure.
+    """
+    return {
+        "__class__": to_qualified_name(obj.__class__),
+        "data": pydantic_encoder(obj),
+    }
 
 
-class PrefectJSONDecoder(json.decoder.JSONDecoder):
-    def __init__(
-        self, *, object_hook: Optional[Callable[[dict], Any]] = None, **kwargs
-    ):
-        # Allow users to specify an object hook still by chaining the hook with our
-        # default
-        object_hook = self.chain_hooks(object_hook, self.class_object_hook)
-        super().__init__(object_hook=object_hook, **kwargs)
-
-    @staticmethod
-    def chain_hooks(*hooks: Optional[Callable[[dict], Any]]):
-        """
-        Chain multiple object hooks, calling each in order until a hook changes the
-        result to a non-dictionary type.
-        """
-
-        def object_hook(result: dict):
-            for hook in hooks:
-                if hook is not None:
-                    result = hook(result)
-                if not isinstance(result, dict):
-                    # The hook handled this type
-                    break
-            return result
-
-        return object_hook
-
-    @staticmethod
-    def class_object_hook(result: dict):
-        """
-        Object hook for restoring objects encoded with the Pydantic encoder at
-        `pydantic.json.pydantic_encoder`
-        """
-        if "__class__" in result:
-            return pydantic.parse_obj_as(
-                from_qualified_name(result["__class__"]), result["data"]
-            )
-        return result
+def prefect_json_object_decoder(result: dict):
+    """
+    `JSONDecoder.object_hook` for decoding objects from JSON when previously encoded
+    with `prefect_json_object_encoder`
+    """
+    if "__class__" in result:
+        return pydantic.parse_obj_as(
+            from_qualified_name(result["__class__"]), result["data"]
+        )
+    return result
 
 
 @add_type_dispatch
@@ -221,21 +192,62 @@ class JSONSerializer(Serializer):
 
     type: Literal["json"] = "json"
     jsonlib: str = "json"
-    encoder_cls: str = "prefect.serializers.PrefectJSONEncoder"
-    decoder_cls: str = "prefect.serializers.PrefectJSONDecoder"
+    object_encoder: Optional[str] = pydantic.Field(
+        default="prefect.serializers.prefect_json_object_encoder",
+        description=(
+            "An optional callable to use when serializing objects that are not "
+            "supported by the JSON encoder. By default, this is set to a callable that "
+            "adds support for all types supported by Pydantic."
+        ),
+    )
+    object_decoder: Optional[str] = pydantic.Field(
+        default="prefect.serializers.prefect_json_object_decoder",
+        description=(
+            "An optional callable to use when deserializing objects. This callable "
+            "is passed each dictionary encountered during JSON deserialization. "
+            "By default, this is set to a callable that deserializes content created "
+            "by our default `object_encoder`."
+        ),
+    )
+    dumps_kwargs: dict = pydantic.Field(default_factory=dict)
+    loads_kwargs: dict = pydantic.Field(default_factory=dict)
+
+    @pydantic.validator("dumps_kwargs")
+    def dumps_kwargs_cannot_contain_default(cls, value):
+        # `default` is set by `object_encoder`. A user provided callable would make this
+        # class unserializable anyway.
+        if "default" in value:
+            raise ValueError(
+                "`default` cannot be provided. Use `object_encoder` instead."
+            )
+        return value
+
+    @pydantic.validator("loads_kwargs")
+    def loads_kwargs_cannot_contain_object_hook(cls, value):
+        # `object_hook` is set by `object_decoder`. A user provided callable would make
+        # this class unserializable anyway.
+        if "object_hook" in value:
+            raise ValueError(
+                "`object_hook` cannot be provided. Use `object_decoder` instead."
+            )
+        return value
 
     def dumps(self, data: Any) -> bytes:
         json = from_qualified_name(self.jsonlib)
-        kwargs = {}
-        if self.encoder_cls:
-            kwargs["cls"] = from_qualified_name(self.encoder_cls)
-        return json.dumps(data, **kwargs).encode()
+        kwargs = self.dumps_kwargs.copy()
+        if self.object_encoder:
+            kwargs["default"] = from_qualified_name(self.object_encoder)
+        result = json.dumps(data, **kwargs)
+        if isinstance(result, str):
+            # The standard library returns str but others may return bytes directly
+            result = result.encode()
+        return result
 
     def loads(self, blob: bytes) -> Any:
         json = from_qualified_name(self.jsonlib)
-        kwargs = {}
-        if self.decoder_cls:
-            kwargs["cls"] = from_qualified_name(self.decoder_cls)
+        kwargs = self.loads_kwargs.copy()
+        if self.object_decoder:
+            kwargs["object_hook"] = from_qualified_name(self.object_decoder)
         return json.loads(blob.decode(), **kwargs)
 
 
