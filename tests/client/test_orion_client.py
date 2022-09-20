@@ -1,8 +1,9 @@
+import datetime
 import random
 import threading
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 from unittest.mock import MagicMock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 import httpx
@@ -18,7 +19,9 @@ from prefect.client import OrionClient, get_client
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import Pending, Running, Scheduled, StateType
 from prefect.settings import (
@@ -897,6 +900,24 @@ async def test_set_then_read_task_run_state(orion_client):
     assert isinstance(run.state, schemas.states.State)
     assert run.state.type == schemas.states.StateType.COMPLETED
     assert run.state.message == "Test!"
+
+
+async  def test_read_filtered_logs(
+        session, orion_client, deployment
+        ):
+
+    flow_runs = [uuid4() for i in range(5)]
+    logs = [LogCreate(name="prefect.flow_runs", level=20, message=f"Log from flow_run {id}.", timestamp=datetime.now(
+        tz=timezone.utc), flow_run_id=id)
+            for id in flow_runs]
+    for i in flow_runs:
+        await orion_client.create_logs(logs)
+
+    logs = await orion_client.read_logs(log_filter=LogFilter(flow_run_id=LogFilterFlowRunId(any_=flow_runs[:3])))
+    for log in logs:
+        assert log.flow_run_id in flow_runs[:3]
+        assert log.flow_run_id not in flow_runs[3:]
+
 
 
 class TestResolveDataDoc:
