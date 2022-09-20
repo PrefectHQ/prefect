@@ -4,6 +4,7 @@ from typing import Type
 from urllib.request import urlopen
 
 import pytest
+from PIL import Image
 
 from prefect.blocks.core import Block
 
