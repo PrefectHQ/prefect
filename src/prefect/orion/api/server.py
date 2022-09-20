@@ -334,9 +334,8 @@ def create_app(
         should_override = bool(os.environ.get("PREFECT_ORION_DEV_UPDATE_BLOCKS"))
 
         session = await db.session()
-        await run_block_auto_registration(
-            session=session, should_override=should_override
-        )
+        async with session:
+            await run_block_auto_registration(session=session)
 
     async def start_services():
         """Start additional services when the Orion API starts up."""

@@ -104,10 +104,7 @@ async def _register_blocks_in_registry(session: sa.orm.Session):
     from prefect.blocks.core import Block
     from prefect.utilities.dispatch import get_registry_for_type
 
-    block_registry = get_registry_for_type(Block)
-
-    if block_registry is None:
-        return
+    block_registry = get_registry_for_type(Block) or {}
 
     for block_class in block_registry.values():
         # each block schema gets its own transaction
@@ -133,11 +130,12 @@ async def _register_collection_blocks(session: sa.orm.Session):
     ]
     for block_type in block_types:
         async with session.begin():
+            block_schemas = block_type.pop("block_schemas", [])
             block_type_id = await register_block_type(
                 session=session,
                 block_type=schemas.core.BlockType.parse_obj(block_type),
             )
-            for block_schema in block_type["block_schemas"]:
+            for block_schema in block_schemas:
                 await register_block_schema(
                     session=session,
                     block_schema=schemas.core.BlockSchema.parse_obj(
@@ -154,6 +152,5 @@ async def run_block_auto_registration(session: sa.orm.Session):
     Args:
         session: A database session.
     """
-    async with session:
-        await _register_blocks_in_registry(session)
-        await _register_collection_blocks(session=session)
+    await _register_blocks_in_registry(session)
+    await _register_collection_blocks(session=session)
