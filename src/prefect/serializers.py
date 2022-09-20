@@ -23,7 +23,6 @@ from typing import Any, Generic, TypeVar
 
 import cloudpickle
 import pydantic
-from anyio._core._exceptions import ExceptionGroup
 from pydantic import BaseModel
 from pydantic.json import pydantic_encoder
 from typing_extensions import Literal
@@ -33,10 +32,6 @@ from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 from prefect.utilities.pydantic import add_type_dispatch
 
 D = TypeVar("D")
-
-
-def _exception_group_reduce_patch(self: ExceptionGroup):
-    return (self.__class__, (self.exceptions,))
 
 
 def prefect_json_object_encoder(obj: Any) -> Any:
