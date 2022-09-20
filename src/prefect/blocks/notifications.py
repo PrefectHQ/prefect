@@ -59,3 +59,38 @@ class SlackWebhook(NotificationBlock):
     @sync_compatible
     async def notify(self, body: str, subject: Optional[str] = None):
         await self._async_webhook_client.send(text=body)
+
+
+class TeamsWebhook(NotificationBlock):
+    """
+    Enables sending notifications via a provided Microsoft Teams webhook.
+    Args:
+        url (SecretStr): Teams webhook URL which can be used to send messages
+    Examples:
+        Load a saved Teams webhook and send a message:
+        ```python
+        from prefect.blocks.notifications import TeamsWebhook
+        teams_webhook_block = TeamsWebhook.load("BLOCK_NAME")
+        teams_webhook_block.notify("Hello from Prefect!")
+        ```
+    """
+
+    _block_type_name = "MS Teams Webhook"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6n0dSTBzwoVPhX8Vgg37i7/9040e07a62def4f48242be3eae6d3719/teams_logo.png?h=250"
+
+    url: SecretStr = Field(
+        ...,
+        title="Webhook URL",
+        description="The Teams incoming webhook URL used to send notifications.",
+        example="https://your-org.webhook.office.com/webhookb2/XXX/IncomingWebhook/YYY/ZZZ",
+    )
+
+    def block_initialization(self) -> None:
+        from httpx import AsyncClient
+        self._async_webhook_client = AsyncClient()
+
+    @sync_compatible
+    async def notify(self, body: str, subject: Optional[str] = None):
+        print(self.url.get_secret_value())
+        await self._async_webhook_client.post(url=self.url.get_secret_value(), json={"text": body})
+
