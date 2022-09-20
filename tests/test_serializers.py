@@ -114,6 +114,12 @@ class TestBaseSerializer:
         class Bar(Serializer):
             type = "bar"
 
+            def dumps(self, obj):
+                pass
+
+            def loads(self, obj):
+                pass
+
         model = Foo(serializer="bar")
         assert isinstance(model.serializer, Bar)
 
