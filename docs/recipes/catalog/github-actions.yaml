@@ -1,7 +1,7 @@
-recipeName: Deployment from GitHub
+recipeName: Deployment from GitHub Actions
 author: Prefect
 authorUrl: https://prefect.io
-description: Create a deployment when pushing to a branch using GitHub Actions.
+description: Create a deployment with storage and infrastructure blocks on push to branch with GitHub Actions.
 topic: GitHub
 recipeUrl: https://github.com/PrefectHQ/prefect-recipes/blob/main/devops/github-actions/general-docker-deploy.yaml
 iconUrl: 
