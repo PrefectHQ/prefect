@@ -4,7 +4,10 @@ from typing import Generic, Iterable, Optional, Type, TypeVar, Union, overload
 
 from pydantic import Field
 
-from prefect.orion import orchestration, schemas
+from prefect.orion import schemas
+from prefect.orion.orchestration.rules import (
+    OrchestrationResult as ServerOrchestrationResult,
+)
 
 R = TypeVar("R")
 
@@ -229,5 +232,5 @@ class TaskRun(schemas.core.TaskRun.subclass()):
     state: Optional[State] = Field(default=None)
 
 
-class OrchestrationResult(orchestration.rules.OrchestrationResult.subclass()):
+class OrchestrationResult(ServerOrchestrationResult.subclass()):
     state: Optional[State]
