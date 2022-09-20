@@ -21,6 +21,35 @@ class NotificationBlock(Block, ABC):
         """
 
 
+class AppriseNotificationBlock(NotificationBlock):
+    """
+        A base class for sending notifications using Apprise.
+    """
+
+    url: SecretStr = Field(
+        default=...,
+        title="Webhook URL",
+        description="Slack incoming webhook URL used to send notifications.",
+        example="https://hooks.slack.com/XXX",
+    )
+
+    def block_initialization(self) -> None:
+        from apprise import Apprise, AppriseAsset
+
+        asset = AppriseAsset(
+            app_id="Prefect Notifications",
+            app_desc="Prefect Notifications",
+            app_url="https://prefect.io",
+        )
+
+        self._apprise_client = Apprise().instantiate(self.url.get_secret_value(), asset=asset)
+        self._apprise_client.include_image = False
+
+    @sync_compatible
+    async def notify(self, body: str, subject: Optional[str] = None):
+        await self._apprise_client.async_notify(body=body, title=subject)
+
+
 # TODO: Move to prefect-slack once collection block auto-registration is
 # available
 class SlackWebhook(NotificationBlock):
