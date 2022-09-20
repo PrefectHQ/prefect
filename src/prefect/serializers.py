@@ -66,9 +66,11 @@ class Serializer(BaseModel, Generic[D], abc.ABC):
 
     type: str
 
+    @abc.abstractmethod
     def dumps(self, obj: D) -> bytes:
         """Encode the object into a blob of bytes."""
 
+    @abc.abstractmethod
     def loads(self, blob: bytes) -> D:
         """Decode the blob of bytes into an object."""
 
