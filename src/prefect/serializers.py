@@ -5,7 +5,7 @@ These serializers are registered for use with `DataDocument` types
 """
 import base64
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable, List, Optional
 
 import cloudpickle
 
@@ -25,10 +25,11 @@ import cloudpickle
 import pydantic
 from anyio._core._exceptions import ExceptionGroup
 from pydantic import BaseModel
+from pydantic.json import pydantic_encoder
 from typing_extensions import Literal
 
 from prefect.orion.serializers import register_serializer
-from prefect.utilities.importtools import from_qualified_name
+from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 from prefect.utilities.pydantic import add_type_dispatch
 
 D = TypeVar("D")
@@ -36,6 +37,59 @@ D = TypeVar("D")
 
 def _exception_group_reduce_patch(self: ExceptionGroup):
     return (self.__class__, (self.exceptions,))
+
+
+class PrefectJSONEncoder(json.encoder.JSONEncoder):
+    def default(self, obj):
+        try:
+            return {
+                "__class__": to_qualified_name(obj.__class__),
+                "data": pydantic_encoder(obj),
+            }
+        except TypeError:
+            # Allow the superlcass to raise the `TypeError`
+            pass
+        return super().default(obj)
+
+
+class PrefectJSONDecoder(json.decoder.JSONDecoder):
+    def __init__(
+        self, *, object_hook: Optional[Callable[[dict], Any]] = None, **kwargs
+    ):
+        # Allow users to specify an object hook still by chaining the hook with our
+        # default
+        object_hook = self.chain_hooks(object_hook, self.class_object_hook)
+        super().__init__(object_hook=object_hook, **kwargs)
+
+    @staticmethod
+    def chain_hooks(*hooks: Optional[Callable[[dict], Any]]):
+        """
+        Chain multiple object hooks, calling each in order until a hook changes the
+        result to a non-dictionary type.
+        """
+
+        def object_hook(result: dict):
+            for hook in hooks:
+                if hook is not None:
+                    result = hook(result)
+                if not isinstance(result, dict):
+                    # The hook handled this type
+                    break
+            return result
+
+        return object_hook
+
+    @staticmethod
+    def class_object_hook(result: dict):
+        """
+        Object hook for restoring objects encoded with the Pydantic encoder at
+        `pydantic.json.pydantic_encoder`
+        """
+        if "__class__" in result:
+            return pydantic.parse_obj_as(
+                from_qualified_name(result["__class__"]), result["data"]
+            )
+        return result
 
 
 @add_type_dispatch
@@ -52,10 +106,18 @@ class Serializer(BaseModel, Generic[D], abc.ABC):
     def loads(self, blob: bytes) -> D:
         """Decode the blob of bytes into an object."""
 
+    class Config:
+        extra = "forbid"
+
 
 class PickleSerializer(Serializer):
     """
     Serializes objects using the pickle protocol.
+
+    If using cloudpickle, you may specify a list of 'pickle_modules'. These modules will
+    be serialized by value instead of by reference, which means they do not have to be
+    installed in the runtime location. This is especially useful for serializing objects
+    that rely on local packages.
 
     Wraps pickles in base64 for safe transmission.
     """
@@ -64,6 +126,7 @@ class PickleSerializer(Serializer):
 
     picklelib: str = "cloudpickle"
     picklelib_version: str = None
+    pickle_modules: List[str] = pydantic.Field(default_factory=list)
 
     @pydantic.validator("picklelib")
     def check_picklelib(cls, value):
@@ -117,15 +180,28 @@ class PickleSerializer(Serializer):
 
         return values
 
+    @pydantic.root_validator
+    def check_picklelib_and_modules(cls, values):
+        """
+        Prevents modules from being specified if picklelib is not cloudpickle
+        """
+        if values.get("picklelib") != "cloudpickle" and values.get("pickle_modules"):
+            raise ValueError(
+                f"`pickle_modules` cannot be used without 'cloudpickle'. Got {values.get('picklelib')!r}."
+            )
+        return values
+
     def dumps(self, obj: Any) -> bytes:
         pickler = from_qualified_name(self.picklelib)
 
-        # Workaround for exception group type which is otherwise not recoverable after
-        # serialization
-        if isinstance(obj, ExceptionGroup):
-            obj.__reduce__ = _exception_group_reduce_patch
+        for module in self.pickle_modules:
+            pickler.register_pickle_by_value(from_qualified_name(module))
 
         blob = pickler.dumps(obj)
+
+        for module in self.pickle_modules:
+            # Restore the pickler settings
+            pickler.unregister_pickle_by_value(from_qualified_name(module))
 
         return base64.encodebytes(blob)
 
@@ -134,12 +210,41 @@ class PickleSerializer(Serializer):
         return pickler.loads(base64.decodebytes(blob))
 
 
+class JSONSerializer(Serializer):
+    """
+    Serializes data to JSON.
+
+    Input types must be compatible with the stdlib json library.
+
+    Wraps the `json` library to serialize to UTF-8 bytes instead of string types.
+    """
+
+    type: Literal["json"] = "json"
+    jsonlib: str = "json"
+    encoder_cls: str = "prefect.serializers.PrefectJSONEncoder"
+    decoder_cls: str = "prefect.serializers.PrefectJSONDecoder"
+
+    def dumps(self, data: Any) -> bytes:
+        json = from_qualified_name(self.jsonlib)
+        kwargs = {}
+        if self.encoder_cls:
+            kwargs["cls"] = from_qualified_name(self.encoder_cls)
+        return json.dumps(data, **kwargs).encode()
+
+    def loads(self, blob: bytes) -> Any:
+        json = from_qualified_name(self.jsonlib)
+        kwargs = {}
+        if self.decoder_cls:
+            kwargs["cls"] = from_qualified_name(self.decoder_cls)
+        return json.loads(blob.decode(), **kwargs)
+
+
 # DEPRECATED
 # Data document serializers ----------------
 
 
 @register_serializer("json")
-class JSONSerializer:
+class DocumentJSONSerializer:
     """
     Serializes data to JSON.
 
@@ -169,7 +274,7 @@ class TextSerializer:
 
 
 @register_serializer("cloudpickle")
-class PickleSerializer:
+class DocumentPickleSerializer:
     """
     Serializes arbitrary objects using the pickle protocol.
 
