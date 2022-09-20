@@ -46,15 +46,15 @@ class BaseDockerLogin(Block, ABC):
     _block_schema_capabilities = ["docker-login"]
 
     @abstractmethod
-    async def login() -> None:
+    async def login() -> "DockerClient":
         """
-        Log in with `docker login`, persisting credentials.
+        Log in with and return an authenticated DockerClient.
         """
 
-    def _login(self, username, password, registry_url, reauth):
+    def _login(self, username, password, registry_url, reauth) -> "DockerClient":
         client = self._get_docker_client()
 
-        return client.login(
+        client.login(
             username=username,
             password=password,
             registry=registry_url,
@@ -62,6 +62,8 @@ class BaseDockerLogin(Block, ABC):
             # the default value for reauth.
             reauth=reauth,
         )
+
+        return client
 
     def _get_docker_client(self):
         try:
@@ -87,8 +89,7 @@ class DockerRegistry(BaseDockerLogin):
     """
     Connects to a Docker registry.
 
-    Requires a Docker Engine to be connectable. Login information is persisted to disk
-    at the Docker default location.
+    Requires a Docker Engine to be connectable.
 
     Attributes:
         username: The username to log into the registry with.
@@ -117,7 +118,7 @@ class DockerRegistry(BaseDockerLogin):
     )
 
     @sync_compatible
-    async def login(self):
+    async def login(self) -> "DockerClient":
         return await run_sync_in_worker_thread(
             self._login,
             self.username,
@@ -285,7 +286,18 @@ class DockerContainer(Infrastructure):
         )
 
     def _create_and_start_container(self) -> "Container":
-        docker_client = self._get_client()
+        if self.image_registry:
+            # If an image registry block was supplied, load an authenticated Docker
+            # client from the block. Otherwise, use an unauthenticated client to 
+            # pull images from public registries.
+            docker_client = self.image_registry.login()
+            # When using a private registry, the image name must include the registry address,
+            # even when using Docker Hub.
+            registry_address = re.sub("^https?://", "", self.image_registry.registry_url)
+            self.image = (self.image if self.image.startswith(registry_address) 
+                     else f"{registry_address}/{self.image}")
+        else:
+            docker_client = self._get_client()
 
         container_settings = self._build_container_settings(docker_client)
 
@@ -400,8 +412,7 @@ class DockerContainer(Infrastructure):
         Pull the image we're going to use to create the container.
         """
         image, tag = self._get_image_and_tag()
-        if self.image_registry:
-            self.image_registry.login()
+
         return docker_client.images.pull(image, tag)
 
     def _create_container(self, docker_client: "DockerClient", **kwargs) -> "Container":
