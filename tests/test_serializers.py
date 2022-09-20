@@ -60,6 +60,12 @@ class TestBaseSerializer:
         class Foo(Serializer):
             type = "foo"
 
+            def dumps(self, obj):
+                pass
+
+            def loads(self, obj):
+                pass
+
         with pytest.raises(pydantic.ValidationError):
             Foo(x="test")
 
@@ -70,6 +76,12 @@ class TestBaseSerializer:
         class Bar(Serializer):
             type = "bar"
 
+            def dumps(self, obj):
+                pass
+
+            def loads(self, obj):
+                pass
+
         model = Foo(serializer={"type": "bar"})
         assert isinstance(model.serializer, Bar)
 
@@ -79,6 +91,12 @@ class TestBaseSerializer:
 
         class Bar(Serializer):
             type = "bar"
+
+            def dumps(self, obj):
+                pass
+
+            def loads(self, obj):
+                pass
 
         model = Foo(serializer=Bar())
         assert isinstance(model.serializer, Bar)
@@ -239,4 +257,4 @@ class TestJSONSerializer:
 
     def test_does_not_allow_default_collision(self):
         with pytest.raises(pydantic.ValidationError):
-            JSONSerializer(loads_kwargs={"default": "foo"})
+            JSONSerializer(dumps_kwargs={"default": "foo"})
