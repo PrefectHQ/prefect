@@ -123,22 +123,6 @@ class TestRemoteFileSystem:
             "/flat/shared_libs.py",
         }
 
-    def test_put_directory_flat_sync(self):
-        fs = RemoteFileSystem(basepath="memory://flat")
-        fs.put_directory(
-            os.path.join(TEST_PROJECTS_DIR, "flat-project"),
-            ignore_file=os.path.join(
-                TEST_PROJECTS_DIR, "flat-project", ".prefectignore"
-            ),
-        )
-        copied_files = set(fs.filesystem.glob("/flat/**"))
-
-        assert copied_files == {
-            "/flat/explicit_relative.py",
-            "/flat/implicit_relative.py",
-            "/flat/shared_libs.py",
-        }
-
     async def test_put_directory_tree(self):
         fs = RemoteFileSystem(basepath="memory://tree")
         await fs.put_directory(
