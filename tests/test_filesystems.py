@@ -27,10 +27,21 @@ class TestLocalFileSystem:
         assert (tmp_path / "folder").exists()
         assert (tmp_path / "folder" / "test.txt").read_text() == "hello"
 
+    def test_write_with_missing_directory_creates_sync(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+        fs.write_path(Path("folder") / "test.txt", content=b"hello")
+        assert (tmp_path / "folder").exists()
+        assert (tmp_path / "folder" / "test.txt").read_text() == "hello"
+
     async def test_write_outside_of_basepath(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path / "foo"))
         with pytest.raises(ValueError, match="..."):
             await fs.write_path(tmp_path / "bar" / "test.txt", content=b"hello")
+
+    def test_write_outside_of_basepath_sync(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path / "foo"))
+        with pytest.raises(ValueError, match="..."):
+            fs.write_path(tmp_path / "bar" / "test.txt", content=b"hello")
 
     async def test_read_fails_for_directory(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
@@ -38,7 +49,20 @@ class TestLocalFileSystem:
         with pytest.raises(ValueError, match="not a file"):
             await fs.read_path(tmp_path / "folder")
 
+    def test_read_fails_for_directory_sync(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+        (tmp_path / "folder").mkdir()
+        with pytest.raises(ValueError, match="not a file"):
+            fs.read_path(tmp_path / "folder")
+
     async def test_resolve_path(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+
+        assert fs._resolve_path(tmp_path) == tmp_path
+        assert fs._resolve_path(tmp_path / "subdirectory") == tmp_path / "subdirectory"
+        assert fs._resolve_path("subdirectory") == tmp_path / "subdirectory"
+
+    def test_resolve_path_sync(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
 
         assert fs._resolve_path(tmp_path) == tmp_path
@@ -57,6 +81,9 @@ class TestRemoteFileSystem:
         ):
             RemoteFileSystem(basepath="memory://")
 
+    def test_fails_basepath_is_file(self, tmp_path):
+        assert not tmp_path.is_file()
+
     async def test_read_write_roundtrip(self):
         fs = RemoteFileSystem(basepath="memory://root")
         await fs.write_path("test.txt", content=b"hello")
@@ -72,15 +99,30 @@ class TestRemoteFileSystem:
         await fs.write_path("memory://root/folder/test.txt", content=b"hello")
         assert await fs.read_path("folder/test.txt") == b"hello"
 
+    def test_write_with_missing_directory_succeeds_sync(self):
+        fs = RemoteFileSystem(basepath="memory://root/")
+        fs.write_path("memory://root/folder/test.txt", content=b"hello")
+        assert fs.read_path("folder/test.txt") == b"hello"
+
     async def test_write_outside_of_basepath_netloc(self):
         fs = RemoteFileSystem(basepath="memory://foo")
         with pytest.raises(ValueError, match="is outside of the base path"):
             await fs.write_path("memory://bar/test.txt", content=b"hello")
 
+    def test_write_outside_of_basepath_netloc_sync(self):
+        fs = RemoteFileSystem(basepath="memory://foo")
+        with pytest.raises(ValueError, match="is outside of the base path"):
+            fs.write_path("memory://bar/test.txt", content=b"hello")
+
     async def test_write_outside_of_basepath_subpath(self):
         fs = RemoteFileSystem(basepath="memory://root/foo")
         with pytest.raises(ValueError, match="is outside of the base path"):
             await fs.write_path("memory://root/bar/test.txt", content=b"hello")
+
+    def test_write_outside_of_basepath_subpath_sync(self):
+        fs = RemoteFileSystem(basepath="memory://root/foo")
+        with pytest.raises(ValueError, match="is outside of the base path"):
+            fs.write_path("memory://root/bar/test.txt", content=b"hello")
 
     async def test_write_to_different_scheme(self):
         fs = RemoteFileSystem(basepath="memory://foo")
@@ -90,10 +132,23 @@ class TestRemoteFileSystem:
         ):
             await fs.write_path("file://foo/test.txt", content=b"hello")
 
+    def test_write_to_different_scheme_sync(self):
+        fs = RemoteFileSystem(basepath="memory://foo")
+        with pytest.raises(
+            ValueError,
+            match="with scheme 'file' must use the same scheme as the base path 'memory'",
+        ):
+            fs.write_path("file://foo/test.txt", content=b"hello")
+
     async def test_read_fails_does_not_exist(self):
         fs = RemoteFileSystem(basepath="memory://root")
         with pytest.raises(FileNotFoundError):
             await fs.read_path("foo/bar")
+
+    def test_read_fails_does_not_exist_sync(self):
+        fs = RemoteFileSystem(basepath="memory://root")
+        with pytest.raises(FileNotFoundError):
+            fs.read_path("foo/bar")
 
     async def test_resolve_path(self):
         base = "memory://root"
