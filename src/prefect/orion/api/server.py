@@ -326,8 +326,8 @@ def create_app(
         if not prefect.settings.PREFECT_ORION_BLOCKS_REGISTER_ON_START:
             return
 
-        from prefect.blocks.registration import run_block_auto_registration
         from prefect.orion.database.dependencies import provide_database_interface
+        from prefect.orion.models.block_registration import run_block_auto_registration
 
         db = provide_database_interface()
 

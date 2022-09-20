@@ -1,18 +1,71 @@
 import json
 from pathlib import Path
 
-from sqlalchemy.ext.asyncio import AsyncSession
+import sqlalchemy as sa
 
 import prefect.orion.schemas as schemas
+from prefect.logging import get_logger
 
-COLLECTIONS_BLOCKS_DATA_PATH = Path(__file__).parent / "collection_blocks_data.json"
+logger = get_logger("orion")
+
+COLLECTIONS_BLOCKS_DATA_PATH = (
+    Path(__file__).parent.parent.parent / "collection_blocks_data.json"
+)
+
+
+async def register_block_schema(
+    session: sa.orm.Session,
+    block_schema: schemas.core.BlockSchema,
+):
+    """
+    Stores the provided block schema in the Orion database.
+
+    If a block schema with a matching checksum and version is already saved,
+    then the ID of the existing block schema will be returned.
+
+    Args:
+        session: A database session.
+        block_schema: A block schema object.
+
+    Returns:
+        The ID of the registered block schema.
+    """
+
+    from prefect.orion.models.block_schemas import (
+        create_block_schema,
+        read_block_schema_by_checksum,
+    )
+
+    existing_block_schema = await read_block_schema_by_checksum(
+        session=session, checksum=block_schema.checksum, version=block_schema.version
+    )
+    if existing_block_schema is None:
+        block_schema = await create_block_schema(
+            session=session,
+            block_schema=block_schema,
+        )
+        return block_schema.id
+    else:
+        return existing_block_schema.id
 
 
 async def register_block_type(
-    session: AsyncSession,
+    session: sa.orm.Session,
     block_type: schemas.core.BlockType,
-    should_override: bool = False,
 ):
+    """
+    Stores the provided block type in the Orion database.
+
+    If a block type with a matching slug is already saved, then the block type
+    will be updated to match the passed in block type.
+
+    Args:
+        session: A database session.
+        block_type: A block type object.
+
+    Returns:
+        The ID of the registered block type.
+    """
     from prefect.orion.models.block_types import (
         create_block_type,
         read_block_type_by_slug,
@@ -23,11 +76,10 @@ async def register_block_type(
         session=session,
         block_type_slug=block_type.slug,
     )
-    if existing_block_type is None or should_override:
+    if existing_block_type is None:
         block_type = await create_block_type(
             session=session,
             block_type=block_type,
-            override=should_override,
         )
         return block_type.id
     else:
@@ -39,40 +91,16 @@ async def register_block_type(
         return existing_block_type.id
 
 
-async def register_block_schema(
-    session: AsyncSession,
-    block_schema: schemas.core.BlockSchema,
-    should_override: bool = False,
-):
-    from prefect.orion.models.block_schemas import (
-        create_block_schema,
-        read_block_schema_by_checksum,
-    )
-
-    existing_block_schema = await read_block_schema_by_checksum(
-        session=session, checksum=block_schema.checksum, version=block_schema.version
-    )
-    if existing_block_schema is None or should_override:
-        block_schema = await create_block_schema(
-            session=session,
-            block_schema=block_schema,
-            override=should_override,
-        )
-        return block_schema.id
-    else:
-        return existing_block_schema.id
-
-
 async def _load_collection_blocks_data():
+    """Loads blocks data for whitelisted collections."""
     import aiofiles
 
     async with aiofiles.open(COLLECTIONS_BLOCKS_DATA_PATH, "r") as f:
         return json.loads(await f.read())
 
 
-async def _register_blocks_in_registry(
-    session: AsyncSession, should_override: bool = False
-):
+async def _register_blocks_in_registry(session: sa.orm.Session):
+    """Registers block from the client block registry."""
     from prefect.blocks.core import Block
     from prefect.utilities.dispatch import get_registry_for_type
 
@@ -87,18 +115,15 @@ async def _register_blocks_in_registry(
             block_type_id = await register_block_type(
                 session=session,
                 block_type=block_class._to_block_type(),
-                should_override=should_override,
             )
             await register_block_schema(
                 session=session,
                 block_schema=block_class._to_block_schema(block_type_id=block_type_id),
-                should_override=should_override,
             )
 
 
-async def _register_collection_blocks(
-    session: AsyncSession, should_override: bool = False
-):
+async def _register_collection_blocks(session: sa.orm.Session):
+    """Registers blocks from whitelisted collections."""
     collections_blocks_data = await _load_collection_blocks_data()
 
     block_types = [
@@ -111,24 +136,24 @@ async def _register_collection_blocks(
             block_type_id = await register_block_type(
                 session=session,
                 block_type=schemas.core.BlockType.parse_obj(block_type),
-                should_override=should_override,
             )
             for block_schema in block_type["block_schemas"]:
-                print({**block_schema, "block_type_id": block_type_id})
                 await register_block_schema(
                     session=session,
                     block_schema=schemas.core.BlockSchema.parse_obj(
                         {**block_schema, "block_type_id": block_type_id}
                     ),
-                    should_override=should_override,
                 )
 
 
-async def run_block_auto_registration(
-    session: AsyncSession, should_override: bool = False
-):
+async def run_block_auto_registration(session: sa.orm.Session):
+    """
+    Registers all blocks in the client block registry and any blocks from Prefect
+    Collections that are configured for auto-registration.
+
+    Args:
+        session: A database session.
+    """
     async with session:
-        await _register_blocks_in_registry(session, should_override=should_override)
-        await _register_collection_blocks(
-            session=session, should_override=should_override
-        )
+        await _register_blocks_in_registry(session)
+        await _register_collection_blocks(session=session)
