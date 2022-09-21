@@ -1,9 +1,12 @@
 import datetime
 from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar, Union, overload
+import warnings
+from typing import Any, Generic, Iterable, Optional, Type, TypeVar, Union, overload
 
 from pydantic import Field
 
 from prefect.orion import schemas
+from prefect.utilities.asyncutils import sync_compatible
 
 if TYPE_CHECKING:
     from prefect.deprecated.data_documents import DataDocument
@@ -67,7 +70,7 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             >>> @flow
             >>> def my_flow():
             >>>     return "hello"
-            >>> my_flow().result()
+            >>> my_flow(return_state=True).result()
             hello
 
             Get the result from a failed state
@@ -75,7 +78,7 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             >>> @flow
             >>> def my_flow():
             >>>     raise ValueError("oh no!")
-            >>> state = my_flow()  # Error is wrapped in FAILED state
+            >>> state = my_flow(return_state=True)  # Error is wrapped in FAILED state
             >>> state.result()  # Raises `ValueError`
 
             Get the result from a failed state without erroring
@@ -83,10 +86,20 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             >>> @flow
             >>> def my_flow():
             >>>     raise ValueError("oh no!")
-            >>> state = my_flow()
+            >>> state = my_flow(return_state=True)
             >>> result = state.result(raise_on_failure=False)
             >>> print(result)
             ValueError("oh no!")
+
+
+            Get the result from a flow state in an async context
+
+            >>> @flow
+            >>> async def my_flow():
+            >>>     return "hello"
+            >>> state = await my_flow(return_state=True)
+            >>> await state.result()
+            hello
         """
         from prefect.deprecated.data_documents import (
             DataDocument,

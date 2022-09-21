@@ -163,7 +163,7 @@ class TestOrchestrateTaskRun:
             )
 
         assert state.is_completed()
-        assert state.result() == 1
+        assert await state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
         self, orion_client, flow_run, mock_anyio_sleep, result_factory, local_filesystem
@@ -197,7 +197,7 @@ class TestOrchestrateTaskRun:
 
         mock_anyio_sleep.assert_not_called()
         assert state.is_completed()
-        assert state.result() == 1
+        assert await state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
         self, mock_anyio_sleep, orion_client, flow_run, result_factory, local_filesystem
@@ -236,7 +236,7 @@ class TestOrchestrateTaskRun:
             )
 
         # Check for a proper final result
-        assert state.result() == 1
+        assert await state.result() == 1
 
         # Check expected state transitions
         states = await orion_client.read_task_run_states(task_run.id)
@@ -473,7 +473,7 @@ class TestOrchestrateFlowRun:
                 partial_flow_run_context=partial_flow_run_context,
             )
 
-        assert state.result() == 1
+        assert await state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
         self, orion_client, mock_anyio_sleep, partial_flow_run_context
@@ -505,7 +505,7 @@ class TestOrchestrateFlowRun:
             )
 
         mock_anyio_sleep.assert_not_called()
-        assert state.result() == 1
+        assert await state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
         self, orion_client, mock_anyio_sleep, partial_flow_run_context
@@ -539,7 +539,7 @@ class TestOrchestrateFlowRun:
             )
 
         # Check for a proper final result
-        assert state.result() == 1
+        assert await state.result() == 1
 
         # Check expected state transitions
         states = await orion_client.read_flow_run_states(flow_run.id)
@@ -599,7 +599,7 @@ class TestFlowRunCrashes:
             in flow_run.state.message
         )
         assert exceptions_equal(
-            flow_run.state.result(raise_on_failure=False),
+            await flow_run.state.result(raise_on_failure=False),
             anyio.get_cancelled_exc_class()(),
         )
 
@@ -633,7 +633,7 @@ class TestFlowRunCrashes:
         assert parent_flow_run.state.is_crashed()
         assert parent_flow_run.state.type == StateType.CRASHED
         assert exceptions_equal(
-            parent_flow_run.state.result(raise_on_failure=False),
+            await parent_flow_run.state.result(raise_on_failure=False),
             anyio.get_cancelled_exc_class()(),
         )
 
@@ -667,7 +667,7 @@ class TestFlowRunCrashes:
         assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
         assert exceptions_equal(
-            flow_run.state.result(raise_on_failure=False), interrupt_type()
+            await flow_run.state.result(raise_on_failure=False), interrupt_type()
         )
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
@@ -693,7 +693,7 @@ class TestFlowRunCrashes:
         assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
         with pytest.warns(UserWarning, match="not safe to re-raise"):
-            assert exceptions_equal(flow_run.state.result(), interrupt_type())
+            assert exceptions_equal(await flow_run.state.result(), interrupt_type())
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_in_flow_function_crashes_subflow(
@@ -867,7 +867,7 @@ class TestTaskRunCrashes:
         assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
         with pytest.warns(UserWarning, match="not safe to re-raise"):
-            assert exceptions_equal(flow_run.state.result(), interrupt_type())
+            assert exceptions_equal(await flow_run.state.result(), interrupt_type())
 
         task_runs = await orion_client.read_task_runs()
         assert len(task_runs) == 1
@@ -876,7 +876,7 @@ class TestTaskRunCrashes:
         assert task_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in task_run.state.message
         with pytest.warns(UserWarning, match="not safe to re-raise"):
-            assert exceptions_equal(task_run.state.result(), interrupt_type())
+            assert exceptions_equal(await task_run.state.result(), interrupt_type())
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_in_task_orchestration_crashes_task_and_flow(
@@ -905,7 +905,7 @@ class TestTaskRunCrashes:
         assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
         with pytest.warns(UserWarning, match="not safe to re-raise"):
-            assert exceptions_equal(flow_run.state.result(), interrupt_type())
+            assert exceptions_equal(await flow_run.state.result(), interrupt_type())
 
         task_runs = await orion_client.read_task_runs()
         assert len(task_runs) == 1
@@ -914,7 +914,7 @@ class TestTaskRunCrashes:
         assert task_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in task_run.state.message
         with pytest.warns(UserWarning, match="not safe to re-raise"):
-            assert exceptions_equal(task_run.state.result(), interrupt_type())
+            assert exceptions_equal(await task_run.state.result(), interrupt_type())
 
     async def test_error_in_task_orchestration_crashes_task_but_not_flow(
         self, flow_run, orion_client, monkeypatch
@@ -943,7 +943,7 @@ class TestTaskRunCrashes:
         assert flow_run.state.name == "Failed"
         assert "1/1 states failed" in flow_run.state.message
 
-        task_run_states = state.result(raise_on_failure=False)
+        task_run_states = await state.result(raise_on_failure=False)
         assert len(task_run_states) == 1
         task_run_state = task_run_states[0]
         assert task_run_state.is_crashed()
@@ -953,7 +953,7 @@ class TestTaskRunCrashes:
             in task_run_state.message
         )
         assert exceptions_equal(
-            task_run_state.result(raise_on_failure=False), exception
+            await task_run_state.result(raise_on_failure=False), exception
         )
 
         # Check that the state was reported to the server
@@ -990,7 +990,7 @@ class TestDeploymentFlowRun:
         state = await retrieve_flow_then_begin_flow_run(
             flow_run.id, client=orion_client
         )
-        assert state.result() == 1
+        assert await state.result() == 1
 
     async def test_retries_loaded_from_flow_definition(
         self, orion_client, patch_manifest_load, mock_anyio_sleep
@@ -1040,7 +1040,7 @@ class TestDeploymentFlowRun:
         )
         assert state.is_failed()
         with pytest.raises(ValueError, match="test!"):
-            state.result()
+            await state.result()
 
     async def test_parameters_are_cast_to_correct_type(
         self, orion_client, patch_manifest_load
@@ -1059,7 +1059,7 @@ class TestDeploymentFlowRun:
         state = await retrieve_flow_then_begin_flow_run(
             flow_run.id, client=orion_client
         )
-        assert state.result() == 1
+        assert await state.result() == 1
 
     async def test_state_is_failed_when_parameters_fail_validation(
         self, orion_client, patch_manifest_load
@@ -1084,7 +1084,7 @@ class TestDeploymentFlowRun:
             == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - x: value is not a valid integer')"
         )
         with pytest.raises(ParameterTypeError, match="value is not a valid integer"):
-            state.result()
+            await state.result()
 
 
 class TestDynamicKeyHandling:

@@ -11,6 +11,7 @@ import pendulum
 from pydantic import Field, root_validator, validator
 
 from prefect.orion.utilities.schemas import DateTimeTZ, IDBaseModel, PrefectBaseModel
+from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import AutoEnum
 
 R = TypeVar("R")
@@ -124,7 +125,8 @@ class State(IDBaseModel, Generic[R]):
         update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
-    def result(self, raise_on_failure: bool = True):
+    @sync_compatible
+    async def result(self, raise_on_failure: bool = True):
         from prefect.client.schemas import State
 
         warnings.warn(
@@ -136,7 +138,7 @@ class State(IDBaseModel, Generic[R]):
         )
 
         state = State.parse_obj(self)
-        return state.result(raise_on_failure=raise_on_failure)
+        return await state.result(raise_on_failure=raise_on_failure)
 
     def __repr__(self) -> str:
         """

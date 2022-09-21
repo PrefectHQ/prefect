@@ -248,7 +248,7 @@ class TestFlowCall:
         state = foo(1, 2, return_state=True)
 
         assert isinstance(state, State)
-        assert state.result() == 6
+        assert await state.result() == 6
 
     def test_call_coerces_parameter_types(self):
         class CustomType(pydantic.BaseModel):
@@ -589,9 +589,9 @@ class TestSubflowCalls:
         parent_state = parent._run("foo")
 
         with pytest.raises(ParameterTypeError, match="not a valid integer"):
-            parent_state.result()
+            await parent_state.result()
 
-        child_state = parent_state.result(raise_on_failure=False)
+        child_state = await parent_state.result(raise_on_failure=False)
         flow_run = await orion_client.read_flow_run(
             child_state.state_details.flow_run_id
         )
@@ -622,7 +622,7 @@ class TestSubflowCalls:
 
         parent_state = parent._run()
         parent_flow_run_id = parent_state.state_details.flow_run_id
-        child_state = parent_state.result()
+        child_state = await parent_state.result()
         child_flow_run_id = child_state.state_details.flow_run_id
 
         child_flow_run = await orion_client.read_flow_run(child_flow_run_id)
@@ -687,7 +687,7 @@ class TestFlowRunTags:
             pass
 
         with tags("a", "b"):
-            subflow_state = my_flow._run().result()
+            subflow_state = await my_flow._run().result()
 
         flow_run = await orion_client.read_flow_run(
             subflow_state.state_details.flow_run_id
@@ -717,7 +717,7 @@ class TestFlowTimeouts:
         assert state.is_failed()
         assert state.name == "TimedOut"
         with pytest.raises(TimeoutError):
-            state.result()
+            await state.result()
         assert "exceeded timeout of 0.1 seconds" in state.message
 
     def test_timeout_only_applies_if_exceeded(self):
@@ -846,7 +846,7 @@ class TestFlowTimeouts:
 
         state = await my_flow._run()
 
-        runtime, subflow_state = state.result()
+        runtime, subflow_state = await state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
 
         assert not canary_file.exists()
@@ -880,7 +880,7 @@ class TestFlowTimeouts:
 
         state = my_flow._run()
 
-        runtime, subflow_state = state.result()
+        runtime, subflow_state = await state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
 
         # Wait in case the flow is just sleeping and will still create the canary
@@ -1193,7 +1193,7 @@ class TestSubflowRunLogs:
 
         state = my_flow._run()
         flow_run_id = state.state_details.flow_run_id
-        subflow_run_id = state.result().state_details.flow_run_id
+        subflow_run_id = (await state.result()).state_details.flow_run_id
 
         logs = await orion_client.read_logs()
         log_messages = [log.message for log in logs]
@@ -1258,7 +1258,7 @@ class TestFlowResults:
         assert isinstance(filesystem, LocalFileSystem)
         assert filesystem.basepath == str(PREFECT_LOCAL_STORAGE_PATH.value())
         result = await _retrieve_result(server_state, orion_client)
-        assert result == state.result()
+        assert result == await state.result()
 
     async def test_subflow_results_use_parent_flow_run_value_by_default(
         self, orion_client, tmp_path
@@ -1273,7 +1273,7 @@ class TestFlowResults:
             return 6
 
         parent_state = await foo._run()
-        child_state = parent_state.result()
+        child_state = await parent_state.result()
 
         parent_flow_run = await orion_client.read_flow_run(
             parent_state.state_details.flow_run_id
@@ -1289,7 +1289,7 @@ class TestFlowResults:
         )
 
         result = await _retrieve_result(child_flow_run.state, orion_client)
-        assert result == child_state.result()
+        assert result == await child_state.result()
 
 
 class TestFlowRetries:
@@ -1418,7 +1418,7 @@ class TestFlowRetries:
         assert flow_run_count == 2
 
         # The state is pulled from the API and needs to be decoded
-        document = my_flow().result().result()
+        document = await (await my_flow().result()).result()
         result = await orion_client.retrieve_data(document)
 
         assert result == "bar"
@@ -1451,7 +1451,7 @@ class TestFlowRetries:
             return child_flow()
 
         state = parent_flow._run()
-        assert state.result() == "hello"
+        assert await state.result() == "hello"
         assert flow_run_count == 2
         assert child_run_count == 2, "Child flow should be reset and run again"
 
@@ -1524,8 +1524,8 @@ class TestFlowRetries:
             return state
 
         parent_state = parent_flow._run()
-        child_state = parent_state.result()
-        assert child_state.result() == "hello"
+        child_state = await parent_state.result()
+        assert await child_state.result() == "hello"
         assert flow_run_count == 2
         assert child_flow_run_count == 2, "Child flow should run again"
 
