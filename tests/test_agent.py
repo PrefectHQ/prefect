@@ -442,6 +442,35 @@ class TestInfrastructureIntegration:
             "Server sent an abort signal: message"
         )
 
+    async def test_agent_fails_flow_if_get_infrastructure_fails(
+        self, orion_client, deployment, mock_infrastructure_run
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+        )
+
+        async with OrionAgent(
+            work_queues=[deployment.work_queue_name], prefetch_seconds=10
+        ) as agent:
+            agent.submitting_flow_run_ids.add(flow_run.id)
+            agent.logger = MagicMock()
+            agent.get_infrastructure = AsyncMock(side_effect=ValueError("Bad!"))
+
+            await agent.submit_run(flow_run)
+
+        mock_infrastructure_run.assert_not_called()
+        assert flow_run.id not in agent.submitting_flow_run_ids
+        agent.logger.exception.assert_called_once_with(
+            f"Failed to get infrastructure for flow run '{flow_run.id}'."
+        )
+
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        assert state.is_failed()
+        result = await orion_client.resolve_datadoc(state.data)
+        with pytest.raises(ValueError, match="Bad!"):
+            raise result
+
     async def test_agent_fails_flow_if_infrastructure_submission_fails(
         self, orion_client, deployment, mock_infrastructure_run
     ):
