@@ -213,7 +213,7 @@ class TestJSONSerializer:
 
         serializer = JSONSerializer(object_encoder="prefect.fake_object_encoder")
 
-        # Encoder hooks are only called for unsuipported objects
+        # Encoder hooks are only called for unsupported objects
         obj = uuid.uuid4()
         result = serializer.dumps(obj)
         assert result == b'"foobar!"'
