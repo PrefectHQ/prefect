@@ -1,14 +1,19 @@
 import pytest
 
-from prefect.orion.schemas.data import DataDocument
-from prefect.orion.serializers import _SERIALIZERS, Serializer, register_serializer
+from prefect.deprecated.data_documents import (
+    _SERIALIZERS,
+    DataDocument,
+    Serializer,
+    register_serializer,
+)
 
 
 @pytest.fixture(autouse=True)
 def reset_registered_serializers(monkeypatch):
     _copy = _SERIALIZERS.copy()
-    monkeypatch.setattr("prefect.orion.serializers", _copy)
     yield
+    _SERIALIZERS.clear()
+    _SERIALIZERS.update(_copy)
 
 
 class TestDataDocument:

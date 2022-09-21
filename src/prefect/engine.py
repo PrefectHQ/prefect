@@ -39,6 +39,7 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
+from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
     Abort,
     MappingLengthMismatch,
@@ -57,7 +58,6 @@ from prefect.logging.loggers import (
     task_run_logger,
 )
 from prefect.orion.schemas.core import TaskRunInput, TaskRunResult
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
