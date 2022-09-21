@@ -204,6 +204,10 @@ class Flow(Generic[P, R]):
                 running.
             validate_parameters: A new value indicating if flow calls should validate
                 given parameters.
+            retries: A new number of times to retry on flow run failure.
+            retry_delay_seconds: A new number of seconds to wait before retrying the
+                flow after failure. This is only applicable if `retries` is nonzero.
+
 
         Returns:
             A new `Flow` instance.
