@@ -20,6 +20,7 @@
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { blockDocumentsApi } from '@/services/blockDocumentsApi'
   import { blockSchemasApi } from '@/services/blockSchemasApi'
@@ -66,4 +67,12 @@
   function cancel(): void {
     router.back()
   }
+
+  const title = computed<string>(() => {
+    if (blockType.value) {
+      return `Create ${blockType.value.name} Block`
+    }
+    return 'Create Block'
+  })
+  usePageTitle(title)
 </script>
