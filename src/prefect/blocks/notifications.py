@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
+import apprise
+from apprise import Apprise, AppriseAsset, NotifyType
 from pydantic import Field, SecretStr
 
 from prefect.blocks.core import Block
@@ -21,9 +23,23 @@ class NotificationBlock(Block, ABC):
         """
 
 
-class AppriseNotificationBlock(NotificationBlock):
+class PrefectNotifyType(NotifyType):
     """
-        A base class for sending notifications using Apprise.
+    A mapping of Prefect notification types for use with Apprise.
+
+    Attributes:
+        DEFAULT: A plain notification that does not insert any notification type images.
+    """
+
+    DEFAULT = "prefect_default"
+
+
+apprise.NOTIFY_TYPES += (PrefectNotifyType.DEFAULT,)
+
+
+class AppriseNotificationBlock(NotificationBlock, ABC):
+    """
+    A base class for sending notifications using Apprise.
     """
 
     url: SecretStr = Field(
@@ -34,20 +50,22 @@ class AppriseNotificationBlock(NotificationBlock):
     )
 
     def block_initialization(self) -> None:
-        from apprise import Apprise, AppriseAsset
-
-        asset = AppriseAsset(
+        # A custom `AppriseAsset` that ensures Prefect Notifications
+        # appear correctly across multiple messaging platforms
+        prefect_app_data = AppriseAsset(
             app_id="Prefect Notifications",
             app_desc="Prefect Notifications",
             app_url="https://prefect.io",
         )
 
-        self._apprise_client = Apprise().instantiate(self.url.get_secret_value(), asset=asset)
-        self._apprise_client.include_image = False
+        self._apprise_client = Apprise(asset=prefect_app_data)
+        self._apprise_client.add(self.url.get_secret_value())
 
     @sync_compatible
     async def notify(self, body: str, subject: Optional[str] = None):
-        await self._apprise_client.async_notify(body=body, title=subject)
+        await self._apprise_client.async_notify(
+            body=body, title=subject, notify_type=PrefectNotifyType.DEFAULT
+        )
 
 
 # TODO: Move to prefect-slack once collection block auto-registration is
@@ -104,4 +122,3 @@ class TeamsWebhook(AppriseNotificationBlock):
         description="The Teams incoming webhook URL used to send notifications.",
         example="https://your-org.webhook.office.com/webhookb2/XXX/IncomingWebhook/YYY/ZZZ",
     )
-
