@@ -3,6 +3,7 @@ State schemas.
 """
 
 import datetime
+import warnings
 from typing import Generic, Optional, Type, TypeVar
 from uuid import UUID
 
@@ -119,6 +120,20 @@ class State(IDBaseModel, Generic[R]):
         update = update or {}
         update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
+
+    def result(self, raise_on_failure: bool = True):
+        from prefect.client.schemas import State
+
+        warnings.warn(
+            "`result` is no longer supported by `prefect.orion.schemas.states.State` "
+            "and will be removed in a future release. When result retrieval is needed, "
+            "use `prefect.client.schemas.State`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        state = State.parse_obj(self)
+        return state.result(raise_on_failure=raise_on_failure)
 
     def __repr__(self) -> str:
         """
