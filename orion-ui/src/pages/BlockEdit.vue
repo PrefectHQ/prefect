@@ -16,6 +16,7 @@
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'
   import { useRouter } from 'vue-router'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router/routes'
   import { blockDocumentsApi } from '@/services/blockDocumentsApi'
 
@@ -42,4 +43,6 @@
   function cancel(): void {
     router.back()
   }
+
+  usePageTitle(`Edit Block: ${name.value}`)
 </script>
