@@ -25,15 +25,6 @@
   const deployment = computed(() => deploymentSubscription.response)
 
   async function submit(deployment: DeploymentUpdate): Promise<void> {
-    if (deployment.parameters) {
-      Object.keys(deployment.parameters).forEach((key) => {
-        const parameter = deployment.parameters?.[key]
-        if (deployment.parameters && parameter instanceof Date) {
-          deployment.parameters[key] = parameter.toString()
-        }
-      })
-    }
-
     try {
       await deploymentsApi.updateDeployment(deploymentId.value, deployment)
       showToast('Deployment updated', 'success')
