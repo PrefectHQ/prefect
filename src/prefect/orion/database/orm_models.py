@@ -132,7 +132,7 @@ class ORMFlowRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(Pydantic(schemas.data.DataDocument), nullable=True)
+    data = sa.Column(sa.JSON, nullable=True)
 
     @declared_attr
     def flow_run(cls):
@@ -186,7 +186,7 @@ class ORMTaskRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(Pydantic(schemas.data.DataDocument), nullable=True)
+    data = sa.Column(sa.JSON, nullable=True)
 
     @declared_attr
     def task_run(cls):
