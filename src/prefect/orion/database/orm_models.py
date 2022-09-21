@@ -903,6 +903,47 @@ class ORMBlockDocumentReference:
 
 
 @declarative_mixin
+class ORMBlockMetatype:
+    name = sa.Column(sa.String, nullable=False)
+
+    @declared_attr
+    def block_document_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_document.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    filters = sa.Column(
+        JSON,
+        server_default="[]",
+        default=list,
+        nullable=False,
+    )
+
+
+@declarative_mixin
+class ORMBlockPointer:
+    name = sa.Column(sa.String, nullable=False)
+
+    @declared_attr
+    def metatype_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_metatype.id"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def block_document_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_document.id"),
+            nullable=False,
+        )
+
+
+@declarative_mixin
 class ORMConfiguration:
     key = sa.Column(sa.String, nullable=False, index=True)
     value = sa.Column(JSON, nullable=False)
@@ -1063,6 +1104,8 @@ class BaseORMConfiguration(ABC):
         block_schema_reference_mixin=ORMBlockSchemaReference,
         block_document_mixin=ORMBlockDocument,
         block_document_reference_mixin=ORMBlockDocumentReference,
+        block_metatype_mixin=ORMBlockMetatype,
+        block_pointer_mixin=ORMBlockPointer,
         configuration_mixin=ORMConfiguration,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
@@ -1110,6 +1153,8 @@ class BaseORMConfiguration(ABC):
             block_schema_reference_mixin=block_schema_reference_mixin,
             block_document_mixin=block_document_mixin,
             block_document_reference_mixin=block_document_reference_mixin,
+            block_metatype_mixin=block_metatype_mixin,
+            block_pointer_mixin=block_pointer_mixin,
             configuration_mixin=configuration_mixin,
         )
 
@@ -1151,6 +1196,8 @@ class BaseORMConfiguration(ABC):
         block_schema_reference_mixin=ORMBlockSchemaReference,
         block_document_mixin=ORMBlockDocument,
         block_document_reference_mixin=ORMBlockDocumentReference,
+        block_metatype_mixin=ORMBlockMetatype,
+        block_pointer_mixin=ORMBlockPointer,
         flow_run_notification_policy_mixin=ORMFlowRunNotificationPolicy,
         flow_run_notification_queue_mixin=ORMFlowRunNotificationQueue,
         configuration_mixin=ORMConfiguration,
@@ -1211,6 +1258,12 @@ class BaseORMConfiguration(ABC):
         class BlockDocumentReference(block_document_reference_mixin, self.Base):
             pass
 
+        class BlockMetatype(block_metatype_mixin, self.Base):
+            pass
+
+        class BlockPointer(block_pointer_mixin, self.Base):
+            pass
+
         class FlowRunNotificationPolicy(flow_run_notification_policy_mixin, self.Base):
             pass
 
@@ -1237,6 +1290,8 @@ class BaseORMConfiguration(ABC):
         self.BlockSchemaReference = BlockSchemaReference
         self.BlockDocument = BlockDocument
         self.BlockDocumentReference = BlockDocumentReference
+        self.BlockMetatype = BlockMetatype
+        self.BlockPointer = BlockPointer
         self.FlowRunNotificationPolicy = FlowRunNotificationPolicy
         self.FlowRunNotificationQueue = FlowRunNotificationQueue
         self.Configuration = Configuration
