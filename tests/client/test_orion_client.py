@@ -15,12 +15,12 @@ import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
 from prefect.client import OrionClient, get_client
+from prefect.client.schemas import OrchestrationResult, Pending, Running, Scheduled
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
-from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
-from prefect.orion.schemas.states import Pending, Running, Scheduled, StateType
+from prefect.orion.schemas.states import StateType
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_ORION_DATABASE_MIGRATE_ON_START,

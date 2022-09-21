@@ -17,7 +17,7 @@ from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.orchestration import dependencies as orchestration_dependencies
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
-from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.schemas.responses import OrchestrationResult
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 
