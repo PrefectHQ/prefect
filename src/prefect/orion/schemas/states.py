@@ -4,13 +4,12 @@ State schemas.
 
 import datetime
 import warnings
-from typing import Generic, Optional, Type, TypeVar
+from typing import Any, Generic, Optional, Type, TypeVar
 from uuid import UUID
 
 import pendulum
 from pydantic import Field, root_validator, validator
 
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.schemas import DateTimeTZ, IDBaseModel, PrefectBaseModel
 from prefect.utilities.collections import AutoEnum
 
@@ -58,8 +57,12 @@ class State(IDBaseModel, Generic[R]):
     name: Optional[str] = Field(default=None)
     timestamp: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
     message: Optional[str] = Field(default=None, example="Run started")
-    data: Optional[DataDocument[R]] = Field(
+    data: Optional[Any] = Field(
         default=None,
+        description=(
+            "Data associated with the state, e.g. a result. "
+            "Content must be storable as JSON."
+        ),
     )
     state_details: StateDetails = Field(default_factory=StateDetails)
 
