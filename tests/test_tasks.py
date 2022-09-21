@@ -187,7 +187,7 @@ class TestTaskRun:
 
         task_state = await bar()
         assert isinstance(task_state, State)
-        assert task_state.result() == 1
+        assert await task_state.result() == 1
 
     async def test_sync_task_run_inside_async_flow(self):
         @task
@@ -200,7 +200,7 @@ class TestTaskRun:
 
         task_state = await bar()
         assert isinstance(task_state, State)
-        assert task_state.result() == 1
+        assert await task_state.result() == 1
 
     def test_async_task_run_inside_sync_flow(self):
         @task
@@ -290,7 +290,7 @@ class TestTaskSubmit:
             return future
 
         task_state = await bar()
-        assert task_state.result() == 1
+        assert await task_state.result() == 1
 
     async def test_sync_task_submitted_inside_async_flow(self):
         @task
@@ -304,7 +304,7 @@ class TestTaskSubmit:
             return future
 
         task_state = await bar()
-        assert task_state.result() == 1
+        assert await task_state.result() == 1
 
     def test_async_task_submitted_inside_sync_flow(self):
         @task
@@ -569,11 +569,13 @@ class TestTaskRetries:
 
         if always_fail:
             assert task_run_state.is_failed()
-            assert exceptions_equal(task_run_state.result(raise_on_failure=False), exc)
+            assert exceptions_equal(
+                await task_run_state.result(raise_on_failure=False), exc
+            )
             assert mock.call_count == 4
         else:
             assert task_run_state.is_completed()
-            assert task_run_state.result() is True
+            assert await task_run_state.result() is True
             assert mock.call_count == 4
 
         states = await orion_client.read_task_run_states(task_run_id)
@@ -611,7 +613,7 @@ class TestTaskRetries:
         task_run_id = task_run_state.state_details.task_run_id
 
         assert task_run_state.is_completed()
-        assert task_run_state.result() is True
+        assert await task_run_state.result() is True
         assert mock.call_count == 2
 
         states = await orion_client.read_task_run_states(task_run_id)
@@ -1152,7 +1154,7 @@ class TestTaskInputs:
             return foo.submit(1)
 
         flow_state = test_flow._run()
-        x = flow_state.result()
+        x = await flow_state.result()
 
         task_run = await orion_client.read_task_run(x.state_details.task_run_id)
 
@@ -1170,7 +1172,7 @@ class TestTaskInputs:
             return foo.submit(1)
 
         flow_state = test_flow._run()
-        x = flow_state.result()
+        x = await flow_state.result()
 
         task_run = await orion_client.read_task_run(x.state_details.task_run_id)
 
@@ -1195,7 +1197,7 @@ class TestTaskInputs:
             return a, b, c
 
         flow_state = test_flow._run()
-        a, b, c = flow_state.result()
+        a, b, c = await flow_state.result()
 
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
 
@@ -1223,7 +1225,7 @@ class TestTaskInputs:
             return a, b, c
 
         flow_state = test_flow._run()
-        a, b, c = flow_state.result()
+        a, b, c = await flow_state.result()
 
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
 
@@ -1249,7 +1251,7 @@ class TestTaskInputs:
             return a, b, c
 
         flow_state = test_flow._run()
-        a, b, c = flow_state.result()
+        a, b, c = await flow_state.result()
 
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
 
@@ -1276,7 +1278,7 @@ class TestTaskInputs:
             return a, c
 
         flow_state = test_flow._run()
-        a, c = flow_state.result()
+        a, c = await flow_state.result()
 
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
 
@@ -1306,7 +1308,7 @@ class TestTaskInputs:
 
         flow_state = test_flow._run()
 
-        a, b, c, d = flow_state.result()
+        a, b, c, d = await flow_state.result()
 
         task_run = await orion_client.read_task_run(d.state_details.task_run_id)
 
@@ -1336,7 +1338,7 @@ class TestTaskInputs:
             return child_state, foo.submit(child_state)
 
         parent_state = parent._run()
-        child_state, task_state = parent_state.result()
+        child_state, task_state = await parent_state.result()
 
         task_run = await orion_client.read_task_run(
             task_state.state_details.task_run_id
@@ -1362,7 +1364,7 @@ class TestTaskInputs:
             return my_name, hi
 
         flow_state = test_flow._run()
-        name_state, hi_state = flow_state.result()
+        name_state, hi_state = await flow_state.result()
 
         task_run = await orion_client.read_task_run(hi_state.state_details.task_run_id)
 
@@ -1453,7 +1455,7 @@ class TestTaskInputs:
         self, result, orion_client, flow_with_upstream_downstream
     ):
         flow_state = flow_with_upstream_downstream._run(result)
-        upstream_state, downstream_state = flow_state.result()
+        upstream_state, downstream_state = await flow_state.result()
 
         task_run = await orion_client.read_task_run(
             downstream_state.state_details.task_run_id
@@ -1468,7 +1470,7 @@ class TestTaskInputs:
         self, result, orion_client, flow_with_upstream_downstream
     ):
         flow_state = flow_with_upstream_downstream._run(result)
-        upstream_state, downstream_state = flow_state.result()
+        upstream_state, downstream_state = await flow_state.result()
 
         task_run = await orion_client.read_task_run(
             downstream_state.state_details.task_run_id
@@ -1482,7 +1484,7 @@ class TestTaskInputs:
         self, result, orion_client, flow_with_upstream_downstream
     ):
         flow_state = flow_with_upstream_downstream._run(result)
-        _, downstream_state = flow_state.result()
+        _, downstream_state = await flow_state.result()
 
         task_run = await orion_client.read_task_run(
             downstream_state.state_details.task_run_id
@@ -2018,7 +2020,7 @@ class TestTaskMap:
             session, numbers_future.state_details.flow_run_id
         )
 
-        assert [a.result() for a in add_futures] == [1, 2, 3]
+        assert [await a.result() for a in add_futures] == [1, 2, 3]
 
         assert dependency_ids[numbers_future.state_details.task_run_id] == []
         assert all(
@@ -2049,7 +2051,7 @@ class TestTaskMap:
             session, numbers_futures[0].state_details.flow_run_id
         )
 
-        assert [a.result() for a in add_futures] == [2, 4, 6]
+        assert [await a.result() for a in add_futures] == [2, 4, 6]
 
         assert all(
             dependency_ids[n.state_details.task_run_id] == [] for n in numbers_futures
