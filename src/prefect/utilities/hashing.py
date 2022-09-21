@@ -53,7 +53,7 @@ def hash_objects(*args, hash_algo=hashlib.md5, **kwargs) -> Optional[str]:
         pass
 
     try:
-        return stable_hash(cloudpickle.dumps((args, kwargs)))
+        return stable_hash(cloudpickle.dumps((args, kwargs)), hash_algo=hash_algo)
     except Exception:
         pass
 
