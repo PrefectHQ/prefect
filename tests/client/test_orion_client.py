@@ -910,8 +910,8 @@ async  def test_read_filtered_logs(
     logs = [LogCreate(name="prefect.flow_runs", level=20, message=f"Log from flow_run {id}.", timestamp=datetime.now(
         tz=timezone.utc), flow_run_id=id)
             for id in flow_runs]
-    for i in flow_runs:
-        await orion_client.create_logs(logs)
+
+    await orion_client.create_logs(logs)
 
     logs = await orion_client.read_logs(log_filter=LogFilter(flow_run_id=LogFilterFlowRunId(any_=flow_runs[:3])))
     for log in logs:
