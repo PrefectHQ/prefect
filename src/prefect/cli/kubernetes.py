@@ -11,7 +11,11 @@ from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli.root import app
 from prefect.docker import get_prefect_image_name
 from prefect.infrastructure import KubernetesJob
-from prefect.settings import PREFECT_API_URL, PREFECT_LOGGING_SERVER_LEVEL
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    PREFECT_LOGGING_SERVER_LEVEL,
+)
 
 kubernetes_app = PrefectTyper(
     name="kubernetes",
@@ -67,6 +71,7 @@ def manifest_orion(
 @manifest_app.command("agent")
 def manifest_agent(
     api_url: str = SettingsOption(PREFECT_API_URL),
+    api_key: str = SettingsOption(PREFECT_API_KEY),
     image_tag: str = typer.Option(
         get_prefect_image_name(),
         "-i",
@@ -101,6 +106,7 @@ def manifest_agent(
     manifest = template.substitute(
         {
             "api_url": api_url,
+            "api_key": api_key,
             "image_name": image_tag,
             "namespace": namespace,
             "work_queue": work_queue,
