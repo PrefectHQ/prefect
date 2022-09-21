@@ -24,6 +24,7 @@ from prefect.orion.orchestration.rules import (
     TaskOrchestrationContext,
 )
 from prefect.orion.schemas import filters, states
+from prefect.orion.schemas.states import StateType
 
 
 class CoreFlowPolicy(BaseOrchestrationPolicy):
@@ -34,6 +35,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             PreventTransitionsFromTerminalStates,
+            PreventRedundantTransitions,
             WaitForScheduledTime,
             RetryFailedFlows,
         ]
@@ -49,6 +51,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
             CacheRetrieval,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             PreventTransitionsFromTerminalStates,
+            PreventRedundantTransitions,
             WaitForScheduledTime,
             RetryFailedTasks,
             RenameReruns,
@@ -407,3 +410,40 @@ class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
         context: OrchestrationContext,
     ) -> None:
         await self.abort_transition(reason="This run has already terminated.")
+
+
+class PreventRedundantTransitions(BaseOrchestrationRule):
+    """
+    Prevents redundant transitions.
+
+    Under normal operation, this rule prevents the "backwards" progress of a run. This
+    rule will also help prevent multiple agents from attempting to orchestrate a run by
+    preventing transitions into the same state type. If any of these disallowed
+    transitions are attempted, this rule will abort the transition.
+    """
+
+    STATE_PROGRESS = {
+        None: 0,
+        StateType.SCHEDULED: 1,
+        StateType.PENDING: 2,
+        StateType.RUNNING: 3,
+    }
+
+    FROM_STATES = [StateType.SCHEDULED, StateType.PENDING, StateType.RUNNING, None]
+    TO_STATES = [StateType.SCHEDULED, StateType.PENDING, StateType.RUNNING, None]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        initial_state_type = initial_state.type if initial_state else None
+        proposed_state_type = proposed_state.type if proposed_state else None
+        if (
+            self.STATE_PROGRESS[proposed_state_type]
+            <= self.STATE_PROGRESS[initial_state_type]
+        ):
+            await self.abort_transition(
+                reason=f"This run cannot transition to the {proposed_state_type} state from the {initial_state_type} state."
+            )

@@ -1,6 +1,6 @@
 import contextlib
 import random
-from itertools import product
+from itertools import combinations_with_replacement, product
 from unittest import mock
 
 import pendulum
@@ -11,6 +11,7 @@ from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
+    PreventRedundantTransitions,
     PreventTransitionsFromTerminalStates,
     ReleaseTaskConcurrencySlots,
     RenameReruns,
@@ -518,6 +519,73 @@ class TestTransitionsFromTerminalStatesRule:
         state_protection = PreventTransitionsFromTerminalStates(
             ctx, *intended_transition
         )
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+
+@pytest.mark.parametrize("run_type", ["task", "flow"])
+class TestPreventingRedundantTransitionsRule:
+    active_states = (
+        states.StateType.RUNNING,
+        states.StateType.PENDING,
+        states.StateType.SCHEDULED,
+        None,
+    )
+    all_transitions = set(product(ALL_ORCHESTRATION_STATES, ALL_ORCHESTRATION_STATES))
+    redundant_transitions = set(combinations_with_replacement(active_states, 2))
+
+    # Cast to sorted lists for deterministic ordering.
+    # Sort as strings to handle `None`.
+    active_transitions = list(
+        sorted(all_transitions - redundant_transitions, key=lambda item: str(item))
+    )
+    redundant_transitions = list(
+        sorted(redundant_transitions, key=lambda item: str(item))
+    )
+
+    @pytest.mark.parametrize(
+        "intended_transition", redundant_transitions, ids=transition_names
+    )
+    async def test_redundant_transitions_are_aborted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        intended_transition,
+    ):
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+        )
+
+        state_protection = PreventRedundantTransitions(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    @pytest.mark.parametrize(
+        "intended_transition", active_transitions, ids=transition_names
+    )
+    async def test_all_other_transitions_are_accepted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        intended_transition,
+    ):
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+        )
+
+        state_protection = PreventRedundantTransitions(ctx, *intended_transition)
 
         async with state_protection as ctx:
             await ctx.validate_proposed_state()
