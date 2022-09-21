@@ -443,18 +443,11 @@ class TestInfrastructureIntegration:
         )
 
     async def test_agent_fails_flow_if_get_infrastructure_fails(
-        self, orion_client, deployment, monkeypatch, mock_infrastructure_run
+        self, orion_client, deployment, mock_infrastructure_run
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
-        )
-
-        async def bad_infrastructure(self, name):
-            raise ValueError("Bad!")
-
-        monkeypatch.setattr(
-            "prefect.agent.OrionAgent.get_infrastructure", bad_infrastructure
         )
 
         async with OrionAgent(
@@ -462,6 +455,7 @@ class TestInfrastructureIntegration:
         ) as agent:
             agent.submitting_flow_run_ids.add(flow_run.id)
             agent.logger = MagicMock()
+            agent.get_infrastructure = AsyncMock(side_effect=ValueError("Bad!"))
 
             await agent.submit_run(flow_run)
 
