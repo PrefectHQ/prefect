@@ -495,9 +495,7 @@ def upgrade():
         ),
         sa.Column(
             "data",
-            prefect.orion.utilities.database.Pydantic(
-                prefect.orion.schemas.data.DataDocument
-            ),
+            prefect.orion.utilities.database.Pydantic(DataDocument),
             nullable=True,
         ),
         sa.Column(
@@ -702,9 +700,7 @@ def upgrade():
         ),
         sa.Column(
             "data",
-            prefect.orion.utilities.database.Pydantic(
-                prefect.orion.schemas.data.DataDocument
-            ),
+            prefect.orion.utilities.database.Pydantic(DataDocument),
             nullable=True,
         ),
         sa.Column(
