@@ -1680,7 +1680,7 @@ class OrionClient:
         Read flow and task run logs.
         """
         body = {
-            "filter": log_filter.dict(json_compatible=True) if log_filter else None,
+            "logs": log_filter.dict(json_compatible=True) if log_filter else None,
             "limit": limit,
             "offset": offset,
         }
