@@ -156,6 +156,29 @@ Let's create a flow run for this deployment. The flow run will execute in a Dock
     
     If you shut down the agent from a previous tutorial, you can start it again by opening another terminal session and starting the agent with the `prefect agent start -q test` CLI command. This agent pulls work from the `test` work queue created previously.
 
+    Note also that the `PREFECT_API_URL` setting should be configured to point to the URL of your Prefect Orion server or Prefect Cloud.
+
+    If you're running the agent in the same environment or machine as your server, it should already be set. If not, run this command to set the API URL to point at the Prefect Orion instance just started:
+
+    <div class='terminal'>
+    ```bash
+    $ prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
+    Set variable 'PREFECT_API_URL' to 'http://127.0.0.1:4200/api'
+    Updated profile 'default'
+    ```
+    </div>
+
+    You can check the settings for your environment with the `prefect config view` CLI command.
+
+    <div class='terminal'>
+    ```bash
+    # View current configuration
+    $ prefect config view
+    PREFECT_PROFILE='default'
+    PREFECT_API_URL='http://127.0.0.1:4200/api' (from profile)
+    ```
+    </div>
+
 On the deployment details page, select **Run**, then select **Now with defaults**. This creates a new flow run using the default parameters and other settings.
 
 ![Running the Docker deployment from the Prefect UI](/img/tutorials/run-docker-deployment.png)
