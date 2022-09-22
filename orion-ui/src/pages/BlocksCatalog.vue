@@ -12,6 +12,7 @@
   import { PageHeadingBlocksCatalog, BlockTypeList, BlockSchemaCapability, BlockTypeFilter } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { blockTypesApi } from '@/services/blockTypesApi'
 
   const capability = ref<BlockSchemaCapability | null>(null)
@@ -30,4 +31,6 @@
   })
   const blockTypesSubscription = useSubscription(blockTypesApi.getBlockTypes, [filter])
   const blockTypes = computed(() => blockTypesSubscription.response ?? [])
+
+  usePageTitle('Blocks Catalog')
 </script>

@@ -12,6 +12,7 @@
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import router, { routes } from '@/router'
   import { notificationsApi } from '@/services/notificationsApi'
 
@@ -31,4 +32,6 @@
   function cancel(): void {
     router.push(routes.notifications())
   }
+
+  usePageTitle('Edit Notification')
 </script>

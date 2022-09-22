@@ -13,6 +13,7 @@
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { flowRunsApi } from '@/services/flowRunsApi'
 
@@ -27,6 +28,14 @@
   function goToFlowRuns(): void {
     router.push(routes.flowRuns())
   }
+
+  const title = computed<string | null>(() => {
+    if (!flowRun.value) {
+      return 'Radar View for Flow Run'
+    }
+    return `Radar View for Flow Run: ${flowRun.value.name}`
+  })
+  usePageTitle(title)
 </script>
 
 <style>
