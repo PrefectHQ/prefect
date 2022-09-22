@@ -1,54 +1,81 @@
-from unittest.mock import MagicMock
+from importlib import reload
+from typing import Type
+from unittest.mock import patch
 
 import cloudpickle
+import pytest
 
-from prefect import flow
-from prefect.blocks.notifications import SlackWebhook
+import prefect
+from prefect.blocks.notifications import AppriseNotificationBlock, PrefectNotifyType
 from prefect.testing.utilities import AsyncMock
 
 
-class TestSlackWebhook:
-    async def test_notify_async(self, monkeypatch):
-        async_webhook_client_mock = AsyncMock()
-        async_webhook_client_constructor_mock = MagicMock(
-            return_value=async_webhook_client_mock
-        )
-        monkeypatch.setattr(
-            "slack_sdk.webhook.async_client.AsyncWebhookClient",
-            async_webhook_client_constructor_mock,
-        )
+def reload_modules():
+    """
+    Reloads the prefect.blocks.notifications module so patches to modules it imports
+    will be visible to the blocks under test.
+    """
+    try:
+        reload(prefect.blocks.notifications)
+    except UserWarning as ex:
+        # ignore the warning Prefect gives when reloading the notifications module
+        # because we reload prefect itself immediately afterward.
+        pass
 
-        block = SlackWebhook(url="http://example.com/slack")
-        await block.notify("test")
+    reload(prefect)
 
-        async_webhook_client_constructor_mock.assert_called_once_with(
-            url=block.url.get_secret_value()
-        )
-        async_webhook_client_mock.send.assert_called_once_with(text="test")
 
-    def test_notify_sync(self, monkeypatch):
-        async_webhook_client_mock = AsyncMock()
-        async_webhook_client_constructor_mock = MagicMock(
-            return_value=async_webhook_client_mock
-        )
-        monkeypatch.setattr(
-            "slack_sdk.webhook.async_client.AsyncWebhookClient",
-            async_webhook_client_constructor_mock,
-        )
+# A list of the notification classes Pytest should use as parameters to each method in TestAppriseNotificationBlock
+notification_classes = sorted(
+    AppriseNotificationBlock.__subclasses__(), key=lambda cls: cls.__name__
+)
 
-        url = "http://example.com/slack"
 
-        @flow
-        def test_flow():
-            block = SlackWebhook(url=url)
+@pytest.mark.parametrize("block_class", notification_classes)
+class TestAppriseNotificationBlock:
+    """
+    Checks for behavior expected from Apprise-based notification blocks.
+    """
+
+    async def test_notify_async(self, block_class: Type[AppriseNotificationBlock]):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = block_class(url="https://example.com/notification")
+            await block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                block.url.get_secret_value()
+            )
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+            )
+
+    def test_notify_sync(self, block_class: Type[AppriseNotificationBlock]):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = block_class(url="https://example.com/notification")
             block.notify("test")
 
-        test_flow()
-        async_webhook_client_constructor_mock.assert_called_once_with(url=url)
-        async_webhook_client_mock.send.assert_called_once_with(text="test")
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                block.url.get_secret_value()
+            )
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+            )
 
-    def test_is_picklable(self):
-        block = SlackWebhook(url="http://example.com/slack")
+    def test_is_picklable(self, block_class: Type[AppriseNotificationBlock]):
+        reload_modules()
+        block = block_class(url="http://example.com/notification")
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
-        assert isinstance(unpickled, SlackWebhook)
+        assert isinstance(unpickled, block_class)
