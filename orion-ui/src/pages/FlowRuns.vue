@@ -42,11 +42,10 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute, stateType } from '@prefecthq/orion-design'
-  import { PEmptyResults, media, formatDateTimeNumeric } from '@prefecthq/prefect-design'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute } from '@prefecthq/orion-design'
+  import { PEmptyResults, media } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { startOfToday, subDays } from 'date-fns'
-  import { computed, ref, watch } from 'vue'
+  import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import FlowRunsFilter from '@/components/FlowRunsFilter.vue'
   import { routes } from '@/router'
@@ -61,11 +60,9 @@
 
   const { filter, hasFilters, startDate, endDate, name, sort } = useFlowRunFilterFromRoute()
 
-
   const subscriptionOptions = {
     interval: 30000,
   }
-
 
   const flowRunCountSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [filter], subscriptionOptions)
   const flowRunCount = computed(() => flowRunCountSubscription.response)
@@ -78,7 +75,7 @@
   const selectedFlowRuns = ref([])
 
   function clear(): void {
-    selectedFilterType.value = 'week'
+    router.push(routes.flowRuns())
   }
 </script>
 
