@@ -3,7 +3,7 @@
 ## Release 2.5.0
 
 ### Exciting New Features 🎉
-- Add Microsoft Teams notification block
+- Add Microsoft Teams notification block — https://github.com/PrefectHQ/prefect/pull/6920
 
 ### Enhancements
 - Add TTL to `KubernetesJob` for automated cleanup of finished jobs — https://github.com/PrefectHQ/prefect/pull/6785
