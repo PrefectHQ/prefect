@@ -10,6 +10,7 @@
 <script lang="ts" setup>
   import { NotificationForm, Notification, PageHeadingNotificationCreate, NotificationCreate } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import router, { routes } from '@/router'
   import { notificationsApi } from '@/services/notificationsApi'
 
@@ -26,4 +27,6 @@
   function cancel(): void {
     router.push(routes.notifications())
   }
+
+  usePageTitle('Create Notification')
 </script>

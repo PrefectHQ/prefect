@@ -187,6 +187,10 @@ router.beforeEach(async (to, from) => {
 })
 
 router.afterEach((to, from) => {
+  if (to.fullPath !== from.fullPath) {
+    document.title = 'Prefect Orion'
+  }
+
   return RouteGuardExecutioner.after(to, from)
 })
 
