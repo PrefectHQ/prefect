@@ -38,9 +38,9 @@
 - @jmg-duarte
 - @taljaards
 - @yashlad681
-* @dobbersc made their first contribution in https://github.com/PrefectHQ/prefect/pull/6870
-* @jnovinger made their first contribution in https://github.com/PrefectHQ/prefect/pull/6916
-* @mathijscarlu made their first contribution in https://github.com/PrefectHQ/prefect/pull/6885
+- @dobbersc made their first contribution in https://github.com/PrefectHQ/prefect/pull/6870
+- @jnovinger made their first contribution in https://github.com/PrefectHQ/prefect/pull/6916
+- @mathijscarlu made their first contribution in https://github.com/PrefectHQ/prefect/pull/6885
 
 
 ## Release 2.4.0
