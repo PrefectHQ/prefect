@@ -35,7 +35,7 @@
 - Add `prefect-firebolt` to collections catalog — https://github.com/PrefectHQ/prefect/pull/6917
 
 ### Helm Charts
-* Major overhaul in how helm charts in `prefect-helm` are structured and how we version and release them -- [2022.09.21 release](https://github.com/PrefectHQ/prefect-helm/releases/tag/2022.09.21)
+— Major overhaul in how helm charts in `prefect-helm` are structured and how we version and release them — [2022.09.21 release](https://github.com/PrefectHQ/prefect-helm/releases/tag/2022.09.21)
 
 ### Contributors
 - @jmg-duarte
