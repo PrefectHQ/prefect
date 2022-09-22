@@ -1,4 +1,4 @@
-recipeName: Prefect Agent on Azure
+recipeName: Agent on Azure with Kubernetes
 author: Prefect
 authorUrl: https://prefect.io
 description: Configure Prefect on Azure with Kubernetes, running a Prefect agent to execute deployment flow runs.
