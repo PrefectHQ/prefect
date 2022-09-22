@@ -213,6 +213,28 @@ async def schedule_deployment(
         )
 
 
+@router.post("/name/{flow_name}/{deployment_name}/schedule_now")
+async def schedule_deployment_now(
+    flow_name: str = Path(..., description="The name of the flow"),
+    deployment_name: str = Path(..., description="The name of the deployment"),
+    db: OrionDBInterface = Depends(provide_database_interface),
+) -> None:
+    """
+    I'll schedule the deployment today.
+    You'll schedule the deployment NOW.
+    I'll schedule the deployment now.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+        deployment = await models.deployments.read_deployment_by_name(
+            session=session, name=deployment_name, flow_name=flow_name
+        )
+        await models.deployments.schedule_run(
+            session=session,
+            deployment_id=deployment.id,
+            schedule_time=pendulum.now("UTC"),
+        )
+
+
 @router.post("/{id}/set_schedule_active")
 async def set_schedule_active(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),

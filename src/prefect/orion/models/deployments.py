@@ -355,6 +355,23 @@ async def delete_deployment(
     return result.rowcount > 0
 
 
+async def schedule_run(
+    session: sa.orm.Session,
+    deployment_id: UUID,
+    schedule_time: datetime.datetime = None,
+) -> List[UUID]:
+    """ """
+    if schedule_time is None:
+        schedule_time = pendulum.now("UTC")
+
+    runs = await _generate_scheduled_flow_run(
+        session=session,
+        deployment_id=deployment_id,
+        schedule_time=schedule_time,
+    )
+    return await _insert_scheduled_flow_runs(session=session, runs=runs)
+
+
 async def schedule_runs(
     session: sa.orm.Session,
     deployment_id: UUID,
@@ -394,6 +411,43 @@ async def schedule_runs(
         max_runs=max_runs,
     )
     return await _insert_scheduled_flow_runs(session=session, runs=runs)
+
+
+@inject_db
+async def _generate_scheduled_flow_run(
+    session: sa.orm.Session,
+    deployment_id: UUID,
+    schedule_time: datetime.datetime,
+    db: OrionDBInterface,
+) -> List[Dict]:
+    """ """
+    runs = []
+
+    # retrieve the deployment
+    deployment = await session.get(db.Deployment, deployment_id)
+    runs.append(
+        {
+            "id": uuid4(),
+            "flow_id": deployment.flow_id,
+            "deployment_id": deployment_id,
+            "work_queue_name": deployment.work_queue_name,
+            "parameters": deployment.parameters,
+            "infrastructure_document_id": deployment.infrastructure_document_id,
+            "idempotency_key": f"scheduled {deployment.id} {schedule_time}",
+            "tags": ["auto-scheduled"] + deployment.tags,
+            "auto_scheduled": True,
+            "state": schemas.states.Scheduled(
+                scheduled_time=schedule_time,
+                message="Flow run scheduled",
+            ).dict(),
+            "state_type": schemas.states.StateType.SCHEDULED,
+            "state_name": "Scheduled",
+            "next_scheduled_start_time": schedule_time,
+            "expected_start_time": schedule_time,
+        }
+    )
+
+    return runs
 
 
 @inject_db

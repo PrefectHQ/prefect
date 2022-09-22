@@ -212,7 +212,7 @@ async def deployment(
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment",
+            name="my-deployment",
             tags=["test"],
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
