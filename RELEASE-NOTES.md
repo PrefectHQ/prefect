@@ -1,9 +1,6 @@
 # Prefect Release Notes
 
-## Release 2.5.0
-
-### Exciting New Features 🎉
-- Add Microsoft Teams notification block — https://github.com/PrefectHQ/prefect/pull/6920
+## Release 2.4.1
 
 ### Enhancements
 - Add TTL to `KubernetesJob` for automated cleanup of finished jobs — https://github.com/PrefectHQ/prefect/pull/6785
@@ -23,6 +20,7 @@
 - Add flow run URLs to notifications — https://github.com/PrefectHQ/prefect/pull/6798
 - Add client retries on 503 responses — https://github.com/PrefectHQ/prefect/pull/6927
 - Update injected client retrieval to use the flow and task run context client for reduced overhead — https://github.com/PrefectHQ/prefect/pull/6859
+- Add Microsoft Teams notification block — https://github.com/PrefectHQ/prefect/pull/6920
 
 ### Fixes
 - Fix `LocalFileSystem.get_directory` when from and to paths match — https://github.com/PrefectHQ/prefect/pull/6824
