@@ -26,7 +26,9 @@ def reload_modules():
 
 
 # A list of the notification classes Pytest should use as parameters to each method in TestAppriseNotificationBlock
-notification_classes = AppriseNotificationBlock.__subclasses__()
+notification_classes = sorted(
+    AppriseNotificationBlock.__subclasses__(), key=lambda cls: cls.__name__
+)
 
 
 @pytest.mark.parametrize("block_class", notification_classes)
