@@ -140,8 +140,10 @@ class PrefectResponse(httpx.Response):
 
 class PrefectHttpxClient(httpx.AsyncClient):
     """
-    A Prefect wrapper for the async httpx client with support for CloudFlare-style
-    rate limiting.
+    A Prefect wrapper for the async httpx client with support for retry-after headers
+    for:
+    - 429 CloudFlare-style rate limiting
+    - 503 Service unavailable
 
     Additionally, this client will always call `raise_for_status` on responses.
 
@@ -157,7 +159,8 @@ class PrefectHttpxClient(httpx.AsyncClient):
             await super().send(*args, **kwargs)
         )
         while (
-            response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+            response.status_code
+            in {status.HTTP_429_TOO_MANY_REQUESTS, status.HTTP_503_SERVICE_UNAVAILABLE}
             and retry_count < self.RETRY_MAX
         ):
             retry_count += 1
