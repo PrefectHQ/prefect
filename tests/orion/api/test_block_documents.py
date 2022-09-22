@@ -1035,6 +1035,9 @@ class TestSecretBlockDocuments:
         assert block.data["y"] == obfuscate_string(Y)
         assert block.data["z"] == Z
 
+        # by default, no characters of secrets are shown
+        assert block.data["y"] == "*" * 8
+
     async def test_read_secret_block_document_by_id_obfuscates_results(
         self, client, secret_block_document
     ):

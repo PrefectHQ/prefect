@@ -16,6 +16,11 @@ class TestLocalFileSystem:
         await fs.write_path("test.txt", content=b"hello")
         assert await fs.read_path("test.txt") == b"hello"
 
+    def test_read_write_roundtrip_sync(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+        fs.write_path("test.txt", content=b"hello")
+        assert fs.read_path("test.txt") == b"hello"
+
     async def test_write_with_missing_directory_creates(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
         await fs.write_path(Path("folder") / "test.txt", content=b"hello")
@@ -40,6 +45,10 @@ class TestLocalFileSystem:
         assert fs._resolve_path(tmp_path / "subdirectory") == tmp_path / "subdirectory"
         assert fs._resolve_path("subdirectory") == tmp_path / "subdirectory"
 
+    async def test_get_directory_duplicate_directory(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+        await fs.get_directory(".", ".")
+
 
 class TestRemoteFileSystem:
     def test_must_contain_scheme(self):
@@ -56,6 +65,11 @@ class TestRemoteFileSystem:
         fs = RemoteFileSystem(basepath="memory://root")
         await fs.write_path("test.txt", content=b"hello")
         assert await fs.read_path("test.txt") == b"hello"
+
+    def test_read_write_roundtrip_sync(self):
+        fs = RemoteFileSystem(basepath="memory://root")
+        fs.write_path("test.txt", content=b"hello")
+        assert fs.read_path("test.txt") == b"hello"
 
     async def test_write_with_missing_directory_succeeds(self):
         fs = RemoteFileSystem(basepath="memory://root/")

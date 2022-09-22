@@ -3,7 +3,8 @@ import uuid
 import pydantic
 
 from prefect.blocks.core import Block
-from prefect.client import OrionClient, inject_client
+from prefect.client import OrionClient
+from prefect.client.orion import inject_client
 from prefect.filesystems import WritableFileSystem
 from prefect.orion.schemas.data import DataDocument
 
