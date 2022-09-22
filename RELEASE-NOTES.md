@@ -6,7 +6,7 @@
 - Add TTL to `KubernetesJob` for automated cleanup of finished jobs — https://github.com/PrefectHQ/prefect/pull/6785
 - Add `prefect kubernetes manifest agent` to generate an agent Kubernetes manifest — https://github.com/PrefectHQ/prefect/pull/6771
 - Add `prefect block type delete` to delete block types — https://github.com/PrefectHQ/prefect/pull/6849
-- Add dynamic titles to Orion UI tabs — https://github.com/PrefectHQ/prefect/pull/6914
+- Add dynamic titles to tabs in UI — https://github.com/PrefectHQ/prefect/pull/6914
 - Hide secret tails by default — https://github.com/PrefectHQ/prefect/pull/6846
 - Add runs tab to show flow runs on the flow, deployment and work-queue pages in the UI — https://github.com/PrefectHQ/prefect/pull/6721
 - Add toggle to disable block registration on application start — https://github.com/PrefectHQ/prefect/pull/6858
@@ -29,7 +29,7 @@
 
 ### Documentation
 - Add GitHub and Docker deployment recipe — https://github.com/PrefectHQ/prefect/pull/6825
-- Add parameter configuration and examples to docs — https://github.com/PrefectHQ/prefect/pull/6886
+- Add parameter configuration examples — https://github.com/PrefectHQ/prefect/pull/6886
 
 ### Collections
 - Add `prefect-firebolt` to collections catalog — https://github.com/PrefectHQ/prefect/pull/6917
