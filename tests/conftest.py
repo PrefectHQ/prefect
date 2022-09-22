@@ -324,7 +324,6 @@ def safety_check_settings():
     assert (
         PREFECT_API_URL.value() is None
     ), "Tests should not be run connected to an external API."
-
     # Safety check for home directory
     assert (
         str(PREFECT_HOME.value()) == TEST_PREFECT_HOME
