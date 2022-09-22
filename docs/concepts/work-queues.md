@@ -42,9 +42,9 @@ Agents are configured to pull work from one or more work queues. If the agent re
 
 Configuration parameters you can specify when starting an agent include:
 
-| Option           | Description                                                                          |
-| ---------------- | ------------------------------------------------------------------------------------ |
-| -q, --work-queue | One or more work queues that the agent will poll.                                    |
+| Option           | Description  |
+| --- | --- |
+| -q, --work-queue | One or more work queues that the agent will poll for work. |
 | --api TEXT       | The API URL for the Prefect Orion server. Default is the value of `PREFECT_API_URL`. |
 | --hide-welcome   | Do not display the startup ASCII art for the agent process.                          |
 
@@ -54,15 +54,15 @@ You must start an agent within an environment that can access or create the infr
     Prefect must be installed in any environment in which you intend to run the agent or execute a flow run.
 
 !!! tip "`PREFECT_API_URL` setting for agents"
-    `PREFECT_API_URL` must be set for the environment in which your agent is running. 
+    `PREFECT_API_URL` must be set for the environment in which your agent is running or specified when starting the agent with the `--api` flag. 
 
     If you want an agent to communicate with Prefect Cloud or a Prefect Orion API server from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
-Use the following `prefect agent start` CLI command to start an agent. You must pass at least one work queue name that the agent will poll for work.
+Use the `prefect agent start` CLI command to start an agent. You must pass at least one work queue name that the agent will poll for work. If the work queue does not exist, it will be created.
 
 <div class="terminal">
 ```bash
-$ prefect agent start [OPTIONS]
+$ prefect agent start -q [work queue name]
 ```
 </div>
 
@@ -251,98 +251,8 @@ When using the `prefect work-queue` Prefect CLI command to configure a work queu
 - `set-concurrency-limit`  sets a concurrency limit on a work queue.
 - `clear-concurrency-limit` clears any concurrency limits from a work queue.
 
-## Agent overview
-
-Agent processes are lightweight polling services that get scheduled work from a [work queue](#work-queue-overview) and deploy the corresponding flow runs. 
-
-It is possible for multiple agent processes to be started for a single work queue, and each process sends a unique agent ID.
-
-### Agent configuration
-
-When work queues are configured, you can start an agent that corresponds to a specific work queue. Prefect also provides the ability to auto-create work queues on your behalf based on a set of tags passed to the `prefect agent start` command.
-
-Configuration parameters you can specify when starting an agent include:
-
-| Option | Description |
-| --- | --- |
-| --api TEXT     | The API URL for the Prefect Orion server. Default is the value of `PREFECT_API_URL`. |
-| --hide-welcome | Do not display the startup ASCII art for the agent process. |
-| -t, --tag      | One or more optional tags that will be used to create a work queue. |
-
-You must start an agent within an environment that can access or create the infrastructure needed to execute flow runs. Your agent will deploy flow runs to the infrastructure specified by the deployment.
-
-!!! tip "Prefect must be installed in execution environments"
-    Prefect must be installed in any environment in which you intend to run the agent or execute a flow run.
-
-!!! tip "`PREFECT_API_URL` setting for agents"
-    `PREFECT_API_URL` must be set for the environment in which your agent is running. 
-
-    If you want an agent to communicate with Prefect Cloud or a Prefect Orion API server from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
-
-Run the following `prefect agent start` CLI command to start an agent. You must pass the [work queue name or ID](#work-queue-configuration) for the queue the agent should poll for work.
-
-<div class="terminal">
-```bash
-$ prefect agent start [OPTIONS] WORK_QUEUE
-```
-</div>
-
-For example, to start an agent with a work queue ID, run:
-
-<div class="terminal">
-```bash
-$ prefect agent start 'acffbcc8-ae65-4c83-a38a-96e2e5e5b441'
-Starting agent with ephemeral API...
-
-  ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
- | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
- |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |
- |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
-
-
-Agent started!
-```
-</div>
-
-To start your agent with a work queue name, run:
-
-<div class="terminal">
-```bash
-$ prefect agent start 'Agent queue demo'
-Starting agent with ephemeral API...
-
-  ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
- | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
- |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |
- |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
-
-
-Agent started!
-```
-</div>
-
-Alternatively, start your agent with a set of tags and Prefect will create a work queue for you.
-
-<div class="terminal">
-```bash
-$ prefect agent start -t demo
-Created work queue 'Agent queue demo'
-Starting agent with ephemeral API...
-
-  ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
- | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
- |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |
- |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
-
-
-Agent started! Looking for work from queue 'Agent queue demo'...
-```
-</div>
-
-In this case, Prefect automatically created a new `Agent queue demo` work queue that filters on a `demo` tag. Note that, if a work queue with equivalent settings already exists, Prefect uses that work queue rather than creating a new one.
-
-#### Priority queues
+### Priority queues
 Work queues can be used to more precisely control the delivery of work to agents. For example, an agent could be started with two work queues, one for high-priority work and one for lower-priority work: `prefect agent start -q high-priority -q low-priority`. In the UI, the low-priority queue could be configured with a low concurrency limit to ensure that its runs don't "crowd out" the high-priority ones. 
 
-#### Local debugging
+### Local debugging
 As long as your deployment's infrastructure block supports it, you can use work queues to temporarily send runs to an agent running on your local machine for debugging by running `prefect agent start -q my-local-machine` and updating the deployment's work queue to `my-local-machine`.
