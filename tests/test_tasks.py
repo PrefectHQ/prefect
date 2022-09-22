@@ -2241,7 +2241,7 @@ class TestTaskMap:
         assert [future.result() for future in futures] == [3, 3, 3]
 
     @pytest.mark.parametrize("explicit", [True, False])
-    async def test_unmapped_int(self, explicit):
+    def test_unmapped_int(self, explicit):
         @flow
         def my_flow():
             numbers = [1, 2, 3]
@@ -2252,7 +2252,7 @@ class TestTaskMap:
         assert [future.result() for future in futures] == [6, 7, 8]
 
     @pytest.mark.parametrize("explicit", [True, False])
-    async def test_unmapped_str(self, explicit):
+    def test_unmapped_str(self, explicit):
         @flow
         def my_flow():
             letters = ["a", "b", "c"]
@@ -2262,7 +2262,7 @@ class TestTaskMap:
         futures = my_flow()
         assert [future.result() for future in futures] == ["atest", "btest", "ctest"]
 
-    async def test_unmapped_iterable(self):
+    def test_unmapped_iterable(self):
         @flow
         def my_flow():
             numbers = [[], [], []]
@@ -2276,7 +2276,7 @@ class TestTaskMap:
             [4, 5, 6, 7],
         ]
 
-    async def test_with_default_kwargs(self):
+    def test_with_default_kwargs(self):
         @task
         def add_some(x, y=5):
             return x + y
