@@ -114,6 +114,7 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
     """
 
     _block_type_name = "Microsoft Teams Webhook"
+    _block_type_slug = "ms-teams-webhook"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6n0dSTBzwoVPhX8Vgg37i7/9040e07a62def4f48242be3eae6d3719/teams_logo.png?h=250"
 
     url: SecretStr = Field(
