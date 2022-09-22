@@ -1,7 +1,7 @@
 <template>
   <p-layout-default class="flow-runs">
     <template #header>
-      <PageHeadingFlowRuns v-model:selected="selectedFilterType" />
+      <PageHeadingFlowRuns />
     </template>
 
     <template v-if="loaded">
@@ -59,25 +59,8 @@
   const loaded = computed(() => flowRunsCountAllSubscription.executed)
   const empty = computed(() => flowRunsCountAllSubscription.response === 0)
 
-  const { filter, hasFilters, startDate, endDate, name, sort, states } = useFlowRunFilterFromRoute()
+  const { filter, hasFilters, startDate, endDate, name, sort } = useFlowRunFilterFromRoute()
 
-  const selectedFilterType = ref('week')
-
-  watch(selectedFilterType, async ()=> {
-    await router.push(routes.flowRuns())
-    if (selectedFilterType.value === 'noScheduled') {
-      states.value = stateType.filter(state => state !== 'scheduled')
-      startDate.value = formatDateTimeNumeric(subDays(startOfToday(), 7))
-      return
-    } if (selectedFilterType.value === 'day') {
-      startDate.value = formatDateTimeNumeric(subDays(startOfToday(), 1))
-      states.value = []
-      return
-    } if (selectedFilterType.value === 'day') {
-      states.value = []
-      startDate.value = formatDateTimeNumeric(subDays(startOfToday(), 7))
-    }
-  })
 
   const subscriptionOptions = {
     interval: 30000,
