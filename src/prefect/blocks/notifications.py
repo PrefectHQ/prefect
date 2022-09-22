@@ -107,8 +107,8 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
     Examples:
         Load a saved Teams webhook and send a message:
         ```python
-        from prefect.blocks.notifications import TeamsWebhook
-        teams_webhook_block = TeamsWebhook.load("BLOCK_NAME")
+        from prefect.blocks.notifications import MicrosoftTeamsWebhook
+        teams_webhook_block = MicrosoftTeamsWebhook.load("BLOCK_NAME")
         teams_webhook_block.notify("Hello from Prefect!")
         ```
     """
