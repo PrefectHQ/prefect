@@ -1,4 +1,4 @@
-recipeName: Deployment from GitHub Actions
+recipeName: Flow Deployment with GitHub Actions
 author: Prefect
 authorUrl: https://prefect.io
 description: Deploy a Prefect flow with storage and infrastructure blocks, update and push Docker image to container registry.
