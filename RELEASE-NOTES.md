@@ -8,7 +8,7 @@
 - Add `prefect block type delete` to delete block types — https://github.com/PrefectHQ/prefect/pull/6849
 - Add dynamic titles to tabs in UI — https://github.com/PrefectHQ/prefect/pull/6914
 - Hide secret tails by default — https://github.com/PrefectHQ/prefect/pull/6846
-- Add runs tab to show flow runs on the flow, deployment and work-queue pages in the UI — https://github.com/PrefectHQ/prefect/pull/6721
+- Add runs tab to show flow runs on the flow, deployment, and work-queue pages in the UI — https://github.com/PrefectHQ/prefect/pull/6721
 - Add toggle to disable block registration on application start — https://github.com/PrefectHQ/prefect/pull/6858
 - Use injected client during block registration, save, and load — https://github.com/PrefectHQ/prefect/pull/6857
 - Refactor of `prefect.client` into `prefect.client.orion` and `prefect.client.cloud` — https://github.com/PrefectHQ/prefect/pull/6847
