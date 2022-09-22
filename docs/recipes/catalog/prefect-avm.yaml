@@ -1,4 +1,4 @@
-recipeName: Prefect Agent on Azure VM
+recipeName: Agent on an Azure VM
 author: Prefect
 authorUrl: https://prefect.io
 description: Set up an Azure VM and run a Prefect agent.

@@ -26,14 +26,12 @@ The first step to getting started with Prefect is installing the Prefect Python 
         <img src="https://img.shields.io/github/commit-activity/m/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
     <a href="https://github.com/prefecthq/prefect/graphs/contributors" alt="Contributors">
         <img src="https://img.shields.io/github/contributors/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
-    <a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
-        <img src="https://img.shields.io/pypi/pyversions/prefect?color=0052FF&labelColor=090422" /></a>
 </p>
 
 ## Set up Python
 
-<a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
-    <img src="https://img.shields.io/pypi/pyversions/prefect.svg" /></a>
+<a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
+    <img src="https://img.shields.io/pypi/pyversions/prefect?color=0052FF&labelColor=090422" /></a>
 
 Prefect requires Python 3.7 or later.
 

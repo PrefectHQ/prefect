@@ -56,17 +56,27 @@ def inject_client(fn):
 
     @wraps(fn)
     async def with_injected_client(*args, **kwargs):
+        import prefect.context
+
         client = None
+        flow_run_ctx = prefect.context.FlowRunContext.get()
+        task_run_ctx = prefect.context.TaskRunContext.get()
 
         if "client" in kwargs and kwargs["client"] is not None:
+            # Client provided in kwargs
             client = kwargs["client"]
             client_context = asyncnullcontext()
+        elif flow_run_ctx is not None or task_run_ctx is not None:
+            # Client available in context
+            client = (flow_run_ctx or task_run_ctx).client
+            client_context = asyncnullcontext()
         else:
+            # A new client is needed
             kwargs.pop("client", None)  # Remove null values
             client_context = get_client()
 
-        async with client_context as client:
-            kwargs.setdefault("client", client)
+        async with client_context as new_client:
+            kwargs.setdefault("client", new_client or client)
             return await fn(*args, **kwargs)
 
     return with_injected_client
@@ -1670,7 +1680,7 @@ class OrionClient:
         Read flow and task run logs.
         """
         body = {
-            "filter": log_filter.dict(json_compatible=True) if log_filter else None,
+            "logs": log_filter.dict(json_compatible=True) if log_filter else None,
             "limit": limit,
             "offset": offset,
         }

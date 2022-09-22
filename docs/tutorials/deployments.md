@@ -191,7 +191,7 @@ You can list the contents of the folder to see what we have at this step in the 
 ```
 </div>
 
-???+ tip "Ignoring files with `.prefectignore`"
+!!! tip "Ignoring files with `.prefectignore`"
     By default, `prefect deployment build` automatically uploads your flow script and any supporting files in the present working directory to storage (if you've specified remote storage for the deployment).
 
     To exclude files from being uploaded, you can create a `.prefectignore` file. `.prefectignore` enables you to specify files that should be ignored by the deployment creation process. [The syntax follows `.gitignore` patterns](https://git-scm.com/docs/gitignore).
@@ -412,17 +412,44 @@ INFO:     Uvicorn running on http://127.0.0.1:4200 (Press CTRL+C to quit)
 ```
 </div>
 
-Note the message to set `PREFECT_API_URL` so that you're coordinating flows with this API instance.
+!!! note "Set the `PREFECT_API_URL` for your server"
+    Note the message to set `PREFECT_API_URL` &mdash; configuring the URL of your Prefect Orion server or Prefect Cloud makes sure that you're coordinating flows with the correct API instance.
 
-Go back to your first terminal session and run this command to set the API URL:
+    Go to your first terminal session and run this command to set the API URL to point to the Prefect Orion instance you just started:
 
-<div class='terminal'>
-```bash
-$ prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
-Set variable 'PREFECT_API_URL' to 'http://127.0.0.1:4200/api'
-Updated profile 'default'
-```
-</div>
+    <div class='terminal'>
+    ```bash
+    $ prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
+    Set variable 'PREFECT_API_URL' to 'http://127.0.0.1:4200/api'
+    Updated profile 'default'
+    ```
+    </div>
+
+!!! tip "Use profiles to switch between 'PREFECT_API_URL' settings"
+    You can create [configuration profiles](/concepts/settings/#configuration-profiles) to save commonly used settings. 
+
+    <div class='terminal'>
+    ```bash
+    # View current configuration
+    $ prefect config view
+    PREFECT_PROFILE='default'
+    PREFECT_API_URL='http://127.0.0.1:4200/api' (from profile)
+    
+    # Create a "local" profile using these settings
+    $ prefect profile create local --from default
+
+    Created profile with properties:
+        name - 'local'
+        from name - default
+
+    Use created profile for future, subsequent commands:
+        prefect profile use 'local'
+
+    Use created profile temporarily for a single command:
+        prefect -p 'local' config view
+    ```
+    </div>
+
 
 ## Agents and work queues
 
