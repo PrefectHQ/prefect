@@ -1,5 +1,6 @@
 {
     "slack-webhook": "sha256:a40a9a133af175bb9d013045a06d364f88dc26e0e46f764634cd855a940e771a",
+    "ms-teams-webhook": "sha256:894cade8e315720bb8d7bc87346829c6c8721ed4fff692964eac8fb0daefe8cd",
     "json": "sha256:ef9b76010e0545bd7f2212029460731f66ccfce289affe4b504cbeb702fc8ea3",
     "string": "sha256:e9f3f43e55b73bc94ee2a355f1e4ef7064645268cba22571c2a95d90a2af8dd0",
     "date-time": "sha256:7943c88ca6ab22804082b595b9847d035a1364bdb23474c927317bcab9cb5d9c",
