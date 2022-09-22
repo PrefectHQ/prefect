@@ -107,7 +107,7 @@ async def test_service_uses_message_template(
         session=session,
         flow_run_notification_policy_id=completed_policy.id,
         flow_run_notification_policy=schemas.actions.FlowRunNotificationPolicyUpdate(
-            message_template="Hi there {flow_run_name}"
+            message_template="Hi there {flow_run_name}! Also the url works: {flow_run_url}"
         ),
     )
 
@@ -118,9 +118,13 @@ async def test_service_uses_message_template(
     await session.commit()
 
     await FlowRunNotifications(handle_signals=False).start(loops=1)
+    expected_url = FlowRunNotifications(
+        handle_signals=False
+    ).get_ui_url_for_flow_run_id(flow_run_id=flow_run.id)
 
     captured = capsys.readouterr()
     assert f"Hi there {flow_run.name}" in captured.out
+    assert f"Also the url works: {expected_url}" in captured.out
 
 
 async def test_service_sends_multiple_notifications(

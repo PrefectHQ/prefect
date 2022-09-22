@@ -9,12 +9,18 @@ from prefect.testing.utilities import AsyncMock
 
 
 class TestPrefectHttpxClient:
-    async def test_prefect_httpx_client_retries_429s(self, monkeypatch):
+    @pytest.mark.parametrize(
+        "error_code",
+        [status.HTTP_429_TOO_MANY_REQUESTS, status.HTTP_503_SERVICE_UNAVAILABLE],
+    )
+    async def test_prefect_httpx_client_retries_on_designated_error_codes(
+        self, monkeypatch, error_code
+    ):
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
         client = PrefectHttpxClient()
         retry_response = Response(
-            status.HTTP_429_TOO_MANY_REQUESTS,
+            error_code,
             headers={"Retry-After": "0"},
             request=Request("a test request", "fake.url/fake/route"),
         )

@@ -25,5 +25,5 @@ If changing documentation, a link to a preview of the page is great.
 - [ ] This pull request references any related issue by including "closes `<link to issue>`"
 	- If no issue exists and your change is not a small fix, please [create an issue](https://github.com/PrefectHQ/prefect/issues/new/choose) first.
 - [ ] This pull request includes tests or only affects documentation.
-- [ ] This pull request includes a `fix`, `feature`, `enhancement`, `docs`, `collections`, or `maintenance` label categorizing the change.
+- [ ] This pull request includes a label categorizing the change e.g. `fix`, `feature`, `enhancement`
   <!--  If you do not have permission to add a label, a maintainer will add one for you and check this box. -->
