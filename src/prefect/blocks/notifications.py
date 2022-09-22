@@ -45,8 +45,8 @@ class AppriseNotificationBlock(NotificationBlock, ABC):
     url: SecretStr = Field(
         default=...,
         title="Webhook URL",
-        description="Slack incoming webhook URL used to send notifications.",
-        example="https://hooks.slack.com/XXX",
+        description="Incoming webhook URL used to send notifications.",
+        example="https://hooks.example.com/XXX",
     )
 
     def block_initialization(self) -> None:
