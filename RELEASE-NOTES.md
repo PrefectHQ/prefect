@@ -37,8 +37,8 @@
 ### Contributors
 - @jmg-duarte
 - @taljaards
-- @hallenmaia made their first contributions(!) in https://github.com/PrefectHQ/prefect/pull/6903, https://github.com/PrefectHQ/prefect/pull/6785, and https://github.com/PrefectHQ/prefect/pull/6771
 - @yashlad681
+- @hallenmaia made their first contributions(!) in https://github.com/PrefectHQ/prefect/pull/6903, https://github.com/PrefectHQ/prefect/pull/6785, and https://github.com/PrefectHQ/prefect/pull/6771
 - @dobbersc made their first contribution in https://github.com/PrefectHQ/prefect/pull/6870
 - @jnovinger made their first contribution in https://github.com/PrefectHQ/prefect/pull/6916
 - @mathijscarlu made their first contribution in https://github.com/PrefectHQ/prefect/pull/6885
