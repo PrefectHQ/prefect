@@ -26,7 +26,7 @@
   const createFlowRun = async (deploymentFlowRun: DeploymentFlowRunCreate): Promise<void> => {
     try {
       const flowRun = await deploymentsApi.createDeploymentFlowRun(deploymentId.value, deploymentFlowRun)
-      const startTime = deploymentFlowRun.state?.stateDetails?.scheduledTime ?? undefined
+      const startTime = flowRun.expectedStartTime ?? undefined
       const immediate = !startTime
       const toastMessage = h(ToastFlowRunCreate, { flowRun, flowRunRoute: routes.flowRun, router, immediate, startTime })
       showToast(toastMessage, 'success')

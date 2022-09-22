@@ -35,7 +35,7 @@
     <template #well>
       <template v-if="flowRun">
         <div class="flow-run__meta">
-          <StateBadge :state="flowRun.state" />
+          <StateBadge :state="{ name: flowRun.stateName, type: flowRun.stateType } " />
           <DurationIconText :duration="flowRun.duration" />
           <FlowIconText :flow-id="flowRun.flowId" />
           <DeploymentIconText v-if="flowRun.deploymentId" :deployment-id="flowRun.deploymentId" />
