@@ -156,7 +156,7 @@ Let's create a flow run for this deployment. The flow run will execute in a Dock
     
     If you shut down the agent from a previous tutorial, you can start it again by opening another terminal session and starting the agent with the `prefect agent start -q test` CLI command. This agent pulls work from the `test` work queue created previously.
 
-    Note also that the `PREFECT_API_URL` setting should be configured to the URL of your Prefect Orion server or Prefect Cloud.
+    Note also that the `PREFECT_API_URL` setting should be configured to point to the URL of your Prefect Orion server or Prefect Cloud.
 
     If you're running the agent in the same environment or machine as your server, it should already be set. If not, run this command to set the API URL to point at the Prefect Orion instance just started:
 

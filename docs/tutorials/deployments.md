@@ -415,7 +415,7 @@ INFO:     Uvicorn running on http://127.0.0.1:4200 (Press CTRL+C to quit)
 !!! note "Set the `PREFECT_API_URL` for your server"
     Note the message to set `PREFECT_API_URL` &mdash; configuring the URL of your Prefect Orion server or Prefect Cloud makes sure that you're coordinating flows with the correct API instance.
 
-    Go to your first terminal session and run this command to set the API URL to point at the Prefect Orion instance just started:
+    Go to your first terminal session and run this command to set the API URL to point to the Prefect Orion instance you just started:
 
     <div class='terminal'>
     ```bash
