@@ -73,21 +73,22 @@ plugins:
             - docs/recipes/generate_catalog.py
 nav:
     - Prefect 2: index.md
-    - 'Getting Started':
-        - Overview: getting-started/overview.md
+    - Getting Started:
+        - Quick Start: getting-started/overview.md
         - Installation: getting-started/installation.md
         - Tutorials:
-            - tutorials/first-steps.md
-            - tutorials/flow-task-config.md
-            - tutorials/execution.md
-            - tutorials/orion.md
-            - tutorials/deployments.md
-            - tutorials/storage.md
-            - tutorials/docker.md
-            # - tutorials/kubernetes-flow-runner.md
-            - tutorials/testing.md
-            - tutorials/dask-ray-task-runners.md
-            - Prefect Cloud: ui/cloud-getting-started.md
+            - Prefect Fundamentals:
+                - tutorials/first-steps.md
+                - tutorials/flow-task-config.md
+                - tutorials/execution.md
+                - tutorials/orion.md
+                - tutorials/deployments.md
+                - tutorials/storage.md
+                - tutorials/docker.md
+                - Prefect Cloud: ui/cloud-getting-started.md
+            - Advanced Tutorials:
+                - tutorials/testing.md
+                - tutorials/dask-ray-task-runners.md
         - Migration Guide: migration-guide.md
         - Prefect Recipes: recipes/recipes.md
     - Concepts:
