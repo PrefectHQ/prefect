@@ -14,7 +14,7 @@ from fastapi.security import HTTPBearer
 import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
-from prefect.client import OrionClient, get_client
+from prefect.client.orion import OrionClient, get_client, inject_client
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -43,6 +43,44 @@ class TestGetClient:
             new_client = get_client()
             assert isinstance(new_client, OrionClient)
             assert new_client is not client
+
+
+class TestInjectClient:
+    @staticmethod
+    @inject_client
+    async def injected_func(client: OrionClient):
+        assert client._started, "Client should be started during function"
+        assert not client._closed, "Client should be closed during function"
+        # Client should be usable during function
+        await client.api_healthcheck()
+        return client
+
+    async def test_get_new_client(self):
+        client = await TestInjectClient.injected_func()
+        assert isinstance(client, OrionClient)
+        assert client._closed, "Client should be closed after function returns"
+
+    async def test_get_new_client_with_explicit_none(self):
+        client = await TestInjectClient.injected_func(client=None)
+        assert isinstance(client, OrionClient)
+        assert client._closed, "Client should be closed after function returns"
+
+    async def test_use_existing_client(self, orion_client):
+        client = await TestInjectClient.injected_func(client=orion_client)
+        assert client is orion_client, "Client should be the same object"
+        assert not client._closed, "Client should not be closed after function returns"
+
+    async def test_use_existing_client_from_flow_run_ctx(self, orion_client):
+        with prefect.context.FlowRunContext.construct(client=orion_client):
+            client = await TestInjectClient.injected_func()
+        assert client is orion_client, "Client should be the same object"
+        assert not client._closed, "Client should not be closed after function returns"
+
+    async def test_use_existing_client_from_task_run_ctx(self, orion_client):
+        with prefect.context.FlowRunContext.construct(client=orion_client):
+            client = await TestInjectClient.injected_func()
+        assert client is orion_client, "Client should be the same object"
+        assert not client._closed, "Client should not be closed after function returns"
 
 
 def not_enough_open_files() -> bool:
