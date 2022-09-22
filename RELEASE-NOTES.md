@@ -20,6 +20,7 @@
 - Add flow run URLs to notifications — https://github.com/PrefectHQ/prefect/pull/6798
 - Add client retries on 503 responses — https://github.com/PrefectHQ/prefect/pull/6927
 - Update injected client retrieval to use the flow and task run context client for reduced overhead — https://github.com/PrefectHQ/prefect/pull/6859
+- Add Microsoft Teams notification block — https://github.com/PrefectHQ/prefect/pull/6920
 
 ### Fixes
 - Fix `LocalFileSystem.get_directory` when from and to paths match — https://github.com/PrefectHQ/prefect/pull/6824
@@ -35,7 +36,7 @@
 - Add `prefect-firebolt` to collections catalog — https://github.com/PrefectHQ/prefect/pull/6917
 
 ### Helm Charts
-— Major overhaul in how helm charts in `prefect-helm` are structured and how we version and release them — [2022.09.21 release](https://github.com/PrefectHQ/prefect-helm/releases/tag/2022.09.21)
+- Major overhaul in how helm charts in `prefect-helm` are structured and how we version and release them — [2022.09.21 release](https://github.com/PrefectHQ/prefect-helm/releases/tag/2022.09.21)
 
 ### Contributors
 - @jmg-duarte
