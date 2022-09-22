@@ -20,6 +20,7 @@
   import { DeploymentsTable, PageHeadingDeployments, DeploymentsPageEmptyState } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { deploymentsApi } from '@/services/deploymentsApi'
 
   const subscriptionOptions = {
@@ -30,4 +31,6 @@
   const deployments = computed(() => deploymentsSubscription.response ?? [])
   const empty = computed(() => deploymentsSubscription.executed && deployments.value.length === 0)
   const loaded = computed(() => deploymentsSubscription.executed)
+
+  usePageTitle('Deployments')
 </script>

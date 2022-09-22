@@ -35,6 +35,7 @@
   import { useSubscription, useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router/routes'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
@@ -71,4 +72,12 @@
   function deleteFlow(): void {
     router.push(routes.flows())
   }
+
+  const title = computed(() => {
+    if (!flow.value) {
+      return 'Flow'
+    }
+    return `Flow: ${flow.value.name}`
+  })
+  usePageTitle(title)
 </script>

@@ -13,6 +13,7 @@
   import { showToast } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import router from '@/router'
   import { deploymentsApi } from '@/services/deploymentsApi'
 
@@ -38,5 +39,13 @@
   function cancel(): void {
     router.back()
   }
+
+  const title = computed(() => {
+    if (!deployment.value) {
+      return 'Edit Deployment'
+    }
+    return `Edit Deployment: ${deployment.value.name}`
+  })
+  usePageTitle(title)
 </script>
 
