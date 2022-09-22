@@ -62,16 +62,13 @@ class TestAppriseNotificationBlock:
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
-            url = "https://example.com/notification"
+            block = block_class(url="https://example.com/notification")
+            block.notify("test")
 
-            @prefect.flow
-            def test_flow():
-                block = block_class(url=url)
-                block.notify("test")
-
-            test_flow()
             AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(url)
+            apprise_instance_mock.add.assert_called_once_with(
+                block.url.get_secret_value()
+            )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
             )
