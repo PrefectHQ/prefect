@@ -17,6 +17,9 @@ changelog:
     - title: Fixes
       labels:
         - fix
+    - title: Deprecations
+      labels:
+        - deprecation
     - title: Documentation
       labels:
         - docs
