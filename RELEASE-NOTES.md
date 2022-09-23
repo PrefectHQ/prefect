@@ -1,5 +1,14 @@
 # Prefect Release Notes
 
+## Release 2.4.2
+
+### Fixes
+- Remove types in blocks docstring attributes to avoid annotation parsing warnings — https://github.com/PrefectHQ/prefect/pull/6937
+- Fixes `inject_client` in scenarios where the `client` kwarg is passed `None` — https://github.com/PrefectHQ/prefect/pull/6942
+
+### Contributors
+* @john-jam made their first contribution in https://github.com/PrefectHQ/prefect/pull/6937
+
 ## Release 2.4.1
 
 ### Enhancements
