@@ -299,7 +299,7 @@ class TestFlowCall:
 
         # Assert the final state is correct
         assert state.is_failed() if error else state.is_completed()
-        assert exceptions_equal(await state.result(raise_on_failure=False), error)
+        assert exceptions_equal(state.result(raise_on_failure=False), error)
 
     def test_final_state_respects_returned_state(sel):
         @flow(version="test")
@@ -314,7 +314,7 @@ class TestFlowCall:
 
         # Assert the final state is correct
         assert state.is_failed()
-        assert await state.result(raise_on_failure=False) == "hello!"
+        assert state.result(raise_on_failure=False) == "hello!"
         assert state.message == "Test returned state"
 
     def test_flow_state_reflects_returned_task_run_state(self):
