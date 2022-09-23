@@ -65,7 +65,8 @@ class BaseDockerLogin(Block, ABC):
 
         return client
 
-    def _get_docker_client(self):
+    @staticmethod
+    def _get_docker_client():
         try:
 
             with warnings.catch_warnings():
