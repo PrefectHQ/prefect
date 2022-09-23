@@ -1224,10 +1224,10 @@ class TestSubflowRunLogs:
         def my_flow():
             logger = get_run_logger()
             logger.info("Hello world!")
-            return my_subflow._run()
+            return my_subflow(return_state=True)
 
-        state = my_flow._run()
-        subflow_run_id = state.result().state_details.flow_run_id
+        subflow_state = my_flow()
+        subflow_run_id = subflow_state.state_details.flow_run_id
 
         logs = await orion_client.read_logs()
         log_messages = [log.message for log in logs]
