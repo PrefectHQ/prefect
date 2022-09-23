@@ -291,11 +291,6 @@ class DockerContainer(Infrastructure):
             # client from the block. Otherwise, use an unauthenticated client to 
             # pull images from public registries.
             docker_client = self.image_registry.login()
-            # When using a private registry, the image name must include the registry address,
-            # even when using Docker Hub.
-            registry_address = re.sub("^https?://", "", self.image_registry.registry_url)
-            self.image = (self.image if self.image.startswith(registry_address) 
-                     else f"{registry_address}/{self.image}")
         else:
             docker_client = self._get_client()
 
