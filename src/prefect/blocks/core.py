@@ -682,7 +682,6 @@ class Block(BaseModel, ABC):
                 "subclass and not on a Block interface class directly."
             )
 
-        client = client or client_from_context
         for field in cls.__fields__.values():
             if Block.is_block_class(field.type_):
                 await field.type_.register_type_and_schema(client=client)
