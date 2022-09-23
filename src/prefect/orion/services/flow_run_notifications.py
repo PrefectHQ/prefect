@@ -2,14 +2,15 @@
 A service that checks for flow run notifications and sends them.
 """
 import asyncio
+from uuid import UUID
 
 import sqlalchemy as sa
 
-from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.services.loop_service import LoopService
+from prefect.settings import PREFECT_API_URL
 
 
 class FlowRunNotifications(LoopService):
@@ -80,6 +81,8 @@ class FlowRunNotifications(LoopService):
                 )
                 return
 
+            from prefect.blocks.core import Block
+
             block = Block._from_block_document(
                 await schemas.core.BlockDocument.from_orm_model(
                     session=session,
@@ -88,16 +91,7 @@ class FlowRunNotifications(LoopService):
                 )
             )
 
-            message_template = (
-                notification.flow_run_notification_policy_message_template
-                or models.flow_run_notification_policies.DEFAULT_MESSAGE_TEMPLATE
-            )
-            message = message_template.format(
-                **{
-                    k: notification[k]
-                    for k in schemas.core.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS
-                }
-            )
+            message = self.construct_notification_message(notification=notification)
             await block.notify(
                 subject="Prefect flow run notification",
                 body=message,
@@ -114,6 +108,42 @@ class FlowRunNotifications(LoopService):
                 f"on flow run {notification.flow_run_id}",
                 exc_info=True,
             )
+
+    def construct_notification_message(self, notification) -> str:
+        """
+        Construct the message for a flow run notification, including
+        templating any variables.
+        """
+        message_template = (
+            notification.flow_run_notification_policy_message_template
+            or models.flow_run_notification_policies.DEFAULT_MESSAGE_TEMPLATE
+        )
+
+        # create a dict from the sqlalchemy object for templating
+        notification_dict = dict(notification)
+        # add the flow run url to the info
+        notification_dict["flow_run_url"] = self.get_ui_url_for_flow_run_id(
+            flow_run_id=notification_dict["flow_run_id"]
+        )
+
+        message = message_template.format(
+            **{
+                k: notification_dict[k]
+                for k in schemas.core.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS
+            }
+        )
+        return message
+
+    def get_ui_url_for_flow_run_id(self, flow_run_id: UUID) -> str:
+        """
+        Returns a link to the flow run view of the given flow run id.
+
+        Args:
+            flow_run_id: the flow run id.
+        """
+        api_url = PREFECT_API_URL.value() or "http://ephemeral-orion/api"
+        ui_url = api_url.strip("/api")
+        return f"{ui_url}/flow-run/{flow_run_id}"
 
 
 if __name__ == "__main__":

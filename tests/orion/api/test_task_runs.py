@@ -57,7 +57,7 @@ class TestCreateTaskRun:
         task_run_data = schemas.actions.TaskRunCreate(
             flow_run_id=flow_run.id,
             task_key="task-key",
-            state=states.Running(),
+            state=schemas.actions.StateCreate(type=schemas.states.StateType.RUNNING),
             dynamic_key="0",
         )
         response = await client.post(
@@ -69,7 +69,7 @@ class TestCreateTaskRun:
         assert str(task_run.id) == response.json()["id"]
         assert task_run.state.type == task_run_data.state.type
 
-    async def test_create_task_run_with_state_sets_timestamp_on_server(
+    async def test_create_task_run_with_state_ignores_client_provided_timestamp(
         self, flow_run, client, session
     ):
         response = await client.post(
@@ -77,7 +77,10 @@ class TestCreateTaskRun:
             json=schemas.actions.TaskRunCreate(
                 flow_run_id=flow_run.id,
                 task_key="a",
-                state=states.Completed(timestamp=pendulum.now().add(months=1)),
+                state=schemas.actions.StateCreate(
+                    type=schemas.states.StateType.COMPLETED,
+                    timestamp=pendulum.now().add(months=1),
+                ),
                 dynamic_key="0",
             ).dict(json_compatible=True),
         )
@@ -306,7 +309,33 @@ class TestSetTaskRunState:
         assert run.state.name == "Test State"
         assert run.run_count == 1
 
-    async def test_set_task_run_errors_if_client_provides_timestamp(
+    @pytest.mark.parametrize("proposed_state", ["PENDING", "RUNNING"])
+    async def test_setting_task_run_state_twice_aborts(
+        self, task_run, client, session, proposed_state
+    ):
+        # A multi-agent environment may attempt to orchestrate a run more than once,
+        # this test ensures that a 2nd agent cannot re-propose a state that's already
+        # been set
+
+        response = await client.post(
+            f"/task_runs/{task_run.id}/set_state",
+            json=dict(state=dict(type=proposed_state, name="Test State")),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+
+        response = await client.post(
+            f"/task_runs/{task_run.id}/set_state",
+            json=dict(state=dict(type=proposed_state, name="Test State")),
+        )
+        assert response.status_code == 200
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ABORT
+
+    async def test_set_task_run_ignores_client_provided_timestamp(
         self, flow_run, client
     ):
         response = await client.post(
@@ -319,7 +348,9 @@ class TestSetTaskRunState:
                 )
             ),
         )
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_201_CREATED
+        state = schemas.states.State.parse_obj(response.json()["state"])
+        assert state.timestamp < pendulum.now(), "The timestamp should be overwritten"
 
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1

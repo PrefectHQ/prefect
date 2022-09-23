@@ -314,12 +314,26 @@ PREFECT_PROFILES_PATH = Setting(
     value_callback=template_with_settings(PREFECT_HOME),
 )
 
-
 PREFECT_LOCAL_STORAGE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "storage",
     description="""The path to a directory to store things in.""",
     value_callback=template_with_settings(PREFECT_HOME),
+)
+
+PREFECT_MEMO_STORE_PATH = Setting(
+    Path,
+    default=Path("${PREFECT_HOME}") / "memo_store.toml",
+    description="""The path to the memo store file.""",
+    value_callback=template_with_settings(PREFECT_HOME),
+)
+
+PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION = Setting(
+    bool,
+    default=True,
+    description="""Controls whether or not block auto-registration on start 
+    up should be memoized. Setting to False may result in slower server start
+    up times.""",
 )
 
 PREFECT_LOGGING_LEVEL = Setting(
@@ -395,6 +409,18 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     infrastructure spin-up time or latency in preparing a flow run. Note
     flow runs will not start before their scheduled time, even if they are
     prefetched. Defaults to `10`.""",
+)
+
+PREFECT_ORION_BLOCKS_REGISTER_ON_START = Setting(
+    bool,
+    default=True,
+    description=textwrap.dedent(
+        """
+        If set, any block types that have been imported will be registered with the 
+        backend on application startup. If not set, block types must be manually 
+        registered.
+        """
+    ),
 )
 
 PREFECT_ORION_DATABASE_PASSWORD = Setting(
