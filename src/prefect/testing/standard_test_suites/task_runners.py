@@ -341,7 +341,7 @@ class TaskRunnerStandardTestSuite(ABC):
             state = await task_runner.wait(task_run.id, 5)
             assert state is not None, "wait timed out"
             assert isinstance(state, State), "wait should return a state"
-            assert state.result() == 1
+            assert await state.result() == 1
 
     @pytest.mark.parametrize("exception", [KeyboardInterrupt(), ValueError("test")])
     async def test_wait_captures_exceptions_as_crashed_state(
