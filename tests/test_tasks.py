@@ -1921,8 +1921,8 @@ class TestTaskMap:
             assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
-        futures = my_flow()
-        assert [future.result() for future in futures] == [2, 3, 4]
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
 
     def test_simple_map_return_state_true(self):
         @flow
@@ -1941,8 +1941,8 @@ class TestTaskMap:
             assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
-        futures = my_flow()
-        assert [future.result() for future in futures] == [2, 3, 4]
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
 
     def test_map_can_take_generator_as_input(self):
         def generate_numbers():
@@ -1957,8 +1957,8 @@ class TestTaskMap:
             assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
-        futures = my_flow()
-        assert [future.result() for future in futures] == [2, 3, 4]
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
 
     def test_map_can_take_state_as_input(self):
         @task
@@ -1970,8 +1970,8 @@ class TestTaskMap:
             numbers_state = some_numbers._run()
             return TestTaskMap.add_one.map(numbers_state)
 
-        futures = my_flow()
-        assert [future.result() for future in futures] == [2, 3, 4]
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
 
     def test_map_can_take_future_as_input(self):
         @task
@@ -1983,8 +1983,8 @@ class TestTaskMap:
             numbers_future = some_numbers.submit()
             return TestTaskMap.add_one.map(numbers_future)
 
-        futures = my_flow()
-        assert [future.result() for future in futures] == [2, 3, 4]
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
 
     @task
     def echo(x):
@@ -2015,18 +2015,18 @@ class TestTaskMap:
             numbers = TestTaskMap.numbers.submit()
             return numbers, TestTaskMap.add_together.map(numbers, y=0)
 
-        numbers_future, add_futures = my_flow()
+        numbers_state, add_task_states = my_flow()
         dependency_ids = await self.get_dependency_ids(
-            session, numbers_future.state_details.flow_run_id
+            session, numbers_state.state_details.flow_run_id
         )
 
-        assert [await a.result() for a in add_futures] == [1, 2, 3]
+        assert [await a.result() for a in add_task_states] == [1, 2, 3]
 
-        assert dependency_ids[numbers_future.state_details.task_run_id] == []
+        assert dependency_ids[numbers_state.state_details.task_run_id] == []
         assert all(
             dependency_ids[a.state_details.task_run_id]
-            == [numbers_future.state_details.task_run_id]
-            for a in add_futures
+            == [numbers_state.state_details.task_run_id]
+            for a in add_task_states
         )
 
     async def test_map_preserves_dependencies_between_futures_all_mapped_children_multiple(
@@ -2046,21 +2046,21 @@ class TestTaskMap:
                 numbers1, numbers2
             )
 
-        numbers_futures, add_futures = my_flow()
+        numbers_states, add_task_states = my_flow()
         dependency_ids = await self.get_dependency_ids(
-            session, numbers_futures[0].state_details.flow_run_id
+            session, numbers_states[0].state_details.flow_run_id
         )
 
-        assert [await a.result() for a in add_futures] == [2, 4, 6]
+        assert [await a.result() for a in add_task_states] == [2, 4, 6]
 
         assert all(
-            dependency_ids[n.state_details.task_run_id] == [] for n in numbers_futures
+            dependency_ids[n.state_details.task_run_id] == [] for n in numbers_states
         )
         assert all(
             set(dependency_ids[a.state_details.task_run_id])
-            == {n.state_details.task_run_id for n in numbers_futures}
+            == {n.state_details.task_run_id for n in numbers_states}
             and len(dependency_ids[a.state_details.task_run_id]) == 2
-            for a in add_futures
+            for a in add_task_states
         )
 
     async def test_map_preserves_dependencies_between_futures_differing_parents(
@@ -2077,19 +2077,19 @@ class TestTaskMap:
             x2 = TestTaskMap.echo.submit(2)
             return (x1, x2), TestTaskMap.add_together.map([x1, x2], y=0)
 
-        echo_futures, add_futures = my_flow()
+        echo_futures, add_task_states = my_flow()
         dependency_ids = await self.get_dependency_ids(
             session, echo_futures[0].state_details.flow_run_id
         )
 
-        assert [a.result() for a in add_futures] == [1, 2]
+        assert [await a.result() for a in add_task_states] == [1, 2]
 
         assert all(
             dependency_ids[e.state_details.task_run_id] == [] for e in echo_futures
         )
         assert all(
             dependency_ids[a.state_details.task_run_id] == [e.state_details.task_run_id]
-            for a, e in zip(add_futures, echo_futures)
+            for a, e in zip(add_task_states, echo_futures)
         )
 
     async def test_map_preserves_dependencies_between_futures_static_arg(self, session):
@@ -2104,18 +2104,18 @@ class TestTaskMap:
             x = TestTaskMap.echo.submit(1)
             return x, TestTaskMap.add_together.map([1, 2, 3], y=x)
 
-        echo_future, add_futures = my_flow()
+        echo_future, add_task_states = my_flow()
         dependency_ids = await self.get_dependency_ids(
             session, echo_future.state_details.flow_run_id
         )
 
-        assert [a.result() for a in add_futures] == [2, 3, 4]
+        assert [await a.result() for a in add_task_states] == [2, 3, 4]
 
         assert dependency_ids[echo_future.state_details.task_run_id] == []
         assert all(
             dependency_ids[a.state_details.task_run_id]
             == [echo_future.state_details.task_run_id]
-            for a in add_futures
+            for a in add_task_states
         )
 
     async def test_map_preserves_dependencies_between_futures_mixed_map(self, session):
@@ -2129,18 +2129,18 @@ class TestTaskMap:
             x = TestTaskMap.echo.submit(1)
             return x, TestTaskMap.add_together.map([x, 2], y=1)
 
-        echo_future, add_futures = my_flow()
+        echo_future, add_task_states = my_flow()
         dependency_ids = await self.get_dependency_ids(
             session, echo_future.state_details.flow_run_id
         )
 
-        assert [a.result() for a in add_futures] == [2, 3]
+        assert [await a.result() for a in add_task_states] == [2, 3]
 
         assert dependency_ids[echo_future.state_details.task_run_id] == []
-        assert dependency_ids[add_futures[0].state_details.task_run_id] == [
+        assert dependency_ids[add_task_states[0].state_details.task_run_id] == [
             echo_future.state_details.task_run_id
         ]
-        assert dependency_ids[add_futures[1].state_details.task_run_id] == []
+        assert dependency_ids[add_task_states[1].state_details.task_run_id] == []
 
     async def test_map_preserves_dependencies_between_futures_deep_nesting(
         self, session
@@ -2158,12 +2158,12 @@ class TestTaskMap:
                 [[x1, x2], [x1, x2]], y=[[3], [4]]
             )
 
-        echo_futures, add_futures = my_flow()
+        echo_futures, add_task_states = my_flow()
         dependency_ids = await self.get_dependency_ids(
             session, echo_futures[0].state_details.flow_run_id
         )
 
-        assert [a.result() for a in add_futures] == [[1, 2, 3], [1, 2, 4]]
+        assert [await a.result() for a in add_task_states] == [[1, 2, 3], [1, 2, 4]]
 
         assert all(
             dependency_ids[e.state_details.task_run_id] == [] for e in echo_futures
@@ -2172,7 +2172,7 @@ class TestTaskMap:
             set(dependency_ids[a.state_details.task_run_id])
             == {e.state_details.task_run_id for e in echo_futures}
             and len(dependency_ids[a.state_details.task_run_id]) == 2
-            for a in add_futures
+            for a in add_task_states
         )
 
     def test_map_can_take_flow_state_as_input(self):
@@ -2185,8 +2185,8 @@ class TestTaskMap:
             numbers_state = child_flow._run()
             return TestTaskMap.add_one.map(numbers_state)
 
-        futures = my_flow()
-        assert [future.result() for future in futures] == [2, 3, 4]
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
 
     def test_multiple_inputs(self):
         @flow
@@ -2195,8 +2195,8 @@ class TestTaskMap:
             others = [4, 5, 6]
             return TestTaskMap.add_together.map(numbers, others)
 
-        futures = my_flow()
-        assert [future.result() for future in futures] == [5, 7, 9]
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [5, 7, 9]
 
     def test_missing_iterable_argument(self):
         @flow
@@ -2225,8 +2225,8 @@ class TestTaskMap:
         async def my_flow():
             return await TestTaskMap.add_one.map(await some_numbers())
 
-        futures = await my_flow()
-        assert [future.result() for future in futures] == [2, 3, 4]
+        task_states = await my_flow()
+        assert [await state.result() for state in task_states] == [2, 3, 4]
 
     async def test_async_flow_with_sync_map(self):
         @task
@@ -2237,8 +2237,8 @@ class TestTaskMap:
         async def my_flow():
             return subtract_them.map([4, 5, 6], [1, 2, 3])
 
-        futures = await my_flow()
-        assert [future.result() for future in futures] == [3, 3, 3]
+        task_states = await my_flow()
+        assert [await state.result() for state in task_states] == [3, 3, 3]
 
     @pytest.mark.parametrize("explicit", [True, False])
     def test_unmapped_int(self, explicit):
@@ -2248,8 +2248,8 @@ class TestTaskMap:
             other = unmapped(5) if explicit else 5
             return TestTaskMap.add_together.map(numbers, other)
 
-        futures = my_flow()
-        assert [future.result() for future in futures] == [6, 7, 8]
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [6, 7, 8]
 
     @pytest.mark.parametrize("explicit", [True, False])
     def test_unmapped_str(self, explicit):
@@ -2259,8 +2259,8 @@ class TestTaskMap:
             other = unmapped("test") if explicit else "test"
             return TestTaskMap.add_together.map(letters, other)
 
-        futures = my_flow()
-        assert [future.result() for future in futures] == ["atest", "btest", "ctest"]
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == ["atest", "btest", "ctest"]
 
     def test_unmapped_iterable(self):
         @flow
@@ -2269,8 +2269,8 @@ class TestTaskMap:
             others = [4, 5, 6, 7]  # Different length!
             return TestTaskMap.add_together.map(numbers, unmapped(others))
 
-        futures = my_flow()
-        assert [future.result() for future in futures] == [
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [
             [4, 5, 6, 7],
             [4, 5, 6, 7],
             [4, 5, 6, 7],
@@ -2286,5 +2286,5 @@ class TestTaskMap:
             numbers = [1, 2, 3]
             return add_some.map(numbers)
 
-        futures = my_flow()
-        assert [future.result() for future in futures] == [6, 7, 8]
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [6, 7, 8]
