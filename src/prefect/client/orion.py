@@ -72,8 +72,10 @@ def inject_client(fn):
             client_context = asyncnullcontext()
         else:
             # A new client is needed
-            kwargs.pop("client", None)  # Remove null values
             client_context = get_client()
+
+        # Removes existing client to allow it to be set by setdefault below
+        kwargs.pop("client", None)
 
         async with client_context as new_client:
             kwargs.setdefault("client", new_client or client)
