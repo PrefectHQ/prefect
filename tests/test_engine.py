@@ -717,7 +717,7 @@ class TestFlowRunCrashes:
         assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
         assert exceptions_equal(
-            flow_run.state.result(raise_on_failure=False), interrupt_type()
+            await flow_run.state.result(raise_on_failure=False), interrupt_type()
         )
 
         child_runs = await orion_client.read_flow_runs(
