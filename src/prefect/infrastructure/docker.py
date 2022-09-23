@@ -46,9 +46,16 @@ class BaseDockerLogin(Block, ABC):
     _block_schema_capabilities = ["docker-login"]
 
     @abstractmethod
-    async def login() -> "DockerClient":
+    async def login(self) -> "DockerClient":
         """
-        Log in with and return an authenticated DockerClient.
+        Log in and return an authenticated `DockerClient`.
+        (DEPRECATED) Use `get_docker_client` instead of `login`.
+        """
+
+    @abstractmethod
+    async def get_docker_client(self) -> "DockerClient":
+        """
+        Log in and return an authenticated `DockerClient`.
         """
 
     def _login(self, username, password, registry_url, reauth) -> "DockerClient":
@@ -120,13 +127,23 @@ class DockerRegistry(BaseDockerLogin):
 
     @sync_compatible
     async def login(self) -> "DockerClient":
-        return await run_sync_in_worker_thread(
+        warnings.warn(
+            "`login` is deprecated. Instead, use `get_docker_client` to obtain an authenticated `DockerClient`.",
+            category=DeprecationWarning,
+        )
+        return await self.get_docker_client()
+
+    @sync_compatible
+    async def get_docker_client(self) -> "DockerClient":
+        client = await run_sync_in_worker_thread(
             self._login,
             self.username,
             self.password.get_secret_value(),
             self.registry_url,
             self.reauth,
         )
+
+        return client
 
 
 class DockerContainerResult(InfrastructureResult):
@@ -289,9 +306,9 @@ class DockerContainer(Infrastructure):
     def _create_and_start_container(self) -> "Container":
         if self.image_registry:
             # If an image registry block was supplied, load an authenticated Docker
-            # client from the block. Otherwise, use an unauthenticated client to 
+            # client from the block. Otherwise, use an unauthenticated client to
             # pull images from public registries.
-            docker_client = self.image_registry.login()
+            docker_client = self.image_registry.get_docker_client()
         else:
             docker_client = self._get_client()
 
