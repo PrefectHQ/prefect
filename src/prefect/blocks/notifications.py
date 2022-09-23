@@ -75,7 +75,7 @@ class SlackWebhook(AppriseNotificationBlock):
     Enables sending notifications via a provided Slack webhook.
 
     Args:
-        url (SecretStr): Slack webhook URL which can be used to send messages
+        url: Slack webhook URL which can be used to send messages
             (e.g. `https://hooks.slack.com/XXX`).
 
     Examples:
@@ -103,7 +103,7 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
     """
     Enables sending notifications via a provided Microsoft Teams webhook.
     Args:
-        url (SecretStr): Teams webhook URL which can be used to send messages
+        url: Teams webhook URL which can be used to send messages
     Examples:
         Load a saved Teams webhook and send a message:
         ```python
