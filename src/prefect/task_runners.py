@@ -294,10 +294,14 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
         self._result_events[key].set()
 
-    async def _get_run_result(self, key: UUID, timeout: float = None):
+    async def _get_run_result(
+        self, key: UUID, timeout: float = None
+    ) -> Optional[State]:
         """
         Block until the run result has been populated.
         """
+        result = None  # Return value on timeout
+
         with anyio.move_on_after(timeout):
 
             # Attempt to use the event to wait the result. This is much more efficient
@@ -312,6 +316,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
             while not result:
                 await anyio.sleep(0)  # yield to other tasks
                 result = self._results.get(key)
+
         return result
 
     async def _start(self, exit_stack: AsyncExitStack):
