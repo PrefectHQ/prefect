@@ -299,3 +299,7 @@ class OrionDBInterface(metaclass=DBSingleton):
         return await self.queries.get_flow_run_notifications_from_queue(
             session=session, db=self, limit=limit
         )
+
+    async def read_configuration(self, session: sa.orm.Session, key: str):
+        """Read a configuration value"""
+        return await self.queries.read_configuration(db=self, session=session, key=key)

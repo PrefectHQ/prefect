@@ -32,6 +32,4 @@ async def read_configuration(
     key: str,
     db: OrionDBInterface,
 ):
-    query = sa.select(db.Configuration).where(db.Configuration.key == key)
-    result = await session.execute(query)
-    return result.scalar()
+    return await db.read_configuration(session=session, key=key)
