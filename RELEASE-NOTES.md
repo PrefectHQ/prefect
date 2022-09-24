@@ -1,5 +1,62 @@
 # Prefect Release Notes
 
+## Release 2.4.2
+
+### Fixes
+- Remove types in blocks docstring attributes to avoid annotation parsing warnings — https://github.com/PrefectHQ/prefect/pull/6937
+- Fixes `inject_client` in scenarios where the `client` kwarg is passed `None` — https://github.com/PrefectHQ/prefect/pull/6942
+
+### Contributors
+* @john-jam made their first contribution in https://github.com/PrefectHQ/prefect/pull/6937
+
+## Release 2.4.1
+
+### Enhancements
+- Add TTL to `KubernetesJob` for automated cleanup of finished jobs — https://github.com/PrefectHQ/prefect/pull/6785
+- Add `prefect kubernetes manifest agent` to generate an agent Kubernetes manifest — https://github.com/PrefectHQ/prefect/pull/6771
+- Add `prefect block type delete` to delete block types — https://github.com/PrefectHQ/prefect/pull/6849
+- Add dynamic titles to tabs in UI — https://github.com/PrefectHQ/prefect/pull/6914
+- Hide secret tails by default — https://github.com/PrefectHQ/prefect/pull/6846
+- Add runs tab to show flow runs on the flow, deployment, and work-queue pages in the UI — https://github.com/PrefectHQ/prefect/pull/6721
+- Add toggle to disable block registration on application start — https://github.com/PrefectHQ/prefect/pull/6858
+- Use injected client during block registration, save, and load — https://github.com/PrefectHQ/prefect/pull/6857
+- Refactor of `prefect.client` into `prefect.client.orion` and `prefect.client.cloud` — https://github.com/PrefectHQ/prefect/pull/6847
+- Improve breadcrumbs on radar page in UI — https://github.com/PrefectHQ/prefect/pull/6757
+- Reject redundant state transitions to prevent duplicate runs — https://github.com/PrefectHQ/prefect/pull/6852
+- Update block auto-registration to use a cache to improve performance — https://github.com/PrefectHQ/prefect/pull/6841
+- Add ability to define blocks from collections to be registered by default — https://github.com/PrefectHQ/prefect/pull/6890
+- Update file systems interfaces to be sync compatible — https://github.com/PrefectHQ/prefect/pull/6511
+- Add flow run URLs to notifications — https://github.com/PrefectHQ/prefect/pull/6798
+- Add client retries on 503 responses — https://github.com/PrefectHQ/prefect/pull/6927
+- Update injected client retrieval to use the flow and task run context client for reduced overhead — https://github.com/PrefectHQ/prefect/pull/6859
+- Add Microsoft Teams notification block — https://github.com/PrefectHQ/prefect/pull/6920
+
+### Fixes
+- Fix `LocalFileSystem.get_directory` when from and to paths match — https://github.com/PrefectHQ/prefect/pull/6824
+- Fix registration of block schema versions — https://github.com/PrefectHQ/prefect/pull/6803
+- Update agent to capture infrastructure errors and fail the flow run instead of crashing — https://github.com/PrefectHQ/prefect/pull/6903
+- Fix bug where `OrionClient.read_logs` filter was ignored — https://github.com/PrefectHQ/prefect/pull/6885
+
+### Documentation
+- Add GitHub and Docker deployment recipe — https://github.com/PrefectHQ/prefect/pull/6825
+- Add parameter configuration examples — https://github.com/PrefectHQ/prefect/pull/6886
+
+### Collections
+- Add `prefect-firebolt` to collections catalog — https://github.com/PrefectHQ/prefect/pull/6917
+
+### Helm Charts
+- Major overhaul in how helm charts in `prefect-helm` are structured and how we version and release them — [2022.09.21 release](https://github.com/PrefectHQ/prefect-helm/releases/tag/2022.09.21)
+
+### Contributors
+- @jmg-duarte
+- @taljaards
+- @yashlad681
+- @hallenmaia made their first contributions(!) in https://github.com/PrefectHQ/prefect/pull/6903, https://github.com/PrefectHQ/prefect/pull/6785, and https://github.com/PrefectHQ/prefect/pull/6771
+- @dobbersc made their first contribution in https://github.com/PrefectHQ/prefect/pull/6870
+- @jnovinger made their first contribution in https://github.com/PrefectHQ/prefect/pull/6916
+- @mathijscarlu made their first contribution in https://github.com/PrefectHQ/prefect/pull/6885
+
+
 ## Release 2.4.0
 
 ### Exciting New Features 🎉

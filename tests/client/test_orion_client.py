@@ -1,8 +1,9 @@
+import datetime
 import random
 import threading
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 import httpx
@@ -14,11 +15,13 @@ from fastapi.security import HTTPBearer
 import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
-from prefect.client import OrionClient, get_client
+from prefect.client.orion import OrionClient, get_client, inject_client
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import Pending, Running, Scheduled, StateType
 from prefect.settings import (
@@ -43,6 +46,52 @@ class TestGetClient:
             new_client = get_client()
             assert isinstance(new_client, OrionClient)
             assert new_client is not client
+
+
+class TestInjectClient:
+    @staticmethod
+    @inject_client
+    async def injected_func(client: OrionClient):
+        assert client._started, "Client should be started during function"
+        assert not client._closed, "Client should be closed during function"
+        # Client should be usable during function
+        await client.api_healthcheck()
+        return client
+
+    async def test_get_new_client(self):
+        client = await TestInjectClient.injected_func()
+        assert isinstance(client, OrionClient)
+        assert client._closed, "Client should be closed after function returns"
+
+    async def test_get_new_client_with_explicit_none(self):
+        client = await TestInjectClient.injected_func(client=None)
+        assert isinstance(client, OrionClient)
+        assert client._closed, "Client should be closed after function returns"
+
+    async def test_use_existing_client(self, orion_client):
+        client = await TestInjectClient.injected_func(client=orion_client)
+        assert client is orion_client, "Client should be the same object"
+        assert not client._closed, "Client should not be closed after function returns"
+
+    async def test_use_existing_client_from_flow_run_ctx(self, orion_client):
+        with prefect.context.FlowRunContext.construct(client=orion_client):
+            client = await TestInjectClient.injected_func()
+        assert client is orion_client, "Client should be the same object"
+        assert not client._closed, "Client should not be closed after function returns"
+
+    async def test_use_existing_client_from_task_run_ctx(self, orion_client):
+        with prefect.context.FlowRunContext.construct(client=orion_client):
+            client = await TestInjectClient.injected_func()
+        assert client is orion_client, "Client should be the same object"
+        assert not client._closed, "Client should not be closed after function returns"
+
+    async def test_use_existing_client_from_flow_run_ctx_with_null_kwarg(
+        self, orion_client
+    ):
+        with prefect.context.FlowRunContext.construct(client=orion_client):
+            client = await TestInjectClient.injected_func(client=None)
+        assert client is orion_client, "Client should be the same object"
+        assert not client._closed, "Client should not be closed after function returns"
 
 
 def not_enough_open_files() -> bool:
@@ -897,6 +946,30 @@ async def test_set_then_read_task_run_state(orion_client):
     assert isinstance(run.state, schemas.states.State)
     assert run.state.type == schemas.states.StateType.COMPLETED
     assert run.state.message == "Test!"
+
+
+async def test_read_filtered_logs(session, orion_client, deployment):
+
+    flow_runs = [uuid4() for i in range(5)]
+    logs = [
+        LogCreate(
+            name="prefect.flow_runs",
+            level=20,
+            message=f"Log from flow_run {id}.",
+            timestamp=datetime.now(tz=timezone.utc),
+            flow_run_id=id,
+        )
+        for id in flow_runs
+    ]
+
+    await orion_client.create_logs(logs)
+
+    logs = await orion_client.read_logs(
+        log_filter=LogFilter(flow_run_id=LogFilterFlowRunId(any_=flow_runs[:3]))
+    )
+    for log in logs:
+        assert log.flow_run_id in flow_runs[:3]
+        assert log.flow_run_id not in flow_runs[3:]
 
 
 class TestResolveDataDoc:

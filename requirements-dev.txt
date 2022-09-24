@@ -1,4 +1,5 @@
 autoflake8
+cairosvg
 flake8
 flaky
 ipython
