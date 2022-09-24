@@ -68,10 +68,17 @@ def test_invalid_login(monkeypatch):
     )
 
     invoke_and_assert(
-        ["cloud", "login", "--key", "invalid_API_key"],
+        ["cloud", "login", "--key", "pnu_foo"],
         expected_code=1,
         expected_output=(
             "Unable to authenticate with Prefect Cloud. Please ensure your credentials are correct."
+        ),
+    )
+    invoke_and_assert(
+        ["cloud", "login", "--key", "foo"],
+        expected_code=1,
+        expected_output=(
+            "Make sure you are using API key from https://app.prefect.cloud (Prefect 2) rather than https://cloud.prefect.io (Prefect 1)"
         ),
     )
 
