@@ -1,6 +1,6 @@
 import uuid
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import anyio.abc
 import pytest
@@ -226,18 +226,28 @@ def test_allows_unsetting_environment_variables(
 def test_uses_image_registry_setting(
     mock_docker_client,
 ):
-
-    DockerContainer(
+    registry = DockerRegistry(
+        username="foo", password="bar", registry_url="example.test"
+    )
+    container = DockerContainer(
         command=["echo", "hello"],
-        image_registry=DockerRegistry(
-            username="foo", password="bar", registry_url="example.test"
-        ),
+        image_registry=registry,
         image_pull_policy="ALWAYS",
-    ).run()
+    )
+    container.run()
 
+    # ensure that login is occurring
     mock_docker_client.login.assert_called_once_with(
         username="foo", password="bar", registry="example.test", reauth=True
     )
+
+    # ensure that DockerContainer is pulling images using an authenticated
+    # DockerClient from DockerRegistry.
+    with patch.object(registry, "get_docker_client") as mock_get_client:
+        mock_authenticated_client = mock_docker_client()
+        mock_get_client.return_value = mock_authenticated_client
+        container.run()
+        mock_authenticated_client.images.pull.assert_called_once()
 
 
 async def test_uses_image_registry_setting_after_save(
@@ -263,6 +273,14 @@ async def test_uses_image_registry_setting_after_save(
     mock_docker_client.login.assert_called_once_with(
         username="foo", password="bar", registry="example.test", reauth=True
     )
+
+    # ensure that loaded DockerContainer is pulling images using an
+    # authenticated DockerClient from DockerRegistry.
+    with patch.object(container.image_registry, "get_docker_client") as mock_get_client:
+        mock_authenticated_client = mock_docker_client()
+        mock_get_client.return_value = mock_authenticated_client
+        await container.run()
+        mock_authenticated_client.images.pull.assert_called_once()
 
 
 @pytest.mark.parametrize("localhost", ["localhost", "127.0.0.1"])
