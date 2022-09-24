@@ -130,7 +130,7 @@ class DockerRegistry(BaseDockerLogin):
         warnings.warn(
             "`login` is deprecated. Instead, use `get_docker_client` to obtain an authenticated `DockerClient`.",
             category=DeprecationWarning,
-            stacklevel=3
+            stacklevel=3,
         )
         return await self.get_docker_client()
 
