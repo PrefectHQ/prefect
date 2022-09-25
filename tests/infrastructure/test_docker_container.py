@@ -240,12 +240,11 @@ def test_uses_image_registry_setting(mock_docker_client):
 
 
 def test_uses_image_registry_client(mock_docker_client, monkeypatch):
-    registry = DockerRegistry(
-        username="foo", password="bar", registry_url="example.test"
-    )
     container = DockerContainer(
         command=["echo", "hello"],
-        image_registry=registry,
+        image_registry=DockerRegistry(
+            username="foo", password="bar", registry_url="example.test"
+        ),
         image_pull_policy="ALWAYS",
     )
 
@@ -253,7 +252,7 @@ def test_uses_image_registry_client(mock_docker_client, monkeypatch):
     # DockerClient from DockerRegistry.
     mock_get_client = MagicMock()
     mock_get_client.return_value = mock_docker_client
-    monkeypatch.setattr(registry, "get_docker_client", mock_get_client)
+    monkeypatch.setattr(container.image_registry, "get_docker_client", mock_get_client)
     container.run()
     mock_get_client.assert_called_once()
     mock_docker_client.images.pull.assert_called_once()
