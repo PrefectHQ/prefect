@@ -66,7 +66,13 @@ def test_invalid_login(monkeypatch):
     monkeypatch.setattr(
         "prefect.client.cloud.get_cloud_client", get_unauthorized_mock_cloud_client
     )
-
+    invoke_and_assert(
+        ["cloud", "login", "--key", "pcu_foo"],
+        expected_code=1,
+        expected_output=(
+            "Unable to authenticate with Prefect Cloud. It looks like you're using API key from Cloud 1 (https://cloud.prefect.io). Make sure that you generate API key using Cloud 2 (https://app.prefect.cloud)"
+        ),
+    )
     invoke_and_assert(
         ["cloud", "login", "--key", "pnu_foo"],
         expected_code=1,
@@ -78,7 +84,7 @@ def test_invalid_login(monkeypatch):
         ["cloud", "login", "--key", "foo"],
         expected_code=1,
         expected_output=(
-            "Make sure you are using API key from https://app.prefect.cloud (Prefect 2) rather than https://cloud.prefect.io (Prefect 1)"
+            "Unable to authenticate with Prefect Cloud. Your key is not in our expected format."
         ),
     )
 
