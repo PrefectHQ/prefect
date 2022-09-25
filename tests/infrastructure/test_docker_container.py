@@ -1,6 +1,6 @@
 import uuid
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import anyio.abc
 import pytest
@@ -223,9 +223,7 @@ def test_allows_unsetting_environment_variables(
     assert "PREFECT_TEST_MODE" not in call_env
 
 
-def test_uses_image_registry_setting(
-    mock_docker_client,
-):
+def test_uses_image_registry_setting(mock_docker_client):
     DockerContainer(
         command=["echo", "hello"],
         image_registry=DockerRegistry(
@@ -241,9 +239,7 @@ def test_uses_image_registry_setting(
     )
 
 
-def test_uses_image_registry_client(
-    mock_docker_client,
-):
+def test_uses_image_registry_client(mock_docker_client, monkeypatch):
     registry = DockerRegistry(
         username="foo", password="bar", registry_url="example.test"
     )
@@ -255,11 +251,12 @@ def test_uses_image_registry_client(
 
     # ensure that DockerContainer is asking for an authenticated
     # DockerClient from DockerRegistry.
-    with patch.object(registry, "get_docker_client") as mock_get_client:
-        mock_get_client.return_value = mock_docker_client
-        container.run()
-        mock_get_client.assert_called_once()
-        mock_docker_client.images.pull.assert_called_once()
+    mock_get_client = MagicMock()
+    mock_get_client.return_value = mock_docker_client
+    monkeypatch.setattr(registry, "get_docker_client", mock_get_client)
+    container.run()
+    mock_get_client.assert_called_once()
+    mock_docker_client.images.pull.assert_called_once()
 
 
 async def test_uses_image_registry_setting_after_save(
@@ -286,9 +283,7 @@ async def test_uses_image_registry_setting_after_save(
     )
 
 
-async def test_uses_image_registry_client_after_save(
-    mock_docker_client,
-):
+async def test_uses_image_registry_client_after_save(mock_docker_client, monkeypatch):
     await DockerRegistry(
         username="foo", password="bar", registry_url="example.test"
     ).save("test-docker-registry")
@@ -303,11 +298,12 @@ async def test_uses_image_registry_client_after_save(
 
     # ensure that the saved and reloaded DockerContainer is asking for an authenticated
     # DockerClient from DockerRegistry.
-    with patch.object(container.image_registry, "get_docker_client") as mock_get_client:
-        mock_get_client.return_value = mock_docker_client
-        await container.run()
-        mock_get_client.assert_called_once()
-        mock_docker_client.images.pull.assert_called_once()
+    mock_get_client = MagicMock()
+    mock_get_client.return_value = mock_docker_client
+    monkeypatch.setattr(container.image_registry, "get_docker_client", mock_get_client)
+    await container.run()
+    mock_get_client.assert_called_once()
+    mock_docker_client.images.pull.assert_called_once()
 
 
 @pytest.mark.parametrize("localhost", ["localhost", "127.0.0.1"])
