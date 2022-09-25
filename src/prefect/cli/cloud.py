@@ -161,11 +161,11 @@ async def login(
             }
         except CloudUnauthorizedError:
             if not key.startswith("pnu"):
-                exit_with_error(
-                    "Make sure you are using API key from https://app.prefect.cloud (Prefect 2) rather than https://cloud.prefect.io (Prefect 1)"
-                )
+                help_message = "Your key is not in our expected format."
+            else:
+                help_message = "Please ensure your credentials are correct."
             exit_with_error(
-                "Unable to authenticate with Prefect Cloud. Please ensure your credentials are correct."
+                f"Unable to authenticate with Prefect Cloud. {help_message}"
             )
         except httpx.HTTPStatusError as exc:
             exit_with_error(f"Error connecting to Prefect Cloud: {exc!r}")
