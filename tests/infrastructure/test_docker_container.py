@@ -226,6 +226,24 @@ def test_allows_unsetting_environment_variables(
 def test_uses_image_registry_setting(
     mock_docker_client,
 ):
+    DockerContainer(
+        command=["echo", "hello"],
+        image_registry=DockerRegistry(
+            username="foo", password="bar", registry_url="example.test"
+        ),
+        image_pull_policy="ALWAYS",
+    ).run()
+
+    # ensure that login occurs when DockerContainer is provided an
+    # image registry
+    mock_docker_client.login.assert_called_once_with(
+        username="foo", password="bar", registry="example.test", reauth=True
+    )
+
+
+def test_uses_image_registry_client(
+    mock_docker_client,
+):
     registry = DockerRegistry(
         username="foo", password="bar", registry_url="example.test"
     )
@@ -234,20 +252,14 @@ def test_uses_image_registry_setting(
         image_registry=registry,
         image_pull_policy="ALWAYS",
     )
-    container.run()
 
-    # ensure that login is occurring
-    mock_docker_client.login.assert_called_once_with(
-        username="foo", password="bar", registry="example.test", reauth=True
-    )
-
-    # ensure that DockerContainer is pulling images using an authenticated
+    # ensure that DockerContainer is asking for an authenticated
     # DockerClient from DockerRegistry.
     with patch.object(registry, "get_docker_client") as mock_get_client:
-        mock_authenticated_client = mock_docker_client()
-        mock_get_client.return_value = mock_authenticated_client
+        mock_get_client.return_value = mock_docker_client
         container.run()
-        mock_authenticated_client.images.pull.assert_called_once()
+        mock_get_client.assert_called_once()
+        mock_docker_client.images.pull.assert_called_once()
 
 
 async def test_uses_image_registry_setting_after_save(
@@ -267,20 +279,35 @@ async def test_uses_image_registry_setting_after_save(
     ).save("test-docker-container")
 
     container = await DockerContainer.load("test-docker-container")
-
     await container.run()
 
     mock_docker_client.login.assert_called_once_with(
         username="foo", password="bar", registry="example.test", reauth=True
     )
 
-    # ensure that loaded DockerContainer is pulling images using an
-    # authenticated DockerClient from DockerRegistry.
+
+async def test_uses_image_registry_client_after_save(
+    mock_docker_client,
+):
+    await DockerRegistry(
+        username="foo", password="bar", registry_url="example.test"
+    ).save("test-docker-registry")
+
+    await DockerContainer(
+        command=["echo", "hello"],
+        image_registry=await DockerRegistry.load("test-docker-registry"),
+        image_pull_policy="ALWAYS",
+    ).save("test-docker-container")
+
+    container = await DockerContainer.load("test-docker-container")
+
+    # ensure that the saved and reloaded DockerContainer is asking for an authenticated
+    # DockerClient from DockerRegistry.
     with patch.object(container.image_registry, "get_docker_client") as mock_get_client:
-        mock_authenticated_client = mock_docker_client()
-        mock_get_client.return_value = mock_authenticated_client
+        mock_get_client.return_value = mock_docker_client
         await container.run()
-        mock_authenticated_client.images.pull.assert_called_once()
+        mock_get_client.assert_called_once()
+        mock_docker_client.images.pull.assert_called_once()
 
 
 @pytest.mark.parametrize("localhost", ["localhost", "127.0.0.1"])
