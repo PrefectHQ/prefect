@@ -149,6 +149,8 @@ class TestFlowWithOptions:
             description="Flow before with options",
             task_runner=ConcurrentTaskRunner,
             timeout_seconds=10,
+            retries=3,
+            retry_delay_seconds=20,
             validate_parameters=True,
         )
         def initial_flow():
@@ -166,6 +168,8 @@ class TestFlowWithOptions:
         assert flow_with_options.description == "A copied flow"
         assert isinstance(flow_with_options.task_runner, SequentialTaskRunner)
         assert flow_with_options.timeout_seconds == 5
+        assert flow_with_options.retries == 3
+        assert flow_with_options.retry_delay_seconds == 20
         assert flow_with_options.should_validate_parameters is False
 
     def test_with_options_uses_existing_settings_when_no_override(self):
