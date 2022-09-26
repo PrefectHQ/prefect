@@ -86,6 +86,7 @@ jobs:
           - "2.2"
           - "2.3"
           - "2.4"
+          - "2" # last release
 
       fail-fast: false
 
