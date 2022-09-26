@@ -106,7 +106,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
-      - name: Start Orion server@${{ matrix.prefect-version }}
+      - name: Start server@${{ matrix.prefect-version }}
         run: >
           docker run
           --name "orion-server-${{ matrix.prefect-version }}"
@@ -115,8 +115,6 @@ jobs:
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
           prefect orion start --host 0.0.0.0
 
-      - name: Wait for Orion server@${{ matrix.prefect-version }}
-        run: >
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/wait-for-server.py
 
@@ -125,15 +123,12 @@ jobs:
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/run-integration-flows.py
 
-      - name: Start Orion server@dev
+      - name: Start server@dev
         run: |
           docker stop "orion-server-${{ matrix.prefect-version }}"
           prefect orion start&
-    
-      - name: Wait for Orion server@dev
-        run: >
-          PREFECT_API_URL="http://127.0.0.1:4200/api"
-          ./scripts/wait-for-server.py
+
+          PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
 
       - name: Run integration flows with client@${{ matrix.prefect-version }}
         run: >
