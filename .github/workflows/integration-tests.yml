@@ -116,10 +116,10 @@ jobs:
 
       - name: Wait for server
         run: >
-          PREFECT_API_URL="http://127.0.0.1:4200"
+          PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/wait-for-server.py
 
       - name: Run integration flows with development code
         run: >
-          PREFECT_API_URL="http://127.0.0.1:4200"
+          PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/run-integration-flows.py
