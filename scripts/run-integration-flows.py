@@ -3,6 +3,14 @@
 Runs all Python files in the given path.
 
 The path defaults to the `flows` directory in the repository root.
+
+Usage:
+
+    run-integration-flows.py [<target-directory>]
+
+Example:
+
+    PREFECT_API_URL="http://localhost:4200" ./scripts/run-integration-flows.py
 """
 import runpy
 import sys

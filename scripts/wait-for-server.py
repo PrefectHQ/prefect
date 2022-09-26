@@ -3,6 +3,14 @@
 Wait until the Prefect Orion server returns a healthy response.
 
 Defaults to a 120 second timeout. If the timeout is exceeded, an exit code of 1 is set.
+
+Usage:
+
+    wait-for-server.py [<timeout-in-seconds>]
+
+Example:
+
+    PREFECT_API_URL="http://localhost:4200" ./scripts/wait-for-server.py
 """
 
 DEFAULT_TIMEOUT_SECONDS = 120
