@@ -6,14 +6,16 @@ The path defaults to the `flows` directory in the repository root.
 """
 import runpy
 import sys
+from pathlib import Path
+from typing import Union
 
 from prefect import __root_path__
 
 DEFAULT_PATH = __root_path__ / "flows"
 
 
-def run_flows(path):
-    for file in (path).glob("*.py"):
+def run_flows(path: Union[str, Path]):
+    for file in Path(path).glob("*.py"):
         print(f"Executing {file.relative_to(__root_path__)}...", flush=True)
         runpy.run_path(file, run_name="__main__")
 
