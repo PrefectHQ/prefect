@@ -115,12 +115,33 @@ jobs:
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
           prefect orion start --host 0.0.0.0
 
-      - name: Wait for server
+      - name: Wait for Orion server@${{ matrix.prefect-version }}
         run: >
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/wait-for-server.py
 
-      - name: Run integration flows with development code
+      - name: Run integration flows with client@dev
         run: >
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/run-integration-flows.py
+
+      - name: Start Orion server@dev
+        run: |
+          docker stop "orion-server-${{ matrix.prefect-version }}"
+          prefect orion start&
+    
+      - name: Wait for Orion server@dev
+        run: >
+          PREFECT_API_URL="http://127.0.0.1:4200/api"
+          ./scripts/wait-for-server.py
+
+      - name: Run integration flows with client@${{ matrix.prefect-version }}
+        run: >
+          docker run
+          --env PREFECT_API_URL="http://127.0.0.1:4200/api"
+          --volume ./flows:/opt/prefect/integration/flows
+          --volume ./scripts:/opt/prefect/integration/scripts
+          --network host
+          prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
+          /opt/prefect/integration/scripts/run-integration-flows.py /opt/prefect/integration/flows
+
