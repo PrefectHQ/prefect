@@ -166,7 +166,6 @@ class DockerContainer(Infrastructure):
         env: Environment variables to set for the container.
         image: An optional string specifying the tag of a Docker image to use.
             Defaults to the Prefect image.
-            the image name should begin with the registry address.
         image_pull_policy: Specifies if the image should be pulled. One of 'ALWAYS',
             'NEVER', 'IF_NOT_PRESENT'.
         image_registry: A `DockerRegistry` block containing credentials to use if `image` is stored in a private
