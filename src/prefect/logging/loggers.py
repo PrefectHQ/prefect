@@ -4,6 +4,7 @@ from functools import lru_cache
 from typing import TYPE_CHECKING
 
 import prefect
+from prefect.exceptions import MissingContextError
 
 if TYPE_CHECKING:
     from prefect.context import RunContext
@@ -106,7 +107,7 @@ def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logge
     ):
         logger = logging.getLogger("null")
     else:
-        raise RuntimeError("There is no active flow or task run context.")
+        raise MissingContextError("There is no active flow or task run context.")
 
     return logger
 
