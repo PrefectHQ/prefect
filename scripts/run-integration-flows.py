@@ -14,9 +14,9 @@ from prefect import __root_path__
 DEFAULT_PATH = __root_path__ / "flows"
 
 
-def run_flows(path: Union[str, Path]):
-    for file in Path(path).glob("*.py"):
-        print(f"Executing {file.relative_to(__root_path__)}...", flush=True)
+def run_flows(search_path: Union[str, Path]):
+    for file in Path(search_path).glob("*.py"):
+        print(f"Executing {file.relative_to(search_path)}...", flush=True)
         runpy.run_path(file, run_name="__main__")
 
 
