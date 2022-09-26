@@ -165,7 +165,10 @@ class DockerContainer(Infrastructure):
             start the flow run. In most cases you should not override this.
         env: Environment variables to set for the container.
         image: An optional string specifying the tag of a Docker image to use.
-            Defaults to the Prefect image.
+            Defaults to the Prefect image. If the image is stored anywhere other than a public Docker Hub registry,
+            the image name should begin with the registry address.
+        image_registry: A `DockerRegistry` block containing credentials to use if `image` is stored in a private
+            image registry.
         image_pull_policy: Specifies if the image should be pulled. One of 'ALWAYS',
             'NEVER', 'IF_NOT_PRESENT'.
         labels: An optional dictionary of labels, mapping name to value.
