@@ -139,8 +139,8 @@ jobs:
         run: >
           docker run
           --env PREFECT_API_URL="http://127.0.0.1:4200/api"
-          --volume ./flows:/opt/prefect/integration/flows
-          --volume ./scripts:/opt/prefect/integration/scripts
+          --volume $(pwd)/flows:/opt/prefect/integration/flows
+          --volume $(pwd)/scripts:/opt/prefect/integration/scripts
           --network host
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
           /opt/prefect/integration/scripts/run-integration-flows.py /opt/prefect/integration/flows
