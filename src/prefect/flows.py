@@ -241,6 +241,8 @@ class Flow(Generic[P, R]):
             description=description or self.description,
             version=version or self.version,
             task_runner=task_runner or self.task_runner,
+            retries=retries or self.retries,
+            retry_delay_seconds=retry_delay_seconds or self.retry_delay_seconds,
             timeout_seconds=(
                 timeout_seconds if timeout_seconds is not None else self.timeout_seconds
             ),
