@@ -15,7 +15,7 @@ DEFAULT_PATH = __root_path__ / "flows"
 
 
 def run_flows(search_path: Union[str, Path]):
-    for file in Path(search_path).glob("*.py"):
+    for file in sorted(Path(search_path).glob("*.py")):
         print(f"Executing {file.relative_to(search_path)}...", flush=True)
         runpy.run_path(file, run_name="__main__")
 
