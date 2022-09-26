@@ -57,7 +57,7 @@ prefect deployment build demo.py:pipeline -n etl --cron "0 0 * * *"
 ```
 </div>
 
-This schedule will create flow runs for this deployment every day at midnight. You cannot set a timezone for your schedule from the CLI at the present time.
+This schedule will create flow runs for this deployment every day at midnight. 
 
 `interval` and `rrule` are the other two command line schedule flags.
 
