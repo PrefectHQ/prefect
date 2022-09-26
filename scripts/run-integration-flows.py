@@ -6,6 +6,12 @@ import runpy
 
 from prefect import __root_path__
 
-for file in (__root_path__ / "flows").glob("*.py"):
-    print(f"Executing {file.relative_to(__root_path__)}...")
-    runpy.run_path(file, run_name="__main__")
+
+def run_flows():
+    for file in (__root_path__ / "flows").glob("*.py"):
+        print(f"Executing {file.relative_to(__root_path__)}...")
+        runpy.run_path(file, run_name="__main__")
+
+
+if __name__ == "__main__":
+    run_flows()

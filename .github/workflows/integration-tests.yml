@@ -75,7 +75,7 @@ jobs:
           retention-days: 30
 
   compatibility-tests:
-    name: "Test backwards compatibility"
+    name: "Check backwards compatibility"
     timeout-minutes: 60
 
     strategy:
@@ -114,7 +114,12 @@ jobs:
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
           prefect orion start --host 0.0.0.0
 
+      - name: Wait for server
+        run: >
+          PREFECT_API_URL="http://127.0.0.1:4200"
+          ./scripts/wait-for-server.py
+
       - name: Run integration flows with development code
         run: >
-          PREFECT_API_URL="http://localhost:4200"
+          PREFECT_API_URL="http://127.0.0.1:4200"
           ./scripts/run-integration-flows.py
