@@ -75,7 +75,7 @@ jobs:
           retention-days: 30
 
   compatibility-tests:
-    name: "Check backwards compatibility"
+    name: "Check compatibility"
     timeout-minutes: 60
 
     strategy:
