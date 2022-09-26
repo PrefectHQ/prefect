@@ -129,8 +129,6 @@ Prefect 2 is designed for incremental adoption. You can decorate as many of your
 
 To dive right in and see what Prefect 2 can do, simply sprinkle in a few decorators and add a little configuration, like the example below. 
 
-### Basic example
-
 This code fetches data about GitHub stars for a few repositories. Add the three highlighted lines of code to your functions to use Prefect, and you're off to the races! 
 
 
