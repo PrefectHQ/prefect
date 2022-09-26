@@ -83,7 +83,9 @@ async def delete_block_schema(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Block schema not found"
             )
 
-        if block_schema.block_type.is_protected and api_handles_protected_blocks(api_version):
+        if block_schema.block_type.is_protected and api_handles_protected_blocks(
+            api_version
+        ):
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 detail="Block schemas for protected block types cannot be deleted.",

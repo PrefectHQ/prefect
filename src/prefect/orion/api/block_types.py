@@ -1,9 +1,9 @@
-from packaging.versions import Version
 from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Query, status
+from packaging.versions import Version
 
 import prefect
 from prefect.orion import models, schemas
@@ -13,7 +13,7 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/block_types", tags=["Block types"])
-API_USES_UNPROTECTED_BLOCKS = Version('0.8.0')
+API_USES_UNPROTECTED_BLOCKS = Version("0.8.0")
 
 
 def api_handles_protected_blocks(api_version):
