@@ -9,7 +9,7 @@ from prefect import __root_path__
 
 def run_flows():
     for file in (__root_path__ / "flows").glob("*.py"):
-        print(f"Executing {file.relative_to(__root_path__)}...")
+        print(f"Executing {file.relative_to(__root_path__)}...", flush=True)
         runpy.run_path(file, run_name="__main__")
 
 
