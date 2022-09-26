@@ -2,7 +2,7 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
-from prefect.orion.api.server import create_app
+from prefect.orion.api.server import ORION_API_VERSION, create_app
 
 
 @pytest.fixture()
@@ -17,6 +17,18 @@ async def client(app):
     """
 
     async with httpx.AsyncClient(app=app, base_url="https://test/api") as async_client:
+        yield async_client
+
+
+@pytest.fixture
+async def client_with_api_version(app):
+    """
+    Yield a test client for testing the orion api
+    """
+    version_header = {"X-PREFECT-API-VERSION": ORION_API_VERSION}
+    async with httpx.AsyncClient(
+        app=app, base_url="https://test/api", headers=version_header
+    ) as async_client:
         yield async_client
 
 

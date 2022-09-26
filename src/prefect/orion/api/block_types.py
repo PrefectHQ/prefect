@@ -1,3 +1,4 @@
+from packaging.versions import Version
 from typing import List, Optional
 from uuid import UUID
 
@@ -12,6 +13,13 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/block_types", tags=["Block types"])
+API_USES_UNPROTECTED_BLOCKS = Version('0.8.0')
+
+
+def api_handles_protected_blocks(api_version):
+    if api_version is None:
+        return True
+    return api_version > API_USES_UNPROTECTED_BLOCKS
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -102,6 +110,7 @@ async def update_block_type(
     block_type: schemas.actions.BlockTypeUpdate,
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
     db: OrionDBInterface = Depends(provide_database_interface),
+    api_version=Depends(dependencies.provide_request_api_version),
 ):
     """
     Update a block type.
@@ -117,7 +126,7 @@ async def update_block_type(
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, detail="Block type not found"
             )
-        elif db_block_type.is_protected:
+        elif db_block_type.is_protected and api_handles_protected_blocks(api_version):
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 detail="protected block types cannot be updated.",
@@ -131,6 +140,7 @@ async def update_block_type(
 async def delete_block_type(
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
     db: OrionDBInterface = Depends(provide_database_interface),
+    api_version=Depends(dependencies.provide_request_api_version),
 ):
     async with db.session_context(begin_transaction=True) as session:
         # ensure system blocks are protected before update
@@ -143,7 +153,7 @@ async def delete_block_type(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Block type not found"
             )
-        elif db_block_type.is_protected:
+        elif db_block_type.is_protected and api_handles_protected_blocks(api_version):
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 detail="protected block types cannot be deleted.",
