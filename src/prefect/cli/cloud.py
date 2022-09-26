@@ -160,8 +160,14 @@ async def login(
                 for workspace in workspaces
             }
         except CloudUnauthorizedError:
+            if key.startswith("pcu"):
+                help_message = "It looks like you're using API key from Cloud 1 (https://cloud.prefect.io). Make sure that you generate API key using Cloud 2 (https://app.prefect.cloud)"
+            elif not key.startswith("pnu"):
+                help_message = "Your key is not in our expected format."
+            else:
+                help_message = "Please ensure your credentials are correct."
             exit_with_error(
-                "Unable to authenticate with Prefect Cloud. Please ensure your credentials are correct."
+                f"Unable to authenticate with Prefect Cloud. {help_message}"
             )
         except httpx.HTTPStatusError as exc:
             exit_with_error(f"Error connecting to Prefect Cloud: {exc!r}")
