@@ -126,7 +126,7 @@ jobs:
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/wait-for-server.py
 
-      - name: Run integration flows with client@dev
+      - name: Run integration flows with client@dev, server@${{ matrix.prefect-version }},
         run: >
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/run-integration-flows.py
@@ -138,7 +138,7 @@ jobs:
 
           PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
 
-      - name: Run integration flows with client@${{ matrix.prefect-version }}
+      - name: Run integration flows with client@${{ matrix.prefect-version }}, server@dev
         run: >
           docker run
           --env PREFECT_API_URL="http://127.0.0.1:4200/api"
