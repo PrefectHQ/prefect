@@ -1,11 +1,21 @@
 name: Integration Tests
 on:
-  push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
+    paths:
+      - .github/workflows/integration-tests.yaml
+      - "**/*.py"
+      - requirements.txt
+      - requirements-dev.txt
+      - orion-ui/**
+      - .nvmrc
+      - Dockerfile
+  push:
+    branches:
+      - main
+
 jobs:
-  test:
+  playwright-tests:
+    name: "Test UI"
     timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
@@ -27,9 +37,9 @@ jobs:
         run: |
           prefect dev build-ui
           
-      - name: Start orion
+      - name: Run Orion in background
         run: |
-          prefect orion start &
+          prefect orion start&
 
       - name: Set up node
         uses: actions/setup-node@v3
@@ -37,19 +47,19 @@ jobs:
           node-version-file: '.nvmrc'
           cache-dependency-path: '**/package-lock.json'
       
-      - name: Get Playwright version
+      - name: Retrieve Playwright version
         id: playwright-cache-key
         run: |
           echo "::set-output name=version::$(npx playwright -V)"
         
-      - name: Cache Playwright Browsers
+      - name: Retrieve cached Playwright browsers
         id: cache-playwright-browsers
         uses: actions/cache@v3
         with:
           path: ~/.cache/ms-playwright
           key: ${{ steps.playwright-cache-key.outputs.version }}-playwright-browsers
 
-      - name: Install Playwright Browsers
+      - name: Install Playwright browsers
         working-directory: ./orion-ui
         run: npx playwright install --with-deps
 
