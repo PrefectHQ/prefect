@@ -304,7 +304,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
         with anyio.move_on_after(timeout):
 
-            # Attempt to use the event to wait the result. This is much more efficient
+            # Attempt to use the event to wait for the result. This is much more efficient
             # than the spin-lock that follows but does not work if the wait call
             # happens from an event loop in a different thread than the one from which
             # the event was created
