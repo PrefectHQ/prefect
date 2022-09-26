@@ -167,10 +167,10 @@ class DockerContainer(Infrastructure):
         image: An optional string specifying the tag of a Docker image to use.
             Defaults to the Prefect image. If the image is stored anywhere other than a public Docker Hub registry,
             the image name should begin with the registry address.
-        image_registry: A `DockerRegistry` block containing credentials to use if `image` is stored in a private
-            image registry.
         image_pull_policy: Specifies if the image should be pulled. One of 'ALWAYS',
             'NEVER', 'IF_NOT_PRESENT'.
+        image_registry: A `DockerRegistry` block containing credentials to use if `image` is stored in a private
+            image registry.
         labels: An optional dictionary of labels, mapping name to value.
         name: An optional name for the container.
         network_mode: Set the network mode for the created container. Defaults to 'host'
