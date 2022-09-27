@@ -1,4 +1,4 @@
-name: Integration Tests
+name: Integration tests
 on:
   pull_request:
     paths:
@@ -16,7 +16,7 @@ on:
 jobs:
   playwright-tests:
     name: "Test UI"
-    timeout-minutes: 60
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -73,3 +73,78 @@ jobs:
           name: playwright-report
           path: ./orion-ui/playwright-report/
           retention-days: 30
+
+  compatibility-tests:
+    name: "Check compatibility"
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        prefect-version:
+          # These versions correspond to Prefect image tags, the patch version is
+          # excluded to always pull the latest patch of each minor version.
+
+          # TODO: The commented versions fail
+          # - "2.0"
+          # - "2.1"
+          # - "2.2"
+          # - "2.3"
+          - "2.4"
+
+          # We can include the following to always test against the last release
+          # but the value is not particularly clear and we can just append the
+          # last minor version at each release time
+          # - "2"
+
+      fail-fast: false
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
+
+      - name: Install python packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade --upgrade-strategy eager -e .[dev]
+
+      - name: Start server@${{ matrix.prefect-version }}
+        run: >
+          docker run
+          --name "orion-server-${{ matrix.prefect-version }}"
+          --detach
+          --publish 4200:4200
+          prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
+          prefect orion start --host 0.0.0.0
+
+          PREFECT_API_URL="http://127.0.0.1:4200/api"
+          ./scripts/wait-for-server.py
+
+      - name: Run integration flows with client@dev, server@${{ matrix.prefect-version }},
+        run: >
+          PREFECT_API_URL="http://127.0.0.1:4200/api"
+          ./scripts/run-integration-flows.py
+
+      - name: Start server@dev
+        run: |
+          docker stop "orion-server-${{ matrix.prefect-version }}"
+          prefect orion start&
+
+          PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
+
+      - name: Run integration flows with client@${{ matrix.prefect-version }}, server@dev
+        run: >
+          docker run
+          --env PREFECT_API_URL="http://127.0.0.1:4200/api"
+          --volume $(pwd)/flows:/opt/prefect/integration/flows
+          --volume $(pwd)/scripts:/opt/prefect/integration/scripts
+          --network host
+          prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
+          /opt/prefect/integration/scripts/run-integration-flows.py /opt/prefect/integration/flows
+
