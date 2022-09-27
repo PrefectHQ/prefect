@@ -31,12 +31,7 @@
       </template>
 
       <template #runs>
-        <FlowRunList v-if="flowRuns.length" :flow-runs="flowRuns" disabled :selected="[]" />
-        <PEmptyResults v-else>
-          <template #message>
-            No runs from the last 7 days
-          </template>
-        </PEmptyResults>
+        <FlowRunsControlsList :flow-run-filter="deploymentFilter" />
       </template>
     </p-tabs>
 
@@ -52,16 +47,15 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentDescription, FlowRunList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter } from '@prefecthq/orion-design'
+  import { DeploymentDescription, FlowRunsControlsList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter, useFlowRunFilterFromRoute } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
-  import { useSubscription, useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
+  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { deploymentsApi } from '@/services/deploymentsApi'
-  import { flowRunsApi } from '@/services/flowRunsApi'
 
   const deploymentId = useRouteParam('id')
   const router = useRouter()
@@ -91,12 +85,8 @@
     router.push(routes.deployments())
   }
 
-  const deploymentFilter = useRecentFlowRunFilter({ deployments: [deploymentId.value] })
-
-  const flowRunsFilterArgs = computed<Parameters<typeof flowRunsApi.getFlowRuns> | null>(() => deploymentId.value ? [deploymentFilter.value] : null)
-
-  const flowRunsSubscription = useSubscriptionWithDependencies(flowRunsApi.getFlowRuns, flowRunsFilterArgs)
-  const flowRuns = computed(() => flowRunsSubscription.response ?? [])
+  const { states, sort } = useFlowRunFilterFromRoute()
+  const deploymentFilter = useRecentFlowRunFilter({ deployments: [deploymentId.value], states, sort })
 
   const title = computed(() => {
     if (!deployment.value) {
