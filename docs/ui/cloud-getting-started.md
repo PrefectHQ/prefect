@@ -212,7 +212,7 @@ What did we do here? Let's break down the command:
 - `-n test-deployment` is an option to specify a name for the deployment.
 - `-q test` specifies a work queue for the deployment. The deployment's runs will be sent to any agents monitoring this work queue.
 
-The command outputs two files: `basic_flow-manifest.json` contains workflow-specific information such as the code location, the name of the entrypoint flow, and flow parameters. `deployment.yaml` contains details about the deployment for this flow.
+The command outputs `basic_flow-deployment.yaml`, which contains details about the deployment for this flow.
 
 ### Create the deployment
 
@@ -222,7 +222,7 @@ Run the following Prefect CLI command.
 
 <div class="terminal">
 ```bash
-$ prefect deployment apply `deployment.yaml`
+$ prefect deployment apply basic_flow-deployment.yaml
 Successfully loaded 'test-deployment'
 Deployment '66b3fdea-cd3a-4734-b3f2-65f6702ff260' successfully created.
 ```
