@@ -87,8 +87,8 @@ jobs:
           # TODO: The commented versions fail
           # - "2.0"
           # - "2.1"
-          # - "2.2"
-          # - "2.3"
+          - "2.2"
+          - "2.3"
           - "2.4"
 
           # We can include the following to always test against the last release
