@@ -1,9 +1,9 @@
-from fastapi import status
 from typing import List
 from uuid import uuid4
 
 import pydantic
 import pytest
+from fastapi import status
 
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
