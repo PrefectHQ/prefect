@@ -2,7 +2,7 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
-from prefect.orion.api.server import ORION_API_VERSION, create_app
+from prefect.orion.api.server import create_app
 
 
 @pytest.fixture()
