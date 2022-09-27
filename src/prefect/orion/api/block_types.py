@@ -3,7 +3,7 @@ from uuid import UUID
 
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Query, status
-from packaging.versions import Version
+from packaging.version import Version
 
 import prefect
 from prefect.orion import models, schemas
