@@ -4,8 +4,27 @@ Utilities for injecting FastAPI dependencies.
 import logging
 
 from fastapi import Body, Depends, Header, HTTPException, status
+from packaging.version import Version
 
 from prefect.settings import PREFECT_ORION_API_DEFAULT_LIMIT
+
+
+def provide_request_api_version(x_prefect_api_version: str = Header(None)):
+    if not x_prefect_api_version:
+        return
+
+    # parse version
+    try:
+        major, minor, patch = [int(v) for v in x_prefect_api_version.split(".")]
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Invalid X-PREFECT-API-VERSION header format."
+                f"Expected header in format 'x.y.z' but received {x_prefect_api_version}"
+            ),
+        )
+    return Version(x_prefect_api_version)
 
 
 class EnforceMinimumAPIVersion:

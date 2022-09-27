@@ -9,6 +9,7 @@ from fastapi.responses import Response
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
+from prefect.orion.api.block_types import api_handles_protected_blocks
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.models.block_schemas import MissingBlockTypeException
@@ -22,6 +23,7 @@ async def create_block_schema(
     block_schema: schemas.actions.BlockSchemaCreate,
     response: Response,
     db: OrionDBInterface = Depends(provide_database_interface),
+    api_version=Depends(dependencies.provide_request_api_version),
 ) -> schemas.core.BlockSchema:
     from prefect.blocks.core import Block
 
@@ -35,7 +37,7 @@ async def create_block_schema(
                 status.HTTP_404_NOT_FOUND,
                 detail=f"Block type {block_schema.block_type_id} not found.",
             )
-        elif block_type.is_protected:
+        elif block_type.is_protected and api_handles_protected_blocks(api_version):
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 detail="Block schemas for protected block types cannot be created.",
@@ -67,6 +69,7 @@ async def create_block_schema(
 async def delete_block_schema(
     block_schema_id: UUID = Path(..., description="The block schema id", alias="id"),
     db: OrionDBInterface = Depends(provide_database_interface),
+    api_version=Depends(dependencies.provide_request_api_version),
 ):
     """
     Delete a block schema by id.
@@ -80,7 +83,9 @@ async def delete_block_schema(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Block schema not found"
             )
 
-        if block_schema.block_type.is_protected:
+        if block_schema.block_type.is_protected and api_handles_protected_blocks(
+            api_version
+        ):
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 detail="Block schemas for protected block types cannot be deleted.",
