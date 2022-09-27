@@ -140,6 +140,8 @@ jobs:
       - name: Start server@${{ matrix.prefect-version }}
         if: ${{ ! matrix.server-incompatible }}
         run: >
+          killall python  # Stop the existing server, can be removed once we add `--detach`
+
           docker run
           --name "orion-server-${{ matrix.prefect-version }}"
           --detach
