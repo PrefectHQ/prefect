@@ -355,7 +355,7 @@ class TestUpdateBlockType:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_update_system_block_type_fails(self, client, system_block_type):
+    async def test_update_system_block_type_fails(self, system_block_type, client):
         response = await client.patch(
             f"/block_types/{system_block_type.id}",
             json=BlockTypeUpdate(
@@ -366,7 +366,7 @@ class TestUpdateBlockType:
         assert response.json()["detail"] == "protected block types cannot be updated."
 
     async def test_update_system_block_type_does_not_fail_for_older_clients(
-        self, client_with_unprotected_block_api, system_block_type
+        self, system_block_type, client_with_unprotected_block_api
     ):
         response = await client_with_unprotected_block_api.patch(
             f"/block_types/{system_block_type.id}",

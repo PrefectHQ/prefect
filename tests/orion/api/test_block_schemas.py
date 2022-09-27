@@ -146,7 +146,7 @@ class TestCreateBlockSchema:
         assert response_1.json() == response_2.json()
 
     async def test_create_block_schema_for_system_block_type_fails(
-        self, client, system_block_type
+        self, system_block_type, client
     ):
         response = await client.post(
             "/block_schemas/",
@@ -161,7 +161,7 @@ class TestCreateBlockSchema:
         )
 
     async def test_create_block_schema_for_system_block_type_does_not_fail_for_older_clients(
-        self, client_with_unprotected_block_api, system_block_type
+        self, system_block_type, client_with_unprotected_block_api
     ):
         response = await client_with_unprotected_block_api.post(
             "/block_schemas/",
@@ -210,7 +210,7 @@ class TestDeleteBlockSchema:
         assert response.status_code == 404
 
     async def test_delete_block_schema_for_system_block_type_fails(
-        self, session, client, system_block_type
+        self, session, system_block_type, client
     ):
         block_schema = await models.block_schemas.create_block_schema(
             session=session,
@@ -228,7 +228,7 @@ class TestDeleteBlockSchema:
         )
 
     async def test_delete_block_schema_for_system_block_type_does_not_fail_for_older_clients(
-        self, session, client_with_unprotected_block_api, system_block_type
+        self, session, system_block_type, client_with_unprotected_block_api
     ):
         block_schema = await models.block_schemas.create_block_schema(
             session=session,
