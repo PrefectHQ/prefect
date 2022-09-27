@@ -374,7 +374,7 @@ class TestUpdateBlockType:
                 description="Hi there!",
             ).dict(json_compatible=True),
         )
-        assert response.status_code != status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
     async def test_update_block_type_ensures_system_blocks_are_protected(
         self, client, system_block_type, monkeypatch
@@ -416,7 +416,7 @@ class TestDeleteBlockType:
         response = await client_with_unprotected_block_api.delete(
             f"/block_types/{system_block_type.id}"
         )
-        assert response.status_code != status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
     async def test_dete_block_type_ensures_system_blocks_are_protected(
         self, client, system_block_type, monkeypatch

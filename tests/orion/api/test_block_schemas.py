@@ -169,7 +169,7 @@ class TestCreateBlockSchema:
                 json_compatible=True
             ),
         )
-        assert response.status_code != 403
+        assert response.status_code == 201
 
     async def test_create_block_schema_with_version(
         self, session, client, block_type_x
@@ -241,7 +241,7 @@ class TestDeleteBlockSchema:
         response = await client_with_unprotected_block_api.delete(
             f"/block_schemas/{block_schema.id}"
         )
-        assert response.status_code != 403
+        assert response.status_code == 204
 
 
 class TestReadBlockSchema:
