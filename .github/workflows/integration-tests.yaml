@@ -146,11 +146,11 @@ jobs:
 
       - name: Start server@dev
         run: |
-          # First, we must stop the server container
+          # First, we must stop the server container if it exists
           # TODO: Once we have `prefect orion stop` we can run these tests first and the
           #       optional tests above second
           #       https://github.com/PrefectHQ/prefect/issues/6989
-          docker stop "orion-server-${{ matrix.prefect-version }}"
+          docker stop "orion-server-${{ matrix.prefect-version }}" || echo "That's okay!"
 
           prefect orion start&
           PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
