@@ -365,6 +365,17 @@ class TestUpdateBlockType:
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert response.json()["detail"] == "protected block types cannot be updated."
 
+    async def test_update_system_block_type_does_not_fail_for_older_clients(
+        self, client_with_unprotected_block_api, system_block_type
+    ):
+        response = await client_with_unprotected_block_api.patch(
+            f"/block_types/{system_block_type.id}",
+            json=BlockTypeUpdate(
+                description="Hi there!",
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code != status.HTTP_403_FORBIDDEN
+
     async def test_update_block_type_ensures_system_blocks_are_protected(
         self, client, system_block_type, monkeypatch
     ):
@@ -394,10 +405,18 @@ class TestDeleteBlockType:
         response = await client.delete(f"/block_types/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_delete_system_block_type_fails(self, client, system_block_type):
+    async def test_delete_system_block_type_fails(self, system_block_type, client):
         response = await client.delete(f"/block_types/{system_block_type.id}")
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert response.json()["detail"] == "protected block types cannot be deleted."
+
+    async def test_delete_system_block_type_does_not_fail_for_older_clients(
+        self, system_block_type, client_with_unprotected_block_api
+    ):
+        response = await client_with_unprotected_block_api.delete(
+            f"/block_types/{system_block_type.id}"
+        )
+        assert response.status_code != status.HTTP_403_FORBIDDEN
 
     async def test_dete_block_type_ensures_system_blocks_are_protected(
         self, client, system_block_type, monkeypatch

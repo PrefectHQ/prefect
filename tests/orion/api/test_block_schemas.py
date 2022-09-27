@@ -160,6 +160,17 @@ class TestCreateBlockSchema:
             == "Block schemas for protected block types cannot be created."
         )
 
+    async def test_create_block_schema_for_system_block_type_does_not_fail_for_older_clients(
+        self, client_with_unprotected_block_api, system_block_type
+    ):
+        response = await client_with_unprotected_block_api.post(
+            "/block_schemas/",
+            json=BlockSchemaCreate(fields={}, block_type_id=system_block_type.id).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code != 403
+
     async def test_create_block_schema_with_version(
         self, session, client, block_type_x
     ):
@@ -215,6 +226,22 @@ class TestDeleteBlockSchema:
             response.json()["detail"]
             == "Block schemas for protected block types cannot be deleted."
         )
+
+    async def test_delete_block_schema_for_system_block_type_does_not_fail_for_older_clients(
+        self, session, client_with_unprotected_block_api, system_block_type
+    ):
+        block_schema = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                fields={}, block_type_id=system_block_type.id
+            ),
+        )
+        await session.commit()
+
+        response = await client_with_unprotected_block_api.delete(
+            f"/block_schemas/{block_schema.id}"
+        )
+        assert response.status_code != 403
 
 
 class TestReadBlockSchema:

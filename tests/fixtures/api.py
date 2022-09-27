@@ -21,11 +21,12 @@ async def client(app):
 
 
 @pytest.fixture
-async def client_with_api_version(app):
+async def client_with_unprotected_block_api(app):
     """
     Yield a test client for testing the orion api
     """
-    version_header = {"X-PREFECT-API-VERSION": ORION_API_VERSION}
+    api_version = "0.8.0"
+    version_header = {"X-PREFECT-API-VERSION": api_version}
     async with httpx.AsyncClient(
         app=app, base_url="https://test/api", headers=version_header
     ) as async_client:
