@@ -83,10 +83,8 @@ jobs:
         prefect-version:
           # These versions correspond to Prefect image tags, the patch version is
           # excluded to always pull the latest patch of each minor version.
-
-          # TODO: The commented versions fail
-          # - "2.0"
-          # - "2.1"
+          - "2.0"
+          - "2.1"
           - "2.2"
           - "2.3"
           - "2.4"
@@ -95,6 +93,16 @@ jobs:
           # but the value is not particularly clear and we can just append the
           # last minor version at each release time
           # - "2"
+        
+        include:
+          # While old clients should always be supported by new servers, a new
+          # client may send data that an old server does not support. These
+          # incompatibilities are allowed.
+          - prefect-version: "2.0"
+            server-incompatible: false
+          - prefect-version: "2.1"
+            server-incompatible: false
+
 
       fail-fast: false
 
@@ -114,28 +122,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
-      - name: Start server@${{ matrix.prefect-version }}
-        run: >
-          docker run
-          --name "orion-server-${{ matrix.prefect-version }}"
-          --detach
-          --publish 4200:4200
-          prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
-          prefect orion start --host 0.0.0.0
-
-          PREFECT_API_URL="http://127.0.0.1:4200/api"
-          ./scripts/wait-for-server.py
-
-      - name: Run integration flows with client@dev, server@${{ matrix.prefect-version }},
-        run: >
-          PREFECT_API_URL="http://127.0.0.1:4200/api"
-          ./scripts/run-integration-flows.py
-
       - name: Start server@dev
         run: |
-          docker stop "orion-server-${{ matrix.prefect-version }}"
           prefect orion start&
-
           PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
 
       - name: Run integration flows with client@${{ matrix.prefect-version }}, server@dev
@@ -148,3 +137,21 @@ jobs:
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
           /opt/prefect/integration/scripts/run-integration-flows.py /opt/prefect/integration/flows
 
+      - name: Start server@${{ matrix.prefect-version }}
+        if: ${{ ! matrix.server-incompatible }}
+        run: >
+          docker run
+          --name "orion-server-${{ matrix.prefect-version }}"
+          --detach
+          --publish 4200:4200
+          prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
+          prefect orion start --host 0.0.0.0
+
+          PREFECT_API_URL="http://127.0.0.1:4200/api"
+          ./scripts/wait-for-server.py
+
+      - name: Run integration flows with client@dev, server@${{ matrix.prefect-version }}
+        if: ${{ ! matrix.server-incompatible }}
+        run: >
+          PREFECT_API_URL="http://127.0.0.1:4200/api"
+          ./scripts/run-integration-flows.py
