@@ -99,9 +99,9 @@ jobs:
           # client may send data that an old server does not support. These
           # incompatibilities are allowed.
           - prefect-version: "2.0"
-            server-incompatible: false
+            server-incompatible: true
           - prefect-version: "2.1"
-            server-incompatible: false
+            server-incompatible: true
 
 
       fail-fast: false
