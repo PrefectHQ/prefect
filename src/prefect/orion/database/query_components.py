@@ -5,6 +5,7 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
+from cachetools import TTLCache
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,11 +16,15 @@ from prefect.orion.utilities.database import json_has_any_key
 if TYPE_CHECKING:
     from prefect.orion.database.interface import OrionDBInterface
 
+ONE_HOUR = 60 * 60
+
 
 class BaseQueryComponents(ABC):
     """
     Abstract base class used to inject dialect-specific SQL operations into Orion.
     """
+
+    CONFIGURATION_CACHE = TTLCache(maxsize=100, ttl=ONE_HOUR)
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
         """
@@ -373,6 +378,28 @@ class BaseQueryComponents(ABC):
             .select_from(all_block_documents_query)
             .order_by(all_block_documents_query.c.name)
         )
+
+    async def read_configuration(
+        self, db: "OrionDBInterface", session: sa.orm.Session, key: str
+    ):
+        """
+        Read a configuration value by key.
+
+        Configuration values should not be changed at run time, so retrieved
+        values are cached in memory.
+
+        The main use of confiugrations is encrypting blocks, this speeds up nested
+        block document queries.
+        """
+        try:
+            return self.CONFIGURATION_CACHE[key]
+        except KeyError:
+            query = sa.select(db.Configuration).where(db.Configuration.key == key)
+            result = await session.execute(query)
+            value = result.scalar()
+            if value is not None:
+                self.CONFIGURATION_CACHE[key] = value
+            return value
 
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
