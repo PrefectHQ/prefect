@@ -245,6 +245,24 @@ async def login(
     )
 
 
+@cloud_app.command()
+async def logout():
+    """
+    Logout the current workspace.
+    Reset PREFECT_API_KEY and PREFECT_API_URL to default.
+    """
+    current_profile = update_current_profile(
+        {
+            PREFECT_API_URL: None,
+            PREFECT_API_KEY: None,
+        }
+    )
+
+    exit_with_success(
+        f"Logged out from Prefect Cloud in {current_profile.name!r} profile."
+    )
+
+
 @workspace_app.command()
 async def ls():
     """List available workspaces."""
