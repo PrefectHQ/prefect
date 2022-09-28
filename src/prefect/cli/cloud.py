@@ -232,16 +232,26 @@ async def logout():
     Logout the current workspace.
     Reset PREFECT_API_KEY and PREFECT_API_URL to default.
     """
-    current_profile = update_current_profile(
+    profiles = load_profiles()
+
+    active_profile = profiles.active_profile
+    if active_profile is None:
+        exit_with_error("There is no active profile.")
+
+    if active_profile.settings.get(PREFECT_API_KEY) is None:
+        exit_with_error("Current profile is not logged into Prefect Cloud.")
+
+    profiles.update_profile(
+        active_profile.name,
         {
             PREFECT_API_URL: None,
             PREFECT_API_KEY: None,
-        }
+        },
     )
 
-    exit_with_success(
-        f"Logged out from Prefect Cloud in {current_profile.name!r} profile."
-    )
+    save_profiles(profiles)
+
+    exit_with_success(f"Logged out from Prefect Cloud.")
 
 
 @workspace_app.command()
