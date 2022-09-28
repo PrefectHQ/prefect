@@ -32,6 +32,7 @@ from prefect.utilities.annotations import unmapped, allow_failure
 
 # Import modules that register types
 import prefect.serializers
+import prefect.deprecated.data_documents
 import prefect.packaging
 import prefect.blocks.kubernetes
 import prefect.blocks.notifications
