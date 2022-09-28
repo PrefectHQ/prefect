@@ -207,6 +207,8 @@ class Flow(Generic[P, R]):
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = None,
+        result_storage: ResultStorage = auto(),
+        result_serializer: ResultSerializer = "pickle",
     ):
         """
         Create a new flow from the current object, updating provided options.
@@ -223,7 +225,8 @@ class Flow(Generic[P, R]):
             retries: A new number of times to retry on flow run failure.
             retry_delay_seconds: A new number of seconds to wait before retrying the
                 flow after failure. This is only applicable if `retries` is nonzero.
-
+            result_storage: A new storage type to use for results.
+            result_serializer: A new serializer to use for results.
 
         Returns:
             A new `Flow` instance.
@@ -267,6 +270,8 @@ class Flow(Generic[P, R]):
                 if validate_parameters is not None
                 else self.should_validate_parameters
             ),
+            result_storage=result_storage,
+            result_serializer=result_serializer,
         )
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
