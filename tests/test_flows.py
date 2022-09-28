@@ -11,6 +11,7 @@ import pytest
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.core import Block
 from prefect.client import OrionClient
+from prefect.client.schemas import State
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import (
     InvalidNameError,
@@ -23,7 +24,7 @@ from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import State, StateType
+from prefect.orion.schemas.states import StateType
 from prefect.results import _retrieve_result
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
 from prefect.states import StateType, raise_failed_state

@@ -5,10 +5,10 @@ from unittest.mock import MagicMock
 import pytest
 
 from prefect.client import OrionClient
+from prefect.client.schemas import Completed
 from prefect.flows import flow
 from prefect.futures import PrefectFuture, resolve_futures_to_data
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.states import Completed
 from prefect.tasks import task
 from prefect.testing.utilities import assert_does_not_warn
 

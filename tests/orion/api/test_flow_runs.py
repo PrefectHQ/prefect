@@ -8,9 +8,9 @@ import sqlalchemy as sa
 from fastapi import status
 
 from prefect.orion import models, schemas
-from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas import actions, core, responses, states
 from prefect.orion.schemas.core import TaskRunResult
+from prefect.orion.schemas.responses import OrchestrationResult
 
 
 class TestCreateFlowRun:
