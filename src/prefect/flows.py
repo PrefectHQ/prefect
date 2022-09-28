@@ -41,7 +41,9 @@ from prefect.exceptions import (
 )
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import raise_on_invalid_name
+from prefect.results import ResultSerializer, ResultStorage
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
+from prefect.utilities.annotations import auto
 from prefect.utilities.asyncutils import is_async_fn
 from prefect.utilities.callables import (
     get_call_parameters,
@@ -94,6 +96,15 @@ class Flow(Generic[P, R]):
         retries: An optional number of times to retry on flow run failure.
         retry_delay_seconds: An optional number of seconds to wait before retrying the
             flow after failure. This is only applicable if `retries` is nonzero.
+        result_storage: An optional block to use to perist the result of this flow.
+            This value will be used as the default for any tasks in this flow.
+            Defaults to `auto()` which means Prefect will attempt to persist the results
+            if necessary for other features. Persistence may be disabled by setting to
+            `None`.
+        result_serializer: An optional serializer to use to serialize the result of this
+            flow for persistence. This may be specified as a type string e.g. "json" or
+            as an instance with configuration options e.g. `JSONSerializer(jsonlib="orjson")`.
+            This value will be used as the default for any tasks in this flow.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -109,6 +120,8 @@ class Flow(Generic[P, R]):
         description: str = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
+        result_storage: ResultStorage = auto(),
+        result_serializer: ResultSerializer = "pickle",
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -162,6 +175,9 @@ class Flow(Generic[P, R]):
                     "Flow function is not compatible with `validate_parameters`. "
                     "Disable validation or change the argument names."
                 ) from exc
+
+        self.result_storage = result_storage
+        self.result_serializer = result_serializer
 
         # Check for collision in the registry
         registry = PrefectObjectRegistry.get()
@@ -464,6 +480,8 @@ def flow(
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
+    result_storage: ResultStorage = auto(),
+    result_serializer: ResultSerializer = "pickle",
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -494,6 +512,15 @@ def flow(
         retries: An optional number of times to retry on flow run failure.
         retry_delay_seconds: An optional number of seconds to wait before retrying the
             flow after failure. This is only applicable if `retries` is nonzero.
+        result_storage: An optional block to use to perist the result of this flow.
+            This value will be used as the default for any tasks in this flow.
+            Defaults to `auto()` which means Prefect will attempt to persist the results
+            if necessary for other features. Persistence may be disabled by setting to
+            `None`.
+        result_serializer: An optional serializer to use to serialize the result of this
+            flow for persistence. This may be specified as a type string e.g. "json" or
+            as an instance with configuration options e.g. `JSONSerializer(jsonlib="orjson")`.
+            This value will be used as the default for any tasks in this flow.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -546,6 +573,8 @@ def flow(
                 validate_parameters=validate_parameters,
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
+                result_storage=result_storage,
+                result_serializer=result_serializer,
             ),
         )
     else:
@@ -561,6 +590,8 @@ def flow(
                 validate_parameters=validate_parameters,
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
+                result_storage=result_storage,
+                result_serializer=result_serializer,
             ),
         )
 

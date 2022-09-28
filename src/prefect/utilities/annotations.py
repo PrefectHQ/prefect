@@ -40,3 +40,11 @@ def quote(expr: T) -> Quote[T]:
         1
     """
     return Quote(expr)
+
+
+class Auto:
+    pass
+
+
+def auto():
+    return Auto
