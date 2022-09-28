@@ -21,11 +21,11 @@ from typing import (
 from urllib.parse import urlsplit
 
 import pendulum
-from slugify import slugify
 from typing_extensions import Self
 
 import prefect
 from prefect.utilities.importtools import lazy_import
+from prefect.utilities.slugify import slugify
 
 
 def python_version_minor() -> str:
