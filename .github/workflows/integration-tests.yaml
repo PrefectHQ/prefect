@@ -32,11 +32,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
-          
+
       - name: Build orion-ui
         run: |
           prefect dev build-ui
-          
+
       - name: Run Orion in background
         run: |
           prefect orion start&
@@ -46,12 +46,12 @@ jobs:
         with:
           node-version-file: '.nvmrc'
           cache-dependency-path: '**/package-lock.json'
-      
+
       - name: Retrieve Playwright version
         id: playwright-cache-key
         run: |
           echo "::set-output name=version::$(npx playwright -V)"
-        
+
       - name: Retrieve cached Playwright browsers
         id: cache-playwright-browsers
         uses: actions/cache@v3
@@ -83,18 +83,26 @@ jobs:
         prefect-version:
           # These versions correspond to Prefect image tags, the patch version is
           # excluded to always pull the latest patch of each minor version.
-
-          # TODO: The commented versions fail
-          # - "2.0"
-          # - "2.1"
-          # - "2.2"
-          # - "2.3"
+          - "2.0"
+          - "2.1"
+          - "2.2"
+          - "2.3"
           - "2.4"
 
           # We can include the following to always test against the last release
           # but the value is not particularly clear and we can just append the
           # last minor version at each release time
           # - "2"
+
+        include:
+          # While old clients should always be supported by new servers, a new
+          # client may send data that an old server does not support. These
+          # incompatibilities are allowed.
+          - prefect-version: "2.0"
+            server-incompatible: true
+          - prefect-version: "2.1"
+            server-incompatible: true
+
 
       fail-fast: false
 
@@ -115,6 +123,7 @@ jobs:
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
       - name: Start server@${{ matrix.prefect-version }}
+        if: ${{ ! matrix.server-incompatible }}
         run: >
           docker run
           --name "orion-server-${{ matrix.prefect-version }}"
@@ -126,16 +135,24 @@ jobs:
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/wait-for-server.py
 
-      - name: Run integration flows with client@dev, server@${{ matrix.prefect-version }},
+          # TODO: Replace `wait-for-server` with dedicated command
+          #       https://github.com/PrefectHQ/prefect/issues/6990
+
+      - name: Run integration flows with client@dev, server@${{ matrix.prefect-version }}
+        if: ${{ ! matrix.server-incompatible }}
         run: >
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/run-integration-flows.py
 
       - name: Start server@dev
         run: |
-          docker stop "orion-server-${{ matrix.prefect-version }}"
-          prefect orion start&
+          # First, we must stop the server container if it exists
+          # TODO: Once we have `prefect orion stop` we can run these tests first and the
+          #       optional tests above second
+          #       https://github.com/PrefectHQ/prefect/issues/6989
+          docker stop "orion-server-${{ matrix.prefect-version }}" || echo "That's okay!"
 
+          prefect orion start&
           PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
 
       - name: Run integration flows with client@${{ matrix.prefect-version }}, server@dev
@@ -147,4 +164,3 @@ jobs:
           --network host
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
           /opt/prefect/integration/scripts/run-integration-flows.py /opt/prefect/integration/flows
-
