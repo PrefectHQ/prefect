@@ -14,7 +14,7 @@
       </template>
 
       <template #runs>
-        <FlowRunsControlsList :flow-run-filter="flowFilter" />
+        <FlowRunFilteredList :flow-run-filter="flowFilter" />
       </template>
     </p-tabs>
 
@@ -25,7 +25,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunsControlsList, UnionFilters, useRecentFlowRunFilter, useFlowRunFilterFromRoute } from '@prefecthq/orion-design'
+  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, UnionFilters, useRecentFlowRunFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -54,9 +54,7 @@
   const flowSubscription = useSubscription(flowsApi.getFlow, [flowId.value], subscriptionOptions)
   const flow = computed(() => flowSubscription.response)
 
-  const { states, sort } = useFlowRunFilterFromRoute()
-
-  const flowFilter = useRecentFlowRunFilter({ flows: [flowId.value], states, sort })
+  const flowFilter = useRecentFlowRunFilter({ flows: [flowId.value] })
   const flowFilterArgs = computed<[filter: UnionFilters] | null>(() => flowId.value ? [flowFilter.value] : null)
 
   const flowDeploymentsSubscription = useSubscriptionWithDependencies(deploymentsApi.getDeployments, flowFilterArgs)

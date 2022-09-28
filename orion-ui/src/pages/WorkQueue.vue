@@ -24,7 +24,7 @@
         </template>
 
         <template #runs>
-          <FlowRunsControlsList :flow-run-filter="flowRunFilter" />
+          <FlowRunFilteredList :flow-run-filter="flowRunFilter" />
         </template>
       </p-tabs>
 
@@ -37,7 +37,7 @@
 
 
 <script lang="ts" setup>
-  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunsControlsList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter, useFlowRunFilterFromRoute } from '@prefecthq/orion-design'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
@@ -69,9 +69,8 @@
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value], subscriptionOptions)
   const workQueue = computed(() => workQueueSubscription.response)
 
-  const { states, sort } = useFlowRunFilterFromRoute()
   const workQueueName = computed(() => workQueue.value ? [workQueue.value.name] : [])
-  const flowRunFilter = useRecentFlowRunFilter({ workQueues: workQueueName, states, sort })
+  const flowRunFilter = useRecentFlowRunFilter({ workQueues: workQueueName })
 
   const routeToQueues = (): void => {
     router.push(routes.workQueues())

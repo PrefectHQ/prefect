@@ -31,7 +31,7 @@
       </template>
 
       <template #runs>
-        <FlowRunsControlsList :flow-run-filter="deploymentFilter" />
+        <FlowRunFilteredList :flow-run-filter="deploymentFilter" />
       </template>
     </p-tabs>
 
@@ -47,7 +47,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentDescription, FlowRunsControlsList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter, useFlowRunFilterFromRoute } from '@prefecthq/orion-design'
+  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
@@ -85,8 +85,7 @@
     router.push(routes.deployments())
   }
 
-  const { states, sort } = useFlowRunFilterFromRoute()
-  const deploymentFilter = useRecentFlowRunFilter({ deployments: [deploymentId.value], states, sort })
+  const deploymentFilter = useRecentFlowRunFilter({ deployments: [deploymentId.value] })
 
   const title = computed(() => {
     if (!deployment.value) {
