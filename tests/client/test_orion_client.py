@@ -18,11 +18,11 @@ from prefect import flow, tags
 from prefect.client import OrionClient, get_client
 from prefect.client.orion import OrionClient, get_client, inject_client
 from prefect.client.schemas import OrchestrationResult, Pending, Running, Scheduled
+from prefect.deprecated.data_documents import DataDocument
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.actions import LogCreate
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import StateType

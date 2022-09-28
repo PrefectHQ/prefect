@@ -22,6 +22,7 @@ from prefect.client.schemas import (
     State,
     TaskRun,
 )
+from prefect.deprecated.data_documents import DataDocument
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.schemas.actions import LogCreate, WorkQueueCreate, WorkQueueUpdate
@@ -31,7 +32,6 @@ from prefect.orion.schemas.core import (
     BlockType,
     QueueFilter,
 )
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter
 from prefect.settings import (
     PREFECT_API_KEY,
@@ -1475,7 +1475,7 @@ class OrionClient:
         flow_run_id: UUID,
         state: State,
         force: bool = False,
-        backend_state_data: schemas.data.DataDocument = None,
+        backend_state_data: DataDocument = None,
     ) -> OrchestrationResult:
         """
         Set the state of a flow run.
@@ -1658,7 +1658,7 @@ class OrionClient:
         task_run_id: UUID,
         state: State,
         force: bool = False,
-        backend_state_data: schemas.data.DataDocument = None,
+        backend_state_data: DataDocument = None,
     ) -> OrchestrationResult:
         """
         Set the state of a task run.
