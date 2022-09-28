@@ -300,6 +300,12 @@ class OrionDBInterface(metaclass=DBSingleton):
             session=session, db=self, limit=limit
         )
 
-    async def read_configuration(self, session: sa.orm.Session, key: str):
+    async def read_configuration_value(self, session: sa.orm.Session, key: str):
         """Read a configuration value"""
-        return await self.queries.read_configuration(db=self, session=session, key=key)
+        return await self.queries.read_configuration_value(
+            db=self, session=session, key=key
+        )
+
+    def clear_configuration_value_cache_for_key(self, key: str):
+        """Removes a configuration key from the cache."""
+        return self.queries.clear_configuration_value_cache_for_key(key=key)
