@@ -10,7 +10,7 @@ tags:
 
 # Results
 
-Results represent the data returned by a flow or a task. 
+Results represent the data returned by a flow or a task.
 
 ## Retrieving results
 
@@ -87,7 +87,7 @@ def my_flow():
         my_task()
     except ValueError:
         print("Oh no! The task failed.")
-    
+
     return True
 
 my_flow()
@@ -118,7 +118,7 @@ result = my_flow()
 assert result == 2
 ```
 
-If you retrieve the result from a failed state, the exception will be raised. For this reason, it's often best to check if the state is failed first. 
+If you retrieve the result from a failed state, the exception will be raised. For this reason, it's often best to check if the state is failed first.
 
 ```python
 from prefect import flow, task
@@ -135,7 +135,7 @@ def my_flow():
         result = state.result()
     except ValueError:
         print("Oh no! The state raised the error!")
-    
+
     return True
 
 my_flow()
@@ -160,7 +160,7 @@ def my_flow():
         result = 1
     else:
         result = maybe_result
-    
+
     return result + 1
 
 result = my_flow()
@@ -209,42 +209,61 @@ If results are not persisted, these features will not be usable.
 
 Persistence of results requires a [**serializer**](#result-serializers) and a [**storage** location](#result-storage). Prefect sets defaults for these, and you should not need to adjust them until you want to customize behavior.
 
-#### Configuring results for flows
+The `flow` and `task` decorators provide result configuration options.
 
-The `flow` decorator provides result configuration options.
-
-By default, flows will not persist their own result. However, configuration at the flow level sets the default for all tasks in the flow.
-
-You may set the result storage using an instance:
+By default, flows and taskss will not persist their result unless necessary for a feature. Storage of results can be manually toggled by the `store_result` option:
 
 ```python
-from prefect import flow
-from prefect.filesystems import LocalFileSystem
+from prefect import flow, task
 
-@flow(result_storage=LocalFileSystem(basepath=".results"))
+@flow(store_result=True)
+def my_flow():
+    ...
+
+@task(store_result=False)
+def my_task():
+    ...
 ```
 
-You may set the result storage using a block id:
+The `result_storage` option defaults to a null value, which infers the result storage from the parent.
+If there is no parent to load the storage from and results must be persisted, results will be stored in `.prefect-results` relative to the run.
 
 ```python
-from prefect import flow
-from prefect.filesystems import LocalFileSystem
+from prefect import flow, task
+from prefect.filesystems import LocalFileSystem, S3
 
-@flow(result_storage='cae1dda0-5000-4ca2-a18c-727d400145f2')
+@flow(store_result=True)
+def my_flow():
+    my_task()  # This task will use the flow's result storage
+
+@task(store_result=True)
+def my_task():
+    ...
+
+my_flow()  # The flow has no result storage configured and no parent, the local file system will be used.
+
+
+# Reconfigure the flow to use a different storage type
+new_flow = my_flow.with_options(result_storage=S3(bucket="my-bucket"))
+
+new_flow()  # The flow and task within it will use S3 for result storage.
 ```
 
-Or you may **disable** result storage by setting it to a null value:
+You can configure this to use a specific storage using one of the following:
 
-```python
-from prefect import flow
-from prefect.filesystems import LocalFileSystem
+- A storage instance, e.g. `LocalFileSystem(basepath=".my-results"`
+- A storage slug, e.g. `'s3/dev-s3-block'`
+- A UUID, e.g. `'cae1dda0-5000-4ca2-a18c-727d400145f2'`
 
-@flow(result_storage=None)
-```
 
-#### Configuring results for tasks
+Similarly, the `result_serialzier` option defaults to a null value, which infers the result storage from the parent.
+If there is no parent to load the serializer from, Prefect's pickle serializer will be used.
 
-By default, tasks will persist results to the local file system if required by a feature enabled on the flow. For example, if you enable retries on the flow we will persist task run results. Otherwise, your retries will be unable to restore completed task runs from the previous attempt.
+You may set the configure the result serializer using:
+
+- A type name, e.g. `"json"` or `"pickle"` — this corresponds to an instance with default values
+- An instance, e.g. `JSONSerializer(jsonlib="orjson")`
+
 ### Result storage
 
 Result storage is responsible fo reading and writing serialized data to an external location. At this time, any file system block can be used for result storage.
@@ -278,7 +297,7 @@ Drawbacks of the pickle serializer:
 #### JSON serializer
 
 
-We supply a custom JSON serializer at `prefect.serializers.JSONSerializer`. Prefect's JSON serializer uses custom hooks by default to support more object types. Specifically, we add support for all types supported by [Pydantic](https://pydantic-docs.helpmanual.io/). 
+We supply a custom JSON serializer at `prefect.serializers.JSONSerializer`. Prefect's JSON serializer uses custom hooks by default to support more object types. Specifically, we add support for all types supported by [Pydantic](https://pydantic-docs.helpmanual.io/).
 
 
 By default, we use the standard Python `json` library. Alternative JSON libraries can be specified:
@@ -318,7 +337,7 @@ The Prefect API does not store your results in most cases. The system is designe
 - Results often contain private information or data
 - Results would need to be stored in the database, or complex logic implemented to hydrate from another source
 
-There are a few cases where Prefect _will_ store your results directly in the database. This is an optimization to reduce the overhead of reading and writing to result storage. 
+There are a few cases where Prefect _will_ store your results directly in the database. This is an optimization to reduce the overhead of reading and writing to result storage.
 
 The following data types will be stored by the API without persistence to storage:
 
