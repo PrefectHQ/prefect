@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple
 import anyio.abc
 import packaging.version
 from pydantic import Field, validator
-from slugify import slugify
 from typing_extensions import Literal
 
 import prefect
@@ -20,6 +19,7 @@ from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.importtools import lazy_import
+from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     import docker
