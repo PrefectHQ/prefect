@@ -7,14 +7,12 @@ from typing_extensions import TypeGuard
 
 from prefect.client import OrionClient
 from prefect.client.orion import inject_client
+from prefect.client.schemas import Completed, Crashed, State
 from prefect.futures import resolve_futures_to_states
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.states import Completed, Crashed, StateType
+from prefect.orion.schemas.states import StateType
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import ensure_iterable
-
-# Expose the state schema from Orion
-from .orion.schemas.states import State
 
 
 def exception_to_crashed_state(exc: BaseException) -> Crashed:
