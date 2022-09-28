@@ -200,6 +200,8 @@ async def login(
 
     if not workspace_handle:
         workspace_handle = select_workspace(workspace_handle_details.keys())
+    elif workspace_handle not in workspace_handle_details:
+        exit_with_error(f"Workspace {workspace_handle!r} not found.")
 
     cloud_profile_name = app.console.input(
         "Creating a profile for this Prefect Cloud login. Please specify a profile name: "
