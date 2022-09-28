@@ -5,7 +5,6 @@ import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Query, status
 from packaging.version import Version
 
-import prefect
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.database.dependencies import provide_database_interface
