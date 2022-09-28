@@ -65,6 +65,8 @@ class TestRunAutoRegistration:
             await session.commit()
 
             registered_blocks = await read_block_types(session)
+
+            # this assertion assumes that users cannot protect blocks manually
             assert len(registered_blocks) == expected_number_of_registered_block_types
 
 
