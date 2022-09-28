@@ -213,7 +213,7 @@ Persistence of results requires a [**serializer**](#result-serializers) and a [*
 - `result_storage`: Where to store the result when persisted
 - `result_serializer`: How to convert the result to a storable form
 
-#### Enabling and disabling persistence
+#### Toggling persistence
 
 Persistence of results can be configured with the `persist_result` option. The `persist_result` option defaults to a null value, which will automatically enable persistence if it is needed for a Prefect feature used by the flow or task. Persistence of results can be manually toggled on or off:
 
@@ -232,10 +232,9 @@ def my_task():
     ...
 ```
 
+#### Result storage location
 
-#### Configuring the result storage location
-
-[The result storage location](#result-storage) can be configured with the `result_storage` option. The `result_storage` option defaults to a null value, which infers storage from the context.
+[The result storage location](#result-storage-types) can be configured with the `result_storage` option. The `result_storage` option defaults to a null value, which infers storage from the context.
 Generally, this means that tasks will use the result storage configured on the flow unless otherwise specified.
 If there is no context to load the storage from and results must be persisted, results will be stored in `.prefect-results` in the run's working directory.
 
@@ -267,9 +266,9 @@ You can configure this to use a specific storage using one of the following:
 - A UUID, e.g. `'cae1dda0-5000-4ca2-a18c-727d400145f2'`
 
 
-#### Configuring the result serializer
+#### Result serializer
 
-[The result serializer](#result-serializer) can be configured with the `result_storage` option. The `result_serialzier` option defaults to a null value, which infers the serializer from the context.
+[The result serializer](#result-serializer-types) can be configured with the `result_storage` option. The `result_serialzier` option defaults to a null value, which infers the serializer from the context.
 Generally, this means that tasks will use the result serializer configured on the flow unless otherwise specified.
 If there is no context to load the serializer from, the serializer defined by `PREFECT_RESULTS_DEFAULT_SERIALIZER` will be used. This setting defaults to Prefect's pickle serializer.
 
@@ -296,10 +295,10 @@ The following data types will be stored by the API without persistence to storag
 If `persist_result` is set to `False`, these values will never be stored.
 
 
-## Result storage
+## Result storage types
 
 Result storage is responsible fo reading and writing serialized data to an external location. At this time, any file system block can be used for result storage.
-## Result serializers
+## Result serializer types
 
 A result serializer is responsible for converting your Python object to and from bytes. This is necessary to store the object outside of Python and retrieve it later.
 
@@ -377,8 +376,8 @@ Result literals reduce the overhead required to persist simple results.
 
 Result references contain all of the information needed to retrieve the result from storage. This includes:
 
-- Storage: a reference to the [result storage](#result-storage) that can be used to read the serialized result
+- Storage: a reference to the [result storage](#result-storage-types) that can be used to read the serialized result
 - Key: indicates where this specific result is in storage
-- Serializer: description of the [result serializer](#result-serializers) that can be used to deserialize the result
+- Serializer: description of the [result serializer](#result-serializer-types) that can be used to deserialize the result
 
 The `get()` method on result references retrieves the data from storage, deserializes it, and returns the original object. The `get()` operation will cache the resolved object to reduce the overhead of subsequent calls.
