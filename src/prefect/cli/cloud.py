@@ -198,11 +198,6 @@ async def login(
                 f"The workspace can be changed using `prefect cloud workspace set`."
             )
 
-    workspace_handle_details = {
-        f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
-        for workspace in workspaces
-    }
-
     if not workspace_handle:
         workspace_handle = select_workspace(workspace_handle_details.keys())
 
