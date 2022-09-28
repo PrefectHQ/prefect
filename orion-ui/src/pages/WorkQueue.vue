@@ -48,6 +48,7 @@
   import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
@@ -85,6 +86,14 @@
   const routeToQueues = (): void => {
     router.push(routes.workQueues())
   }
+
+  const title = computed(() => {
+    if (!workQueue.value) {
+      return 'Work Queue'
+    }
+    return `Work Queue: ${workQueue.value.name}`
+  })
+  usePageTitle(title)
 
   watch(() => workQueue.value?.deprecated, value => {
     if (value) {

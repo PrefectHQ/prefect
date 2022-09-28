@@ -13,6 +13,7 @@
   import { useSubscriptionWithDependencies, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { blockDocumentsApi } from '@/services/blockDocumentsApi'
 
@@ -31,4 +32,12 @@
   const routeToBlocks = (): void => {
     router.push(routes.blocks())
   }
+
+  const title = computed(() => {
+    if (!blockDocument.value) {
+      return 'Block'
+    }
+    return `Block: ${blockDocument.value.name}`
+  })
+  usePageTitle(title)
 </script>

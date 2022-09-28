@@ -754,6 +754,19 @@ class TestAPICompatibility:
         ):
             await test_block.load("blocky")
 
+    def test_save_block_from_flow(self):
+        class Test(Block):
+            a: str
+
+        @prefect.flow
+        def save_block_flow():
+            Test(a="foo").save("test")
+
+        save_block_flow()
+
+        block = Test.load("test")
+        assert block.a == "foo"
+
 
 class TestRegisterBlockTypeAndSchema:
     class NewBlock(Block):
