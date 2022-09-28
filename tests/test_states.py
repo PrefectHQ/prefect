@@ -1,15 +1,9 @@
 import pytest
 
+from prefect.client.schemas import Completed, Failed, Pending, Running, State
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.states import (
-    Completed,
-    Failed,
-    Pending,
-    Running,
-    State,
-    StateType,
-)
+from prefect.orion.schemas.states import StateType
 from prefect.states import (
     is_state,
     is_state_iterable,

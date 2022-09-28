@@ -31,6 +31,7 @@ import prefect
 import prefect.context
 from prefect.client import OrionClient, get_client
 from prefect.client.orion import inject_client
+from prefect.client.schemas import Failed, FlowRun, Pending, Running, State, TaskRun
 from prefect.context import (
     FlowRunContext,
     PrefectObjectRegistry,
@@ -55,20 +56,12 @@ from prefect.logging.loggers import (
     get_run_logger,
     task_run_logger,
 )
-from prefect.orion.schemas import core
-from prefect.orion.schemas.core import FlowRun, TaskRun, TaskRunInput
+from prefect.orion.schemas.core import TaskRunInput, TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import (
-    Failed,
-    Pending,
-    Running,
-    State,
-    StateDetails,
-    StateType,
-)
+from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import (
     _persist_serialized_result,
     _retrieve_result,
@@ -830,14 +823,14 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
 
         if isinstance(obj, PrefectFuture):
             run_async_from_worker_thread(obj._wait_for_submission)
-            inputs.add(core.TaskRunResult(id=obj.task_run.id))
+            inputs.add(TaskRunResult(id=obj.task_run.id))
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
-                inputs.add(core.TaskRunResult(id=obj.state_details.task_run_id))
+                inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
         else:
             state = get_state_for_result(obj)
             if state and state.state_details.task_run_id:
-                inputs.add(core.TaskRunResult(id=state.state_details.task_run_id))
+                inputs.add(TaskRunResult(id=state.state_details.task_run_id))
 
     await run_sync_in_worker_thread(
         visit_collection,
