@@ -213,7 +213,7 @@ Persistence of results requires a [**serializer**](#result-serializers) and a [*
 - `result_storage`: Where to store the result when persisted
 - `result_serializer`: How to convert the result to a storable form
 
-By default, flows and tasks will not persist their result unless necessary for a feature. Storage of results can be manually toggled by the `persist_result` option:
+Persistence of results can be configured with the `persist_result` option. The `persist_result` option defaults to a null value, which will automatically enable persistence if it is needed for a Prefect future used by the flow or task. Persistence of results can be manually toggled on or off:
 
 ```python
 from prefect import flow, task
@@ -262,7 +262,7 @@ You can configure this to use a specific storage using one of the following:
 
 [The result serializer](#result-serializer) can be configured with the `result_storage` option. The `result_serialzier` option defaults to a null value, which infers the serializer from the context.
 Generally, this means that tasks will use the result serializer configured on the flow unless otherwise specified.
-If there is no context to load the serializer from, Prefect's pickle serializer will be used.
+If there is no context to load the serializer from, the serializer defined by `PREFECT_RESULTS_DEFAULT_SERIALIZER` will be used. This setting defaults to Prefect's pickle serializer.
 
 You may set the configure the result serializer using:
 
