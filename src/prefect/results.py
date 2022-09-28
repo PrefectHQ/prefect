@@ -1,5 +1,5 @@
 import uuid
-from typing import Type, Union
+from typing import Union
 
 import pydantic
 
@@ -9,12 +9,9 @@ from prefect.client.orion import inject_client
 from prefect.deprecated.data_documents import DataDocument
 from prefect.filesystems import WritableFileSystem
 from prefect.serializers import Serializer
-from prefect.utilities.annotations import Auto
 
-ResultStorage = Union[
-    WritableFileSystem, Type[WritableFileSystem], uuid.UUID, Auto, None
-]
-ResultSerializer = Union[Serializer, Type[Serializer], str]
+ResultStorage = Union[WritableFileSystem, uuid.UUID, str, None]
+ResultSerializer = Union[Serializer, str]
 
 
 async def _persist_serialized_result(

@@ -44,6 +44,7 @@ from prefect.logging import get_logger
 from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import is_async_fn
 from prefect.utilities.callables import (
     get_call_parameters,
@@ -102,13 +103,13 @@ class Flow(Generic[P, R]):
             the features being used.
         result_storage: An optional block to use to perist the result of this flow.
             This value will be used as the default for any tasks in this flow.
-            If not provided, the local file system will be used.
+            If not provided, the local file system will be used unless called as
+            a subflow at which point the default will be loaded from the parent flow.
         result_serializer: An optional serializer to use to serialize the result of this
-            flow for persistence. This may be specified as a type string e.g. "json" or
-            as an instance with configuration options e.g. `JSONSerializer(jsonlib="orjson")`.
-            This value will be used as the default for any tasks in this flow.
-            If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER` will be
-            used.
+            flow for persistence. This value will be used as the default for any tasks
+            in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
+            will be used unless called as a subflow at which point the default will be
+            loaded from the parent flow.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -213,9 +214,9 @@ class Flow(Generic[P, R]):
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = None,
-        persist_result: Optional[bool] = None,
-        result_storage: ResultStorage = None,
-        result_serializer: ResultSerializer = None,
+        persist_result: Optional[bool] = NotSet,
+        result_storage: ResultStorage = NotSet,
+        result_serializer: ResultSerializer = NotSet,
     ):
         """
         Create a new flow from the current object, updating provided options.
@@ -232,6 +233,7 @@ class Flow(Generic[P, R]):
             retries: A new number of times to retry on flow run failure.
             retry_delay_seconds: A new number of seconds to wait before retrying the
                 flow after failure. This is only applicable if `retries` is nonzero.
+            persist_result: A new option for enabling or disabling result persistence.
             result_storage: A new storage type to use for results.
             result_serializer: A new serializer to use for results.
 
@@ -277,9 +279,17 @@ class Flow(Generic[P, R]):
                 if validate_parameters is not None
                 else self.should_validate_parameters
             ),
-            persist_result=persist_result,
-            result_storage=result_storage,
-            result_serializer=result_serializer,
+            persist_result=(
+                persist_result if persist_result is not NotSet else self.persist_result
+            ),
+            result_storage=(
+                result_storage if result_storage is not NotSet else self.persist_result
+            ),
+            result_serializer=(
+                result_serializer
+                if result_serializer is not NotSet
+                else self.persist_result
+            ),
         )
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
@@ -526,7 +536,19 @@ def flow(
         retries: An optional number of times to retry on flow run failure.
         retry_delay_seconds: An optional number of seconds to wait before retrying the
             flow after failure. This is only applicable if `retries` is nonzero.
-
+        persist_result: An optional toggle indiciating if the result of this flow
+            should be persisted to result storage. Defaults to `None` which indicates
+            that Prefect should choose if the result should be persisted depending on
+            the features being used.
+        result_storage: An optional block to use to perist the result of this flow.
+            This value will be used as the default for any tasks in this flow.
+            If not provided, the local file system will be used unless called as
+            a subflow at which point the default will be loaded from the parent flow.
+        result_serializer: An optional serializer to use to serialize the result of this
+            flow for persistence. This value will be used as the default for any tasks
+            in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
+            will be used unless called as a subflow at which point the default will be
+            loaded from the parent flow.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
