@@ -13,6 +13,7 @@ from prefect.blocks.core import Block
 from prefect.client import OrionClient
 from prefect.client.schemas import State
 from prefect.context import PrefectObjectRegistry
+from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
     InvalidNameError,
     ParameterTypeError,
@@ -21,7 +22,6 @@ from prefect.exceptions import (
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType

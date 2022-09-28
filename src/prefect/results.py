@@ -5,8 +5,8 @@ import pydantic
 from prefect.blocks.core import Block
 from prefect.client import OrionClient
 from prefect.client.orion import inject_client
+from prefect.deprecated.data_documents import DataDocument
 from prefect.filesystems import WritableFileSystem
-from prefect.orion.schemas.data import DataDocument
 
 
 async def _persist_serialized_result(
