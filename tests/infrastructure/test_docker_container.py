@@ -729,3 +729,14 @@ def test_logs_when_unexpected_docker_error(caplog, mock_docker_client):
         "An unexpected Docker API error occured while streaming output from container fake-name."
         in caplog.text
     )
+
+
+@pytest.mark.service("docker")
+def test_stream_container_logs_on_real_container(capsys):
+    DockerContainer(
+        command=["echo", "hello"],
+        stream_output=True,
+    ).run()
+
+    captured = capsys.readouterr()
+    assert "hello" in captured.out
