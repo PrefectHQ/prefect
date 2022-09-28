@@ -192,11 +192,11 @@ async def login(
                     )
                     current_workspace = workspace_handle
 
-                exit_with_success(
-                    f"Logged in to Prefect Cloud using profile {profile_name!r}.\n"
-                    f"Workspace is currently set to {current_workspace!r}. "
-                    f"The workspace can be changed using `prefect cloud workspace set`."
-                )
+            exit_with_success(
+                f"Logged in to Prefect Cloud using profile {profile_name!r}.\n"
+                f"Workspace is currently set to {current_workspace!r}. "
+                f"The workspace can be changed using `prefect cloud workspace set`."
+            )
 
     workspace_handle_details = {
         f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
