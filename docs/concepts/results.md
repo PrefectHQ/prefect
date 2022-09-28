@@ -207,36 +207,40 @@ If results are not persisted, these features will not be usable.
 
 ### Configuring results
 
-Persistence of results requires a [**serializer**](#result-serializers) and a [**storage** location](#result-storage). Prefect sets defaults for these, and you should not need to adjust them until you want to customize behavior.
+Persistence of results requires a [**serializer**](#result-serializers) and a [**storage** location](#result-storage). Prefect sets defaults for these, and you should not need to adjust them until you want to customize behavior. You can configure results on the `flow` and `task` decorators with the following options:
 
-The `flow` and `task` decorators provide result configuration options.
+- `persist_result`: If the result be persisted to storage
+- `result_storage`: Where to store the result when persisted
+- `result_serializer`: How to convert the result to a storable form
 
-By default, flows and taskss will not persist their result unless necessary for a feature. Storage of results can be manually toggled by the `store_result` option:
+By default, flows and tasks will not persist their result unless necessary for a feature. Storage of results can be manually toggled by the `persist_result` option:
 
 ```python
 from prefect import flow, task
 
-@flow(store_result=True)
+@flow(persist_result=True)
 def my_flow():
     ...
 
-@task(store_result=False)
+@task(persist_result=False)
 def my_task():
     ...
 ```
 
-The `result_storage` option defaults to a null value, which infers the result storage from the parent.
-If there is no parent to load the storage from and results must be persisted, results will be stored in `.prefect-results` relative to the run.
+
+[The result storage location](#result-storage) can be configured with the `result_storage` option. The `result_storage` option defaults to a null value, which infers storage from the context.
+Generally, this means that tasks will use the result storage configured on the flow unless otherwise specified.
+If there is no context to load the storage from and results must be persisted, results will be stored in `.prefect-results` in the run's working directory.
 
 ```python
 from prefect import flow, task
 from prefect.filesystems import LocalFileSystem, S3
 
-@flow(store_result=True)
+@flow(persist_result=True)
 def my_flow():
     my_task()  # This task will use the flow's result storage
 
-@task(store_result=True)
+@task(persist_result=True)
 def my_task():
     ...
 
@@ -256,8 +260,9 @@ You can configure this to use a specific storage using one of the following:
 - A UUID, e.g. `'cae1dda0-5000-4ca2-a18c-727d400145f2'`
 
 
-Similarly, the `result_serialzier` option defaults to a null value, which infers the result storage from the parent.
-If there is no parent to load the serializer from, Prefect's pickle serializer will be used.
+[The result serializer](#result-serializer) can be configured with the `result_storage` option. The `result_serialzier` option defaults to a null value, which infers the serializer from the context.
+Generally, this means that tasks will use the result serializer configured on the flow unless otherwise specified.
+If there is no context to load the serializer from, Prefect's pickle serializer will be used.
 
 You may set the configure the result serializer using:
 
@@ -331,11 +336,11 @@ Result references implement the `get()` method which retrieves the data from sto
 
 ### Storage of results in Prefect
 
-The Prefect API does not store your results in most cases. The system is designed this way because:
+The Prefect API does not store your results in most cases for the following reasons:
 
 - Results can be large and slow to send to and from the API
 - Results often contain private information or data
-- Results would need to be stored in the database, or complex logic implemented to hydrate from another source
+- Results would need to be stored in the database or complex logic implemented to hydrate from another source
 
 There are a few cases where Prefect _will_ store your results directly in the database. This is an optimization to reduce the overhead of reading and writing to result storage.
 
@@ -344,3 +349,4 @@ The following data types will be stored by the API without persistence to storag
 - booleans (`True`, `False`)
 - nulls (`None`)
 
+If `persist_result` is set to `False`, these values will never be stored.
