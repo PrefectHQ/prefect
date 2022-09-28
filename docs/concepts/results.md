@@ -220,10 +220,13 @@ from prefect import flow, task
 
 @flow(persist_result=True)
 def my_flow():
+    # This flow will persist its result even if not necessary for a feature.
     ...
 
 @task(persist_result=False)
 def my_task():
+    # This task will never persist its result.
+    # If persistence needed for a feature, an error will be raised.
     ...
 ```
 
