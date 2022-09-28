@@ -37,7 +37,7 @@ def is_async_fn(
 
     See https://github.com/microsoft/pyright/issues/2142 for an example use
     """
-    return inspect.iscoroutinefunction(func)
+    return inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func)
 
 
 async def run_sync_in_worker_thread(
@@ -176,7 +176,11 @@ def sync_compatible(async_fn: T) -> T:
     """
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.
-    if not inspect.iscoroutinefunction(async_fn):
+    root_async_fn = async_fn
+    while hasattr(root_async_fn, "__wrapped__"):
+        root_async_fn = root_async_fn.__wrapped__
+
+    if not is_async_fn(root_async_fn):
         raise TypeError("The decorated function must be async.")
 
     @wraps(async_fn)
