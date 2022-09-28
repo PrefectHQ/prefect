@@ -210,19 +210,15 @@ async def login(
         exit_with_error("Please provide a non-empty profile name.")
 
     if cloud_profile_name in profiles:
-        overwrite = app.console.confirm(
-            f"Profile {cloud_profile_name!r} already exists. Do you want to overwrite it?"
+        exit_with_error(f"Profile {cloud_profile_name!r} already exists.")
+
+    profiles.add_profile(
+        profiles[profiles.active_name].copy(
+            update={
+                "name": cloud_profile_name,
+            }
         )
-        if not overwrite:
-            exit_with_error("Please provide another profile name.")
-    else:
-        profiles.add_profile(
-            profiles[profiles.active_name].copy(
-                update={
-                    "name": cloud_profile_name,
-                }
-            )
-        )
+    )
 
     profiles.update_profile(
         cloud_profile_name,
