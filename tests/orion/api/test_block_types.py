@@ -7,12 +7,10 @@ import pydantic
 import pytest
 from fastapi import status
 
-import prefect
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockTypeCreate, BlockTypeUpdate
 from prefect.orion.schemas.core import BlockDocument, BlockType
-from prefect.testing.utilities import AsyncMock
 from prefect.utilities.slugify import slugify
 from tests.orion.models.test_block_types import CODE_EXAMPLE
 
