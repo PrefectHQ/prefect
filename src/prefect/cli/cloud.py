@@ -150,8 +150,6 @@ async def login(
     Creates a new profile configured to use the specified PREFECT_API_KEY.
     Uses a previously configured profile if it exists.
     """
-    profiles = load_profiles()
-
     async with get_cloud_client(api_key=key) as client:
         try:
             workspaces = await client.read_workspaces()
@@ -171,6 +169,8 @@ async def login(
             )
         except httpx.HTTPStatusError as exc:
             exit_with_error(f"Error connecting to Prefect Cloud: {exc!r}")
+
+    profiles = load_profiles()
 
     for profile_name in profiles:
         if key == profiles[profile_name].settings.get(PREFECT_API_KEY):
