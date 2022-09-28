@@ -213,7 +213,9 @@ Persistence of results requires a [**serializer**](#result-serializers) and a [*
 - `result_storage`: Where to store the result when persisted
 - `result_serializer`: How to convert the result to a storable form
 
-Persistence of results can be configured with the `persist_result` option. The `persist_result` option defaults to a null value, which will automatically enable persistence if it is needed for a Prefect future used by the flow or task. Persistence of results can be manually toggled on or off:
+#### Enabling and disabling persistence
+
+Persistence of results can be configured with the `persist_result` option. The `persist_result` option defaults to a null value, which will automatically enable persistence if it is needed for a Prefect feature used by the flow or task. Persistence of results can be manually toggled on or off:
 
 ```python
 from prefect import flow, task
@@ -230,6 +232,8 @@ def my_task():
     ...
 ```
 
+
+#### Configuring the result storage location
 
 [The result storage location](#result-storage) can be configured with the `result_storage` option. The `result_storage` option defaults to a null value, which infers storage from the context.
 Generally, this means that tasks will use the result storage configured on the flow unless otherwise specified.
@@ -263,6 +267,8 @@ You can configure this to use a specific storage using one of the following:
 - A UUID, e.g. `'cae1dda0-5000-4ca2-a18c-727d400145f2'`
 
 
+#### Configuring the result serializer
+
 [The result serializer](#result-serializer) can be configured with the `result_storage` option. The `result_serialzier` option defaults to a null value, which infers the serializer from the context.
 Generally, this means that tasks will use the result serializer configured on the flow unless otherwise specified.
 If there is no context to load the serializer from, the serializer defined by `PREFECT_RESULTS_DEFAULT_SERIALIZER` will be used. This setting defaults to Prefect's pickle serializer.
@@ -272,15 +278,32 @@ You may set the configure the result serializer using:
 - A type name, e.g. `"json"` or `"pickle"` — this corresponds to an instance with default values
 - An instance, e.g. `JSONSerializer(jsonlib="orjson")`
 
-### Result storage
+### Storage of results in Prefect
+
+The Prefect API does not store your results in most cases for the following reasons:
+
+- Results can be large and slow to send to and from the API
+- Results often contain private information or data
+- Results would need to be stored in the database or complex logic implemented to hydrate from another source
+
+There are a few cases where Prefect _will_ store your results directly in the database. This is an optimization to reduce the overhead of reading and writing to result storage.
+
+The following data types will be stored by the API without persistence to storage:
+
+- booleans (`True`, `False`)
+- nulls (`None`)
+
+If `persist_result` is set to `False`, these values will never be stored.
+
+
+## Result storage
 
 Result storage is responsible fo reading and writing serialized data to an external location. At this time, any file system block can be used for result storage.
-
-### Result serializers
+## Result serializers
 
 A result serializer is responsible for converting your Python object to and from bytes. This is necessary to store the object outside of Python and retrieve it later.
 
-#### Pickle serializer
+### Pickle serializer
 
 Pickle is a standard Python protocol for encoding arbitrary Python objects. We supply a custom Pickle serializer at `prefect.serializers.PickleSerializer`. Prefect's pickle serializer uses the [cloudpickle](https://github.com/cloudpipe/cloudpickle) project by default to support more object types. Alternative pickle libraries can be specified:
 
@@ -302,7 +325,7 @@ Drawbacks of the pickle serializer:
 - Serialized objects cannot be easily shared across different programming languages
 - Serialized objects are not human readable
 
-#### JSON serializer
+### JSON serializer
 
 
 We supply a custom JSON serializer at `prefect.serializers.JSONSerializer`. Prefect's JSON serializer uses custom hooks by default to support more object types. Specifically, we add support for all types supported by [Pydantic](https://pydantic-docs.helpmanual.io/).
@@ -327,7 +350,30 @@ Drawbacks of the JSON serializer:
 - Supported types are limited
 - Implementing support for additional types must be done at the serializer level
 
-### Result references
+
+## Result types
+
+Prefect uses the internal `Result` type to capture information about the result attached to a state. There are two types of `Result`:
+
+- `ResultLiteral`
+- `ResultReference`
+
+All result types include a `get()` method that can be called to return the value of the result. This is done behind the scenes when the `result()` method is used on states or futures.
+
+### Result literals
+
+Result literals are used to represent [results stored in the Prefect database](#storage-of-results-in-prefect). The values contained by these results must always be JSON serializable.
+
+Example:
+```
+result = ResultLiteral(value=None)
+result.json()
+# {"type": "result", "value": "null"}
+```
+
+Result literals reduce the overhead required to persist simple results.
+
+###  Result references
 
 Result references contain all of the information needed to retrieve the result from storage. This includes:
 
@@ -335,21 +381,4 @@ Result references contain all of the information needed to retrieve the result f
 - Key: indicates where this specific result is in storage
 - Serializer: description of the [result serializer](#result-serializers) that can be used to deserialize the result
 
-Result references implement the `get()` method which retrieves the data from storage, deserializes it, and returns the original object. This is done automatically when the `result()` method is used on states or futures. The `get()` operation will cache the resolved object to reduce the overhead of subsequent calls.
-
-### Storage of results in Prefect
-
-The Prefect API does not store your results in most cases for the following reasons:
-
-- Results can be large and slow to send to and from the API
-- Results often contain private information or data
-- Results would need to be stored in the database or complex logic implemented to hydrate from another source
-
-There are a few cases where Prefect _will_ store your results directly in the database. This is an optimization to reduce the overhead of reading and writing to result storage.
-
-The following data types will be stored by the API without persistence to storage:
-
-- booleans (`True`, `False`)
-- nulls (`None`)
-
-If `persist_result` is set to `False`, these values will never be stored.
+The `get()` method on result references retrieves the data from storage, deserializes it, and returns the original object. The `get()` operation will cache the resolved object to reduce the overhead of subsequent calls.
