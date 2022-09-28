@@ -3,7 +3,7 @@ Schemas for special responses from the Orion API.
 """
 
 import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from pydantic import Field
 from typing_extensions import Literal
@@ -104,3 +104,18 @@ class HistoryResponse(PrefectBaseModel):
     states: List[HistoryResponseState] = Field(
         default=..., description="A list of state histories during the interval."
     )
+
+
+StateResponseDetails = Union[
+    StateAcceptDetails, StateWaitDetails, StateRejectDetails, StateAbortDetails
+]
+
+
+class OrchestrationResult(PrefectBaseModel):
+    """
+    A container for the output of state orchestration.
+    """
+
+    state: Optional[schemas.states.State]
+    status: SetStateStatus
+    details: StateResponseDetails

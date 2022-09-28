@@ -57,6 +57,11 @@ class TestState:
         # New state timestamp
         assert new_state.timestamp >= dt
 
+    def test_state_result_warns_and_uses_client_result(self):
+        state = State(data=DataDocument(encoding="text", blob=b"abc"), type="COMPLETED")
+        with pytest.warns(DeprecationWarning, match="`result` is no longer supported"):
+            assert state.result() == "abc"
+
 
 class TestStateTypeFunctions:
     @pytest.mark.parametrize("state_type", StateType)
