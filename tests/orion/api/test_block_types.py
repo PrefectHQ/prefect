@@ -376,22 +376,6 @@ class TestUpdateBlockType:
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
-    async def test_update_block_type_ensures_system_blocks_are_protected(
-        self, client, system_block_type, monkeypatch
-    ):
-        mock_block_protection = AsyncMock()
-        monkeypatch.setattr(
-            "prefect.orion.api.block_types.install_protected_system_blocks",
-            mock_block_protection,
-        )
-        await client.patch(
-            f"/block_types/{system_block_type.id}",
-            json=BlockTypeUpdate(
-                description="Hi there!",
-            ).dict(json_compatible=True),
-        )
-        mock_block_protection.assert_called()
-
 
 class TestDeleteBlockType:
     async def test_delete_block_type(self, client, block_type_x):
@@ -417,17 +401,6 @@ class TestDeleteBlockType:
             f"/block_types/{system_block_type.id}"
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
-
-    async def test_dete_block_type_ensures_system_blocks_are_protected(
-        self, client, system_block_type, monkeypatch
-    ):
-        mock_block_protection = AsyncMock()
-        monkeypatch.setattr(
-            "prefect.orion.api.block_types.install_protected_system_blocks",
-            mock_block_protection,
-        )
-        await client.delete(f"/block_types/{system_block_type.id}")
-        mock_block_protection.assert_called()
 
 
 class TestReadBlockDocumentsForBlockType:
