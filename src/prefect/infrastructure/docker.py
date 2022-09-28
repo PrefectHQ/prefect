@@ -475,7 +475,7 @@ class DockerContainer(Infrastructure):
                     log: bytes
                     print(log.decode().rstrip())
             except docker.errors.APIError as exc:
-                if "marked for removal" in str(exc) and self.stream_output:
+                if "marked for removal" in str(exc):
                     self.logger.warning(
                         f"Docker container {container.name} was marked for removal before "
                         "logs could be retrieved. Output will not be streamed. "

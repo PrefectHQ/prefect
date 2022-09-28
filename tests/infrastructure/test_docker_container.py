@@ -13,11 +13,13 @@ from prefect.infrastructure.docker import (
     ImagePullPolicy,
 )
 from prefect.testing.utilities import assert_does_not_warn
+from prefect.utilities.importtools import lazy_import
 
 if TYPE_CHECKING:
     from docker import DockerClient
     from docker.models.containers import Container
-
+else:
+    docker = lazy_import("docker")
 
 @pytest.fixture(autouse=True)
 def skip_if_docker_is_not_installed():
@@ -689,3 +691,36 @@ def test_run_requires_command():
     container = DockerContainer(command=[])
     with pytest.raises(ValueError, match="cannot be run with empty command"):
         container.run()
+
+def test_stream_container_logs(capsys, mock_docker_client):
+    mock_container = mock_docker_client.containers.get.return_value
+    
+    mock_container.logs = MagicMock(return_value=[b"hello", b"world"])
+    
+    DockerContainer(
+        command=["doesnt", "matter"],
+    ).run()
+    
+    captured = capsys.readouterr()
+    
+    assert captured.out == 'hello\nworld\n'
+    
+def test_logs_warning_when_container_marked_for_removal(caplog, mock_docker_client):
+    mock_container = mock_docker_client.containers.get.return_value
+    mock_container.logs = MagicMock(side_effect=docker.errors.APIError("...marked for removal..."))
+    
+    DockerContainer(
+        command=["doesnt", "matter"],
+    ).run()
+
+    assert "Docker container fake-name was marked for removal" in caplog.text
+       
+def test_logs_when_unexpected_docker_error(caplog, mock_docker_client):
+    mock_container = mock_docker_client.containers.get.return_value
+    mock_container.logs = MagicMock(side_effect=docker.errors.APIError("..."))
+    
+    DockerContainer(
+        command=["doesnt", "matter"],
+    ).run()
+
+    assert "An unexpected Docker API error occured while streaming output from container fake-name." in caplog.text
