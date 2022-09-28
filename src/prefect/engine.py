@@ -86,7 +86,7 @@ from prefect.task_runners import (
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
-from prefect.utilities.annotations import unmapped
+from prefect.utilities.annotations import Quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
@@ -95,7 +95,7 @@ from prefect.utilities.asyncutils import (
     run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import Quote, isiterable, visit_collection
+from prefect.utilities.collections import isiterable, visit_collection
 from prefect.utilities.hashing import stable_hash
 from prefect.utilities.pydantic import PartialModel
 
