@@ -4,6 +4,7 @@ from typing import Generic, Iterable, Optional, Type, TypeVar, Union, overload
 
 from pydantic import Field
 
+from prefect.deprecated.data_documents import DataDocument
 from prefect.orion import schemas
 
 R = TypeVar("R")
@@ -16,7 +17,7 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
     This client-side extension adds a `result` interface.
     """
 
-    data: Optional[schemas.data.DataDocument[R]] = Field(
+    data: Optional[DataDocument[R]] = Field(
         default=None,
     )
 
