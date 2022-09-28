@@ -200,15 +200,11 @@ async def login(
 
     if not workspace_handle:
         workspace_handle = select_workspace(workspace_handle_details.keys())
-    elif workspace_handle not in workspace_handle_details:
+
+    if workspace_handle not in workspace_handle_details:
         exit_with_error(f"Workspace {workspace_handle!r} not found.")
 
-    active_profile = profiles.active_profile
-    if active_profile is None:
-        exit_with_error("There is no active profile.")
-
-    profiles.update_profile(
-        active_profile.name,
+    current_profile = update_current_profile(
         {
             PREFECT_API_URL: build_url_from_workspace(
                 workspace_handle_details[workspace_handle]
@@ -217,10 +213,8 @@ async def login(
         },
     )
 
-    save_profiles(profiles)
-
     exit_with_success(
-        f"Logged in to Prefect Cloud using profile {active_profile.name!r}.\n"
+        f"Logged in to Prefect Cloud using profile {current_profile.name!r}.\n"
         f"Workspace is currently set to {workspace_handle!r}. "
         f"The workspace can be changed using `prefect cloud workspace set`."
     )
