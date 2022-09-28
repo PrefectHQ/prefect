@@ -4,8 +4,7 @@ State schemas.
 
 import datetime
 import warnings
-from collections.abc import Iterable
-from typing import Generic, Optional, TypeVar, Union, overload
+from typing import Generic, Optional, Type, TypeVar
 from uuid import UUID
 
 import pendulum
@@ -63,108 +62,6 @@ class State(IDBaseModel, Generic[R]):
         default=None,
     )
     state_details: StateDetails = Field(default_factory=StateDetails)
-
-    @overload
-    def result(state_or_future: "State[R]", raise_on_failure: bool = True) -> R:
-        ...
-
-    @overload
-    def result(
-        state_or_future: "State[R]", raise_on_failure: bool = False
-    ) -> Union[R, Exception]:
-        ...
-
-    def result(self, raise_on_failure: bool = True):
-        """
-        Convenience method for access the data on the state's data document.
-
-        Args:
-            raise_on_failure: a boolean specifying whether to raise an exception
-                if the state is of type `FAILED` and the underlying data is an exception
-
-        Raises:
-            TypeError: if the state is failed but without an exception
-
-        Returns:
-            The underlying decoded data
-
-        Examples:
-            >>> from prefect import flow, task
-            >>> @task
-            >>> def my_task(x):
-            >>>     return x
-
-            Get the result from a task future in a flow
-
-            >>> @flow
-            >>> def my_flow():
-            >>>     future = my_task("hello")
-            >>>     state = future.wait()
-            >>>     result = state.result()
-            >>>     print(result)
-            >>> my_flow()
-            hello
-
-            Get the result from a flow state
-
-            >>> @flow
-            >>> def my_flow():
-            >>>     return "hello"
-            >>> my_flow().result()
-            hello
-
-            Get the result from a failed state
-
-            >>> @flow
-            >>> def my_flow():
-            >>>     raise ValueError("oh no!")
-            >>> state = my_flow()  # Error is wrapped in FAILED state
-            >>> state.result()  # Raises `ValueError`
-
-            Get the result from a failed state without erroring
-
-            >>> @flow
-            >>> def my_flow():
-            >>>     raise ValueError("oh no!")
-            >>> state = my_flow()
-            >>> result = state.result(raise_on_failure=False)
-            >>> print(result)
-            ValueError("oh no!")
-        """
-        data = None
-
-        if self.data:
-            data = self.data.decode()
-
-        # Link the result to this state for dependency tracking
-        # Performing this here lets us capture relationships for futures resolved into
-        # data
-
-        if (self.is_failed() or self.is_crashed()) and raise_on_failure:
-            if isinstance(data, Exception):
-                raise data
-            elif isinstance(data, BaseException):
-                warnings.warn(
-                    f"State result is a {type(data).__name__!r} type and is not safe "
-                    "to re-raise, it will be returned instead."
-                )
-                return data
-            elif isinstance(data, State):
-                data.result()
-            elif isinstance(data, Iterable) and all(
-                [isinstance(o, State) for o in data]
-            ):
-                # raise the first failure we find
-                for state in data:
-                    state.result()
-
-            # we don't make this an else in case any of the above conditionals doesn't raise
-            raise TypeError(
-                f"Unexpected result for failure state: {data!r} —— "
-                f"{type(data).__name__} cannot be resolved into an exception"
-            )
-
-        return data
 
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):
@@ -224,6 +121,20 @@ class State(IDBaseModel, Generic[R]):
         update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
+    def result(self, raise_on_failure: bool = True):
+        from prefect.client.schemas import State
+
+        warnings.warn(
+            "`result` is no longer supported by `prefect.orion.schemas.states.State` "
+            "and will be removed in a future release. When result retrieval is needed, "
+            "use `prefect.client.schemas.State`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        state = State.parse_obj(self)
+        return state.result(raise_on_failure=raise_on_failure)
+
     def __repr__(self) -> str:
         """
         Generates a complete state representation appropriate for introspection
@@ -268,12 +179,16 @@ class State(IDBaseModel, Generic[R]):
         )
 
 
-def Scheduled(scheduled_time: datetime.datetime = None, **kwargs) -> State:
+def Scheduled(
+    scheduled_time: datetime.datetime = None, cls: Type[State] = State, **kwargs
+) -> State:
     """Convenience function for creating `Scheduled` states.
 
     Returns:
         State: a Scheduled state
     """
+    # NOTE: `scheduled_time` must come first for backwards compatibility
+
     state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
     if scheduled_time is None:
         scheduled_time = pendulum.now("UTC")
@@ -281,85 +196,91 @@ def Scheduled(scheduled_time: datetime.datetime = None, **kwargs) -> State:
         raise ValueError("An extra scheduled_time was provided in state_details")
     state_details.scheduled_time = scheduled_time
 
-    return State(type=StateType.SCHEDULED, state_details=state_details, **kwargs)
+    return cls(type=StateType.SCHEDULED, state_details=state_details, **kwargs)
 
 
-def Completed(**kwargs) -> State:
+def Completed(cls: Type[State] = State, **kwargs) -> State:
     """Convenience function for creating `Completed` states.
 
     Returns:
         State: a Completed state
     """
-    return State(type=StateType.COMPLETED, **kwargs)
+    return cls(type=StateType.COMPLETED, **kwargs)
 
 
-def Running(**kwargs) -> State:
+def Running(cls: Type[State] = State, **kwargs) -> State:
     """Convenience function for creating `Running` states.
 
     Returns:
         State: a Running state
     """
-    return State(type=StateType.RUNNING, **kwargs)
+    return cls(type=StateType.RUNNING, **kwargs)
 
 
-def Failed(**kwargs) -> State:
+def Failed(cls: Type[State] = State, **kwargs) -> State:
     """Convenience function for creating `Failed` states.
 
     Returns:
         State: a Failed state
     """
-    return State(type=StateType.FAILED, **kwargs)
+    return cls(type=StateType.FAILED, **kwargs)
 
 
-def Crashed(**kwargs) -> State:
+def Crashed(cls: Type[State] = State, **kwargs) -> State:
     """Convenience function for creating `Crashed` states.
 
     Returns:
         State: a Crashed state
     """
-    return State(type=StateType.CRASHED, **kwargs)
+    return cls(type=StateType.CRASHED, **kwargs)
 
 
-def Cancelled(**kwargs) -> State:
+def Cancelled(cls: Type[State] = State, **kwargs) -> State:
     """Convenience function for creating `Cancelled` states.
 
     Returns:
         State: a Cancelled state
     """
-    return State(type=StateType.CANCELLED, **kwargs)
+    return cls(type=StateType.CANCELLED, **kwargs)
 
 
-def Pending(**kwargs) -> State:
+def Pending(cls: Type[State] = State, **kwargs) -> State:
     """Convenience function for creating `Pending` states.
 
     Returns:
         State: a Pending state
     """
-    return State(type=StateType.PENDING, **kwargs)
+    return cls(type=StateType.PENDING, **kwargs)
 
 
-def AwaitingRetry(scheduled_time: datetime.datetime = None, **kwargs) -> State:
+def AwaitingRetry(
+    scheduled_time: datetime.datetime = None, cls: Type[State] = State, **kwargs
+) -> State:
     """Convenience function for creating `AwaitingRetry` states.
 
     Returns:
         State: a AwaitingRetry state
     """
-    return Scheduled(scheduled_time=scheduled_time, name="AwaitingRetry", **kwargs)
+    return Scheduled(
+        cls=cls, scheduled_time=scheduled_time, name="AwaitingRetry", **kwargs
+    )
 
 
-def Retrying(**kwargs) -> State:
+def Retrying(cls: Type[State] = State, **kwargs) -> State:
     """Convenience function for creating `Retrying` states.
 
     Returns:
         State: a Retrying state
     """
-    return State(type=StateType.RUNNING, name="Retrying", **kwargs)
+    return cls(type=StateType.RUNNING, name="Retrying", **kwargs)
 
 
-def Late(scheduled_time: datetime.datetime = None, **kwargs) -> State:
+def Late(
+    scheduled_time: datetime.datetime = None, cls: Type[State] = State, **kwargs
+) -> State:
     """Convenience function for creating `Late` states.
 
     Returns:
         State: a Late state
     """
-    return Scheduled(scheduled_time=scheduled_time, name="Late", **kwargs)
+    return Scheduled(cls=cls, scheduled_time=scheduled_time, name="Late", **kwargs)

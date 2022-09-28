@@ -31,11 +31,10 @@ import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
 from prefect.client import OrionClient
+from prefect.client.schemas import FlowRun, State, TaskRun
 from prefect.exceptions import MissingContextError
 from prefect.filesystems import WritableFileSystem
 from prefect.futures import PrefectFuture
-from prefect.orion.schemas.core import FlowRun, TaskRun
-from prefect.orion.schemas.states import State
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.task_runners import BaseTaskRunner
