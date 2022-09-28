@@ -3,14 +3,39 @@ from pathlib import Path
 
 import sqlalchemy as sa
 
-import prefect.orion.schemas as schemas
+import prefect
 from prefect.logging import get_logger
+from prefect.orion import models, schemas
 
 logger = get_logger("orion")
 
 COLLECTIONS_BLOCKS_DATA_PATH = (
     Path(__file__).parent.parent.parent / "collection_blocks_data.json"
 )
+
+
+async def _install_protected_system_blocks(session):
+    """Install block types that the system expects to be present"""
+
+    for block in [
+        prefect.blocks.system.JSON,
+        prefect.blocks.system.DateTime,
+        prefect.blocks.system.Secret,
+        prefect.filesystems.LocalFileSystem,
+        prefect.infrastructure.Process,
+    ]:
+        async with session.begin():
+            block_type = block._to_block_type()
+            block_type.is_protected = True
+
+            block_type = await models.block_types.create_block_type(
+                session=session, block_type=block_type, override=True
+            )
+            block_schema = await models.block_schemas.create_block_schema(
+                session=session,
+                block_schema=block._to_block_schema(block_type_id=block_type.id),
+                override=True,
+            )
 
 
 async def register_block_schema(
@@ -99,7 +124,7 @@ async def _load_collection_blocks_data():
         return json.loads(await f.read())
 
 
-async def _register_blocks_in_registry(session: sa.orm.Session):
+async def _register_registry_blocks(session: sa.orm.Session):
     """Registers block from the client block registry."""
     from prefect.blocks.core import Block
     from prefect.utilities.dispatch import get_registry_for_type
@@ -153,5 +178,6 @@ async def run_block_auto_registration(session: sa.orm.Session):
     Args:
         session: A database session.
     """
-    await _register_blocks_in_registry(session)
+    await _install_protected_system_blocks(session)
+    await _register_registry_blocks(session)
     await _register_collection_blocks(session=session)
