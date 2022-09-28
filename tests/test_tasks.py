@@ -9,6 +9,7 @@ import anyio
 import pytest
 
 from prefect import flow, get_run_logger, tags
+from prefect.client.schemas import State
 from prefect.context import PrefectObjectRegistry, TaskRunContext, get_run_context
 from prefect.engine import get_state_for_result
 from prefect.exceptions import (
@@ -20,7 +21,7 @@ from prefect.futures import PrefectFuture
 from prefect.orion import models
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.states import State, StateType
+from prefect.orion.schemas.states import StateType
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal, flaky_on_windows
 from prefect.utilities.annotations import unmapped
