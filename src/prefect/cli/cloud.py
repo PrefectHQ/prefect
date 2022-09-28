@@ -8,7 +8,6 @@ import httpx
 import readchar
 import typer
 from rich.live import Live
-from rich.prompt import Confirm
 from rich.table import Table
 
 import prefect.context
@@ -211,10 +210,8 @@ async def login(
         exit_with_error("Please provide a non-empty profile name.")
 
     if cloud_profile_name in profiles:
-        overwrite = Confirm.ask(
-            f"Profile {cloud_profile_name!r} already exists. Do you want to overwrite it?",
-            console=app.console,
-            default=False,
+        overwrite = app.console.confirm(
+            f"Profile {cloud_profile_name!r} already exists. Do you want to overwrite it?"
         )
         if not overwrite:
             exit_with_error("Please provide another profile name.")
