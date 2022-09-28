@@ -211,5 +211,7 @@ async def read_block_document_by_name_for_block_type(
 async def install_system_block_types(
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
-    async with db.session_context(begin_transaction=True) as session:
+    # Don't begin a transaction. _install_protected_system_blocks will manage
+    # the transactions.
+    async with db.session_context(begin_transaction=False) as session:
         await models.block_registration._install_protected_system_blocks(session)

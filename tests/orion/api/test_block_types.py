@@ -7,6 +7,7 @@ import pydantic
 import pytest
 from fastapi import status
 
+import prefect
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockTypeCreate, BlockTypeUpdate
