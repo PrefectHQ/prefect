@@ -65,6 +65,7 @@ from typing import (
 from uuid import UUID
 
 import anyio
+from anyio import CapacityLimiter
 
 from prefect.utilities.collections import AutoEnum
 
@@ -226,14 +227,13 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         >>>     ...
     """
 
-    def __init__(self):
-        # TODO: Consider adding `max_workers` support using anyio capacity limiters
-
+    def __init__(self, max_workers: int =None):
         # Runtime attributes
         self._task_group: anyio.abc.TaskGroup = None
         self._result_events: Dict[UUID, anyio.abc.Event] = {}
         self._results: Dict[UUID, Any] = {}
         self._keys: Set[UUID] = set()
+        self._max_workers = max_workers
 
         super().__init__()
 
@@ -288,7 +288,11 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         task crashes from crashing the flow run.
         """
         try:
-            self._results[key] = await call()
+            if self._max_workers is not None:
+                async with CapacityLimiter(self._max_workers):
+                    self._results[key] = await call()
+            else:
+                self._results[key] = await call()
         except BaseException as exc:
             self._results[key] = exception_to_crashed_state(exc)
 
