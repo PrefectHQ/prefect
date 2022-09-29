@@ -23,7 +23,6 @@ from griffe.docstrings.dataclasses import DocstringSection, DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from packaging.version import InvalidVersion, Version
 from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
-from slugify import slugify
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
@@ -40,6 +39,7 @@ from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
+from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     from prefect.client import OrionClient

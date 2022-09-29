@@ -18,6 +18,7 @@ import prefect.logging.configuration
 import prefect.settings
 from prefect import flow, task
 from prefect.context import FlowRunContext, TaskRunContext
+from prefect.exceptions import MissingContextError
 from prefect.infrastructure import Process
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
@@ -907,7 +908,7 @@ def test_task_run_logger_with_kwargs(task_run):
 
 
 def test_run_logger_fails_outside_context():
-    with pytest.raises(RuntimeError, match="no active flow or task run context"):
+    with pytest.raises(MissingContextError, match="no active flow or task run context"):
         get_run_logger()
 
 

@@ -1,5 +1,33 @@
 # Prefect Release Notes
 
+## Release 2.4.3
+
+### Enhancements
+- Warn if user tries to login with API key from Cloud 1 — https://github.com/PrefectHQ/prefect/pull/6958
+- Improve concurrent task runner performance — https://github.com/PrefectHQ/prefect/pull/6948
+- Raise a `MissingContextError` when `get_run_logger` is called outside a run context — https://github.com/PrefectHQ/prefect/pull/6980
+- Adding caching to API configuration lookups to improve performance — https://github.com/PrefectHQ/prefect/pull/6959
+- Move `quote` to `prefect.utilities.annotations` — https://github.com/PrefectHQ/prefect/pull/6993
+- Add state filters and sort-by to the work-queue, flow and deployment pages — https://github.com/PrefectHQ/prefect/pull/6985
+
+### Fixes
+- Fix login to private Docker registries — https://github.com/PrefectHQ/prefect/pull/6889
+- Update `Flow.with_options` to actually pass retry settings to new object — https://github.com/PrefectHQ/prefect/pull/6963
+- Fix compatibility for protected blocks when client/server versions are mismatched — https://github.com/PrefectHQ/prefect/pull/6986
+- Ensure `python-slugify` is always used even if [unicode-slugify](https://github.com/mozilla/unicode-slugify) is installed — https://github.com/PrefectHQ/prefect/pull/6955
+
+### Documentation
+- Update documentation for specifying schedules from the CLI — https://github.com/PrefectHQ/prefect/pull/6968
+- Add results concept to documentation — https://github.com/PrefectHQ/prefect/pull/6992
+
+### Collections
+- New [`prefect-hex` collection](https://prefecthq.github.io/prefect-hex/) — https://github.com/PrefectHQ/prefect/pull/6974
+- New [`CloudRunJob` infrastructure block](https://prefecthq.github.io/prefect-gcp/cloud_run/) in `prefect-gcp` — https://github.com/PrefectHQ/prefect-gcp/pull/48
+
+### Contributors
+* @Hongbo-Miao made their first contribution in https://github.com/PrefectHQ/prefect/pull/6956
+* @hateyouinfinity made their first contribution in https://github.com/PrefectHQ/prefect/pull/6955
+
 ## Release 2.4.2
 
 ### Fixes
