@@ -1,11 +1,5 @@
 # Prefect Release Notes
 
-
-## Release 2.4.4
-
-### Fixes
-- Disable block memoization by default to workaround bug where block schemas cannot be saved — https://github.com/PrefectHQ/prefect/pull/7022
-
 ## Release 2.4.3
 
 ### Enhancements
