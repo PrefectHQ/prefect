@@ -19,7 +19,6 @@
 
 ### Documentation
 - Update documentation for specifying schedules from the CLI — https://github.com/PrefectHQ/prefect/pull/6968
-- Fix deployment file name in the tutorial — https://github.com/PrefectHQ/prefect/pull/6956
 - Add results concept to documentation — https://github.com/PrefectHQ/prefect/pull/6992
 
 ### Collections
