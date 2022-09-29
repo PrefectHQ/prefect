@@ -16,9 +16,7 @@ LAST_UNPROTECTED_BLOCK_VERSION = Version("0.8.0")
 
 
 def api_handles_protected_blocks(api_version):
-    if api_version is None:
-        return True
-    return api_version > LAST_UNPROTECTED_BLOCK_VERSION
+    return False
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
