@@ -5,7 +5,6 @@ import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Query, status
 from packaging.version import Version
 
-import prefect
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.database.dependencies import provide_database_interface
@@ -17,9 +16,7 @@ LAST_UNPROTECTED_BLOCK_VERSION = Version("0.8.0")
 
 
 def api_handles_protected_blocks(api_version):
-    if api_version is None:
-        return True
-    return api_version > LAST_UNPROTECTED_BLOCK_VERSION
+    return False
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -116,9 +113,6 @@ async def update_block_type(
     Update a block type.
     """
     async with db.session_context(begin_transaction=True) as session:
-        # ensure system blocks are protected before update
-        await install_protected_system_blocks(session)
-
         db_block_type = await models.block_types.read_block_type(
             session=session, block_type_id=block_type_id
         )
@@ -143,9 +137,6 @@ async def delete_block_type(
     api_version=Depends(dependencies.provide_request_api_version),
 ):
     async with db.session_context(begin_transaction=True) as session:
-        # ensure system blocks are protected before update
-        await install_protected_system_blocks(session)
-
         db_block_type = await models.block_types.read_block_type(
             session=session, block_type_id=block_type_id
         )
@@ -214,31 +205,11 @@ async def read_block_document_by_name_for_block_type(
     return block_document
 
 
-async def install_protected_system_blocks(session):
-    """Install block types that the system expects to be present"""
-    for block in [
-        prefect.blocks.system.JSON,
-        prefect.blocks.system.DateTime,
-        prefect.blocks.system.Secret,
-        prefect.filesystems.LocalFileSystem,
-        prefect.infrastructure.Process,
-    ]:
-        block_type = block._to_block_type()
-        block_type.is_protected = True
-
-        block_type = await models.block_types.create_block_type(
-            session=session, block_type=block_type, override=True
-        )
-        block_schema = await models.block_schemas.create_block_schema(
-            session=session,
-            block_schema=block._to_block_schema(block_type_id=block_type.id),
-            override=True,
-        )
-
-
 @router.post("/install_system_block_types")
 async def install_system_block_types(
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
-    async with db.session_context(begin_transaction=True) as session:
-        await install_protected_system_blocks(session)
+    # Don't begin a transaction. _install_protected_system_blocks will manage
+    # the transactions.
+    async with db.session_context(begin_transaction=False) as session:
+        await models.block_registration._install_protected_system_blocks(session)

@@ -31,6 +31,14 @@ class TestRunAutoRegistration:
     async def test_full_registration_with_empty_database(
         self, session, expected_number_of_registered_block_types
     ):
+        PROTECTED_BLOCKS = {
+            "json",
+            "date-time",
+            "secret",
+            "local-file-system",
+            "process",
+        }
+
         starting_block_types = await read_block_types(session)
         assert len(starting_block_types) == 0
         await session.commit()
@@ -41,6 +49,14 @@ class TestRunAutoRegistration:
         registered_blocks = await read_block_types(session)
         assert len(registered_blocks) == expected_number_of_registered_block_types
 
+        registered_block_slugs = {b.slug for b in registered_blocks}
+        assert PROTECTED_BLOCKS.issubset(
+            registered_block_slugs
+        ), "When changing protected blocks, edit PROTECTED_BLOCKS defined above"
+        assert sum(b.is_protected for b in registered_blocks) == len(
+            PROTECTED_BLOCKS
+        ), "When changing protected blocks, edit PROTECTED_BLOCKS defined above"
+
     async def test_registration_works_with_populated_database(
         self, session, expected_number_of_registered_block_types
     ):
@@ -49,6 +65,8 @@ class TestRunAutoRegistration:
             await session.commit()
 
             registered_blocks = await read_block_types(session)
+
+            # this assertion assumes that users cannot protect blocks manually
             assert len(registered_blocks) == expected_number_of_registered_block_types
 
 
