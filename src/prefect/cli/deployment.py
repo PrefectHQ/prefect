@@ -2,10 +2,12 @@
 Command line interface for working with deployments.
 """
 import json
+import os
+import textwrap
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pendulum
 import typer
@@ -307,6 +309,23 @@ async def run(
     deployment_id: Optional[str] = typer.Option(
         None, "--id", help="A deployment id to search for if no name is given"
     ),
+    params: List[str] = typer.Option(
+        None,
+        "-p",
+        "--param",
+        help=(
+            "A key, value pair (key=value) specifying a flow parameter. The value will be "
+            "interpreted as JSON. May be passed multiple times to specify multiple "
+            "parameter values."
+        ),
+    ),
+    param_file: Optional[str] = typer.Option(
+        None,
+        help=(
+            "The path to a JSON file containing parameter keys and values. Any parameters "
+            "passed with `--param` will take precedence over these values."
+        ),
+    ),
 ):
     """
     Create a flow run for the given flow and deployment.
@@ -315,16 +334,60 @@ async def run(
 
     The flow run will not execute until an agent starts.
     """
+    file_params = {}
+    if param_file:
+
+        try:
+            with open(param_file) as fp:
+                file_params = json.load(fp)
+        except FileNotFoundError:
+            exit_with_error(
+                f"Parameter file does not exist: {os.path.abspath(param_file)!r}"
+            )
+        except ValueError as exc:
+            exit_with_error(
+                f"Failed to parse JSON at {os.path.abspath(param_file)!r}: {exc}"
+            )
+
+    cli_params = _load_json_key_values(params, "parameter")
+    conflicting_keys = set(cli_params.keys()).intersection(file_params.keys())
+    if conflicting_keys:
+        app.console.print(
+            "The following parameters were specified by file and CLI, the CLI value "
+            f"will be used: {conflicting_keys}"
+        )
+    parameters = {**file_params, **cli_params}
+
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
-        flow_run = await client.create_flow_run_from_deployment(deployment.id)
+        flow = await client.read_flow(deployment.flow_id)
+
+        app.console.print(
+            f"Creating flow run for deployment '{flow.name}/{deployment.name}'...",
+        )
+
+        flow_run = await client.create_flow_run_from_deployment(
+            deployment.id, parameters=parameters
+        )
 
     connection_status = await check_orion_connection()
-    ui = ui_base_url(connection_status)
+    ui_url = ui_base_url(connection_status)
 
-    app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
-    if ui:
-        app.console.print(f"View flow run in UI: {ui}/flow-run/{flow_run.id}")
+    if ui_url:
+        run_url = f"{ui_url}/flow-run/{flow_run.id}"
+    else:
+        run_url = "<no dashboard available>"
+
+    app.console.print(f"Created flow run {flow_run.name!r}.")
+    app.console.print(
+        textwrap.dedent(
+            f"""
+        └── UUID: {flow_run.id}
+        └── Parameters: {flow_run.parameters}
+        └── URL: {run_url}
+        """
+        ).strip()
+    )
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
@@ -768,3 +831,62 @@ async def build(
                 "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
                 style="red",
             )
+
+
+def _load_json_key_values(
+    cli_input: List[str], display_name: str
+) -> Dict[str, Union[dict, str, int]]:
+    """
+    Parse a list of strings formatted as "key=value" where the value is loaded as JSON.
+
+    We do the best here to display a helpful JSON parsing message, e.g.
+    ```
+    Error: Failed to parse JSON for parameter 'name' with value
+
+        foo
+
+    JSON Error: Expecting value: line 1 column 1 (char 0)
+    Did you forget to include quotes? You may need to escape so your shell does not remove them, e.g. \"
+    ```
+
+    Args:
+        cli_input: A list of "key=value" strings to parse
+        display_name: A name to display in exceptions
+
+    Returns:
+        A mapping of keys -> parsed values
+    """
+    parsed = {}
+
+    def cast_value(value: str) -> Any:
+        """Cast the value from a string to a valid JSON type; add quotes for the user
+        if necessary
+        """
+        try:
+            return json.loads(value)
+        except ValueError as exc:
+            if (
+                "Extra data" in str(exc) or "Expecting value" in str(exc)
+            ) and '"' not in value:
+                return cast_value(f'"{value}"')
+            raise exc
+
+    for spec in cli_input:
+        try:
+            key, _, value = spec.partition("=")
+        except ValueError:
+            exit_with_error(
+                f"Invalid {display_name} option {spec!r}. Expected format 'key=value'."
+            )
+
+        try:
+            parsed[key] = cast_value(value)
+        except ValueError as exc:
+            indented_value = textwrap.indent(value, prefix="\t")
+            exit_with_error(
+                f"Failed to parse JSON for {display_name} {key!r} with value"
+                f"\n\n{indented_value}\n\n"
+                f"JSON Error: {exc}"
+            )
+
+    return parsed
