@@ -21,7 +21,7 @@
 - Add results concept to documentation — https://github.com/PrefectHQ/prefect/pull/6992
 
 ### Collections
-- Adds prefect hex to catalog — https://github.com/PrefectHQ/prefect/pull/6974
+- New [`prefect-hex` collection](https://prefecthq.github.io/prefect-hex/) — https://github.com/PrefectHQ/prefect/pull/6974
 
 ### Contributors
 * @Hongbo-Miao made their first contribution in https://github.com/PrefectHQ/prefect/pull/6956
