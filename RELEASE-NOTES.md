@@ -8,7 +8,7 @@
 - Raise a `MissingContextError` when `get_run_logger` is called outside a run context — https://github.com/PrefectHQ/prefect/pull/6980
 - Cache configuration lookups — https://github.com/PrefectHQ/prefect/pull/6959
 - Move `quote` to `prefect.utilities.annotations` — https://github.com/PrefectHQ/prefect/pull/6993
-- Add state filters and sort-by to the work-queue, flow and deployment … — https://github.com/PrefectHQ/prefect/pull/6985
+- Add state filters and sort-by to the work-queue, flow and deployment pages — https://github.com/PrefectHQ/prefect/pull/6985
 
 ### Fixes
 - Fix login to private Docker registries — https://github.com/PrefectHQ/prefect/pull/6889
