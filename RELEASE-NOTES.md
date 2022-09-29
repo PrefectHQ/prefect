@@ -22,6 +22,7 @@
 
 ### Collections
 - New [`prefect-hex` collection](https://prefecthq.github.io/prefect-hex/) — https://github.com/PrefectHQ/prefect/pull/6974
+- New [`CloudRunJob` infrastructure block](https://prefecthq.github.io/prefect-gcp/cloud_run/) in `prefect-gcp` — https://github.com/PrefectHQ/prefect-gcp/pull/48
 
 ### Contributors
 * @Hongbo-Miao made their first contribution in https://github.com/PrefectHQ/prefect/pull/6956
