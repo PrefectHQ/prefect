@@ -146,6 +146,7 @@ class TestCreateBlockSchema:
         assert response_2.status_code == status.HTTP_200_OK
         assert response_1.json() == response_2.json()
 
+    @pytest.mark.xfail
     async def test_create_block_schema_for_system_block_type_fails(
         self, system_block_type, client
     ):
@@ -164,6 +165,7 @@ class TestCreateBlockSchema:
     async def test_create_block_schema_for_system_block_type_does_not_fail_for_older_clients(
         self, system_block_type, client_with_unprotected_block_api
     ):
+        # TODO: Update this test when we finalize the block protection changes
         response = await client_with_unprotected_block_api.post(
             "/block_schemas/",
             json=BlockSchemaCreate(fields={}, block_type_id=system_block_type.id).dict(
@@ -210,6 +212,7 @@ class TestDeleteBlockSchema:
         response = await client.delete(f"/block_schemas/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    @pytest.mark.xfail
     async def test_delete_block_schema_for_system_block_type_fails(
         self, session, system_block_type, client
     ):
