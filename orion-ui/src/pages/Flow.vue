@@ -56,14 +56,20 @@
 
   const flowFilter = useRecentFlowRunFilter({ flows: [flowId.value] })
 
-  const flowDeploymentFilter = computed<UnionFilters>(() => ({
-    flows: {
-      id: {
-        any_: [flowId.value],
+  const flowDeploymentFilterArgs = computed<[filter: UnionFilters] | null>(() => {
+    if (!flowId.value) {
+      return null
+    }
+    return [
+      {
+        flows: {
+          id: {
+            any_: [flowId.value],
+          },
+        },
       },
-    },
-  }))
-  const flowDeploymentFilterArgs = computed<[filter: UnionFilters] | null>(() => flowId.value ? [flowDeploymentFilter.value] : null)
+    ]
+  })
 
   const flowDeploymentsSubscription = useSubscriptionWithDependencies(deploymentsApi.getDeployments, flowDeploymentFilterArgs)
   const flowDeployments = computed(() => flowDeploymentsSubscription.response ?? [])
