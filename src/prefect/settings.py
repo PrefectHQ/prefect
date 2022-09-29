@@ -330,7 +330,7 @@ PREFECT_MEMO_STORE_PATH = Setting(
 
 PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION = Setting(
     bool,
-    default=True,
+    default=False,
     description="""Controls whether or not block auto-registration on start 
     up should be memoized. Setting to False may result in slower server start
     up times.""",
