@@ -234,6 +234,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         self._results: Dict[UUID, Any] = {}
         self._keys: Set[UUID] = set()
         self._max_workers = max_workers
+        self._limiter = None
 
         super().__init__()
 
@@ -288,8 +289,8 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         task crashes from crashing the flow run.
         """
         try:
-            if self._max_workers is not None:
-                async with CapacityLimiter(self._max_workers):
+            if self._limiter is not None:
+                async with self._limiter:
                     self._results[key] = await call()
             else:
                 self._results[key] = await call()
@@ -327,6 +328,8 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         """
         Start the process pool
         """
+        if self._max_workers is not None:
+            self._limiter = CapacityLimiter(self._max_workers)
         self._task_group = await exit_stack.enter_async_context(
             anyio.create_task_group()
         )
