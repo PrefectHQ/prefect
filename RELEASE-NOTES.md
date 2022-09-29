@@ -4,7 +4,6 @@
 
 ### Enhancements
 - Warn if user tries to login with API key from Cloud 1 — https://github.com/PrefectHQ/prefect/pull/6958
-- Remove single subheading example from main index page — https://github.com/PrefectHQ/prefect/pull/6972
 - Improve concurrent task runner performance — https://github.com/PrefectHQ/prefect/pull/6948
 - Raise a `MissingContextError` when `get_run_logger` is called outside a run context — https://github.com/PrefectHQ/prefect/pull/6980
 - Cache configuration lookups — https://github.com/PrefectHQ/prefect/pull/6959
