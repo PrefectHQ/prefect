@@ -1,6 +1,6 @@
 import datetime
 from abc import ABC, abstractmethod, abstractproperty
-from typing import TYPE_CHECKING, Hashable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Hashable, List, Optional, Tuple
 from uuid import UUID
 
 import pendulum
@@ -379,9 +379,9 @@ class BaseQueryComponents(ABC):
             .order_by(all_block_documents_query.c.name)
         )
 
-    async def read_configuration(
+    async def read_configuration_value(
         self, db: "OrionDBInterface", session: sa.orm.Session, key: str
-    ):
+    ) -> Optional[Dict]:
         """
         Read a configuration value by key.
 
@@ -396,10 +396,15 @@ class BaseQueryComponents(ABC):
         except KeyError:
             query = sa.select(db.Configuration).where(db.Configuration.key == key)
             result = await session.execute(query)
-            value = result.scalar()
-            if value is not None:
-                self.CONFIGURATION_CACHE[key] = value
-            return value
+            configuration = result.scalar()
+            if configuration is not None:
+                self.CONFIGURATION_CACHE[key] = configuration.value
+                return configuration.value
+            return configuration
+
+    def clear_configuration_value_cache_for_key(self, key: str):
+        """Removes a configuration key from the cache."""
+        self.CONFIGURATION_CACHE.pop(key, None)
 
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
