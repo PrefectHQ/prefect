@@ -65,7 +65,6 @@ from typing import (
 from uuid import UUID
 
 import anyio
-from anyio import CapacityLimiter
 
 from prefect.utilities.collections import AutoEnum
 
@@ -76,6 +75,7 @@ from prefect.logging import get_logger
 from prefect.orion.schemas.states import State
 from prefect.states import exception_to_crashed_state
 from prefect.utilities.collections import AutoEnum
+from prefect.utilities.asyncutils import asyncnullcontext
 
 T = TypeVar("T", bound="BaseTaskRunner")
 R = TypeVar("R")
@@ -234,7 +234,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         self._results: Dict[UUID, Any] = {}
         self._keys: Set[UUID] = set()
         self._max_workers = max_workers
-        self._limiter = None
+        self._limiter = asyncnullcontext
 
         super().__init__()
 
@@ -289,10 +289,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         task crashes from crashing the flow run.
         """
         try:
-            if self._limiter is not None:
-                async with self._limiter:
-                    self._results[key] = await call()
-            else:
+            async with self._limiter:
                 self._results[key] = await call()
         except BaseException as exc:
             self._results[key] = exception_to_crashed_state(exc)
@@ -329,7 +326,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         Start the process pool
         """
         if self._max_workers is not None:
-            self._limiter = CapacityLimiter(self._max_workers)
+            self._limiter = anyio.CapacityLimiter(self._max_workers)
         self._task_group = await exit_stack.enter_async_context(
             anyio.create_task_group()
         )
