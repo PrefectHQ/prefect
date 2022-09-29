@@ -13,7 +13,7 @@
 ### Fixes
 - Fix login to private Docker registries — https://github.com/PrefectHQ/prefect/pull/6889
 - Update `Flow.with_options` to actually pass retry settings to new object — https://github.com/PrefectHQ/prefect/pull/6963
-- Protected block compatibility — https://github.com/PrefectHQ/prefect/pull/6986
+- Fix compatibility for protected blocks when client/server versions are mismatched — https://github.com/PrefectHQ/prefect/pull/6986
 - Ensure python-slugify is always used — https://github.com/PrefectHQ/prefect/pull/6955
 - Fix configuration caching — https://github.com/PrefectHQ/prefect/pull/7003
 - Add block registration to models init — https://github.com/PrefectHQ/prefect/pull/7008
