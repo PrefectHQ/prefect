@@ -531,6 +531,7 @@ class Deployment(BaseModel):
         name: str,
         output: str = None,
         skip_upload: bool = False,
+        ignore_file: str = ".prefectignore",
         apply: bool = False,
         **kwargs,
     ) -> "Deployment":
@@ -546,6 +547,9 @@ class Deployment(BaseModel):
             output (optional): if provided, the full deployment specification will be written as a YAML
                 file in the location specified by `output`
             skip_upload: if True, deployment files are not automatically uploaded to remote storage
+            ignore_file: an optional path to a `.prefectignore` file that specifies filename patterns
+                to ignore when uploading to remote storage; if not provided, looks for `.prefectignore`
+                in the current working directory
             apply: if True, the deployment is automatically registered with the API
             **kwargs: other keyword arguments to pass to the constructor for the `Deployment` class
         """
@@ -598,7 +602,7 @@ class Deployment(BaseModel):
                 deployment.storage
                 and "put-directory" in deployment.storage.get_block_capabilities()
             ):
-                await deployment.upload_to_storage()
+                await deployment.upload_to_storage(ignore_file=ignore_file)
 
         if output:
             await deployment.to_yaml(output)
