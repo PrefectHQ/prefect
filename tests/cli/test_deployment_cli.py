@@ -1,11 +1,15 @@
+import json
 from datetime import timedelta
 
 import pytest
 
 from prefect import flow
+from prefect.client.orion import OrionClient
 from prefect.deployments import Deployment
+from prefect.orion.schemas.filters import DeploymentFilter, DeploymentFilterId
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.testing.cli import invoke_and_assert
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 @flow
@@ -476,3 +480,110 @@ class TestUpdatingDeployments:
             ],
             expected_output_contains=["'is_schedule_active': True"],
         )
+
+
+class TestDeploymentRun:
+    @pytest.fixture
+    async def deployment_name(self, deployment, orion_client):
+        flow = await orion_client.read_flow(deployment.flow_id)
+        return f"{flow.name}/{deployment.name}"
+
+    def test_run_wraps_parameter_file_parsing_exception(
+        self, tmp_path, deployment_name
+    ):
+        params_file = tmp_path / "params_file"
+        params_file.write_text("not-valid-json", encoding="UTF-8")
+        invoke_and_assert(
+            ["deployment", "run", deployment_name, "--param-file", str(params_file)],
+            expected_code=1,
+            expected_output_contains="Failed to parse JSON",
+        )
+
+    def test_run_wraps_parameter_file_not_found_exception(
+        self, tmp_path, deployment_name
+    ):
+        params_file = tmp_path / "params_file"
+        invoke_and_assert(
+            ["deployment", "run", deployment_name, "--param-file", str(params_file)],
+            expected_code=1,
+            expected_output_contains="Parameter file does not exist",
+        )
+
+    def test_wraps_parameter_json_parsing_exception(self, deployment_name):
+        invoke_and_assert(
+            ["deployment", "run", deployment_name, "--param", 'x="foo"1'],
+            expected_code=1,
+            expected_output_contains=f"Failed to parse JSON for parameter 'x'",
+        )
+
+    def test_validates_parameters_are_in_deployment_schema(
+        self,
+        deployment_name,
+    ):
+        invoke_and_assert(
+            ["deployment", "run", deployment_name, "--param", f"x=test"],
+            expected_code=1,
+            expected_output_contains=[
+                "parameters were specified but not found on the deployment: 'x'",
+                "parameters are available on the deployment: 'name'",
+            ],
+        )
+
+    @pytest.mark.parametrize(
+        "given,expected",
+        [
+            ("foo", "foo"),
+            ('"foo"', "foo"),
+            (1, 1),
+            ('["one", "two"]', ["one", "two"]),
+            ('{"key": "val"}', {"key": "val"}),
+            ('["one", 2]', ["one", 2]),
+            ('{"key": 2}', {"key": 2}),
+        ],
+    )
+    async def test_passes_parameters_to_flow_run(
+        self, deployment, deployment_name, orion_client: OrionClient, given, expected
+    ):
+        """
+        This test ensures the parameters are set on the created flow run and that
+        data types are cast correctly.
+        """
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            ["deployment", "run", deployment_name, "--param", f"name={given}"],
+        )
+
+        flow_runs = await orion_client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=[deployment.id])
+            )
+        )
+
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.parameters == {"name": expected}
+
+    async def test_passes_parameters_from_file_to_flow_run(
+        self,
+        deployment,
+        deployment_name,
+        tmp_path,
+        orion_client,
+    ):
+        params_file = tmp_path / "params_file"
+        params_file.write_text(json.dumps({"name": "foo"}), encoding="UTF-8")
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            ["deployment", "run", deployment_name, "--param-file", str(params_file)],
+        )
+
+        flow_runs = await orion_client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=[deployment.id])
+            )
+        )
+
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.parameters == {"name": "foo"}

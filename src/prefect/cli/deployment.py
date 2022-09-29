@@ -23,6 +23,7 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.orion_utils import check_orion_connection, ui_base_url
 from prefect.cli.root import app
 from prefect.client import get_client
+from prefect.client.orion import OrionClient
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import Deployment, load_deployments_from_yaml
 from prefect.exceptions import (
@@ -38,6 +39,7 @@ from prefect.orion.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
+from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_registry_for_type, lookup_type
 from prefect.utilities.filesystem import set_default_ignore_file
 
@@ -68,7 +70,7 @@ def assert_deployment_name_format(name: str) -> None:
         )
 
 
-async def get_deployment(client, name, deployment_id):
+async def get_deployment(client: OrionClient, name, deployment_id):
     if name is None and deployment_id is not None:
         try:
             deployment = await client.read_deployment(deployment_id)
@@ -361,6 +363,24 @@ async def run(
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
         flow = await client.read_flow(deployment.flow_id)
+
+        deployment_parameters = deployment.parameter_openapi_schema["properties"].keys()
+        unknown_keys = set(parameters.keys()).difference(deployment_parameters)
+        if unknown_keys:
+            available_parameters = (
+                (
+                    "The following parameters are available on the deployment: "
+                    + listrepr(deployment_parameters, sep=", ")
+                )
+                if deployment_parameters
+                else "This deployment does not accept parameters."
+            )
+
+            exit_with_error(
+                "The following parameters were specified but not found on the "
+                f"deployment: {listrepr(unknown_keys, sep=', ')}"
+                f"\n{available_parameters}"
+            )
 
         app.console.print(
             f"Creating flow run for deployment '{flow.name}/{deployment.name}'...",
