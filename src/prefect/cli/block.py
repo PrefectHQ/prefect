@@ -9,6 +9,7 @@ from typing import List, Optional, Type
 
 import typer
 from rich.table import Table
+from uuid import UUID
 
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.cli._types import PrefectTyper
@@ -342,19 +343,26 @@ async def blocktype_inspect(
 
 @blocktypes_app.command("delete")
 async def blocktype_delete(
-    slug: str = typer.Argument(..., help="A Block type slug"),
+    slug: str = typer.Argument(None, help="A Block type slug"),
+    blocktype_id: UUID = typer.Argument(None, help="A Block type id"),
 ):
     """
     Delete an unprotected Block Type.
     """
     async with get_client() as client:
-        try:
-            block_type = await client.read_block_type_by_slug(slug)
-            await client.delete_block_type(block_type.id)
+        if blocktype_id is not None:
+            res = await client.delete_block_type(blocktype_id)
             exit_with_success(f"Deleted Block Type '{slug}'.")
-        except ObjectNotFound:
-            exit_with_error(f"Block Type {slug!r} not found!")
-        except PrefectHTTPStatusError as exc:
-            if exc.response.status_code == 403:
-                exit_with_error(f"Block Type {slug!r} is a protected block!")
-        exit_with_error(f"Cannot delete Block Type {slug!r}!")
+        else:
+            try:
+                block_type = await client.read_block_type_by_slug(slug)
+                res = await client.delete_block_type(block_type.id)
+                breakpoint()
+                exit_with_success(f"Deleted Block Type '{slug}'.")
+            except Exception as exc:
+                raise exc
+            # except ObjectNotFound:
+                # exit_with_error(f"Block Type {slug!r} not found!")
+            # except PrefectHTTPStatusError as exc:
+                # if exc.response.status_code == 403:
+                    # exit_with_error(f"Block Type {slug!r} is a protected block!")

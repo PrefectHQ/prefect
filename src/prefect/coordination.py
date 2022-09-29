@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 
 from httpx import Client
 
@@ -23,6 +24,12 @@ class InvalidOrionError(RuntimeError):
 class MissingFlowRunError(RuntimeError):
     """
     Raised when a specific Flow run could not found.
+    """
+
+
+class DeploymentTimeout(RuntimeError):
+    """
+    Raised when a deployment has not reached a terminal state within the specified time.
     """
 
 
@@ -53,6 +60,13 @@ def _minimal_client():
 
 
 def run_deployment(deployment_name: str, max_polls: int = 60, poll_interval: float = 5):
+    """
+    Runs a deployment immediately.
+
+    This function will block until the deployment run enters a terminal state or until
+    the polling duration has been exceeded.
+    """
+
     client = _minimal_client()
 
     flow_run_id = client.post(
@@ -67,4 +81,23 @@ def run_deployment(deployment_name: str, max_polls: int = 60, poll_interval: flo
             raise MissingFlowRunError("Error polling flow run")
 
         if flow_state in TERMINAL_STATE_STRINGS:
-            break
+            return
+
+        raise DeploymentTimeout("Deployment did not reach a terminal state and might still be running.")
+
+
+def schedule_deployment(deployment_name: str, schedule_time: datetime = None):
+    """
+    Schedules a single deployment run for the specified time.
+
+    If no time is provided, the deployment will be scheduled to run immediately.
+    """
+
+    client = _minimal_client()
+
+    body = {"schedule_time": schedule_time.isoformat()}
+
+    res = client.post(
+        f"/deployments/name/{deployment_name}/schedule_now", json=body,
+    )
+    return res.json()

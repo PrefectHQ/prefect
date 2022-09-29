@@ -217,6 +217,7 @@ async def schedule_deployment(
 async def schedule_deployment_now(
     flow_name: str = Path(..., description="The name of the flow"),
     deployment_name: str = Path(..., description="The name of the deployment"),
+    schedule_time: DateTimeTZ = Body(None, embed=True, description="Time to schedule the deployment for"),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> UUID:
     """
@@ -224,6 +225,7 @@ async def schedule_deployment_now(
     You'll schedule the deployment NOW.
     I'll schedule the deployment now.
     """
+    schedule_time = pendulum.now("UTC") if schedule_time is None else schedule_time
     async with db.session_context(begin_transaction=True) as session:
         deployment = await models.deployments.read_deployment_by_name(
             session=session, name=deployment_name, flow_name=flow_name
