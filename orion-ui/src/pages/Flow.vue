@@ -55,9 +55,17 @@
   const flow = computed(() => flowSubscription.response)
 
   const flowFilter = useRecentFlowRunFilter({ flows: [flowId.value] })
-  const flowFilterArgs = computed<[filter: UnionFilters] | null>(() => flowId.value ? [flowFilter.value] : null)
 
-  const flowDeploymentsSubscription = useSubscriptionWithDependencies(deploymentsApi.getDeployments, flowFilterArgs)
+  const flowDeploymentFilter = computed<UnionFilters>(() => ({
+    flows: {
+      id: {
+        any_: [flowId.value],
+      },
+    },
+  }))
+  const flowDeploymentFilterArgs = computed<[filter: UnionFilters] | null>(() => flowId.value ? [flowDeploymentFilter.value] : null)
+
+  const flowDeploymentsSubscription = useSubscriptionWithDependencies(deploymentsApi.getDeployments, flowDeploymentFilterArgs)
   const flowDeployments = computed(() => flowDeploymentsSubscription.response ?? [])
   function deleteFlow(): void {
     router.push(routes.flows())
