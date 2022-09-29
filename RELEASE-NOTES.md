@@ -1,5 +1,36 @@
 # Prefect Release Notes
 
+## Release 2.4.3
+
+### Enhancements
+- Warn if user tries to login with API key from Cloud 1 — https://github.com/PrefectHQ/prefect/pull/6958
+- Remove single subheading example from main index page — https://github.com/PrefectHQ/prefect/pull/6972
+- Improve concurrent task runner performance — https://github.com/PrefectHQ/prefect/pull/6948
+- Raise a `MissingContextError` when `get_run_logger` is called outside a run context — https://github.com/PrefectHQ/prefect/pull/6980
+- Cache configuration lookups — https://github.com/PrefectHQ/prefect/pull/6959
+- Move `quote` to `prefect.utilities.annotations` — https://github.com/PrefectHQ/prefect/pull/6993
+- Add state filters and sort-by to the work-queue, flow and deployment … — https://github.com/PrefectHQ/prefect/pull/6985
+
+### Fixes
+- Fix login to private Docker registries — https://github.com/PrefectHQ/prefect/pull/6889
+- Update `Flow.with_options` to actually pass retry settings to new object — https://github.com/PrefectHQ/prefect/pull/6963
+- Protected block compatibility — https://github.com/PrefectHQ/prefect/pull/6986
+- Ensure python-slugify is always used — https://github.com/PrefectHQ/prefect/pull/6955
+- Fix configuration caching — https://github.com/PrefectHQ/prefect/pull/7003
+- Add block registration to models init — https://github.com/PrefectHQ/prefect/pull/7008
+
+### Documentation
+- Update docs regarding schedules and the CLI — https://github.com/PrefectHQ/prefect/pull/6968
+- Fix deployment file name in the tutorial — https://github.com/PrefectHQ/prefect/pull/6956
+- Add results concept to documentation — https://github.com/PrefectHQ/prefect/pull/6992
+
+### Collections
+- Adds prefect hex to catalog — https://github.com/PrefectHQ/prefect/pull/6974
+
+### Contributors
+* @Hongbo-Miao made their first contribution in https://github.com/PrefectHQ/prefect/pull/6956
+* @hateyouinfinity made their first contribution in https://github.com/PrefectHQ/prefect/pull/6955
+
 ## Release 2.4.2
 
 ### Fixes
