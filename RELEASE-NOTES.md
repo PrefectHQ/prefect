@@ -6,7 +6,7 @@
 - Warn if user tries to login with API key from Cloud 1 — https://github.com/PrefectHQ/prefect/pull/6958
 - Improve concurrent task runner performance — https://github.com/PrefectHQ/prefect/pull/6948
 - Raise a `MissingContextError` when `get_run_logger` is called outside a run context — https://github.com/PrefectHQ/prefect/pull/6980
-- Cache configuration lookups — https://github.com/PrefectHQ/prefect/pull/6959
+- Adding caching to API configuration lookups to improve performance — https://github.com/PrefectHQ/prefect/pull/6959
 - Move `quote` to `prefect.utilities.annotations` — https://github.com/PrefectHQ/prefect/pull/6993
 - Add state filters and sort-by to the work-queue, flow and deployment pages — https://github.com/PrefectHQ/prefect/pull/6985
 
