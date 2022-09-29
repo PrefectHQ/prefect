@@ -11,6 +11,7 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import select
 
+from prefect.logging.loggers import get_logger
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.models import concurrency_limits
@@ -25,6 +26,8 @@ from prefect.orion.orchestration.rules import (
 )
 from prefect.orion.schemas import filters, states
 from prefect.orion.schemas.states import StateType
+
+logger = get_logger("orion.orchestration.core_policy")
 
 
 class CoreFlowPolicy(BaseOrchestrationPolicy):
@@ -192,6 +195,9 @@ class CacheInsertion(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
         db: OrionDBInterface,
     ) -> None:
+        if not validated_state or not context.session:
+            return
+
         cache_key = validated_state.state_details.cache_key
         if cache_key:
             new_cache_item = db.TaskRunStateCache(
