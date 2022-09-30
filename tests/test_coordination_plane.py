@@ -6,8 +6,9 @@ import respx
 from httpx import Response
 
 from prefect import flow
-from prefect.coordination_plane import _minimal_client, run_deployment
+from prefect.coordination_plane import _minimal_client, run_deployment, InvalidOrionError
 from prefect.deployments import Deployment
+from prefect.orion.schemas import states
 from prefect.settings import PREFECT_API_URL, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
@@ -67,10 +68,11 @@ def hosted_orion(self):
         yield
 
 
-def test_running_a_deployment_blocks_utnil_termination(
+@pytest.mark.parametrize('terminal_state', [s.name for s in states.TERMINAL_STATES])
+def test_running_a_deployment_blocks_until_termination(
     test_deployment,
     use_hosted_orion,
-    orion_client,
+    terminal_state,
 ):
     d = test_deployment
 
@@ -80,7 +82,7 @@ def test_running_a_deployment_blocks_utnil_termination(
         poll_responses = [
             Response(200, json={"state": {"type": "PENDING"}}),
             Response(200, json={"state": {"type": "RUNNING"}}),
-            Response(200, json={"state": {"type": "COMPLETED"}}),
+            Response(200, json={"state": {"type": terminal_state}}),
         ]
 
         router.post(
@@ -90,7 +92,13 @@ def test_running_a_deployment_blocks_utnil_termination(
             "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
         ).mock(side_effect=poll_responses)
 
-        assert run_deployment(f"{d.flow_name}/{d.name}", max_polls=3, poll_interval=0)
+        assert run_deployment(f"{d.flow_name}/{d.name}", max_polls=3, poll_interval=0), "run_deployment does not exit on {terminal_state}"
         assert len(flow_polls.calls) == 3
 
 
+def test_api_url_must_be_configured(
+    test_deployment,
+):
+    d = test_deployment
+    with pytest.raises(InvalidOrionError):
+        run_deployment(f"{d.flow_name}/{d.name}", max_polls=3, poll_interval=0)
