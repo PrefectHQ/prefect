@@ -2,7 +2,7 @@
 Routes for interacting with Deployment objects.
 """
 
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 import pendulum
@@ -217,7 +217,12 @@ async def schedule_deployment(
 async def schedule_deployment_now(
     flow_name: str = Path(..., description="The name of the flow"),
     deployment_name: str = Path(..., description="The name of the deployment"),
-    schedule_time: DateTimeTZ = Body(None, embed=True, description="Time to schedule the deployment for"),
+    schedule_time: DateTimeTZ = Body(
+        None, embed=True, description="Time to schedule the deployment for"
+    ),
+    parameters: dict = Body(
+        None, embed=True, description="Overrides deployment parameters"
+    ),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> UUID:
     """
@@ -234,6 +239,7 @@ async def schedule_deployment_now(
             session=session,
             deployment_id=deployment.id,
             schedule_time=pendulum.now("UTC"),
+            parameters=parameters,
         )
 
         return flow_run_ids[0]

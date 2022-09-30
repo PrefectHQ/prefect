@@ -4,7 +4,7 @@ Intended for internal use by the Orion API.
 """
 
 import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
 from uuid import UUID, uuid4
 
 import pendulum
@@ -359,6 +359,7 @@ async def schedule_run(
     session: sa.orm.Session,
     deployment_id: UUID,
     schedule_time: datetime.datetime = None,
+    parameters: Optional[dict] = None,
 ) -> List[UUID]:
     """ """
     if schedule_time is None:
@@ -368,6 +369,7 @@ async def schedule_run(
         session=session,
         deployment_id=deployment_id,
         schedule_time=schedule_time,
+        parameters=parameters,
     )
     return await _insert_scheduled_flow_runs(session=session, runs=runs)
 
@@ -418,6 +420,7 @@ async def _generate_scheduled_flow_run(
     session: sa.orm.Session,
     deployment_id: UUID,
     schedule_time: datetime.datetime,
+    parameters: Optional[dict],
     db: OrionDBInterface,
 ) -> List[Dict]:
     """ """
@@ -425,13 +428,15 @@ async def _generate_scheduled_flow_run(
 
     # retrieve the deployment
     deployment = await session.get(db.Deployment, deployment_id)
+    run_parameters = deployment.parameters
+    run_parameters.update(parameters or dict())
     runs.append(
         {
             "id": uuid4(),
             "flow_id": deployment.flow_id,
             "deployment_id": deployment_id,
             "work_queue_name": deployment.work_queue_name,
-            "parameters": deployment.parameters,
+            "parameters": run_parameters,
             "infrastructure_document_id": deployment.infrastructure_document_id,
             "idempotency_key": f"scheduled {deployment.id} {schedule_time}",
             "tags": ["auto-scheduled"] + deployment.tags,
