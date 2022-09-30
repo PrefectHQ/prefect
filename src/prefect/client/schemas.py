@@ -2,6 +2,7 @@ import datetime
 import warnings
 from typing import Generic, Iterable, Optional, Type, TypeVar, Union, overload
 
+import anyio
 from pydantic import Field
 
 from prefect.deprecated.data_documents import DataDocument
@@ -121,7 +122,17 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
                 f"{type(data).__name__} cannot be resolved into an exception"
             )
 
+        with anyio.start_blocking_portal() as portal:
+            assert portal.call(self._result) == 1
+
         return data
+
+    async def _result(self):
+        from prefect.client import get_client
+
+        async with get_client() as client:
+            await client.api_healthcheck()
+        return 1
 
 
 def Scheduled(
