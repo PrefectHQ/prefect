@@ -1,5 +1,5 @@
 import uuid
-from typing import TYPE_CHECKING, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, Tuple, Type, Union
 
 import pydantic
 from typing_extensions import Self
@@ -11,11 +11,13 @@ from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import MissingContextError
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.serializers import Serializer
-from prefect.settings import PREFECT_LOCAL_STORAGE_PATH
+from prefect.settings import (
+    PREFECT_LOCAL_STORAGE_PATH,
+    PREFECT_RESULTS_DEFAULT_SERIALIZER,
+)
 
 ResultStorage = Union[WritableFileSystem, uuid.UUID, str]
 ResultSerializer = Union[Serializer, str]
-
 if TYPE_CHECKING:
     from prefect import Flow, Task
 
@@ -56,6 +58,9 @@ class _Result(pydantic.BaseModel):
     filesystem_document_id: uuid.UUID
 
 
+## ----
+
+
 def get_default_result_storage() -> ResultStorage:
     """
     Generate a default file system for result storage.
@@ -67,7 +72,7 @@ def get_default_result_serializer() -> ResultSerializer:
     """
     Generate a default file system for result storage.
     """
-    return LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
+    return PREFECT_RESULTS_DEFAULT_SERIALIZER.value()
 
 
 def flow_features_require_child_result_persistence(flow: "Flow") -> bool:
@@ -97,9 +102,13 @@ class ResultFactory(pydantic.BaseModel):
 
     persist_result: bool
     serializer: Serializer
-    serialize_healthcheck: bool = True
     storage_block_id: uuid.UUID
     storage_block: WritableFileSystem
+
+    async def create_result(self, obj: Any) -> _Result:
+        """
+        Create a result from a user's return value.
+        """
 
     @classmethod
     @inject_client
@@ -111,6 +120,7 @@ class ResultFactory(pydantic.BaseModel):
 
         ctx = FlowRunContext.get()
         if ctx:
+            # This is a child flow run
             result_storage = flow.result_storage or ctx.flow.result_storage
             result_serializer = flow.result_serializer or ctx.flow.result_serializer
             perist_result = (
@@ -145,7 +155,6 @@ class ResultFactory(pydantic.BaseModel):
     async def from_task(cls: Type[Self], task: "Task", client: OrionClient) -> Self:
         """
         Create a new result factory for a task.
-
         """
         from prefect.context import FlowRunContext
 

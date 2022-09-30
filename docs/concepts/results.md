@@ -268,7 +268,7 @@ You can configure this to use a specific storage using one of the following:
 
 #### Result serializer
 
-[The result serializer](#result-serializer-types) can be configured with the `result_storage` option. The `result_serialzier` option defaults to a null value, which infers the serializer from the context.
+[The result serializer](#result-serializer-types) can be configured with the `result_serializer` option. The `result_serializer` option defaults to a null value, which infers the serializer from the context.
 Generally, this means that tasks will use the result serializer configured on the flow unless otherwise specified.
 If there is no context to load the serializer from, the serializer defined by `PREFECT_RESULTS_DEFAULT_SERIALIZER` will be used. This setting defaults to Prefect's pickle serializer.
 
