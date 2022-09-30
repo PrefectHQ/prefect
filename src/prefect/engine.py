@@ -343,24 +343,22 @@ async def begin_flow_run(
             report_flow_run_crashes(flow_run=flow_run, client=client)
         )
 
-        # Create a task group for background tasks
-        flow_run_context.background_tasks = await stack.enter_async_context(
-            anyio.create_task_group()
+        flow_run_context.task_runner = await stack.enter_async_context(
+            flow.task_runner.start()
         )
 
         # If the flow is async, we need to provide a portal so sync tasks can run
-        flow_run_context.sync_portal = (
-            stack.enter_context(start_blocking_portal()) if flow.isasync else None
+        flow_run_context.sync_portal = stack.enter_context(start_blocking_portal())
+
+        # Create a task group for background tasks
+        flow_run_context.background_tasks = await stack.enter_async_context(
+            anyio.create_task_group()
         )
 
         logger.debug(
             f"Starting {type(flow.task_runner).__name__!r}; submitted tasks "
             f"will be run {CONCURRENCY_MESSAGES[flow.task_runner.concurrency_type]}..."
         )
-        flow_run_context.task_runner = await stack.enter_async_context(
-            flow.task_runner.start()
-        )
-
         result_filesystem = get_default_result_filesystem()
         await result_filesystem._save(is_anonymous=True)
         flow_run_context.result_filesystem = result_filesystem
@@ -488,18 +486,6 @@ async def create_and_begin_subflow_run(
             )
             task_runner = await stack.enter_async_context(flow.task_runner.start())
 
-            parent_sync_portal = parent_flow_run_context.sync_portal
-            if parent_sync_portal is None:
-                # for sync flow -> async subflow -> sync task
-                sync_portal = (
-                    stack.enter_context(start_blocking_portal())
-                    if flow.isasync
-                    else None
-                )
-            else:
-                # for async flow -> async subflow
-                sync_portal = parent_sync_portal
-
             terminal_state = await orchestrate_flow_run(
                 flow,
                 flow_run=flow_run,
@@ -510,7 +496,7 @@ async def create_and_begin_subflow_run(
                 client=client,
                 partial_flow_run_context=PartialModel(
                     FlowRunContext,
-                    sync_portal=sync_portal,
+                    sync_portal=parent_flow_run_context.sync_portal,
                     result_filesystem=parent_flow_run_context.result_filesystem,
                     task_runner=task_runner,
                     background_tasks=parent_flow_run_context.background_tasks,
@@ -750,7 +736,9 @@ def enter_task_run_engine(
     # Sync task run in async flow run
     else:
         # Submit to background tasks since we are not in a worker thread
-        return flow_run_context.background_tasks.start_soon(begin_run)
+        flow_run_context.background_tasks.start_soon(begin_run)
+        # get futures from the context
+        return flow_run_context.task_run_futures
 
 
 async def begin_task_map(
@@ -818,7 +806,8 @@ async def begin_task_map(
             )
         )
 
-    return await gather(*task_runs)
+    futures = await gather(*task_runs)
+    return futures
 
 
 async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRunInput]:
