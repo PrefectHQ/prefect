@@ -1,51 +1,36 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: orion
+  name: prefect-agent
+  namespace: ${namespace}
+  labels:
+    app: prefect-agent
 spec:
   selector:
     matchLabels:
-      app: orion
-  replicas: 1  # We're using SQLite, so we should only run 1 pod
+      app: prefect-agent
+  replicas: 1
   template:
     metadata:
       labels:
-        app: orion
+        app: prefect-agent
     spec:
       containers:
-      - name: api
-        image: ${image_name}
-        command: ["prefect", "orion", "start", "--host", "0.0.0.0", "--log-level", "${log_level}"]
-        imagePullPolicy: "IfNotPresent"
-        ports:
-        - containerPort: 4200
       - name: agent
         image: ${image_name}
-        command: ["prefect", "agent", "start", "-q", "kubernetes"]
+        command: ["prefect", "agent", "start", "-q", "${work_queue}"]
         imagePullPolicy: "IfNotPresent"
         env:
           - name: PREFECT_API_URL
-            value: http://orion:4200/api
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: orion
-  labels:
-    app: orion
-spec:
-  ports:
-    - port: 4200
-      protocol: TCP
-  selector:
-    app: orion
+            value: ${api_url}
+          - name: PREFECT_API_KEY
+            value: ${api_key}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  namespace: default
-  name: flow-runner
+  namespace: ${namespace}
+  name: prefect-agent
 rules:
 - apiGroups: [""]
   resources: ["pods", "pods/log", "pods/status"]
@@ -57,14 +42,13 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: flow-runner-role-binding
-  namespace: default
+  name: prefect-agent-role-binding
+  namespace: ${namespace}
 subjects:
 - kind: ServiceAccount
   name: default
-  namespace: default
+  namespace: ${namespace}
 roleRef:
   kind: Role
-  name: flow-runner
+  name: prefect-agent
   apiGroup: rbac.authorization.k8s.io
-

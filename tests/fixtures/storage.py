@@ -11,33 +11,21 @@ import pytest
 from fastapi import Body, FastAPI, status
 from fastapi.exceptions import RequestValidationError
 
-from prefect.blocks.core import Block
 from prefect.filesystems import LocalFileSystem
 from prefect.orion.api.server import validation_exception_handler
 
 
 @pytest.fixture
-async def local_filesystem_document_id(tmp_path, orion_client):
-    # Local storage in a temporary directory that exists for the lifetime of a test
-    block = LocalFileSystem(basepath=tmp_path)
-    block_schema = await orion_client.read_block_schema_by_checksum(
-        checksum=block._calculate_schema_checksum()
-    )
-    block_document = await orion_client.create_block_document(
-        block_document=block._to_block_document(
-            name="test",
-            block_schema_id=block_schema.id,
-            block_type_id=block_schema.block_type_id,
-        )
-    )
-    return block_document.id
+async def local_filesystem_document_id(local_file_system):
+    return local_file_system._block_document_id
 
 
 @pytest.fixture
-async def local_filesystem(local_filesystem_document_id, orion_client):
-    return Block._from_block_document(
-        await orion_client.read_block_document(local_filesystem_document_id)
-    )
+async def local_filesystem(tmp_path):
+    # Local storage in a temporary directory that exists for the lifetime of a test
+    block = LocalFileSystem(basepath=tmp_path)
+    await block._save(is_anonymous=True)
+    return block
 
 
 # Key-value storage API ----------------------------------------------------------------

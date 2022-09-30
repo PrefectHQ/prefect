@@ -1,10 +1,11 @@
 import datetime
 from abc import ABC, abstractmethod, abstractproperty
-from typing import TYPE_CHECKING, Hashable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Hashable, List, Optional, Tuple
 from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
+from cachetools import TTLCache
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,11 +16,15 @@ from prefect.orion.utilities.database import json_has_any_key
 if TYPE_CHECKING:
     from prefect.orion.database.interface import OrionDBInterface
 
+ONE_HOUR = 60 * 60
+
 
 class BaseQueryComponents(ABC):
     """
     Abstract base class used to inject dialect-specific SQL operations into Orion.
     """
+
+    CONFIGURATION_CACHE = TTLCache(maxsize=100, ttl=ONE_HOUR)
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
         """
@@ -373,6 +378,33 @@ class BaseQueryComponents(ABC):
             .select_from(all_block_documents_query)
             .order_by(all_block_documents_query.c.name)
         )
+
+    async def read_configuration_value(
+        self, db: "OrionDBInterface", session: sa.orm.Session, key: str
+    ) -> Optional[Dict]:
+        """
+        Read a configuration value by key.
+
+        Configuration values should not be changed at run time, so retrieved
+        values are cached in memory.
+
+        The main use of confiugrations is encrypting blocks, this speeds up nested
+        block document queries.
+        """
+        try:
+            return self.CONFIGURATION_CACHE[key]
+        except KeyError:
+            query = sa.select(db.Configuration).where(db.Configuration.key == key)
+            result = await session.execute(query)
+            configuration = result.scalar()
+            if configuration is not None:
+                self.CONFIGURATION_CACHE[key] = configuration.value
+                return configuration.value
+            return configuration
+
+    def clear_configuration_value_cache_for_key(self, key: str):
+        """Removes a configuration key from the cache."""
+        self.CONFIGURATION_CACHE.pop(key, None)
 
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):

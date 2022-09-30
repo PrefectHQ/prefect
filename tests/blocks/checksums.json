@@ -1,5 +1,6 @@
 {
     "slack-webhook": "sha256:a40a9a133af175bb9d013045a06d364f88dc26e0e46f764634cd855a940e771a",
+    "ms-teams-webhook": "sha256:894cade8e315720bb8d7bc87346829c6c8721ed4fff692964eac8fb0daefe8cd",
     "json": "sha256:ef9b76010e0545bd7f2212029460731f66ccfce289affe4b504cbeb702fc8ea3",
     "string": "sha256:e9f3f43e55b73bc94ee2a355f1e4ef7064645268cba22571c2a95d90a2af8dd0",
     "date-time": "sha256:7943c88ca6ab22804082b595b9847d035a1364bdb23474c927317bcab9cb5d9c",
@@ -12,8 +13,8 @@
     "smb": "sha256:d5746a564cf05bec13770a882f76ca8e8f562c8bdc7a6d2d45732b079bf72045",
     "github": "sha256:4bf7c70ac6ff317928ababd19becb408dd4df53d7594e4a0f6756d866102f7ac",
     "kubernetes-cluster-config": "sha256:90d421e948bfbe4cdc98b124995f0edd0f84b0837549ad1390423bad8e31cf3b",
-    "docker-registry": "sha256:356410398f9957e9c96af04ae28875b71ca6174ac0978950b5f3641b21dc8544",
-    "docker-container": "sha256:77cf9424bd42cd96851b7363cc21279546a73e55a61cd815c54e279e57206a2a",
+    "docker-registry": "sha256:6db1457676eee0b54ca2834b06f80a80f7c90112e64f1bdd26afb2e62fcceed9",
+    "docker-container": "sha256:ee3348b26a5d0e0226e2d3cf6f2e85a3592c3b19fb8a988dfccceee972b9b9eb",
     "kubernetes-job": "sha256:686f931093d8fa3a80dee6eb66516be7b022bf29c44a38766da8571f25fede8b",
     "process": "sha256:227b03037cf895d9a70603554b792f573e7e59b81a585d51a43ec1f826e81da3"
 }

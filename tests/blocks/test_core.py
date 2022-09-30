@@ -6,12 +6,14 @@ from typing import Dict, Type, Union
 from uuid import UUID, uuid4
 
 import pytest
+from packaging.version import Version
 from pydantic import BaseModel, Field, SecretBytes, SecretStr
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.blocks.system import Secret
 from prefect.client import OrionClient
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
@@ -512,9 +514,16 @@ class TestAPICompatibility:
         assert block_schema.version == "1.0.0"
 
     def test_create_block_schema_uses_prefect_version_for_built_in_blocks(self):
-        Secret.register_type_and_schema()
+        try:
+            Secret.register_type_and_schema()
+        except PrefectHTTPStatusError as exc:
+            if exc.response.status_code == 403:
+                pass
+            else:
+                raise exc
+
         block_schema = Secret._to_block_schema()
-        assert block_schema.version == prefect.__version__
+        assert block_schema.version == Version(prefect.__version__).base_version
 
     def test_collecting_capabilities(self):
         class CanRun(Block):
@@ -745,6 +754,19 @@ class TestAPICompatibility:
         ):
             await test_block.load("blocky")
 
+    def test_save_block_from_flow(self):
+        class Test(Block):
+            a: str
+
+        @prefect.flow
+        def save_block_flow():
+            Test(a="foo").save("test")
+
+        save_block_flow()
+
+        block = Test.load("test")
+        assert block.a == "foo"
+
 
 class TestRegisterBlockTypeAndSchema:
     class NewBlock(Block):
@@ -807,6 +829,34 @@ class TestRegisterBlockTypeAndSchema:
         )
         assert block_schema is not None
         assert block_schema.fields == self.NewBlock.schema()
+
+    async def test_register_new_block_schema_when_version_changes(
+        self, orion_client: OrionClient
+    ):
+        # Ignore warning caused by matching key in registry
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+        await self.NewBlock.register_type_and_schema()
+
+        block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=self.NewBlock._calculate_schema_checksum()
+        )
+        assert block_schema is not None
+        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
+
+        self.NewBlock._block_schema_version = "new_version"
+
+        await self.NewBlock.register_type_and_schema()
+
+        block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=self.NewBlock._calculate_schema_checksum()
+        )
+        assert block_schema is not None
+        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.version == "new_version"
+
+        self.NewBlock._block_schema_version = None
 
     async def test_register_nested_block(self, orion_client: OrionClient):
         class Big(Block):

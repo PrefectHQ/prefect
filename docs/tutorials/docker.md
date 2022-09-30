@@ -74,7 +74,7 @@ If you defined a different type of storage block, such as Azure or GCS, you'll n
 
 ## Using infrastructure blocks with deployments
 
-To use an infrastructure block when building a deployment, the process is similar to using a storage block. You can specify a custom infastructure block to the `prefect deployment build` command with the `-ib` or `--infra-block` options, passing the type and name of the block in the in the format `type/name`, with `type` and `name` separated by a forward slash. 
+To use an infrastructure block when building a deployment, the process is similar to using a storage block. You can specify a custom infrastructure block to the `prefect deployment build` command with the `-ib` or `--infra-block` options, passing the type and name of the block in the in the format `type/name`, with `type` and `name` separated by a forward slash. 
 
 - `type` is the type of storage block, such as `docker-container`, `kubernetes-job`, or `process`.
 - `name` is the name you specified when creating the block.
@@ -131,7 +131,7 @@ Open the Prefect UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/) and sele
 
 ## Edit the deployment in the UI
 
-`log_flow` exepcts a runtime parameter for its greeting, and we didn't provide one as part of this deployment yet. We could edit `log-flow-docker-deployment.yaml` to add a parameter and apply the edited YAML to update the deployment on the API.
+`log_flow` expects a runtime parameter for its greeting, and we didn't provide one as part of this deployment yet. We could edit `log-flow-docker-deployment.yaml` to add a parameter and apply the edited YAML to update the deployment on the API.
 
 Instead, let's edit the deployment through the Prefect UI. Select **log-flow/log-flow-docker** to see the deployment's details.
 
@@ -155,6 +155,29 @@ Let's create a flow run for this deployment. The flow run will execute in a Dock
     This tutorial assumes you're already running a Prefect agent with `prefect agent start`, as described in the [Deployments](/tutorials/deployments/#agents-and-work-queues) tutorial. 
     
     If you shut down the agent from a previous tutorial, you can start it again by opening another terminal session and starting the agent with the `prefect agent start -q test` CLI command. This agent pulls work from the `test` work queue created previously.
+
+    Note also that the `PREFECT_API_URL` setting should be configured to point to the URL of your Prefect Orion server or Prefect Cloud.
+
+    If you're running the agent in the same environment or machine as your server, it should already be set. If not, run this command to set the API URL to point at the Prefect Orion instance just started:
+
+    <div class='terminal'>
+    ```bash
+    $ prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
+    Set variable 'PREFECT_API_URL' to 'http://127.0.0.1:4200/api'
+    Updated profile 'default'
+    ```
+    </div>
+
+    You can check the settings for your environment with the `prefect config view` CLI command.
+
+    <div class='terminal'>
+    ```bash
+    # View current configuration
+    $ prefect config view
+    PREFECT_PROFILE='default'
+    PREFECT_API_URL='http://127.0.0.1:4200/api' (from profile)
+    ```
+    </div>
 
 On the deployment details page, select **Run**, then select **Now with defaults**. This creates a new flow run using the default parameters and other settings.
 

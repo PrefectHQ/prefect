@@ -13,7 +13,8 @@ import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from prefect.blocks.core import Block
-from prefect.client import OrionClient, get_client, inject_client
+from prefect.client import OrionClient, get_client
+from prefect.client.orion import inject_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
 from prefect.filesystems import LocalFileSystem
@@ -246,16 +247,18 @@ class Deployment(BaseModel):
 
     # top level metadata
     name: str = Field(..., description="The name of the deployment.")
-    description: str = Field(
-        None, description="An optional description of the deployment."
+    description: Optional[str] = Field(
+        default=None, description="An optional description of the deployment."
     )
-    version: str = Field(None, description="An optional version for the deployment.")
+    version: Optional[str] = Field(
+        default=None, description="An optional version for the deployment."
+    )
     tags: List[str] = Field(
         default_factory=list,
         description="One of more tags to apply to this deployment.",
     )
     schedule: schemas.schedules.SCHEDULE_TYPES = None
-    flow_name: str = Field(None, description="The name of the flow.")
+    flow_name: Optional[str] = Field(default=None, description="The name of the flow.")
     work_queue_name: Optional[str] = Field(
         "default",
         description="The work queue for the deployment.",
@@ -264,8 +267,8 @@ class Deployment(BaseModel):
 
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
-    manifest_path: str = Field(
-        None,
+    manifest_path: Optional[str] = Field(
+        default=None,
         description="The path to the flow's manifest file, relative to the chosen storage.",
     )
     infrastructure: Infrastructure = Field(default_factory=Process)
@@ -277,12 +280,12 @@ class Deployment(BaseModel):
         None,
         help="The remote storage to use for this workflow.",
     )
-    path: str = Field(
-        None,
+    path: Optional[str] = Field(
+        default=None,
         description="The path to the working directory for the workflow, relative to remote storage or an absolute path.",
     )
-    entrypoint: str = Field(
-        None,
+    entrypoint: Optional[str] = Field(
+        default=None,
         description="The path to the entrypoint for the workflow, relative to the `path`.",
     )
     parameter_openapi_schema: ParameterSchema = Field(

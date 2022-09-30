@@ -588,8 +588,34 @@ class TestSetFlowRunState:
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
 
-    async def test_set_flow_run_errors_if_client_provides_timestamp(
-        self, flow_run, client
+    @pytest.mark.parametrize("proposed_state", ["PENDING", "RUNNING"])
+    async def test_setting_flow_run_state_twice_aborts(
+        self, flow_run, client, session, proposed_state
+    ):
+        # A multi-agent environment may attempt to orchestrate a run more than once,
+        # this test ensures that a 2nd agent cannot re-propose a state that's already
+        # been set
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type=proposed_state, name="Test State")),
+        )
+        assert response.status_code == 201
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type="PENDING", name="Test State")),
+        )
+        assert response.status_code == 200
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ABORT
+
+    async def test_set_flow_run_state_ignores_client_provided_timestamp(
+        self, flow_run, client, session
     ):
         response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
@@ -601,7 +627,9 @@ class TestSetFlowRunState:
                 )
             ),
         )
-        assert response.status_code == 422
+        assert response.status_code == status.HTTP_201_CREATED
+        state = schemas.states.State.parse_obj(response.json()["state"])
+        assert state.timestamp < pendulum.now(), "The timestamp should be overwritten"
 
     async def test_set_flow_run_state_force_skips_orchestration(
         self, flow_run, client, session

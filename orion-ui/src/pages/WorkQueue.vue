@@ -18,8 +18,13 @@
         <template #details>
           <WorkQueueDetails v-if="workQueue" :work-queue="workQueue" />
         </template>
+
         <template #upcoming-runs>
           <WorkQueueFlowRunsList v-if="workQueue" :work-queue="workQueue" />
+        </template>
+
+        <template #runs>
+          <FlowRunFilteredList :flow-run-filter="flowRunFilter" />
         </template>
       </p-tabs>
 
@@ -32,12 +37,13 @@
 
 
 <script lang="ts" setup>
-  import { WorkQueueDetails, PageHeadingWorkQueue, WorkQueueFlowRunsList, CodeBanner, localization } from '@prefecthq/orion-design'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { workQueuesApi } from '@/services/workQueuesApi'
 
@@ -45,7 +51,7 @@
   const showToast = useToast()
 
   const tabs = computed(() => {
-    const values = ['Upcoming Runs']
+    const values = ['Upcoming Runs', 'Runs']
 
     if (!media.xl) {
       values.unshift('Details')
@@ -56,7 +62,6 @@
 
   const workQueueId = useRouteParam('id')
   const workQueueCliCommand = computed(() => `prefect agent start ${workQueue.value ? ` --work-queue "${workQueue.value.name}"` : ''}`)
-
   const subscriptionOptions = {
     interval: 300000,
   }
@@ -64,9 +69,20 @@
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value], subscriptionOptions)
   const workQueue = computed(() => workQueueSubscription.response)
 
+  const workQueueName = computed(() => workQueue.value ? [workQueue.value.name] : [])
+  const flowRunFilter = useRecentFlowRunFilter({ workQueues: workQueueName })
+
   const routeToQueues = (): void => {
     router.push(routes.workQueues())
   }
+
+  const title = computed(() => {
+    if (!workQueue.value) {
+      return 'Work Queue'
+    }
+    return `Work Queue: ${workQueue.value.name}`
+  })
+  usePageTitle(title)
 
   watch(() => workQueue.value?.deprecated, value => {
     if (value) {

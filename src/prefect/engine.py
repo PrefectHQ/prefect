@@ -29,7 +29,8 @@ from typing_extensions import Literal
 
 import prefect
 import prefect.context
-from prefect.client import OrionClient, get_client, inject_client
+from prefect.client import OrionClient, get_client
+from prefect.client.orion import inject_client
 from prefect.context import (
     FlowRunContext,
     PrefectObjectRegistry,
@@ -85,7 +86,7 @@ from prefect.task_runners import (
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
-from prefect.utilities.annotations import unmapped
+from prefect.utilities.annotations import Quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
@@ -94,7 +95,7 @@ from prefect.utilities.asyncutils import (
     run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import Quote, isiterable, visit_collection
+from prefect.utilities.collections import isiterable, visit_collection
 from prefect.utilities.hashing import stable_hash
 from prefect.utilities.pydantic import PartialModel
 
@@ -1169,10 +1170,14 @@ async def orchestrate_task_run(
         # Resolve futures in any non-data dependencies to ensure they are ready
         await resolve_inputs(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
+
         return await propose_state(
             client,
             Pending(name="NotReady", message=str(upstream_exc)),
             task_run_id=task_run.id,
+            # if orchestrating a run already in a pending state, force orchestration to
+            # update the state name
+            force=task_run.state.is_pending(),
         )
 
     # Generate the cache key to attach to proposed states
@@ -1412,6 +1417,7 @@ async def propose_state(
     client: OrionClient,
     state: State,
     backend_state_data: DataDocument = None,
+    force: bool = False,
     task_run_id: UUID = None,
     flow_run_id: UUID = None,
 ) -> State:
@@ -1461,11 +1467,17 @@ async def propose_state(
     # Attempt to set the state
     if task_run_id:
         response = await client.set_task_run_state(
-            task_run_id, state, backend_state_data=backend_state_data
+            task_run_id,
+            state,
+            backend_state_data=backend_state_data,
+            force=force,
         )
     elif flow_run_id:
         response = await client.set_flow_run_state(
-            flow_run_id, state, backend_state_data=backend_state_data
+            flow_run_id,
+            state,
+            backend_state_data=backend_state_data,
+            force=force,
         )
     else:
         raise ValueError(

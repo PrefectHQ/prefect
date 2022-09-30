@@ -15,7 +15,7 @@ import fsspec
 from pydantic import Field, SecretStr, validator
 
 from prefect.blocks.core import Block
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.filesystem import filter_files
 from prefect.utilities.processutils import run_process
 
@@ -83,7 +83,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/EVKjxM7fNyi4NGUSkeTEE/95c958c5dd5a56c59ea5033e919c1a63/image1.png?h=250"
 
     basepath: Optional[str] = Field(
-        None, description="Default local path for this block to write to."
+        default=None, description="Default local path for this block to write to."
     )
 
     @validator("basepath", pre=True)
@@ -114,6 +114,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return path
 
+    @sync_compatible
     async def get_directory(
         self, from_path: str = None, local_path: str = None
     ) -> None:
@@ -123,10 +124,19 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Defaults to copying the entire contents of the block's basepath to the current working directory.
         """
         if from_path is None:
-            from_path = Path(self.basepath).expanduser()
+            from_path = Path(self.basepath).expanduser().resolve()
+        else:
+            from_path = Path(from_path).resolve()
 
         if local_path is None:
-            local_path = Path(".").absolute()
+            local_path = Path(".").resolve()
+        else:
+            local_path = Path(local_path).resolve()
+
+        if from_path == local_path:
+            # If the paths are the same there is no need to copy
+            # and we avoid shutil.copytree raising an error
+            return
 
         if sys.version_info < (3, 8):
             shutil.copytree(from_path, local_path)
@@ -145,6 +155,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return ignore_func
 
+    @sync_compatible
     async def put_directory(
         self, local_path: str = None, to_path: str = None, ignore_file: str = None
     ) -> None:
@@ -175,6 +186,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
                     local_path, to_path, dirs_exist_ok=True, ignore=ignore_func
                 )
 
+    @sync_compatible
     async def read_path(self, path: str) -> bytes:
         path: Path = self._resolve_path(path)
 
@@ -191,6 +203,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return content
 
+    @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         path: Path = self._resolve_path(path)
 
@@ -225,7 +238,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CxjycqILlT9S9YchI7o1q/ee62e2089dfceb19072245c62f0c69d2/image12.png?h=250"
 
     basepath: str = Field(
-        ...,
+        default=...,
         description="Default path for this block to write to.",
         example="s3://my-bucket/my-folder/",
     )
@@ -277,6 +290,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return f"{self.basepath.rstrip('/')}/{urlpath.lstrip('/')}"
 
+    @sync_compatible
     async def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
@@ -295,6 +309,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return self.filesystem.get(from_path, local_path, recursive=True)
 
+    @sync_compatible
     async def put_directory(
         self,
         local_path: Optional[str] = None,
@@ -347,6 +362,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return counter
 
+    @sync_compatible
     async def read_path(self, path: str) -> bytes:
         path = self._resolve_path(path)
 
@@ -355,6 +371,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return content
 
+    @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         path = self._resolve_path(path)
         dirpath = path[: path.rindex("/")]
@@ -400,16 +417,18 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1jbV4lceHOjGgunX15lUwT/db88e184d727f721575aeb054a37e277/aws.png?h=250"
 
     bucket_path: str = Field(
-        ..., description="An S3 bucket path.", example="my-bucket/a-directory-within"
+        default=...,
+        description="An S3 bucket path.",
+        example="my-bucket/a-directory-within",
     )
-    aws_access_key_id: SecretStr = Field(
-        None,
+    aws_access_key_id: Optional[SecretStr] = Field(
+        default=None,
         title="AWS Access Key ID",
         description="Equivalent to the AWS_ACCESS_KEY_ID environment variable.",
         example="AKIAIOSFODNN7EXAMPLE",
     )
-    aws_secret_access_key: SecretStr = Field(
-        None,
+    aws_secret_access_key: Optional[SecretStr] = Field(
+        default=None,
         title="AWS Secret Access Key",
         description="Equivalent to the AWS_SECRET_ACCESS_KEY environment variable.",
         example="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
@@ -433,6 +452,7 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
         )
         return self._remote_file_system
 
+    @sync_compatible
     async def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
@@ -445,6 +465,7 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
             from_path=from_path, local_path=local_path
         )
 
+    @sync_compatible
     async def put_directory(
         self,
         local_path: Optional[str] = None,
@@ -460,9 +481,11 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
             local_path=local_path, to_path=to_path, ignore_file=ignore_file
         )
 
+    @sync_compatible
     async def read_path(self, path: str) -> bytes:
         return await self.filesystem.read_path(path)
 
+    @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
 
@@ -483,13 +506,16 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CD4wwbiIKPkZDt4U3TEuW/c112fe85653da054b6d5334ef662bec4/gcp.png?h=250"
 
     bucket_path: str = Field(
-        ..., description="A GCS bucket path.", example="my-bucket/a-directory-within"
+        default=...,
+        description="A GCS bucket path.",
+        example="my-bucket/a-directory-within",
     )
     service_account_info: Optional[SecretStr] = Field(
-        None, description="The contents of a service account keyfile as a JSON string."
+        default=None,
+        description="The contents of a service account keyfile as a JSON string.",
     )
     project: Optional[str] = Field(
-        None,
+        default=None,
         description="The project the GCS bucket resides in. If not provided, the project will be inferred from the credentials or environment.",
     )
 
@@ -514,6 +540,7 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
         )
         return remote_file_system
 
+    @sync_compatible
     async def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
@@ -526,6 +553,7 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
             from_path=from_path, local_path=local_path
         )
 
+    @sync_compatible
     async def put_directory(
         self,
         local_path: Optional[str] = None,
@@ -541,9 +569,11 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
             local_path=local_path, to_path=to_path, ignore_file=ignore_file
         )
 
+    @sync_compatible
     async def read_path(self, path: str) -> bytes:
         return await self.filesystem.read_path(path)
 
+    @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
 
@@ -565,22 +595,22 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6AiQ6HRIft8TspZH7AfyZg/39fd82bdbb186db85560f688746c8cdd/azure.png?h=250"
 
     bucket_path: str = Field(
-        ...,
+        default=...,
         description="An Azure storage bucket path.",
         example="my-bucket/a-directory-within",
     )
     azure_storage_connection_string: Optional[SecretStr] = Field(
-        None,
+        default=None,
         title="Azure storage connection string",
         description="Equivalent to the AZURE_STORAGE_CONNECTION_STRING environment variable.",
     )
     azure_storage_account_name: Optional[SecretStr] = Field(
-        None,
+        default=None,
         title="Azure storage account name",
         description="Equivalent to the AZURE_STORAGE_ACCOUNT_NAME environment variable.",
     )
     azure_storage_account_key: Optional[SecretStr] = Field(
-        None,
+        default=None,
         title="Azure storage account key",
         description="Equivalent to the AZURE_STORAGE_ACCOUNT_KEY environment variable.",
     )
@@ -608,6 +638,7 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         )
         return self._remote_file_system
 
+    @sync_compatible
     async def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
@@ -620,6 +651,7 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
             from_path=from_path, local_path=local_path
         )
 
+    @sync_compatible
     async def put_directory(
         self,
         local_path: Optional[str] = None,
@@ -635,9 +667,11 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
             local_path=local_path, to_path=to_path, ignore_file=ignore_file
         )
 
+    @sync_compatible
     async def read_path(self, path: str) -> bytes:
         return await self.filesystem.read_path(path)
 
+    @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
 
@@ -657,25 +691,26 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _block_type_name = "SMB"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6J444m3vW6ukgBOCinSxLk/025f5562d3c165feb7a5df599578a6a8/samba_2010_logo_transparent_151x27.png?h=250"
 
     share_path: str = Field(
-        ...,
+        default=...,
         description="SMB target (requires <SHARE>, followed by <PATH>).",
         example="/SHARE/dir/subdir",
     )
     smb_username: Optional[SecretStr] = Field(
-        None,
+        default=None,
         title="SMB Username",
         description="Username with access to the target SMB SHARE.",
     )
     smb_password: Optional[SecretStr] = Field(
-        None, title="SMB Password", description="Password for SMB access."
+        default=None, title="SMB Password", description="Password for SMB access."
     )
     smb_host: str = Field(
-        ..., tile="SMB server/hostname", description="SMB server/hostname."
+        default=..., tile="SMB server/hostname", description="SMB server/hostname."
     )
     smb_port: Optional[int] = Field(
-        None, title="SMB port", description="SMB port (default: 445)."
+        default=None, title="SMB port", description="SMB port (default: 445)."
     )
 
     _remote_file_system: RemoteFileSystem = None
@@ -701,6 +736,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
         )
         return self._remote_file_system
 
+    @sync_compatible
     async def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
@@ -712,6 +748,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
             from_path=from_path, local_path=local_path
         )
 
+    @sync_compatible
     async def put_directory(
         self,
         local_path: Optional[str] = None,
@@ -729,9 +766,11 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
             overwrite=False,
         )
 
+    @sync_compatible
     async def read_path(self, path: str) -> bytes:
         return await self.filesystem.read_path(path)
 
+    @sync_compatible
     async def write_path(self, path: str, content: bytes) -> str:
         return await self.filesystem.write_path(path=path, content=content)
 
@@ -745,11 +784,11 @@ class GitHub(ReadableDeploymentStorage):
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/187oCWsD18m5yooahq1vU0/ace41e99ab6dc40c53e5584365a33821/github.png?h=250"
 
     repository: str = Field(
-        ...,
+        default=...,
         description="The URL of a GitHub repository to read from, in either HTTPS or SSH format.",
     )
     reference: Optional[str] = Field(
-        None,
+        default=None,
         description="An optional reference to pin to; can be a branch name or tag.",
     )
 
