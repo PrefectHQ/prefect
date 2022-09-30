@@ -49,12 +49,12 @@ handlers:
             log.local_url: bright_blue
 
             log.info_level: cyan
-            log.warning_level: bright_yellow
+            log.warning_level: yellow3
             log.error_level: red3
             log.critical_level: bright_red
 
             log.completed_state: green
-            log.cancelled_state: bright_yellow
+            log.cancelled_state: yellow3
             log.failed_state: red3
             log.crashed_state: bright_red
 
@@ -70,12 +70,12 @@ handlers:
             log.local_url: bright_blue
 
             log.info_level: cyan
-            log.warning_level: bright_yellow
+            log.warning_level: yellow3
             log.error_level: red3
             log.critical_level: bright_red
 
             log.completed_state: green
-            log.cancelled_state: bright_yellow
+            log.cancelled_state: yellow3
             log.failed_state: red3
             log.crashed_state: bright_red
 
@@ -88,12 +88,12 @@ handlers:
             log.local_url: bright_blue
 
             log.info_level: cyan
-            log.warning_level: bright_yellow
+            log.warning_level: yellow3
             log.error_level: red3
             log.critical_level: bright_red
 
             log.completed_state: green
-            log.cancelled_state: bright_yellow
+            log.cancelled_state: yellow3
             log.failed_state: red3
             log.state_crashed: bright_red
 
