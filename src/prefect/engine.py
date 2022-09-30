@@ -749,8 +749,8 @@ def enter_task_run_engine(
 
     # Sync task run in async flow run
     else:
-        # Call out to the sync portal since we are not in a worker thread
-        return flow_run_context.sync_portal.call(begin_run)
+        # Submit to background tasks since we are not in a worker thread
+        return flow_run_context.background_tasks.start_soon(begin_run)
 
 
 async def begin_task_map(
