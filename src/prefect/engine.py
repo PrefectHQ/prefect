@@ -157,16 +157,16 @@ def enter_flow_run_engine_from_flow_call(
         else:
             # An event loop is not running so we will create one
             return anyio.run(begin_run)
-
-    if not parent_flow_run_context.flow.isasync:
-        # Async subflow run in sync flow run
-        return run_async_from_worker_thread(begin_run)
-    elif parent_flow_run_context.flow.isasync and flow.isasync:
-        # Async subflow run in async flow run
-        return begin_run()
     else:
-        # Sync subflow run in async flow run
-        return parent_flow_run_context.sync_portal.call(begin_run)
+        if not parent_flow_run_context.flow.isasync:
+            # Async subflow run in sync flow run
+            return run_async_from_worker_thread(begin_run)
+        elif parent_flow_run_context.flow.isasync and flow.isasync:
+            # Async subflow run in async flow run
+            return begin_run()
+        else:
+            # Sync subflow run in async flow run
+            return parent_flow_run_context.sync_portal.call(begin_run)
 
 
 def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
@@ -488,6 +488,18 @@ async def create_and_begin_subflow_run(
             )
             task_runner = await stack.enter_async_context(flow.task_runner.start())
 
+            parent_sync_portal = parent_flow_run_context.sync_portal
+            if parent_sync_portal is None:
+                # for sync flow -> async subflow -> sync task
+                sync_portal = (
+                    stack.enter_context(start_blocking_portal())
+                    if flow.isasync
+                    else None
+                )
+            else:
+                # for async flow -> async subflow
+                sync_portal = parent_sync_portal
+
             terminal_state = await orchestrate_flow_run(
                 flow,
                 flow_run=flow_run,
@@ -498,7 +510,7 @@ async def create_and_begin_subflow_run(
                 client=client,
                 partial_flow_run_context=PartialModel(
                     FlowRunContext,
-                    sync_portal=parent_flow_run_context.sync_portal,
+                    sync_portal=sync_portal,
                     result_filesystem=parent_flow_run_context.result_filesystem,
                     task_runner=task_runner,
                     background_tasks=parent_flow_run_context.background_tasks,

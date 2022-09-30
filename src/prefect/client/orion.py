@@ -1761,6 +1761,8 @@ class OrionClient:
         # Enter the httpx client's context
         await self._exit_stack.enter_async_context(self._client)
 
+        self.logger.debug(f"Started API at {self.api_url}")
+
         self._started = True
 
         return self
