@@ -775,7 +775,9 @@ class TestAPICompatibility:
         await models.block_registration.run_block_auto_registration(session=session)
         await session.commit()
 
-        JSON._block_schema_version = "not the prefect version"
+        JSON._block_schema_version = (
+            uuid4().hex
+        )  # represents a version that does not exist on the server
 
         block_document_id = await JSON(value={"the_answer": 42}).save("test")
 
