@@ -369,24 +369,28 @@ class PrefectConsoleHandler(logging.Handler):
         level: Union[int, str] = logging.NOTSET,
         console: Optional[Console] = None,
     ):
-        styled_console = PREFECT_LOGGING_STYLED_CONSOLE.value()
-        if styled_console:
-            highlighter = highlighter()
-            theme = Theme(styles, inherit=False)
-        else:
-            highlighter = NullHighlighter()
-            theme = Theme()
-        self.console = Console(highlighter=highlighter, theme=theme)
+        if console is None:
+            styled_console = PREFECT_LOGGING_STYLED_CONSOLE.value()
+            if styled_console:
+                highlighter = highlighter()
+                theme = Theme(styles, inherit=False)
+            else:
+                highlighter = NullHighlighter()
+                theme = Theme(inherit=False)
+            console = Console(highlighter=highlighter, theme=theme)
+        self.console = console
         super().__init__(level=level)
 
     def emit(self, record: logging.LogRecord):
         try:
+            record.message = record.getMessage()
             if self.formatter:
-                record.message = record.getMessage()
                 formatter = self.formatter
                 if hasattr(formatter, "usesTime") and formatter.usesTime():
                     record.asctime = formatter.formatTime(record, formatter.datefmt)
                 message = formatter.formatMessage(record)
+            else:
+                message = record.message
             self.console.print(message)
         except RecursionError:  # See issue 36272
             raise

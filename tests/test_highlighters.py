@@ -4,6 +4,8 @@ from rich.text import Span, Text
 from prefect.logging.highlighters import (
     LevelHighlighter,
     NameHighlighter,
+    PrefectConsoleHighlighter,
+    StateHighlighter,
     UrlHighlighter,
 )
 
@@ -18,28 +20,49 @@ def test_highlight_level(level):
     ]
 
 
-@pytest.mark.parametrize("kind", ["web_url", "local_url"])
-def test_highlight_url(kind):
-    url = "https://www.prefect.io/" if kind == "web_url" else "file://tests.py"
+@pytest.mark.parametrize("url_kind", ["web", "local"])
+def test_highlight_url(url_kind):
+    url = "https://www.prefect.io/" if url_kind == "web" else "file://tests.py"
     text = Text(f"10:21:34.114 | INFO    | Flow run 'polite-jackal' - {url}")
     highlighter = UrlHighlighter()
     highlighter.highlight(text)
     assert text.spans == [
-        Span(52, 52 + len(url), f"url.{kind}"),
+        Span(52, 52 + len(url), f"url.{url_kind}_url"),
     ]
 
 
-@pytest.mark.parametrize(
-    "name", ["flow_run_name", "flow_name", "task_run_name", "task_name"]
-)
+@pytest.mark.parametrize("name", ["flow_run", "flow", "task_run", "task"])
 @pytest.mark.parametrize("lower", [True, False])
 def test_highlight_name(name, lower):
-    keyword = " ".join(name.split("name")).strip().rstrip("_")
+    keyword = name.replace("_", " ").strip()
     keyword = keyword.lower() if lower else keyword.upper()
     text = Text(f"10:21:34.114 | INFO    | {keyword} 'polite-jackal'")
-    print(text)
     highlighter = NameHighlighter()
     highlighter.highlight(text)
     assert text.spans == [
-        Span(26 + len(keyword), 41 + len(keyword), f"name.{name}"),
+        Span(25 + len(keyword), 41 + len(keyword), f"name.{name}_name"),
+    ]
+
+
+@pytest.mark.parametrize("state", ["completed", "cancelled", "failed", "crashed"])
+def test_highlight_state(state):
+    keyword = state.title()
+    text = Text(f"Flow run 'polite-jackal' - Finished in state {keyword}()")
+    highlighter = StateHighlighter()
+    highlighter.highlight(text)
+    assert text.spans == [
+        Span(45, 45 + len(keyword), f"state.{state}_state"),
+    ]
+
+
+def test_highlight_console():
+    text = Text(
+        f"10:21:34.114 | INFO    | Flow run 'polite-jackal' - Finished in state Completed()"
+    )
+    highlighter = PrefectConsoleHighlighter()
+    highlighter.highlight(text)
+    assert text.spans == [
+        Span(15, 19, f"log.info_level"),
+        Span(33, 49, f"log.flow_run_name"),
+        Span(70, 79, f"log.completed_state"),
     ]
