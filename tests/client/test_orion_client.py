@@ -21,7 +21,6 @@ from prefect.client.schemas import OrchestrationResult, Pending, Running, Schedu
 from prefect.deprecated.data_documents import DataDocument
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
-from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.orion.schemas.schedules import IntervalSchedule
