@@ -4,6 +4,7 @@ tags:
     - Orion API
     - flow runs
     - task runs
+    - observability
 ---
 
 ::: prefect.orion.api.run_history

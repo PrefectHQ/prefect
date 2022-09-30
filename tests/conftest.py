@@ -40,7 +40,9 @@ from prefect.settings import (
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_ENABLED,
+    PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_ORION_ANALYTICS_ENABLED,
+    PREFECT_ORION_BLOCKS_REGISTER_ON_START,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
     PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
     PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
@@ -282,6 +284,10 @@ def pytest_sessionstart(session):
             PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED: False,
             PREFECT_ORION_SERVICES_SCHEDULER_ENABLED: False,
             PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED: False,
+            # Disable block auto-registration memoization
+            PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
+            # Disable auto-registration of block types as they can conflict
+            PREFECT_ORION_BLOCKS_REGISTER_ON_START: False,
         },
         source=__file__,
     )
@@ -318,7 +324,6 @@ def safety_check_settings():
     assert (
         PREFECT_API_URL.value() is None
     ), "Tests should not be run connected to an external API."
-
     # Safety check for home directory
     assert (
         str(PREFECT_HOME.value()) == TEST_PREFECT_HOME

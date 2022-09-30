@@ -1,4 +1,5 @@
 import datetime
+from contextlib import asynccontextmanager
 
 import sqlalchemy as sa
 
@@ -16,6 +17,7 @@ class DBSingleton(type):
 
     def __call__(cls, *args, **kwargs):
         unique_key = (
+            cls.__name__,
             kwargs["database_config"]._unique_key(),
             kwargs["query_components"]._unique_key(),
             kwargs["orm"]._unique_key(),
@@ -39,9 +41,9 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     def __init__(
         self,
-        database_config: BaseDatabaseConfiguration = None,
-        query_components: BaseQueryComponents = None,
-        orm: BaseORMConfiguration = None,
+        database_config: BaseDatabaseConfiguration,
+        query_components: BaseQueryComponents,
+        orm: BaseORMConfiguration,
     ):
 
         self.database_config = database_config
@@ -78,10 +80,28 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     async def session(self):
         """
-        Provides a SQLAlchemy session
+        Provides a SQLAlchemy session.
         """
         engine = await self.engine()
         return await self.database_config.session(engine)
+
+    @asynccontextmanager
+    async def session_context(self, begin_transaction: bool = False):
+        """
+        Provides a SQLAlchemy session and a context manager for opening/closing
+        the underlying connection.
+
+        Args:
+            begin_transaction: if True, the context manager will begin a SQL transaction.
+                Exiting the context manager will COMMIT or ROLLBACK any changes.
+        """
+        session = await self.session()
+        async with session:
+            if begin_transaction:
+                async with session.begin():
+                    yield session
+            else:
+                yield session
 
     @property
     def Base(self):
@@ -279,3 +299,13 @@ class OrionDBInterface(metaclass=DBSingleton):
         return await self.queries.get_flow_run_notifications_from_queue(
             session=session, db=self, limit=limit
         )
+
+    async def read_configuration_value(self, session: sa.orm.Session, key: str):
+        """Read a configuration value"""
+        return await self.queries.read_configuration_value(
+            db=self, session=session, key=key
+        )
+
+    def clear_configuration_value_cache_for_key(self, key: str):
+        """Removes a configuration key from the cache."""
+        return self.queries.clear_configuration_value_cache_for_key(key=key)

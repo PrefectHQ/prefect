@@ -6,9 +6,9 @@ from uuid import uuid4
 import pendulum
 import pytest
 from _pytest.capture import CaptureFixture
-from slugify import slugify
 
 from prefect.docker import ImageBuilder, PushError, push_image, silence_docker_warnings
+from prefect.utilities.slugify import slugify
 
 with silence_docker_warnings():
     from docker import DockerClient

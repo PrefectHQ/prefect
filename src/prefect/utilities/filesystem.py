@@ -28,7 +28,7 @@ def set_default_ignore_file(path: str) -> bool:
 
 def filter_files(
     root: str = ".", ignore_patterns: list = None, include_dirs: bool = True
-) -> list:
+) -> set:
     """
     This function accepts a root directory path and a list of file patterns to ignore, and returns
     a list of files that excludes those that should be ignored.

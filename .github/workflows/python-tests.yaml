@@ -107,6 +107,8 @@ jobs:
             PREFECT_EXTRAS=[dev]
           tags: prefecthq/prefect:dev-python${{ matrix.python-version }}
           outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Test Docker image
         if: ${{ matrix.build-docker-images }}
@@ -125,6 +127,9 @@ jobs:
             PREFECT_EXTRAS=[dev]
           tags: prefecthq/prefect:dev-python${{ matrix.python-version }}-conda
           outputs: type=docker,dest=/tmp/image-conda.tar
+          cache-from: type=gha
+          # We do not cache Conda image layers because they very big and slow to upload
+          # cache-to: type=gha,mode=max
 
       - name: Test Conda flavored Docker image
         if: ${{ matrix.build-docker-images }}

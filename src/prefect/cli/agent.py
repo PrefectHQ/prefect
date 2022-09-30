@@ -6,6 +6,7 @@ from uuid import UUID
 
 import typer
 
+import prefect
 from prefect.agent import OrionAgent
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error
@@ -106,9 +107,13 @@ async def start(
 
     if not hide_welcome:
         if api:
-            app.console.print(f"Starting agent connected to {api}...")
+            app.console.print(
+                f"Starting v{prefect.__version__} agent connected to {api}..."
+            )
         else:
-            app.console.print("Starting agent with ephemeral API...")
+            app.console.print(
+                f"Starting v{prefect.__version__} agent with ephemeral API..."
+            )
 
     async with OrionAgent(work_queues=work_queues) as agent:
         if not hide_welcome:

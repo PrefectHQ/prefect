@@ -3,19 +3,19 @@ import enum
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Union
 
+import anyio.abc
 import yaml
-from anyio.abc import TaskStatus
 from pydantic import Field, validator
-from slugify import slugify
 from typing_extensions import Literal
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.docker import get_prefect_image_name
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.hashing import stable_hash
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.pydantic import JsonPatch
+from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     import kubernetes
@@ -64,10 +64,15 @@ class KubernetesJob(Infrastructure):
         pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 5).
         service_account_name: An optional string specifying which Kubernetes service account to use.
         stream_output: If set, stream output from the job to local standard output.
+        finished_job_ttl: The number of seconds to retain jobs after completion. If set, finished jobs will
+            be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be
+            manually removed.
     """
 
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/20445025358491b8b72600b8f996125b/Kubernetes_logo_without_workmark.svg.png?h=250"
+
     type: Literal["kubernetes-job"] = Field(
-        "kubernetes-job", description="The type of infrastructure."
+        default="kubernetes-job", description="The type of infrastructure."
     )
     # shortcuts for the most common user-serviceable settings
     image: str = Field(
@@ -75,13 +80,14 @@ class KubernetesJob(Infrastructure):
         description="The tag of a Docker image to use for the job. Defaults to the Prefect image.",
     )
     namespace: str = Field(
-        "default", description="The Kubernetes namespace to use for this job."
+        default="default", description="The Kubernetes namespace to use for this job."
     )
     service_account_name: Optional[str] = Field(
-        None, description="The Kubernetes service account to use for this job."
+        default=None, description="The Kubernetes service account to use for this job."
     )
     image_pull_policy: Optional[KubernetesImagePullPolicy] = Field(
-        None, description="The Kubernetes image pull policy to use for job containers."
+        default=None,
+        description="The Kubernetes image pull policy to use for job containers.",
     )
 
     # connection to a cluster
@@ -100,14 +106,20 @@ class KubernetesJob(Infrastructure):
 
     # controls the behavior of execution
     job_watch_timeout_seconds: int = Field(
-        5, description="Number of seconds to watch for job creation before timing out."
+        default=5,
+        description="Number of seconds to watch for job creation before timing out.",
     )
     pod_watch_timeout_seconds: int = Field(
-        60, description="Number of seconds to watch for pod creation before timing out."
+        default=60,
+        description="Number of seconds to watch for pod creation before timing out.",
     )
     stream_output: bool = Field(
-        True,
+        default=True,
         description="If set, output will be streamed from the job to local standard output.",
+    )
+    finished_job_ttl: Optional[int] = Field(
+        default=None,
+        description="The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed.",
     )
 
     # internal-use only right now
@@ -206,10 +218,14 @@ class KubernetesJob(Infrastructure):
         with open(filename, "r", encoding="utf-8") as f:
             return JsonPatch(yaml.load(f, yaml.SafeLoader))
 
+    @sync_compatible
     async def run(
         self,
-        task_status: Optional[TaskStatus] = None,
+        task_status: Optional[anyio.abc.TaskStatus] = None,
     ) -> Optional[bool]:
+        if not self.command:
+            raise ValueError("Kubernetes job cannot be run with empty command.")
+
         # if a k8s cluster block is provided to the flow runner, use that
         if self.cluster_config:
             self.cluster_config.configure_client()
@@ -311,11 +327,20 @@ class KubernetesJob(Infrastructure):
                 }
             )
 
+        if self.finished_job_ttl is not None:
+            shortcuts.append(
+                {
+                    "op": "add",
+                    "path": "/spec/ttlSecondsAfterFinished",
+                    "value": self.finished_job_ttl,
+                }
+            )
+
         if self.command:
             shortcuts.append(
                 {
                     "op": "add",
-                    "path": "/spec/template/spec/containers/0/command",
+                    "path": "/spec/template/spec/containers/0/args",
                     "value": self.command,
                 }
             )
@@ -335,7 +360,12 @@ class KubernetesJob(Infrastructure):
                     "op": "add",
                     "path": "/metadata/generateName",
                     "value": "prefect-job-"
-                    + stable_hash(*self.command, *self.env.keys(), *self.env.values()),
+                    # We generate a name using a hash of the primary job settings
+                    + stable_hash(
+                        *self.command,
+                        *self.env.keys(),
+                        *[v for v in self.env.values() if v is not None],
+                    ),
                 }
             )
 
@@ -562,4 +592,5 @@ class KubernetesJob(Infrastructure):
                 .replace("127.0.0.1", self._api_dns_name)
             )
 
-        return env
+        # Drop null values allowing users to "unset" variables
+        return {key: value for key, value in env.items() if value is not None}

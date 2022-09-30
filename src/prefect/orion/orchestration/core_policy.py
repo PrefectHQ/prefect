@@ -24,6 +24,7 @@ from prefect.orion.orchestration.rules import (
     TaskOrchestrationContext,
 )
 from prefect.orion.schemas import filters, states
+from prefect.orion.schemas.states import StateType
 
 
 class CoreFlowPolicy(BaseOrchestrationPolicy):
@@ -34,6 +35,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             PreventTransitionsFromTerminalStates,
+            PreventRedundantTransitions,
             WaitForScheduledTime,
             RetryFailedFlows,
         ]
@@ -49,6 +51,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
             CacheRetrieval,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             PreventTransitionsFromTerminalStates,
+            PreventRedundantTransitions,
             WaitForScheduledTime,
             RetryFailedTasks,
             RenameReruns,
@@ -197,7 +200,6 @@ class CacheInsertion(BaseOrchestrationRule):
                 task_run_state_id=validated_state.id,
             )
             context.session.add(new_cache_item)
-            await context.session.flush()
 
 
 class CacheRetrieval(BaseOrchestrationRule):
@@ -251,7 +253,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
     """
     Rejects failed states and schedules a retry if the retry limit has not been reached.
 
-    This rule rejects transitions into a failed state if `max_retries` has been
+    This rule rejects transitions into a failed state if `retries` has been
     set and the run count has not reached the specified limit. The client will be
     instructed to transition into a scheduled state to retry flow execution.
     """
@@ -269,11 +271,11 @@ class RetryFailedFlows(BaseOrchestrationRule):
 
         run_settings = context.run_settings
         run_count = context.run.run_count
-        if run_settings.max_retries is None or run_count > run_settings.max_retries:
+        if run_settings.retries is None or run_count > run_settings.retries:
             return  # Retry count exceeded, allow transition to failed
 
         scheduled_start_time = pendulum.now("UTC").add(
-            seconds=run_settings.retry_delay_seconds or 0
+            seconds=run_settings.retry_delay or 0
         )
 
         failed_task_runs = await task_runs.read_task_runs(
@@ -304,7 +306,7 @@ class RetryFailedTasks(BaseOrchestrationRule):
     """
     Rejects failed states and schedules a retry if the retry limit has not been reached.
 
-    This rule rejects transitions into a failed state if `max_retries` has been
+    This rule rejects transitions into a failed state if `retries` has been
     set and the run count has not reached the specified limit. The client will be
     instructed to transition into a scheduled state to retry task execution.
     """
@@ -320,10 +322,10 @@ class RetryFailedTasks(BaseOrchestrationRule):
     ) -> None:
         run_settings = context.run_settings
         run_count = context.run.run_count
-        if run_count <= run_settings.max_retries:
+        if run_settings.retries is not None and run_count <= run_settings.retries:
             retry_state = states.AwaitingRetry(
                 scheduled_time=pendulum.now("UTC").add(
-                    seconds=run_settings.retry_delay_seconds
+                    seconds=run_settings.retry_delay or 0
                 ),
                 message=proposed_state.message,
                 data=proposed_state.data,
@@ -408,3 +410,40 @@ class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
         context: OrchestrationContext,
     ) -> None:
         await self.abort_transition(reason="This run has already terminated.")
+
+
+class PreventRedundantTransitions(BaseOrchestrationRule):
+    """
+    Prevents redundant transitions.
+
+    Under normal operation, this rule prevents the "backwards" progress of a run. This
+    rule will also help prevent multiple agents from attempting to orchestrate a run by
+    preventing transitions into the same state type. If any of these disallowed
+    transitions are attempted, this rule will abort the transition.
+    """
+
+    STATE_PROGRESS = {
+        None: 0,
+        StateType.SCHEDULED: 1,
+        StateType.PENDING: 2,
+        StateType.RUNNING: 3,
+    }
+
+    FROM_STATES = [StateType.SCHEDULED, StateType.PENDING, StateType.RUNNING, None]
+    TO_STATES = [StateType.SCHEDULED, StateType.PENDING, StateType.RUNNING, None]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        initial_state_type = initial_state.type if initial_state else None
+        proposed_state_type = proposed_state.type if proposed_state else None
+        if (
+            self.STATE_PROGRESS[proposed_state_type]
+            <= self.STATE_PROGRESS[initial_state_type]
+        ):
+            await self.abort_transition(
+                reason=f"This run cannot transition to the {proposed_state_type} state from the {initial_state_type} state."
+            )

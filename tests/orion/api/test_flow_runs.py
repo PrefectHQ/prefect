@@ -1,3 +1,4 @@
+from typing import List
 from uuid import uuid4
 
 import pendulum
@@ -284,15 +285,17 @@ class TestReadFlowRuns:
 
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=actions.FlowRunCreate(flow_id=flow.id, name="fr1", tags=["red"]),
         )
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=actions.FlowRunCreate(flow_id=flow.id, name="fr2", tags=["blue"]),
         )
         flow_run_3 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(flow_id=flow_2.id),
+            flow_run=actions.FlowRunCreate(
+                flow_id=flow_2.id, name="fr3", tags=["blue", "red"]
+            ),
         )
         await session.commit()
         return [flow_run_1, flow_run_2, flow_run_3]
@@ -301,6 +304,8 @@ class TestReadFlowRuns:
         response = await client.post("/flow_runs/filter")
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 3
+        # return type should be correct
+        assert pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
     async def test_read_flow_runs_applies_flow_filter(self, flow, flow_runs, client):
         flow_run_filter = dict(
@@ -345,6 +350,18 @@ class TestReadFlowRuns:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[1].id)
+
+    async def test_read_flow_runs_multi_filter(self, flow, flow_runs, client):
+        flow_run_filter = dict(
+            flow_runs=dict(tags=dict(all_=["blue"])),
+            flows=dict(name=dict(any_=["another-test"])),
+            limit=1,
+            offset=0,
+        )
+        response = await client.post("/flow_runs/filter", json=flow_run_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(flow_runs[2].id)
 
     async def test_read_flow_runs_applies_limit(self, flow_runs, client):
         response = await client.post("/flow_runs/filter", json=dict(limit=1))
@@ -571,8 +588,34 @@ class TestSetFlowRunState:
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
 
-    async def test_set_flow_run_errors_if_client_provides_timestamp(
-        self, flow_run, client
+    @pytest.mark.parametrize("proposed_state", ["PENDING", "RUNNING"])
+    async def test_setting_flow_run_state_twice_aborts(
+        self, flow_run, client, session, proposed_state
+    ):
+        # A multi-agent environment may attempt to orchestrate a run more than once,
+        # this test ensures that a 2nd agent cannot re-propose a state that's already
+        # been set
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type=proposed_state, name="Test State")),
+        )
+        assert response.status_code == 201
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type="PENDING", name="Test State")),
+        )
+        assert response.status_code == 200
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ABORT
+
+    async def test_set_flow_run_state_ignores_client_provided_timestamp(
+        self, flow_run, client, session
     ):
         response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
@@ -584,7 +627,9 @@ class TestSetFlowRunState:
                 )
             ),
         )
-        assert response.status_code == 422
+        assert response.status_code == status.HTTP_201_CREATED
+        state = schemas.states.State.parse_obj(response.json()["state"])
+        assert state.timestamp < pendulum.now(), "The timestamp should be overwritten"
 
     async def test_set_flow_run_state_force_skips_orchestration(
         self, flow_run, client, session

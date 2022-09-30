@@ -1,10 +1,12 @@
 ---
-description: Prefect blocks package configuration for use cases such as storage, secrets, and deployments.
+description: Prefect blocks package configuration storage, infrastructure, and secrets for use with deployments or flow scripts.
 tags:
   - blocks
   - storage
   - secrets
   - configuration
+  - infrastructure
+  - deployments
 ---
 
 # Blocks
@@ -247,7 +249,7 @@ my_s3_bucket.save("my_s3_bucket")
 
 In the above example, the values for `AWSCredentials` are saved with `my_s3_bucket` and will not be usable with any other blocks.
 
-## Registering blocks for use in Prefect Cloud
+## Registering blocks for use in the Prefect UI:
 
 Blocks can be registered from a Python module available in the current virtual environment with a CLI command like this:
 

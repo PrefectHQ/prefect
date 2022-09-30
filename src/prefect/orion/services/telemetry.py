@@ -16,6 +16,7 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.models import configuration
 from prefect.orion.schemas.core import Configuration
 from prefect.orion.services.loop_service import LoopService
+from prefect.settings import PREFECT_DEBUG_MODE
 
 
 class Telemetry(LoopService):
@@ -41,36 +42,34 @@ class Telemetry(LoopService):
 
         Telemetry sessions last until the database is reset.
         """
-        session = await db.session()
-        async with session:
-            async with session.begin():
-                telemetry_session = await configuration.read_configuration(
-                    session, "TELEMETRY_SESSION"
+        async with db.session_context(begin_transaction=True) as session:
+            telemetry_session = await configuration.read_configuration(
+                session, "TELEMETRY_SESSION"
+            )
+
+            if telemetry_session is None:
+                self.logger.debug("No telemetry session found, setting")
+                session_id = str(uuid4())
+                session_start_timestamp = pendulum.now().to_iso8601_string()
+
+                telemetry_session = Configuration(
+                    key="TELEMETRY_SESSION",
+                    value={
+                        "session_id": session_id,
+                        "session_start_timestamp": session_start_timestamp,
+                    },
                 )
 
-                if telemetry_session is None:
-                    self.logger.debug("No telemetry session found, setting")
-                    session_id = str(uuid4())
-                    session_start_timestamp = pendulum.now().to_iso8601_string()
+                await configuration.write_configuration(session, telemetry_session)
 
-                    telemetry_session = Configuration(
-                        key="TELEMETRY_SESSION",
-                        value={
-                            "session_id": session_id,
-                            "session_start_timestamp": session_start_timestamp,
-                        },
-                    )
-
-                    await configuration.write_configuration(session, telemetry_session)
-
-                    self.session_id = session_id
-                    self.session_start_timestamp = session_start_timestamp
-                else:
-                    self.logger.debug("Session information retrieved from database")
-                    self.session_id = telemetry_session.value["session_id"]
-                    self.session_start_timestamp = telemetry_session.value[
-                        "session_start_timestamp"
-                    ]
+                self.session_id = session_id
+                self.session_start_timestamp = session_start_timestamp
+            else:
+                self.logger.debug("Session information retrieved from database")
+                self.session_id = telemetry_session.value["session_id"]
+                self.session_start_timestamp = telemetry_session.value[
+                    "session_start_timestamp"
+                ]
         self.logger.debug(
             f"Telemetry Session: {self.session_id}, {self.session_start_timestamp}"
         )
@@ -101,17 +100,24 @@ class Telemetry(LoopService):
             },
         }
 
-        async with httpx.AsyncClient() as client:
-            result = await client.post(
-                "https://sens-o-matic.prefect.io/",
-                json=heartbeat,
-                headers={"x-prefect-event": "prefect_server"},
-            )
+        try:
+            async with httpx.AsyncClient() as client:
+                result = await client.post(
+                    "https://sens-o-matic.prefect.io/",
+                    json=heartbeat,
+                    headers={"x-prefect-event": "prefect_server"},
+                )
+            result.raise_for_status()
+        except Exception as exc:
 
-            try:
-                result.raise_for_status()
-            except Exception:
-                self.logger.exception("Failed to send telemetry.")
+            self.logger.error(
+                f"Failed to send telemetry: {exc}\n"
+                "Shutting down telemetry service...",
+                # The traceback is only needed if doing deeper debugging, otherwise
+                # this looks like an impactful server error
+                exc_info=PREFECT_DEBUG_MODE.value(),
+            )
+            await self.stop(block=False)
 
 
 if __name__ == "__main__":

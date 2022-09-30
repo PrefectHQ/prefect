@@ -151,11 +151,13 @@ class TestReturnValueToState:
         # flow state
         state = Completed(data=DataDocument.encode("json", "hello"))
         future = PrefectFuture(
-            task_run=task_run,
-            run_key=str(task_run.id),
+            key=str(task_run.id),
+            name="hello",
             task_runner=None,
             _final_state=state,
         )
+        future.task_run = task_run
+        future._submitted.set()
         result_state = await return_value_to_state(future)
         assert result_state.data.decode() == state
         assert result_state.is_completed()

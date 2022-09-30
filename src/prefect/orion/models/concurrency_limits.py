@@ -61,7 +61,7 @@ async def read_concurrency_limit(
 ):
     """
     Reads a concurrency limit by id. If used for orchestration, simultaneous read race
-    conditions might allow the the concurrency limit to be temporarily exceeded.
+    conditions might allow the concurrency limit to be temporarily exceeded.
     """
 
     query = sa.select(db.ConcurrencyLimit).where(
@@ -80,7 +80,7 @@ async def read_concurrency_limit_by_tag(
 ):
     """
     Reads a concurrency limit by tag. If used for orchestration, simultaneous read race
-    conditions might allow the the concurrency limit to be temporarily exceeded.
+    conditions might allow the concurrency limit to be temporarily exceeded.
     """
 
     query = sa.select(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
@@ -148,7 +148,7 @@ async def read_concurrency_limits(
 ):
     """
     Reads a concurrency limits. If used for orchestration, simultaneous read race
-    conditions might allow the the concurrency limit to be temporarily exceeded.
+    conditions might allow the concurrency limit to be temporarily exceeded.
 
     Args:
         session: A database session
