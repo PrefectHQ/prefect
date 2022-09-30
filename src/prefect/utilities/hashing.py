@@ -4,6 +4,33 @@ from pathlib import Path
 from typing import Optional, Union
 
 import cloudpickle
+from pydantic import BaseModel
+
+
+class HashableJSONEncoder(json.JSONEncoder):
+    """
+    Produces hashable JSON representations of objects that are not
+    JSON serializable by the default encoder.
+    """
+
+    def default(self, obj):
+
+        # Convert bytes to hex string
+        if isinstance(obj, bytes):
+            return obj.hex()
+
+        # Convert set to list and sort it to produce stable hash
+        if isinstance(obj, set):
+            set_as_list = list(obj)
+            set_as_list.sort()
+            return set_as_list
+
+        # Convert Pydantic model instances, such as Blocks, to JSON string
+        # using Pydantic's .json() method
+        if isinstance(obj, BaseModel):
+            return obj.json(sort_keys=True)
+
+        return json.JSONEncoder.default(self, obj)
 
 
 def stable_hash(*args: Union[str, bytes], hash_algo=hashlib.md5) -> str:
@@ -47,7 +74,8 @@ def hash_objects(*args, hash_algo=hashlib.md5, **kwargs) -> Optional[str]:
     """
     try:
         return stable_hash(
-            json.dumps((args, kwargs), sort_keys=True), hash_algo=hash_algo
+            json.dumps((args, kwargs), sort_keys=True, cls=HashableJSONEncoder),
+            hash_algo=hash_algo,
         )
     except Exception:
         pass
