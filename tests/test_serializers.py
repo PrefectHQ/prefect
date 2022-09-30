@@ -1,8 +1,7 @@
+import base64
 import json
-import sys
 import uuid
 from dataclasses import dataclass
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pydantic
@@ -131,44 +130,48 @@ class TestPickleSerializer:
         serialized = serializer.dumps(data)
         assert serializer.loads(serialized) == data
 
-    def test_does_not_allow_pickle_modules_without_cloudpickle(self):
-        with pytest.raises(ValueError, match="cloudpickle"):
-            PickleSerializer(pickle_modules=["test"], picklelib="pickle")
+    @pytest.mark.parametrize("data", SERIALIZER_TEST_CASES)
+    def test_simple_roundtrip_with_builtin_pickle(self, data):
+        serializer = PickleSerializer(picklelib="pickle")
+        serialized = serializer.dumps(data)
+        assert serializer.loads(serialized) == data
 
-    def test_supports_module_serialization(self, monkeypatch):
-        monkeypatch.syspath_prepend(
-            str(Path(__file__).parent / "test-projects" / "import-project")
-        )
+    def test_picklelib_must_be_string(self):
+        import pickle
 
-        from my_module.flow import test_flow
+        with pytest.raises(ValueError):
+            PickleSerializer(picklelib=pickle)
 
-        serializer = PickleSerializer(pickle_modules=["my_module"])
-        content = serializer.dumps(test_flow)
+    def test_picklelib_is_used(self, monkeypatch):
+        dumps = MagicMock(return_value=b"test")
+        loads = MagicMock(return_value="test")
+        monkeypatch.setattr("pickle.dumps", dumps)
+        monkeypatch.setattr("pickle.loads", loads)
+        serializer = PickleSerializer(picklelib="pickle")
+        serializer.dumps("test")
+        dumps.assert_called_once_with("test")
+        serializer.loads(b"test")
+        loads.assert_called_once_with(base64.decodebytes(b"test"))
 
-        monkeypatch.undo()
-        sys.modules.pop("my_module")
+    def test_picklelib_must_implement_dumps(self, monkeypatch):
+        import pickle
 
-        flow = serializer.loads(content)
-        assert flow() == "test!"
+        monkeypatch.delattr(pickle, "dumps")
+        with pytest.raises(
+            ValueError,
+            match="Pickle library at 'pickle' does not have a 'dumps' method.",
+        ):
+            PickleSerializer(picklelib="pickle")
 
-    def test_fails_on_relative_import_without_module_serialization(
-        self,
-        monkeypatch,
-    ):
-        monkeypatch.syspath_prepend(
-            str(Path(__file__).parent / "test-projects" / "import-project")
-        )
+    def test_picklelib_must_implement_loads(self, monkeypatch):
+        import pickle
 
-        from my_module.flow import test_flow
-
-        serializer = PickleSerializer()
-        content = serializer.dumps(test_flow)
-
-        monkeypatch.undo()
-        sys.modules.pop("my_module")
-
-        with pytest.raises(ModuleNotFoundError, match="No module named 'my_module'"):
-            serializer.loads(content)
+        monkeypatch.delattr(pickle, "loads")
+        with pytest.raises(
+            ValueError,
+            match="Pickle library at 'pickle' does not have a 'loads' method.",
+        ):
+            PickleSerializer(picklelib="pickle")
 
 
 class TestJSONSerializer:
