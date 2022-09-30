@@ -2,7 +2,7 @@
 Routes for interacting with Deployment objects.
 """
 
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 
 import pendulum
