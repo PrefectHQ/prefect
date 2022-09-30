@@ -71,7 +71,7 @@ def run_deployment(deployment_name: str, max_polls: int = 60, poll_interval: flo
     body = {"parameters": parameters}
 
     flow_run_id = client.post(
-        f"/deployments/name/{deployment_name}/schedule_now",
+        f"/deployments/name/{deployment_name}/schedule_flow_run",
         json=body,
     ).json()
 
@@ -104,7 +104,7 @@ def schedule_deployment(
     body = {"schedule_time": schedule_time.isoformat(), "parameters": parameters}
 
     res = client.post(
-        f"/deployments/name/{deployment_name}/schedule_now",
+        f"/deployments/name/{deployment_name}/schedule_flow_run",
         json=body,
     )
     return res.json()
