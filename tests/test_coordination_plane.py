@@ -1,4 +1,3 @@
-import json
 import re
 
 import pendulum
@@ -16,7 +15,7 @@ from prefect.coordination_plane import (
 )
 from prefect.deployments import Deployment
 from prefect.orion.schemas import states
-from prefect.settings import PREFECT_API_URL, temporary_settings
+from prefect.settings import PREFECT_API_URL
 from prefect.testing.cli import invoke_and_assert
 
 
