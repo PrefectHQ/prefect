@@ -4,7 +4,6 @@ from datetime import datetime
 import pendulum
 from httpx import Client
 
-import prefect.settings
 from prefect.orion.api.server import ORION_API_VERSION
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
 
