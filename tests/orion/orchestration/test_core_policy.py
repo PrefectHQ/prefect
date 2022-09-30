@@ -168,6 +168,41 @@ class TestCachingBackendLogic:
         assert ctx2.response_status == expected_status
         assert ctx2.validated_state.name == expected_name
 
+    async def test_cache_insertion_requires_validated_state(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Regression test for the bug observed when exiting the CacheInsertion
+        rule after a database error that prevented committing the validated state"""
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.COMPLETED
+        intended_transition = (initial_state_type, proposed_state_type)
+        expiration = pendulum.now().subtract(days=1)
+
+        ctx1 = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details={"cache_key": "cache-hit", "cache_expiration": expiration},
+            proposed_details={"cache_key": "cache-hit", "cache_expiration": expiration},
+        )
+
+        with pytest.raises(ValueError, match="this better be mine"):
+            async with contextlib.AsyncExitStack() as stack:
+                ctx1 = await stack.enter_async_context(
+                    CacheInsertion(ctx1, *intended_transition)
+                )
+                # Simulate an exception (for example, a database error) that happens
+                # within the context manager; when this happens, we've observed the
+                # CacheInsertion to raise:
+                #
+                #   AttributeError: 'NoneType' object has no attribute 'state_details'
+                #
+                # because the `validated_state` passed to its after_transition
+                # handler is None
+                raise ValueError("this better be mine")
+
     @pytest.mark.parametrize(
         "proposed_state_type",
         # Include all state types but COMPLETED; cast to sorted list for determinism
