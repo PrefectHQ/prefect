@@ -735,14 +735,14 @@ class TestSetScheduleActive:
 
 
 class TestScheduleDeployment:
-    async def test_schedule_single_deployment_now(
+    async def test_schedule_single_deployment(
         self, client, session, flow, deployment
     ):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
 
         await client.post(
-            f"/deployments/name/{flow.name}/{deployment.name}/schedule_now"
+            f"/deployments/name/{flow.name}/{deployment.name}/schedule_flow_run"
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
