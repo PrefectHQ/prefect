@@ -126,8 +126,8 @@ class Flow(Generic[P, R]):
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
         persist_result: Optional[bool] = None,
-        result_storage: ResultStorage = None,
-        result_serializer: ResultSerializer = None,
+        result_storage: Optional[ResultStorage] = None,
+        result_serializer: Optional[ResultSerializer] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -215,8 +215,8 @@ class Flow(Generic[P, R]):
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = None,
         persist_result: Optional[bool] = NotSet,
-        result_storage: ResultStorage = NotSet,
-        result_serializer: ResultSerializer = NotSet,
+        result_storage: Optional[ResultStorage] = NotSet,
+        result_serializer: Optional[ResultSerializer] = NotSet,
     ):
         """
         Create a new flow from the current object, updating provided options.
@@ -504,8 +504,8 @@ def flow(
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
     persist_result: Optional[bool] = None,
-    result_storage: ResultStorage = None,
-    result_serializer: ResultSerializer = None,
+    result_storage: Optional[ResultStorage] = None,
+    result_serializer: Optional[ResultSerializer] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.

@@ -136,8 +136,8 @@ class Task(Generic[P, R]):
         retries: int = 0,
         retry_delay_seconds: Union[float, int] = 0,
         persist_result: Optional[bool] = None,
-        result_storage: ResultStorage = None,
-        result_serializer: ResultSerializer = None,
+        result_storage: Optional[ResultStorage] = None,
+        result_serializer: Optional[ResultSerializer] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -202,8 +202,8 @@ class Task(Generic[P, R]):
         retries: int = 0,
         retry_delay_seconds: Union[float, int] = 0,
         persist_result: Optional[bool] = NotSet,
-        result_storage: ResultStorage = NotSet,
-        result_serializer: ResultSerializer = NotSet,
+        result_storage: Optional[ResultStorage] = NotSet,
+        result_serializer: Optional[ResultSerializer] = NotSet,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -721,8 +721,8 @@ def task(
     retries: int = 0,
     retry_delay_seconds: Union[float, int] = 0,
     persist_result: Optional[bool] = None,
-    result_storage: ResultStorage = None,
-    result_serializer: ResultSerializer = None,
+    result_storage: Optional[ResultStorage] = None,
+    result_serializer: Optional[ResultSerializer] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -739,8 +739,8 @@ def task(
     retries: int = 0,
     retry_delay_seconds: Union[float, int] = 0,
     persist_result: Optional[bool] = None,
-    result_storage: ResultStorage = None,
-    result_serializer: ResultSerializer = None,
+    result_storage: Optional[ResultStorage] = None,
+    result_serializer: Optional[ResultSerializer] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
