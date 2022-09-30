@@ -31,7 +31,6 @@ class NameHighlighter(RegexHighlighter):
     highlights = [
         # ?i means case insensitive
         # ?<= means find string right after the words: flow run
-        r"(?i)(?P<name>\'(.*?)\')",
         r"(?i)(?P<flow_run_name>(?<=flow run) \'(.*?)\')",
         r"(?i)(?P<flow_name>(?<=flow) \'(.*?)\')",
         r"(?i)(?P<task_run_name>(?<=task run) \'(.*?)\')",
