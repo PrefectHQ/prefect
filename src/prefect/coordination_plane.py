@@ -1,6 +1,7 @@
 import time
 from datetime import datetime
 
+import pendulum
 from httpx import Client
 
 import prefect.settings
@@ -90,10 +91,10 @@ def run_deployment(
                 raise MissingFlowRunError("Error polling flow run")
 
             if flow_state in TERMINAL_STATE_STRINGS:
-                return True
+                return flow_state
 
         raise DeploymentTimeout(
-            "Deployment did not reach a terminal state and might still be running."
+            f"Deployment run did not terminate and is in the {flow_state} state"
         )
 
 
@@ -106,12 +107,14 @@ def schedule_deployment(
     If no time is provided, the deployment will be scheduled to run immediately.
     """
 
-    client = _minimal_client()
+    with _minimal_client() as client:
+        schedule_time = pendulum.now() if schedule_time is None else schedule_time
 
-    body = {"schedule_time": schedule_time.isoformat(), "parameters": parameters}
+        body = {"schedule_time": schedule_time.isoformat(), "parameters": parameters}
 
-    res = client.post(
-        f"/deployments/name/{deployment_name}/schedule_flow_run",
-        json=body,
-    )
+        res = client.post(
+            f"/deployments/name/{deployment_name}/schedule_flow_run",
+            json=body,
+        )
+
     return res.json()

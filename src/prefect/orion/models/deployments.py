@@ -360,6 +360,7 @@ async def schedule_run(
     deployment_id: UUID,
     schedule_time: datetime.datetime = None,
     parameters: Optional[dict] = None,
+    auto_scheduled: bool = True,
 ) -> List[UUID]:
     """ """
     if schedule_time is None:
@@ -370,6 +371,7 @@ async def schedule_run(
         deployment_id=deployment_id,
         schedule_time=schedule_time,
         parameters=parameters,
+        auto_scheduled=auto_scheduled,
     )
     return await _insert_scheduled_flow_runs(session=session, runs=runs)
 
@@ -422,6 +424,7 @@ async def _generate_scheduled_flow_run(
     schedule_time: datetime.datetime,
     parameters: Optional[dict],
     db: OrionDBInterface,
+    auto_scheduled: bool = True,
 ) -> List[Dict]:
     """ """
     runs = []
@@ -440,7 +443,7 @@ async def _generate_scheduled_flow_run(
             "infrastructure_document_id": deployment.infrastructure_document_id,
             "idempotency_key": f"scheduled {deployment.id} {schedule_time}",
             "tags": ["auto-scheduled"] + deployment.tags,
-            "auto_scheduled": True,
+            "auto_scheduled": auto_scheduled,
             "state": schemas.states.Scheduled(
                 scheduled_time=schedule_time,
                 message="Flow run scheduled",
@@ -463,6 +466,7 @@ async def _generate_scheduled_flow_runs(
     end_time: datetime.datetime,
     max_runs: int,
     db: OrionDBInterface,
+    auto_scheduled: bool = True,
 ) -> List[Dict]:
     """
     Given a `deployment_id` and schedule, generates a list of flow run objects and
@@ -506,7 +510,7 @@ async def _generate_scheduled_flow_runs(
                 "infrastructure_document_id": deployment.infrastructure_document_id,
                 "idempotency_key": f"scheduled {deployment.id} {date}",
                 "tags": ["auto-scheduled"] + deployment.tags,
-                "auto_scheduled": True,
+                "auto_scheduled": auto_scheduled,
                 "state": schemas.states.Scheduled(
                     scheduled_time=date,
                     message="Flow run scheduled",

@@ -239,8 +239,9 @@ async def schedule_flow_run_from_deployment(
         flow_run_ids = await models.deployments.schedule_run(
             session=session,
             deployment_id=deployment.id,
-            schedule_time=pendulum.now("UTC"),
+            schedule_time=schedule_time,
             parameters=parameters,
+            auto_scheduled=False,
         )
 
         return flow_run_ids[0]
