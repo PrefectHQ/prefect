@@ -6,10 +6,10 @@ from importlib import import_module
 from pathlib import Path
 from types import ModuleType
 from typing import List, Optional, Type
+from uuid import UUID
 
 import typer
 from rich.table import Table
-from uuid import UUID
 
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.cli._types import PrefectTyper
@@ -362,7 +362,7 @@ async def blocktype_delete(
             except Exception as exc:
                 raise exc
             # except ObjectNotFound:
-                # exit_with_error(f"Block Type {slug!r} not found!")
+            # exit_with_error(f"Block Type {slug!r} not found!")
             # except PrefectHTTPStatusError as exc:
-                # if exc.response.status_code == 403:
-                    # exit_with_error(f"Block Type {slug!r} is a protected block!")
+            # if exc.response.status_code == 403:
+            # exit_with_error(f"Block Type {slug!r} is a protected block!")

@@ -59,7 +59,12 @@ def _minimal_client():
     return Client(**httpx_settings)
 
 
-def run_deployment(deployment_name: str, max_polls: int = 60, poll_interval: float = 5):
+def run_deployment(
+    deployment_name: str,
+    max_polls: int = 60,
+    poll_interval: float = 5,
+    parameters: dict = None,
+):
     """
     Runs a deployment immediately.
 
@@ -67,23 +72,25 @@ def run_deployment(deployment_name: str, max_polls: int = 60, poll_interval: flo
     the polling duration has been exceeded.
     """
 
-    client = _minimal_client()
-    body = {"parameters": parameters}
+    with _minimal_client() as client:
+        body = {"parameters": parameters}
 
-    flow_run_id = client.post(
-        f"/deployments/name/{deployment_name}/schedule_flow_run",
-        json=body,
-    ).json()
+        flow_run_res = client.post(
+            f"/deployments/name/{deployment_name}/schedule_flow_run",
+            json=body,
+        )
+        flow_run_id = flow_run_res.json()
 
-    for poll in range(max_polls):
-        time.sleep(poll_interval)
-        try:
-            flow_state = client.get(f"/flow_runs/{flow_run_id}").json()["state"]["type"]
-        except KeyError:
-            raise MissingFlowRunError("Error polling flow run")
+        for poll in range(max_polls):
+            time.sleep(poll_interval)
+            try:
+                flow_run = client.get(f"/flow_runs/{flow_run_id}")
+                flow_state = flow_run.json()["state"]["type"]
+            except KeyError:
+                raise MissingFlowRunError("Error polling flow run")
 
-        if flow_state in TERMINAL_STATE_STRINGS:
-            return
+            if flow_state in TERMINAL_STATE_STRINGS:
+                return True
 
         raise DeploymentTimeout(
             "Deployment did not reach a terminal state and might still be running."
@@ -94,7 +101,7 @@ def schedule_deployment(
     deployment_name: str, schedule_time: datetime = None, parameters: dict = None
 ):
     """
-    Schedules a single deployment run for the specified time.
+    Schedules a single deployment run for the specified time and returns immediately.
 
     If no time is provided, the deployment will be scheduled to run immediately.
     """

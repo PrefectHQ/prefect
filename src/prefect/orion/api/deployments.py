@@ -213,8 +213,8 @@ async def schedule_deployment(
         )
 
 
-@router.post("/name/{flow_name}/{deployment_name}/schedule_now")
-async def schedule_deployment_now(
+@router.post("/name/{flow_name}/{deployment_name}/schedule_flow_run")
+async def schedule_flow_run_from_deployment(
     flow_name: str = Path(..., description="The name of the flow"),
     deployment_name: str = Path(..., description="The name of the deployment"),
     schedule_time: DateTimeTZ = Body(
@@ -226,9 +226,10 @@ async def schedule_deployment_now(
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> UUID:
     """
-    I'll schedule the deployment today.
-    You'll schedule the deployment NOW.
-    I'll schedule the deployment now.
+    Schedules a flow run from a deployment.
+
+    This route accepts a simplified body and can be constructed without needing a
+    create action object.
     """
     schedule_time = pendulum.now("UTC") if schedule_time is None else schedule_time
     async with db.session_context(begin_transaction=True) as session:
