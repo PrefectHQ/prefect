@@ -6,13 +6,17 @@ from typing import Dict, Type, Union
 from uuid import UUID, uuid4
 
 import pytest
-from pydantic import Field, SecretBytes, SecretStr
+from packaging.version import Version
+from pydantic import BaseModel, Field, SecretBytes, SecretStr
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
+from prefect.blocks.system import Secret
 from prefect.client import OrionClient
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
+from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
 from prefect.orion.utilities.names import obfuscate_string
 from prefect.utilities.dispatch import lookup_type, register_type
 
@@ -179,10 +183,18 @@ class TestAPICompatibility:
         assert isinstance(blockdoc.data["y"], SecretBytes)
 
         json_blockdoc = json.loads(blockdoc.json())
-        assert json_blockdoc["data"] == {"x": "**********", "y": "**********", "z": "z"}
+        assert json_blockdoc["data"] == {
+            "x": "**********",
+            "y": "**********",
+            "z": "z",
+        }
 
         json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
-        assert json_blockdoc_with_secrets["data"] == {"x": "x", "y": "y", "z": "z"}
+        assert json_blockdoc_with_secrets["data"] == {
+            "x": "x",
+            "y": "y",
+            "z": "z",
+        }
 
     def test_create_nested_api_block_with_secret_values_are_obfuscated_by_default(self):
         class Child(Block):
@@ -207,14 +219,20 @@ class TestAPICompatibility:
         assert json_blockdoc["data"] == {
             "a": "**********",
             "b": "b",
-            "child": {"a": "**********", "b": "b"},
+            # The child includes the type slug because it is not a block document
+            "child": {
+                "a": "**********",
+                "b": "b",
+                "block_type_slug": "child",
+            },
         }
 
         json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
         assert json_blockdoc_with_secrets["data"] == {
             "a": "a",
             "b": "b",
-            "child": {"a": "a", "b": "b"},
+            # The child includes the type slug because it is not a block document
+            "child": {"a": "a", "b": "b", "block_type_slug": "child"},
         }
 
     def test_registering_blocks_with_capabilities(self):
@@ -466,6 +484,7 @@ class TestAPICompatibility:
         assert (
             block_schema.capabilities == []
         ), "No capabilities should be defined for this Block and defaults to []"
+        assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
 
     def test_create_block_schema_from_block_with_capabilities(
         self, test_block: Type[Block], block_type_x
@@ -477,6 +496,34 @@ class TestAPICompatibility:
         assert (
             block_schema.capabilities == []
         ), "No capabilities should be defined for this Block and defaults to []"
+        assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
+
+    def test_create_block_schema_with_no_version_specified(
+        self, test_block: Type[Block], block_type_x
+    ):
+        block_schema = test_block._to_block_schema(block_type_id=block_type_x.id)
+
+        assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
+
+    def test_create_block_schema_with_version_specified(
+        self, test_block: Type[Block], block_type_x
+    ):
+        test_block._block_schema_version = "1.0.0"
+        block_schema = test_block._to_block_schema(block_type_id=block_type_x.id)
+
+        assert block_schema.version == "1.0.0"
+
+    def test_create_block_schema_uses_prefect_version_for_built_in_blocks(self):
+        try:
+            Secret.register_type_and_schema()
+        except PrefectHTTPStatusError as exc:
+            if exc.response.status_code == 403:
+                pass
+            else:
+                raise exc
+
+        block_schema = Secret._to_block_schema()
+        assert block_schema.version == Version(prefect.__version__).base_version
 
     def test_collecting_capabilities(self):
         class CanRun(Block):
@@ -683,6 +730,7 @@ class TestAPICompatibility:
             "_block_document_id": middle_block_document_1.id,
             "_block_document_name": "middle-block-document-1",
             "_is_anonymous": False,
+            "block_type_slug": "c",
         }
         assert block_instance.d.dict() == {
             "b": {
@@ -690,11 +738,13 @@ class TestAPICompatibility:
                 "_block_document_id": inner_block_document.id,
                 "_block_document_name": "inner-block-document",
                 "_is_anonymous": False,
+                "block_type_slug": "b",
             },
             "z": "ztop",
             "_block_document_id": middle_block_document_2.id,
             "_block_document_name": "middle-block-document-2",
             "_is_anonymous": False,
+            "block_type_slug": "d",
         }
 
     async def test_create_block_from_nonexistent_name(self, test_block):
@@ -703,6 +753,19 @@ class TestAPICompatibility:
             match="Unable to find block document named blocky for block type x",
         ):
             await test_block.load("blocky")
+
+    def test_save_block_from_flow(self):
+        class Test(Block):
+            a: str
+
+        @prefect.flow
+        def save_block_flow():
+            Test(a="foo").save("test")
+
+        save_block_flow()
+
+        block = Test.load("test")
+        assert block.a == "foo"
 
 
 class TestRegisterBlockTypeAndSchema:
@@ -766,6 +829,34 @@ class TestRegisterBlockTypeAndSchema:
         )
         assert block_schema is not None
         assert block_schema.fields == self.NewBlock.schema()
+
+    async def test_register_new_block_schema_when_version_changes(
+        self, orion_client: OrionClient
+    ):
+        # Ignore warning caused by matching key in registry
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+        await self.NewBlock.register_type_and_schema()
+
+        block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=self.NewBlock._calculate_schema_checksum()
+        )
+        assert block_schema is not None
+        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
+
+        self.NewBlock._block_schema_version = "new_version"
+
+        await self.NewBlock.register_type_and_schema()
+
+        block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=self.NewBlock._calculate_schema_checksum()
+        )
+        assert block_schema is not None
+        assert block_schema.fields == self.NewBlock.schema()
+        assert block_schema.version == "new_version"
+
+        self.NewBlock._block_schema_version = None
 
     async def test_register_nested_block(self, orion_client: OrionClient):
         class Big(Block):
@@ -1128,7 +1219,7 @@ class TestSaveBlock:
         assert db_block_without_secrets.data == {
             "a": obfuscate_string("a"),
             "b": "b",
-            "child": {"a": obfuscate_string("a"), "b": "b"},
+            "child": {"a": obfuscate_string("a"), "b": "b", "block_type_slug": "child"},
         }
 
         # read from DB with secrets
@@ -1137,7 +1228,11 @@ class TestSaveBlock:
             block_document_id=block._block_document_id,
             include_secrets=True,
         )
-        assert db_block.data == {"a": "a", "b": "b", "child": {"a": "a", "b": "b"}}
+        assert db_block.data == {
+            "a": "a",
+            "b": "b",
+            "child": {"a": "a", "b": "b", "block_type_slug": "child"},
+        }
 
         # load block with secrets
         api_block = await Parent.load("secret-block")
@@ -1239,7 +1334,7 @@ class TestSaveBlock:
 
         assert loaded_inner_block == updated_inner_block
 
-    async def test_update_block_with_secrets(self, InnerBlock):
+    async def test_update_block_with_secrets(self):
         class HasSomethingToHide(Block):
             something_to_hide: SecretStr
 
@@ -1256,6 +1351,24 @@ class TestSaveBlock:
             loaded_shifty_block.something_to_hide.get_secret_value()
             == "a birthday present"
         )
+
+    async def test_block_with_alias(self):
+        class AliasBlock(Block):
+            type: str
+            schema_: str = Field(alias="schema")
+            real_name: str = Field(alias="an_alias")
+            threads: int = 4
+
+        alias_block = AliasBlock(
+            type="snowflake", schema="a_schema", an_alias="my_real_name", threads=8
+        )
+        await alias_block.save(name="my-aliased-block")
+
+        loaded_alias_block = await AliasBlock.load("my-aliased-block")
+        assert loaded_alias_block.type == "snowflake"
+        assert loaded_alias_block.schema_ == "a_schema"
+        assert loaded_alias_block.real_name == "my_real_name"
+        assert loaded_alias_block.threads == 8
 
 
 class TestToBlockType:
@@ -1461,12 +1574,22 @@ class TestGetDescription:
         assert A.get_description() == "But I will"
 
 
+class NoCodeExample(Block):
+    _block_type_name = "No code Example"
+
+    message: str
+
+
 class TestGetCodeExample:
     def test_no_code_example_configured(self):
-        class A(Block):
-            message: str
+        assert NoCodeExample.get_code_example() == dedent(
+            """\
+        ```python
+        from test_core import NoCodeExample
 
-        assert A.get_code_example() == None
+        no_code_example_block = NoCodeExample.load("BLOCK_NAME")
+        ```"""
+        )
 
     def test_code_example_from_docstring_example_heading(self, caplog):
         class A(Block):
@@ -1667,3 +1790,157 @@ class TestSyncCompatible:
 
         result = await my_flow()
         assert result == 1000000
+
+
+# Define types for `TestTypeDispatch`
+
+
+class BaseBlock(Block):
+    base: int = 0
+
+
+class ParentModel(BaseModel):
+    block: BaseBlock
+
+
+class AChildBlock(BaseBlock):
+    a: int = 1
+
+
+class BChildBlock(BaseBlock):
+    b: int = 2
+
+
+class TestTypeDispatch:
+    def test_block_type_slug_is_included_in_dict(self):
+        assert "block_type_slug" in AChildBlock().dict()
+
+    def test_block_type_slug_respects_exclude(self):
+        assert "block_type_slug" not in AChildBlock().dict(exclude={"block_type_slug"})
+
+    def test_block_type_slug_respects_include(self):
+        assert "block_type_slug" not in AChildBlock().dict(include={"a"})
+
+    async def test_block_type_slug_excluded_from_document(self, orion_client):
+        await AChildBlock.register_type_and_schema(client=orion_client)
+        document = AChildBlock()._to_block_document(name="foo")
+        assert "block_type_slug" not in document.data
+
+    def test_base_parse_works_for_base_instance(self):
+        block = BaseBlock.parse_obj(BaseBlock().dict())
+        assert type(block) == BaseBlock
+
+        block = BaseBlock.parse_obj(BaseBlock().dict())
+        assert type(block) == BaseBlock
+
+    def test_base_parse_creates_child_instance_from_dict(self):
+        block = BaseBlock.parse_obj(AChildBlock().dict())
+        assert type(block) == AChildBlock
+
+        block = BaseBlock.parse_obj(BChildBlock().dict())
+        assert type(block) == BChildBlock
+
+    def test_base_parse_creates_child_instance_from_json(self):
+        block = BaseBlock.parse_raw(AChildBlock().json())
+        assert type(block) == AChildBlock
+
+        block = BaseBlock.parse_raw(BChildBlock().json())
+        assert type(block) == BChildBlock
+
+    def test_base_parse_retains_default_attributes(self):
+        block = BaseBlock.parse_obj(AChildBlock().dict())
+        assert block.base == 0
+        assert block.a == 1
+
+    def test_base_parse_retains_set_child_attributes(self):
+        block = BaseBlock.parse_obj(BChildBlock(b=3).dict())
+        assert block.base == 0
+        assert block.b == 3
+
+    def test_base_parse_retains_set_base_attributes(self):
+        block = BaseBlock.parse_obj(BChildBlock(base=1).dict())
+        assert block.base == 1
+        assert block.b == 2
+
+    def test_base_field_creates_child_instance_from_object(self):
+        model = ParentModel(block=AChildBlock())
+        assert type(model.block) == AChildBlock
+
+        model = ParentModel(block=BChildBlock())
+        assert type(model.block) == BChildBlock
+
+    def test_base_field_creates_child_instance_from_dict(self):
+        model = ParentModel(block=AChildBlock().dict())
+        assert type(model.block) == AChildBlock
+
+        model = ParentModel(block=BChildBlock().dict())
+        assert type(model.block) == BChildBlock
+
+    def test_created_block_has_pydantic_attributes(self):
+        block = BaseBlock.parse_obj(AChildBlock().dict())
+        assert block.__fields_set__
+
+    def test_created_block_can_be_copied(self):
+        block = BaseBlock.parse_obj(AChildBlock().dict())
+        block_copy = block.copy()
+        assert block == block_copy
+
+    async def test_created_block_can_be_saved(self):
+        block = BaseBlock.parse_obj(AChildBlock().dict())
+        assert await block.save("test")
+
+    async def test_created_block_can_be_saved_then_loaded(self):
+        block = BaseBlock.parse_obj(AChildBlock().dict())
+        await block.save("test")
+        new_block = await block.load("test")
+        assert block == new_block
+        assert new_block.__fields_set__
+
+    def test_created_block_fields_set(self):
+        expected = {"base", "block_type_slug", "a"}
+
+        block = BaseBlock.parse_obj(AChildBlock().dict())
+        assert block.__fields_set__ == expected
+        assert block.a == 1
+
+        block = BaseBlock.parse_obj(AChildBlock(a=2).dict())
+        assert block.__fields_set__ == expected
+        assert block.a == 2
+
+        block = block.copy()
+        assert block.__fields_set__ == expected
+        assert block.a == 2
+
+    def test_base_field_creates_child_instance_with_union(self):
+        class UnionParentModel(BaseModel):
+            block: Union[AChildBlock, BChildBlock]
+
+        model = UnionParentModel(block=AChildBlock(a=3).dict())
+        assert type(model.block) == AChildBlock
+
+        # Assignment with a copy works still
+        model.block = model.block.copy()
+        assert type(model.block) == AChildBlock
+        assert model.block
+
+        model = UnionParentModel(block=BChildBlock(b=4).dict())
+        assert type(model.block) == BChildBlock
+
+    def test_base_field_creates_child_instance_with_assignment_validation(self):
+        class AssignmentParentModel(BaseModel):
+            block: BaseBlock
+
+            class Config:
+                validate_assignment = True
+
+        model = AssignmentParentModel(block=AChildBlock(a=3).dict())
+        assert type(model.block) == AChildBlock
+        assert model.block.a == 3
+
+        model.block = model.block.copy()
+        assert type(model.block) == AChildBlock
+        assert model.block.a == 3
+
+        model.block = BChildBlock(b=4).dict()
+        assert type(model.block) == BChildBlock
+        assert model.block.b == 4

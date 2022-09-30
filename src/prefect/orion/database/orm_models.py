@@ -770,6 +770,11 @@ class ORMBlockSchema:
     checksum = sa.Column(sa.String, nullable=False)
     fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     capabilities = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    version = sa.Column(
+        sa.String,
+        server_default=schemas.core.DEFAULT_BLOCK_SCHEMA_VERSION,
+        nullable=False,
+    )
 
     @declared_attr
     def block_type_id(cls):
@@ -788,8 +793,9 @@ class ORMBlockSchema:
     def __table_args__(cls):
         return (
             sa.Index(
-                "uq_block_schema__checksum",
+                "uq_block_schema__checksum_version",
                 "checksum",
+                "version",
                 unique=True,
             ),
             sa.Index("ix_block_schema__created", "created"),
@@ -1264,7 +1270,7 @@ class BaseORMConfiguration(ABC):
     @property
     def block_schema_unique_upsert_columns(self):
         """Unique columns for upserting a BlockSchema"""
-        return [self.BlockSchema.checksum]
+        return [self.BlockSchema.checksum, self.BlockSchema.version]
 
     @property
     def flow_unique_upsert_columns(self):

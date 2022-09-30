@@ -1,0 +1,8 @@
+recipeName: Flow Deployment with GitHub Actions
+author: Prefect
+authorUrl: https://prefect.io
+description: Deploy a Prefect flow with storage and infrastructure blocks, update and push Docker image to container registry.
+topic: GitHub
+recipeUrl: https://github.com/PrefectHQ/prefect-recipes/blob/main/devops/github-actions/general-docker-deploy.yaml
+iconUrl: 
+  - /img/collections/github.png
