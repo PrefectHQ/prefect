@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, SecretBytes, SecretStr
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
-from prefect.blocks.system import Secret
+from prefect.blocks.system import JSON, Secret
 from prefect.client import OrionClient
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.orion import models
@@ -766,6 +766,23 @@ class TestAPICompatibility:
 
         block = Test.load("test")
         assert block.a == "foo"
+
+    async def test_save_protected_block_with_new_block_schema_version(self, session):
+        """
+        This testcase would fail when block protection was enabled for block type
+        updates and block schema creation.
+        """
+        await models.block_registration.run_block_auto_registration(session=session)
+        await session.commit()
+
+        JSON._block_schema_version = "not the prefect version"
+
+        block_document_id = await JSON(value={"the_answer": 42}).save("test")
+
+        block_document = await models.block_documents.read_block_document_by_id(
+            session=session, block_document_id=block_document_id
+        )
+        assert block_document.block_schema.version == "not the prefect version"
 
 
 class TestRegisterBlockTypeAndSchema:
