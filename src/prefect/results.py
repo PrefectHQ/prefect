@@ -121,9 +121,9 @@ class ResultFactory(pydantic.BaseModel):
         ctx = FlowRunContext.get()
         if ctx:
             # This is a child flow run
-            result_storage = flow.result_storage or ctx.flow.result_storage
-            result_serializer = flow.result_serializer or ctx.flow.result_serializer
-            perist_result = (
+            result_storage = flow.result_storage or ctx.result_factory.storage_block
+            result_serializer = flow.result_serializer or ctx.result_factory.serializer
+            persist_result = (
                 flow.persist_result
                 if flow.persist_result is not None
                 else
@@ -136,7 +136,7 @@ class ResultFactory(pydantic.BaseModel):
             result_serializer = (
                 flow.result_serializer or get_default_result_serializer()
             )
-            perist_result = (
+            persist_result = (
                 flow.persist_result
                 if flow.persist_result is not None
                 # !! Root flows do not persist their result by default ever at this time
@@ -146,7 +146,7 @@ class ResultFactory(pydantic.BaseModel):
         return await cls.from_settings(
             result_storage=result_storage,
             result_serializer=result_serializer,
-            perist_result=perist_result,
+            persist_result=persist_result,
             client=client,
         )
 
@@ -164,9 +164,9 @@ class ResultFactory(pydantic.BaseModel):
                 "A flow run context is required to create a result factory for a task."
             )
 
-        result_storage = task.result_storage or ctx.flow.result_storage
-        result_serializer = task.result_serializer or ctx.flow.result_serializer
-        perist_result = (
+        result_storage = task.result_storage or ctx.result_factory.storage_block
+        result_serializer = task.result_serializer or ctx.result_factory.serializer
+        persist_result = (
             task.persist_result
             if task.persist_result is not None
             else
@@ -181,7 +181,7 @@ class ResultFactory(pydantic.BaseModel):
         return await cls.from_settings(
             result_storage=result_storage,
             result_serializer=result_serializer,
-            perist_result=perist_result,
+            persist_result=persist_result,
             client=client,
         )
 
@@ -191,7 +191,7 @@ class ResultFactory(pydantic.BaseModel):
         cls: Type[Self],
         result_storage: ResultStorage,
         result_serializer: ResultSerializer,
-        perist_results: bool,
+        persist_result: bool,
         client: OrionClient,
     ) -> Self:
         storage_block_id, storage_block = await cls.resolve_storage_block(
@@ -203,7 +203,7 @@ class ResultFactory(pydantic.BaseModel):
             storage_block=storage_block,
             storage_block_id=storage_block_id,
             serializer=serializer,
-            perist_results=perist_results,
+            persist_result=persist_result,
         )
 
     @staticmethod
