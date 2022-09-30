@@ -157,16 +157,16 @@ def enter_flow_run_engine_from_flow_call(
         else:
             # An event loop is not running so we will create one
             return anyio.run(begin_run)
+
+    if not parent_flow_run_context.flow.isasync:
+        # Async subflow run in sync flow run
+        return run_async_from_worker_thread(begin_run)
+    elif parent_flow_run_context.flow.isasync and flow.isasync:
+        # Async subflow run in async flow run
+        return begin_run()
     else:
-        if not parent_flow_run_context.flow.isasync:
-            # Async subflow run in sync flow run
-            return run_async_from_worker_thread(begin_run)
-        elif parent_flow_run_context.flow.isasync and flow.isasync:
-            # Async subflow run in async flow run
-            return begin_run()
-        else:
-            # Sync subflow run in async flow run
-            return parent_flow_run_context.sync_portal.call(begin_run)
+        # Sync subflow run in async flow run
+        return parent_flow_run_context.sync_portal.call(begin_run)
 
 
 def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
