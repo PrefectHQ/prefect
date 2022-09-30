@@ -1,5 +1,5 @@
 ---
-description: Prefect flow deployments encapsulate a flow, allowing it to be scheduled and triggered via API.
+description: Prefect deployments encapsulate a flow, allowing flow runs to be scheduled and triggered via API.
 tags:
     - Orion
     - work queues
@@ -8,7 +8,6 @@ tags:
     - flow runs
     - deployments
     - schedules
-    - tags
     - deployments.yaml
     - infrastructure
     - storage
@@ -61,14 +60,14 @@ graph LR
 ```
 
 !!! info "Your flow code and the Prefect hybrid model"
-    In the diagram above, the dotted line indicates the path of your flow code in the lifecycle of a Prefect deployment, from creation to executing a flow run. Notice that your flow code stays within your storage and execution infrastructure and never lives on the Prefect API or database.
+    In the diagram above, the dotted line indicates the path of your flow code in the lifecycle of a Prefect deployment, from creation to executing a flow run. Notice that your flow code stays within your storage and execution infrastructure and never lives on the Prefect server or database.
 
-    This is the heart of the Prefect hybrid model: there's always a boundary between your code, your private infrastructure, and the Prefect backend, such as [Prefect Cloud](/ui/cloud/). Even if you're using a self-hosted Prefect Orion API, you only register the deployment metadata on the backend.
+    This is the heart of the Prefect hybrid model: there's always a boundary between your code, your private infrastructure, and the Prefect backend, such as [Prefect Cloud](/ui/cloud/). Even if you're using a self-hosted Prefect Orion API, you only register the deployment metadata on the backend allowing for a clean separation of concerns.
 
 When creating a deployment, a user must answer *two* basic questions:
 
 - What instructions does an [agent](/concepts/work-queues/) need to set up an execution environment for my workflow? For example, a workflow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
-- Where and how can the agent access the flow code?
+- How should the flow code be accessed?
 
 A deployment additionally enables you to:
 
@@ -162,6 +161,9 @@ When you run this command, Prefect:
 - Uploads your flow files to the configured storage location (local by default).
 - Submit your deployment to the work queue `test`. The work queue `test` will be created if it doesn't exist.
 
+!!! note "Uploading files may require storage filesystem libraries"
+    Note that the appropriate filesystem library supporting the storage location must be installed prior to building a deployment with a storage block. For example, the AWS S3 Storage block requires the [`s3fs`](https://s3fs.readthedocs.io/en/latest/) library.
+
 !!! tip "Ignore files or directories from a deployment"
     By default, Prefect uploads _all files_ in the current folder to the configured storage location (local by default) when you build a deployment.
 
@@ -182,27 +184,42 @@ You may specify additional options to further customize your deployment.
 |  `-q`. `--work-queue TEXT`        |  The work queue that will handle this deployment's runs. It will be created if it doesn't already exist. Defaults to `None`. Note that if a work queue is not set, work will not be scheduled.
 |  `-o`, `--output TEXT`            | Optional location for the YAML manifest generated as a result of the `build` step. You can version-control that file, but it's not required since the CLI can generate everything you need to define a deployment. |
 |  `-i`, `--infra`                   | The [infrastructure type](/concepts/infrastructure/) to use. (Default is `Process`) |
-|  `-ib`, `--infra-block TEXT`       | The [infrastructure block](#block-indentifiers) to use, in `type/name` format. |
+|  `-ib`, `--infra-block TEXT`       | The [infrastructure block](#block-identifiers) to use, in `block-type/block-name` format. |
 |  `--override TEXT`       | One or more optional infrastructure overrides provided as a dot delimited path. For example, `env.env_key=env_value`. |
-|  <span class="no-wrap">`-sb`, `--storage-block TEXT`</span>    | The [storage block](#block-indentifiers) to use in `type/name` format. |
+|  <span class="no-wrap">`-sb`, `--storage-block TEXT`</span>    | The [storage block](#block-identifiers) to use, in `block-type/block-name` or `block-type/block-name/path` format. Note that the appropriate library supporting the storage filesystem must be installed. |
 |  `--cron TEXT`    | A cron string that will be used to set a [`CronSchedule`](/concepts/schedules/) on the deployment. For example, `--cron "*/1 * * * *"` to create flow runs from that deployment every minute. |
 |  `--interval INTEGER`     | An integer specifying an interval (in seconds) that will be used to set an [`IntervalSchedule`](/concepts/schedules/) on the deployment. For example, `--interval 60` to create flow runs from that deployment every minute. |
 |  `--rrule TEXT`     | An `RRule` that will be used to set an [`RRuleSchedule`](/concepts/schedules/) on the deployment. For example, `--rrule 'FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9,10,11,12,13,14,15,16,17'` to create flow runs from that deployment every hour but only during business hours. |
+| `--apply` | When provided, automatically registers the resulting deployment with the API. |
+| `--skip-upload` | When provided, skips uploading this deployment's files to remote storage. |
+| `--path` | An optional path to specify a subdirectory of remote storage to upload to. |
 
-### Block indentifiers
+### Block identifiers
 
-You can provide storage (`-sb`) and infrastructure block (`-ib`) identifiers in your `deployment build` command. The required format of a block type consists of the `block-type` and `block-name` in the format `block-type/block-name`. Block name is the name that you provided when creating the block. The block type is the same name as the underlying file system or infrastructure block class, but split into separate words combined with hyphens. Here are some examples that illustrate the pattern:
+When specifying a storage block with the `-sb` or `--storage-block` flag, you may specify the block by passing its slug. The storage block slug is formatted as `block-type/block-name`. 
 
-| Block class name | Block type used in a deployment |
-| ------- | ----------- |
-| `LocalFileSystem` | `local-file-system` |
-| `RemoteFileSystem` | `remote-file-system` |
-| `S3` | `s3` |
-| `GCS` | `gcs` |
-| `Azure` | `azure` |
-| `DockerContainer` | `docker-container` |
-| `KubernetesJob` | `kubernetes-job` |
-| `Process` | `process` |
+For example, `s3/example-block` is the slug for an S3 block named `example-block`.
+
+In addition, when passing the storage block slug, you may pass just the block slug or the block slug and a path.
+
+- `block-type/block-name` indicates just the block, including any path included in the block configuration.
+- `block-type/block-name/path` indicates a storage path in addition to any path included in the block configuration.
+
+When specifying an infrastructure block with the `-ib` or `--infra-block` flag, you specify the block by passing its slug. The infrastructure block slug is formatted as `block-type/block-name`. 
+
+| Block name | Block class name | Block type for a slug |
+| --- | --- | --- |
+| Azure | `Azure` | `azure` |
+| Docker Container | `DockerContainer` | `docker-container` |
+| GitHub | `GitHub` | `github` |
+| GCS | `GCS` | `gcs` |
+| Kubernetes Job | `KubernetesJob` | `kubernetes-job` |
+| Process | `Process` | `process` |
+| Remote File System | `RemoteFileSystem` | `remote-file-system` |
+| S3 | `S3` | `s3` |
+| SMB | `SMB` | `smb` |
+
+Note that the appropriate library supporting the storage filesystem must be installed prior to building a deployment with a storage block. For example, the AWS S3 Storage block requires the [`s3fs`](https://s3fs.readthedocs.io/en/latest/) library. See [Storage](/concepts/storage/) for more information.
 
 ### deployment.yaml
 
@@ -259,9 +276,34 @@ parameter_openapi_schema:
 
     We recommend editing most of these fields from the CLI or Prefect UI for convenience.
 
-### Create deployment in API
+### Parameters in deployments
 
-When you've configured `deployment.yaml` for a deployment, you can create the deployment on the API. Run the following Prefect CLI command.
+You may provide default parameter values in the `deployment.yaml` configuration, and these parameter values will be used for flow runs based on the deployment. 
+
+To configure default parameter values, add them to the `parameters: {}` line of `deployment.yaml` as JSON key-value pairs. The parameter list configured in `deployment.yaml` *must* match the parameters expected by the entrypoint flow function.
+
+```yaml
+parameters: {"name": "Marvin", "num": 42, "url": "https://catfact.ninja/fact"}
+```
+
+!!! tip "Passing **kwargs as flow parameters"
+    You may pass `**kwargs` as a deployment parameter as a `"kwargs":{}` JSON object containing the key-value pairs of any passed keyword arguments.
+
+    ```yaml
+    parameters: {"name": "Marvin", "kwargs":{"cattype":"tabby","num": 42}
+    ```
+
+You can edit default parameters for deployments in the Prefect UI, and you can override default parameter values when creating ad-hoc flow runs via the Prefect UI.
+
+To edit parameters in the Prefect UI, go the the details page for a deployment, then select **Edit** from the commands menu. If you change parameter values, the new values are used for all future flow runs based on the deployment.
+
+To create an ad-hoc flow run with different parameter values, go the the details page for a deployment, select **Run**, then select **Custom**. You will be able to provide custom values for any editable deployment fields. Under **Parameters**, select **Custom**. Provide the new values, then select **Save**. Select **Run** to begin the flow run with custom values.
+
+![Configuring custom parameter values for an ad-hoc flow run](/img/concepts/custom-parameters.png)
+
+## Create a deployment with the CLI
+
+When you've configured `deployment.yaml` for a deployment, you can create the deployment on the API by running the `prefect deployment apply` Prefect CLI command.
 
 <div class="terminal">
 ```bash
@@ -278,6 +320,8 @@ Successfully loaded 'catfact'
 Deployment '76a9f1ac-4d8c-4a92-8869-615bec502685' successfully created.
 ```
 </div>
+
+`prefect deployment apply` accepts an optional `--upload` flag that, when provided, uploads this deployment's files to remote storage.
 
 Once the deployment has been created, you'll see it in the [Prefect UI](/ui/flow-runs/) and can inspect it using the CLI.
 
@@ -309,7 +353,7 @@ When you run a deployed flow with Prefect Orion, the following happens:
 
     Scheduled flow runs will not run unless an appropriate [agent and work queue](/concepts/work-queues/) are configured.
 
-## Create a Deployment from a Python object
+## Create a deployment from a Python object
 
 You can also create deployments from Python scripts by using the [`prefect.deployments.Deployment`][prefect.deployments.Deployment] class.
 
@@ -429,7 +473,7 @@ $ prefect deployment inspect 'Cat Facts/catfact'
 }
 ```
 
-## Running deployments
+## Create a flow run from a deployment
 
 If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect Orion API server and agent is running. Prefect Cloud created scheduled flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
 
@@ -454,7 +498,7 @@ The `prefect deployment` CLI command provides commands for managing and running 
 
 ## Examples
 
-- [How to deploy Prefect 2.0 flows to AWS](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-aws/1252)
-- [How to deploy Prefect 2.0 flows to GCP](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-gcp/1251)
-- [How to deploy Prefect 2.0 flows to Azure](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-azure/1312)
-- [How to deploy Prefect 2.0 flows using files stored locally](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-run-as-a-local-process-docker-container-or-a-kubernetes-job/1246)
+- [How to deploy Prefect 2 flows to AWS](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-aws/1252)
+- [How to deploy Prefect 2 flows to GCP](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-gcp/1251)
+- [How to deploy Prefect 2 flows to Azure](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-azure/1312)
+- [How to deploy Prefect 2 flows using files stored locally](https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-run-as-a-local-process-docker-container-or-a-kubernetes-job/1246)

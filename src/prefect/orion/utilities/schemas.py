@@ -5,10 +5,12 @@ import copy
 import datetime
 import json
 import os
+from dataclasses import dataclass
 from functools import partial
-from typing import Any, Dict, List, Set, Type, TypeVar
+from typing import Any, Dict, List, Optional, Set, Type, TypeVar
 from uuid import UUID, uuid4
 
+import orjson
 import pendulum
 import pydantic
 from packaging.version import Version
@@ -113,6 +115,15 @@ def pydantic_subclass(
     return new_cls
 
 
+def orjson_dumps(v: Any, *, default: Any) -> str:
+    """
+    Utility for dumping a value to JSON using orjson.
+
+    orjson.dumps returns bytes, to match standard json.dumps we need to decode.
+    """
+    return orjson.dumps(v, default=default).decode()
+
+
 class PrefectBaseModel(BaseModel):
     """A base pydantic.BaseModel for all Prefect schemas and pydantic models.
 
@@ -128,7 +139,9 @@ class PrefectBaseModel(BaseModel):
     class Config:
         # extra attributes are forbidden in order to raise meaningful errors for
         # bad API payloads
-        if os.getenv("PREFECT_TEST_MODE"):
+        # We cannot load this setting through the normal pattern due to circular
+        # imports; instead just check if its a truthy setting directly
+        if os.getenv("PREFECT_TEST_MODE", "0").lower() in ["1", "true"]:
             extra = "forbid"
         else:
             extra = "ignore"
@@ -140,6 +153,10 @@ class PrefectBaseModel(BaseModel):
             copy_on_model_validation = "none"
         else:
             copy_on_model_validation = False
+
+        # Use orjson for serialization
+        json_loads = orjson.loads
+        json_dumps = orjson_dumps
 
     @classmethod
     def subclass(
@@ -326,8 +343,102 @@ class ORMBaseModel(IDBaseModel):
     class Config:
         orm_mode = True
 
-    created: DateTimeTZ = Field(None, repr=False)
-    updated: DateTimeTZ = Field(None, repr=False)
+    created: Optional[DateTimeTZ] = Field(default=None, repr=False)
+    updated: Optional[DateTimeTZ] = Field(default=None, repr=False)
 
     def _reset_fields(self) -> Set[str]:
         return super()._reset_fields().union({"created", "updated"})
+
+
+@dataclass
+class _FieldFrom:
+    """Container for holding the origin of a field's definition"""
+
+    origin: Type[BaseModel]
+
+
+def FieldFrom(origin: Type[BaseModel]) -> Any:
+    """
+    Indicates that the given field is to be copied from another class by
+    `copy_model_fields`.
+    """
+    return _FieldFrom(origin=origin)
+
+
+def copy_model_fields(model_class: Type[B]) -> Type[B]:
+    """
+    A class decorator which copies field definitions and field validators from other
+    Pydantic BaseModel classes.  This does _not_ make the model a subclass of any of
+    the copied field's owning classes, nor does this copy root validators from any of
+    those classes.  Note that you should still include the type hint for the field in
+    order to make typing explicit.
+
+    Use this decorator and the corresponding `FieldFrom` to compose response and
+    action schemas from other classes.
+
+    Example:
+
+        >>> from pydantic import BaseModel
+        >>> from prefect.orion.utilities.schemas import copy_model_fields, FieldFrom
+        >>>
+        >>> class Parent(BaseModel):
+        ...     name: str
+        ...     sensitive: str
+        >>>
+        >>> @copy_model_fields
+        >>> class Derived(BaseModel):
+        ...     name: str = FieldFrom(Parent)
+        ...     my_own: str
+
+        In this example, `Derived` will have the fields `name`, and `my_own`, with the
+        `name` field being a complete copy of the `Parent.name` field.
+
+    """
+    for name, field in model_class.__fields__.items():
+        if not isinstance(field.default, _FieldFrom):
+            continue
+
+        origin = field.default.origin
+
+        origin_field = origin.__fields__[name]
+
+        # For safety, types defined on the model must match those of the origin
+        # We make an exception here for `Optional` where the model can make the same
+        # type definition nullable.
+        if (
+            field.type_ != origin_field.type_
+            and not field.type_ == Optional[origin_field.type_]
+        ):
+            if not issubclass(
+                origin_field.type_,
+                field.type_,
+            ):
+                raise TypeError(
+                    f"Field {name} ({field.type_}) does not match the type of the origin "
+                    f"field {origin_field.type_}"
+                )
+
+        # Create a copy of the origin field
+        new_field = copy.deepcopy(origin_field)
+
+        # Retain any validators from the model field
+        new_field.post_validators = new_field.post_validators or []
+        new_field.pre_validators = new_field.pre_validators or []
+        new_field.post_validators.extend(field.post_validators or [])
+        new_field.pre_validators.extend(field.pre_validators or [])
+
+        # Retain "optional" from the model field
+        new_field.required = field.required
+        new_field.allow_none = field.allow_none
+
+        model_class.__fields__[name] = new_field
+
+        if name in origin.__validators__:
+            # The type: ignores here are because pydantic has a mistyping for these
+            # __validators__ fields (TODO: file an upstream PR)
+            validators: list = list(origin.__validators__[name])  # type: ignore
+            if name in model_class.__validators__:
+                validators.extend(model_class.__validators__[name])  # type: ignore
+            model_class.__validators__[name] = validators  # type: ignore
+
+    return model_class

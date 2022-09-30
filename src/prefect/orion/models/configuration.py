@@ -1,3 +1,5 @@
+from typing import Optional
+
 import sqlalchemy as sa
 
 from prefect.orion import schemas
@@ -12,18 +14,24 @@ async def write_configuration(
     db: OrionDBInterface,
 ):
     # first see if the key already exists
-    orm_configuration = await read_configuration(session=session, key=configuration.key)
+    query = sa.select(db.Configuration).where(db.Configuration.key == configuration.key)
+    result = await session.execute(query)  # type: ignore
+    existing_configuration = result.scalar()
     # if it exists, update its value
-    if orm_configuration:
-        orm_configuration.value = configuration.value
+    if existing_configuration:
+        existing_configuration.value = configuration.value
     # else create a new ORM object
     else:
-        orm_configuration = db.Configuration(
+        existing_configuration = db.Configuration(
             key=configuration.key, value=configuration.value
         )
-    session.add(orm_configuration)
+    session.add(existing_configuration)
     await session.flush()
-    return orm_configuration
+
+    # clear the cache for this key after writing a value
+    db.clear_configuration_value_cache_for_key(key=configuration.key)
+
+    return existing_configuration
 
 
 @inject_db
@@ -31,7 +39,8 @@ async def read_configuration(
     session: sa.orm.Session,
     key: str,
     db: OrionDBInterface,
-):
-    query = sa.select(db.Configuration).where(db.Configuration.key == key)
-    result = await session.execute(query)
-    return result.scalar()
+) -> Optional[schemas.core.Configuration]:
+    value = await db.read_configuration_value(session=session, key=key)
+    return (
+        schemas.core.Configuration(key=key, value=value) if value is not None else None
+    )

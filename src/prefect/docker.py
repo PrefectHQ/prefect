@@ -14,17 +14,18 @@ from typing import (
     List,
     Optional,
     TextIO,
+    Tuple,
     Type,
     Union,
 )
 from urllib.parse import urlsplit
 
 import pendulum
-from slugify import slugify
 from typing_extensions import Self
 
 import prefect
 from prefect.utilities.importtools import lazy_import
+from prefect.utilities.slugify import slugify
 
 
 def python_version_minor() -> str:
@@ -139,7 +140,8 @@ def build_image(
 
     if not context:
         raise ValueError("context required to build an image")
-    if not context.exists():
+
+    if not Path(context).exists():
         raise ValueError(f"Context path {context} does not exist")
 
     image_id = None
@@ -451,3 +453,41 @@ def to_run_command(command: List[str]) -> str:
     # )
 
     return run_command
+
+
+def parse_image_tag(name: str) -> Tuple[str, Optional[str]]:
+    """
+    Parse Docker Image String
+
+    - If a tag exists, this function parses and returns the image registry and tag, separately
+      as a tuple.
+      - Example 1: 'prefecthq/prefect:latest' -> ('prefecthq/prefect', 'latest')
+      - Example 2: 'hostname.io:5050/folder/subfolder:latest' -> ('hostname.io:5050/folder/subfolder', 'latest')
+    - Supports parsing Docker Image strings that follow Docker Image Specification v1.1.0
+      - Image building tools typically enforce this standard
+
+    Args:
+        name (str): Name of Docker Image
+
+    Return:
+        tuple: image registry, image tag
+    """
+    tag = None
+    name_parts = name.split("/")
+    # First handles the simplest image names (DockerHub-based, index-free, potentionally with a tag)
+    # - Example: simplename:latest
+    if len(name_parts) == 1:
+        if ":" in name_parts[0]:
+            image_name, tag = name_parts[0].split(":")
+        else:
+            image_name = name_parts[0]
+    else:
+        # 1. Separates index (hostname.io or prefecthq) from path:tag (folder/subfolder:latest or prefect:latest)
+        # 2. Separates path and tag (if tag exists)
+        # 3. Reunites index and path (without tag) as image name
+        index_name = name_parts[0]
+        image_path = "/".join(name_parts[1:])
+        if ":" in image_path:
+            image_path, tag = image_path.split(":")
+        image_name = f"{index_name}/{image_path}"
+    return image_name, tag

@@ -22,6 +22,7 @@
   import { PageHeading, ColorModeSelect, ColorMode } from '@prefecthq/orion-design'
   import { ref, watchEffect } from 'vue'
   import SettingsCodeBlock from '@/components/SettingsCodeBlock.vue'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { adminApi } from '@/services/adminApi'
   import { getActiveColorMode, setActiveColorMode } from '@/utilities/colorMode'
 
@@ -30,6 +31,8 @@
   const engineSettings = await adminApi.getSettings()
   const version = await adminApi.getVersion()
   const mode = ref<ColorMode>(getActiveColorMode())
+
+  usePageTitle('Settings')
 
   watchEffect(() => setActiveColorMode(mode.value))
 </script>

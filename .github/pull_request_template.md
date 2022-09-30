@@ -1,29 +1,29 @@
-<!-- Make sure that your title neatly summarizes the proposed changes -->
+<!-- 
+Thanks for opening a pull request to Prefect! We've got a few requests to help us review contributions:
 
-### Summary
-<!-- Provide a short overview of the change and the value it adds -->
+- Make sure that your title neatly summarizes the proposed changes.
+- Provide a short overview of the change and the value it adds.
+- Share an example to help us understand the change in user experience.
+- Confirm that you've done common tasks so we can give a timely review.
 
-### Steps Taken to QA Changes
-<!-- Describe the steps that you have taken to make sure that your changes work as intended without breaking other functionality. These steps should be reproducible and easy to follow for other QA testers-->
-
-### Checklist
-<!-- go over following points. check them with an `x` if they do apply, (they turn into clickable checkboxes once the PR is submitted, so no need to do everything at once)
-
+Happy engineering!
 -->
 
-This pull request is:
+<!-- Include an overview here -->
 
-- [ ] A documentation / typographical error fix
-	- No tests or issue needed
-- [ ] A short code fix
-	- Please reference the related issue by including "closes `<link to issue>`" in this Pull Request's summary section. 
-        - If no issue exists, please create a bug report issue 
-	- Please include tests. One-line fixes without tests will not be accepted unless it's related to the documentation only.
-- [ ] A new feature implementation
-	- Please reference the related issue by including "closes `<link to issue>`" in this Pull Request's summary section. 
-        - If no issue exists, please create a feature enhancement issue 
-	- Please include tests
-    - Please make sure that your QA steps are both thorough and easy to reproduce by somebody with limited knowledge of the feature that you are submitting
+### Example
+<!-- 
+Share an example of the change in action.
 
+A code blurb is best. Changes to features should include an example that is executable by a new user.
+If changing documentation, a link to a preview of the page is great.
+ -->
 
-**Happy engineering!**
+### Checklist
+<!-- These boxes may be checked after opening the pull request. -->
+
+- [ ] This pull request references any related issue by including "closes `<link to issue>`"
+	- If no issue exists and your change is not a small fix, please [create an issue](https://github.com/PrefectHQ/prefect/issues/new/choose) first.
+- [ ] This pull request includes tests or only affects documentation.
+- [ ] This pull request includes a label categorizing the change e.g. `fix`, `feature`, `enhancement`
+  <!--  If you do not have permission to add a label, a maintainer will add one for you and check this box. -->

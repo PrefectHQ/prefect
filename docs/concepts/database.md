@@ -1,9 +1,10 @@
 ---
-description: Learn more about Prefect Orion database use and configuration.
+description: The Prefect Orion database stores deployment and flow run data.
 tags:
     - Orion
     - database
     - metadata
+    - migrations
     - SQLite
     - PostgreSQL
 ---
@@ -23,7 +24,7 @@ The Prefect Orion database persists data used by many features of Prefect to per
 Currently Prefect Orion supports the following databases:
 
 - SQLite: The default in Prefect Orion, and our recommendation for lightweight, single-server deployments. SQLite requires essentially no setup.
-- PostgreSQL: Best for connecting to external databases, but does require additional setup (such as Docker).
+- PostgreSQL: Best for connecting to external databases, but does require additional setup (such as Docker). Prefect Orion uses the [`pg_trgm`](https://www.postgresql.org/docs/current/pgtrgm.html) extension, so it must be installed and enabled.
 
 ## Using the database
 
@@ -79,7 +80,7 @@ $ docker run -d --name orion_postgres -v oriondb:/var/lib/postgresql/data -p 543
 
 The above command:
 
-- Pulls the [latest](https://hub.docker.com/_/postgres?tab=tags) version of the official `postgres` Docker image, which is compatible with Prefect 2.0.
+- Pulls the [latest](https://hub.docker.com/_/postgres?tab=tags) version of the official `postgres` Docker image, which is compatible with Prefect 2.
 - Starts a container with the name `orion_postgres`.
 - Creates a database `orion` with a user `postgres` and `yourTopSecretPassword` password.
 - Mounts the PostgreSQL data to a Docker volume called `oriondb` to provide persistence if you ever have to restart or rebuild that container.

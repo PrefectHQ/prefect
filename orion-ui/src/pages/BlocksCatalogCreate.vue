@@ -7,7 +7,7 @@
     <template v-if="blockType">
       <BlockTypeCardLayout :block-type="blockType">
         <template v-if="blockSchema">
-          <BlockSchemaCreateForm v-model:data="data" v-model:name="name" :block-schema="blockSchema" v-on="{ submit, cancel }" />
+          <BlockSchemaCreateForm :block-schema="blockSchema" v-on="{ submit, cancel }" />
         </template>
       </BlockTypeCardLayout>
     </template>
@@ -15,19 +15,18 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocksCatalogCreate, BlockTypeCardLayout, BlockSchemaCreateForm, BlockDocumentData } from '@prefecthq/orion-design'
+  import { PageHeadingBlocksCatalogCreate, BlockTypeCardLayout, BlockSchemaCreateForm, BlockDocumentCreateNamed } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
-  import { computed, ref } from 'vue'
+  import { computed } from 'vue'
   import { useRouter } from 'vue-router'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { blockDocumentsApi } from '@/services/blockDocumentsApi'
   import { blockSchemasApi } from '@/services/blockSchemasApi'
   import { blockTypesApi } from '@/services/blockTypesApi'
 
   const router = useRouter()
-  const data = ref<BlockDocumentData>({})
-  const name = ref('')
 
   const blockTypeSlugParam = useRouteParam('blockTypeSlug')
   const blockTypeSubscriptionArgs = computed<Parameters<typeof blockTypesApi.getBlockTypeBySlug> | null>(() => {
@@ -41,37 +40,20 @@
   const blockTypeSubscription = useSubscriptionWithDependencies(blockTypesApi.getBlockTypeBySlug, blockTypeSubscriptionArgs)
   const blockType = computed(() => blockTypeSubscription.response)
 
-  const blockSchemaSubscriptionArgs = computed<Parameters<typeof blockSchemasApi.getBlockSchemas> | null>(() => {
+  const blockSchemaSubscriptionArgs = computed<Parameters<typeof blockSchemasApi.getBlockSchemaForBlockType> | null>(() => {
     if (!blockType.value) {
       return null
     }
 
-    return [
-      {
-        blockSchemas: {
-          blockTypeId: {
-            any_: [blockType.value.id],
-          },
-        },
-      },
-    ]
+    return [blockType.value.id]
   })
 
-  const blockSchemaSubscription = useSubscriptionWithDependencies(blockSchemasApi.getBlockSchemas, blockSchemaSubscriptionArgs)
-  const blockSchema = computed(() => blockSchemaSubscription.response?.[0])
+  const blockSchemaSubscription = useSubscriptionWithDependencies(blockSchemasApi.getBlockSchemaForBlockType, blockSchemaSubscriptionArgs)
+  const blockSchema = computed(() => blockSchemaSubscription.response)
 
-  function submit(): void {
-    if (!blockSchema.value || !blockType.value) {
-      return
-    }
-
+  function submit(request: BlockDocumentCreateNamed): void {
     blockDocumentsApi
-      .createBlockDocument({
-        name: name.value,
-        data: data.value,
-        blockSchemaId: blockSchema.value.id,
-        blockTypeId: blockType.value.id,
-      })
+      .createBlockDocument(request)
       .then(({ id }) => {
         showToast('Block created successfully', 'success')
         router.push(routes.block(id))
@@ -85,4 +67,12 @@
   function cancel(): void {
     router.back()
   }
+
+  const title = computed<string>(() => {
+    if (blockType.value) {
+      return `Create ${blockType.value.name} Block`
+    }
+    return 'Create Block'
+  })
+  usePageTitle(title)
 </script>

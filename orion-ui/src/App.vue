@@ -12,13 +12,7 @@
     </template>
     <ContextSidebar v-if="showMenu" class="app__sidebar" @click="close" />
     <suspense>
-      <router-view class="app__router-view">
-        <template #default="{ Component }">
-          <transition name="app__router-view-fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </template>
-      </router-view>
+      <AppRouterView />
     </suspense>
   </div>
 </template>
@@ -53,6 +47,7 @@
     notificationCreateRouteKey,
     notificationsApiKey,
     notificationsRouteKey,
+    taskRunRouteKey,
     settingsRouteKey,
     taskRunsApiKey,
     workQueueCreateRouteKey,
@@ -67,6 +62,7 @@
   import { blockTypesApi } from './services/blockTypesApi'
   import { notificationsApi } from './services/notificationsApi'
   import ContextSidebar from '@/components/ContextSidebar.vue'
+  import AppRouterView from '@/pages/AppRouterView.vue'
   import { routes } from '@/router/routes'
   import { blockCapabilitiesApi } from '@/services/blockCapabilitiesApi'
   import { deploymentsApi } from '@/services/deploymentsApi'
@@ -75,6 +71,7 @@
   import { logsApi } from '@/services/logsApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
+  import { healthCheck } from '@/utilities/api'
   import { can } from '@/utilities/permissions'
 
   provide(blockCapabilitiesApiKey, blockCapabilitiesApi)
@@ -114,6 +111,7 @@
   provide(notificationCreateRouteKey, routes.notificationCreate)
   provide(editNotificationRouteKey, routes.notificationEdit)
   provide(notificationsRouteKey, routes.notifications)
+  provide(taskRunRouteKey, routes.taskRun)
   provide(workQueuesRouteKey, routes.workQueues)
 
   const mobileMenuOpen = ref(false)
@@ -126,6 +124,8 @@
   function close(): void {
     mobileMenuOpen.value = false
   }
+
+  healthCheck()
 
   watchEffect(() => document.body.classList.toggle('body-scrolling-disabled', showMenu.value && !media.lg))
 </script>
@@ -149,21 +149,6 @@
   w-6
   h-6
   cursor-pointer
-}
-
-.app__router-view { @apply
-  relative
-  z-0
-}
-
-.app__router-view-fade-enter-active,
-.app__router-view-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.app__router-view-fade-enter-from,
-.app__router-view-fade-leave-to {
-  opacity: 0;
 }
 
 @screen lg {

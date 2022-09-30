@@ -48,6 +48,7 @@
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import FlowRunsFilter from '@/components/FlowRunsFilter.vue'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { uiApi } from '@/services/uiApi'
@@ -71,12 +72,14 @@
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
   const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [filter], subscriptionOptions)
-  const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
+  const flowRuns = computed(() => flowRunsSubscription.response ?? [])
   const selectedFlowRuns = ref([])
 
   function clear(): void {
     router.push(routes.flowRuns())
   }
+
+  usePageTitle('Flow Runs')
 </script>
 
 <style>

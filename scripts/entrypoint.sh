@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# This is the default entrypoint for the official Prefect Docker image
 
 set -e
 
@@ -13,17 +14,11 @@ fi
 
 if [ -z "$*" ]; then
   echo "\
-          ____  _____  _____ ____  _   _
-         / __ \|  __ \|_   _/ __ \| \ | |
-        | |  | | |__) | | || |  | |  \| |
-        | |  | |  _  /  | || |  | |     |
-        | |__| | | \ \ _| || |__| | |\  |
-         \____/|_|  \_\_____\____/|_| \_|
+  ___ ___ ___ ___ ___ ___ _____ 
+ | _ \ _ \ __| __| __/ __|_   _|
+ |  _/   / _|| _|| _| (__  | |  
+ |_| |_|_\___|_| |___\___| |_|  
 
-
-Thanks for using Prefect!!!
-
-This is a development docker image for Prefect Orion.
 "
   exec bash --login
 else

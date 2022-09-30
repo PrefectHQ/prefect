@@ -28,15 +28,15 @@ body:
 
   - type: textarea
     attributes:
-      label: Describe the proposed behavior
-      description: A clear and concise description of what new feature or behavior you would like to see
-    validations:
-      required: true
-
-  - type: textarea
-    attributes:
       label: Describe the current behavior
       description: A clear and concise description of what Prefect currently does
+    validations:
+      required: true
+      
+  - type: textarea
+    attributes:
+      label: Describe the proposed behavior
+      description: A clear and concise description of what new feature or behavior you would like to see
     validations:
       required: true
 

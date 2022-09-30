@@ -539,7 +539,15 @@ def _json_has_any_key_sqlite(element, compiler, **kwargs):
     return compiler.process(
         sa.select(1)
         .select_from(json_each)
-        .where(sa.literal_column("json_each.value").in_(element.values))
+        .where(
+            sa.literal_column("json_each.value").in_(
+                # manually set the bindparam key because the default will
+                # include the `.` from the literal column name and sqlite params
+                # must be alphanumeric. `unique=True` automatically suffixes the bindparam
+                # if there are overlaps.
+                sa.bindparam(key="json_each_values", value=element.values, unique=True)
+            )
+        )
         .exists(),
         **kwargs,
     )

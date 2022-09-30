@@ -20,6 +20,7 @@
   import { WorkQueuesTable, PageHeadingWorkQueues, WorkQueuesPageEmptyState } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { workQueuesApi } from '@/services/workQueuesApi'
 
   const subscriptionOptions = {
@@ -30,4 +31,6 @@
   const workQueues = computed(() => workQueuesSubscription.response ?? [])
   const empty = computed(() => workQueuesSubscription.executed && workQueues.value.length == 0)
   const loaded = computed(() => workQueuesSubscription.executed)
+
+  usePageTitle('Work Queues')
 </script>

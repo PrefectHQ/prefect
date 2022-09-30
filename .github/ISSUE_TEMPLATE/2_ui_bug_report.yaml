@@ -78,12 +78,8 @@ body:
         If running the UI yourself, please provide information about host's Prefect version and environment. 
         The easiest way to retrieve all of the information we require is the `prefect version` command.
         If you are using Prefect Cloud, you may leave this field blank.
-      value: |
-        ```
-
-        # Copy output of `prefect version` here if hosting your own UI
-
-        ```
+      placeholder: "# Copy output of the `prefect version` command here if hosting your own UI"
+      render: Text
     validations:
       required: false
 

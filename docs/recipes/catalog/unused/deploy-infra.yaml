@@ -1,0 +1,9 @@
+recipeName: Deployment with Infrastructure
+author: Prefect
+authorUrl: https://prefect.io
+description: Create flow deployments that use local process, Docker Container, or Kubernetes Job infrastructure.
+topic: Deployments
+recipeUrl: https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-run-as-a-local-process-docker-container-or-a-kubernetes-job/1246
+iconUrl: 
+  - /img/collections/docker.png
+  - /img/collections/kubernetes.png

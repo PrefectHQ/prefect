@@ -1,8 +1,13 @@
+import os
 from pathlib import Path
 
 import pytest
 
-from prefect.filesystems import LocalFileSystem, RemoteFileSystem
+import prefect
+from prefect.filesystems import GitHub, LocalFileSystem, RemoteFileSystem
+from prefect.testing.utilities import AsyncMock
+
+TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
 
 
 class TestLocalFileSystem:
@@ -10,6 +15,11 @@ class TestLocalFileSystem:
         fs = LocalFileSystem(basepath=str(tmp_path))
         await fs.write_path("test.txt", content=b"hello")
         assert await fs.read_path("test.txt") == b"hello"
+
+    def test_read_write_roundtrip_sync(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+        fs.write_path("test.txt", content=b"hello")
+        assert fs.read_path("test.txt") == b"hello"
 
     async def test_write_with_missing_directory_creates(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
@@ -28,6 +38,17 @@ class TestLocalFileSystem:
         with pytest.raises(ValueError, match="not a file"):
             await fs.read_path(tmp_path / "folder")
 
+    async def test_resolve_path(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+
+        assert fs._resolve_path(tmp_path) == tmp_path
+        assert fs._resolve_path(tmp_path / "subdirectory") == tmp_path / "subdirectory"
+        assert fs._resolve_path("subdirectory") == tmp_path / "subdirectory"
+
+    async def test_get_directory_duplicate_directory(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+        await fs.get_directory(".", ".")
+
 
 class TestRemoteFileSystem:
     def test_must_contain_scheme(self):
@@ -44,6 +65,11 @@ class TestRemoteFileSystem:
         fs = RemoteFileSystem(basepath="memory://root")
         await fs.write_path("test.txt", content=b"hello")
         assert await fs.read_path("test.txt") == b"hello"
+
+    def test_read_write_roundtrip_sync(self):
+        fs = RemoteFileSystem(basepath="memory://root")
+        fs.write_path("test.txt", content=b"hello")
+        assert fs.read_path("test.txt") == b"hello"
 
     async def test_write_with_missing_directory_succeeds(self):
         fs = RemoteFileSystem(basepath="memory://root/")
@@ -72,3 +98,79 @@ class TestRemoteFileSystem:
         fs = RemoteFileSystem(basepath="memory://root")
         with pytest.raises(FileNotFoundError):
             await fs.read_path("foo/bar")
+
+    async def test_resolve_path(self):
+        base = "memory://root"
+        fs = RemoteFileSystem(basepath=base)
+
+        assert fs._resolve_path(base) == base + "/"
+        assert fs._resolve_path(f"{base}/subdir") == f"{base}/subdir"
+        assert fs._resolve_path("subdirectory") == f"{base}/subdirectory"
+
+    async def test_put_directory_flat(self):
+        fs = RemoteFileSystem(basepath="memory://flat")
+        await fs.put_directory(
+            os.path.join(TEST_PROJECTS_DIR, "flat-project"),
+            ignore_file=os.path.join(
+                TEST_PROJECTS_DIR, "flat-project", ".prefectignore"
+            ),
+        )
+        copied_files = set(fs.filesystem.glob("/flat/**"))
+
+        assert copied_files == {
+            "/flat/explicit_relative.py",
+            "/flat/implicit_relative.py",
+            "/flat/shared_libs.py",
+        }
+
+    async def test_put_directory_tree(self):
+        fs = RemoteFileSystem(basepath="memory://tree")
+        await fs.put_directory(
+            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
+            ignore_file=os.path.join(
+                TEST_PROJECTS_DIR, "tree-project", ".prefectignore"
+            ),
+        )
+        copied_files = set(fs.filesystem.glob("/tree/**"))
+
+        assert copied_files == {
+            "/tree/imports",
+            "/tree/imports/explicit_relative.py",
+            "/tree/imports/implicit_relative.py",
+            "/tree/shared_libs",
+            "/tree/shared_libs/bar.py",
+            "/tree/shared_libs/foo.py",
+        }
+
+
+class TestGitHub:
+    async def test_subprocess_errors_are_surfaced(self):
+        g = GitHub(repository="incorrect-url-scheme")
+        with pytest.raises(
+            OSError, match="fatal: repository 'incorrect-url-scheme' does not exist"
+        ):
+            await g.get_directory()
+
+    async def test_repository_default(self, monkeypatch):
+        class p:
+            returncode = 0
+
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect.filesystems, "run_process", mock)
+        g = GitHub(repository="prefect")
+        await g.get_directory()
+
+        assert mock.await_count == 1
+        assert f"git clone prefect" in mock.await_args[0][0]
+
+    async def test_reference_default(self, monkeypatch):
+        class p:
+            returncode = 0
+
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect.filesystems, "run_process", mock)
+        g = GitHub(repository="prefect", reference="2.0.0")
+        await g.get_directory()
+
+        assert mock.await_count == 1
+        assert f"git clone prefect -b 2.0.0 --depth 1" in mock.await_args[0][0]

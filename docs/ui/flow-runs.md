@@ -1,5 +1,5 @@
 ---
-description: View your flow runs in the Prefect 2.0 and Prefect Cloud UI.
+description: View and inspect your flow runs in the Prefect UI and Prefect Cloud.
 tags:
     - Orion
     - UI
@@ -132,7 +132,7 @@ Flows may end up in states other than Completed. This is where Prefect really he
 
 If you need to delete a flow or flow run: 
 
-In the Prefect UI or Prefect Cloud, go the the page for flow or flow run and the select the **Delete** command from the button to the right of the flow or flow run name.
+In the Prefect UI or Prefect Cloud, go the page for flow or flow run and the select the **Delete** command from the button to the right of the flow or flow run name.
 
 From the command line in your execution environment, you can delete a flow run by using the `prefect flow-run delete` CLI command, passing the ID of the flow run. 
 
@@ -143,3 +143,19 @@ $ prefect flow-run delete 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 </div>
 
 To get the flow run ID, see [Inspect a flow run](#inspect-a-flow-run). 
+
+## Flow run retention policy
+
+!!! info "Prefect Cloud feature"
+    The Flow Run Retention Policy setting is only applicable in Prefect Cloud.
+
+Flow runs in Prefect Cloud are retained according to the Flow Run Retention Policy setting in your personal account or organization profile. The policy setting applies to all workspaces owned by the personal account or organization respectively. 
+
+The flow run retention policy represents the number of days each flow run is available in the Prefect Cloud UI, and via the Prefect CLI and API after it ends. Once a flow run reaches a terminal state ([detailed in the chart here](/concepts/states/#state-types)), it will be retained until the end of the flow run retention period. 
+
+!!! tip "Flow Run Retention Policy keys on terminal state"
+    Note that, because Flow Run Retention Policy keys on terminal state, if two flows start at the same time, but reach a terminal state at different times, they will be removed at different times according to when they each reached their respective terminal states.
+
+This retention policy applies to all [details about a flow run](/ui/flow-runs/#inspect-a-flow-run), including its task runs. Subflow runs follow the retention policy independently from their parent flow runs, and are removed based on the time each subflow run reaches a terminal state. 
+
+If you or your organization have needs that require a tailored retention period, [contact our Sales team](https://www.prefect.io/pricing).

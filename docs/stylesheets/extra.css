@@ -77,3 +77,51 @@ to force column width */
 .no-wrap {
     white-space: nowrap;
 }
+
+/* badge formatting */
+.badge::before {
+    background-color: #1860F2;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    margin-left: 0.5rem;
+    vertical-align: super;
+    text-align: center;
+    border-radius: 5px;
+}
+
+.badge-api::before {
+    background-color: #1860F2;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    text-align: center;
+    border-radius: 5px;
+}
+
+.experimental::before {
+    background-color: #fccc3e;
+    content: "Experimental";
+}
+
+.cloud::before {
+    background-color: #799AF7;
+    content: "Prefect Cloud";
+}
+
+.deprecated::before {
+    background-color: #FA1C2F;
+    content: "Deprecated";
+}
+
+.new::before {
+    background-color: #2AC769;
+    content: "New";
+}
+
+.expert::before {
+    background-color: #726576;
+    content: "Advanced";
+}

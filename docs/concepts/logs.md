@@ -10,6 +10,7 @@ tags:
     - logging
     - log formatters
     - configuration
+    - debug
 ---
 
 # Logging
@@ -104,8 +105,8 @@ Logging in tasks works much as logging in flows: retrieve a logger instance with
 ```python
 from prefect import flow, task, get_run_logger
 
-@task
-def logger_task(name="log-example-task"):
+@task(name="log-example-task")
+def logger_task():
     logger = get_run_logger()
     logger.info("INFO level log message from a task.")
 
