@@ -6,7 +6,6 @@ from importlib import import_module
 from pathlib import Path
 from types import ModuleType
 from typing import List, Optional, Type
-from uuid import UUID
 
 import typer
 from rich.table import Table
@@ -17,7 +16,12 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.orion_utils import check_orion_connection, ui_base_url
 from prefect.cli.root import app
 from prefect.client import get_client
-from prefect.exceptions import ObjectNotFound, ScriptError, exception_traceback
+from prefect.exceptions import (
+    ObjectNotFound,
+    PrefectHTTPStatusError,
+    ScriptError,
+    exception_traceback,
+)
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.importtools import load_script_as_module
 
@@ -338,26 +342,19 @@ async def blocktype_inspect(
 
 @blocktypes_app.command("delete")
 async def blocktype_delete(
-    slug: str = typer.Argument(None, help="A Block type slug"),
-    blocktype_id: UUID = typer.Argument(None, help="A Block type id"),
+    slug: str = typer.Argument(..., help="A Block type slug"),
 ):
     """
     Delete an unprotected Block Type.
     """
     async with get_client() as client:
-        if blocktype_id is not None:
-            res = await client.delete_block_type(blocktype_id)
+        try:
+            block_type = await client.read_block_type_by_slug(slug)
+            res = await client.delete_block_type(block_type.id)
+            breakpoint()
             exit_with_success(f"Deleted Block Type '{slug}'.")
-        else:
-            try:
-                block_type = await client.read_block_type_by_slug(slug)
-                res = await client.delete_block_type(block_type.id)
-                breakpoint()
-                exit_with_success(f"Deleted Block Type '{slug}'.")
-            except Exception as exc:
-                raise exc
-            # except ObjectNotFound:
-            # exit_with_error(f"Block Type {slug!r} not found!")
-            # except PrefectHTTPStatusError as exc:
-            # if exc.response.status_code == 403:
-            # exit_with_error(f"Block Type {slug!r} is a protected block!")
+        except ObjectNotFound:
+            exit_with_error(f"Block Type {slug!r} not found!")
+        except PrefectHTTPStatusError as exc:
+            if exc.response.status_code == 403:
+                exit_with_error(f"Block Type {slug!r} is a protected block!")

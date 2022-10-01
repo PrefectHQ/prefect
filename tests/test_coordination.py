@@ -6,7 +6,7 @@ import respx
 from httpx import Response
 
 from prefect import flow
-from prefect.coordination_plane import (
+from prefect.coordination import (
     DeploymentTimeout,
     InvalidOrionError,
     MissingFlowRunError,
