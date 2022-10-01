@@ -350,11 +350,11 @@ async def blocktype_delete(
     async with get_client() as client:
         try:
             block_type = await client.read_block_type_by_slug(slug)
-            res = await client.delete_block_type(block_type.id)
-            breakpoint()
+            await client.delete_block_type(block_type.id)
             exit_with_success(f"Deleted Block Type '{slug}'.")
         except ObjectNotFound:
             exit_with_error(f"Block Type {slug!r} not found!")
         except PrefectHTTPStatusError as exc:
             if exc.response.status_code == 403:
                 exit_with_error(f"Block Type {slug!r} is a protected block!")
+        exit_with_error(f"Cannot delete Block Type {slug!r}!")
