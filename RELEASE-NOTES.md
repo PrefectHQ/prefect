@@ -1,6 +1,14 @@
 # Prefect Release Notes
 
+## Release 2.4.5
+
+This release disables block protection. With block protection enabled, as in 2.4.3 and 2.4.4, client and server versions cannot be mismatched unless you are on a version before 2.4.0. Disabling block protection restores the ability for a client and server to have different version.
+
+Block protection was added in 2.4.1 to prevent users from deleting block types that are necessary for the system to function. With this change, you are able to delete block types that will cause your flow runs to fail. New safeguards that do not affect client/server compatibility will be added in the future.
+
 ## Release 2.4.3
+
+**When running a server with this version, the client must be the same version. This does not apply to clients connecting to Prefect Cloud.**
 
 ### Enhancements
 - Warn if user tries to login with API key from Cloud 1 — https://github.com/PrefectHQ/prefect/pull/6958
