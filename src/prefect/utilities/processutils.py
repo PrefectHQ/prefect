@@ -92,7 +92,7 @@ async def run_process(
 
 
 def start_process(
-    command: List[str], pid_file: Union[str, os.PathLike[str], None] = None, **kwargs
+    command: List[str], pid_file: Union[str, bytes, os.PathLike, None] = None, **kwargs
 ):
     """
     Start an external command in a detached process.
@@ -130,7 +130,7 @@ def start_process(
     return process
 
 
-def stop_process(pid_file: Union[str, os.PathLike[str]]):
+def stop_process(pid_file: Union[str, bytes, os.PathLike]):
     """
     Stop an external command in a subprocess and delete its PID file.
 
