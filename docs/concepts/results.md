@@ -215,7 +215,52 @@ Persistence of results requires a [**serializer**](#result-serializers) and a [*
 
 #### Toggling persistence
 
-Persistence of results can be configured with the `persist_result` option. The `persist_result` option defaults to a null value, which will automatically enable persistence if it is needed for a Prefect feature used by the flow or task. Persistence of results can be manually toggled on or off:
+Persistence of the result of a task or flow can be configured with the `persist_result` option. The `persist_result` option defaults to a null value, which will automatically enable persistence if it is needed for a Prefect feature used by the flow or task.
+
+For example, the following flow has retries enabled. Flow retries require that all task results are persisted, so the task's result will be persisted:
+
+```python
+from prefect import flow, task
+
+@task
+def my_task():
+    return "hello world!"
+
+@flow(retries=2)
+def my_flow():
+    # This task does not have persistence toggled off and it is needed for the flow feature,
+    # so Prefect will persist its result at runtie
+    my_task()
+```
+
+In this next example, one task has caching enabled. Task caching requires that the given task's result is persisted:
+
+```python
+from prefect import flow, task
+from datetime import timedelta
+
+@task(cache_key_fn=lambda: "always", cache_expiration=timedelta(seconds=20))
+def my_task():
+    # This task uses caching so its result will be persisted by default
+    return "hello world!"
+
+
+@task
+def my_other_task():
+    ...
+
+@flow
+def my_flow():
+    # This task uses a feature that requires result persistence
+    my_task()
+
+    # This task does not use a feature that requires result persistence and the
+    # flow does not use any features that require task result persistence so its
+    # result will not be persisted by default
+    my_other_task()
+```
+
+Persistence of results can be manually toggled on or off:
 
 ```python
 from prefect import flow, task
@@ -231,6 +276,8 @@ def my_task():
     # If persistence needed for a feature, an error will be raised.
     ...
 ```
+
+Toggling persistence manually will always override any behavior that Prefect would infer.
 
 #### Result storage location
 
