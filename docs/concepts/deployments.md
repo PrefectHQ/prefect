@@ -192,7 +192,7 @@ You may specify additional options to further customize your deployment.
 |  `--rrule TEXT`     | An `RRule` that will be used to set an [`RRuleSchedule`](/concepts/schedules/) on the deployment. For example, `--rrule 'FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9,10,11,12,13,14,15,16,17'` to create flow runs from that deployment every hour but only during business hours. |
 | `--apply` | When provided, automatically registers the resulting deployment with the API. |
 | `--skip-upload` | When provided, skips uploading this deployment's files to remote storage. |
-| `--path` | An optional path to specify a subdirectory of remote storage to upload to. |
+| `--path` | An optional path to specify a subdirectory of remote storage to upload to, or to point to a subdirectory of a locally stored flow. |
 
 ### Block identifiers
 
