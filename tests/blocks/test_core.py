@@ -1573,6 +1573,18 @@ class TestGetDescription:
 
         assert A.get_description() == "But I will"
 
+    def test_no_griffe_logs(self, caplog):
+        class A(Block):
+            """
+            Without disable logger, this spawns griffe warnings.
+
+            Args:
+                string (str): This should spawn a warning
+            """
+
+        A()
+        assert caplog.record_tuples == []
+
 
 class NoCodeExample(Block):
     _block_type_name = "No code Example"
