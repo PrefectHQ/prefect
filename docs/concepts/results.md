@@ -263,8 +263,6 @@ You can configure this to use a specific storage using one of the following:
 
 - A storage instance, e.g. `LocalFileSystem(basepath=".my-results")`
 - A storage slug, e.g. `'s3/dev-s3-block'`
-- A UUID, e.g. `'cae1dda0-5000-4ca2-a18c-727d400145f2'`
-
 
 #### Result serializer
 

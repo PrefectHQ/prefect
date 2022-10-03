@@ -16,7 +16,7 @@ from prefect.settings import (
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
 )
 
-ResultStorage = Union[WritableFileSystem, uuid.UUID, str]
+ResultStorage = Union[WritableFileSystem, str]
 ResultSerializer = Union[Serializer, str]
 if TYPE_CHECKING:
     from prefect import Flow, Task
@@ -214,11 +214,7 @@ class ResultFactory(pydantic.BaseModel):
         Resolve one of the valid `ResultStorage` input types into a saved block
         document id and an instance of the block.
         """
-        if isinstance(result_storage, uuid.UUID):
-            storage_block_id = result_storage
-            document = await client.read_block_document(storage_block_id)
-            storage_block = Block._from_block_document(document)
-        elif isinstance(result_storage, Block):
+        if isinstance(result_storage, Block):
             storage_block = result_storage
             storage_block_id = (
                 # Avoid saving the block if it already has an identifier assigned
