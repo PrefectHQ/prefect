@@ -549,7 +549,7 @@ async def build(
     path: str = typer.Option(
         None,
         "--path",
-        help="An optional path to specify a subdirectory of remote storage to upload to.",
+        help="An optional path to specify a subdirectory of remote storage to upload to, or to point to a subdirectory of a locally stored flow.",
     ),
     output: str = typer.Option(
         None,
