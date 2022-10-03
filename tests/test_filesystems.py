@@ -148,13 +148,16 @@ class TestRemoteFileSystem:
         # Put files
         fs = RemoteFileSystem(basepath="memory://tree")
         num_files_put = await fs.put_directory(
-            os.path.join(TEST_PROJECTS_DIR, "tree-project"), ignore_file=ignore_file,
+            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
+            ignore_file=ignore_file,
         )
 
         # Expected files
         ignore_patterns = Path(ignore_file).read_text().splitlines(keepends=False)
         included_files = prefect.utilities.filesystem.filter_files(
-            os.path.join(TEST_PROJECTS_DIR, "tree-project"), ignore_patterns, include_dirs=False
+            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
+            ignore_patterns,
+            include_dirs=False,
         )
         num_files_expected = len(included_files)
 
