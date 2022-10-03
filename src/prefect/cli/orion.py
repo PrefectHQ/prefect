@@ -22,6 +22,7 @@ from prefect.orion.database.alembic_commands import (
 )
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.settings import (
+    PREFECT_HOME,
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_API_HOST,
@@ -31,7 +32,12 @@ from prefect.settings import (
     PREFECT_ORION_UI_ENABLED,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.processutils import kill_on_interrupt, run_process
+from prefect.utilities.processutils import (
+    kill_on_interrupt,
+    run_process,
+    start_process,
+    stop_process,
+)
 
 orion_app = PrefectTyper(
     name="orion",
@@ -102,6 +108,12 @@ async def start(
     ),
     late_runs: bool = SettingsOption(PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_ORION_UI_ENABLED),
+    detach: bool = typer.Option(
+        False,
+        "-d",
+        "--detach",
+        help="Allow the server to be run in the background.",
+    ),
 ):
     """Start an Orion server"""
 
@@ -114,39 +126,76 @@ async def start(
 
     base_url = f"http://{host}:{port}"
 
-    async with anyio.create_task_group() as tg:
-        app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
-        app.console.print("\n")
+    command = [
+        "uvicorn",
+        "--app-dir",
+        str(prefect.__module_path__.parent),
+        "--factory",
+        "prefect.orion.api.server:create_app",
+        "--host",
+        str(host),
+        "--port",
+        str(port),
+        "--access-log",
+    ]
 
-        orion_process_id = await tg.start(
-            partial(
-                run_process,
-                command=[
-                    "uvicorn",
-                    "--app-dir",
-                    str(prefect.__module_path__.parent),
-                    "--factory",
-                    "prefect.orion.api.server:create_app",
-                    "--host",
-                    str(host),
-                    "--port",
-                    str(port),
-                ],
-                env=server_env,
-                stream_output=True,
-            )
+    pid_file = f"{PREFECT_HOME.value()}/orion.pid"
+    if os.path.exists(pid_file):
+        exit_with_error(
+            "There is already an Orion process running in background.\n"
+            "Stop it with command `prefect orion stop`"
         )
 
-        # Explicitly handle the interrupt signal here, as it will allow us to
-        # cleanly stop the Orion uvicorn server. Failing to do that may cause a
-        # large amount of anyio error traces on the terminal, because the
-        # SIGINT is handled by Typer/Click in this process (the parent process)
-        # and will start shutting down subprocesses:
-        # https://github.com/PrefectHQ/orion/issues/2475
+    if detach is True:
+        try:
+            start_process(command, pid_file, env=server_env)
+            exit_with_success(
+                "Orion running in background.\n"
+                f"Check out the dashboard at {base_url}"
+            )
+        except OSError as e:
+            exit_with_error(e)
+    else:
+        async with anyio.create_task_group() as tg:
+            app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
+            app.console.print("\n")
 
-        kill_on_interrupt(orion_process_id, "Orion", app.console.print)
+            orion_process_id = await tg.start(
+                partial(
+                    run_process,
+                    command=command,
+                    env=server_env,
+                    stream_output=True,
+                )
+            )
 
-    app.console.print("Orion stopped!")
+            # Explicitly handle the interrupt signal here, as it will allow us to
+            # cleanly stop the Orion uvicorn server. Failing to do that may cause a
+            # large amount of anyio error traces on the terminal, because the
+            # SIGINT is handled by Typer/Click in this process (the parent process)
+            # and will start shutting down subprocesses:
+            # https://github.com/PrefectHQ/orion/issues/2475
+
+            kill_on_interrupt(orion_process_id, "Orion", app.console.print)
+
+            app.console.print("Orion stopped!")
+
+
+@orion_app.command()
+async def stop():
+    pid_file = f"{PREFECT_HOME.value()}/orion.pid"
+
+    if os.path.exists(pid_file):
+        try:
+            app.console.print("Stopping Orion...")
+            stop_process(pid_file)
+            exit_with_success("Orion stopped!")
+        except ValueError as e:
+            exit_with_error(e)
+        except ProcessLookupError:
+            exit_with_error(f"Orion process not found!")
+    else:
+        exit_with_error("Orion is not running in the background.")
 
 
 @database_app.command()
