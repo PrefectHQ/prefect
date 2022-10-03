@@ -8,6 +8,7 @@ from typing import Callable, List, Optional, TextIO, Tuple, Union
 
 import anyio
 import anyio.abc
+import psutil
 from anyio.streams.text import TextReceiveStream, TextSendStream
 
 TextSink = Union[anyio.AsyncFile, TextIO, TextSendStream]
@@ -88,6 +89,77 @@ async def run_process(
         await process.wait()
 
     return process
+
+
+def start_process(
+    command: List[str], pid_file: Union[str, os.PathLike[str], None] = None, **kwargs
+):
+    """
+    Start an external command in a detached process.
+
+    Similar to `run_process` but without waiting for the process to finish.
+    This allows the process to run in the background.
+
+    Args:
+        command: An iterable of strings containing the executable name or path and its arguments.
+        pid_file: File name to store the process ID (PID). Only needed if the command does not have its own process manager.
+
+    Returns:
+        A process object.
+
+    """
+    command = parse_command(command)
+    if sys.platform == "win32":
+        kwargs.setdefault("creationflags", subprocess.DETACHED_PROCESS)
+
+    process = subprocess.Popen(
+        command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **kwargs
+    )
+
+    if pid_file is not None:
+        # Some commands have their own process manager. That's nice.
+        # I will control in a basic way those that do not have this feature.
+        try:
+            with open(pid_file, "w") as f:
+                f.write(str(process.pid))
+        except OSError as e:
+            process.terminate()
+            process.wait()
+            raise OSError(f"Unable to write PID file: {e}\n")
+
+    return process
+
+
+def stop_process(pid_file: Union[str, os.PathLike[str]]):
+    """
+    Stop an external command in a subprocess and delete its PID file.
+
+    Args:
+        pid_file: File name to read the process ID (PID).
+    """
+    try:
+        with open(pid_file, "r") as f:
+            pid = f.read()
+    except OSError as e:
+        raise OSError(f"Unable to read PID file: {e}\n")
+
+    try:
+        process = psutil.Process(int(pid))
+
+        # Finish the process, wait a while and if it's still alive, kill it.
+        process.terminate()
+        try:
+            process.wait(3)
+        except psutil.TimeoutExpired:
+            process.kill()
+
+    except (ValueError, TypeError) as e:
+        raise ValueError(f"Invalid PID file: {e}\n")
+    except psutil.NoSuchProcess as e:
+        raise ProcessLookupError(e)
+    finally:
+        if os.path.exists(pid_file):
+            os.remove(pid_file)
 
 
 async def consume_process_output(
