@@ -196,7 +196,7 @@ my_flow()
 
 ## Persisting results
 
-The Prefect API does not store your results [except in special cases](#storage-of-results-in-prefect). Instead, the result is **persisted** to a storage location in your infrastructure and Prefect stores a **reference** to the result.
+The Prefect API does not store your results [except in special cases](#storage-of-results-in-prefect). Instead, the result is _persisted_ to a storage location in your infrastructure and Prefect stores a _reference_ to the result.
 
 The following Prefect features require results to be persisted:
 
