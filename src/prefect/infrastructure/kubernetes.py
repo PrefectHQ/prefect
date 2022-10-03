@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Union
 import anyio.abc
 import yaml
 from pydantic import Field, validator
-from slugify import slugify
 from typing_extensions import Literal
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
@@ -16,6 +15,7 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compati
 from prefect.utilities.hashing import stable_hash
 from prefect.utilities.importtools import lazy_import
 from prefect.utilities.pydantic import JsonPatch
+from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     import kubernetes

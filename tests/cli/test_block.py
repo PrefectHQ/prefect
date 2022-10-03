@@ -5,6 +5,7 @@ import pytest
 from prefect.blocks import system
 from prefect.client import OrionClient
 from prefect.exceptions import ObjectNotFound
+from prefect.orion import models
 from prefect.settings import PREFECT_ORION_BLOCKS_REGISTER_ON_START, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
@@ -20,6 +21,13 @@ from prefect.blocks.core import Bloc
 class TestForFileRegister(Block):
     message: str
 """
+
+
+@pytest.fixture
+async def install_system_block_types(session):
+    return await models.block_registration._install_protected_system_blocks(
+        session=session
+    )
 
 
 def test_register_blocks_from_module():
@@ -276,13 +284,10 @@ def test_deleting_a_block_type(tmp_path, orion_client):
         )
 
 
-def test_deleting_a_protected_block_type(tmp_path, orion_client):
-    invoke_and_assert(
-        ["block", "register", "-m", "prefect.blocks.system"],
-        expected_code=0,
-        expected_output_contains=["Successfully registered", "blocks"],
-    )
-
+@pytest.mark.xfail
+def test_deleting_a_protected_block_type(
+    tmp_path, orion_client, install_system_block_types
+):
     expected_output = "is a protected block"
 
     invoke_and_assert(
