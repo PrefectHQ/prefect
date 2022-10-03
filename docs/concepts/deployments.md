@@ -405,7 +405,7 @@ deployment.load() # loads server-side settings
 
 Once the existing deployment settings are loaded, you may update them as needed by changing deployment properties.
 
-View all of the parameters for the `Deployment` object [here](https://docs.prefect.io/api-ref/prefect/deployments/).
+View all of the parameters for the `Deployment` object in the [Python API documentation](https://docs.prefect.io/api-ref/prefect/deployments/).
 
 ## Deployment API representation
 
