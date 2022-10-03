@@ -167,6 +167,11 @@ def task_run_logger(
 
 @contextmanager
 def disable_logger(name: str):
+    """
+    Get a logger by name and disables it within the context manager.
+    Upon exiting the context manager, the logger is returned to its
+    original state.
+    """
     logger = logging.getLogger(name=name)
 
     # determine if it's already disabled
@@ -182,5 +187,10 @@ def disable_logger(name: str):
 
 @contextmanager
 def disable_run_logger():
+    """
+    Gets both `prefect.flow_run` and `prefect.task_run` and disables them
+    within the context manager. Upon exiting the context manager, both loggers
+    are returned to its original state.
+    """
     with disable_logger("prefect.flow_run"), disable_logger("prefect.task_run"):
         yield
