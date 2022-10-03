@@ -20,7 +20,7 @@ from prefect.testing.cli import invoke_and_assert
 
 
 @flow
-def my_flow():
+def ad_hoc_flow():
     pass
 
 
