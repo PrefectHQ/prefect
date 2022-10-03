@@ -109,11 +109,11 @@ class Task(Generic[P, R]):
         retries: An optional number of times to retry on task run failure.
         retry_delay_seconds: An optional number of seconds to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero.
-        persist_result: An optional toggle indiciating if the result of this task
-            should be persisted to result storage. Defaults to `None` which indicates
-            that Prefect should choose if the result should be persisted depending on
+        persist_result: An optional toggle indicating whether the result of this task
+            should be persisted to result storage. Defaults to `None`, which indicates
+            that Prefect should choose whether the result should be persisted depending on
             the features being used.
-        result_storage: An optional block to use to perist the result of this task.
+        result_storage: An optional block to use to persist the result of this task.
             Defaults to the value set in the flow the task is called in.
         result_serializer: An optional serializer to use to serialize the result of this
             task for persistence. Defaults to the value set in the flow the task is
@@ -764,11 +764,11 @@ def task(
         retries: An optional number of times to retry on task run failure
         retry_delay_seconds: An optional number of seconds to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero.
-        persist_result: An optional toggle indiciating if the result of this task
-            should be persisted to result storage. Defaults to `None` which indicates
-            that Prefect should choose if the result should be persisted depending on
+        persist_result: An optional toggle indicating whether the result of this task
+            should be persisted to result storage. Defaults to `None`, which indicates
+            that Prefect should choose whether the result should be persisted depending on
             the features being used.
-        result_storage: An optional block to use to perist the result of this task.
+        result_storage: An optional block to use to persist the result of this task.
             Defaults to the value set in the flow the task is called in.
         result_serializer: An optional serializer to use to serialize the result of this
             task for persistence. Defaults to the value set in the flow the task is

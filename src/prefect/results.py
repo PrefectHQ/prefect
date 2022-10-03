@@ -77,7 +77,7 @@ def get_default_result_serializer() -> ResultSerializer:
 
 def flow_features_require_child_result_persistence(flow: "Flow") -> bool:
     """
-    Returns `True` if the given flow uses features that requires child flow and task
+    Returns `True` if the given flow uses features that require child flow and task
     runs to persist their results.
     """
     if flow.retries:
@@ -87,7 +87,7 @@ def flow_features_require_child_result_persistence(flow: "Flow") -> bool:
 
 def task_features_require_result_persistence(task: "Task") -> bool:
     """
-    Returns `True` if the given task uses features that requires its result to be
+    Returns `True` if the given task uses features that require its result to be
     persisted.
     """
     if task.cache_key_fn:
@@ -242,7 +242,7 @@ class ResultFactory(pydantic.BaseModel):
     @staticmethod
     def resolve_serializer(serializer: ResultSerializer) -> Serializer:
         """
-        Result one of the valid `ResultSerializer` input types into a serializer
+        Resolve one of the valid `ResultSerializer` input types into a serializer
         instance.
         """
         if isinstance(serializer, Serializer):

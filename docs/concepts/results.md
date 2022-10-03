@@ -209,9 +209,9 @@ If results are not persisted, these features will not be usable.
 
 Persistence of results requires a [**serializer**](#result-serializers) and a [**storage** location](#result-storage). Prefect sets defaults for these, and you should not need to adjust them until you want to customize behavior. You can configure results on the `flow` and `task` decorators with the following options:
 
-- `persist_result`: If the result be persisted to storage
-- `result_storage`: Where to store the result when persisted
-- `result_serializer`: How to convert the result to a storable form
+- `persist_result`: Whether the result should be persisted to storage.
+- `result_storage`: Where to store the result when persisted.
+- `result_serializer`: How to convert the result to a storable form.
 
 #### Toggling persistence
 
@@ -274,16 +274,16 @@ If there is no context to load the serializer from, the serializer defined by `P
 
 You may set the configure the result serializer using:
 
-- A type name, e.g. `"json"` or `"pickle"` — this corresponds to an instance with default values
+- A type name, e.g. `"json"` or `"pickle"` &mdash; this corresponds to an instance with default values
 - An instance, e.g. `JSONSerializer(jsonlib="orjson")`
 
 ### Storage of results in Prefect
 
 The Prefect API does not store your results in most cases for the following reasons:
 
-- Results can be large and slow to send to and from the API
-- Results often contain private information or data
-- Results would need to be stored in the database or complex logic implemented to hydrate from another source
+- Results can be large and slow to send to and from the API.
+- Results often contain private information or data.
+- Results would need to be stored in the database or complex logic implemented to hydrate from another source.
 
 There are a few cases where Prefect _will_ store your results directly in the database. This is an optimization to reduce the overhead of reading and writing to result storage.
 
@@ -304,7 +304,7 @@ A result serializer is responsible for converting your Python object to and from
 
 ### Pickle serializer
 
-Pickle is a standard Python protocol for encoding arbitrary Python objects. We supply a custom Pickle serializer at `prefect.serializers.PickleSerializer`. Prefect's pickle serializer uses the [cloudpickle](https://github.com/cloudpipe/cloudpickle) project by default to support more object types. Alternative pickle libraries can be specified:
+Pickle is a standard Python protocol for encoding arbitrary Python objects. We supply a custom pickle serializer at `prefect.serializers.PickleSerializer`. Prefect's pickle serializer uses the [cloudpickle](https://github.com/cloudpipe/cloudpickle) project by default to support more object types. Alternative pickle libraries can be specified:
 
 ```python
 from prefect.serializers import PickleSerializer
@@ -314,15 +314,15 @@ PickleSerializer(picklelib="custompickle")
 
 Benefits of the pickle serializer:
 
-- Many object types are supported
-- Objects can define custom pickle support
+- Many object types are supported.
+- Objects can define custom pickle support.
 
 Drawbacks of the pickle serializer:
 
-- When nested attributes of an object cannot be pickled, it is hard to determine the cause
-- When deserializing objects, your Python and pickle library versions must match the one used at serialization time
-- Serialized objects cannot be easily shared across different programming languages
-- Serialized objects are not human readable
+- When nested attributes of an object cannot be pickled, it is hard to determine the cause.
+- When deserializing objects, your Python and pickle library versions must match the one used at serialization time.
+- Serialized objects cannot be easily shared across different programming languages.
+- Serialized objects are not human readable.
 
 ### JSON serializer
 
@@ -340,14 +340,14 @@ JSONSerializer(jsonlib="orjson")
 
 Benefits of the JSON serializer:
 
-- Serialized objects are human readable
-- Serialized objects can often be shared across different programming languages
-- Deserialization of serialized objects is generally version agnostic
+- Serialized objects are human readable.
+- Serialized objects can often be shared across different programming languages.
+- Deserialization of serialized objects is generally version agnostic.
 
 Drawbacks of the JSON serializer:
 
-- Supported types are limited
-- Implementing support for additional types must be done at the serializer level
+- Supported types are limited.
+- Implementing support for additional types must be done at the serializer level.
 
 
 ## Result types
@@ -376,8 +376,8 @@ Result literals reduce the overhead required to persist simple results.
 
 Result references contain all of the information needed to retrieve the result from storage. This includes:
 
-- Storage: a reference to the [result storage](#result-storage-types) that can be used to read the serialized result
-- Key: indicates where this specific result is in storage
-- Serializer: description of the [result serializer](#result-serializer-types) that can be used to deserialize the result
+- Storage: a reference to the [result storage](#result-storage-types) that can be used to read the serialized result.
+- Key: indicates where this specific result is in storage.
+- Serializer: description of the [result serializer](#result-serializer-types) that can be used to deserialize the result.
 
 The `get()` method on result references retrieves the data from storage, deserializes it, and returns the original object. The `get()` operation will cache the resolved object to reduce the overhead of subsequent calls.
