@@ -435,7 +435,7 @@ async def _generate_scheduled_flow_run(
     run_parameters.update(parameters or dict())
     tags = deployment.tags
     if auto_scheduled:
-        tags += ["auto-scheduled"]
+        tags = ["auto-scheduled"] + tags
     runs.append(
         {
             "id": uuid4(),
@@ -504,7 +504,7 @@ async def _generate_scheduled_flow_runs(
 
     tags = deployment.tags
     if auto_scheduled:
-        tags += ["auto-scheduled"]
+        tags = ["auto-scheduled"] + tags
 
     for date in dates:
         runs.append(
