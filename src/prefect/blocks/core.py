@@ -409,12 +409,10 @@ class Block(BaseModel, ABC):
         `<module>:11: No type or annotation for parameter 'write_json'`
         because griffe is unable to parse the types from pydantic.BaseModel.
         """
-        with (
-            disable_logger("griffe.docstrings.google"),
-            disable_logger("griffe.agents.nodes"),
-        ):
-            docstring = Docstring(cls.__doc__)
-            parsed = parse(docstring, Parser.google)
+        with disable_logger("griffe.docstrings.google"):
+            with disable_logger("griffe.agents.nodes"):
+                docstring = Docstring(cls.__doc__)
+                parsed = parse(docstring, Parser.google)
         return parsed
 
     @classmethod
