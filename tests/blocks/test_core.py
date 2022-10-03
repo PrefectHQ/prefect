@@ -775,16 +775,18 @@ class TestAPICompatibility:
         await models.block_registration.run_block_auto_registration(session=session)
         await session.commit()
 
-        JSON._block_schema_version = (
+        mock_version = (
             uuid4().hex
         )  # represents a version that does not exist on the server
+
+        JSON._block_schema_version = mock_version
 
         block_document_id = await JSON(value={"the_answer": 42}).save("test")
 
         block_document = await models.block_documents.read_block_document_by_id(
             session=session, block_document_id=block_document_id
         )
-        assert block_document.block_schema.version == "not the prefect version"
+        assert block_document.block_schema.version == mock_version
 
 
 class TestRegisterBlockTypeAndSchema:
