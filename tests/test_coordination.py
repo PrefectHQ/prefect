@@ -67,7 +67,9 @@ def test_deployment(patch_import, tmp_path):
 
 
 class TestRunDeployment:
-    @pytest.mark.parametrize("terminal_state", [s.name for s in states.TERMINAL_STATES])
+    @pytest.mark.parametrize(
+        "terminal_state", list(sorted(s.name for s in states.TERMINAL_STATES))
+    )
     def test_running_a_deployment_blocks_until_termination(
         self,
         test_deployment,
