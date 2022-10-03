@@ -279,12 +279,15 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
                     if PREFECT_DEBUG_MODE.value():
                         logger.debug(
                             "Skipping block loading due to matching hash for block "
-                            "auto-registration found in memo store"
+                            "auto-registration found in memo store."
                         )
                     return
         except Exception as exc:
             logger.warn(
-                f"Unable to read memo_store.toml during block auto-registration: {exc!r}"
+                ""
+                f"Unable to read memo_store.toml from {PREFECT_MEMO_STORE_PATH} during "
+                f"block auto-registration: {exc!r}.\n"
+                "All blocks will be registered."
             )
 
         await fn(*args, **kwargs)
@@ -295,7 +298,12 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
                     toml.dumps({"block_auto_registration": current_blocks_loading_hash})
                 )
             except Exception as exc:
-                logger.warn(f"Unable to write to memo store: {exc!r}")
+                logger.warn(
+                    f"Unable to write to memo_store.toml at {PREFECT_MEMO_STORE_PATH} "
+                    f"after block auto-registration: {exc!r}.\n Subsequent server start "
+                    "ups will perform block auto-registration, which may result in "
+                    "slower server startup."
+                )
 
     return wrapper
 
