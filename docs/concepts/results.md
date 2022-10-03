@@ -261,7 +261,7 @@ new_flow()  # The flow and task within it will use S3 for result storage.
 
 You can configure this to use a specific storage using one of the following:
 
-- A storage instance, e.g. `LocalFileSystem(basepath=".my-results"`
+- A storage instance, e.g. `LocalFileSystem(basepath=".my-results")`
 - A storage slug, e.g. `'s3/dev-s3-block'`
 - A UUID, e.g. `'cae1dda0-5000-4ca2-a18c-727d400145f2'`
 
@@ -297,7 +297,7 @@ If `persist_result` is set to `False`, these values will never be stored.
 
 ## Result storage types
 
-Result storage is responsible fo reading and writing serialized data to an external location. At this time, any file system block can be used for result storage.
+Result storage is responsible for reading and writing serialized data to an external location. At this time, any file system block can be used for result storage.
 ## Result serializer types
 
 A result serializer is responsible for converting your Python object to and from bytes. This is necessary to store the object outside of Python and retrieve it later.
