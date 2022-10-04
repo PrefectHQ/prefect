@@ -218,8 +218,6 @@ class ResultSerializer:
 
     @staticmethod
     def loads(blob: bytes) -> "_Result":
-        from prefect.results import _Result
-
         return _Result.parse_raw(blob)
 
 
