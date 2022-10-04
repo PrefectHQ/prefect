@@ -142,17 +142,19 @@ def test_start_process_with_invalid_command(mock_subprocess_popen):
     )
 
     with pytest.raises(OSError, match="No such file or directory: command"):
-        start_process(["test_invalid_command"], pid_file="path/to/pid_file")
+        start_process(["test_invalid_command"])
 
     mock_subprocess_popen.assert_called_once()
 
 
 def test_start_process_with_invalid_pid_file(monkeypatch, mock_subprocess_popen):
     mock_open = mock.mock_open()
-    mock_open.side_effect = mock.Mock(side_effect=OSError("monk_open"))
+    mock_open.side_effect = mock.Mock(side_effect=OSError("monk_open error"))
     monkeypatch.setattr("builtins.open", mock_open)
 
-    with pytest.raises(OSError, match="Unable to write PID file: monk_open"):
+    with pytest.raises(
+        OSError, match="Could not write PID to file 'path/to/pid_file': monk_open error"
+    ):
         start_process(["echo", "hello world"], pid_file="path/to/pid_file")
 
     mock_subprocess_popen.assert_called_once()
@@ -202,6 +204,32 @@ def test_stop_process_with_timeout_expired(mock_psutil_process, tmp_path):
     assert os.path.exists(pid_file) is False
 
 
+def test_stop_process_with_invalid_pid_file(mock_psutil_process, tmp_path):
+    pid_file = tmp_path / "test.pid"
+    assert os.path.exists(pid_file) is False
+
+    with pytest.raises(
+        OSError, match=f"Could not read PID from file {str(pid_file)!r}:"
+    ):
+        stop_process(pid_file)
+
+    mock_psutil_process.assert_not_called()
+
+
+def test_stop_process_with_invalid_pid(mock_psutil_process, tmp_path):
+    pid_file = tmp_path / "test.pid"
+    with open(pid_file, "w") as f:
+        f.write("test")
+
+    with pytest.raises(ValueError, match=f"Invalid PID file {str(pid_file)!r}:"):
+        stop_process(pid_file)
+
+    mock_psutil_process.assert_not_called()
+
+    # Make sure that deleted the PID file.
+    assert os.path.exists(pid_file) is False
+
+
 def test_stop_process_with_zombie_process(mock_psutil_process, tmp_path):
     mock_psutil_process.side_effect = mock.MagicMock(
         side_effect=psutil.NoSuchProcess("process PID not found")
@@ -220,31 +248,23 @@ def test_stop_process_with_zombie_process(mock_psutil_process, tmp_path):
     assert os.path.exists(pid_file) is False
 
 
-def test_stop_process_with_invalid_pid_file(mock_psutil_process, tmp_path):
-    pid_file = tmp_path / "test.pid"
-    assert os.path.exists(pid_file) is False
+def test_stop_process_with_insufficient_privileges(mock_psutil_process, tmp_path):
+    mock_psutil_process.terminate.side_effect = mock.MagicMock(
+        side_effect=psutil.AccessDenied("insufficient privileges")
+    )
 
-    with pytest.raises(OSError, match="Unable to read PID file:"):
-        stop_process(pid_file)
-
-    mock_psutil_process.assert_not_called()
-
-    # Make sure that deleted the PID file.
-    assert os.path.exists(pid_file) is False
-
-
-def test_stop_process_with_invalid_pid(mock_psutil_process, tmp_path):
     pid_file = tmp_path / "test.pid"
     with open(pid_file, "w") as f:
-        f.write("test")
+        f.write("123")
 
-    with pytest.raises(ValueError, match="Invalid PID file:"):
+    with pytest.raises(PermissionError, match="insufficient privileges"):
         stop_process(pid_file)
 
-    mock_psutil_process.assert_not_called()
+    mock_psutil_process.assert_called_once_with(123)
+    mock_psutil_process.terminate.assert_called()
 
-    # Make sure that deleted the PID file.
-    assert os.path.exists(pid_file) is False
+    # Make sure you haven't deleted the PID file.
+    assert os.path.exists(pid_file) is True
 
 
 class TestKillOnInterrupt:

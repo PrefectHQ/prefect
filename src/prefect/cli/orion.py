@@ -154,7 +154,7 @@ async def start(
                 f"Check out the dashboard at {base_url}"
             )
         except OSError as e:
-            exit_with_error(e)
+            exit_with_error(f"Could not start Orion.\n {e}")
     else:
         async with anyio.create_task_group() as tg:
             app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
@@ -190,10 +190,22 @@ async def stop():
             app.console.print("Stopping Orion...")
             stop_process(pid_file)
             exit_with_success("Orion stopped!")
-        except ValueError as e:
-            exit_with_error(e)
+        except ValueError:
+            exit_with_error(
+                "The PID file does not contain a valid value. It has been removed!"
+            )
         except ProcessLookupError:
-            exit_with_error(f"Orion process not found!")
+            exit_with_error(
+                "Orion process not found! Maybe it crashed or quit unexpectedly.\n"
+                "PID file has been removed!"
+            )
+        except PermissionError:
+            exit_with_error(
+                "You do not have sufficient permissions to stop the Orion process."
+            )
+        except OSError as e:
+            # Other OSError exceptions.
+            exit_with_error(e)
     else:
         exit_with_error("Orion is not running in the background.")
 

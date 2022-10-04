@@ -104,6 +104,8 @@ def start_process(
         command: An iterable of strings containing the executable name or path and its arguments.
         pid_file: File name to store the process ID (PID). Only needed if the command does not have its own process manager.
 
+    Raises:
+        OSError: When trying to run a non-existent file or failing to write the PID file.
     Returns:
         A process object.
 
@@ -125,7 +127,7 @@ def start_process(
         except OSError as e:
             process.terminate()
             process.wait()
-            raise OSError(f"Unable to write PID file: {e}\n")
+            raise OSError(f"Could not write PID to file {str(pid_file)!r}: {e}")
 
     return process
 
@@ -136,13 +138,21 @@ def stop_process(pid_file: Union[str, bytes, os.PathLike]):
 
     Args:
         pid_file: File name to read the process ID (PID).
+
+    Raises:
+        OSError: When unable to read the PID file.
+        ValueError: When the PID file does not contain a valid value.
+        ProcessLookupError: When no process with the given pid is found in the current process list, or when a process no longer exists.
+        PermissionError: When permission to perform an action is denied due to insufficient privileges.
+
     """
     try:
         with open(pid_file, "r") as f:
             pid = f.read()
     except OSError as e:
-        raise OSError(f"Unable to read PID file: {e}\n")
+        raise OSError(f"Could not read PID from file {str(pid_file)!r}: {e}")
 
+    remove_pid_file = True
     try:
         process = psutil.Process(int(pid))
 
@@ -152,13 +162,15 @@ def stop_process(pid_file: Union[str, bytes, os.PathLike]):
             process.wait(3)
         except psutil.TimeoutExpired:
             process.kill()
-
     except (ValueError, TypeError) as e:
-        raise ValueError(f"Invalid PID file: {e}\n")
+        raise ValueError(f"Invalid PID file {str(pid_file)!r}: {e}")
     except psutil.NoSuchProcess as e:
         raise ProcessLookupError(e)
+    except psutil.AccessDenied as e:
+        remove_pid_file = False
+        raise PermissionError(e)
     finally:
-        if os.path.exists(pid_file):
+        if remove_pid_file is True and os.path.exists(pid_file):
             os.remove(pid_file)
 
 
