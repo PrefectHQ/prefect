@@ -926,11 +926,10 @@ async def test_run_logger_with_explicit_context(
         pass
 
     task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
-    context = TaskRunContext(
+    context = TaskRunContext.construct(
         task=foo,
         task_run=task_run,
         client=orion_client,
-        result_filesystem=local_filesystem,
     )
 
     logger = get_run_logger(context)
@@ -959,11 +958,10 @@ async def test_run_logger_with_explicit_context_overrides_existing(
 
     task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
     # Use `bar` instead of `foo` in context
-    context = TaskRunContext(
+    context = TaskRunContext.construct(
         task=bar,
         task_run=task_run,
         client=orion_client,
-        result_filesystem=local_filesystem,
     )
 
     logger = get_run_logger(context)

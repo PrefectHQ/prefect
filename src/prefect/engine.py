@@ -63,6 +63,7 @@ from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import (
+    ResultFactory,
     _persist_serialized_result,
     _retrieve_result,
     _retrieve_serialized_result,
@@ -358,6 +359,10 @@ async def begin_flow_run(
         await result_filesystem._save(is_anonymous=True)
         flow_run_context.result_filesystem = result_filesystem
 
+        flow_run_context.result_factory = await ResultFactory.from_flow(
+            flow, client=client
+        )
+
         terminal_state = await orchestrate_flow_run(
             flow,
             flow_run=flow_run,
@@ -495,6 +500,9 @@ async def create_and_begin_subflow_run(
                     result_filesystem=parent_flow_run_context.result_filesystem,
                     task_runner=task_runner,
                     background_tasks=parent_flow_run_context.background_tasks,
+                    result_factory=await ResultFactory.from_flow(
+                        flow, client=parent_flow_run_context.client
+                    ),
                 ),
             )
 
@@ -1016,6 +1024,9 @@ async def submit_task_run(
             parameters=parameters,
             wait_for=wait_for,
             result_filesystem=flow_run_context.result_filesystem,
+            result_factory=await ResultFactory.from_task(
+                task, client=flow_run_context.client
+            ),
             settings=prefect.context.SettingsContext.get().copy(),
         ),
     )
@@ -1032,6 +1043,7 @@ async def begin_task_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     result_filesystem: WritableFileSystem,
+    result_factory: ResultFactory,
     settings: prefect.context.SettingsContext,
 ):
     """
@@ -1103,6 +1115,7 @@ async def begin_task_run(
                 parameters=parameters,
                 wait_for=wait_for,
                 result_filesystem=result_filesystem,
+                result_factory=result_factory,
                 interruptible=interruptible,
                 client=client,
             )
@@ -1124,6 +1137,7 @@ async def orchestrate_task_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     result_filesystem: WritableFileSystem,
+    result_factory: ResultFactory,
     interruptible: bool,
     client: OrionClient,
 ) -> State:
@@ -1158,6 +1172,7 @@ async def orchestrate_task_run(
         task=task,
         client=client,
         result_filesystem=result_filesystem,
+        result_factory=result_factory,
     )
 
     try:
