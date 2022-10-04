@@ -14,7 +14,7 @@ tags:
 
 # User roles in Prefect Cloud
 
-[Organizations](/ui/organizations/) in Prefect Cloud 2 let you to give people in your organization access to the appropriate Prefect functionality in the specific workspaces. 
+[Organizations](/ui/organizations/) in Prefect Cloud 2 let you to give people in your organization access to the appropriate Prefect functionality within your organization and within specific workspaces. 
 
 Role-based access control (RBAC) functionality in Prefect Cloud enables you to assign users granular permissions to perform certain activities within an organization or a workspace.  
 
@@ -23,24 +23,25 @@ To give users access to functionality beyond the scope of Prefect’s built-in w
 
 ## Built-in roles
 
-Assigned roles give users abilities at either the organization level or at the individual workspace level. Organizational roles apply to all workspaces within an organization. Workspace roles apply to only the workspace in which the role is assigned.
+Roles give users abilities at either the organization level or at the individual workspace level. 
 
-A workspace `Owner` may be assigned within a given workspace by a "Workspace Manager", or though inheritance by having the `Admin` organization role. A Workspace Manager is any user with permission to edit the roles of users or service accounts within a given workspace.
+- An _organization-level role_ defines a user's default permissions within an organization. 
+- A _workspace-level role_ defines a user's permissions within a specific workspace.
 
 The following sections outline the abilities of the built-in, Prefect-defined organizational and workspace roles.
 
 ### Organization-level roles
 
-The following built-in roles have abilities across all workspaces and users within an organization in Prefect Cloud.
+The following built-in roles have permissions across an organization in Prefect Cloud.
 
-| Pole | Abilities |
+| Role | Abilities |
 | --- | --- |
 | Admin | &bull; Set/change all organization profile settings allowed to be set/changed by a Prefect user. <br> &bull; Add and remove organization members, and their organization roles. <br> &bull; Create and delete service accounts in the organization. <br> &bull; Create workspaces in the organization. <br> &bull; Implicit workspace owner access on all workspaces in the organization. |
 | Member | &bull; View organization profile settings. <br> &bull; View workspaces I have access to in the organization. <br> &bull; View organization members and their roles. <br> &bull; View service accounts in the organization. |
 
 ### Workspace-level roles
 
-The following built-in roles have abilities within a given workspace within an organization in Prefect Cloud.
+The following built-in roles have permissions within a given workspace in Prefect Cloud.
 
 | Role | Abilities |
 | --- | --- |
@@ -48,7 +49,7 @@ The following built-in roles have abilities within a given workspace within an o
 | Collaborator | &bull; Run flows within a workspace. <br> &bull; View and delete flow runs within a workspace. <br> &bull; Create, view, edit, and delete deployments within a workspace. <br> &bull; Create, view, edit, and delete work queues within a workspace. <br> &bull; Create, view, edit, and delete all blocks within a workspace. <br> &bull; Create, view, edit, and delete notifications within a workspace. <br> &bull; View workspace setting within a workspace. |
 | Read-only collaborator | &bull; View flow runs within a workspace. <br> &bull; View deployments within a workspace. <br> &bull; View all Work Queues. <br> &bull; View all Blocks. <br> &bull; View all Notifications. <br> &bull; View workspace settings (handle & description currently). |
 
-## Custom roles
+## Custom workspace roles
 
 The built-in roles will serve the needs of most users, but your team may need to configure custom roles, giving users access to specific permissions within a workspace.
 
@@ -70,7 +71,7 @@ To configure an inherited role when configuring a custom role, select the **Inhe
 
 ![Creating a custom role for a workspace using inherited permissions in Prefect Cloud](/img/ui/org-inherited-role.png)
 
-## Role permissions
+## Workspace role permissions
 
 The following permissions are available for custom roles.
 

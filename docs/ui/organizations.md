@@ -46,9 +46,9 @@ To invite new members to an organization in Prefect Cloud, select the **+** icon
 
 The user will receive an invite email with a confirmation link at the address provided. If the user does not already have a Prefect Cloud account, they must create an account before accessing the organization.
 
-The organization role set for the invite is only a default for the new member. An Admin may configure a different role for the user as needed.
+When the user accepts the invite, they become a member of your organization and are assigned the role from the invite. The member's role can be changed (or access removed entirely) by an organization Admin.
 
-The maximum number of organization members varies. [Contact sales](https://www.prefect.io/pricing) to learn more about annual plans giving you control over organizations and user roles.
+The maximum number of organization members varies. See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more about options for supporting more users, service accounts, and workspaces.
 
 ## Service accounts
 
