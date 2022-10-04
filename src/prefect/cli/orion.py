@@ -142,7 +142,6 @@ async def start(
         str(host),
         "--port",
         str(port),
-        "--access-log",
     ]
 
     if detach is True:
