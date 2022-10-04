@@ -1,0 +1,9 @@
+recipeName: Serverless Workflows with ECSTask Blocks
+author: Prefect
+authorUrl: https://prefect.io
+description: Deploy a Prefect agent to AWS ECS Fargate using GitHub Actions and ECSTask infrastructure blocks.
+topic: AWS
+recipeUrl: https://towardsdatascience.com/prefect-aws-ecs-fargate-github-actions-make-serverless-dataflows-as-easy-as-py-f6025335effc#8d94
+iconUrl: 
+  - /img/collections/aws.png
+  - /img/collections/github.png
