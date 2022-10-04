@@ -1573,7 +1573,11 @@ class TestGetDescription:
 
         assert A.get_description() == "But I will"
 
-    def test_no_griffe_logs(self, caplog):
+    def test_no_griffe_logs(self, caplog, capsys, recwarn):
+        """
+        Ensures there are no extraneous output printed/warned.
+        """
+
         class A(Block):
             """
             Without disable logger, this spawns griffe warnings.
@@ -1584,6 +1588,21 @@ class TestGetDescription:
 
         A()
         assert caplog.record_tuples == []
+
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err == ""
+
+        assert len(recwarn) == 0
+
+        # to be extra sure that we are printing anything
+        # we shouldn't be
+        print("Sanity check!")
+        captured = capsys.readouterr()
+        assert captured.out == "Sanity check!\n"
+
+        warnings.warn("Sanity check two!")
+        assert len(recwarn) == 1
 
 
 class NoCodeExample(Block):
