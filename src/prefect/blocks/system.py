@@ -10,7 +10,7 @@ class JSON(Block):
     """
     A block that represents JSON
 
-    Args:
+    Attributes:
         value: A JSON-compatible value.
 
     Example:
@@ -31,7 +31,7 @@ class String(Block):
     """
     A block that represents a string
 
-    Args:
+    Attributes:
         value: A string value.
 
     Example:
@@ -52,7 +52,7 @@ class DateTime(Block):
     """
     A block that represents a datetime
 
-    Args:
+    Attributes:
         value: An ISO 8601-compatible datetime value.
 
     Example:
@@ -77,6 +77,9 @@ class Secret(Block):
     """
     A block that represents a secret value. The value stored in this block will be obfuscated when
     this block is logged or shown in the UI.
+
+    Attributes:
+        value: A string value that should be kept secret.
 
     Example:
         ```python

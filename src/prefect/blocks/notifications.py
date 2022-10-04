@@ -40,6 +40,9 @@ apprise.NOTIFY_TYPES += (PrefectNotifyType.DEFAULT,)
 class AppriseNotificationBlock(NotificationBlock, ABC):
     """
     A base class for sending notifications using Apprise.
+
+    Attributes:
+        url: Incoming webhook URL used to send notifications.
     """
 
     url: SecretStr = Field(
@@ -74,7 +77,7 @@ class SlackWebhook(AppriseNotificationBlock):
     """
     Enables sending notifications via a provided Slack webhook.
 
-    Args:
+    Attributes:
         url: Slack webhook URL which can be used to send messages
             (e.g. `https://hooks.slack.com/XXX`).
 
@@ -102,8 +105,10 @@ class SlackWebhook(AppriseNotificationBlock):
 class MicrosoftTeamsWebhook(AppriseNotificationBlock):
     """
     Enables sending notifications via a provided Microsoft Teams webhook.
-    Args:
-        url: Teams webhook URL which can be used to send messages
+
+    Attributes:
+        url: Teams webhook URL which can be used to send messages.
+
     Examples:
         Load a saved Teams webhook and send a message:
         ```python
