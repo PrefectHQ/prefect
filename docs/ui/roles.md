@@ -14,7 +14,7 @@ tags:
 
 # User roles in Prefect Cloud
 
-[Organizations](/ui/organizations/) in Prefect Cloud 2 let you to give people in your organization access to the appropriate Prefect functionality within your organization and within specific workspaces. 
+[Organizations](/ui/organizations/) in Prefect Cloud let you give people in your organization access to the appropriate Prefect functionality within your organization and within specific workspaces. 
 
 Role-based access control (RBAC) functionality in Prefect Cloud enables you to assign users granular permissions to perform certain activities within an organization or a workspace.  
 
@@ -95,8 +95,8 @@ The following permissions are available for custom roles.
 | --- | --- |
 | View deployments | User can see configured deployments within a workspace. |
 | Run deployments | User can run deployments within a workspace. This does not give a user permission to execute the flow associated with the deployment. This only gives a user (via their key) the ability to run a deployment &mdash; another user/key must actually execute that flow, such as a service account with an appropriate role. Includes permissions of **View deployments**. |
-| Create and edit deployments | User can create and edit deployments within a workspace. Includes permissions of **View deployments** and **Run a deployment**. |
-| Create, edit, and delete deployments | User can create, edit, and delete deployments within a workspace. Includes permissions of **View deployments**, **Run deployments**, and **Create and edit deployments**. |
+| Create and edit deployments | User can create and edit deployments within a workspace. Includes permissions of **View deployments** and **Run deployments**. |
+| Delete deployments | User can delete deployments within a workspace. Includes permissions of **View deployments**, **Run deployments**, and **Create and edit deployments**. |
 
 ### Flows
 
@@ -111,7 +111,7 @@ The following permissions are available for custom roles.
 | --- | --- |
 | View notification policies | User can see notification policies configured within a workspace. |
 | Create and edit notification policies | User can create and edit notification policies configured within a workspace. Includes permissions of **View notification policies**. |
-| Create, edit, and delete notification policies | User can create, edit, and delete notification policies configured within a workspace. Includes permissions of **View notification policies**. |
+| Delete notification policies | User can delete notification policies configured within a workspace. Includes permissions of **View notification policies** and **Create and edit notification policies**. |
 
 ### Search
 
@@ -135,4 +135,4 @@ The following permissions are available for custom roles.
 | --- | --- |
 | View work queues | User can see work queues configured within a workspace. |
 | Create, edit, and pause work queues | User can create, edit, and pause work queues configured within a workspace. Includes permissions of **View work queues**. |
-| Create, edit, and delete work queues | User can create, edit, and delete work queues configured within a workspace. Includes permissions of **View work queues** and **Create, edit, and pause work queues**. |
+| Delete work queues | User can delete work queues configured within a workspace. Includes permissions of **View work queues** and **Create, edit, and pause work queues**. |
