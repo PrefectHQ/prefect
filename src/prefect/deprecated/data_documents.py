@@ -23,7 +23,6 @@ from prefect.orion.utilities.schemas import PrefectBaseModel
 
 if TYPE_CHECKING:
     from prefect.packaging.base import PackageManifest
-    from prefect.results import Result
 
 T = TypeVar("T", bound="DataDocument")  # Generic for DataDocument class types
 D = TypeVar("D", bound=Any)  # Generic for DataDocument data types
@@ -214,14 +213,14 @@ class ResultSerializer:
     """
 
     @staticmethod
-    def dumps(data: "Result") -> bytes:
+    def dumps(data: "_Result") -> bytes:
         return data.json().encode()
 
     @staticmethod
-    def loads(blob: bytes) -> "Result":
-        from prefect.results import Result
+    def loads(blob: bytes) -> "_Result":
+        from prefect.results import _Result
 
-        return Result.parse_raw(blob)
+        return _Result.parse_raw(blob)
 
 
 def result_from_state_with_data_document(state: "State", raise_on_failure: bool) -> Any:
