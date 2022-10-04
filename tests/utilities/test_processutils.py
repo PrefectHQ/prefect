@@ -103,7 +103,7 @@ def test_start_process(monkeypatch, mock_subprocess_popen):
 
 def test_start_process_with_creation_flags(monkeypatch, mock_subprocess_popen):
     monkeypatch.setattr("sys.platform", "win32")
-    monkeypatch.setattr("subprocess.DETACHED_PROCESS", 123, raising=False)
+    monkeypatch.setattr("subprocess.CREATE_NEW_PROCESS_GROUP", 123, raising=False)
 
     start_process(["echo", "hello world"])
     mock_subprocess_popen.assert_called_once()

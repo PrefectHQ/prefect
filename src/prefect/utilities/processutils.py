@@ -112,7 +112,7 @@ def start_process(
     """
     command = parse_command(command)
     if sys.platform == "win32":
-        kwargs.setdefault("creationflags", subprocess.DETACHED_PROCESS)
+        kwargs.setdefault("creationflags", subprocess.CREATE_NEW_PROCESS_GROUP)
 
     process = subprocess.Popen(
         command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **kwargs
