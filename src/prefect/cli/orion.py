@@ -139,7 +139,7 @@ async def start(
         "--access-log",
     ]
 
-    pid_file = f"{PREFECT_HOME.value()}/orion.pid"
+    pid_file = str(PREFECT_HOME.value() / "orion.pid")
     if os.path.exists(pid_file):
         exit_with_error(
             "There is already an Orion process running in background.\n"
