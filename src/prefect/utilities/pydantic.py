@@ -222,8 +222,10 @@ class PartialModel(Generic[M]):
         self.fields[__name] = __value
 
     def __repr__(self) -> str:
-        dsp_fields = ", ".join(f"{key}={repr(value)}" for key, value in self.fields)
-        return f"PartialModel({self.model_cls.__name__}{dsp_fields})"
+        dsp_fields = ", ".join(
+            f"{key}={repr(value)}" for key, value in self.fields.items()
+        )
+        return f"PartialModel(cls={self.model_cls.__name__}, {dsp_fields})"
 
 
 class JsonPatch(JsonPatchBase):

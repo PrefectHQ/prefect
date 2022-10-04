@@ -314,6 +314,12 @@ PREFECT_PROFILES_PATH = Setting(
     value_callback=template_with_settings(PREFECT_HOME),
 )
 
+PREFECT_RESULTS_DEFAULT_SERIALIZER = Setting(
+    str,
+    default="pickle",
+    description="The default serializer to use when not otherwise specified.",
+)
+
 PREFECT_LOCAL_STORAGE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "storage",
