@@ -103,7 +103,9 @@ The following permissions are available for custom roles.
 | Permission | Description |
 | --- | --- |
 | View flows and flow runs  | User can see flows and flow runs within a workspace. |
+| Create, update, and delete saved search filters | User can create, update, and delete saved flow run search filters configured within a workspace. Includes permissions of **View flows and flow runs**. |
 | Create, update, and run flows | User can create, update, and run flows within a workspace. Includes permissions of **View flows and flow runs**. |
+| Delete flows | User can delete flows within a workspace. Includes permissions of **View flows and flow runs** and **Create, update, and run flows**. |
 
 ### Notifications
 
@@ -113,14 +115,7 @@ The following permissions are available for custom roles.
 | Create and edit notification policies | User can create and edit notification policies configured within a workspace. Includes permissions of **View notification policies**. |
 | Delete notification policies | User can delete notification policies configured within a workspace. Includes permissions of **View notification policies** and **Create and edit notification policies**. |
 
-### Search
-
-| Permission | Description |
-| --- | --- |
-| View saved search filters  | User can see saved search filters configured within a workspace. |
-| Create, update, and delete saved search filters | User can create, update, and delete saved search filters configured within a workspace. Includes permissions of **View saved search filters**. |
-
-### Workspace Management
+### Workspace management
 
 | Permission | Description |
 | --- | --- |
@@ -128,8 +123,9 @@ The following permissions are available for custom roles.
 | View information about workspace users | User can see user accounts for users invited to the workspace. |
 | View workspace settings | User can see settings configured within a workspace. |
 | Edit workspace settings | User can edit settings for a workspace. Includes permissions of **View workspace settings**. |
+| Delete the workspace | User can delete a workspace. Includes permissions of **View workspace settings** and **Edit workspace settings**. |
 
-### Work Queues
+### Work queues
 
 | Permission | Description |
 | --- | --- |
