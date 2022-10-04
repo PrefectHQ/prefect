@@ -34,19 +34,23 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
     def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
         ...
 
-    def result(self, raise_on_failure: bool = True):
+    def result(self, raise_on_failure: bool = True, fetch: Optional[bool] = None):
         """
-        Convenience method for access the data on the state's data document.
+        Retrieve the result
 
         Args:
             raise_on_failure: a boolean specifying whether to raise an exception
                 if the state is of type `FAILED` and the underlying data is an exception
+            fetch: a boolean specifying whether to resolve references to persisted
+                results into data. For synchronous users, this defaults to `True`.
+                For asynchronous users, this defaults to `False` for backwards
+                compatibility.
 
         Raises:
-            TypeError: if the state is failed but without an exception
+            TypeError: If the state is failed but the result is not an exception.
 
         Returns:
-            The underlying decoded data
+            The result of the run
 
         Examples:
             >>> from prefect import flow, task
