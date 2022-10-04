@@ -1,5 +1,6 @@
 import base64
 import json
+import uuid
 import warnings
 from typing import (
     TYPE_CHECKING,
@@ -14,6 +15,7 @@ from typing import (
 )
 
 import cloudpickle
+import pydantic
 from typing_extensions import Protocol
 
 from prefect.client.schemas import State
@@ -255,3 +257,39 @@ def result_from_state_with_data_document(state: "State", raise_on_failure: bool)
         )
 
     return data
+
+
+async def _persist_serialized_result(
+    content: bytes,
+    filesystem,
+) -> DataDocument:
+    key = uuid.uuid4().hex
+    await filesystem.write_path(key, content)
+    result = _Result(key=key, filesystem_document_id=filesystem._block_document_id)
+    return DataDocument.encode("result", result)
+
+
+async def _retrieve_serialized_result(document: DataDocument, client) -> bytes:
+    from prefect.blocks.core import Block
+
+    if document.encoding != "result":
+        raise TypeError(
+            f"Got unsupported data document encoding of {document.encoding!r}. "
+            "Expected 'result'."
+        )
+    result = document.decode()
+    filesystem_document = await client.read_block_document(
+        result.filesystem_document_id
+    )
+    filesystem = Block._from_block_document(filesystem_document)
+    return await filesystem.read_path(result.key)
+
+
+async def _retrieve_result(state):
+    serialized_result = await _retrieve_serialized_result(state.data)
+    return DataDocument.parse_raw(serialized_result).decode()
+
+
+class _Result(pydantic.BaseModel):
+    key: str
+    filesystem_document_id: uuid.UUID

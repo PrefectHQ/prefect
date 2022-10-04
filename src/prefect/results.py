@@ -380,23 +380,3 @@ class ResultBlob(pydantic.BaseModel):
 
     def to_bytes(self) -> bytes:
         return self.json().encode()
-
-
-# Backwards compatibility stubs --------------------------------------------------------
-
-
-async def _retrieve_serialized_result():
-    pass
-
-
-async def _persist_serialized_result():
-    pass
-
-
-async def _retrieve_result():
-    pass
-
-
-class _Result(pydantic.BaseModel):
-    key: str
-    filesystem_document_id: uuid.UUID

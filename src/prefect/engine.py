@@ -39,7 +39,12 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
-from prefect.deprecated.data_documents import DataDocument
+from prefect.deprecated.data_documents import (
+    DataDocument,
+    _persist_serialized_result,
+    _retrieve_result,
+    _retrieve_serialized_result,
+)
 from prefect.exceptions import (
     Abort,
     MappingLengthMismatch,
@@ -62,12 +67,7 @@ from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateDetails, StateType
-from prefect.results import (
-    ResultFactory,
-    _persist_serialized_result,
-    _retrieve_result,
-    _retrieve_serialized_result,
-)
+from prefect.results import ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_LOCAL_STORAGE_PATH
 from prefect.states import (
     exception_to_crashed_state,
