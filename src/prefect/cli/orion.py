@@ -116,6 +116,12 @@ async def start(
     ),
 ):
     """Start an Orion server"""
+    pid_file = str(PREFECT_HOME.value() / "orion.pid")
+    if os.path.exists(pid_file):
+        exit_with_error(
+            "There is already an Orion process running in background.\n"
+            "Stop it with command `prefect orion stop`"
+        )
 
     server_env = os.environ.copy()
     server_env["PREFECT_ORION_SERVICES_SCHEDULER_ENABLED"] = str(scheduler)
@@ -138,13 +144,6 @@ async def start(
         str(port),
         "--access-log",
     ]
-
-    pid_file = str(PREFECT_HOME.value() / "orion.pid")
-    if os.path.exists(pid_file):
-        exit_with_error(
-            "There is already an Orion process running in background.\n"
-            "Stop it with command `prefect orion stop`"
-        )
 
     if detach is True:
         try:
