@@ -1258,7 +1258,7 @@ class TestFlowResults:
         filesystem = Block._from_block_document(document)
         assert isinstance(filesystem, LocalFileSystem)
         assert filesystem.basepath == str(PREFECT_LOCAL_STORAGE_PATH.value())
-        result = await _retrieve_result(server_state)
+        result = await _retrieve_result(server_state, orion_client)
         assert result == state.result()
 
     async def test_subflow_results_use_parent_flow_run_value_by_default(
@@ -1289,7 +1289,7 @@ class TestFlowResults:
             parent_result.filesystem_document_id == child_result.filesystem_document_id
         )
 
-        result = await _retrieve_result(child_flow_run.state)
+        result = await _retrieve_result(child_flow_run.state, orion_client)
         assert result == child_state.result()
 
 

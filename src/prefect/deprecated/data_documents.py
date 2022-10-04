@@ -285,8 +285,8 @@ async def _retrieve_serialized_result(document: DataDocument, client) -> bytes:
     return await filesystem.read_path(result.key)
 
 
-async def _retrieve_result(state):
-    serialized_result = await _retrieve_serialized_result(state.data)
+async def _retrieve_result(state, client):
+    serialized_result = await _retrieve_serialized_result(state.data, client)
     return DataDocument.parse_raw(serialized_result).decode()
 
 

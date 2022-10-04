@@ -438,7 +438,7 @@ async def create_and_begin_subflow_run(
         flow_run = flow_runs[-1]
 
         # Hydrate the retrieved state
-        flow_run.state.data._cache_data(await _retrieve_result(flow_run.state))
+        flow_run.state.data._cache_data(await _retrieve_result(flow_run.state, client))
 
         # Set up variables required downstream
         terminal_state = flow_run.state
@@ -685,7 +685,7 @@ async def orchestrate_flow_run(
 
     if state.data is not None and state.data.encoding == "result":
         state.data = DataDocument.parse_raw(
-            await _retrieve_serialized_result(state.data)
+            await _retrieve_serialized_result(state.data, client=client)
         )
 
     return state
@@ -1124,7 +1124,9 @@ async def begin_task_run(
                 f"Retrieving result for state {task_run.state!r}..."
             )
             # Hydrate the state data
-            task_run.state.data._cache_data(await _retrieve_result(task_run.state))
+            task_run.state.data._cache_data(
+                await _retrieve_result(task_run.state, client)
+            )
             return task_run.state
 
 
@@ -1297,7 +1299,7 @@ async def orchestrate_task_run(
 
     if state.data is not None and state.data.encoding == "result":
         state.data = DataDocument.parse_raw(
-            await _retrieve_serialized_result(state.data)
+            await _retrieve_serialized_result(state.data, client=client)
         )
 
     return state

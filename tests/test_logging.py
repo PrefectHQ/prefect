@@ -190,7 +190,7 @@ async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deploym
     )
 
     state = (await orion_client.read_flow_run(flow_run.id)).state
-    settings = await _retrieve_result(state)
+    settings = await _retrieve_result(state, orion_client)
     api_logs = await orion_client.read_logs()
     api_log_messages = [log.message for log in api_logs]
 
