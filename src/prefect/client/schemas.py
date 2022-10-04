@@ -1,5 +1,5 @@
 import datetime
-from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Generic, Optional, Type, Union, overload
 
 from pydantic import Field
 
@@ -7,9 +7,7 @@ from prefect.orion import schemas
 
 if TYPE_CHECKING:
     from prefect.deprecated.data_documents import DataDocument
-    from prefect.results import BaseResult
-
-R = TypeVar("R")
+    from prefect.results import BaseResult, R
 
 
 class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
@@ -19,7 +17,7 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
     This client-side extension adds a `result` interface.
     """
 
-    data: Optional[Union["BaseResult", "DataDocument[R]"]] = Field(
+    data: Optional[Union["BaseResult[R]", "DataDocument[R]"]] = Field(
         default=None,
     )
 
