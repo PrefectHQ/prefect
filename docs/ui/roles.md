@@ -82,21 +82,21 @@ The following permissions are available for custom roles.
 | View blocks | User can see configured blocks within a workspace. |
 | Create, edit, and delete blocks | User can create, edit, and delete blocks within a workspace. Includes permissions of **View blocks**. |
 
-### Concurrency
+### Task run concurrency
 
 | Permission | Description |
 | --- | --- |
-| View concurrency limits | User can see configured concurrency limits within a workspace. |		
-| Create, edit, and delete concurrency limits | User can create, edit, and delete concurrency limits within a workspace. Includes permissions of **View concurrency limits**. |		
+| View concurrency limits | User can see configured task run concurrency limits within a workspace. |		
+| Create, edit, and delete concurrency limits | User can create, edit, and delete task run concurrency limits within a workspace. Includes permissions of **View concurrency limits**. |		
 
 ### Deployments
 
 | Permission | Description |
 | --- | --- |
 | View deployments | User can see configured deployments within a workspace. |
-| Run a deployment | User can run a deployments within a workspace. This does not give a user permission to execute a flow. This only gives a user (view their key) the ability to run a deployment, so another user/key must actually execute that flow. Includes permissions of **View deployments**. |
+| Run deployments | User can run deployments within a workspace. This does not give a user permission to execute the flow associated with the deployment. This only gives a user (via their key) the ability to run a deployment &mdash; another user/key must actually execute that flow, such as a service account with an appropriate role. Includes permissions of **View deployments**. |
 | Create and edit deployments | User can create and edit deployments within a workspace. Includes permissions of **View deployments** and **Run a deployment**. |
-| Create, edit, and delete deployments | User can create, edit, and delete deployments within a workspace. Includes permissions of **View deployments** and **Run a deployment**. |
+| Create, edit, and delete deployments | User can create, edit, and delete deployments within a workspace. Includes permissions of **View deployments**, **Run deployments**, and **Create and edit deployments**. |
 
 ### Flows
 
