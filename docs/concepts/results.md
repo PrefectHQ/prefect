@@ -397,10 +397,10 @@ Drawbacks of the JSON serializer:
 
 ## Result types
 
-Prefect uses the internal `Result` type to capture information about the result attached to a state. There are two types of `Result`:
+Prefect uses internal result types to capture information about the result attached to a state. The following types exist:
 
-- `ResultLiteral`
-- `ResultReference`
+- `ResultLiteral`: Stores simple values inline.
+- `ResultReference`: A reference to persisted values.
 
 All result types include a `get()` method that can be called to return the value of the result. This is done behind the scenes when the `result()` method is used on states or futures.
 

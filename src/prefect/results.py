@@ -79,7 +79,9 @@ class ResultFactory(pydantic.BaseModel):
 
     @classmethod
     @inject_client
-    async def from_flow(cls: Type[Self], flow: "Flow", client: OrionClient) -> Self:
+    async def from_flow(
+        cls: Type[Self], flow: "Flow", client: OrionClient = None
+    ) -> Self:
         """
         Create a new result factory for a flow.
         """
@@ -119,7 +121,9 @@ class ResultFactory(pydantic.BaseModel):
 
     @classmethod
     @inject_client
-    async def from_task(cls: Type[Self], task: "Task", client: OrionClient) -> Self:
+    async def from_task(
+        cls: Type[Self], task: "Task", client: OrionClient = None
+    ) -> Self:
         """
         Create a new result factory for a task.
         """
@@ -242,14 +246,6 @@ class ResultFactory(pydantic.BaseModel):
 class BaseResult(pydantic.BaseModel, Generic[R]):
     type: str
 
-    _cache: Any = pydantic.PrivateAttr(NotSet)
-
-    def _cache_object(self, obj: Any) -> None:
-        self._cache = obj
-
-    def _has_cached_object(self) -> bool:
-        return self._cache is not NotSet
-
     @sync_compatible
     async def get(self) -> R:
         pass
@@ -288,9 +284,9 @@ class ResultLiteral(BaseResult):
         cls: "Type[ResultLiteral]",
         obj: R,
     ) -> "ResultLiteral[R]":
-        if obj not in LITERAL_TYPES:
+        if type(obj) not in LITERAL_TYPES:
             raise TypeError(
-                f"Unsupported type {type(obj).__name__} for literal result. "
+                f"Unsupported type {type(obj).__name__!r} for literal result. "
                 f"Expected one of: {LITERAL_TYPES}"
             )
 
@@ -312,6 +308,14 @@ class ResultReference(BaseResult):
     serializer_type: str
     storage_block_id: uuid.UUID
     storage_key: str
+
+    _cache: Any = pydantic.PrivateAttr(NotSet)
+
+    def _cache_object(self, obj: Any) -> None:
+        self._cache = obj
+
+    def _has_cached_object(self) -> bool:
+        return self._cache is not NotSet
 
     @sync_compatible
     @inject_client
@@ -360,7 +364,7 @@ class ResultReference(BaseResult):
         )
 
         # Attach the object to the result so it's available without deserialization
-        result.cache_object(obj)
+        result._cache_object(obj)
 
         return result
 
