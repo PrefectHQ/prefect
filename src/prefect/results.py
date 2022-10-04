@@ -251,7 +251,7 @@ class BaseResult(pydantic.BaseModel, Generic[R]):
         return self._cache is not NotSet
 
     @sync_compatible
-    async def load(self) -> R:
+    async def get(self) -> R:
         pass
 
     @classmethod
@@ -292,7 +292,7 @@ class ResultLiteral(BaseResult):
     value: Any
 
     @sync_compatible
-    async def load(self) -> R:
+    async def get(self) -> R:
         return self.value
 
     @classmethod
@@ -328,7 +328,7 @@ class ResultReference(BaseResult):
 
     @sync_compatible
     @inject_client
-    async def load(self, client: OrionClient) -> R:
+    async def get(self, client: OrionClient) -> R:
         """
         Retrieve the data and deserialize it into the original object.
         """
