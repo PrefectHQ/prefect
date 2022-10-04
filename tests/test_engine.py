@@ -34,10 +34,25 @@ from prefect.orion.schemas.states import (
     StateDetails,
     StateType,
 )
+from prefect.results import (
+    ResultFactory,
+    get_default_result_serializer,
+    get_default_result_storage,
+)
 from prefect.task_runners import SequentialTaskRunner
 from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
 from prefect.utilities.annotations import quote
 from prefect.utilities.pydantic import PartialModel
+
+
+@pytest.fixture
+async def result_factory(orion_client):
+    return await ResultFactory.from_settings(
+        result_storage=get_default_result_storage(),
+        result_serializer=get_default_result_serializer(),
+        persist_result=False,
+        client=orion_client,
+    )
 
 
 @pytest.fixture
@@ -84,7 +99,7 @@ def flow_run_caplog(caplog):
 
 
 @pytest.fixture
-async def get_flow_run_context(orion_client, local_filesystem):
+async def get_flow_run_context(orion_client, result_factory, local_filesystem):
     partial_ctx = PartialModel(FlowRunContext)
 
     @flow
@@ -103,6 +118,7 @@ async def get_flow_run_context(orion_client, local_filesystem):
                 client=orion_client,
                 task_runner=test_task_runner,
                 result_filesystem=local_filesystem,
+                result_factory=result_factory,
             )
 
     return _get_flow_run_context
@@ -115,6 +131,7 @@ class TestOrchestrateTaskRun:
         flow_run,
         mock_anyio_sleep,
         local_filesystem,
+        result_factory,
         monkeypatch,
     ):
         @task
@@ -140,6 +157,7 @@ class TestOrchestrateTaskRun:
                 parameters={},
                 wait_for=None,
                 result_filesystem=local_filesystem,
+                result_factory=result_factory,
                 interruptible=False,
                 client=orion_client,
             )
@@ -148,7 +166,7 @@ class TestOrchestrateTaskRun:
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
-        self, orion_client, flow_run, mock_anyio_sleep, local_filesystem
+        self, orion_client, flow_run, mock_anyio_sleep, result_factory, local_filesystem
     ):
         @task
         def foo():
@@ -172,6 +190,7 @@ class TestOrchestrateTaskRun:
             parameters={},
             wait_for=None,
             result_filesystem=local_filesystem,
+            result_factory=result_factory,
             interruptible=False,
             client=orion_client,
         )
@@ -181,7 +200,7 @@ class TestOrchestrateTaskRun:
         assert state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
-        self, mock_anyio_sleep, orion_client, flow_run, local_filesystem
+        self, mock_anyio_sleep, orion_client, flow_run, result_factory, local_filesystem
     ):
         # Define a task that fails once and then succeeds
         mock = MagicMock()
@@ -211,6 +230,7 @@ class TestOrchestrateTaskRun:
                 parameters={},
                 wait_for=None,
                 result_filesystem=local_filesystem,
+                result_factory=result_factory,
                 interruptible=False,
                 client=orion_client,
             )
@@ -233,7 +253,12 @@ class TestOrchestrateTaskRun:
         "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
     )
     async def test_returns_not_ready_when_any_upstream_futures_resolve_to_incomplete(
-        self, orion_client, flow_run, upstream_task_state, local_filesystem
+        self,
+        orion_client,
+        flow_run,
+        upstream_task_state,
+        result_factory,
+        local_filesystem,
     ):
         # Define a mock to ensure the task was not run
         mock = MagicMock()
@@ -279,6 +304,7 @@ class TestOrchestrateTaskRun:
             parameters={"x": {"nested": [future]}},
             wait_for=None,
             result_filesystem=local_filesystem,
+            result_factory=result_factory,
             interruptible=False,
             client=orion_client,
         )
@@ -295,7 +321,7 @@ class TestOrchestrateTaskRun:
         )
 
     async def test_quoted_parameters_are_resolved(
-        self, orion_client, flow_run, local_filesystem
+        self, orion_client, flow_run, result_factory, local_filesystem
     ):
         # Define a mock to ensure the task was not run
         mock = MagicMock()
@@ -320,6 +346,7 @@ class TestOrchestrateTaskRun:
             parameters={"x": quote(1)},
             wait_for=None,
             result_filesystem=local_filesystem,
+            result_factory=result_factory,
             interruptible=False,
             client=orion_client,
         )
@@ -334,7 +361,12 @@ class TestOrchestrateTaskRun:
         "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
     )
     async def test_states_in_parameters_can_be_incomplete_if_quoted(
-        self, orion_client, flow_run, upstream_task_state, local_filesystem
+        self,
+        orion_client,
+        flow_run,
+        upstream_task_state,
+        result_factory,
+        local_filesystem,
     ):
         # Define a mock to ensure the task was not run
         mock = MagicMock()
@@ -358,6 +390,7 @@ class TestOrchestrateTaskRun:
             parameters={"x": quote(upstream_task_state)},
             wait_for=None,
             result_filesystem=local_filesystem,
+            result_factory=result_factory,
             interruptible=False,
             client=orion_client,
         )
@@ -403,12 +436,13 @@ class TestOrchestrateTaskRun:
 
 class TestOrchestrateFlowRun:
     @pytest.fixture
-    def partial_flow_run_context(self, local_filesystem):
+    def partial_flow_run_context(self, result_factory, local_filesystem):
         return PartialModel(
             FlowRunContext,
             task_runner=SequentialTaskRunner(),
             sync_portal=None,
             result_filesystem=local_filesystem,
+            result_factory=result_factory,
         )
 
     async def test_waits_until_scheduled_start_time(
