@@ -1,5 +1,5 @@
 import datetime
-from typing import TYPE_CHECKING, Generic, Optional, Type, Union, overload
+from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar, Union, overload
 
 from pydantic import Field
 
@@ -7,7 +7,9 @@ from prefect.orion import schemas
 
 if TYPE_CHECKING:
     from prefect.deprecated.data_documents import DataDocument
-    from prefect.results import BaseResult, R
+    from prefect.results import BaseResult
+
+R = TypeVar("R")
 
 
 class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
