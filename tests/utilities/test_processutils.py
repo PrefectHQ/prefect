@@ -137,9 +137,7 @@ def test_start_process_with_pid_file(tmp_path, mock_subprocess_popen):
 
 
 def test_start_process_with_invalid_command(mock_subprocess_popen):
-    mock_subprocess_popen.side_effect = mock.MagicMock(
-        side_effect=OSError("No such file or directory: command")
-    )
+    mock_subprocess_popen.side_effect = OSError("No such file or directory: command")
 
     with pytest.raises(OSError, match="No such file or directory: command"):
         start_process(["test_invalid_command"])
@@ -149,7 +147,7 @@ def test_start_process_with_invalid_command(mock_subprocess_popen):
 
 def test_start_process_with_invalid_pid_file(monkeypatch, mock_subprocess_popen):
     mock_open = mock.mock_open()
-    mock_open.side_effect = mock.Mock(side_effect=OSError("monk_open error"))
+    mock_open.side_effect = OSError("monk_open error")
     monkeypatch.setattr("builtins.open", mock_open)
 
     with pytest.raises(
@@ -231,9 +229,7 @@ def test_stop_process_with_invalid_pid(mock_psutil_process, tmp_path):
 
 
 def test_stop_process_with_zombie_process(mock_psutil_process, tmp_path):
-    mock_psutil_process.side_effect = mock.MagicMock(
-        side_effect=psutil.NoSuchProcess("process PID not found")
-    )
+    mock_psutil_process.side_effect = psutil.NoSuchProcess("process PID not found")
 
     pid_file = tmp_path / "test.pid"
     with open(pid_file, "w") as f:
@@ -249,8 +245,8 @@ def test_stop_process_with_zombie_process(mock_psutil_process, tmp_path):
 
 
 def test_stop_process_with_insufficient_privileges(mock_psutil_process, tmp_path):
-    mock_psutil_process.terminate.side_effect = mock.MagicMock(
-        side_effect=psutil.AccessDenied("insufficient privileges")
+    mock_psutil_process.terminate.side_effect = psutil.AccessDenied(
+        "insufficient privileges"
     )
 
     pid_file = tmp_path / "test.pid"
