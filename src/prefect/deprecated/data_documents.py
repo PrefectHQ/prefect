@@ -1,22 +1,33 @@
 import base64
 import json
-from typing import TYPE_CHECKING, Any, Dict, Generic, Tuple, Type, TypeVar, Union
+import warnings
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generic,
+    Iterable,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import cloudpickle
 from typing_extensions import Protocol
 
+from prefect.client.schemas import State
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
 if TYPE_CHECKING:
     from prefect.packaging.base import PackageManifest
-    from prefect.results import _Result
-
+    from prefect.results import Result
 
 T = TypeVar("T", bound="DataDocument")  # Generic for DataDocument class types
 D = TypeVar("D", bound=Any)  # Generic for DataDocument data types
 
+
 _SERIALIZERS: Dict[str, "Serializer"] = {}
-D = TypeVar("D")
 
 
 class Serializer(Protocol[D]):
@@ -201,11 +212,46 @@ class ResultSerializer:
     """
 
     @staticmethod
-    def dumps(data: "_Result") -> bytes:
+    def dumps(data: "Result") -> bytes:
         return data.json().encode()
 
     @staticmethod
-    def loads(blob: bytes) -> "_Result":
-        from prefect.results import _Result
+    def loads(blob: bytes) -> "Result":
+        from prefect.results import Result
 
-        return _Result.parse_raw(blob)
+        return Result.parse_raw(blob)
+
+
+def result_from_state_with_data_document(state: "State", raise_on_failure: bool) -> Any:
+    data = None
+
+    if state.data:
+        data = state.data.decode()
+
+    # Link the result to this state for dependency tracking
+    # Performing this here lets us capture relationships for futures resolved into
+    # data
+
+    if (state.is_failed() or state.is_crashed()) and raise_on_failure:
+        if isinstance(data, Exception):
+            raise data
+        elif isinstance(data, BaseException):
+            warnings.warn(
+                f"State result is a {type(data).__name__!r} type and is not safe "
+                "to re-raise, it will be returned instead."
+            )
+            return data
+        elif isinstance(data, State):
+            data.result()
+        elif isinstance(data, Iterable) and all([isinstance(o, State) for o in data]):
+            # raise the first failure we find
+            for state in data:
+                state.result()
+
+        # we don't make this an else in case any of the above conditionals doesn't raise
+        raise TypeError(
+            f"Unexpected result for failure state: {data!r} —— "
+            f"{type(data).__name__} cannot be resolved into an exception"
+        )
+
+    return data
