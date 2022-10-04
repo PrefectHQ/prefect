@@ -183,7 +183,7 @@ async def start(
 
 @orion_app.command()
 async def stop():
-    pid_file = f"{PREFECT_HOME.value()}/orion.pid"
+    pid_file = str(PREFECT_HOME.value() / "orion.pid")
 
     if os.path.exists(pid_file):
         try:
