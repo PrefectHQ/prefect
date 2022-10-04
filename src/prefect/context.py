@@ -36,6 +36,7 @@ from prefect.exceptions import MissingContextError
 from prefect.filesystems import WritableFileSystem
 from prefect.futures import PrefectFuture
 from prefect.orion.utilities.schemas import DateTimeTZ
+from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.task_runners import BaseTaskRunner
 from prefect.utilities.importtools import load_script_as_module
@@ -208,7 +209,10 @@ class FlowRunContext(RunContext):
     flow: "Flow"
     flow_run: FlowRun
     task_runner: BaseTaskRunner
+
+    # Result handling
     result_filesystem: WritableFileSystem
+    result_factory: ResultFactory
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
@@ -243,7 +247,10 @@ class TaskRunContext(RunContext):
 
     task: "Task"
     task_run: TaskRun
+
+    # Result handling
     result_filesystem: WritableFileSystem
+    result_factory: ResultFactory
 
     __var__ = ContextVar("task_run")
 

@@ -40,3 +40,9 @@ def quote(expr: T) -> Quote[T]:
         1
     """
     return Quote(expr)
+
+
+class NotSet:
+    """
+    Singleton to distinguish `None` from a value that is not provided by the user.
+    """
