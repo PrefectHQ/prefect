@@ -20,6 +20,7 @@ from prefect.context import (
     use_profile,
 )
 from prefect.exceptions import MissingContextError
+from prefect.results import ResultFactory
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
     PREFECT_API_KEY,
@@ -97,6 +98,7 @@ async def test_flow_run_context(orion_client, local_filesystem):
             client=orion_client,
             task_runner=test_task_runner,
             result_filesystem=local_filesystem,
+            result_factory=await ResultFactory.from_flow(foo),
             background_tasks=task_group,
         ):
             ctx = FlowRunContext.get()
@@ -120,6 +122,8 @@ async def test_task_run_context(orion_client, flow_run, local_filesystem):
         task_run=task_run,
         client=orion_client,
         result_filesystem=local_filesystem,
+        # `ResultFactory.from_task` requires a flow run context so we lie :)
+        result_factory=await ResultFactory.from_flow(foo, client=orion_client),
     ):
         ctx = TaskRunContext.get()
         assert ctx.task is foo
@@ -165,6 +169,7 @@ async def test_get_run_context(orion_client, local_filesystem):
             task_runner=test_task_runner,
             result_filesystem=local_filesystem,
             background_tasks=task_group,
+            result_factory=await ResultFactory.from_flow(foo, client=orion_client),
         ) as flow_ctx:
             assert get_run_context() is flow_ctx
 
@@ -173,6 +178,7 @@ async def test_get_run_context(orion_client, local_filesystem):
                 task_run=task_run,
                 client=orion_client,
                 result_filesystem=local_filesystem,
+                result_factory=await ResultFactory.from_task(bar, client=orion_client),
             ) as task_ctx:
                 assert get_run_context() is task_ctx, "Task context takes precendence"
 
