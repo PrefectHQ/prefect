@@ -257,27 +257,14 @@ class BaseResult(pydantic.BaseModel, Generic[R]):
     @classmethod
     @sync_compatible
     async def create(
-        cls: Type[Self],
+        cls: "Type[BaseResult[R]]",
         obj: R,
         **kwargs: Any,
-    ) -> Self[R]:
+    ) -> "BaseResult[R]":
         pass
 
     class Config:
         extra = "forbid"
-
-
-class ResultBlob(pydantic.BaseModel):
-    """
-    The format of the content stored in a result file.
-    """
-
-    serializer: Serializer
-    data: bytes
-    prefect_version: str = pydantic.Field(default=prefect.__version__)
-
-    def to_bytes(self) -> bytes:
-        return self.json().encode()
 
 
 class ResultLiteral(BaseResult):
@@ -298,9 +285,9 @@ class ResultLiteral(BaseResult):
     @classmethod
     @sync_compatible
     async def create(
-        cls: Type[Self],
+        cls: "Type[ResultLiteral]",
         obj: R,
-    ):
+    ) -> "ResultLiteral[R]":
         if obj not in LITERAL_TYPES:
             raise TypeError(
                 f"Unsupported type {type(obj).__name__} for literal result. "
@@ -348,12 +335,12 @@ class ResultReference(BaseResult):
     @classmethod
     @sync_compatible
     async def create(
-        cls: Type[Self],
+        cls: "Type[ResultReference]",
         obj: R,
         storage_block: WritableFileSystem,
         storage_block_id: uuid.UUID,
         serializer: Serializer,
-    ) -> Self[R]:
+    ) -> "ResultReference[R]":
         """
         Create a new result reference from a user's object.
 
@@ -376,6 +363,19 @@ class ResultReference(BaseResult):
         result.cache_object(obj)
 
         return result
+
+
+class ResultBlob(pydantic.BaseModel):
+    """
+    The format of the content stored in a result file.
+    """
+
+    serializer: Serializer
+    data: bytes
+    prefect_version: str = pydantic.Field(default=prefect.__version__)
+
+    def to_bytes(self) -> bytes:
+        return self.json().encode()
 
 
 # Backwards compatibility stubs --------------------------------------------------------
