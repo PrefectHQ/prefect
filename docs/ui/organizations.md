@@ -12,18 +12,17 @@ tags:
 
 # Organizations in Prefect Cloud
 
-For larger teams, and companies with more complex needs around user and access management, [annual plans](https://www.prefect.io/pricing) include _organizations_ in Prefect Cloud 2. Organizations provide several features that enable you to collaborate securely at scale, including:
+For larger teams, and companies with more complex needs around user and access management, organizations provide several features that enable you to collaborate securely at scale, including:
 
 - Organizational accounts and membership management.
 - [Role Based Access Controls (RBAC)](/ui/roles/) to configure user permissions at organization and workspace levels.
 - Service accounts to generate credentials for specific workloads.
 - Expanded and customizable [Flow Run Retention Policy](/ui/flow-runs/#flow-run-retention-policy).
 
-[Contact sales](https://www.prefect.io/pricing) to learn more about annual plans giving you control over organizations and user roles.
 
 ## Navigating organizations
 
-If you have access to organizations in Prefect Cloud, you can see the organizations you're a member of by selecting the **Organizations** icon in the left navigation bar.
+You can see the organizations you're a member of, or create a new organization, by selecting the **Organizations** icon in the left navigation bar.
 
 ![Select the Organizations icon in Prefect Cloud.](/img/ui/organizations.png)
 
@@ -41,7 +40,7 @@ Control granular access to workspaces by setting default access for all organiza
 
 ### Inviting organization members
 
-To invite new members to an organization in Prefect Cloud, select the **+** icon. Provide an email address and a default organization role. You may add multiple email addresses.
+To invite new members to an organization in Prefect Cloud, select the **+** icon. Provide an email address and  organization role. You may add multiple email addresses.
 
 ![Invite new members to an organization in Prefect Cloud.](/img/ui/org-invite-members.png)
 
@@ -62,7 +61,7 @@ Select **Service Accounts** to view, create, or edit service accounts for your o
 Service accounts are created at the organization level, but may be shared to individual workspaces within the organization. See [workspace sharing](#workspace-sharing) for more information.
 
 !!! tip "Service account credentials"
-    When you create a service account, Prefect Cloud creates a new API key for the account and provides the API configuration command for the execution environment. Save these to a safe location for future use. If the access credentials are lost or compromised, you should delete the service account and create a new service account with new credentials.
+    When you create a service account, Prefect Cloud creates a new API key for the account and provides the API configuration command for the execution environment. Save these to a safe location for future use. If the access credentials are lost or compromised, you should regenerate the credentials from the service account page.
 
 ## Workspace sharing
 

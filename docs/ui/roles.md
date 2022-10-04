@@ -20,7 +20,6 @@ Role-based access control (RBAC) functionality in Prefect Cloud enables you to a
 
 To give users access to functionality beyond the scope of Prefect’s built-in workspace roles, you may also create custom roles for users.
 
-[Contact sales](https://www.prefect.io/pricing) to learn more about annual plans giving you control over organizations and user roles.
 
 ## Built-in roles
 
@@ -129,7 +128,7 @@ The following permissions are available for custom roles.
 | View workspace settings | User can see settings configured within a workspace. |
 | Edit workspace settings | User can edit settings for a workspace. Includes permissions of **View workspace settings**. |
 
-### Workspace Queues
+### Work Queues
 
 | Permission | Description |
 | --- | --- |
