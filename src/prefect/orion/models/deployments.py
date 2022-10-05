@@ -4,7 +4,7 @@ Intended for internal use by the Orion API.
 """
 
 import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
 from uuid import UUID, uuid4
 
 import pendulum
