@@ -241,12 +241,14 @@ asyncio.run(main())
 !!! important "Resolving results"
     In Prefect 2.6.0, we added automatic retrieval of persisted results.
     Prior to this version, `State.result()` did not require an `await`.
-    For backwards compatibility, when used from an asynchronous context, `State.result()` will return a raw result type.
+    For backwards compatibility, when used from an asynchronous context, `State.result()` returns a raw result type.
+    
     You may opt-in to the new behavior by passing `fetch=True` as shown in the example above.
     If you would like this behavior to be used automatically, you may enable the `PREFECT_ASYNC_FETCH_STATE_RESULT` setting.
-    If you do not opt-in to this behavior you will see a warning.
+    If you do not opt-in to this behavior, you will see a warning.
+    
     You may also opt-out by setting `fetch=False`.
-    This will silence the warning but you will need to retrieve your result manually from the result type.
+    This will silence the warning, but you will need to retrieve your result manually from the result type.
 
 When submitting tasks to a runner, the result can be retreived with the `Future.result()` method:
 
