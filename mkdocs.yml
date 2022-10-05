@@ -123,10 +123,9 @@ nav:
             - Prefect Cloud Quickstart: ui/cloud-getting-started.md
             - Workspaces: ui/workspaces.md
             - Organizations: ui/organizations.md
-            - Service Accounts: ui/service-accounts.md
             - Roles (RBAC): ui/roles.md
-            - Single Sign-on (SSO): ui/sso.md
-    - Integrations:
+    - Collections:
+        - Overview: collections/overview.md
         - Collections Catalog: collections/catalog.md
         - Using Collections: collections/usage.md
         - Contributing Collections: collections/contribute.md
