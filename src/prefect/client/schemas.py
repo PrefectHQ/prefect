@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar, Union, overl
 from pydantic import Field
 
 from prefect.orion import schemas
-from prefect.settings import PREFECT_OPT_IN_ASYNC_STATE_RESULT
+from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 
 if TYPE_CHECKING:
@@ -111,7 +111,7 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
         )
 
         if fetch is None and (
-            PREFECT_OPT_IN_ASYNC_STATE_RESULT or not in_async_main_thread()
+            PREFECT_ASYNC_FETCH_STATE_RESULT or not in_async_main_thread()
         ):
             # Fetch defaults to `True` for sync users or async users who have opted in
             fetch = True

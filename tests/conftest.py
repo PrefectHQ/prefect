@@ -34,6 +34,7 @@ import prefect.settings
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_ASYNC_FETCH_STATE_RESULT,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
     PREFECT_HOME,
@@ -41,7 +42,6 @@ from prefect.settings import (
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
-    PREFECT_OPT_IN_ASYNC_STATE_RESULT,
     PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_BLOCKS_REGISTER_ON_START,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
@@ -276,7 +276,7 @@ def pytest_sessionstart(session):
             PREFECT_CLI_COLORS: False,
             PREFECT_CLI_WRAP_LINES: False,
             # Enable future change
-            PREFECT_OPT_IN_ASYNC_STATE_RESULT: True,
+            PREFECT_ASYNC_FETCH_STATE_RESULT: True,
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
             # Disable shipping logs to the API;

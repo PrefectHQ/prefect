@@ -417,7 +417,7 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
-PREFECT_OPT_IN_ASYNC_STATE_RESULT = Setting(
+PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(
     bool,
     default=False,
     description=textwrap.dedent(
