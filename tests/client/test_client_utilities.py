@@ -11,7 +11,6 @@ from prefect.client.utilities import (
     run_deployment,
 )
 from prefect.deployments import Deployment
-from prefect.exceptions import PrefectHTTPStatusError
 from prefect.orion.schemas import states
 from prefect.settings import PREFECT_API_URL
 from prefect.testing.cli import invoke_and_assert
