@@ -9,25 +9,10 @@ import pytest
 
 from prefect.utilities.processutils import (
     kill_on_interrupt,
-    parse_command,
     run_process,
     start_process,
     stop_process,
 )
-
-
-def test_parse_command_returns_list():
-    result = parse_command(["echo", "hello world"])
-    assert isinstance(result, list)
-    assert result == ["echo", "hello world"]
-
-
-def test_parse_command_returns_str(monkeypatch):
-    monkeypatch.setattr("sys.platform", "win32")
-
-    result = parse_command(["echo", "hello world"])
-    assert isinstance(result, str)
-    assert result == "echo hello world"
 
 
 async def test_run_process_hides_output(capsys):

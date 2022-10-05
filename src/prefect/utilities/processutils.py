@@ -14,16 +14,6 @@ from anyio.streams.text import TextReceiveStream, TextSendStream
 TextSink = Union[anyio.AsyncFile, TextIO, TextSendStream]
 
 
-def parse_command(command: List[str]) -> Union[List[str], str]:
-    # Passing a string to open_process is equivalent to shell=True which is
-    # generally necessary for Unix-like commands on Windows but otherwise should
-    # be avoided
-    if sys.platform == "win32":
-        command = " ".join(command)
-
-    return command
-
-
 @asynccontextmanager
 async def open_process(command: List[str], **kwargs):
     """
@@ -32,7 +22,11 @@ async def open_process(command: List[str], **kwargs):
     - Termination of the process on exception during yield
     - Forced cleanup of process resources during cancellation
     """
-    command = parse_command(command)
+    # Passing a string to open_process is equivalent to shell=True which is
+    # generally necessary for Unix-like commands on Windows but otherwise should
+    # be avoided
+    if sys.platform == "win32":
+        command = " ".join(command)
 
     process = await anyio.open_process(command, **kwargs)
 
