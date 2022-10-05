@@ -29,6 +29,7 @@ from prefect.context import tags
 from prefect.client import get_client
 from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped
+from prefect.results import BaseResult
 
 # Import modules that register types
 import prefect.serializers
@@ -43,6 +44,22 @@ import prefect.infrastructure.docker
 
 # Initialize the process-wide profile and registry at import time
 import prefect.context
+
+prefect.context.initialize_object_registry()
+
+# Perform any forward-ref updates needed for Pydantic models
+import prefect.client.schemas
+
+prefect.context.FlowRunContext.update_forward_refs(Flow=Flow)
+prefect.context.TaskRunContext.update_forward_refs(Task=Task)
+prefect.client.schemas.State.update_forward_refs(
+    BaseResult=BaseResult, DataDocument=prefect.deprecated.data_documents.DataDocument
+)
+
+# Ensure collections are imported and have the opportunity to register types
+import prefect.plugins
+
+prefect.plugins.load_prefect_collections()
 
 
 # Attempt to warn users who are importing Prefect 1.x attributes that they may
@@ -79,19 +96,7 @@ if not hasattr(sys, "frozen"):
     sys.meta_path = [Prefect1ImportInterceptor()] + sys.meta_path
 
 
-prefect.context.root_settings_context()
-prefect.context.initialize_object_registry()
-
-# The context needs updated references for flows and tasks
-prefect.context.FlowRunContext.update_forward_refs(Flow=Flow)
-prefect.context.TaskRunContext.update_forward_refs(Task=Task)
-
-# Ensure collections are imported and have the opportunity to register types
-import prefect.plugins
-
-prefect.plugins.load_prefect_collections()
-
-# Declare API
+# Declare API for type-checkers
 __all__ = [
     "flow",
     "Flow",
