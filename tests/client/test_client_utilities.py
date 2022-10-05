@@ -102,16 +102,62 @@ class TestRunDeployment:
 
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
-            flow_polls = router.get(
-                re.compile("/flow_runs/.*")
-            ).mock(side_effect=poll_responses)
+            flow_polls = router.get(re.compile("/flow_runs/.*")).mock(
+                side_effect=poll_responses
+            )
 
             assert (
                 run_deployment(
                     f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
-                ).type
+                ).state.type
                 == terminal_state
             ), "run_deployment does not exit on {terminal_state}"
+            assert len(flow_polls.calls) == 3
+
+    @pytest.mark.parametrize(
+        "terminal_state", list(sorted(s.name for s in states.TERMINAL_STATES))
+    )
+    async def test_running_a_deployment_blocks_until_termination_async(
+        self,
+        test_deployment,
+        use_hosted_orion,
+        terminal_state,
+    ):
+        d, deployment_id = test_deployment
+
+        mock_flowrun_response = {
+            "id": str(uuid4()),
+            "flow_id": str(uuid4()),
+        }
+
+        async with respx.mock(
+            base_url=PREFECT_API_URL.value(),
+            assert_all_mocked=True,
+        ) as router:
+            poll_responses = [
+                Response(
+                    200, json={**mock_flowrun_response, "state": {"type": "PENDING"}}
+                ),
+                Response(
+                    200, json={**mock_flowrun_response, "state": {"type": "RUNNING"}}
+                ),
+                Response(
+                    200,
+                    json={**mock_flowrun_response, "state": {"type": terminal_state}},
+                ),
+            ]
+
+            router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
+            router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
+            flow_polls = router.get(re.compile("/flow_runs/.*")).mock(
+                side_effect=poll_responses
+            )
+
+            assert (
+                await run_deployment(
+                    f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
+                )
+            ).state.type == terminal_state, "run_deployment does not exit on {terminal_state}"
             assert len(flow_polls.calls) == 3
 
     def test_ephemeral_api_works(
@@ -121,13 +167,11 @@ class TestRunDeployment:
     ):
         d, deployment_id = test_deployment
 
-        with pytest.raises(DeploymentTimeout):
-            assert (
-                run_deployment(
-                    f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
-                ).type
-                == "SCHEDULED"
-            )
+        assert (
+            run_deployment(
+                f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
+            ).state.is_scheduled()
+        )
 
     def test_run_deployment_raises_on_polling_errors(
         self,
@@ -148,7 +192,7 @@ class TestRunDeployment:
             with pytest.raises(MissingFlowRunError):
                 run_deployment(f"{d.flow_name}/{d.name}", max_polls=3, poll_interval=0)
 
-    def test_running_a_raises_on_max_polls(
+    def test_returns_flow_run_on_max_polls(
         self,
         test_deployment,
         use_hosted_orion,
@@ -173,18 +217,39 @@ class TestRunDeployment:
                 )
             )
 
-            with pytest.raises(DeploymentTimeout):
-                assert run_deployment(
-                    f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
-                )
+            flow_run = run_deployment(
+                f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
+            )
             assert len(flow_polls.calls) == 5
+            assert flow_run.state.is_scheduled()
 
-    # async def test_run_deployment_run_is_not_auto_scheduled(
-    #     self, test_deployment, use_hosted_orion, orion_client
-    # ):
-    #     d, deployment_id = test_deployment
-    #     flow_run_id = run_deployment(
-    #         f"{d.flow_name}/{d.name}", parameters={"a funky": "parameter"}
-    #     )
-    #     flow_run = await orion_client.read_flow_run(flow_run_id)
-    #     assert not flow_run.auto_scheduled
+    def test_returns_flow_run_immediately_when_max_polls_is_zero(
+        self,
+        test_deployment,
+        use_hosted_orion,
+    ):
+        d, deployment_id = test_deployment
+
+        mock_flowrun_response = {
+            "id": str(uuid4()),
+            "flow_id": str(uuid4()),
+        }
+
+        with respx.mock(
+            base_url=PREFECT_API_URL.value(), assert_all_mocked=True, assert_all_called=False,
+        ) as router:
+            router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
+            router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
+            flow_polls = router.request(
+                "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
+            ).mock(
+                return_value=Response(
+                    200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
+                )
+            )
+
+            flow_run = run_deployment(
+                f"{d.flow_name}/{d.name}", max_polls=0, poll_interval=0
+            )
+            assert len(flow_polls.calls) == 0
+            assert flow_run.state.is_scheduled()

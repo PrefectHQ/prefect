@@ -43,6 +43,9 @@ async def run_deployment(
 
         flow_run_id = flow_run.id
 
+        if max_polls == 0:
+            return flow_run
+
         for poll in range(max_polls):
             time.sleep(poll_interval)
             try:
@@ -52,8 +55,6 @@ async def run_deployment(
                 raise MissingFlowRunError("Error polling flow run")
 
             if flow_state and flow_state.is_final():
-                return flow_state
+                return flow_run
 
-        raise DeploymentTimeout(
-            f"Deployment run did not terminate and is in the {flow_state} state"
-        )
+        return flow_run
