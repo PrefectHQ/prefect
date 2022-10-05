@@ -82,13 +82,6 @@ The following permissions are available for custom roles.
 | View blocks | User can see configured blocks within a workspace. |
 | Create, edit, and delete blocks | User can create, edit, and delete blocks within a workspace. Includes permissions of **View blocks**. |
 
-### Task run concurrency
-
-| Permission | Description |
-| --- | --- |
-| View concurrency limits | User can see configured task run concurrency limits within a workspace. |		
-| Create, edit, and delete concurrency limits | User can create, edit, and delete task run concurrency limits within a workspace. Includes permissions of **View concurrency limits**. |		
-
 ### Deployments
 
 | Permission | Description |
@@ -115,6 +108,21 @@ The following permissions are available for custom roles.
 | Create and edit notification policies | User can create and edit notification policies configured within a workspace. Includes permissions of **View notification policies**. |
 | Delete notification policies | User can delete notification policies configured within a workspace. Includes permissions of **View notification policies** and **Create and edit notification policies**. |
 
+### Task run concurrency
+
+| Permission | Description |
+| --- | --- |
+| View concurrency limits | User can see configured task run concurrency limits within a workspace. |		
+| Create, edit, and delete concurrency limits | User can create, edit, and delete task run concurrency limits within a workspace. Includes permissions of **View concurrency limits**. |		
+
+### Work queues
+
+| Permission | Description |
+| --- | --- |
+| View work queues | User can see work queues configured within a workspace. |
+| Create, edit, and pause work queues | User can create, edit, and pause work queues configured within a workspace. Includes permissions of **View work queues**. |
+| Delete work queues | User can delete work queues configured within a workspace. Includes permissions of **View work queues** and **Create, edit, and pause work queues**. |
+
 ### Workspace management
 
 | Permission | Description |
@@ -124,11 +132,3 @@ The following permissions are available for custom roles.
 | View workspace settings | User can see settings configured within a workspace. |
 | Edit workspace settings | User can edit settings for a workspace. Includes permissions of **View workspace settings**. |
 | Delete the workspace | User can delete a workspace. Includes permissions of **View workspace settings** and **Edit workspace settings**. |
-
-### Work queues
-
-| Permission | Description |
-| --- | --- |
-| View work queues | User can see work queues configured within a workspace. |
-| Create, edit, and pause work queues | User can create, edit, and pause work queues configured within a workspace. Includes permissions of **View work queues**. |
-| Delete work queues | User can delete work queues configured within a workspace. Includes permissions of **View work queues** and **Create, edit, and pause work queues**. |
