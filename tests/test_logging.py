@@ -41,13 +41,13 @@ from prefect.logging.loggers import (
 from prefect.orion.schemas.actions import LogCreate
 from prefect.results import _retrieve_result
 from prefect.settings import (
+    PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_BATCH_INTERVAL,
     PREFECT_LOGGING_ORION_BATCH_SIZE,
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
     PREFECT_LOGGING_SETTINGS_PATH,
-    PREFECT_LOGGING_STYLED_CONSOLE,
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
@@ -1075,7 +1075,7 @@ class TestPrefectConsoleHandler:
         assert handler.level == logging.NOTSET
 
     def test_init_styled_console_disabled(self):
-        with temporary_settings({PREFECT_LOGGING_STYLED_CONSOLE: False}):
+        with temporary_settings({PREFECT_LOGGING_COLORS: False}):
             handler = PrefectConsoleHandler()
             console = handler.console
             assert isinstance(console, Console)
