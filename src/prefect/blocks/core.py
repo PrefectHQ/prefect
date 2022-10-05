@@ -1,6 +1,5 @@
 import hashlib
 import inspect
-import logging
 import sys
 import warnings
 from abc import ABC
@@ -28,6 +27,7 @@ from typing_extensions import ParamSpec, Self, get_args, get_origin
 import prefect
 from prefect.client.orion import inject_client
 from prefect.exceptions import PrefectHTTPStatusError
+from prefect.logging.loggers import disable_logger
 from prefect.orion.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
@@ -409,11 +409,10 @@ class Block(BaseModel, ABC):
         `<module>:11: No type or annotation for parameter 'write_json'`
         because griffe is unable to parse the types from pydantic.BaseModel.
         """
-        griffe_logger = logging.getLogger("griffe.docstrings.google")
-        griffe_logger.disabled = True
-        docstring = Docstring(cls.__doc__)
-        parsed = parse(docstring, Parser.google)
-        griffe_logger.disabled = False
+        with disable_logger("griffe.docstrings.google"):
+            with disable_logger("griffe.agents.nodes"):
+                docstring = Docstring(cls.__doc__)
+                parsed = parse(docstring, Parser.google)
         return parsed
 
     @classmethod
