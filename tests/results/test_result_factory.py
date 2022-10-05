@@ -5,6 +5,7 @@ import pytest
 from prefect import flow, task
 from prefect.context import get_run_context
 from prefect.filesystems import LocalFileSystem
+from prefect.results import ResultFactory, ResultLiteral, ResultReference
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH
 
@@ -28,6 +29,35 @@ def assert_blocks_equal(
     assert found.dict(exclude=exclude, **kwargs) == expected.dict(
         exclude=exclude, **kwargs
     )
+
+
+@pytest.fixture
+async def default_factory(orion_client):
+    @flow
+    def foo():
+        pass
+
+    return await ResultFactory.from_flow(foo, client=orion_client)
+
+
+@pytest.mark.parametrize("value", [True, False, None])
+async def test_create_result_literal(value, default_factory):
+    result = await default_factory.create_result(value)
+    assert isinstance(result, ResultLiteral)
+    assert await result.get() == value
+
+
+async def test_create_result_reference(default_factory):
+    result = await default_factory.create_result({"foo": "bar"})
+    assert isinstance(result, ResultReference)
+    assert result.serializer_type == default_factory.serializer.type
+    assert result.storage_block_id == default_factory.storage_block_id
+    assert await result.get() == {"foo": "bar"}
+
+
+async def test_create_result_reference_has_cached_object(default_factory):
+    result = await default_factory.create_result({"foo": "bar"})
+    assert result._has_cached_object()
 
 
 def test_root_flow_default_result_settings():

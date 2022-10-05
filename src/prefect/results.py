@@ -326,9 +326,9 @@ class ResultReference(BaseResult):
         if self._has_cached_object():
             return self._cache
 
-        block_document = await client.read_block_document(self.filesystem_id)
-        filesystem: ReadableFileSystem = Block._from_block_document(block_document)
-        content = await filesystem.read_path(self.path)
+        block_document = await client.read_block_document(self.storage_block_id)
+        storage_block: ReadableFileSystem = Block._from_block_document(block_document)
+        content = await storage_block.read_path(self.storage_key)
 
         blob = ResultBlob.parse_raw(content)
         obj = blob.serializer.loads(blob.data)
@@ -344,6 +344,7 @@ class ResultReference(BaseResult):
         storage_block: WritableFileSystem,
         storage_block_id: uuid.UUID,
         serializer: Serializer,
+        cache_object: bool = True,
     ) -> "ResultReference[R]":
         """
         Create a new result reference from a user's object.
@@ -363,8 +364,9 @@ class ResultReference(BaseResult):
             storage_key=key,
         )
 
-        # Attach the object to the result so it's available without deserialization
-        result._cache_object(obj)
+        if cache_object:
+            # Attach the object to the result so it's available without deserialization
+            result._cache_object(obj)
 
         return result
 
