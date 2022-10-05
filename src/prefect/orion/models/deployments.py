@@ -355,27 +355,6 @@ async def delete_deployment(
     return result.rowcount > 0
 
 
-async def schedule_run(
-    session: sa.orm.Session,
-    deployment_id: UUID,
-    schedule_time: datetime.datetime = None,
-    parameters: Optional[dict] = None,
-    auto_scheduled: bool = True,
-) -> List[UUID]:
-    """ """
-    if schedule_time is None:
-        schedule_time = pendulum.now("UTC")
-
-    runs = await _generate_scheduled_flow_run(
-        session=session,
-        deployment_id=deployment_id,
-        schedule_time=schedule_time,
-        parameters=parameters,
-        auto_scheduled=auto_scheduled,
-    )
-    return await _insert_scheduled_flow_runs(session=session, runs=runs)
-
-
 async def schedule_runs(
     session: sa.orm.Session,
     deployment_id: UUID,
@@ -415,50 +394,6 @@ async def schedule_runs(
         max_runs=max_runs,
     )
     return await _insert_scheduled_flow_runs(session=session, runs=runs)
-
-
-@inject_db
-async def _generate_scheduled_flow_run(
-    session: sa.orm.Session,
-    deployment_id: UUID,
-    schedule_time: datetime.datetime,
-    parameters: Optional[dict],
-    db: OrionDBInterface,
-    auto_scheduled: bool = True,
-) -> List[Dict]:
-    """ """
-    runs = []
-
-    # retrieve the deployment
-    deployment = await session.get(db.Deployment, deployment_id)
-    run_parameters = deployment.parameters
-    run_parameters.update(parameters or dict())
-    tags = deployment.tags
-    if auto_scheduled:
-        tags = ["auto-scheduled"] + tags
-    runs.append(
-        {
-            "id": uuid4(),
-            "flow_id": deployment.flow_id,
-            "deployment_id": deployment_id,
-            "work_queue_name": deployment.work_queue_name,
-            "parameters": run_parameters,
-            "infrastructure_document_id": deployment.infrastructure_document_id,
-            "idempotency_key": f"scheduled {deployment.id} {schedule_time}",
-            "tags": tags,
-            "auto_scheduled": auto_scheduled,
-            "state": schemas.states.Scheduled(
-                scheduled_time=schedule_time,
-                message="Flow run scheduled",
-            ).dict(),
-            "state_type": schemas.states.StateType.SCHEDULED,
-            "state_name": "Scheduled",
-            "next_scheduled_start_time": schedule_time,
-            "expected_start_time": schedule_time,
-        }
-    )
-
-    return runs
 
 
 @inject_db
