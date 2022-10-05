@@ -213,40 +213,6 @@ async def schedule_deployment(
         )
 
 
-@router.post("/name/{flow_name}/{deployment_name}/schedule_flow_run")
-async def schedule_flow_run_from_deployment(
-    flow_name: str = Path(..., description="The name of the flow"),
-    deployment_name: str = Path(..., description="The name of the deployment"),
-    schedule_time: DateTimeTZ = Body(
-        None, embed=True, description="Time to schedule the deployment for"
-    ),
-    parameters: dict = Body(
-        None, embed=True, description="Overrides deployment parameters"
-    ),
-    db: OrionDBInterface = Depends(provide_database_interface),
-) -> UUID:
-    """
-    Schedules a flow run from a deployment.
-
-    This route accepts a simplified body and can be constructed without needing a
-    create action object.
-    """
-    schedule_time = pendulum.now("UTC") if schedule_time is None else schedule_time
-    async with db.session_context(begin_transaction=True) as session:
-        deployment = await models.deployments.read_deployment_by_name(
-            session=session, name=deployment_name, flow_name=flow_name
-        )
-        flow_run_ids = await models.deployments.schedule_run(
-            session=session,
-            deployment_id=deployment.id,
-            schedule_time=schedule_time,
-            parameters=parameters,
-            auto_scheduled=False,
-        )
-
-        return flow_run_ids[0]
-
-
 @router.post("/{id}/set_schedule_active")
 async def set_schedule_active(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
