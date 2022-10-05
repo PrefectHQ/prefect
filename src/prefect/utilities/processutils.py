@@ -110,7 +110,6 @@ def start_process(
         A process object.
 
     """
-    command = parse_command(command)
     if sys.platform == "win32":
         kwargs.setdefault("creationflags", subprocess.CREATE_NEW_PROCESS_GROUP)
 
