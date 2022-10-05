@@ -18,6 +18,7 @@ from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import (
     ObjectNotFound,
+    PrefectHTTPStatusError,
     ProtectedBlockError,
     ScriptError,
     exception_traceback,
@@ -356,5 +357,5 @@ async def blocktype_delete(
             exit_with_error(f"Block Type {slug!r} not found!")
         except ProtectedBlockError:
             exit_with_error(f"Block Type {slug!r} is a protected block!")
-        except Exception:
+        except PrefectHTTPStatusError:
             exit_with_error(f"Cannot delete Block Type {slug!r}!")
