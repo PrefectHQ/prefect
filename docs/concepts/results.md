@@ -194,6 +194,79 @@ def my_flow():
 my_flow()
 ```
 
+### Working with async results
+
+When **calling** flows or tasks, the result is returned directly:
+
+```python
+import asyncio
+from prefect import flow, task
+
+@task
+async def my_task():
+    return 1
+
+@flow
+async def my_flow():
+    task_result = await my_task()
+    return task_result + 1
+
+result = asyncio.run(my_flow())
+assert result == 2
+```
+
+When working with flow and task states, the result can be retreived with the `State.result()` method:
+
+```python
+import asyncio
+from prefect import flow, task
+
+@task
+async def my_task():
+    return 1
+
+@flow
+async def my_flow():
+    state = my_task(return_state=True)
+    return state.result() + 1
+
+async def main():
+    state = await my_flow(return_state=True)
+    assert await state.result(fetch=True) == 2
+
+asyncio.run(main())
+```
+
+!!! important "Resolving results"
+    In Prefect 2.6.0, we added automatic retrieval of persisted results.
+    Prior to this version, `State.result()` did not require an `await`.
+    For backwards compatibility, when used from an asynchronous context, `State.result()` will return a raw result type.
+    You may opt-in to the new behavior by passing `fetch=True`.
+    If you would like this behavior to be used everywhere without passing `fetch=True`, you may set the 
+    `PREFECT_OPT_IN_ASYNC_STATE_RESULT` variable.
+
+
+When submitting tasks to a runner, the result can be retreived with the `Future.result()` method:
+
+```python
+import asyncio
+from prefect import flow, task
+
+@task
+async def my_task():
+    return 1
+
+@flow
+async def my_flow():
+    future = await my_task.submit()
+    result = await future.result()
+    return result + 1
+
+result = asyncio.run(my_flow())
+assert result == 2
+```
+
+
 ## Persisting results
 
 The Prefect API does not store your results [except in special cases](#storage-of-results-in-prefect). Instead, the result is _persisted_ to a storage location in your infrastructure and Prefect stores a _reference_ to the result.
