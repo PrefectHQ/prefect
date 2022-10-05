@@ -140,3 +140,33 @@ async def test_prepare_for_flow_run_uses_sys_executable(
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
     infrastructure = Process().prepare_for_flow_run(flow_run)
     assert infrastructure.command == [sys.executable, "-m", "prefect.engine"]
+
+
+@pytest.mark.parametrize(
+    "exit_code,help_message",
+    [
+        (-9, "This indicates that the process exited due to a SIGKILL signal"),
+        (
+            247,
+            "This indicates that the process was terminated due to high memory usage.",
+        ),
+    ],
+)
+def test_process_logs_exit_code_help_message(
+    exit_code, help_message, caplog, monkeypatch
+):
+
+    # We need to use a monkeypatch because `bash -c "exit -9"`` returns a 247
+    class fake_process:
+        returncode = exit_code
+        pid = 0
+
+    mock = AsyncMock(return_value=fake_process)
+    monkeypatch.setattr("prefect.infrastructure.process.run_process", mock)
+
+    result = Process(command=["noop"]).run()
+    assert result.status_code == exit_code
+
+    record = caplog.records[-1]
+    assert record.levelname == "ERROR"
+    assert help_message in record.message
