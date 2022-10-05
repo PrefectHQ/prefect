@@ -7,15 +7,23 @@ from prefect.utilities.asyncutils import sync_compatible
 @sync_compatible
 async def run_deployment(
     name: str,
+    parameters: dict = None,
     max_polls: int = 60,
     poll_interval: float = 5,
-    parameters: dict = None,
 ):
     """
-    Runs a deployment immediately.
+    Runs a deployment immediately and returns a FlowRun object.
 
-    This function will block until the deployment run enters a terminal state or until
+    This function will return when the created flow run enters a terminal state or until
     the polling duration has been exceeded.
+
+    Args:
+        name: The deployment name in the form: '<flow-name>/<deployment-name>'
+        parameters: Parameter overrides for this flow run. Merged with the deployment
+            defaults
+        max_polls: The maxinum number of times to poll the flow run before returning.
+            Setting `max_polls` to 0 will return the FlowRun object immediately. Setting
+            `max_polls` to -1 will allow this function to poll indefinitely.
     """
     if max_polls < -1:
         raise ValueError(
