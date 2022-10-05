@@ -7,9 +7,7 @@ import respx
 from httpx import Response
 
 from prefect import flow
-from prefect.client.utilities import (
-    run_deployment,
-)
+from prefect.client.utilities import run_deployment
 from prefect.deployments import Deployment
 from prefect.orion.schemas import states
 from prefect.settings import PREFECT_API_URL
@@ -254,7 +252,11 @@ class TestRunDeployment:
                 200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
             )
         ] * 99
-        side_effects.append(Response(200, json={**mock_flowrun_response, "state": {"type": "COMPLETED"}}))
+        side_effects.append(
+            Response(
+                200, json={**mock_flowrun_response, "state": {"type": "COMPLETED"}}
+            )
+        )
 
         with respx.mock(
             base_url=PREFECT_API_URL.value(),

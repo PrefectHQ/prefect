@@ -735,7 +735,6 @@ class TestSetScheduleActive:
 
 
 class TestScheduleDeployment:
-
     async def test_schedule_deployment(self, client, session, deployment):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
