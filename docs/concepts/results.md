@@ -227,8 +227,9 @@ async def my_task():
 
 @flow
 async def my_flow():
-    state = my_task(return_state=True)
-    return state.result() + 1
+    state = await my_task(return_state=True)
+    result = await state.result(fetch=True)
+    return result + 1
 
 async def main():
     state = await my_flow(return_state=True)
@@ -241,10 +242,11 @@ asyncio.run(main())
     In Prefect 2.6.0, we added automatic retrieval of persisted results.
     Prior to this version, `State.result()` did not require an `await`.
     For backwards compatibility, when used from an asynchronous context, `State.result()` will return a raw result type.
-    You may opt-in to the new behavior by passing `fetch=True`.
-    If you would like this behavior to be used everywhere without passing `fetch=True`, you may set the 
-    `PREFECT_OPT_IN_ASYNC_STATE_RESULT` variable.
-
+    You may opt-in to the new behavior by passing `fetch=True` as shown in the example above.
+    If you would like this behavior to be used automatically, you may enable the `PREFECT_OPT_IN_ASYNC_STATE_RESULT` setting.
+    If you do not opt-in to this behavior you will see a warning.
+    You may also opt-out by setting `fetch=False`.
+    This will silence the warning but you will need to retrieve your result manually from the result type.
 
 When submitting tasks to a runner, the result can be retreived with the `Future.result()` method:
 
