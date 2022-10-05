@@ -20,11 +20,11 @@ from prefect.exceptions import MissingContextError
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.orion.schemas.actions import LogCreate
 from prefect.settings import (
+    PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_ORION_BATCH_INTERVAL,
     PREFECT_LOGGING_ORION_BATCH_SIZE,
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
-    PREFECT_LOGGING_STYLED_CONSOLE,
 )
 
 
@@ -370,7 +370,7 @@ class PrefectConsoleHandler(logging.Handler):
         console: Optional[Console] = None,
     ):
         if console is None:
-            styled_console = PREFECT_LOGGING_STYLED_CONSOLE.value()
+            styled_console = PREFECT_LOGGING_COLORS.value()
             if styled_console:
                 highlighter = highlighter()
                 theme = Theme(styles, inherit=False)
@@ -392,7 +392,9 @@ class PrefectConsoleHandler(logging.Handler):
             else:
                 message = record.message
             self.console.print(message)
-        except RecursionError:  # See issue 36272
+        except RecursionError:
+            # This was copied over from logging.StreamHandler().emit()
+            # https://bugs.python.org/issue36272
             raise
         except Exception:
             self.handleError(record)

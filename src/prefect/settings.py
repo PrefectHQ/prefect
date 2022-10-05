@@ -394,7 +394,7 @@ PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
     description="""The maximum size in bytes for a single log.""",
 )
 
-PREFECT_LOGGING_STYLED_CONSOLE = Setting(
+PREFECT_LOGGING_COLORS = Setting(
     bool,
     default=True,
     description="""Whether to style console logs.""",
