@@ -176,7 +176,7 @@ async def start(
 
             kill_on_interrupt(orion_process_id, "Orion", app.console.print)
 
-            app.console.print("Orion stopped!")
+        exit_with_success("Orion stopped!")
 
 
 @orion_app.command()
