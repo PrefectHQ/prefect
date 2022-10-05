@@ -660,16 +660,6 @@ class Block(BaseModel, ABC):
         return inspect.isclass(block) and issubclass(block, Block)
 
     @classmethod
-    @inject_client
-    async def _fetch_block_type_id(cls, client: "OrionClient" = None):
-        pass
-
-    @classmethod
-    @inject_client
-    async def _fetch_block_schema_id(cls, client: "OrionClient" = None):
-        pass
-
-    @classmethod
     @sync_compatible
     @inject_client
     async def register_type_and_schema(cls, client: "OrionClient" = None):
