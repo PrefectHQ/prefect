@@ -21,7 +21,7 @@ async def run_deployment(
         name: The deployment name in the form: '<flow-name>/<deployment-name>'
         parameters: Parameter overrides for this flow run. Merged with the deployment
             defaults
-        max_polls: The maxinum number of times to poll the flow run before returning.
+        max_polls: The maximum number of times to poll the flow run before returning.
             Setting `max_polls` to 0 will return the FlowRun object immediately. Setting
             `max_polls` to -1 will allow this function to poll indefinitely.
     """
