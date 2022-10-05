@@ -888,6 +888,16 @@ class OrionClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
+            # Block protection for block schema creation has been removed, but this code
+            # is kept for compatibility with version 2.4.2 servers. If support for
+            # 2.4.2 servers is dropped in the future, this check can safely
+            # be removed.
+            elif (
+                e.response.status_code == status.HTTP_403_FORBIDDEN
+                and e.response.json().detail
+                == "Block schemas for protected block types cannot be created."
+            ):
+                raise prefect.exceptions.ProtectedBlockError() from e
             else:
                 raise
         return BlockSchema.parse_obj(response.json())
@@ -1015,6 +1025,16 @@ class OrionClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            # Block protection for block type updates has been removed, but this code
+            # is kept for compatibility with version 2.4.2 servers. If support for
+            # 2.4.2 servers is dropped in the future, this check can safely
+            # be removed.
+            elif (
+                e.response.status_code == status.HTTP_403_FORBIDDEN
+                and e.response.json().detail
+                == "protected block types cannot be updated."
+            ):
+                raise prefect.exceptions.ProtectedBlockError() from e
             else:
                 raise
 
@@ -1027,6 +1047,12 @@ class OrionClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            elif (
+                e.response.status_code == status.HTTP_403_FORBIDDEN
+                and e.response.json().detail
+                == "protected block types cannot be deleted."
+            ):
+                raise prefect.exceptions.ProtectedBlockError() from e
             else:
                 raise
 
