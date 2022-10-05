@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.results import ResultLiteral
+from prefect.results import BaseResult, ResultLiteral
 
 LITERAL_VALUES = [True, False, None]
 
@@ -29,7 +29,7 @@ async def test_result_literal_json_roundtrip(value):
 async def test_result_literal_json_roundtrip(value):
     result = await ResultLiteral.create(value)
     serialized = result.json()
-    deserialized = ResultLiteral.parse_raw(serialized)
+    deserialized = BaseResult.parse_raw(serialized)
     assert await deserialized.get() == value
 
 
