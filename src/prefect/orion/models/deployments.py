@@ -361,6 +361,7 @@ async def schedule_runs(
     start_time: datetime.datetime = None,
     end_time: datetime.datetime = None,
     max_runs: int = None,
+    auto_scheduled: bool = True,
 ) -> List[UUID]:
     """
     Schedule flow runs for a deployment
@@ -392,6 +393,7 @@ async def schedule_runs(
         start_time=start_time,
         end_time=end_time,
         max_runs=max_runs,
+        auto_scheduled=auto_scheduled,
     )
     return await _insert_scheduled_flow_runs(session=session, runs=runs)
 
