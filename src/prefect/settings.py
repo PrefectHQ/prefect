@@ -417,6 +417,23 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
+PREFECT_OPT_IN_ASYNC_STATE_RESULT = Setting(
+    bool,
+    default=False,
+    description=textwrap.dedent(
+        """
+        Determines whether `State.result()` fetches results automatically or not.
+        The `State.result()` method has been updated to be async to faciliate automatic
+        retrieval of results from the filesystem which means when writing async code you
+        must `await` the call. For backwards compatibility, the result is not retrieved
+        by default for async users. You may opt into this per call by passing 
+        `fetch=True` or toggle this setting to change the behavior globally.
+        This setting does not affect users writing synchronous tasks and flows.
+        This setting does not affect retrieval of results when using `Future.result()`.
+        """
+    ),
+)
+
 PREFECT_ORION_BLOCKS_REGISTER_ON_START = Setting(
     bool,
     default=True,

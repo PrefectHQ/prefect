@@ -438,6 +438,7 @@ async def create_and_begin_subflow_run(
         flow_run = flow_runs[-1]
 
         # Hydrate the retrieved state
+        flow_run.state.data._cache_data(await _retrieve_result(flow_run.state, client))
 
         # Set up variables required downstream
         terminal_state = flow_run.state
@@ -1318,7 +1319,7 @@ async def wait_for_task_runs_and_report_crashes(
         if not state.type == StateType.CRASHED:
             continue
 
-        exception = await state.result(raise_on_failure=False)
+        exception = await state.result(raise_on_failure=False, fetch=True)
 
         logger.info(f"Crash detected! {state.message}")
         logger.debug("Crash details:", exc_info=exception)
@@ -1411,11 +1412,7 @@ async def resolve_inputs(
             )
 
         # Only retrieve the result if requested as it may be expensive
-        return (
-            run_async_from_worker_thread(state._result, raise_on_failure=True)
-            if return_data
-            else None
-        )
+        return state._result(raise_on_failure=True) if return_data else None
 
     return await run_sync_in_worker_thread(
         visit_collection,

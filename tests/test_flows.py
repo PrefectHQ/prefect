@@ -1481,13 +1481,13 @@ class TestFlowRetries:
         def parent_flow():
             nonlocal flow_run_count
             flow_run_count += 1
-            child_state = child_flow()
+            child_result = child_flow()
 
             # Fail on the first flow run but not the retry
             if flow_run_count == 1:
                 raise ValueError()
 
-            return child_state
+            return child_result
 
         assert parent_flow() == "hello"
         assert flow_run_count == 2

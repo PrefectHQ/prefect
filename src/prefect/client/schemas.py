@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar, Union, overl
 from pydantic import Field
 
 from prefect.orion import schemas
-from prefect.settings import PREFECT_TEST_MODE
+from prefect.settings import PREFECT_OPT_IN_ASYNC_STATE_RESULT
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 
 if TYPE_CHECKING:
@@ -110,8 +110,14 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             result_from_state_with_data_document,
         )
 
-        if in_async_main_thread() and not fetch and not PREFECT_TEST_MODE:
-            if fetch is None:
+        if fetch is None and (
+            PREFECT_OPT_IN_ASYNC_STATE_RESULT or not in_async_main_thread()
+        ):
+            # Fetch defaults to `True` for sync users or async users who have opted in
+            fetch = True
+
+        if not fetch:
+            if fetch is None and in_async_main_thread():
                 warnings.warn(
                     "State.result() was called from an async context but not awaited. "
                     "This method will be updated to return a coroutine by default in "
