@@ -157,7 +157,9 @@ class TestRunDeployment:
                 await run_deployment(
                     f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
                 )
-            ).state.type == terminal_state, "run_deployment does not exit on {terminal_state}"
+            ).state.type == terminal_state, (
+                "run_deployment does not exit on {terminal_state}"
+            )
             assert len(flow_polls.calls) == 3
 
     def test_ephemeral_api_works(
@@ -167,11 +169,9 @@ class TestRunDeployment:
     ):
         d, deployment_id = test_deployment
 
-        assert (
-            run_deployment(
-                f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
-            ).state.is_scheduled()
-        )
+        assert run_deployment(
+            f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
+        ).state.is_scheduled()
 
     def test_run_deployment_raises_on_polling_errors(
         self,
@@ -236,7 +236,9 @@ class TestRunDeployment:
         }
 
         with respx.mock(
-            base_url=PREFECT_API_URL.value(), assert_all_mocked=True, assert_all_called=False,
+            base_url=PREFECT_API_URL.value(),
+            assert_all_mocked=True,
+            assert_all_called=False,
         ) as router:
             router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
             router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
@@ -253,3 +255,39 @@ class TestRunDeployment:
             )
             assert len(flow_polls.calls) == 0
             assert flow_run.state.is_scheduled()
+
+    def test_polls_indefinitely(
+        self,
+        test_deployment,
+        use_hosted_orion,
+    ):
+        class LotsOfPolls(Exception):
+            pass
+
+        d, deployment_id = test_deployment
+
+        mock_flowrun_response = {
+            "id": str(uuid4()),
+            "flow_id": str(uuid4()),
+        }
+
+        side_effects = [
+            Response(
+                200, json={**mock_flowrun_response, "state": {"type": "SCHEDULED"}}
+            )
+        ] * 99
+        side_effects.append(Response(200, json={**mock_flowrun_response, "state": {"type": "COMPLETED"}}))
+
+        with respx.mock(
+            base_url=PREFECT_API_URL.value(),
+            assert_all_mocked=True,
+            assert_all_called=False,
+        ) as router:
+            router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
+            router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
+            flow_polls = router.request(
+                "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
+            ).mock(side_effect=side_effects)
+
+            run_deployment(f"{d.flow_name}/{d.name}", max_polls=-1, poll_interval=0)
+            assert len(flow_polls.calls) == 100

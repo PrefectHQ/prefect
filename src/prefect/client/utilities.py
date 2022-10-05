@@ -33,6 +33,10 @@ async def run_deployment(
     This function will block until the deployment run enters a terminal state or until
     the polling duration has been exceeded.
     """
+    if max_polls < -1:
+        raise ValueError(
+            "`max_polls` must be -1 (unlimited polling), 0 (return immediately) or any positive integer"
+        )
 
     async with get_client() as client:
         deployment = await client.read_deployment_by_name(name)
@@ -43,16 +47,15 @@ async def run_deployment(
 
         flow_run_id = flow_run.id
 
-        if max_polls == 0:
-            return flow_run
-
-        for poll in range(max_polls):
+        polls = 0
+        while max_polls == -1 or polls < max_polls:
             time.sleep(poll_interval)
             try:
                 flow_run = await client.read_flow_run(flow_run_id)
                 flow_state = flow_run.state
             except PrefectHTTPStatusError:
                 raise MissingFlowRunError("Error polling flow run")
+            polls += 1
 
             if flow_state and flow_state.is_final():
                 return flow_run
