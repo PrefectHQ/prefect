@@ -1,7 +1,6 @@
 import re
 from uuid import uuid4
 
-import pendulum
 import pytest
 import respx
 from httpx import Response

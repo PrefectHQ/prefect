@@ -1,7 +1,4 @@
 import time
-from datetime import datetime
-
-import pendulum
 
 from prefect.client.orion import get_client
 from prefect.utilities.asyncutils import sync_compatible
