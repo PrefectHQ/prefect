@@ -198,13 +198,12 @@ async def test_sync_compatible_call_from_sync_in_async_thread():
 
     def run_fn():
         # Here we are back in a sync context but still in the async main thread
-        sync_compatible_fn(1, y=2)
+        return sync_compatible_fn(1, y=2)
 
-    with pytest.raises(
-        RuntimeError,
-        match="method was called from a context that was previously async but is now sync",
-    ):
-        run_fn()
+    # Returns a coroutine
+    coro = run_fn()
+
+    assert await coro == 6
 
 
 async def test_sync_compatible_call_with_taskgroup():
