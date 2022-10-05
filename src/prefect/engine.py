@@ -520,7 +520,7 @@ async def create_and_begin_subflow_run(
     if return_type == "state":
         return terminal_state
     elif return_type == "result":
-        return await terminal_state.result()
+        return await terminal_state.result(fetch=True)
     else:
         raise ValueError(f"Invalid return type for flow engine {return_type!r}.")
 
