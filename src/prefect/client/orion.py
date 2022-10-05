@@ -894,7 +894,7 @@ class OrionClient:
             # be removed.
             elif (
                 e.response.status_code == status.HTTP_403_FORBIDDEN
-                and e.response.json().detail
+                and e.response.json()["detail"]
                 == "Block schemas for protected block types cannot be created."
             ):
                 raise prefect.exceptions.ProtectedBlockError() from e
@@ -1031,7 +1031,7 @@ class OrionClient:
             # be removed.
             elif (
                 e.response.status_code == status.HTTP_403_FORBIDDEN
-                and e.response.json().detail
+                and e.response.json()["detail"]
                 == "protected block types cannot be updated."
             ):
                 raise prefect.exceptions.ProtectedBlockError() from e
@@ -1049,7 +1049,7 @@ class OrionClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             elif (
                 e.response.status_code == status.HTTP_403_FORBIDDEN
-                and e.response.json().detail
+                and e.response.json()["detail"]
                 == "protected block types cannot be deleted."
             ):
                 raise prefect.exceptions.ProtectedBlockError() from e
