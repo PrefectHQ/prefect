@@ -1,6 +1,7 @@
 import re
 from uuid import uuid4
 
+import pendulum
 import pytest
 import respx
 from httpx import Response
@@ -165,7 +166,7 @@ class TestRunDeployment:
 
         assert run_deployment(
             f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
-        ).state.is_scheduled()
+        ).state
 
     def test_returns_flow_run_on_max_polls(
         self,
@@ -236,8 +237,6 @@ class TestRunDeployment:
         test_deployment,
         use_hosted_orion,
     ):
-        class LotsOfPolls(Exception):
-            pass
 
         d, deployment_id = test_deployment
 
@@ -270,3 +269,32 @@ class TestRunDeployment:
 
             run_deployment(f"{d.flow_name}/{d.name}", max_polls=-1, poll_interval=0)
             assert len(flow_polls.calls) == 100
+
+    def test_schedule_deployment_schedules_immediately_by_default(
+        self, test_deployment, use_hosted_orion
+    ):
+        d, deployment_id = test_deployment
+
+        scheduled_time = pendulum.now()
+        flow_run = run_deployment(
+            f"{d.flow_name}/{d.name}",
+            max_polls=0,
+            poll_interval=0,
+        )
+
+        assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1
+
+    def test_schedule_deployment_accepts_custom_scheduled_time(
+        self, test_deployment, use_hosted_orion
+    ):
+        d, deployment_id = test_deployment
+
+        scheduled_time = pendulum.now() + pendulum.Duration(minutes=5)
+        flow_run = run_deployment(
+            f"{d.flow_name}/{d.name}",
+            scheduled_time=scheduled_time,
+            max_polls=0,
+            poll_interval=0,
+        )
+
+        assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1

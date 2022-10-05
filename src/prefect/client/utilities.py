@@ -1,6 +1,9 @@
 import time
+from datetime import datetime
 
-from prefect.client.orion import get_client
+import pendulum
+
+from prefect.client.orion import get_client, schemas
 from prefect.utilities.asyncutils import sync_compatible
 
 
@@ -8,6 +11,7 @@ from prefect.utilities.asyncutils import sync_compatible
 async def run_deployment(
     name: str,
     parameters: dict = None,
+    scheduled_time: datetime = None,
     max_polls: int = 60,
     poll_interval: float = 5,
 ):
@@ -30,10 +34,14 @@ async def run_deployment(
             "`max_polls` must be -1 (unlimited polling), 0 (return immediately) or any positive integer"
         )
 
+    if scheduled_time is None:
+        scheduled_time = pendulum.now("UTC")
+
     async with get_client() as client:
         deployment = await client.read_deployment_by_name(name)
         flow_run = await client.create_flow_run_from_deployment(
             deployment.id,
+            state=schemas.states.Scheduled(scheduled_time=scheduled_time),
             parameters=parameters,
         )
 

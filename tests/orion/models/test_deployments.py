@@ -622,7 +622,9 @@ class TestScheduledRuns:
             assert run.tags == ["auto-scheduled"] + tags
 
     @pytest.mark.parametrize("tags", [[], ["foo"]])
-    async def test_schedule_runs_does_not_set_auto_schedule_tags(self, tags, flow, flow_function, session):
+    async def test_schedule_runs_does_not_set_auto_schedule_tags(
+        self, tags, flow, flow_function, session
+    ):
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
@@ -636,7 +638,10 @@ class TestScheduledRuns:
             ),
         )
         scheduled_runs = await models.deployments.schedule_runs(
-            session, deployment_id=deployment.id, max_runs=2, auto_scheduled=False,
+            session,
+            deployment_id=deployment.id,
+            max_runs=2,
+            auto_scheduled=False,
         )
         assert len(scheduled_runs) == 2
         for run_id in scheduled_runs:
