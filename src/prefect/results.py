@@ -286,8 +286,8 @@ class ResultLiteral(BaseResult):
     ) -> "ResultLiteral[R]":
         if type(obj) not in LITERAL_TYPES:
             raise TypeError(
-                f"Unsupported type {type(obj).__name__!r} for literal result. "
-                f"Expected one of: {LITERAL_TYPES}"
+                f"Unsupported type {type(obj).__name__!r} for result literal. "
+                f"Expected one of: {', '.join(type_.__name__ for type_ in LITERAL_TYPES)}"
             )
 
         return cls(value=obj)
