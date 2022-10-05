@@ -438,7 +438,6 @@ async def create_and_begin_subflow_run(
         flow_run = flow_runs[-1]
 
         # Hydrate the retrieved state
-        flow_run.state.data._cache_data(await _retrieve_result(flow_run.state, client))
 
         # Set up variables required downstream
         terminal_state = flow_run.state

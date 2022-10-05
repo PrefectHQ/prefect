@@ -1,12 +1,12 @@
 import datetime
-from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar, Union, overload
 import warnings
-from typing import Any, Generic, Iterable, Optional, Type, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar, Union, overload
 
 from pydantic import Field
 
 from prefect.orion import schemas
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.settings import PREFECT_TEST_MODE
+from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 
 if TYPE_CHECKING:
     from prefect.deprecated.data_documents import DataDocument
@@ -109,14 +109,40 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             DataDocument,
             result_from_state_with_data_document,
         )
-        from prefect.results import BaseResult
+
+        if in_async_main_thread() and not fetch and not PREFECT_TEST_MODE:
+            if fetch is None:
+                warnings.warn(
+                    "State.result() was called from an async context but not awaited. "
+                    "This method will be updated to return a coroutine by default in "
+                    "the future. Pass `fetch=True` and `await` the call to get rid of "
+                    "this warning.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            # Backwards compatibility
+            if isinstance(self.data, DataDocument):
+                return result_from_state_with_data_document(
+                    self, raise_on_failure=raise_on_failure
+                )
+            else:
+                return self.data
+        else:
+            return self._result(raise_on_failure=raise_on_failure)
+
+    @sync_compatible
+    async def _result(self, raise_on_failure: bool):
+        from prefect.deprecated.data_documents import (
+            DataDocument,
+            result_from_state_with_data_document,
+        )
 
         if isinstance(self.data, DataDocument):
             return result_from_state_with_data_document(
                 self, raise_on_failure=raise_on_failure
             )
         elif isinstance(self.data, BaseResult):
-            return self.data.load()
+            return await self.data.get()
         else:
             raise ValueError(
                 f"State data is of unknown result type {type(self.data).__name__!r}."

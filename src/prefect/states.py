@@ -81,7 +81,7 @@ async def return_value_to_state(result: Any, serializer: str = "cloudpickle") ->
     _single_ state. This prevents a flow from assuming the state of a single returned
     task future.
     """
-p
+
     if (
         is_state(result)
         # Check for manual creation
