@@ -8,8 +8,6 @@ from httpx import Response
 
 from prefect import flow
 from prefect.client.utilities import (
-    DeploymentTimeout,
-    MissingFlowRunError,
     run_deployment,
 )
 from prefect.deployments import Deployment
@@ -172,25 +170,6 @@ class TestRunDeployment:
         assert run_deployment(
             f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
         ).state.is_scheduled()
-
-    def test_run_deployment_raises_on_polling_errors(
-        self,
-        test_deployment,
-        use_hosted_orion,
-    ):
-        d, deployment_id = test_deployment
-
-        with respx.mock(
-            base_url=PREFECT_API_URL.value(), assert_all_mocked=True
-        ) as router:
-            router.get(f"/deployments/name/{d.flow_name}/{d.name}").pass_through()
-            router.post(f"/deployments/{deployment_id}/create_flow_run").pass_through()
-            router.request(
-                "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
-            ).mock(return_value=Response(500))
-
-            with pytest.raises(MissingFlowRunError):
-                run_deployment(f"{d.flow_name}/{d.name}", max_polls=3, poll_interval=0)
 
     def test_returns_flow_run_on_max_polls(
         self,

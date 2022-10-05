@@ -8,18 +8,6 @@ from prefect.exceptions import PrefectHTTPStatusError
 from prefect.utilities.asyncutils import sync_compatible
 
 
-class MissingFlowRunError(RuntimeError):
-    """
-    Raised when a specific Flow run could not found.
-    """
-
-
-class DeploymentTimeout(RuntimeError):
-    """
-    Raised when a deployment has not reached a terminal state within the specified time.
-    """
-
-
 @sync_compatible
 async def run_deployment(
     name: str,
@@ -50,11 +38,8 @@ async def run_deployment(
         polls = 0
         while max_polls == -1 or polls < max_polls:
             time.sleep(poll_interval)
-            try:
-                flow_run = await client.read_flow_run(flow_run_id)
-                flow_state = flow_run.state
-            except PrefectHTTPStatusError:
-                raise MissingFlowRunError("Error polling flow run")
+            flow_run = await client.read_flow_run(flow_run_id)
+            flow_state = flow_run.state
             polls += 1
 
             if flow_state and flow_state.is_final():
