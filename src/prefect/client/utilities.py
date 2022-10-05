@@ -3,8 +3,8 @@ from datetime import datetime
 
 import pendulum
 
-from prefect.exceptions import PrefectHTTPStatusError
 from prefect.client.orion import get_client
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.utilities.asyncutils import sync_compatible
 
 
