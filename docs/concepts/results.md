@@ -239,7 +239,7 @@ asyncio.run(main())
 ```
 
 !!! important "Resolving results"
-    In Prefect 2.6.0, we added automatic retrieval of persisted results.
+    Prefect 2.6.0 added automatic retrieval of persisted results.
     Prior to this version, `State.result()` did not require an `await`.
     For backwards compatibility, when used from an asynchronous context, `State.result()` returns a raw result type.
     
