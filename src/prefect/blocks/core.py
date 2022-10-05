@@ -740,7 +740,7 @@ class Block(BaseModel, ABC):
             except prefect.exceptions.ProtectedBlockError as exc:
                 # Got to this code path because the block schema version on the server
                 # doesn't match the version on the client. Read the block schema by
-                # checksum only to increase the chances of getting a block schema back.
+                # just checksum to increase the chances of getting a block schema back.
                 block_schema = await client.read_block_schema_by_checksum(
                     checksum=cls._calculate_schema_checksum(),
                 )
