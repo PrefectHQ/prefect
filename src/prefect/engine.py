@@ -230,7 +230,7 @@ async def create_then_begin_flow_run(
     if return_type == "state":
         return state
     elif return_type == "result":
-        return await state.result()
+        return await state.result(fetch=True)
     else:
         raise ValueError(f"Invalid return type for flow engine {return_type!r}.")
 
