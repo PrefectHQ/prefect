@@ -27,6 +27,7 @@ from prefect.logging.configuration import (
 )
 from prefect.logging.handlers import OrionHandler, OrionLogWorker
 from prefect.logging.loggers import (
+    disable_logger,
     disable_run_logger,
     flow_run_logger,
     get_logger,
@@ -1045,6 +1046,38 @@ async def test_run_logger_in_task(orion_client):
         "flow_run_id": str(flow_run.id),
         "flow_run_name": flow_run.name,
     }
+
+
+def test_without_disable_logger(caplog):
+    """
+    Sanity test to double check whether caplog actually works
+    so can be more confident in the asserts in test_disable_logger.
+    """
+    logger = logging.getLogger("griffe.agents.nodes")
+
+    def function_with_logging(logger):
+        assert not logger.disabled
+        logger.critical("it's enabled!")
+        return 42
+
+    function_with_logging(logger)
+    assert not logger.disabled
+    assert caplog.record_tuples == [("griffe.agents.nodes", 50, "it's enabled!")]
+
+
+def test_disable_logger(caplog):
+    logger = logging.getLogger("griffe.agents.nodes")
+
+    def function_with_logging(logger):
+        logger.critical("I know this is critical, but it's disabled!")
+        return 42
+
+    with disable_logger(logger.name):
+        assert logger.disabled
+        function_with_logging(logger)
+
+    assert not logger.disabled
+    assert caplog.record_tuples == []
 
 
 def test_disable_run_logger(caplog):
