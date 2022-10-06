@@ -10,6 +10,7 @@ from pydantic.error_wrappers import ValidationError
 
 from prefect import flow, task
 from prefect.blocks.core import Block
+from prefect.client.orion import OrionClient
 from prefect.deployments import Deployment, run_deployment
 from prefect.exceptions import BlockMissingCapabilities
 from prefect.filesystems import S3, GitHub, LocalFileSystem
@@ -17,6 +18,7 @@ from prefect.infrastructure import DockerContainer, Infrastructure, Process
 from prefect.orion.schemas import states
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.settings import PREFECT_API_URL
+from prefect.utilities.slugify import slugify
 
 
 class TestDeploymentBasicInterface:
@@ -701,7 +703,7 @@ class TestRunDeployment:
         assert flow_run.name == "a custom flow run name"
 
     async def test_links_to_parent_flow_run_when_used_in_flow(
-        self, test_deployment, use_hosted_orion, orion_client
+        self, test_deployment, use_hosted_orion, orion_client: OrionClient
     ):
         d, deployment_id = test_deployment
 
@@ -718,6 +720,7 @@ class TestRunDeployment:
         assert child_flow_run.parent_task_run_id is not None
         task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)
         assert task_run.flow_run_id == parent_state.state_details.flow_run_id
+        assert slugify(f"{d.flow_name}/{d.name}") in task_run.task_key
 
     async def test_tracks_dependencies_when_used_in_flow(
         self, test_deployment, use_hosted_orion, orion_client

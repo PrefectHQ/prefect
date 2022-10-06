@@ -31,6 +31,7 @@ from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.importtools import import_object
+from prefect.utilities.slugify import slugify
 
 
 @sync_compatible
@@ -73,6 +74,8 @@ async def run_deployment(
 
     parameters = parameters or {}
 
+    deployment = await client.read_deployment_by_name(name)
+
     flow_run_ctx = FlowRunContext.get()
     if flow_run_ctx:
         # This was called from a flow. Link the flow run as a subflow.
@@ -88,10 +91,12 @@ async def run_deployment(
 
         # Generate a task in the parent flow run to represent the result of the subflow
         dummy_task = Task(
-            name=flow_run_ctx.flow.name,
-            fn=flow_run_ctx.flow.fn,
-            version=flow_run_ctx.flow.version,
+            name=name,
+            fn=lambda: None,
+            version=deployment.version,
         )
+        # Override the default task key to include the deployment name
+        dummy_task.task_key = f"{__name__}.run_deployment.{slugify(name)}"
         parent_task_run = await client.create_task_run(
             task=dummy_task,
             flow_run_id=flow_run_ctx.flow_run.id,
@@ -103,7 +108,6 @@ async def run_deployment(
     else:
         parent_task_run_id = None
 
-    deployment = await client.read_deployment_by_name(name)
     flow_run = await client.create_flow_run_from_deployment(
         deployment.id,
         state=schemas.states.Scheduled(scheduled_time=scheduled_time),
