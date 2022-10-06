@@ -36,7 +36,7 @@ from prefect.utilities.importtools import import_object
 @inject_client
 async def run_deployment(
     name: str,
-    client: OrionClient,
+    client: OrionClient = None,
     parameters: dict = None,
     scheduled_time: datetime = None,
     timeout: float = None,
