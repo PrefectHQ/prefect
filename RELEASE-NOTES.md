@@ -14,6 +14,7 @@
   See https://github.com/PrefectHQ/prefect/pull/7047, https://github.com/PrefectHQ/prefect/pull/7081, and https://github.com/PrefectHQ/prefect/pull/7084
 
 ### Enhancements
+- Add ability to delete multiple objects on flow run, flow, deployment and work queue pages — https://github.com/PrefectHQ/prefect/pull/7086
 - Update `put_directory` to exclude directories from upload counts — https://github.com/PrefectHQ/prefect/pull/7054
 - Always suppress griffe logs — https://github.com/PrefectHQ/prefect/pull/7059
 - Add OOM warning to `Process` exit code log message — https://github.com/PrefectHQ/prefect/pull/7070
