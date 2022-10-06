@@ -80,9 +80,10 @@
     router.push(routes.flowRuns())
   }
 
-  const deleteFlowRuns =  async (): Promise<void> => {
+  const deleteFlowRuns = (): void => {
     selectedFlowRuns.value = []
-    await Promise.all([flowRunsSubscription.refresh(), flowRunCountSubscription.refresh()])
+    flowRunsSubscription.refresh()
+    flowRunCountSubscription.refresh()
   }
 
   usePageTitle('Flow Runs')
