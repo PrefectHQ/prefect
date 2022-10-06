@@ -5,10 +5,13 @@ Objects for specifying deployments and utilities for loading flows from deployme
 import importlib
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+import anyio
+import pendulum
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
@@ -27,6 +30,65 @@ from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.importtools import import_object
+
+
+@sync_compatible
+@inject_client
+async def run_deployment(
+    name: str,
+    client: OrionClient = None,
+    parameters: dict = None,
+    scheduled_time: datetime = None,
+    timeout: float = None,
+    poll_interval: float = 5,
+):
+    """
+    Create a flow run for a deployment and return it after completion or a timeout.
+
+    This function will return when the created flow run enters any terminal state or
+    the timeout is reached. If the timeout is reached and the flow run has not reached
+    a terminal state, it will still be returned. When using a timeout, we suggest
+    checking the state of the flow run if completion is important moving forward.
+
+    Args:
+        name: The deployment name in the form: '<flow-name>/<deployment-name>'
+        parameters: Parameter overrides for this flow run. Merged with the deployment
+            defaults
+        scheduled_time: The time to schedule the flow run for, defaults to scheduling
+            the flow run to start now.
+        timeout: The amount of time to wait for the flow run to complete before
+            returning. Setting `timeout` to 0 will return the flow run immediately.
+            Setting `timeout` to None will allow this function to poll indefinitely.
+            Defaults to None
+        poll_interval: The number of seconds between polls
+    """
+    if timeout is not None and timeout < 0:
+        raise ValueError("`timeout` cannot be negative")
+
+    if scheduled_time is None:
+        scheduled_time = pendulum.now("UTC")
+
+    deployment = await client.read_deployment_by_name(name)
+    flow_run = await client.create_flow_run_from_deployment(
+        deployment.id,
+        state=schemas.states.Scheduled(scheduled_time=scheduled_time),
+        parameters=parameters,
+    )
+
+    flow_run_id = flow_run.id
+
+    if timeout == 0:
+        return flow_run
+
+    with anyio.move_on_after(timeout):
+        while True:
+            flow_run = await client.read_flow_run(flow_run_id)
+            flow_state = flow_run.state
+            if flow_state and flow_state.is_final():
+                return flow_run
+            await anyio.sleep(poll_interval)
+
+    return flow_run
 
 
 @inject_client
