@@ -120,6 +120,7 @@ nav:
             - Prefect Cloud Overview: ui/cloud.md
             - Prefect Cloud Quickstart: ui/cloud-getting-started.md
             - Organizations: ui/organizations.md
+            - Roles (RBAC): ui/roles.md
     - Collections:
         - Overview: collections/overview.md
         - Collections Catalog: collections/catalog.md
