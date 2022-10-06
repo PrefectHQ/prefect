@@ -557,9 +557,7 @@ class TestRunDeployment:
 
             assert (
                 await run_deployment(
-                    f"{d.flow_name}/{d.name}",
-                    timeout=2,
-                    poll_interval=0,
+                    f"{d.flow_name}/{d.name}", timeout=2, poll_interval=0,
                 )
             ).state.type == terminal_state, (
                 "run_deployment does not exit on {terminal_state}"
