@@ -327,6 +327,8 @@ class OrionClient:
         state: schemas.states.State = None,
         name: str = None,
         tags: Iterable[str] = None,
+        idempotency_key: str = None,
+        parent_task_run_id: UUID = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a deployment.
@@ -338,6 +340,8 @@ class OrionClient:
             context: Optional run context data
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
+            parent_task_run_id: if a subflow run is being created, the placeholder task
+                run identifier in the parent flow
 
         Raises:
             httpx.RequestError: if Orion does not successfully create a run for any reason
@@ -356,6 +360,8 @@ class OrionClient:
             state=state,
             tags=tags,
             name=name,
+            idempotency_key=idempotency_key,
+            parent_task_run_id=parent_task_run_id,
         )
 
         response = await self._client.post(
@@ -383,8 +389,8 @@ class OrionClient:
             parameters: Parameter overrides for this flow run.
             context: Optional run context data
             tags: a list of tags to apply to this flow run
-            parent_task_run_id: if a subflow run is being created, the placeholder task run ID
-                of the parent flow
+            parent_task_run_id: if a subflow run is being created, the placeholder task
+                run identifier in the parent flow
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
 
