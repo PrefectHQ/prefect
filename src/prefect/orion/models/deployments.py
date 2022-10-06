@@ -361,6 +361,7 @@ async def schedule_runs(
     start_time: datetime.datetime = None,
     end_time: datetime.datetime = None,
     max_runs: int = None,
+    auto_scheduled: bool = True,
 ) -> List[UUID]:
     """
     Schedule flow runs for a deployment
@@ -392,6 +393,7 @@ async def schedule_runs(
         start_time=start_time,
         end_time=end_time,
         max_runs=max_runs,
+        auto_scheduled=auto_scheduled,
     )
     return await _insert_scheduled_flow_runs(session=session, runs=runs)
 
@@ -404,6 +406,7 @@ async def _generate_scheduled_flow_runs(
     end_time: datetime.datetime,
     max_runs: int,
     db: OrionDBInterface,
+    auto_scheduled: bool = True,
 ) -> List[Dict]:
     """
     Given a `deployment_id` and schedule, generates a list of flow run objects and
@@ -436,6 +439,10 @@ async def _generate_scheduled_flow_runs(
         n=max_runs, start=start_time, end=end_time
     )
 
+    tags = deployment.tags
+    if auto_scheduled:
+        tags = ["auto-scheduled"] + tags
+
     for date in dates:
         runs.append(
             {
@@ -446,8 +453,8 @@ async def _generate_scheduled_flow_runs(
                 "parameters": deployment.parameters,
                 "infrastructure_document_id": deployment.infrastructure_document_id,
                 "idempotency_key": f"scheduled {deployment.id} {date}",
-                "tags": ["auto-scheduled"] + deployment.tags,
-                "auto_scheduled": True,
+                "tags": tags,
+                "auto_scheduled": auto_scheduled,
                 "state": schemas.states.Scheduled(
                     scheduled_time=date,
                     message="Flow run scheduled",
