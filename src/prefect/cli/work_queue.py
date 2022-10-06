@@ -242,6 +242,46 @@ async def ls(
 
 
 @work_app.command()
+async def regex(
+    regex: str = typer.Argument(..., help="regex pattern"),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Display more information."
+    ),
+):
+    """
+    View all work queues.
+    """
+    table = Table(
+        title="Work Queues", caption="(**) denotes a paused queue", caption_style="red"
+    )
+    table.add_column("Name", style="green", no_wrap=True)
+    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Concurrency Limit", style="blue", no_wrap=True)
+    if verbose:
+        table.add_column("Filter (Deprecated)", style="magenta", no_wrap=True)
+
+    async with get_client() as client:
+        queues = await client.match_work_queues(regex)
+
+    sort_by_created_key = lambda q: pendulum.now("utc") - q.created
+
+    for queue in sorted(queues, key=sort_by_created_key):
+
+        row = [
+            f"{queue.name} [red](**)" if queue.is_paused else queue.name,
+            str(queue.id),
+            f"[red]{queue.concurrency_limit}"
+            if queue.concurrency_limit
+            else "[blue]None",
+        ]
+        if verbose and queue.filter is not None:
+            row.append(queue.filter.json())
+        table.add_row(*row)
+
+    app.console.print(table)
+
+
+@work_app.command()
 async def preview(
     name: str = typer.Argument(
         None, help="The name or ID of the work queue to preview"

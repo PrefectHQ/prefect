@@ -24,6 +24,7 @@ from prefect.client import get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import Deployment, load_deployments_from_yaml
 from prefect.exceptions import (
+    ObjectAlreadyExists,
     ObjectNotFound,
     PrefectHTTPStatusError,
     ScriptError,
@@ -371,6 +372,12 @@ async def apply(
         "--upload",
         help="A flag that, when provided, uploads this deployment's files to remote storage.",
     ),
+    singleton_work_queue: str = typer.Option(
+        None,
+        "--singleton",
+        "-s",
+        help="An option to override the work queue associated with this deployment with a work queue with a concurrency limit of 1. If the queue doesn't exist, it will be created. If the queue exists, the concurrency limit for this queue will be set to 1",
+    ),
 ):
     """
     Create or update a deployment from a YAML file.
@@ -382,6 +389,22 @@ async def apply(
             app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
         except Exception as exc:
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
+
+        if override_work_queue:
+            try:
+                old_queue = deployment.work_queue_name
+                deployment.work_queue_name = override_work_queue
+                app.console.print(
+                    f"Overriding work queue {old_queue} with {override_work_queue} and setting the concurrency limit to 1."
+                )
+
+                try:
+                    res = client.create_work_queue(name=override_work_queue)
+                except ObjectAlreadyExists:
+                    res = client.read_work_queue_by_name(name=override_work_queue)
+                client.update_work_queue(res.id, concurrency_limit=1)
+            except Exception as exc:
+                exit_with_error("Failed to override work queue.")
 
         if upload:
             if (

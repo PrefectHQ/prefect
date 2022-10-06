@@ -1,7 +1,7 @@
 """
 Routes for interacting with work queue objects.
 """
-
+import re
 from typing import List, Optional
 from uuid import UUID
 
@@ -62,6 +62,21 @@ async def update_work_queue(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Work Queue {id} not found"
         )
+
+
+@router.post("/match_work_queues")
+async def match_work_queues(
+    regex: str = Body(
+        ..., embed=True, description="A Python regex string used to match work queues"
+    ),
+    db: OrionDBInterface = Depends(provide_database_interface),
+):
+    async with db.session_context() as session:
+        queues = await models.work_queues.read_work_queues(
+            session=session,
+        )
+        matched_queues = list(filter(lambda q: re.match(regex, q.name), queues))
+        return matched_queues
 
 
 @router.get("/name/{name}")

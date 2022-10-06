@@ -25,7 +25,8 @@ from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 class OrionAgent:
     def __init__(
         self,
-        work_queues: List[str],
+        work_queues: List[str] = None,
+        work_queue_regex: str = None,
         prefetch_seconds: int = None,
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
@@ -36,7 +37,8 @@ class OrionAgent:
                 "Provide only one of 'default_infrastructure' and 'default_infrastructure_document_id'."
             )
 
-        self.work_queues: Set[str] = set(work_queues)
+        self.work_queues: Set[str] = set(work_queues) if work_queues else set()
+        self.work_queue_regex = work_queue_regex
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
         self.started = False
@@ -58,6 +60,11 @@ class OrionAgent:
         else:
             self.default_infrastructure = Process()
             self.default_infrastructure_document_id = None
+
+    async def update_agent_work_queues(self):
+        if self.work_queue_regex:
+            matched_queues = await self.client.match_work_queues(self.work_queue_regex)
+            self.work_queues = set(q.name for q in matched_queues)
 
     async def get_work_queues(self) -> Iterator[WorkQueue]:
         """
@@ -107,6 +114,8 @@ class OrionAgent:
             raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
 
         self.logger.debug("Checking for flow runs...")
+
+        await self.update_agent_work_queues()
 
         before = pendulum.now("utc").add(
             seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()

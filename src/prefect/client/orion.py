@@ -796,6 +796,25 @@ class OrionClient:
         response = await self._client.post(f"/work_queues/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.WorkQueue], response.json())
 
+    async def match_work_queues(
+        self,
+        regex: str,
+    ) -> List[str]:
+        """
+        Query Orion for work queues.
+
+        Args:
+            limit: a limit for the query
+            offset: an offset for the query
+
+        Returns:
+            a list of [WorkQueue model][prefect.orion.schemas.core.WorkQueue] representations
+                of the work queues
+        """
+        body = {"regex": regex}
+        response = await self._client.post(f"/work_queues/match_work_queues", json=body)
+        return pydantic.parse_obj_as(List[schemas.core.WorkQueue], response.json())
+
     async def delete_work_queue_by_id(
         self,
         id: UUID,
