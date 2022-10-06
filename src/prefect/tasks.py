@@ -72,7 +72,7 @@ def task_input_hash(
         # task functions `co_code` bytes to avoid caching when the underlying function
         # changes
         context.task.task_key,
-        context.task.fn.__code__.co_code,
+        context.task.fn.__code__.co_code.hex(),
         arguments,
     )
 

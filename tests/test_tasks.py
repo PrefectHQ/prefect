@@ -9,6 +9,7 @@ import anyio
 import pytest
 
 from prefect import flow, get_run_logger, tags
+from prefect.blocks.core import Block
 from prefect.client.schemas import State
 from prefect.context import PrefectObjectRegistry, TaskRunContext, get_run_context
 from prefect.deprecated.data_documents import DataDocument
@@ -937,6 +938,32 @@ class TestCacheFunctionBuiltins:
                 foo._run(TestClass(1)),
                 foo._run(TestClass(2)),
                 foo._run(TestClass(1)),
+            )
+
+        first_state, second_state, third_state = bar()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert third_state.name == "Cached"
+
+        assert first_state.result() != second_state.result()
+        assert first_state.result() == third_state.result() == 1
+
+    def test_task_input_hash_works_with_block_input_types(self):
+        class TestBlock(Block):
+            x: int
+            y: int
+            z: int
+
+        @task(cache_key_fn=task_input_hash)
+        def foo(instance):
+            return instance.x
+
+        @flow
+        def bar():
+            return (
+                foo._run(TestBlock(x=1, y=2, z=3)),
+                foo._run(TestBlock(x=4, y=2, z=3)),
+                foo._run(TestBlock(x=1, y=2, z=3)),
             )
 
         first_state, second_state, third_state = bar()
