@@ -164,6 +164,10 @@ You can also:
 - [Install SQLite on Red Hat Enterprise Linux (RHEL)](#install-sqlite-on-rhel).
 - Use [Prefect Cloud](/ui/cloud/) as your API server and orchestration engine.
 
+## Proxies
+
+Prefect supports communicating via proxies through the use of environment variables. Simply set `HTTPS_PROXY` and `SSL_CERT_FILE` in your environment, and the underlying network libraries will route Prefect’s requests appropriately. You can read more about this in the article [Using Prefect Cloud with proxies](https://discourse.prefect.io/t/using-prefect-cloud-with-proxies/1696).
+
 ## External requirements
 
 While Prefect works with many of your favorite tools and Python modules, it has a few external dependencies.
