@@ -22,9 +22,10 @@
               <SearchInput v-model="name" placeholder="Search by run name" label="Search by run name" />
             </template>
             <FlowRunsSort v-model="sort" />
+            <DeleteFlowRunsButton :selected="selectedFlowRuns" @delete="deleteFlowRuns" />
           </div>
 
-          <FlowRunList :flow-runs="flowRuns" :selected="selectedFlowRuns" disabled />
+          <FlowRunList v-model:selected="selectedFlowRuns" :flow-runs="flowRuns" />
 
           <template v-if="!flowRuns.length">
             <PEmptyResults>
@@ -42,7 +43,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute } from '@prefecthq/orion-design'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute, DeleteFlowRunsButton } from '@prefecthq/orion-design'
   import { PEmptyResults, media } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
@@ -77,6 +78,11 @@
 
   function clear(): void {
     router.push(routes.flowRuns())
+  }
+
+  const deleteFlowRuns =  async (): Promise<void> => {
+    selectedFlowRuns.value = []
+    await Promise.all([flowRunsSubscription.refresh(), flowRunCountSubscription.refresh()])
   }
 
   usePageTitle('Flow Runs')
