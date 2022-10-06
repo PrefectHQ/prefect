@@ -496,19 +496,34 @@ class DockerContainer(Infrastructure):
         )
         yield container
 
-        for log in container.logs(stream=True):
-            log: bytes
-            if self.stream_output:
-                print(log.decode().rstrip())
+        if self.stream_output:
+            try:
+                for log in container.logs(stream=True):
+                    log: bytes
+                    print(log.decode().rstrip())
+            except docker.errors.APIError as exc:
+                if "marked for removal" in str(exc):
+                    self.logger.warning(
+                        f"Docker container {container.name} was marked for removal before "
+                        "logs could be retrieved. Output will not be streamed. "
+                    )
+                else:
+                    self.logger.exception(
+                        "An unexpected Docker API error occured while streaming output "
+                        f"from container {container.name}."
+                    )
 
-        container.reload()
-        if container.status != status:
-            self.logger.info(
-                f"Docker container {container.name!r} has status {container.status!r}"
-            )
-        yield container
+            container.reload()
+            if container.status != status:
+                self.logger.info(
+                    f"Docker container {container.name!r} has status {container.status!r}"
+                )
+            yield container
 
         container.wait()
+        self.logger.info(
+            f"Docker container {container.name!r} has status {container.status!r}"
+        )
         yield container
 
     def _get_client(self):
