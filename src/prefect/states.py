@@ -11,6 +11,7 @@ from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
 )
+from prefect.exceptions import CrashedRun, FailedRun
 from prefect.futures import resolve_futures_to_states
 from prefect.orion.schemas.states import StateType
 from prefect.results import BaseResult, R, ResultFactory
@@ -133,8 +134,8 @@ async def return_value_to_state(result: R, result_factory: ResultFactory) -> Sta
 
 @sync_compatible
 async def get_state_result(state, raise_on_failure: bool):
-    if raise_on_failure and state.is_failed():
-        return await raise_failed_state(state)
+    if raise_on_failure and (state.is_failed() or state.is_crashed()):
+        return await raise_state_exception(state)
 
     if isinstance(state.data, DataDocument):
         return result_from_state_with_data_document(
@@ -154,20 +155,31 @@ async def get_state_result(state, raise_on_failure: bool):
 
 
 @sync_compatible
-async def raise_failed_state(state: State) -> None:
+async def raise_state_exception(state: State) -> None:
     """
-    Given a FAILED state, raise the contained exception.
+    Given a FAILED or CRASHED state, raise the contained exception.
 
-    If not given a FAILED state, this function will return immediately.
+    If not given a FAILED or CRASHED state, this function will return immediately.
 
-    If the state contains a result of multiple states, the first FAILED state will be
-    raised.
+    If the state contains a result of multiple states, the first failure will be raised.
 
-    If the state is FAILED but does not contain an exception type result, a `TypeError`
-    will be raised.
+    If the state result is a string, a wrapper exception will be raised with the
+    string as the message.
+
+    If the state result is a `BaseException`, a wrapper exception will be raised
+    instead to prevent a base exception from crashing the runtime.
+
+    If the state result is not of a known type, a `TypeError` will be raised.
+
+    When a wrapper exception is raised, the type will be `FailedRun` if the state type is
+    FAILED or a `CrashedRun` if the state type is CRASHED.
     """
-    if not state.is_failed():
-        return
+    if state.is_failed():
+        wrapper = FailedRun
+    elif state.is_crashed():
+        wrapper = CrashedRun
+    else:
+        return None
 
     result = await state.result(raise_on_failure=False, fetch=True)
 
@@ -177,25 +189,33 @@ async def raise_failed_state(state: State) -> None:
     elif isinstance(result, BaseException):
         warnings.warn(
             f"State result is a {type(result).__name__!r} type and is not safe "
-            "to re-raise, it will be returned instead."
+            f"to re-raise, it will be raised as a `{wrapper.__name__}` instead."
         )
-        return result
+        raise wrapper(str(result)) from result
 
     elif isinstance(result, State):
         # Raise the failure in the inner state
-        await raise_failed_state(result)
+        await raise_state_exception(result)
+
+        # Should not be reached, but if it is we must raise an error
+        raise ValueError("Failed state result was a state that was not failed.")
 
     elif is_state_iterable(result):
         # Raise the first failure
         for state in result:
-            await raise_failed_state(state)
+            await raise_state_exception(state)
+
+        # Should not be reached, but if it is we must raise an error
+        raise ValueError(
+            "Failed state result contained multiple states but none were failed."
+        )
 
     elif isinstance(result, str):
-        raise Exception(result)
+        raise wrapper(result)
 
     else:
         raise TypeError(
-            f"Unexpected result for failure state: {result!r} —— "
+            f"Unexpected result for failed state: {result!r} —— "
             f"{type(result).__name__} cannot be resolved into an exception"
         )
 

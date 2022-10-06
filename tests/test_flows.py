@@ -26,7 +26,7 @@ from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
 from prefect.results import ResultReference
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
-from prefect.states import StateType, raise_failed_state
+from prefect.states import StateType, raise_state_exception
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
     exceptions_equal,
@@ -366,7 +366,7 @@ class TestFlowCall:
         task_run_state = task_run_states[0]
         assert task_run_state.is_failed()
         with pytest.raises(ValueError, match="Test"):
-            raise_failed_state(task_run_states[0])
+            raise_state_exception(task_run_states[0])
 
     def test_flow_state_defaults_to_task_states_when_no_return_completed(self):
         @task
@@ -407,7 +407,7 @@ class TestFlowCall:
         assert all(isinstance(state, State) for state in states)
         assert states[0].result() == "foo"
         with pytest.raises(ValueError, match="bar"):
-            raise_failed_state(states[1])
+            raise_state_exception(states[1])
 
     def test_flow_state_default_handles_nested_failures(self):
         @task
@@ -432,7 +432,7 @@ class TestFlowCall:
         state = states[0]
         assert isinstance(state, State)
         with pytest.raises(ValueError, match="foo"):
-            raise_failed_state(state)
+            raise_state_exception(state)
 
     def test_flow_state_reflects_returned_multiple_task_run_states(self):
         @task

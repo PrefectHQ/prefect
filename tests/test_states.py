@@ -1,14 +1,13 @@
 import pytest
 
-from prefect.client.schemas import Completed, Failed, Pending, Running, State
-from prefect.deprecated.data_documents import DataDocument
+from prefect.client.schemas import Completed, Crashed, Failed, Pending, Running
+from prefect.exceptions import CrashedRun, FailedRun
 from prefect.futures import PrefectFuture
-from prefect.orion.schemas.states import StateType
-from prefect.results import ResultFactory
+from prefect.results import ResultFactory, ResultLiteral
 from prefect.states import (
     is_state,
     is_state_iterable,
-    raise_failed_state,
+    raise_state_exception,
     return_value_to_state,
 )
 
@@ -40,61 +39,76 @@ def test_is_not_state_iterable_if_empty(iterable_type):
     assert not is_state_iterable(iterable_type())
 
 
-class TestRaiseFailedState:
-    failed_state = State(
-        type=StateType.FAILED,
-        data=DataDocument.encode("cloudpickle", ValueError("Test")),
-    )
-
-    def test_works_in_sync_context(self):
+@pytest.mark.parametrize("state_cls", [Failed, Crashed])
+class TestRaiseStateException:
+    def test_works_in_sync_context(self, state_cls):
         with pytest.raises(ValueError, match="Test"):
-            raise_failed_state(self.failed_state)
+            raise_state_exception(state_cls(data=ValueError("Test")))
 
-    async def test_raises_state_exception(self):
+    async def test_raises_state_exception(self, state_cls):
         with pytest.raises(ValueError, match="Test"):
-            await raise_failed_state(self.failed_state)
+            await raise_state_exception(state_cls(data=ValueError("Test")))
 
-    async def test_returns_without_error_for_completed_states(self):
-        assert await raise_failed_state(Completed()) is None
+    async def test_returns_without_error_for_completed_states(self, state_cls):
+        assert await raise_state_exception(Completed()) is None
 
-    async def test_raises_nested_state_exception(self):
+    async def test_raises_nested_state_exception(self, state_cls):
         with pytest.raises(ValueError, match="Test"):
-            await raise_failed_state(
-                State(
-                    type=StateType.FAILED,
-                    data=DataDocument.encode("cloudpickle", self.failed_state),
-                )
-            )
+            await raise_state_exception(state_cls(data=Failed(data=ValueError("Test"))))
 
-    async def test_raises_first_nested_multistate_exception(self):
+    async def test_raises_value_error_if_nested_state_is_not_failed(self, state_cls):
+        with pytest.raises(
+            ValueError, match="Failed state result was a state that was not failed"
+        ):
+            await raise_state_exception(state_cls(data=Completed(data="test")))
+
+    async def test_raises_first_nested_multistate_exception(self, state_cls):
         # TODO: We may actually want to raise a "multi-error" here where we have several
         #       exceptions displayed at once
         inner_states = [
-            Completed(),
-            self.failed_state,
-            State(
-                type=StateType.FAILED,
-                data=DataDocument.encode(
-                    "cloudpickle", ValueError("Should not be raised")
-                ),
-            ),
+            Completed(data="test"),
+            Failed(data=ValueError("Test")),
+            Failed(data=ValueError("Should not be raised")),
         ]
         with pytest.raises(ValueError, match="Test"):
-            await raise_failed_state(
-                State(
-                    type=StateType.FAILED,
-                    data=DataDocument.encode("cloudpickle", inner_states),
-                )
-            )
+            await raise_state_exception(state_cls(data=inner_states))
 
-    async def test_raises_error_if_failed_state_does_not_contain_exception(self):
-        with pytest.raises(TypeError, match="str cannot be resolved into an exception"):
-            await raise_failed_state(
-                State(
-                    type=StateType.FAILED,
-                    data=DataDocument.encode("cloudpickle", "foo"),
-                )
-            )
+    async def test_value_error_if_all_multistates_are_not_failed(self, state_cls):
+        inner_states = [
+            Completed(),
+            Completed(),
+            Completed(data=ValueError("Should not be raised")),
+        ]
+        with pytest.raises(
+            ValueError,
+            match="Failed state result contained multiple states but none were failed",
+        ):
+            await raise_state_exception(state_cls(data=inner_states))
+
+    @pytest.mark.parametrize("value", ["foo", ResultLiteral(value="foo")])
+    async def test_raises_wrapper_with_message_if_result_is_string(
+        self, state_cls, value
+    ):
+        with pytest.raises(
+            FailedRun if state_cls == Failed else CrashedRun, match="foo"
+        ):
+            await raise_state_exception(state_cls(data=value))
+
+    async def test_raises_wrapper_if_result_is_base_exception(self, state_cls):
+        with pytest.raises(
+            FailedRun if state_cls == Failed else CrashedRun, match="foo"
+        ):
+            with pytest.warns(
+                UserWarning,
+                match="State result is a 'BaseException' type and is not safe to re-raise",
+            ):
+                await raise_state_exception(state_cls(data=BaseException("foo")))
+
+    async def test_raises_error_if_failed_state_does_not_contain_exception(
+        self, state_cls
+    ):
+        with pytest.raises(TypeError, match="int cannot be resolved into an exception"):
+            await raise_state_exception(state_cls(data=2))
 
 
 class TestReturnValueToState:
