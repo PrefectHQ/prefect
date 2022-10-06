@@ -13,18 +13,18 @@ from prefect.blocks.core import Block
 from prefect.client import OrionClient
 from prefect.client.schemas import State
 from prefect.context import PrefectObjectRegistry
-from prefect.deprecated.data_documents import DataDocument, _retrieve_result
+from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
     InvalidNameError,
     ParameterTypeError,
     ReservedArgumentError,
 )
-from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
+from prefect.results import ResultReference
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
 from prefect.states import StateType, raise_failed_state
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
@@ -1241,38 +1241,60 @@ class TestSubflowRunLogs:
 
 
 class TestFlowResults:
-    async def test_flow_results_default_to_local_directory(self, orion_client):
+    async def test_flow_results_are_not_stored_by_default(self, orion_client):
         @flow
         def foo():
             return 6
 
-        state = foo._run()
+        state = foo(return_state=True)
+
+        # Available in local cache
+        assert await state.result() == 6
+
+        # Data is not a reference
+        assert state.data == 6
 
         flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.state.data is None
 
-        server_state = flow_run.state
-        document = await orion_client.read_block_document(
-            server_state.data.decode().filesystem_document_id
+        with pytest.raises(ValueError, match="State data is missing"):
+            await flow_run.state.result()
+
+    async def test_flow_results_are_stored_locally_if_enabled(self, orion_client):
+        @flow(persist_result=True)
+        def foo():
+            return 6
+
+        state = foo(return_state=True)
+
+        # Available from memory cache
+        assert await state.result() == 6
+
+        # Check that the storage block uses local path
+        reference = state.result(fetch=False)
+        assert isinstance(reference, ResultReference)
+        storage_block = Block._from_block_document(
+            await orion_client.read_block_document(reference.storage_block_id)
         )
-        filesystem = Block._from_block_document(document)
-        assert isinstance(filesystem, LocalFileSystem)
-        assert filesystem.basepath == str(PREFECT_LOCAL_STORAGE_PATH.value())
-        result = await _retrieve_result(server_state, orion_client)
-        assert result == await state.result()
+        assert storage_block.basepath == str(PREFECT_LOCAL_STORAGE_PATH.value())
 
-    async def test_subflow_results_use_parent_flow_run_value_by_default(
+        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        # The result can be fetched using the API state
+        assert await flow_run.state.result() == 6
+
+    async def test_subflow_results_use_parent_flow_run_storage_block_by_default(
         self, orion_client, tmp_path
     ):
-        @flow
+        @flow(persist_result=True)
         async def foo():
             with temporary_settings({PREFECT_LOCAL_STORAGE_PATH: tmp_path / "foo"}):
-                return bar._run()
+                return bar(return_state=True)
 
-        @flow
+        @flow(persist_result=True)
         def bar():
             return 6
 
-        parent_state = await foo._run()
+        parent_state = await foo(return_state=True)
         child_state = await parent_state.result()
 
         parent_flow_run = await orion_client.read_flow_run(
@@ -1282,14 +1304,12 @@ class TestFlowResults:
             child_state.state_details.flow_run_id
         )
 
-        parent_result = parent_flow_run.state.data.decode()
-        child_result = child_flow_run.state.data.decode()
-        assert (
-            parent_result.filesystem_document_id == child_result.filesystem_document_id
-        )
+        parent_result_ref = parent_flow_run.state.result(fetch=False)
+        child_result_ref = child_flow_run.state.result(fetch=False)
+        assert parent_result_ref.storage_block_id == child_result_ref.storage_block_id
 
-        result = await _retrieve_result(child_flow_run.state, orion_client)
-        assert result == await child_state.result()
+        # The result can be fetched using the API state
+        assert await child_flow_run.state.result() == 6
 
 
 class TestFlowRetries:
