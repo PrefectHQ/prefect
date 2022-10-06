@@ -39,6 +39,7 @@ async def run_deployment(
     client: OrionClient = None,
     parameters: dict = None,
     scheduled_time: datetime = None,
+    flow_run_name: str = None,
     timeout: float = None,
     poll_interval: float = 5,
 ):
@@ -56,6 +57,7 @@ async def run_deployment(
             defaults
         scheduled_time: The time to schedule the flow run for, defaults to scheduling
             the flow run to start now.
+        flow_run_name: A name for the created flow run
         timeout: The amount of time to wait for the flow run to complete before
             returning. Setting `timeout` to 0 will return the flow run immediately.
             Setting `timeout` to None will allow this function to poll indefinitely.
@@ -73,6 +75,7 @@ async def run_deployment(
         deployment.id,
         state=schemas.states.Scheduled(scheduled_time=scheduled_time),
         parameters=parameters,
+        name=flow_run_name,
     )
 
     flow_run_id = flow_run.id
