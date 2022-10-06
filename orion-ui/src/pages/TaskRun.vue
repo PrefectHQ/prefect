@@ -37,6 +37,7 @@
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
@@ -74,6 +75,14 @@
 
   const stateType = computed(() => taskRun.value?.stateType)
   useFavicon(stateType)
+
+  const title = computed(() => {
+    if (!taskRun.value) {
+      return 'Task Run'
+    }
+    return `Task Run: ${taskRun.value.name}`
+  })
+  usePageTitle(title)
 </script>
 
 <style>

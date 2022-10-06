@@ -5,7 +5,8 @@ import anyio
 import httpx
 from typing_extensions import TypeGuard
 
-from prefect.client import OrionClient, inject_client
+from prefect.client import OrionClient
+from prefect.client.orion import inject_client
 from prefect.futures import resolve_futures_to_states
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Completed, Crashed, StateType

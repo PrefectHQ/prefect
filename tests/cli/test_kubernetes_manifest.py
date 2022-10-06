@@ -2,7 +2,11 @@ import yaml
 
 from prefect.docker import get_prefect_image_name
 from prefect.infrastructure.kubernetes import KubernetesJob
-from prefect.settings import PREFECT_API_URL, PREFECT_LOGGING_SERVER_LEVEL
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    PREFECT_LOGGING_SERVER_LEVEL,
+)
 from prefect.testing.cli import invoke_and_assert
 
 
@@ -106,9 +110,11 @@ def test_printing_the_agent_manifest_with_no_args():
                 "-q",
                 "kubernetes",
             ]
-            assert len(agent_container["env"]) == 1
+            assert len(agent_container["env"]) == 2
             assert agent_container["env"][0]["name"] == "PREFECT_API_URL"
+            assert agent_container["env"][1]["name"] == "PREFECT_API_KEY"
             assert agent_container["env"][0]["value"] == str(PREFECT_API_URL.value())
+            assert agent_container["env"][1]["value"] == str(PREFECT_API_KEY.value())
 
 
 def test_printing_the_agent_manifest_with_api_url_image_tag_and_work_queue():
@@ -119,6 +125,8 @@ def test_printing_the_agent_manifest_with_api_url_image_tag_and_work_queue():
             "agent",
             "--api-url",
             "test_api_url",
+            "--api-key",
+            "test_api_key",
             "-i",
             "test_image_tag",
             "-q",
@@ -136,9 +144,11 @@ def test_printing_the_agent_manifest_with_api_url_image_tag_and_work_queue():
     agent_container = deployment["spec"]["template"]["spec"]["containers"][0]
     assert agent_container["image"] == "test_image_tag"
     assert agent_container["command"][3:5] == ["-q", "test_work_queue"]
-    assert len(agent_container["env"]) == 1
+    assert len(agent_container["env"]) == 2
     assert agent_container["env"][0]["name"] == "PREFECT_API_URL"
+    assert agent_container["env"][1]["name"] == "PREFECT_API_KEY"
     assert agent_container["env"][0]["value"] == "test_api_url"
+    assert agent_container["env"][1]["value"] == "test_api_key"
 
 
 def test_printing_the_agent_manifest_with_namespace():

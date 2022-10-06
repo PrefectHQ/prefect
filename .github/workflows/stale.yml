@@ -7,7 +7,7 @@ jobs:
   stale:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@v5
+      - uses: actions/stale@v6
         with:
           stale-issue-message: "This issue is stale because it has been open 30 days with no activity. To keep this issue open remove stale label or comment."
           stale-issue-label: "status:stale"

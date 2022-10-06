@@ -17,10 +17,9 @@ First, you'll need to download the source code and install an editable version o
 
 <div class="terminal">
 ```bash
-# Clone the repository and switch to the 'orion' branch
+# Clone the repository
 git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
-git checkout orion
 # Install the package with development dependencies
 pip install -e ".[dev]"
 # Setup pre-commit hooks for required formatting
@@ -39,6 +38,9 @@ pip install $(./scripts/precommit-versions.py)
 </div>
 
 You'll need to run `black`, `autoflake8`, and `isort` before a contribution can be accepted.
+
+!!! tip "Building the Prefect UI"
+    If you intend to run a local Prefect Orion server during development, you must first build the UI. See [UI development](#ui-development) for instructions.
 
 !!! note "Windows support is under development"
     Support for Prefect on Windows is a work in progress.

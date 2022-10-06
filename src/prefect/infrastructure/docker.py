@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple
 import anyio.abc
 import packaging.version
 from pydantic import Field, validator
-from slugify import slugify
 from typing_extensions import Literal
 
 import prefect
@@ -20,6 +19,7 @@ from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.importtools import lazy_import
+from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     import docker
@@ -46,15 +46,22 @@ class BaseDockerLogin(Block, ABC):
     _block_schema_capabilities = ["docker-login"]
 
     @abstractmethod
-    async def login() -> None:
+    async def login(self) -> "DockerClient":
         """
-        Log in with `docker login`, persisting credentials.
+        Log in and return an authenticated `DockerClient`.
+        (DEPRECATED) Use `get_docker_client` instead of `login`.
         """
 
-    def _login(self, username, password, registry_url, reauth):
+    @abstractmethod
+    async def get_docker_client(self) -> "DockerClient":
+        """
+        Log in and return an authenticated `DockerClient`.
+        """
+
+    def _login(self, username, password, registry_url, reauth) -> "DockerClient":
         client = self._get_docker_client()
 
-        return client.login(
+        client.login(
             username=username,
             password=password,
             registry=registry_url,
@@ -63,7 +70,10 @@ class BaseDockerLogin(Block, ABC):
             reauth=reauth,
         )
 
-    def _get_docker_client(self):
+        return client
+
+    @staticmethod
+    def _get_docker_client():
         try:
 
             with warnings.catch_warnings():
@@ -87,8 +97,7 @@ class DockerRegistry(BaseDockerLogin):
     """
     Connects to a Docker registry.
 
-    Requires a Docker Engine to be connectable. Login information is persisted to disk
-    at the Docker default location.
+    Requires a Docker Engine to be connectable.
 
     Attributes:
         username: The username to log into the registry with.
@@ -117,14 +126,25 @@ class DockerRegistry(BaseDockerLogin):
     )
 
     @sync_compatible
-    async def login(self):
-        return await run_sync_in_worker_thread(
+    async def login(self) -> "DockerClient":
+        warnings.warn(
+            "`login` is deprecated. Instead, use `get_docker_client` to obtain an authenticated `DockerClient`.",
+            category=DeprecationWarning,
+            stacklevel=3,
+        )
+        return await self.get_docker_client()
+
+    @sync_compatible
+    async def get_docker_client(self) -> "DockerClient":
+        client = await run_sync_in_worker_thread(
             self._login,
             self.username,
             self.password.get_secret_value(),
             self.registry_url,
             self.reauth,
         )
+
+        return client
 
 
 class DockerContainerResult(InfrastructureResult):
@@ -148,6 +168,8 @@ class DockerContainer(Infrastructure):
             Defaults to the Prefect image.
         image_pull_policy: Specifies if the image should be pulled. One of 'ALWAYS',
             'NEVER', 'IF_NOT_PRESENT'.
+        image_registry: A `DockerRegistry` block containing credentials to use if `image` is stored in a private
+            image registry.
         labels: An optional dictionary of labels, mapping name to value.
         name: An optional name for the container.
         network_mode: Set the network mode for the created container. Defaults to 'host'
@@ -285,7 +307,13 @@ class DockerContainer(Infrastructure):
         )
 
     def _create_and_start_container(self) -> "Container":
-        docker_client = self._get_client()
+        if self.image_registry:
+            # If an image registry block was supplied, load an authenticated Docker
+            # client from the block. Otherwise, use an unauthenticated client to
+            # pull images from public registries.
+            docker_client = self.image_registry.get_docker_client()
+        else:
+            docker_client = self._get_client()
 
         container_settings = self._build_container_settings(docker_client)
 
@@ -400,8 +428,7 @@ class DockerContainer(Infrastructure):
         Pull the image we're going to use to create the container.
         """
         image, tag = self._get_image_and_tag()
-        if self.image_registry:
-            self.image_registry.login()
+
         return docker_client.images.pull(image, tag)
 
     def _create_container(self, docker_client: "DockerClient", **kwargs) -> "Container":

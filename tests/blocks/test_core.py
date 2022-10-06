@@ -13,6 +13,7 @@ import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.blocks.system import Secret
 from prefect.client import OrionClient
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
@@ -513,7 +514,14 @@ class TestAPICompatibility:
         assert block_schema.version == "1.0.0"
 
     def test_create_block_schema_uses_prefect_version_for_built_in_blocks(self):
-        Secret.register_type_and_schema()
+        try:
+            Secret.register_type_and_schema()
+        except PrefectHTTPStatusError as exc:
+            if exc.response.status_code == 403:
+                pass
+            else:
+                raise exc
+
         block_schema = Secret._to_block_schema()
         assert block_schema.version == Version(prefect.__version__).base_version
 
@@ -745,6 +753,19 @@ class TestAPICompatibility:
             match="Unable to find block document named blocky for block type x",
         ):
             await test_block.load("blocky")
+
+    def test_save_block_from_flow(self):
+        class Test(Block):
+            a: str
+
+        @prefect.flow
+        def save_block_flow():
+            Test(a="foo").save("test")
+
+        save_block_flow()
+
+        block = Test.load("test")
+        assert block.a == "foo"
 
 
 class TestRegisterBlockTypeAndSchema:
@@ -1551,6 +1572,37 @@ class TestGetDescription:
             message: str
 
         assert A.get_description() == "But I will"
+
+    def test_no_griffe_logs(self, caplog, capsys, recwarn):
+        """
+        Ensures there are no extraneous output printed/warned.
+        """
+
+        class A(Block):
+            """
+            Without disable logger, this spawns griffe warnings.
+
+            Args:
+                string (str): This should spawn a warning
+            """
+
+        A()
+        assert caplog.record_tuples == []
+
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err == ""
+
+        assert len(recwarn) == 0
+
+        # to be extra sure that we are printing anything
+        # we shouldn't be
+        print("Sanity check!")
+        captured = capsys.readouterr()
+        assert captured.out == "Sanity check!\n"
+
+        warnings.warn("Sanity check two!")
+        assert len(recwarn) == 1
 
 
 class NoCodeExample(Block):

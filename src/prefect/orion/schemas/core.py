@@ -21,6 +21,7 @@ FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_notification_policy_id",
     "flow_id",
     "flow_name",
+    "flow_run_url",
     "flow_run_id",
     "flow_run_name",
     "flow_run_parameters",

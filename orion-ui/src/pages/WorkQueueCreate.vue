@@ -12,6 +12,7 @@
   import { WorkQueueCreateForm, PageHeadingWorkQueueCreate, WorkQueueCreate } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouter } from 'vue-router'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { workQueuesApi } from '@/services/workQueuesApi'
 
@@ -31,4 +32,6 @@
       console.error(error)
     }
   }
+
+  usePageTitle('Create Work Queue')
 </script>

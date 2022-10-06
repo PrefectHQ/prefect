@@ -158,6 +158,8 @@ class TestFlowWithOptions:
             name="Copied flow",
             description="A copied flow",
             task_runner=SequentialTaskRunner,
+            retries=3,
+            retry_delay_seconds=20,
             timeout_seconds=5,
             validate_parameters=False,
         )
@@ -166,6 +168,8 @@ class TestFlowWithOptions:
         assert flow_with_options.description == "A copied flow"
         assert isinstance(flow_with_options.task_runner, SequentialTaskRunner)
         assert flow_with_options.timeout_seconds == 5
+        assert flow_with_options.retries == 3
+        assert flow_with_options.retry_delay_seconds == 20
         assert flow_with_options.should_validate_parameters is False
 
     def test_with_options_uses_existing_settings_when_no_override(self):
@@ -175,6 +179,8 @@ class TestFlowWithOptions:
             task_runner=SequentialTaskRunner,
             timeout_seconds=10,
             validate_parameters=True,
+            retries=3,
+            retry_delay_seconds=20,
         )
         def initial_flow():
             pass
@@ -187,6 +193,8 @@ class TestFlowWithOptions:
         assert isinstance(flow_with_options.task_runner, SequentialTaskRunner)
         assert flow_with_options.timeout_seconds == 10
         assert flow_with_options.should_validate_parameters is True
+        assert flow_with_options.retries == 3
+        assert flow_with_options.retry_delay_seconds == 20
 
     def test_with_options_can_unset_timeout_seconds_with_zero(self):
         @flow(timeout_seconds=1)

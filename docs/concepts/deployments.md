@@ -192,7 +192,7 @@ You may specify additional options to further customize your deployment.
 |  `--rrule TEXT`     | An `RRule` that will be used to set an [`RRuleSchedule`](/concepts/schedules/) on the deployment. For example, `--rrule 'FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9,10,11,12,13,14,15,16,17'` to create flow runs from that deployment every hour but only during business hours. |
 | `--apply` | When provided, automatically registers the resulting deployment with the API. |
 | `--skip-upload` | When provided, skips uploading this deployment's files to remote storage. |
-| `--path` | An optional path to specify a subdirectory of remote storage to upload to. |
+| `--path` | An optional path to specify a subdirectory of remote storage to upload to, or to point to a subdirectory of a locally stored flow. |
 
 ### Block identifiers
 
@@ -276,7 +276,32 @@ parameter_openapi_schema:
 
     We recommend editing most of these fields from the CLI or Prefect UI for convenience.
 
-### Create deployment in API
+### Parameters in deployments
+
+You may provide default parameter values in the `deployment.yaml` configuration, and these parameter values will be used for flow runs based on the deployment. 
+
+To configure default parameter values, add them to the `parameters: {}` line of `deployment.yaml` as JSON key-value pairs. The parameter list configured in `deployment.yaml` *must* match the parameters expected by the entrypoint flow function.
+
+```yaml
+parameters: {"name": "Marvin", "num": 42, "url": "https://catfact.ninja/fact"}
+```
+
+!!! tip "Passing **kwargs as flow parameters"
+    You may pass `**kwargs` as a deployment parameter as a `"kwargs":{}` JSON object containing the key-value pairs of any passed keyword arguments.
+
+    ```yaml
+    parameters: {"name": "Marvin", "kwargs":{"cattype":"tabby","num": 42}
+    ```
+
+You can edit default parameters for deployments in the Prefect UI, and you can override default parameter values when creating ad-hoc flow runs via the Prefect UI.
+
+To edit parameters in the Prefect UI, go the the details page for a deployment, then select **Edit** from the commands menu. If you change parameter values, the new values are used for all future flow runs based on the deployment.
+
+To create an ad-hoc flow run with different parameter values, go the the details page for a deployment, select **Run**, then select **Custom**. You will be able to provide custom values for any editable deployment fields. Under **Parameters**, select **Custom**. Provide the new values, then select **Save**. Select **Run** to begin the flow run with custom values.
+
+![Configuring custom parameter values for an ad-hoc flow run](/img/concepts/custom-parameters.png)
+
+## Create a deployment with the CLI
 
 When you've configured `deployment.yaml` for a deployment, you can create the deployment on the API by running the `prefect deployment apply` Prefect CLI command.
 
@@ -380,6 +405,8 @@ deployment.load() # loads server-side settings
 
 Once the existing deployment settings are loaded, you may update them as needed by changing deployment properties.
 
+View all of the parameters for the `Deployment` object in the [Python API documentation](https://docs.prefect.io/api-ref/prefect/deployments/).
+
 ## Deployment API representation
 
 In Prefect Orion, when you create a deployment, it is constructed from deployment definition data you provide and additional properties calculated by client-side utilities.
@@ -448,7 +475,7 @@ $ prefect deployment inspect 'Cat Facts/catfact'
 }
 ```
 
-## Running deployments
+## Create a flow run from a deployment
 
 If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect Orion API server and agent is running. Prefect Cloud created scheduled flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
 

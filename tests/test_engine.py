@@ -36,7 +36,7 @@ from prefect.orion.schemas.states import (
 )
 from prefect.task_runners import SequentialTaskRunner
 from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
-from prefect.utilities.collections import quote
+from prefect.utilities.annotations import quote
 from prefect.utilities.pydantic import PartialModel
 
 

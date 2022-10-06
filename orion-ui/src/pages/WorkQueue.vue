@@ -24,12 +24,7 @@
         </template>
 
         <template #runs>
-          <FlowRunList v-if="flowRuns.length" :flow-runs="flowRuns" disabled :selected="[]" />
-          <PEmptyResults v-else>
-            <template #message>
-              No runs from the last 7 days
-            </template>
-          </PEmptyResults>
+          <FlowRunFilteredList :flow-run-filter="flowRunFilter" />
         </template>
       </p-tabs>
 
@@ -42,14 +37,14 @@
 
 
 <script lang="ts" setup>
-  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter } from '@prefecthq/orion-design'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
-  import { useSubscription, useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
+  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
-  import { flowRunsApi } from '@/services/flowRunsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
 
   const router = useRouter()
@@ -75,16 +70,19 @@
   const workQueue = computed(() => workQueueSubscription.response)
 
   const workQueueName = computed(() => workQueue.value ? [workQueue.value.name] : [])
-  const flowRunFilter = useRecentFlowRunFilter({ states: [], workQueues: workQueueName })
-
-  const flowRunsFilterArgs = computed<Parameters<typeof flowRunsApi.getFlowRuns> | null>(() => workQueueName.value.length ? [flowRunFilter.value] : null)
-
-  const flowRunsSubscription = useSubscriptionWithDependencies(flowRunsApi.getFlowRuns, flowRunsFilterArgs)
-  const flowRuns = computed(() => flowRunsSubscription.response ?? [])
+  const flowRunFilter = useRecentFlowRunFilter({ workQueues: workQueueName })
 
   const routeToQueues = (): void => {
     router.push(routes.workQueues())
   }
+
+  const title = computed(() => {
+    if (!workQueue.value) {
+      return 'Work Queue'
+    }
+    return `Work Queue: ${workQueue.value.name}`
+  })
+  usePageTitle(title)
 
   watch(() => workQueue.value?.deprecated, value => {
     if (value) {

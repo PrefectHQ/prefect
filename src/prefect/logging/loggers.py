@@ -4,6 +4,7 @@ from functools import lru_cache
 from typing import TYPE_CHECKING
 
 import prefect
+from prefect.exceptions import MissingContextError
 
 if TYPE_CHECKING:
     from prefect.context import RunContext
@@ -106,7 +107,7 @@ def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logge
     ):
         logger = logging.getLogger("null")
     else:
-        raise RuntimeError("There is no active flow or task run context.")
+        raise MissingContextError("There is no active flow or task run context.")
 
     return logger
 
@@ -165,18 +166,31 @@ def task_run_logger(
 
 
 @contextmanager
-def disable_run_logger():
-    flow_run_logger = get_logger("prefect.flow_run")
-    task_run_logger = get_logger("prefect.task_run")
+def disable_logger(name: str):
+    """
+    Get a logger by name and disables it within the context manager.
+    Upon exiting the context manager, the logger is returned to its
+    original state.
+    """
+    logger = logging.getLogger(name=name)
 
     # determine if it's already disabled
-    flow_run_logger_disabled = flow_run_logger.disabled
-    task_run_logger_disabled = task_run_logger.disabled
+    base_state = logger.disabled
     try:
-        flow_run_logger.disabled = True
-        task_run_logger.disabled = True
+        # disable the logger
+        logger.disabled = True
         yield
     finally:
-        # return to original state
-        flow_run_logger.disabled = flow_run_logger_disabled
-        task_run_logger.disabled = task_run_logger_disabled
+        # return to base state
+        logger.disabled = base_state
+
+
+@contextmanager
+def disable_run_logger():
+    """
+    Gets both `prefect.flow_run` and `prefect.task_run` and disables them
+    within the context manager. Upon exiting the context manager, both loggers
+    are returned to its original state.
+    """
+    with disable_logger("prefect.flow_run"), disable_logger("prefect.task_run"):
+        yield

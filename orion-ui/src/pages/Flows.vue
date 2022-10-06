@@ -20,6 +20,7 @@
   import { Flow, FlowsTable, FlowsPageEmptyState, PageHeadingFlows } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { flowsApi } from '@/services/flowsApi'
 
   const subscriptionOptions = {
@@ -30,4 +31,6 @@
   const flows = computed<Flow[]>(() => flowsSubscription.response ?? [])
   const empty = computed(() => flowsSubscription.executed && flows.value.length === 0)
   const loaded = computed(() => flowsSubscription.executed)
+
+  usePageTitle('Flows')
 </script>

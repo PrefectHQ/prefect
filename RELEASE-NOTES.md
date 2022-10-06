@@ -1,5 +1,98 @@
 # Prefect Release Notes
 
+## Release 2.4.5
+
+This release disables block protection. With block protection enabled, as in 2.4.3 and 2.4.4, client and server versions cannot be mismatched unless you are on a version before 2.4.0. Disabling block protection restores the ability for a client and server to have different version.
+
+Block protection was added in 2.4.1 to prevent users from deleting block types that are necessary for the system to function. With this change, you are able to delete block types that will cause your flow runs to fail. New safeguards that do not affect client/server compatibility will be added in the future.
+
+## Release 2.4.3
+
+**When running a server with this version, the client must be the same version. This does not apply to clients connecting to Prefect Cloud.**
+
+### Enhancements
+- Warn if user tries to login with API key from Cloud 1 — https://github.com/PrefectHQ/prefect/pull/6958
+- Improve concurrent task runner performance — https://github.com/PrefectHQ/prefect/pull/6948
+- Raise a `MissingContextError` when `get_run_logger` is called outside a run context — https://github.com/PrefectHQ/prefect/pull/6980
+- Adding caching to API configuration lookups to improve performance — https://github.com/PrefectHQ/prefect/pull/6959
+- Move `quote` to `prefect.utilities.annotations` — https://github.com/PrefectHQ/prefect/pull/6993
+- Add state filters and sort-by to the work-queue, flow and deployment pages — https://github.com/PrefectHQ/prefect/pull/6985
+
+### Fixes
+- Fix login to private Docker registries — https://github.com/PrefectHQ/prefect/pull/6889
+- Update `Flow.with_options` to actually pass retry settings to new object — https://github.com/PrefectHQ/prefect/pull/6963
+- Fix compatibility for protected blocks when client/server versions are mismatched — https://github.com/PrefectHQ/prefect/pull/6986
+- Ensure `python-slugify` is always used even if [unicode-slugify](https://github.com/mozilla/unicode-slugify) is installed — https://github.com/PrefectHQ/prefect/pull/6955
+
+### Documentation
+- Update documentation for specifying schedules from the CLI — https://github.com/PrefectHQ/prefect/pull/6968
+- Add results concept to documentation — https://github.com/PrefectHQ/prefect/pull/6992
+
+### Collections
+- New [`prefect-hex` collection](https://prefecthq.github.io/prefect-hex/) — https://github.com/PrefectHQ/prefect/pull/6974
+- New [`CloudRunJob` infrastructure block](https://prefecthq.github.io/prefect-gcp/cloud_run/) in `prefect-gcp` — https://github.com/PrefectHQ/prefect-gcp/pull/48
+
+### Contributors
+* @Hongbo-Miao made their first contribution in https://github.com/PrefectHQ/prefect/pull/6956
+* @hateyouinfinity made their first contribution in https://github.com/PrefectHQ/prefect/pull/6955
+
+## Release 2.4.2
+
+### Fixes
+- Remove types in blocks docstring attributes to avoid annotation parsing warnings — https://github.com/PrefectHQ/prefect/pull/6937
+- Fixes `inject_client` in scenarios where the `client` kwarg is passed `None` — https://github.com/PrefectHQ/prefect/pull/6942
+
+### Contributors
+* @john-jam made their first contribution in https://github.com/PrefectHQ/prefect/pull/6937
+
+## Release 2.4.1
+
+### Enhancements
+- Add TTL to `KubernetesJob` for automated cleanup of finished jobs — https://github.com/PrefectHQ/prefect/pull/6785
+- Add `prefect kubernetes manifest agent` to generate an agent Kubernetes manifest — https://github.com/PrefectHQ/prefect/pull/6771
+- Add `prefect block type delete` to delete block types — https://github.com/PrefectHQ/prefect/pull/6849
+- Add dynamic titles to tabs in UI — https://github.com/PrefectHQ/prefect/pull/6914
+- Hide secret tails by default — https://github.com/PrefectHQ/prefect/pull/6846
+- Add runs tab to show flow runs on the flow, deployment, and work-queue pages in the UI — https://github.com/PrefectHQ/prefect/pull/6721
+- Add toggle to disable block registration on application start — https://github.com/PrefectHQ/prefect/pull/6858
+- Use injected client during block registration, save, and load — https://github.com/PrefectHQ/prefect/pull/6857
+- Refactor of `prefect.client` into `prefect.client.orion` and `prefect.client.cloud` — https://github.com/PrefectHQ/prefect/pull/6847
+- Improve breadcrumbs on radar page in UI — https://github.com/PrefectHQ/prefect/pull/6757
+- Reject redundant state transitions to prevent duplicate runs — https://github.com/PrefectHQ/prefect/pull/6852
+- Update block auto-registration to use a cache to improve performance — https://github.com/PrefectHQ/prefect/pull/6841
+- Add ability to define blocks from collections to be registered by default — https://github.com/PrefectHQ/prefect/pull/6890
+- Update file systems interfaces to be sync compatible — https://github.com/PrefectHQ/prefect/pull/6511
+- Add flow run URLs to notifications — https://github.com/PrefectHQ/prefect/pull/6798
+- Add client retries on 503 responses — https://github.com/PrefectHQ/prefect/pull/6927
+- Update injected client retrieval to use the flow and task run context client for reduced overhead — https://github.com/PrefectHQ/prefect/pull/6859
+- Add Microsoft Teams notification block — https://github.com/PrefectHQ/prefect/pull/6920
+
+### Fixes
+- Fix `LocalFileSystem.get_directory` when from and to paths match — https://github.com/PrefectHQ/prefect/pull/6824
+- Fix registration of block schema versions — https://github.com/PrefectHQ/prefect/pull/6803
+- Update agent to capture infrastructure errors and fail the flow run instead of crashing — https://github.com/PrefectHQ/prefect/pull/6903
+- Fix bug where `OrionClient.read_logs` filter was ignored — https://github.com/PrefectHQ/prefect/pull/6885
+
+### Documentation
+- Add GitHub and Docker deployment recipe — https://github.com/PrefectHQ/prefect/pull/6825
+- Add parameter configuration examples — https://github.com/PrefectHQ/prefect/pull/6886
+
+### Collections
+- Add `prefect-firebolt` to collections catalog — https://github.com/PrefectHQ/prefect/pull/6917
+
+### Helm Charts
+- Major overhaul in how helm charts in `prefect-helm` are structured and how we version and release them — [2022.09.21 release](https://github.com/PrefectHQ/prefect-helm/releases/tag/2022.09.21)
+
+### Contributors
+- @jmg-duarte
+- @taljaards
+- @yashlad681
+- @hallenmaia made their first contributions(!) in https://github.com/PrefectHQ/prefect/pull/6903, https://github.com/PrefectHQ/prefect/pull/6785, and https://github.com/PrefectHQ/prefect/pull/6771
+- @dobbersc made their first contribution in https://github.com/PrefectHQ/prefect/pull/6870
+- @jnovinger made their first contribution in https://github.com/PrefectHQ/prefect/pull/6916
+- @mathijscarlu made their first contribution in https://github.com/PrefectHQ/prefect/pull/6885
+
+
 ## Release 2.4.0
 
 ### Exciting New Features 🎉

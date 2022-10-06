@@ -16,6 +16,11 @@ class TestLocalFileSystem:
         await fs.write_path("test.txt", content=b"hello")
         assert await fs.read_path("test.txt") == b"hello"
 
+    def test_read_write_roundtrip_sync(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path))
+        fs.write_path("test.txt", content=b"hello")
+        assert fs.read_path("test.txt") == b"hello"
+
     async def test_write_with_missing_directory_creates(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
         await fs.write_path(Path("folder") / "test.txt", content=b"hello")
@@ -60,6 +65,11 @@ class TestRemoteFileSystem:
         fs = RemoteFileSystem(basepath="memory://root")
         await fs.write_path("test.txt", content=b"hello")
         assert await fs.read_path("test.txt") == b"hello"
+
+    def test_read_write_roundtrip_sync(self):
+        fs = RemoteFileSystem(basepath="memory://root")
+        fs.write_path("test.txt", content=b"hello")
+        assert fs.read_path("test.txt") == b"hello"
 
     async def test_write_with_missing_directory_succeeds(self):
         fs = RemoteFileSystem(basepath="memory://root/")
@@ -131,6 +141,27 @@ class TestRemoteFileSystem:
             "/tree/shared_libs/bar.py",
             "/tree/shared_libs/foo.py",
         }
+
+    async def test_put_directory_put_file_count(self):
+        ignore_file = os.path.join(TEST_PROJECTS_DIR, "tree-project", ".prefectignore")
+
+        # Put files
+        fs = RemoteFileSystem(basepath="memory://tree")
+        num_files_put = await fs.put_directory(
+            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
+            ignore_file=ignore_file,
+        )
+
+        # Expected files
+        ignore_patterns = Path(ignore_file).read_text().splitlines(keepends=False)
+        included_files = prefect.utilities.filesystem.filter_files(
+            os.path.join(TEST_PROJECTS_DIR, "tree-project"),
+            ignore_patterns,
+            include_dirs=False,
+        )
+        num_files_expected = len(included_files)
+
+        assert num_files_put == num_files_expected
 
 
 class TestGitHub:

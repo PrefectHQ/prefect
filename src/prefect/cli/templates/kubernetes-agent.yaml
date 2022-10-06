@@ -23,13 +23,14 @@ spec:
         env:
           - name: PREFECT_API_URL
             value: ${api_url}
-
+          - name: PREFECT_API_KEY
+            value: ${api_key}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   namespace: ${namespace}
-  name: flow-runner
+  name: prefect-agent
 rules:
 - apiGroups: [""]
   resources: ["pods", "pods/log", "pods/status"]
@@ -41,7 +42,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: flow-runner-role-binding
+  name: prefect-agent-role-binding
   namespace: ${namespace}
 subjects:
 - kind: ServiceAccount
@@ -49,5 +50,5 @@ subjects:
   namespace: ${namespace}
 roleRef:
   kind: Role
-  name: flow-runner
+  name: prefect-agent
   apiGroup: rbac.authorization.k8s.io

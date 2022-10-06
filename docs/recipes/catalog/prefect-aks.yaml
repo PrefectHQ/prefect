@@ -1,4 +1,4 @@
-recipeName: Prefect Orion on AKS
+recipeName: Prefect Orion on an AKS Cluster
 author: Prefect
 authorUrl: https://prefect.io
 description: Deploy Prefect Orion to an Azure Kubernetes Service (AKS) Cluster with Azure Blob Storage.

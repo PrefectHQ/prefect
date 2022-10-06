@@ -48,6 +48,7 @@
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import FlowRunsFilter from '@/components/FlowRunsFilter.vue'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { uiApi } from '@/services/uiApi'
@@ -77,6 +78,8 @@
   function clear(): void {
     router.push(routes.flowRuns())
   }
+
+  usePageTitle('Flow Runs')
 </script>
 
 <style>

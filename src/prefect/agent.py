@@ -199,14 +199,20 @@ class OrionAgent:
         ready_to_submit = await self._propose_pending_state(flow_run)
 
         if ready_to_submit:
-            infrastructure = await self.get_infrastructure(flow_run)
-
-            # Wait for submission to be completed. Note that the submission function
-            # may continue to run in the background after this exits.
-            await self.task_group.start(
-                self._submit_run_and_capture_errors, flow_run, infrastructure
-            )
-            self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
+            try:
+                infrastructure = await self.get_infrastructure(flow_run)
+            except Exception as exc:
+                self.logger.exception(
+                    f"Failed to get infrastructure for flow run '{flow_run.id}'."
+                )
+                await self._propose_failed_state(flow_run, exc)
+            else:
+                # Wait for submission to be completed. Note that the submission function
+                # may continue to run in the background after this exits.
+                await self.task_group.start(
+                    self._submit_run_and_capture_errors, flow_run, infrastructure
+                )
+                self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
 
         self.submitting_flow_run_ids.remove(flow_run.id)
 

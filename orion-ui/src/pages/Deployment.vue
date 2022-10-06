@@ -31,12 +31,7 @@
       </template>
 
       <template #runs>
-        <FlowRunList v-if="flowRuns.length" :flow-runs="flowRuns" disabled :selected="[]" />
-        <PEmptyResults v-else>
-          <template #message>
-            No runs from the last 7 days
-          </template>
-        </PEmptyResults>
+        <FlowRunFilteredList :flow-run-filter="deploymentFilter" />
       </template>
     </p-tabs>
 
@@ -52,15 +47,15 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentDescription, FlowRunList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter } from '@prefecthq/orion-design'
+  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
-  import { useSubscription, useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
+  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { deploymentsApi } from '@/services/deploymentsApi'
-  import { flowRunsApi } from '@/services/flowRunsApi'
 
   const deploymentId = useRouteParam('id')
   const router = useRouter()
@@ -92,10 +87,13 @@
 
   const deploymentFilter = useRecentFlowRunFilter({ deployments: [deploymentId.value] })
 
-  const flowRunsFilterArgs = computed<Parameters<typeof flowRunsApi.getFlowRuns> | null>(() => deploymentId.value ? [deploymentFilter.value] : null)
-
-  const flowRunsSubscription = useSubscriptionWithDependencies(flowRunsApi.getFlowRuns, flowRunsFilterArgs)
-  const flowRuns = computed(() => flowRunsSubscription.response ?? [])
+  const title = computed(() => {
+    if (!deployment.value) {
+      return 'Deployment'
+    }
+    return `Deployment: ${deployment.value.name}`
+  })
+  usePageTitle(title)
 
   watch(deployment, () => {
     // If the deployment isn't deprecated and doesn't have a work queue, show the missing work queue message
