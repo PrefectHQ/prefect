@@ -18,13 +18,14 @@ from pydantic import BaseModel, Field, parse_obj_as, validator
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client
 from prefect.client.orion import inject_client
-from prefect.context import PrefectObjectRegistry
+from prefect.context import FlowRunContext, PrefectObjectRegistry
 from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
+from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
@@ -70,12 +71,45 @@ async def run_deployment(
     if scheduled_time is None:
         scheduled_time = pendulum.now("UTC")
 
+    parameters = parameters or {}
+
+    flow_run_ctx = FlowRunContext.get()
+    if flow_run_ctx:
+        # This was called from a flow. Link the flow run as a subflow.
+        from prefect.engine import (
+            Pending,
+            _dynamic_key_for_task_run,
+            collect_task_run_inputs,
+        )
+
+        task_inputs = {
+            k: await collect_task_run_inputs(v) for k, v in parameters.items()
+        }
+
+        # Generate a task in the parent flow run to represent the result of the subflow
+        dummy_task = Task(
+            name=flow_run_ctx.flow.name,
+            fn=flow_run_ctx.flow.fn,
+            version=flow_run_ctx.flow.version,
+        )
+        parent_task_run = await client.create_task_run(
+            task=dummy_task,
+            flow_run_id=flow_run_ctx.flow_run.id,
+            dynamic_key=_dynamic_key_for_task_run(flow_run_ctx, dummy_task),
+            task_inputs=task_inputs,
+            state=Pending(),
+        )
+        parent_task_run_id = parent_task_run.id
+    else:
+        parent_task_run_id = None
+
     deployment = await client.read_deployment_by_name(name)
     flow_run = await client.create_flow_run_from_deployment(
         deployment.id,
         state=schemas.states.Scheduled(scheduled_time=scheduled_time),
         parameters=parameters,
         name=flow_run_name,
+        parent_task_run_id=parent_task_run_id,
     )
 
     flow_run_id = flow_run.id
