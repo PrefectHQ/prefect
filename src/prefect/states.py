@@ -190,6 +190,9 @@ async def raise_failed_state(state: State) -> None:
         for state in result:
             await raise_failed_state(state)
 
+    elif isinstance(result, str):
+        raise Exception(result)
+
     else:
         raise TypeError(
             f"Unexpected result for failure state: {result!r} —— "
