@@ -575,7 +575,7 @@ class TestRunDeployment:
 
         flow_run = await run_deployment(
             f"{d.flow_name}/{d.name}",
-            timeout=2,
+            timeout=0,
             poll_interval=0,
             client=orion_client,
         )
@@ -712,7 +712,6 @@ class TestRunDeployment:
     def test_custom_flow_run_names(self, test_deployment, use_hosted_orion):
         d, deployment_id = test_deployment
 
-        scheduled_time = pendulum.now() + pendulum.Duration(minutes=5)
         flow_run = run_deployment(
             f"{d.flow_name}/{d.name}",
             flow_run_name="a custom flow run name",
