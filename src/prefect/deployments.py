@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+import anyio
 import pendulum
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
@@ -33,11 +34,13 @@ from prefect.utilities.importtools import import_object
 
 
 @sync_compatible
+@inject_client
 async def run_deployment(
     name: str,
+    client: OrionClient,
     parameters: dict = None,
     scheduled_time: datetime = None,
-    max_polls: int = 60,
+    timeout: float = None,
     poll_interval: float = 5,
 ):
     """
@@ -52,39 +55,39 @@ async def run_deployment(
             defaults
         scheduled_time: The time to schedule the flow run for, defaults to scheduling
             a flow run immediately
-        max_polls: The maximum number of times to poll the flow run before returning.
-            Setting `max_polls` to 0 will return the FlowRun object immediately. Setting
-            `max_polls` to -1 will allow this function to poll indefinitely.
+        timeout: The amount of time to wait for the flow run to complete before
+            returning. Setting `timeout` to 0 will return the FlowRun object
+            immediately. Setting `timeout` to None will allow this function to poll
+            indefinitely. Defaults to None
+        poll_interval: The number of seconds between polls
     """
-    if max_polls < -1:
-        raise ValueError(
-            "`max_polls` must be -1 (unlimited polling), 0 (return immediately) or any positive integer"
-        )
+    if timeout is not None and timeout < 0:
+        raise ValueError("`timeout` cannot be negative")
 
     if scheduled_time is None:
         scheduled_time = pendulum.now("UTC")
 
-    async with get_client() as client:
-        deployment = await client.read_deployment_by_name(name)
-        flow_run = await client.create_flow_run_from_deployment(
-            deployment.id,
-            state=schemas.states.Scheduled(scheduled_time=scheduled_time),
-            parameters=parameters,
-        )
+    deployment = await client.read_deployment_by_name(name)
+    flow_run = await client.create_flow_run_from_deployment(
+        deployment.id,
+        state=schemas.states.Scheduled(scheduled_time=scheduled_time),
+        parameters=parameters,
+    )
 
-        flow_run_id = flow_run.id
+    flow_run_id = flow_run.id
 
-        polls = 0
-        while max_polls == -1 or polls < max_polls:
-            time.sleep(poll_interval)
+    if timeout == 0:
+        return flow_run
+
+    with anyio.move_on_after(timeout):
+        while True:
             flow_run = await client.read_flow_run(flow_run_id)
             flow_state = flow_run.state
-            polls += 1
-
             if flow_state and flow_state.is_final():
                 return flow_run
+            await anyio.sleep(poll_interval)
 
-        return flow_run
+    return flow_run
 
 
 @inject_client

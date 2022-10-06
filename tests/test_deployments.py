@@ -510,7 +510,7 @@ class TestRunDeployment:
 
             assert (
                 run_deployment(
-                    f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
+                    f"{d.flow_name}/{d.name}", timeout=2, poll_interval=0
                 ).state.type
                 == terminal_state
             ), "run_deployment does not exit on {terminal_state}"
@@ -557,7 +557,9 @@ class TestRunDeployment:
 
             assert (
                 await run_deployment(
-                    f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
+                    f"{d.flow_name}/{d.name}",
+                    timeout=2,
+                    poll_interval=0,
                 )
             ).state.type == terminal_state, (
                 "run_deployment does not exit on {terminal_state}"
@@ -572,10 +574,10 @@ class TestRunDeployment:
         d, deployment_id = test_deployment
 
         assert run_deployment(
-            f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
+            f"{d.flow_name}/{d.name}", timeout=2, poll_interval=0
         ).state
 
-    def test_returns_flow_run_on_max_polls(
+    def test_returns_flow_run_on_timeout(
         self,
         test_deployment,
         use_hosted_orion,
@@ -601,12 +603,12 @@ class TestRunDeployment:
             )
 
             flow_run = run_deployment(
-                f"{d.flow_name}/{d.name}", max_polls=5, poll_interval=0
+                f"{d.flow_name}/{d.name}", timeout=1, poll_interval=0
             )
-            assert len(flow_polls.calls) == 5
-            assert flow_run.state.is_scheduled()
+            assert len(flow_polls.calls) > 0
+            assert flow_run.state
 
-    def test_returns_flow_run_immediately_when_max_polls_is_zero(
+    def test_returns_flow_run_immediately_when_timeout_is_zero(
         self,
         test_deployment,
         use_hosted_orion,
@@ -634,7 +636,7 @@ class TestRunDeployment:
             )
 
             flow_run = run_deployment(
-                f"{d.flow_name}/{d.name}", max_polls=0, poll_interval=0
+                f"{d.flow_name}/{d.name}", timeout=0, poll_interval=0
             )
             assert len(flow_polls.calls) == 0
             assert flow_run.state.is_scheduled()
@@ -674,7 +676,7 @@ class TestRunDeployment:
                 "GET", re.compile(PREFECT_API_URL.value() + "/flow_runs/.*")
             ).mock(side_effect=side_effects)
 
-            run_deployment(f"{d.flow_name}/{d.name}", max_polls=-1, poll_interval=0)
+            run_deployment(f"{d.flow_name}/{d.name}", timeout=None, poll_interval=0)
             assert len(flow_polls.calls) == 100
 
     def test_schedule_deployment_schedules_immediately_by_default(
@@ -685,7 +687,7 @@ class TestRunDeployment:
         scheduled_time = pendulum.now()
         flow_run = run_deployment(
             f"{d.flow_name}/{d.name}",
-            max_polls=0,
+            timeout=0,
             poll_interval=0,
         )
 
@@ -700,7 +702,7 @@ class TestRunDeployment:
         flow_run = run_deployment(
             f"{d.flow_name}/{d.name}",
             scheduled_time=scheduled_time,
-            max_polls=0,
+            timeout=0,
             poll_interval=0,
         )
 
