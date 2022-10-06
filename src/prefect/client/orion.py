@@ -149,6 +149,29 @@ class OrionClient:
                 )
             httpx_settings.setdefault("base_url", api)
 
+            # See https://www.python-httpx.org/advanced/#pool-limit-configuration
+            httpx_settings.setdefault(
+                "limits",
+                httpx.Limits(
+                    # We see instability when allowing the client to open many connections at once.
+                    # Limiting concurrency results in more stable performance.
+                    max_connections=16,
+                    max_keepalive_connections=8,
+                    # The Prefect Cloud LB will keep connections alive for 30s.
+                    # Only allow the client to keep connections alive for 25s.
+                    keepalive_expiry=25,
+                ),
+            )
+            # See https://www.python-httpx.org/advanced/#custom-transports
+            # `retries` specifies the number of retries on connection errors
+            httpx_settings.setdefault("transport", httpx.AsyncHTTPTransport(retries=3))
+            # See https://www.python-httpx.org/http2/
+            # Enabling HTTP/2 support on the client does not necessarily mean that your requests
+            # and responses will be transported over HTTP/2, since both the client and the server
+            # need to support HTTP/2. If you connect to a server that only supports HTTP/1.1 the
+            # client will use a standard HTTP/1.1 connection instead.
+            httpx_settings.setdefault("http2", True)
+
         # Connect to an in-process application
         elif isinstance(api, FastAPI):
             self._ephemeral_app = api
@@ -170,28 +193,6 @@ class OrionClient:
                 pool=PREFECT_API_REQUEST_TIMEOUT.value(),
             ),
         )
-        # See https://www.python-httpx.org/advanced/#pool-limit-configuration
-        httpx_settings.setdefault(
-            "limits",
-            httpx.Limits(
-                # We see instability when allowing the client to open many connections at once.
-                # Limiting concurrency results in more stable performance.
-                max_connections=16,
-                max_keepalive_connections=8,
-                # The Prefect Cloud LB will keep connections alive for 30s.
-                # Only allow the client to keep connections alive for 25s.
-                keepalive_expiry=25,
-            ),
-        )
-        # See https://www.python-httpx.org/advanced/#custom-transports
-        # `retries` specifies the number of retries on connection errors
-        httpx_settings.setdefault("transport", httpx.AsyncHTTPTransport(retries=3))
-        # See https://www.python-httpx.org/http2/
-        # Enabling HTTP/2 support on the client does not necessarily mean that your requests
-        # and responses will be transported over HTTP/2, since both the client and the server
-        # need to support HTTP/2. If you connect to a server that only supports HTTP/1.1 the
-        # client will use a standard HTTP/1.1 connection instead.
-        httpx_settings.setdefault("http2", True)
 
         self._client = PrefectHttpxClient(
             **httpx_settings,
