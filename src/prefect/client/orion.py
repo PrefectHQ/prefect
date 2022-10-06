@@ -5,7 +5,6 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
-import anyio
 import httpx
 import pendulum
 import pydantic
@@ -130,8 +129,6 @@ class OrionClient:
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
-        httpx_settings.setdefault("timeout", PREFECT_API_REQUEST_TIMEOUT.value())
-
         # Context management
         self._exit_stack = AsyncExitStack()
         self._ephemeral_app: Optional[FastAPI] = None
@@ -152,6 +149,29 @@ class OrionClient:
                 )
             httpx_settings.setdefault("base_url", api)
 
+            # See https://www.python-httpx.org/advanced/#pool-limit-configuration
+            httpx_settings.setdefault(
+                "limits",
+                httpx.Limits(
+                    # We see instability when allowing the client to open many connections at once.
+                    # Limiting concurrency results in more stable performance.
+                    max_connections=16,
+                    max_keepalive_connections=8,
+                    # The Prefect Cloud LB will keep connections alive for 30s.
+                    # Only allow the client to keep connections alive for 25s.
+                    keepalive_expiry=25,
+                ),
+            )
+            # See https://www.python-httpx.org/advanced/#custom-transports
+            # `retries` specifies the number of retries on connection errors
+            httpx_settings.setdefault("transport", httpx.AsyncHTTPTransport(retries=3))
+            # See https://www.python-httpx.org/http2/
+            # Enabling HTTP/2 support on the client does not necessarily mean that your requests
+            # and responses will be transported over HTTP/2, since both the client and the server
+            # need to support HTTP/2. If you connect to a server that only supports HTTP/1.1 the
+            # client will use a standard HTTP/1.1 connection instead.
+            httpx_settings.setdefault("http2", True)
+
         # Connect to an in-process application
         elif isinstance(api, FastAPI):
             self._ephemeral_app = api
@@ -162,6 +182,17 @@ class OrionClient:
             raise TypeError(
                 f"Unexpected type {type(api).__name__!r} for argument `api`. Expected 'str' or 'FastAPI'"
             )
+
+        # See https://www.python-httpx.org/advanced/#timeout-configuration
+        httpx_settings.setdefault(
+            "timeout",
+            httpx.Timeout(
+                connect=PREFECT_API_REQUEST_TIMEOUT.value(),
+                read=PREFECT_API_REQUEST_TIMEOUT.value(),
+                write=PREFECT_API_REQUEST_TIMEOUT.value(),
+                pool=PREFECT_API_REQUEST_TIMEOUT.value(),
+            ),
+        )
 
         self._client = PrefectHttpxClient(
             **httpx_settings,
@@ -185,9 +216,8 @@ class OrionClient:
         If successful, returns `None`.
         """
         try:
-            with anyio.fail_after(10):
-                await self._client.get("/health")
-                return None
+            await self._client.get("/health")
+            return None
         except Exception as exc:
             return exc
 
