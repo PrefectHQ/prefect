@@ -43,21 +43,23 @@ async def run_deployment(
     poll_interval: float = 5,
 ):
     """
-    Runs a deployment immediately and returns a FlowRun object.
+    Create a flow run for a deployment and return it after completion or a timeout.
 
-    This function will return when the created flow run enters a terminal state or until
-    the timeout is reached.
+    This function will return when the created flow run enters any terminal state or
+    the timeout is reached. If the timeout is reached and the flow run has not reached
+    a terminal state, it will still be returned. When using a timeout, we suggest
+    checking the state of the flow run if completion is important moving forward.
 
     Args:
         name: The deployment name in the form: '<flow-name>/<deployment-name>'
         parameters: Parameter overrides for this flow run. Merged with the deployment
             defaults
         scheduled_time: The time to schedule the flow run for, defaults to scheduling
-            a flow run immediately
+            the flow run to start now.
         timeout: The amount of time to wait for the flow run to complete before
-            returning. Setting `timeout` to 0 will return the FlowRun object
-            immediately. Setting `timeout` to None will allow this function to poll
-            indefinitely. Defaults to None
+            returning. Setting `timeout` to 0 will return the flow run immediately.
+            Setting `timeout` to None will allow this function to poll indefinitely.
+            Defaults to None
         poll_interval: The number of seconds between polls
     """
     if timeout is not None and timeout < 0:
