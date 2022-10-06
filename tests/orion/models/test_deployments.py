@@ -621,6 +621,36 @@ class TestScheduledRuns:
             )
             assert run.tags == ["auto-scheduled"] + tags
 
+    @pytest.mark.parametrize("tags", [[], ["foo"]])
+    async def test_schedule_runs_does_not_set_auto_schedule_tags(
+        self, tags, flow, flow_function, session
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                manifest_path="file.json",
+                schedule=schemas.schedules.IntervalSchedule(
+                    interval=datetime.timedelta(days=1)
+                ),
+                flow_id=flow.id,
+                tags=tags,
+            ),
+        )
+        scheduled_runs = await models.deployments.schedule_runs(
+            session,
+            deployment_id=deployment.id,
+            max_runs=2,
+            auto_scheduled=False,
+        )
+        assert len(scheduled_runs) == 2
+        for run_id in scheduled_runs:
+            run = await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=run_id
+            )
+            assert run.tags == tags
+            run.auto_scheduled = False
+
     async def test_schedule_runs_applies_work_queue(self, flow, flow_function, session):
         deployment = await models.deployments.create_deployment(
             session=session,
