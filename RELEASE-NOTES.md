@@ -5,10 +5,11 @@
 ### Exciting New Features 🎉
 
 - Add `prefect.deployments.run_deployment` to create a flow run for a deployment with support for:
-    - Scheduling runs in the future
-    - Custom flow run names
-    - Automatic linking of created flow run to the flow run it is created from
-    - Returning immediately after creation, waiting for completion, or waiting for a given time
+    - Configurable execution modes: returning immediately or waiting for completion of the run.
+    - Scheduling runs in the future or now.
+    - Custom flow run names.
+    - Automatic linking of created flow run to the flow run it is created from.
+    - Automatic tracking of upstream task results passed as parameters.
 
 ### Enhancements
 - Update `put_directory` to exclude directories from upload counts — https://github.com/PrefectHQ/prefect/pull/7054
