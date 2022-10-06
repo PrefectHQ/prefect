@@ -834,8 +834,7 @@ class OrionClient:
         Query Orion for work queues.
 
         Args:
-            limit: a limit for the query
-            offset: an offset for the query
+            regex: a Python regex string used to match work queue names
 
         Returns:
             a list of [WorkQueue model][prefect.orion.schemas.core.WorkQueue] representations
