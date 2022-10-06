@@ -327,6 +327,7 @@ class OrionClient:
         state: schemas.states.State = None,
         name: str = None,
         tags: Iterable[str] = None,
+        idempotency_key: str = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a deployment.
@@ -356,6 +357,7 @@ class OrionClient:
             state=state,
             tags=tags,
             name=name,
+            idempotency_key=idempotency_key,
         )
 
         response = await self._client.post(
