@@ -28,7 +28,7 @@
 - Update documentation for organizations for member management, roles, and permissions — https://github.com/PrefectHQ/prefect/pull/7058
 
 ## Collections
-- Add prefect-soda-core to Prefect Collections — https://github.com/PrefectHQ/prefect/pull/7045
+- New [prefect-soda-core](https://sodadata.github.io/prefect-soda-core/) collection for integration with [Soda](https://www.soda.io/).
 
 ### Contributors
 - @taljaards
