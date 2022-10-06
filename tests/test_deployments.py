@@ -684,7 +684,7 @@ class TestRunDeployment:
             run_deployment(f"{d.flow_name}/{d.name}", timeout=None, poll_interval=0)
             assert len(flow_polls.calls) == 100
 
-    def test_schedule_deployment_schedules_immediately_by_default(
+    def test_schedules_immediately_by_default(
         self, test_deployment, use_hosted_orion
     ):
         d, deployment_id = test_deployment
@@ -698,7 +698,7 @@ class TestRunDeployment:
 
         assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1
 
-    def test_schedule_deployment_accepts_custom_scheduled_time(
+    def test_accepts_custom_scheduled_time(
         self, test_deployment, use_hosted_orion
     ):
         d, deployment_id = test_deployment
@@ -712,3 +712,18 @@ class TestRunDeployment:
         )
 
         assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1
+
+    def test_custom_flow_run_names(
+        self, test_deployment, use_hosted_orion
+    ):
+        d, deployment_id = test_deployment
+
+        scheduled_time = pendulum.now() + pendulum.Duration(minutes=5)
+        flow_run = run_deployment(
+            f"{d.flow_name}/{d.name}",
+            flow_run_name="a custom flow run name",
+            timeout=0,
+            poll_interval=0,
+        )
+
+        assert flow_run.name == "a custom flow run name"
