@@ -39,12 +39,7 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
-from prefect.deprecated.data_documents import (
-    DataDocument,
-    _persist_serialized_result,
-    _retrieve_result,
-    _retrieve_serialized_result,
-)
+from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
     Abort,
     MappingLengthMismatch,
@@ -437,9 +432,6 @@ async def create_and_begin_subflow_run(
         )
         flow_run = flow_runs[-1]
 
-        # Hydrate the retrieved state
-        flow_run.state.data._cache_data(await _retrieve_result(flow_run.state, client))
-
         # Set up variables required downstream
         terminal_state = flow_run.state
         logger = flow_run_logger(flow_run, flow)
@@ -636,7 +628,8 @@ async def orchestrate_flow_run(
                 ) or None
 
             terminal_state = await return_value_to_state(
-                result, serializer="cloudpickle"
+                result,
+                result_factory=flow_run_context.result_factory,
             )
 
         if not waited_for_task_runs:
@@ -657,16 +650,6 @@ async def orchestrate_flow_run(
             client,
             state=terminal_state,
             flow_run_id=flow_run.id,
-            backend_state_data=(
-                await _persist_serialized_result(
-                    terminal_state.data.json().encode(),
-                    filesystem=flow_run_context.result_filesystem,
-                )
-                if terminal_state.data is not None and flow_run_context
-                # if None is passed, state.data will be sent
-                # to the Orion API and stored in the database
-                else None
-            ),
         )
 
         if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
@@ -682,11 +665,6 @@ async def orchestrate_flow_run(
             )
             # Attempt to enter a running state again
             state = await propose_state(client, Running(), flow_run_id=flow_run.id)
-
-    if state.data is not None and state.data.encoding == "result":
-        state.data = DataDocument.parse_raw(
-            await _retrieve_serialized_result(state.data, client=client)
-        )
 
     return state
 
@@ -1119,13 +1097,8 @@ async def begin_task_run(
         except Abort:
             # Task run already completed, just fetch its state
             task_run = await client.read_task_run(task_run.id)
-            task_run_logger(task_run).debug(
-                f"Task run '{task_run.id}' already finished. "
-                f"Retrieving result for state {task_run.state!r}..."
-            )
-            # Hydrate the state data
-            task_run.state.data._cache_data(
-                await _retrieve_result(task_run.state, client)
+            task_run_logger(task_run).info(
+                f"Task run '{task_run.id}' already finished."
             )
             return task_run.state
 
@@ -1241,7 +1214,8 @@ async def orchestrate_task_run(
             )
         else:
             terminal_state = await return_value_to_state(
-                result, serializer="cloudpickle"
+                result,
+                result_factory=task_run_context.result_factory,
             )
 
             # for COMPLETED tasks, add the cache key and expiration
@@ -1253,26 +1227,7 @@ async def orchestrate_task_run(
                 )
                 terminal_state.state_details.cache_key = cache_key
 
-        # Before setting the terminal task run state, store state.data using
-        # block storage and send the resulting data document to the Orion API instead.
-        # This prevents the pickled return value of flow runs
-        # from being sent to the Orion API and stored in the Orion database.
-        # terminal_state.data is left as is, otherwise we would have to load
-        # the data from block storage again after storing.
-        state = await propose_state(
-            client,
-            terminal_state,
-            task_run_id=task_run.id,
-            backend_state_data=(
-                await _persist_serialized_result(
-                    terminal_state.data.json().encode(), filesystem=result_filesystem
-                )
-                if terminal_state.data is not None
-                # if None is passed, terminal_state.data will be sent
-                # to the Orion API and stored in the database
-                else None
-            ),
-        )
+        state = await propose_state(client, terminal_state, task_run_id=task_run.id)
 
         if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
             logger.debug(
@@ -1296,11 +1251,6 @@ async def orchestrate_task_run(
         msg=f"Finished in state {display_state}",
         extra={"send_to_orion": False},
     )
-
-    if state.data is not None and state.data.encoding == "result":
-        state.data = DataDocument.parse_raw(
-            await _retrieve_serialized_result(state.data, client=client)
-        )
 
     return state
 
@@ -1412,7 +1362,7 @@ async def resolve_inputs(
             )
 
         # Only retrieve the result if requested as it may be expensive
-        return state._result(raise_on_failure=True) if return_data else None
+        return state.result(raise_on_failure=True, fetch=True) if return_data else None
 
     return await run_sync_in_worker_thread(
         visit_collection,
@@ -1426,7 +1376,6 @@ async def resolve_inputs(
 async def propose_state(
     client: OrionClient,
     state: State,
-    backend_state_data: DataDocument = None,
     force: bool = False,
     task_run_id: UUID = None,
     flow_run_id: UUID = None,
@@ -1448,10 +1397,6 @@ async def propose_state(
 
     Args:
         state: a new state for the task or flow run
-        backend_state_data: an optional document to store with the state in the
-            database instead of its local data field. This allows the original
-            state object to be retained while storing a pointer to persisted data
-            in the database.
         task_run_id: an optional task run id, used when proposing task run states
         flow_run_id: an optional flow run id, used when proposing flow run states
 
@@ -1472,21 +1417,21 @@ async def propose_state(
     # Handle task and sub-flow tracing
     if state.is_final():
         if state.data is not None:
-            link_state_to_result(state, state.data.decode())
+            link_state_to_result(
+                state, await state.result(raise_on_failure=False, fetch=True)
+            )
 
     # Attempt to set the state
     if task_run_id:
         response = await client.set_task_run_state(
             task_run_id,
             state,
-            backend_state_data=backend_state_data,
             force=force,
         )
     elif flow_run_id:
         response = await client.set_flow_run_state(
             flow_run_id,
             state,
-            backend_state_data=backend_state_data,
             force=force,
         )
     else:
@@ -1516,7 +1461,6 @@ async def propose_state(
             state,
             task_run_id=task_run_id,
             flow_run_id=flow_run_id,
-            backend_state_data=backend_state_data,
         )
 
     elif response.status == SetStateStatus.REJECT:

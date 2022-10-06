@@ -1,3 +1,4 @@
+import warnings
 from collections import Counter
 from typing import Any, Dict, Iterable
 
@@ -5,12 +6,14 @@ import anyio
 import httpx
 from typing_extensions import TypeGuard
 
-from prefect.client import OrionClient
-from prefect.client.orion import inject_client
 from prefect.client.schemas import Completed, Crashed, State
-from prefect.deprecated.data_documents import DataDocument
+from prefect.deprecated.data_documents import (
+    DataDocument,
+    result_from_state_with_data_document,
+)
 from prefect.futures import resolve_futures_to_states
 from prefect.orion.schemas.states import StateType
+from prefect.results import BaseResult, R, ResultFactory
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import ensure_iterable
 
@@ -58,7 +61,7 @@ def safe_encode_exception(exception: BaseException) -> DataDocument:
     return document
 
 
-async def return_value_to_state(result: Any, serializer: str = "cloudpickle") -> State:
+async def return_value_to_state(result: R, result_factory: ResultFactory) -> State[R]:
     """
     Given a return value from a user's function, create a `State` the run should
     be placed in.
@@ -121,16 +124,37 @@ async def return_value_to_state(result: Any, serializer: str = "cloudpickle") ->
         return State(
             type=new_state_type,
             message=message,
-            data=DataDocument.encode(serializer, result),
+            data=await result_factory.create_result(result),
         )
 
     # Otherwise, they just gave data and this is a completed result
-    return Completed(data=DataDocument.encode(serializer, result))
+    return Completed(data=await result_factory.create_result(result))
 
 
 @sync_compatible
-@inject_client
-async def raise_failed_state(state: State, client: "OrionClient") -> None:
+async def get_state_result(state, raise_on_failure: bool):
+    if raise_on_failure and state.is_failed():
+        return await raise_failed_state(state)
+
+    if isinstance(state.data, DataDocument):
+        return result_from_state_with_data_document(
+            state, raise_on_failure=raise_on_failure
+        )
+    elif isinstance(state.data, BaseResult):
+        return await state.data.get()
+    elif state.data is None:
+        raise ValueError(
+            "State data is missing. "
+            "Typically, this occurs when result persistence is disabled and the "
+            "state has been retrieved from the API."
+        )
+    else:
+        # The result is attached directly
+        return state.data
+
+
+@sync_compatible
+async def raise_failed_state(state: State) -> None:
     """
     Given a FAILED state, raise the contained exception.
 
@@ -145,10 +169,17 @@ async def raise_failed_state(state: State, client: "OrionClient") -> None:
     if not state.is_failed():
         return
 
-    result = await client.resolve_datadoc(state.data)
+    result = await state.result(raise_on_failure=False, fetch=True)
 
-    if isinstance(result, BaseException):
+    if isinstance(result, Exception):
         raise result
+
+    elif isinstance(result, BaseException):
+        warnings.warn(
+            f"State result is a {type(result).__name__!r} type and is not safe "
+            "to re-raise, it will be returned instead."
+        )
+        return result
 
     elif isinstance(result, State):
         # Raise the failure in the inner state

@@ -4,6 +4,7 @@ from prefect.client.schemas import Completed, Failed, Pending, Running, State
 from prefect.deprecated.data_documents import DataDocument
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.states import StateType
+from prefect.results import ResultFactory
 from prefect.states import (
     is_state,
     is_state_iterable,
@@ -97,6 +98,10 @@ class TestRaiseFailedState:
 
 
 class TestReturnValueToState:
+    @pytest.fixture
+    async def default_factory(orion_client):
+        return await ResultFactory.default_factory(client=orion_client)
+
     async def test_returns_single_state_unaltered(self):
         state = Completed(data=DataDocument.encode("json", "hello"))
         assert await return_value_to_state(state) is state

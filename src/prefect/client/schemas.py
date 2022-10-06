@@ -1,12 +1,12 @@
 import datetime
 import warnings
-from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Generic, Optional, Type, TypeVar, Union, overload
 
 from pydantic import Field
 
 from prefect.orion import schemas
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
-from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
+from prefect.utilities.asyncutils import in_async_main_thread
 
 if TYPE_CHECKING:
     from prefect.deprecated.data_documents import DataDocument
@@ -22,7 +22,7 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
     This client-side extension adds a `result` interface.
     """
 
-    data: Optional[Union["BaseResult[R]", "DataDocument[R]"]] = Field(
+    data: Union["BaseResult[R]", "DataDocument[R]", Any] = Field(
         default=None,
     )
 
@@ -105,10 +105,6 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             >>> await state.result()
             hello
         """
-        from prefect.deprecated.data_documents import (
-            DataDocument,
-            result_from_state_with_data_document,
-        )
 
         if fetch is None and (
             PREFECT_ASYNC_FETCH_STATE_RESULT or not in_async_main_thread()
@@ -117,6 +113,11 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             fetch = True
 
         if not fetch:
+            from prefect.deprecated.data_documents import (
+                DataDocument,
+                result_from_state_with_data_document,
+            )
+
             if fetch is None and in_async_main_thread():
                 warnings.warn(
                     "State.result() was called from an async context but not awaited. "
@@ -134,25 +135,20 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             else:
                 return self.data
         else:
-            return self._result(raise_on_failure=raise_on_failure)
+            from prefect.states import get_state_result
 
-    @sync_compatible
-    async def _result(self, raise_on_failure: bool):
-        from prefect.deprecated.data_documents import (
-            DataDocument,
-            result_from_state_with_data_document,
+            return get_state_result(self, raise_on_failure=raise_on_failure)
+
+    def to_state_create(self) -> schemas.actions.StateCreate:
+        from prefect.results import BaseResult
+
+        return schemas.actions.StateCreate(
+            type=self.type,
+            name=self.name,
+            message=self.message,
+            data=self.data if isinstance(self.data, BaseResult) else None,
+            state_details=self.state_details,
         )
-
-        if isinstance(self.data, DataDocument):
-            return result_from_state_with_data_document(
-                self, raise_on_failure=raise_on_failure
-            )
-        elif isinstance(self.data, BaseResult):
-            return await self.data.get()
-        else:
-            raise ValueError(
-                f"State data is of unknown result type {type(self.data).__name__!r}."
-            )
 
 
 def Scheduled(
