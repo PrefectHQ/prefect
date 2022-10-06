@@ -230,7 +230,7 @@ async def create_then_begin_flow_run(
     if return_type == "state":
         return state
     elif return_type == "result":
-        return state.result()
+        return await state.result(fetch=True)
     else:
         raise ValueError(f"Invalid return type for flow engine {return_type!r}.")
 
@@ -520,7 +520,7 @@ async def create_and_begin_subflow_run(
     if return_type == "state":
         return terminal_state
     elif return_type == "result":
-        return terminal_state.result()
+        return await terminal_state.result(fetch=True)
     else:
         raise ValueError(f"Invalid return type for flow engine {return_type!r}.")
 
@@ -1319,7 +1319,7 @@ async def wait_for_task_runs_and_report_crashes(
         if not state.type == StateType.CRASHED:
             continue
 
-        exception = state.result(raise_on_failure=False)
+        exception = await state.result(raise_on_failure=False, fetch=True)
 
         logger.info(f"Crash detected! {state.message}")
         logger.debug("Crash details:", exc_info=exception)
@@ -1412,7 +1412,7 @@ async def resolve_inputs(
             )
 
         # Only retrieve the result if requested as it may be expensive
-        return state.result() if return_data else None
+        return state._result(raise_on_failure=True) if return_data else None
 
     return await run_sync_in_worker_thread(
         visit_collection,
