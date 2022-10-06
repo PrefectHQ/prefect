@@ -3,7 +3,6 @@ Utilities for interoperability with async functions and workers from various con
 """
 import ctypes
 import inspect
-import sys
 import threading
 import warnings
 from contextlib import asynccontextmanager
@@ -190,26 +189,8 @@ def sync_compatible(async_fn: T) -> T:
     @wraps(async_fn)
     def coroutine_wrapper(*args, **kwargs):
         if in_async_main_thread():
-            caller_frame = sys._getframe(1)
-            caller_module = caller_frame.f_globals.get("__name__", "unknown")
-            caller_async = caller_frame.f_code.co_flags & inspect.CO_COROUTINE
-            if caller_async or any(
-                # Add exceptions for the internals anyio/asyncio which can run
-                # coroutines from synchronous functions
-                caller_module.startswith(f"{module}.")
-                for module in ["asyncio", "anyio"]
-            ):
-                # In the main async context; return the coro for them to await
-                return async_fn(*args, **kwargs)
-            else:
-                # In the main thread but call was made from a sync method
-                raise RuntimeError(
-                    "A 'sync_compatible' method was called from a context that was "
-                    "previously async but is now sync. The sync call must be changed "
-                    "to run in a worker thread to support sending the coroutine for "
-                    f"{async_fn.__name__!r} to the main thread."
-                )
-
+            # In the main async context; return the coro for them to await
+            return async_fn(*args, **kwargs)
         elif in_async_worker_thread():
             # In a sync context but we can access the event loop thread; send the async
             # call to the parent
