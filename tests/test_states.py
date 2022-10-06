@@ -99,56 +99,64 @@ class TestRaiseFailedState:
 
 class TestReturnValueToState:
     @pytest.fixture
-    async def default_factory(orion_client):
+    async def factory(orion_client):
         return await ResultFactory.default_factory(client=orion_client)
 
-    async def test_returns_single_state_unaltered(self):
-        state = Completed(data=DataDocument.encode("json", "hello"))
-        assert await return_value_to_state(state) is state
+    async def test_returns_single_state_unaltered(self, factory):
+        state = Completed(data="hello!")
+        assert await return_value_to_state(state, factory) is state
 
-    async def test_all_completed_states(self):
+    async def test_returns_single_state_unaltered_with_user_created_reference(
+        self, factory
+    ):
+        state = Completed(data=await factory.create_result("test"))
+        result_state = await return_value_to_state(state, factory)
+        assert result_state is state
+        assert await result_state.result() == "test"
+
+    async def test_all_completed_states(self, factory):
         states = [Completed(message="hi"), Completed(message="bye")]
-        result_state = await return_value_to_state(states)
+        result_state = await return_value_to_state(states, factory)
         # States have been stored as data
-        assert result_state.data.decode() == states
+        assert await result_state.result() == states
         # Message explains aggregate
         assert result_state.message == "All states completed."
         # Aggregate type is completed
         assert result_state.is_completed()
 
-    async def test_some_failed_states(self):
+    async def test_some_failed_states(self, factory):
         states = [
             Completed(message="hi"),
             Failed(message="bye"),
             Failed(message="err"),
         ]
-        result_state = await return_value_to_state(states)
+        result_state = await return_value_to_state(states, factory)
         # States have been stored as data
-        assert result_state.data.decode() == states
+        assert await result_state.result(raise_on_failure=False) == states
         # Message explains aggregate
         assert result_state.message == "2/3 states failed."
         # Aggregate type is failed
         assert result_state.is_failed()
 
-    async def test_some_unfinal_states(self):
+    async def test_some_unfinal_states(self, factory):
         states = [
             Completed(message="hi"),
             Running(message="bye"),
             Pending(message="err"),
         ]
-        result_state = await return_value_to_state(states)
+        result_state = await return_value_to_state(states, factory)
         # States have been stored as data
-        assert result_state.data.decode() == states
+        assert await result_state.result(raise_on_failure=False) == states
         # Message explains aggregate
         assert result_state.message == "2/3 states are not final."
         # Aggregate type is failed
         assert result_state.is_failed()
 
-    async def test_single_state_in_future_is_processed(self, task_run):
+    async def test_single_state_in_future_is_processed(self, task_run, factory):
         # Unlike a single state without a future, which represents an override of the
         # return state, this is a child task run that is being used to determine the
         # flow state
-        state = Completed(data=DataDocument.encode("json", "hello"))
+        state = Completed(data="test")
         future = PrefectFuture(
             key=str(task_run.id),
             name="hello",
@@ -157,16 +165,12 @@ class TestReturnValueToState:
         )
         future.task_run = task_run
         future._submitted.set()
-        result_state = await return_value_to_state(future)
-        assert result_state.data.decode() == state
+        result_state = await return_value_to_state(future, factory)
+        assert await result_state.result() == state
         assert result_state.is_completed()
         assert result_state.message == "All states completed."
 
-    async def test_non_prefect_types_return_completed_state(self):
-        result_state = await return_value_to_state("foo")
+    async def test_non_prefect_types_return_completed_state(self, factory):
+        result_state = await return_value_to_state("foo", factory)
         assert result_state.is_completed()
-        assert result_state.data.decode() == "foo"
-
-    async def test_uses_passed_serializer(self):
-        result_state = await return_value_to_state("foo", serializer="json")
-        assert result_state.data.encoding == "json"
+        assert await result_state.result() == "foo"
