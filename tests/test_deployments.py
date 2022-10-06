@@ -566,16 +566,21 @@ class TestRunDeployment:
             )
             assert len(flow_polls.calls) == 3
 
-    def test_ephemeral_api_works(
+    async def test_run_deployment_with_ephemeral_api(
         self,
         test_deployment,
         orion_client,
     ):
         d, deployment_id = test_deployment
 
-        assert run_deployment(
-            f"{d.flow_name}/{d.name}", timeout=2, poll_interval=0
-        ).state
+        flow_run = await run_deployment(
+            f"{d.flow_name}/{d.name}",
+            timeout=2,
+            poll_interval=0,
+            client=orion_client,
+        )
+        assert flow_run.deployment_id == deployment_id
+        assert flow_run.state
 
     def test_returns_flow_run_on_timeout(
         self,
