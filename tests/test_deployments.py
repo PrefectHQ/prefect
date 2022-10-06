@@ -8,15 +8,17 @@ import yaml
 from httpx import Response
 from pydantic.error_wrappers import ValidationError
 
-from prefect import flow
+from prefect import flow, task
 from prefect.blocks.core import Block
+from prefect.client.orion import OrionClient
 from prefect.deployments import Deployment, run_deployment
 from prefect.exceptions import BlockMissingCapabilities
 from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process
 from prefect.orion.schemas import states
+from prefect.orion.schemas.core import TaskRunResult
 from prefect.settings import PREFECT_API_URL
-from prefect.testing.cli import invoke_and_assert
+from prefect.utilities.slugify import slugify
 
 
 class TestDeploymentBasicInterface:
@@ -441,30 +443,9 @@ def patch_import(monkeypatch):
 
 
 @pytest.fixture
-def test_deployment(patch_import, tmp_path):
-    d = Deployment(
-        name="TEST",
-        flow_name="fn",
-    )
-    deployment_id = d.apply()
-
-    invoke_and_assert(
-        [
-            "deployment",
-            "build",
-            "fake-path.py:fn",
-            "-n",
-            "TEST",
-            "-o",
-            str(tmp_path / "test.yaml"),
-            "--apply",
-        ],
-        expected_code=0,
-        expected_output_contains=[
-            f"Deployment '{d.flow_name}/{d.name}' successfully created with id '{deployment_id}'."
-        ],
-        temp_dir=tmp_path,
-    )
+async def test_deployment(patch_import, tmp_path):
+    d = Deployment(name="TEST", flow_name="fn")
+    deployment_id = await d.apply()
     return d, deployment_id
 
 
@@ -575,7 +556,7 @@ class TestRunDeployment:
 
         flow_run = await run_deployment(
             f"{d.flow_name}/{d.name}",
-            timeout=2,
+            timeout=0,
             poll_interval=0,
             client=orion_client,
         )
@@ -684,9 +665,7 @@ class TestRunDeployment:
             run_deployment(f"{d.flow_name}/{d.name}", timeout=None, poll_interval=0)
             assert len(flow_polls.calls) == 100
 
-    def test_schedule_deployment_schedules_immediately_by_default(
-        self, test_deployment, use_hosted_orion
-    ):
+    def test_schedules_immediately_by_default(self, test_deployment, use_hosted_orion):
         d, deployment_id = test_deployment
 
         scheduled_time = pendulum.now()
@@ -698,9 +677,7 @@ class TestRunDeployment:
 
         assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1
 
-    def test_schedule_deployment_accepts_custom_scheduled_time(
-        self, test_deployment, use_hosted_orion
-    ):
+    def test_accepts_custom_scheduled_time(self, test_deployment, use_hosted_orion):
         d, deployment_id = test_deployment
 
         scheduled_time = pendulum.now() + pendulum.Duration(minutes=5)
@@ -712,3 +689,69 @@ class TestRunDeployment:
         )
 
         assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1
+
+    def test_custom_flow_run_names(self, test_deployment, use_hosted_orion):
+        d, deployment_id = test_deployment
+
+        flow_run = run_deployment(
+            f"{d.flow_name}/{d.name}",
+            flow_run_name="a custom flow run name",
+            timeout=0,
+            poll_interval=0,
+        )
+
+        assert flow_run.name == "a custom flow run name"
+
+    async def test_links_to_parent_flow_run_when_used_in_flow(
+        self, test_deployment, use_hosted_orion, orion_client: OrionClient
+    ):
+        d, deployment_id = test_deployment
+
+        @flow
+        def foo():
+            return run_deployment(
+                f"{d.flow_name}/{d.name}",
+                timeout=0,
+                poll_interval=0,
+            )
+
+        parent_state = foo(return_state=True)
+        child_flow_run = parent_state.result()
+        assert child_flow_run.parent_task_run_id is not None
+        task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)
+        assert task_run.flow_run_id == parent_state.state_details.flow_run_id
+        assert slugify(f"{d.flow_name}/{d.name}") in task_run.task_key
+
+    async def test_tracks_dependencies_when_used_in_flow(
+        self, test_deployment, use_hosted_orion, orion_client
+    ):
+        d, deployment_id = test_deployment
+
+        @task
+        def bar():
+            return "hello-world!!"
+
+        @flow
+        def foo():
+            upstream_task_state = bar(return_state=True)
+            upstream_result = upstream_task_state.result()
+            child_flow_run = run_deployment(
+                f"{d.flow_name}/{d.name}",
+                timeout=0,
+                poll_interval=0,
+                parameters={"x": upstream_result},
+            )
+            return upstream_task_state, child_flow_run
+
+        parent_state = foo(return_state=True)
+        upstream_task_state, child_flow_run = parent_state.result()
+        assert child_flow_run.parent_task_run_id is not None
+        task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)
+        assert task_run.task_inputs == {
+            "x": [
+                TaskRunResult(
+                    input_type="task_run",
+                    id=upstream_task_state.state_details.task_run_id,
+                )
+            ]
+        }
