@@ -46,7 +46,7 @@ async def run_deployment(
     Runs a deployment immediately and returns a FlowRun object.
 
     This function will return when the created flow run enters a terminal state or until
-    the polling duration has been exceeded.
+    the timeout is reached.
 
     Args:
         name: The deployment name in the form: '<flow-name>/<deployment-name>'
