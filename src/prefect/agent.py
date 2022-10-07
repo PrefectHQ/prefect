@@ -90,17 +90,20 @@ class OrionAgent:
             except ObjectNotFound:
 
                 # if the work queue wasn't found, create it
-                try:
-                    work_queue = await self.client.create_work_queue(name=name)
-                    self.logger.info(f"Created work queue '{name}'.")
+                if not self.work_queue_regex:
+                    # do not attempt to create work queues if the agent is polling for
+                    # queues using a regex
+                    try:
+                        work_queue = await self.client.create_work_queue(name=name)
+                        self.logger.info(f"Created work queue '{name}'.")
 
-                # if creating it raises an exception, it was probably just
-                # created by some other agent; rather than entering a re-read
-                # loop with new error handling, we log the exception and
-                # continue.
-                except Exception as exc:
-                    self.logger.exception(f"Failed to create work queue {name!r}.")
-                    continue
+                    # if creating it raises an exception, it was probably just
+                    # created by some other agent; rather than entering a re-read
+                    # loop with new error handling, we log the exception and
+                    # continue.
+                    except Exception as exc:
+                        self.logger.exception(f"Failed to create work queue {name!r}.")
+                        continue
 
             self._work_queue_cache.append(work_queue)
             yield work_queue
