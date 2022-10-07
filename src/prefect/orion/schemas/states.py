@@ -145,11 +145,17 @@ class State(IDBaseModel, Generic[R]):
 
         `MyCompletedState(message="my message", type=COMPLETED, result=...)`
         """
+        from prefect.deprecated.data_documents import DataDocument
+
+        if isinstance(self.data, DataDocument):
+            result = self.data.decode()
+        else:
+            result = self.data
 
         display = dict(
             message=repr(self.message),
             type=self.type,
-            result=repr(self.data),
+            result=repr(result),
         )
 
         return f"{self.name}({', '.join(f'{k}={v}' for k, v in display.items())})"
