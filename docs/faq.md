@@ -96,6 +96,12 @@ def my_flow():
     y = task_2(wait_for=[x])
 ```
 
+### Does Prefect support proxies?
+
+Yes!
+
+Prefect supports communicating via proxies through the use of environment variables. You can read more about this in the [Installation](/getting-started/installation/#proxies) documentation and the article [Using Prefect Cloud with proxies](https://discourse.prefect.io/t/using-prefect-cloud-with-proxies/1696).
+
 ### Can I run Prefect flows on Linux?
 
 Yes! 

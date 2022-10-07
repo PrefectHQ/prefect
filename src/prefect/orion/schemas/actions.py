@@ -220,6 +220,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields
