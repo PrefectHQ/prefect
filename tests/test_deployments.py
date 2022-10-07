@@ -449,6 +449,14 @@ async def test_deployment(patch_import, tmp_path):
     return d, deployment_id
 
 
+async def test_deployment_apply_updates_concurrency_limit(patch_import, tmp_path, orion_client):
+    d = Deployment(name="TEST", flow_name="fn")
+    deployment_id = await d.apply(work_queue_concurrency=424242)
+    queue_name = d.work_queue_name
+    work_queue = await orion_client.read_work_queue_by_name(queue_name)
+    assert work_queue.concurrency_limit == 424242
+
+
 class TestRunDeployment:
     @pytest.mark.parametrize(
         "terminal_state", list(sorted(s.name for s in states.TERMINAL_STATES))
