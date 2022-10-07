@@ -156,6 +156,7 @@ def stop_process(pid_file: Union[str, bytes, os.PathLike]):
         except psutil.TimeoutExpired:
             process.kill()
     except (ValueError, TypeError) as e:
+        remove_pid_file = False
         raise ValueError(f"Invalid PID file {str(pid_file)!r}: {e}")
     except psutil.NoSuchProcess as e:
         raise ProcessLookupError(e)
