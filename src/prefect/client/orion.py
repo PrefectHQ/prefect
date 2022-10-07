@@ -1,4 +1,5 @@
 import datetime
+import re
 import warnings
 from contextlib import AsyncExitStack
 from functools import wraps
@@ -826,12 +827,30 @@ class OrionClient:
         response = await self._client.post(f"/work_queues/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.WorkQueue], response.json())
 
+    # async def match_work_queues(
+    #     self,
+    #     regex: str,
+    # ) -> List[str]:
+    #     """
+    #     Query Orion for work queues with names that match a Python regex string.
+
+    #     Args:
+    #         regex: a Python regex string used to match work queue names
+
+    #     Returns:
+    #         a list of [WorkQueue model][prefect.orion.schemas.core.WorkQueue] representations
+    #             of the work queues
+    #     """
+    #     body = {"regex": regex}
+    #     response = await self._client.post(f"/work_queues/match_work_queues", json=body)
+    #     return pydantic.parse_obj_as(List[schemas.core.WorkQueue], response.json())
+
     async def match_work_queues(
         self,
         regex: str,
     ) -> List[str]:
         """
-        Query Orion for work queues.
+        Query Orion for work queues with names that match a Python regex string.
 
         Args:
             regex: a Python regex string used to match work queue names
@@ -840,9 +859,23 @@ class OrionClient:
             a list of [WorkQueue model][prefect.orion.schemas.core.WorkQueue] representations
                 of the work queues
         """
-        body = {"regex": regex}
-        response = await self._client.post(f"/work_queues/match_work_queues", json=body)
-        return pydantic.parse_obj_as(List[schemas.core.WorkQueue], response.json())
+        page_length = 100
+        current_page = 0
+        work_queues = []
+
+        while True:
+            new_queues = await self.read_work_queues(
+                offset=current_page * page_length, limit=page_length
+            )
+            if not new_queues:
+                break
+            filtered_queues = list(
+                filter(lambda q: re.match(regex, q.name), new_queues)
+            )
+            work_queues += filtered_queues
+            current_page += 1
+
+        return work_queues
 
     async def delete_work_queue_by_id(
         self,
