@@ -169,6 +169,9 @@ async def raise_state_exception(state: State) -> None:
     If the state result is a `BaseException`, a wrapper exception will be raised
     instead to prevent a base exception from crashing the runtime.
 
+    If the state result is null, a wrapper exception will be raised with the state
+    message attached.
+
     If the state result is not of a known type, a `TypeError` will be raised.
 
     When a wrapper exception is raised, the type will be `FailedRun` if the state type is
@@ -181,9 +184,16 @@ async def raise_state_exception(state: State) -> None:
     else:
         return None
 
-    result = await state.result(raise_on_failure=False, fetch=True)
+    result = (
+        await state.result(raise_on_failure=False, fetch=True)
+        if state.data is not None
+        else None
+    )
 
-    if isinstance(result, Exception):
+    if result is None:
+        raise wrapper(state.message)
+
+    elif isinstance(result, Exception):
         raise result
 
     elif isinstance(result, BaseException):
@@ -200,6 +210,9 @@ async def raise_state_exception(state: State) -> None:
         # Should not be reached, but if it is we must raise an error
         raise ValueError("Failed state result was a state that was not failed.")
 
+    elif isinstance(result, str):
+        raise wrapper(result)
+
     elif is_state_iterable(result):
         # Raise the first failure
         for state in result:
@@ -209,9 +222,6 @@ async def raise_state_exception(state: State) -> None:
         raise ValueError(
             "Failed state result contained multiple states but none were failed."
         )
-
-    elif isinstance(result, str):
-        raise wrapper(result)
 
     else:
         raise TypeError(

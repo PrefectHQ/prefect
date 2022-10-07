@@ -23,9 +23,9 @@ from prefect.utilities.pydantic import add_type_dispatch
 if TYPE_CHECKING:
     from prefect import Flow, Task
 
-LITERAL_TYPES = {type(None), bool}
 ResultStorage = Union[WritableFileSystem, str]
 ResultSerializer = Union[Serializer, str]
+LITERAL_TYPES = {type(None), bool}
 
 logger = get_logger("results")
 
@@ -296,7 +296,7 @@ class BaseResult(pydantic.BaseModel, Generic[R]):
 
 class ResultLiteral(BaseResult):
     """
-    Result type for literal values like `None`, `True`, and `False`.
+    Result type for literal values like `None`, `True`, `False`.
 
     These values are stored inline and JSON serialized when sent to the Prefect API.
     They are not persisted to external result storage.

@@ -94,7 +94,9 @@ class TestRaiseStateException:
         ):
             await raise_state_exception(state_cls(data=value))
 
-    async def test_raises_wrapper_if_result_is_base_exception(self, state_cls):
+    async def test_warns_and_raises_wrapper_if_result_is_base_exception(
+        self, state_cls
+    ):
         with pytest.raises(
             FailedRun if state_cls == Failed else CrashedRun, match="foo"
         ):
@@ -103,6 +105,12 @@ class TestRaiseStateException:
                 match="State result is a 'BaseException' type and is not safe to re-raise",
             ):
                 await raise_state_exception(state_cls(data=BaseException("foo")))
+
+    async def test_raises_wrapper_with_state_message_if_result_is_null(self, state_cls):
+        with pytest.raises(
+            FailedRun if state_cls == Failed else CrashedRun, match="foo"
+        ):
+            await raise_state_exception(state_cls(data=None, message="foo"))
 
     async def test_raises_error_if_failed_state_does_not_contain_exception(
         self, state_cls
