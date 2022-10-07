@@ -30,6 +30,10 @@ class MyDataclass:
     x: int
     y: str
 
+@dataclass
+class MyDataclassBytes:
+    x: int
+    y: bytes
 
 # Simple test cases that all serializers should support roundtrips for
 SERIALIZER_TEST_CASES = [
@@ -40,8 +44,16 @@ SERIALIZER_TEST_CASES = [
     TEST_UUID,
     MyModel(x=1, y=TEST_UUID),
     MyDataclass(x=1, y="test"),
+    "test string".encode("utf-8"),
+    "test string".encode("ASCII"),
+    MyDataclassBytes(x=1, y="test".encode("utf-8")),
 ]
 
+complex_str = """
+def dog(some_param: str) -> int:
+    print('woof!' + some_param)
+    print('These are complex chars: !@#$%^&*()_+-')
+"""
 
 class TestBaseSerializer:
     @pytest.fixture(autouse=True)
@@ -175,8 +187,24 @@ class TestPickleSerializer:
 
 
 class TestJSONSerializer:
+
     @pytest.mark.parametrize("data", SERIALIZER_TEST_CASES)
     def test_simple_roundtrip(self, data):
+        serializer = JSONSerializer()
+        serialized = serializer.dumps(data)
+        assert serializer.loads(serialized) == data
+
+    @pytest.mark.parametrize("data", 
+    [
+        complex_str.encode('utf-8'),
+        complex_str.encode("ASCII"),
+        complex_str.encode("latin_1"),
+        [complex_str.encode('utf-8')],
+        {"key": complex_str.encode("ASCII")},
+        {complex_str.encode("latin_1")},
+    ]
+    )
+    def test_simple_roundtrip_with_complex_bytes(self, data):
         serializer = JSONSerializer()
         serialized = serializer.dumps(data)
         assert serializer.loads(serialized) == data
