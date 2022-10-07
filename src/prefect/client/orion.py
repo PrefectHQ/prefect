@@ -19,6 +19,7 @@ import prefect.settings
 from prefect.client.schemas import (
     FlowRun,
     OrchestrationResult,
+    Pending,
     Scheduled,
     State,
     TaskRun,
@@ -402,7 +403,7 @@ class OrionClient:
         context = context or {}
 
         if state is None:
-            state = schemas.states.Pending()
+            state = Pending()
 
         # Retrieve the flow id
         flow_id = await self.create_flow(flow)
@@ -1501,7 +1502,7 @@ class OrionClient:
         tags = set(task.tags).union(extra_tags or [])
 
         if state is None:
-            state = schemas.states.Pending()
+            state = Pending()
 
         task_run_data = schemas.actions.TaskRunCreate(
             name=name,
