@@ -207,7 +207,7 @@ async def ls(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Display more information."
     ),
-    regex: str = typer.Option(
+    work_queue_regex: str = typer.Option(
         None, "--regex", "-r", help="Python regex string used to match work queue names"
     ),
 ):
@@ -225,7 +225,7 @@ async def ls(
 
     async with get_client() as client:
         if work_queue_regex is not None:
-            queues = await client.match_work_queues(regex)
+            queues = await client.match_work_queues(work_queue_regex)
         else:
             queues = await client.read_work_queues()
 
