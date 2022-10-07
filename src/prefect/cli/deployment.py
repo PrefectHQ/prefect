@@ -86,6 +86,32 @@ async def get_deployment(client, name, deployment_id):
     return deployment
 
 
+async def create_work_queue_and_set_concurrency_limit(
+    work_queue_name, work_queue_concurrency
+):
+    async with get_client() as client:
+        if work_queue_concurrency is not None and work_queue_name:
+            try:
+                try:
+                    res = await client.create_work_queue(name=work_queue_name)
+                except ObjectAlreadyExists:
+                    res = await client.read_work_queue_by_name(name=work_queue_name)
+                await client.update_work_queue(
+                    res.id, concurrency_limit=work_queue_concurrency
+                )
+                app.console.print(
+                    f"Updated concurrency limit on work queue {work_queue_name} to {work_queue_concurrency}"
+                )
+            except Exception as exc:
+                exit_with_error(
+                    f"Failed to set concurrency limit on work queue {work_queue_name}."
+                )
+        elif work_queue_concurrency:
+            app.console.print(
+                f"No work queue set! The concurrency limit cannot be updated."
+            )
+
+
 class RichTextIO:
     def __init__(self, console, prefix: str = None) -> None:
         self.console = console
@@ -390,27 +416,9 @@ async def apply(
         except Exception as exc:
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
 
-        if work_queue_concurrency is not None and deployment.work_queue_name:
-            try:
-                queue_name = deployment.work_queue_name
-                try:
-                    res = await client.create_work_queue(name=queue_name)
-                except ObjectAlreadyExists:
-                    res = await client.read_work_queue_by_name(name=queue_name)
-                await client.update_work_queue(
-                    res.id, concurrency_limit=work_queue_concurrency
-                )
-                app.console.print(
-                    f"Updated concurrency limit on work queue {queue_name} to {work_queue_concurrency}"
-                )
-            except Exception as exc:
-                exit_with_error(
-                    f"Failed to set concurrency limit on work queue {queue_name}."
-                )
-        elif work_queue_concurrency:
-            app.console.print(
-                f"No work queue set! The concurrency limit cannot be updated."
-            )
+        await create_work_queue_and_set_concurrency_limit(
+            deployment.work_queue_name, work_queue_concurrency
+        )
 
         if upload:
             if (
@@ -764,27 +772,9 @@ async def build(
         style="green",
     )
 
-    if work_queue_concurrency is not None and deployment.work_queue_name:
-        try:
-            queue_name = deployment.work_queue_name
-            try:
-                res = await client.create_work_queue(name=queue_name)
-            except ObjectAlreadyExists:
-                res = await client.read_work_queue_by_name(name=queue_name)
-            await client.update_work_queue(
-                res.id, concurrency_limit=work_queue_concurrency
-            )
-            app.console.print(
-                f"Updated concurrency limit on work queue {queue_name} to {work_queue_concurrency}"
-            )
-        except Exception as exc:
-            exit_with_error(
-                f"Failed to set concurrency limit on work queue {queue_name}."
-            )
-    elif work_queue_concurrency:
-        app.console.print(
-            f"No work queue set! The concurrency limit cannot be updated."
-        )
+    await create_work_queue_and_set_concurrency_limit(
+        deployment.work_queue_name, work_queue_concurrency
+    )
 
     # we process these separately for informative output
     if not skip_upload:
