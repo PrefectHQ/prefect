@@ -5,10 +5,10 @@ import json
 import os
 import shutil
 import sys
-import tempfile
 import urllib.parse
 from distutils.dir_util import copy_tree
 from pathlib import Path, PurePath
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, Optional, Tuple, Union
 
 import anyio
@@ -803,7 +803,7 @@ class GitHub(ReadableDeploymentStorage):
     def _ensure_credentials_go_with_https(cls, v: str, values: dict):
         """Ensure that credentials are not provided with 'SSH' formatted GitHub URLs."""
         if v is not None:
-            if urllib.parse.urlparse(values["repository_url"]).scheme != "https":
+            if urllib.parse.urlparse(values["repository"]).scheme != "https":
                 raise InvalidRepositoryURLError(
                     (
                         "Crendentials can only be used with GitHub repositories "
@@ -822,7 +822,7 @@ class GitHub(ReadableDeploymentStorage):
         For private repos: https://<oauth-key>@github.com/<username>/<repo>.git
         All other repos should be the same as `self.repository`.
         """
-        url_components = urllib.parse.urlparse(self.repository_url)
+        url_components = urllib.parse.urlparse(self.repository)
         if url_components.scheme == "https" and self.credentials is not None:
             repo_url = url_components.netloc + url_components.path
             updated_components = url_components._replace(
@@ -830,7 +830,7 @@ class GitHub(ReadableDeploymentStorage):
             )
             full_url = urllib.parse.urlunparse(updated_components)
         else:
-            full_url = self.repository_url
+            full_url = self.repository
 
         return full_url
 
@@ -877,7 +877,7 @@ class GitHub(ReadableDeploymentStorage):
         cmd += " --depth 1"
 
         # Clone to a temporary directory and move the subdirectory over
-        with tempfile.TemporaryDirectory(suffix="prefect") as tmp_dir:
+        with TemporaryDirectory(suffix="prefect") as tmp_dir:
             tmp_path_str = tmp_dir
             cmd += f" {tmp_path_str}"
 
