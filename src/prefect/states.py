@@ -85,7 +85,10 @@ async def exception_to_failed_state(
     existing_message = kwargs.pop("message", "")
     if existing_message and not existing_message.endswith(" "):
         existing_message += " "
-    message = existing_message + format_exception(exc, exc_tb)
+
+    # TODO: Consider if we want to include traceback information, it is intentionally
+    #       excluded from messages for now
+    message = existing_message + format_exception(exc)
 
     return Failed(data=data, message=message, **kwargs)
 
