@@ -127,10 +127,16 @@ async def start(
     ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
-            app.console.print(
-                "Agent started! Looking for work from "
-                f"queue(s): {', '.join(work_queues)}..."
-            )
+            if self.work_queue_regex:
+                app.console.print(
+                    "Agent started! Looking for work from "
+                    f"queue(s) that match the regex pattern: {work_queue_regex}..."
+                )
+            else:
+                app.console.print(
+                    "Agent started! Looking for work from "
+                    f"queue(s): {', '.join(work_queues)}..."
+                )
 
         await critical_service_loop(
             agent.get_and_submit_flow_runs,
