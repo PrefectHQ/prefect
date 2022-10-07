@@ -127,7 +127,7 @@ def start_process(
 
 def stop_process(pid_file: Union[str, bytes, os.PathLike]):
     """
-    Stop an external command in a subprocess and delete its PID file.
+    Stop an external command in a subprocess and delete its PID file if it exists.
 
     Args:
         pid_file: File name to read the process ID (PID).
