@@ -27,7 +27,6 @@ from typing_extensions import ParamSpec, Self, get_args, get_origin
 import prefect
 import prefect.exceptions
 from prefect.client.orion import inject_client
-from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging.loggers import disable_logger
 from prefect.orion.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
@@ -701,17 +700,6 @@ class Block(BaseModel, ABC):
         except prefect.exceptions.ObjectNotFound:
             block_type = await client.create_block_type(block_type=cls._to_block_type())
             cls._block_type_id = block_type.id
-        # Block protection for block types update has been removed, but this code
-        # is kept for compatibility with version 2.4.2 servers. If support for
-        # 2.4.2 servers is dropped in the future, this check can safely
-        # be removed.
-        except prefect.exceptions.ProtectedBlockError as exc:
-            if cls._block_type_id is None:
-                raise RuntimeError(
-                    "Unable to register block type due to protected block error. "
-                    "Consider upgrading your Prefect client and/or server to the "
-                    "latest version to resolve this error."
-                ) from exc
 
         try:
             block_schema = await client.read_block_schema_by_checksum(
@@ -719,27 +707,9 @@ class Block(BaseModel, ABC):
                 version=cls.get_block_schema_version(),
             )
         except prefect.exceptions.ObjectNotFound:
-            try:
-                block_schema = await client.create_block_schema(
-                    block_schema=cls._to_block_schema(block_type_id=block_type.id)
-                )
-            # Block protection for block schema creation has been removed, but this code
-            # is kept for compatibility with version 2.4.2 servers. If support for
-            # 2.4.2 servers is dropped in the future, this check can safely
-            # be removed.
-            except prefect.exceptions.ProtectedBlockError as exc:
-                # Got to this code path because the block schema version on the server
-                # doesn't match the version on the client. Read the block schema by
-                # just checksum to increase the chances of getting a block schema back.
-                block_schema = await client.read_block_schema_by_checksum(
-                    checksum=cls._calculate_schema_checksum(),
-                )
-                if block_schema is None:
-                    raise RuntimeError(
-                        "Unable to register block schema due to protected block error. "
-                        "Consider upgrading your Prefect client and/or server to the "
-                        "latest version to resolve this error."
-                    ) from exc
+            block_schema = await client.create_block_schema(
+                block_schema=cls._to_block_schema(block_type_id=block_type.id)
+            )
 
         cls._block_schema_id = block_schema.id
 
