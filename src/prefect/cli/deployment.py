@@ -390,18 +390,22 @@ async def apply(
         except Exception as exc:
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
 
-        if work_queue_concurrency:
+        if work_queue_concurrency is not None:
             try:
                 queue = deployment.work_queue_name
                 if queue is None:
                     exit_with_error("This deployment has no work queue!")
                 try:
-                    res = client.create_work_queue(name=queue)
+                    res = await client.create_work_queue(name=queue)
                 except ObjectAlreadyExists:
-                    res = client.read_work_queue_by_name(name=queue)
-                client.update_work_queue(res.id, concurrency_limit=work_queue_concurrency)
+                    res = await client.read_work_queue_by_name(name=queue)
+                await client.update_work_queue(
+                    res.id, concurrency_limit=work_queue_concurrency
+                )
             except Exception as exc:
-                exit_with_error(f"Failed to set concurrency limit on work queue {queue.name}.")
+                exit_with_error(
+                    f"Failed to set concurrency limit on work queue {queue.name}."
+                )
 
         if upload:
             if (
@@ -740,13 +744,14 @@ async def build(
         init_kwargs.update(infrastructure=infrastructure)
     if work_queue_name:
         init_kwargs.update(work_queue_name=work_queue_name)
-        if work_queue_concurrency:
+        if work_queue_concurrency is not None is not None:
             try:
-                res = client.create_work_queue(name=work_queue_name)
+                res = await client.create_work_queue(name=work_queue_name)
             except ObjectAlreadyExists:
-                res = client.read_work_queue_by_name(name=work_queue_name)
-            client.update_work_queue(res.id, concurrency_limit=work_queue_concurrency)
-
+                res = await client.read_work_queue_by_name(name=work_queue_name)
+            await client.update_work_queue(
+                res.id, concurrency_limit=work_queue_concurrency
+            )
 
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
     deployment = await Deployment.build_from_flow(
