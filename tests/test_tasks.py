@@ -1030,11 +1030,11 @@ class TestCacheFunctionBuiltins:
         @flow
         def bar():
             return (
-                foo._run(TestBlock(x=1, y=2, z="dog".encode("utf-8"))), # same
-                foo._run(TestBlock(x=4, y=2, z="dog".encode("utf-8"))), # different x
-                foo._run(TestBlock(x=1, y=2, z="dog".encode("utf-8"))), # same
-                foo._run(TestBlock(x=1, y=2, z="dog".encode("latin-1"))), # same
-                foo._run(TestBlock(x=1, y=2, z="cat".encode("utf-8"))), # different z
+                foo._run(TestBlock(x=1, y=2, z="dog".encode("utf-8"))),  # same
+                foo._run(TestBlock(x=4, y=2, z="dog".encode("utf-8"))),  # different x
+                foo._run(TestBlock(x=1, y=2, z="dog".encode("utf-8"))),  # same
+                foo._run(TestBlock(x=1, y=2, z="dog".encode("latin-1"))),  # same
+                foo._run(TestBlock(x=1, y=2, z="cat".encode("utf-8"))),  # different z
             )
 
         first_state, second_state, third_state, fourth_state, fifth_state = bar()
@@ -1045,7 +1045,10 @@ class TestCacheFunctionBuiltins:
         assert fifth_state.name == "Completed"
 
         assert first_state.result() != second_state.result()
-        assert first_state.result() == third_state.result() == fourth_state.result() == 1
+        assert (
+            first_state.result() == third_state.result() == fourth_state.result() == 1
+        )
+
 
 class TestTaskRunTags:
     async def test_task_run_tags_added_at_submission(self, orion_client):
