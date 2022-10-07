@@ -25,13 +25,13 @@ def test_start_agent_with_work_queue_and_tags():
 
 def test_start_agent_with_regex_and_work_queue():
     invoke_and_assert(
-        command=["agent", "start", "hello", "-r", "blue"],
+        command=["agent", "start", "hello", "-m", "blue"],
         expected_output_contains="Only one of `work_queues`, `regex`, or `tags` can be provided.",
         expected_code=1,
     )
 
     invoke_and_assert(
-        command=["agent", "start", "-q", "hello", "-r", "blue"],
+        command=["agent", "start", "-q", "hello", "--match", "blue"],
         expected_output_contains="Only one of `work_queues`, `regex`, or `tags` can be provided.",
         expected_code=1,
     )

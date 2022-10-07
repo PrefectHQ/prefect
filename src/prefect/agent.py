@@ -2,6 +2,7 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
+import re
 from typing import Iterator, List, Optional, Set, Union
 from uuid import UUID
 
@@ -26,7 +27,7 @@ class OrionAgent:
     def __init__(
         self,
         work_queues: List[str] = None,
-        work_queue_regex: str = None,
+        work_queue_regex: Union[str, re.Pattern] = None,
         prefetch_seconds: int = None,
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
@@ -38,13 +39,17 @@ class OrionAgent:
             )
 
         self.work_queues: Set[str] = set(work_queues) if work_queues else set()
-        self.work_queue_regex = work_queue_regex
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
         self.started = False
         self.logger = get_logger("agent")
         self.task_group: Optional[anyio.abc.TaskGroup] = None
         self.client: Optional[OrionClient] = None
+
+        if isinstance(work_queue_regex, str):
+            self.work_queue_regex = re.compile(work_queue_regex)
+        else:
+            self.work_queue_regex = work_queue_regex
 
         self._work_queue_cache_expiration: pendulum.DateTime = None
         self._work_queue_cache: List[WorkQueue] = []

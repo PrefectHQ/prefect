@@ -47,8 +47,8 @@ async def start(
     ),
     work_queue_regex: str = typer.Option(
         None,
-        "-r",
-        "--regex",
+        "-m",
+        "--match",
         help="A Python regex string used to match work queues for the agent to pull from.",
     ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
