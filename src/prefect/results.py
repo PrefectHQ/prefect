@@ -67,9 +67,6 @@ def task_features_require_result_persistence(task: "Task") -> bool:
     return False
 
 
-DEFAULT_FACTORY: "ResultFactory" = None
-
-
 class ResultFactory(pydantic.BaseModel):
     """
     A utility to generate `Result` types.

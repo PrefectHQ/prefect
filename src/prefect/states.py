@@ -1,12 +1,14 @@
+import traceback
 import warnings
 from collections import Counter
+from types import TracebackType
 from typing import Any, Dict, Iterable
 
 import anyio
 import httpx
 from typing_extensions import TypeGuard
 
-from prefect.client.schemas import Completed, Crashed, State
+from prefect.client.schemas import Completed, Crashed, Failed, State
 from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
@@ -17,6 +19,10 @@ from prefect.orion.schemas.states import StateType
 from prefect.results import BaseResult, R, ResultFactory
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.collections import ensure_iterable
+
+
+def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
+    return "".join(list(traceback.format_exception(type(exc), exc, tb=tb)))
 
 
 def exception_to_crashed_state(exc: BaseException) -> Crashed:
@@ -40,26 +46,53 @@ def exception_to_crashed_state(exc: BaseException) -> Crashed:
             request: httpx.Request = exc.request
         except RuntimeError:
             # The request property is not set
-            state_message = "Request failed while attempting to contact the server."
+            state_message = f"Request failed while attempting to contact the server: {format_exception(exc)}"
         else:
             # TODO: We can check if this is actually our API url
-            state_message = f"Request to {request.url} failed."
+            state_message = f"Request to {request.url} failed: {format_exception(exc)}."
 
     else:
-        state_message = "Execution was interrupted by an unexpected exception."
+        state_message = f"Execution was interrupted by an unexpected exception: {format_exception(exc)}"
 
-    return Crashed(
-        message=state_message,
-        data=safe_encode_exception(exc),
-    )
+    return Crashed(message=state_message)
 
 
-def safe_encode_exception(exception: BaseException) -> DataDocument:
+async def exception_to_failed_state(exc: BaseException = None, **kwargs) -> State:
+    """
+    Convenience function for creating `Failed` states from exceptions
+    """
+    import sys
+
+    from prefect.context import get_run_context
+    from prefect.exceptions import MissingContextError
+    from prefect.states import format_exception
+
+    if not exc:
+        _, exc, exc_tb = sys.exc_info()
+        if exc is None:
+            raise ValueError(
+                "Exception was not passed and no active exception could be found."
+            )
+    else:
+        exc_tb = exc.__traceback__
+
     try:
-        document = DataDocument.encode("cloudpickle", exception)
-    except Exception as exc:
-        document = DataDocument.encode("cloudpickle", exc)
-    return document
+        ctx = get_run_context()
+        result_factory = ctx.result_factory
+    except MissingContextError:
+        result_factory = None
+
+    if result_factory:
+        data = await result_factory.create_result(exc)
+    else:
+        data = None
+
+    existing_message = kwargs.pop("message", "")
+    if existing_message and not existing_message.endswith(" "):
+        existing_message += " "
+    message = existing_message + format_exception(exc, exc_tb)
+
+    return Failed(data=data, message=message, **kwargs)
 
 
 async def return_value_to_state(result: R, result_factory: ResultFactory) -> State[R]:
@@ -133,7 +166,10 @@ async def return_value_to_state(result: R, result_factory: ResultFactory) -> Sta
 
 
 @sync_compatible
-async def get_state_result(state, raise_on_failure: bool):
+async def get_state_result(state, raise_on_failure: bool = True) -> Any:
+    """
+    Get the result from a state.
+    """
     if raise_on_failure and (state.is_failed() or state.is_crashed()):
         return await raise_state_exception(state)
 

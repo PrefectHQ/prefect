@@ -31,7 +31,7 @@ import prefect
 import prefect.context
 from prefect.client import OrionClient, get_client
 from prefect.client.orion import inject_client
-from prefect.client.schemas import Failed, FlowRun, Pending, Running, State, TaskRun
+from prefect.client.schemas import FlowRun, Pending, Running, State, TaskRun
 from prefect.context import (
     FlowRunContext,
     PrefectObjectRegistry,
@@ -39,7 +39,6 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
-from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
     Abort,
     MappingLengthMismatch,
@@ -66,8 +65,8 @@ from prefect.results import ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_LOCAL_STORAGE_PATH
 from prefect.states import (
     exception_to_crashed_state,
+    exception_to_failed_state,
     return_value_to_state,
-    safe_encode_exception,
 )
 from prefect.task_runners import (
     CONCURRENCY_MESSAGES,
@@ -196,10 +195,9 @@ async def create_then_begin_flow_run(
     if flow.should_validate_parameters:
         try:
             parameters = flow.validate_parameters(parameters)
-        except Exception as exc:
-            state = Failed(
-                message=f"Validation of flow parameters failed with error: {exc!r}",
-                data=DataDocument.encode("cloudpickle", exc),
+        except Exception:
+            state = await exception_to_failed_state(
+                message="Validation of flow parameters failed with error: "
             )
 
     flow_run = await client.create_flow_run(
@@ -247,7 +245,7 @@ async def retrieve_flow_then_begin_flow_run(
     except Exception as exc:
         message = "Flow could not be retrieved from deployment."
         flow_run_logger(flow_run).exception(message)
-        state = Failed(message=message, data=safe_encode_exception(exc))
+        state = await exception_to_failed_state(message=message)
         await client.set_flow_run_state(
             state=state, flow_run_id=flow_run_id, force=True
         )
@@ -272,15 +270,10 @@ async def retrieve_flow_then_begin_flow_run(
         failed_state = None
         try:
             parameters = flow.validate_parameters(flow_run.parameters)
-        except Exception as exc:
-            validation_error = (
-                f"Validation of flow parameters failed with error: {exc!r}"
-            )
-            flow_run_logger(flow_run).exception(validation_error)
-            failed_state = Failed(
-                message=validation_error,
-                data=DataDocument.encode("cloudpickle", exc),
-            )
+        except Exception:
+            message = "Validation of flow parameters failed with error: "
+            flow_run_logger(flow_run).exception(message)
+            failed_state = await exception_to_failed_state(message=message)
 
         if failed_state is not None:
             await propose_state(
@@ -454,15 +447,10 @@ async def create_and_begin_subflow_run(
             failed_state = None
             try:
                 parameters = flow.validate_parameters(parameters)
-            except Exception as exc:
-                validation_error = (
-                    f"Validation of flow parameters failed with error: {exc!r}"
-                )
-                logger.exception(validation_error)
-                failed_state = Failed(
-                    message=validation_error,
-                    data=DataDocument.encode("cloudpickle", exc),
-                )
+            except Exception:
+                message = "Validation of flow parameters failed with error:"
+                logger.exception(message)
+                failed_state = await exception_to_failed_state(message=message)
 
             if failed_state is not None:
                 await propose_state(
@@ -608,15 +596,8 @@ async def orchestrate_flow_run(
             else:
                 # Generic exception in user code
                 message = "Flow run encountered an exception."
-                logger.error(
-                    "Encountered exception during execution:",
-                    exc_info=True,
-                )
-            terminal_state = Failed(
-                name=name,
-                message=message,
-                data=DataDocument.encode("cloudpickle", exc),
-            )
+                logger.exception("Encountered exception during execution:")
+            terminal_state = await exception_to_failed_state(name=name, message=message)
         else:
             if result is None:
                 # All tasks and subflows are reference tasks if there is no return value
@@ -1204,13 +1185,9 @@ async def orchestrate_task_run(
                     result = await run_sync(task.fn, *args, **kwargs)
 
         except Exception as exc:
-            logger.error(
-                f"Encountered exception during execution:",
-                exc_info=True,
-            )
-            terminal_state = Failed(
-                message="Task run encountered an exception.",
-                data=DataDocument.encode("cloudpickle", exc),
+            logger.exception("Encountered exception during execution:")
+            terminal_state = await exception_to_failed_state(
+                message="Task run encountered an exception:"
             )
         else:
             terminal_state = await return_value_to_state(

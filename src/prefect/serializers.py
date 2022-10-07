@@ -1,12 +1,19 @@
 """
-Data serializer implementations
+Serializer implementations for converting objects to bytes and bytes to objects.
 
-These serializers are registered for use with `DataDocument` types
+All serializers are based on the `Serializer` class and include a `type` string that
+allows them to be referenced without referencing the actual class. For example, you
+can get often specify the `JSONSerializer` with the string "json". Some serializers
+support additional settings for configuration of serialization. These are stored on
+the instance so the same settings can be used to load saved objects.
+
+All serializers must implement `dumps` and `loads` which convert objects to bytes and
+bytes to an object respectively.
 """
 import abc
 import base64
 import warnings
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 
 import pydantic
 from pydantic import BaseModel
@@ -17,10 +24,6 @@ from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 from prefect.utilities.pydantic import add_type_dispatch
 
 D = TypeVar("D")
-
-
-if TYPE_CHECKING:
-    pass
 
 
 def prefect_json_object_encoder(obj: Any) -> Any:
