@@ -281,3 +281,7 @@ class ProtectedBlockError(PrefectException):
     """
     Raised when an operation is prevented due to block protection.
     """
+
+
+class InvalidRepositoryURLError(PrefectException):
+    """Raised when an incorrect URL is provided to a GitHub filesystem block."""
