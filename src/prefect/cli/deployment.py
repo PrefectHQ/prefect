@@ -372,11 +372,11 @@ async def apply(
         "--upload",
         help="A flag that, when provided, uploads this deployment's files to remote storage.",
     ),
-    singleton_work_queue: str = typer.Option(
+    work_queue_concurrency: str = typer.Option(
         None,
-        "--singleton",
-        "-s",
-        help="An option to override the work queue associated with this deployment with a work queue with a concurrency limit of 1. If the queue doesn't exist, it will be created. If the queue exists, the concurrency limit for this queue will be set to 1",
+        "--limit",
+        "-l",
+        help="Sets the concurrency limit on the work queue that handles this deployment's runs",
     ),
 ):
     """
@@ -390,21 +390,18 @@ async def apply(
         except Exception as exc:
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
 
-        if override_work_queue:
+        if work_queue_concurrency:
             try:
-                old_queue = deployment.work_queue_name
-                deployment.work_queue_name = override_work_queue
-                app.console.print(
-                    f"Overriding work queue {old_queue} with {override_work_queue} and setting the concurrency limit to 1."
-                )
-
+                queue = deployment.work_queue_name
+                if queue is None:
+                    exit_with_error("This deployment has no work queue!")
                 try:
-                    res = client.create_work_queue(name=override_work_queue)
+                    res = client.create_work_queue(name=queue)
                 except ObjectAlreadyExists:
-                    res = client.read_work_queue_by_name(name=override_work_queue)
-                client.update_work_queue(res.id, concurrency_limit=1)
+                    res = client.read_work_queue_by_name(name=queue)
+                client.update_work_queue(res.id, concurrency_limit=work_queue_concurrency)
             except Exception as exc:
-                exit_with_error("Failed to override work queue.")
+                exit_with_error(f"Failed to set concurrency limit on work queue {queue.name}.")
 
         if upload:
             if (
@@ -525,6 +522,12 @@ async def build(
             "It will be created if it doesn't already exist. Defaults to `None`. "
             "Note that if a work queue is not set, work will not be scheduled."
         ),
+    ),
+    work_queue_concurrency: str = typer.Option(
+        None,
+        "--limit",
+        "-l",
+        help="Sets the concurrency limit on the work queue that handles this deployment's runs",
     ),
     infra_type: InfrastructureSlugs = typer.Option(
         None,
@@ -737,6 +740,13 @@ async def build(
         init_kwargs.update(infrastructure=infrastructure)
     if work_queue_name:
         init_kwargs.update(work_queue_name=work_queue_name)
+        if work_queue_concurrency:
+            try:
+                res = client.create_work_queue(name=work_queue_name)
+            except ObjectAlreadyExists:
+                res = client.read_work_queue_by_name(name=work_queue_name)
+            client.update_work_queue(res.id, concurrency_limit=work_queue_concurrency)
+
 
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
     deployment = await Deployment.build_from_flow(
