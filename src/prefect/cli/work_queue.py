@@ -206,46 +206,9 @@ async def inspect(
 async def ls(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Display more information."
-    )
-):
-    """
-    View all work queues.
-    """
-    table = Table(
-        title="Work Queues", caption="(**) denotes a paused queue", caption_style="red"
-    )
-    table.add_column("Name", style="green", no_wrap=True)
-    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Concurrency Limit", style="blue", no_wrap=True)
-    if verbose:
-        table.add_column("Filter (Deprecated)", style="magenta", no_wrap=True)
-
-    async with get_client() as client:
-        queues = await client.read_work_queues()
-
-    sort_by_created_key = lambda q: pendulum.now("utc") - q.created
-
-    for queue in sorted(queues, key=sort_by_created_key):
-
-        row = [
-            f"{queue.name} [red](**)" if queue.is_paused else queue.name,
-            str(queue.id),
-            f"[red]{queue.concurrency_limit}"
-            if queue.concurrency_limit
-            else "[blue]None",
-        ]
-        if verbose and queue.filter is not None:
-            row.append(queue.filter.json())
-        table.add_row(*row)
-
-    app.console.print(table)
-
-
-@work_app.command()
-async def regex(
-    regex: str = typer.Argument(..., help="regex pattern"),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Display more information."
+    ),
+    regex: str = typer.Option(
+        None, "--regex", "-r", help="Python regex string used to match work queue names"
     ),
 ):
     """
@@ -261,7 +224,10 @@ async def regex(
         table.add_column("Filter (Deprecated)", style="magenta", no_wrap=True)
 
     async with get_client() as client:
-        queues = await client.match_work_queues(regex)
+        if work_queue_regex is not None:
+            queues = await client.match_work_queues(regex)
+        else:
+            queues = await client.read_work_queues()
 
     sort_by_created_key = lambda q: pendulum.now("utc") - q.created
 
