@@ -96,6 +96,8 @@ class OrionAgent:
         self._work_queue_cache.clear()
         self._work_queue_cache_expiration = now.add(seconds=30)
 
+        await self.update_matched_agent_work_queues()
+
         for name in self.work_queues:
             try:
                 work_queue = await self.client.read_work_queue_by_name(name)
@@ -129,8 +131,6 @@ class OrionAgent:
             raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
 
         self.logger.debug("Checking for flow runs...")
-
-        await self.update_matched_agent_work_queues()
 
         before = pendulum.now("utc").add(
             seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
