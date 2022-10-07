@@ -48,24 +48,37 @@ async def open_process(command: List[str], **kwargs):
 
 
 async def run_process(
-    command: List[str],
+    command: Union[str, List[str]],
     stream_output: Union[bool, Tuple[Optional[TextSink], Optional[TextSink]]] = False,
     task_status: Optional[anyio.abc.TaskStatus] = None,
     **kwargs,
-):
+) -> anyio.abc.Process:
     """
-    Like `anyio.run_process` but with:
+    Run an external command in a subprocess and wait until it completes.
 
-    - Use of our `open_process` utility to ensure resources are cleaned up
+    Similar to `anyio.run_process` but with:
     - Simple `stream_output` support to connect the subprocess to the parent stdout/err
     - Support for submission with `TaskGroup.start` marking as 'started' after the
         process has been created. When used, the PID is returned to the task status.
+
+    Args:
+        command: either a string to pass to the shell, or an iterable of strings containing the executable name or path
+            and its arguments.
+        stream_output:
+        task_status: Task to mark as 'started' after process creation. The process PID is returned to the task status.
+            process has been created.
+        kwargs: Other arguments passed to the de function `anyio.open_process`.
+
+    Returns:
+        An asynchronous process object.
 
     """
     if stream_output is True:
         stream_output = (sys.stdout, sys.stderr)
 
-    async with open_process(
+    # When you use the anyio.open_process with context managers via the with statement
+    # it waits for the sub-process to finish before continuing.
+    async with await anyio.open_process(
         command,
         stdout=subprocess.PIPE if stream_output else subprocess.DEVNULL,
         stderr=subprocess.PIPE if stream_output else subprocess.DEVNULL,
@@ -79,8 +92,6 @@ async def run_process(
             await consume_process_output(
                 process, stdout_sink=stream_output[0], stderr_sink=stream_output[1]
             )
-
-        await process.wait()
 
     return process
 
