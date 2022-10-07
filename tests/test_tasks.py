@@ -1073,6 +1073,38 @@ class TestCacheFunctionBuiltins:
         assert first_state.result() != third_state.result()
         assert fourth_state.result() == fifth_state.result() == 1
 
+    def test_task_input_hash_works_with_block_input_types_and_bytes(self):
+        class TestBlock(Block):
+            x: int
+            y: int
+            z: bytes
+
+        @task(cache_key_fn=task_input_hash)
+        def foo(instance):
+            return instance.x
+
+        @flow
+        def bar():
+            return (
+                foo._run(TestBlock(x=1, y=2, z="dog".encode("utf-8"))),  # same
+                foo._run(TestBlock(x=4, y=2, z="dog".encode("utf-8"))),  # different x
+                foo._run(TestBlock(x=1, y=2, z="dog".encode("utf-8"))),  # same
+                foo._run(TestBlock(x=1, y=2, z="dog".encode("latin-1"))),  # same
+                foo._run(TestBlock(x=1, y=2, z="cat".encode("utf-8"))),  # different z
+            )
+
+        first_state, second_state, third_state, fourth_state, fifth_state = bar()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert third_state.name == "Cached"
+        assert fourth_state.name == "Cached"
+        assert fifth_state.name == "Completed"
+
+        assert first_state.result() != second_state.result()
+        assert (
+            first_state.result() == third_state.result() == fourth_state.result() == 1
+        )
+
 
 class TestTaskRunTags:
     async def test_task_run_tags_added_at_submission(self, orion_client):
