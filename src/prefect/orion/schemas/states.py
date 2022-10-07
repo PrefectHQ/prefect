@@ -149,7 +149,7 @@ class State(IDBaseModel, Generic[R]):
         display = dict(
             message=repr(self.message),
             type=self.type,
-            result=repr(self.data.decode()) if self.data else None,
+            result=repr(self.data),
         )
 
         return f"{self.name}({', '.join(f'{k}={v}' for k, v in display.items())})"

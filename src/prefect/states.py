@@ -23,10 +23,22 @@ from prefect.utilities.collections import ensure_iterable
 
 
 def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
-    return "".join(list(traceback.format_exception(type(exc), exc, tb=tb)))
+    exc_type = type(exc)
+    result = "".join(list(traceback.format_exception(exc_type, exc, tb=tb)))
+
+    # Trim `prefect.foo.bar` paths from Prefect exception types
+    if exc_type.__module__.startswith("prefect."):
+        result = result.replace(
+            f"{exc_type.__module__}.{exc_type.__name__}", exc_type.__name__
+        )
+
+    return result
 
 
-def exception_to_crashed_state(exc: BaseException) -> Crashed:
+async def exception_to_crashed_state(
+    exc: BaseException,
+    result_factory: Optional[ResultFactory] = None,
+) -> Crashed:
     """
     Takes an exception that occurs _outside_ of user code and converts it to a
     'Crash' exception with a 'Crashed' state.
@@ -55,7 +67,14 @@ def exception_to_crashed_state(exc: BaseException) -> Crashed:
     else:
         state_message = f"Execution was interrupted by an unexpected exception: {format_exception(exc)}"
 
-    return Crashed(message=state_message)
+    if result_factory:
+        data = await result_factory.create_result(exc)
+    else:
+        # Attach the exception for local usage, will not be available when retrieved
+        # from the API
+        data = exc
+
+    return Crashed(message=state_message, data=data)
 
 
 async def exception_to_failed_state(
@@ -168,24 +187,94 @@ async def get_state_result(state, raise_on_failure: bool = True) -> Any:
     """
     Get the result from a state.
     """
-    if raise_on_failure and (state.is_failed() or state.is_crashed()):
-        return await raise_state_exception(state)
+    if raise_on_failure and (state.is_crashed() or state.is_failed()):
+        raise await get_state_exception(state)
 
     if isinstance(state.data, DataDocument):
-        return result_from_state_with_data_document(
+        result = result_from_state_with_data_document(
             state, raise_on_failure=raise_on_failure
         )
     elif isinstance(state.data, BaseResult):
-        return await state.data.get()
+        result = await state.data.get()
     elif state.data is None:
-        raise ValueError(
-            "State data is missing. "
-            "Typically, this occurs when result persistence is disabled and the "
-            "state has been retrieved from the API."
-        )
+        if state.is_failed() or state.is_crashed():
+            return await get_state_exception(state)
+        else:
+            raise ValueError(
+                "State data is missing. "
+                "Typically, this occurs when result persistence is disabled and the "
+                "state has been retrieved from the API."
+            )
+
     else:
         # The result is attached directly
-        return state.data
+        result = state.data
+
+    return result
+
+
+@sync_compatible
+async def get_state_exception(
+    state: State, allow_base_exceptions: bool = True
+) -> BaseException:
+    if state.is_failed():
+        wrapper = FailedRun
+    elif state.is_crashed():
+        wrapper = CrashedRun
+    else:
+        raise ValueError(f"Expected failed or crashed state got {state!r}.")
+
+    if isinstance(state.data, BaseResult):
+        result = await state.data.get()
+    elif state.data is None:
+        result = None
+    else:
+        result = state.data
+
+    if result is None:
+        return wrapper(state.message)
+
+    if isinstance(result, Exception):
+        return result
+
+    elif isinstance(result, BaseException):
+        return result
+
+        if not allow_base_exceptions:
+            warnings.warn(
+                f"State result is a {type(result).__name__!r} type and is not safe "
+                f"to re-raise, it will be raised as a `{wrapper.__name__}` instead."
+            )
+            exc = wrapper(str(result))
+            exc.__cause__ = result
+            exc.__traceback__ = result.__traceback__
+        else:
+            exc = result
+
+        return exc
+
+    elif isinstance(result, str):
+        return wrapper(result)
+
+    elif isinstance(result, State):
+        # Return the exception from the inner state
+        return get_state_exception(result)
+
+    elif is_state_iterable(result):
+        # Return the first failure
+        for state in result:
+            if state.is_failed() or state.is_crashed():
+                return await get_state_exception(state)
+
+        raise ValueError(
+            "Failed state result contained multiple states but none were failed."
+        )
+
+    else:
+        raise TypeError(
+            f"Unexpected result for failed state: {result!r} —— "
+            f"{type(result).__name__} cannot be resolved into an exception"
+        )
 
 
 @sync_compatible
@@ -211,57 +300,7 @@ async def raise_state_exception(state: State) -> None:
     When a wrapper exception is raised, the type will be `FailedRun` if the state type is
     FAILED or a `CrashedRun` if the state type is CRASHED.
     """
-    if state.is_failed():
-        wrapper = FailedRun
-    elif state.is_crashed():
-        wrapper = CrashedRun
-    else:
-        return None
-
-    result = (
-        await state.result(raise_on_failure=False, fetch=True)
-        if state.data is not None
-        else None
-    )
-
-    if result is None:
-        raise wrapper(state.message)
-
-    elif isinstance(result, Exception):
-        raise result
-
-    elif isinstance(result, BaseException):
-        warnings.warn(
-            f"State result is a {type(result).__name__!r} type and is not safe "
-            f"to re-raise, it will be raised as a `{wrapper.__name__}` instead."
-        )
-        raise wrapper(str(result)) from result
-
-    elif isinstance(result, State):
-        # Raise the failure in the inner state
-        await raise_state_exception(result)
-
-        # Should not be reached, but if it is we must raise an error
-        raise ValueError("Failed state result was a state that was not failed.")
-
-    elif isinstance(result, str):
-        raise wrapper(result)
-
-    elif is_state_iterable(result):
-        # Raise the first failure
-        for state in result:
-            await raise_state_exception(state)
-
-        # Should not be reached, but if it is we must raise an error
-        raise ValueError(
-            "Failed state result contained multiple states but none were failed."
-        )
-
-    else:
-        raise TypeError(
-            f"Unexpected result for failed state: {result!r} —— "
-            f"{type(result).__name__} cannot be resolved into an exception"
-        )
+    raise await get_state_exception(state)
 
 
 def is_state(obj: Any) -> TypeGuard[State]:

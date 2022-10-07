@@ -66,6 +66,7 @@ from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_LOCAL_STORAGE_PATH
 from prefect.states import (
     exception_to_crashed_state,
     exception_to_failed_state,
+    get_state_exception,
     return_value_to_state,
 )
 from prefect.task_runners import (
@@ -1062,6 +1063,8 @@ async def begin_task_run(
                 anyio.create_task_group()
             )
 
+        await stack.enter_async_context(report_task_run_crashes(task_run, client))
+
         # TODO: Use the background tasks group to manage logging for this task
 
         connect_error = await client.api_healthcheck()
@@ -1191,7 +1194,7 @@ async def orchestrate_task_run(
                     )
                     result = await run_sync(task.fn, *args, **kwargs)
 
-        except Exception as exc:
+        except Exception:
             logger.exception("Encountered exception during execution:")
             terminal_state = await exception_to_failed_state(
                 message="Task run encountered an exception:",
@@ -1254,24 +1257,30 @@ async def wait_for_task_runs_and_report_crashes(
         if not state.type == StateType.CRASHED:
             continue
 
-        exception = await state.result(raise_on_failure=False, fetch=True)
+        exception = await get_state_exception(state)
 
-        logger.info(f"Crash detected! {state.message}")
-        logger.debug("Crash details:", exc_info=exception)
+        task_run = await client.read_task_run(future.task_run.id)
+        if not task_run.state.is_crashed():
 
-        # Update the state of the task run
-        result = await client.set_task_run_state(
-            task_run_id=future.task_run.id, state=state, force=True
-        )
-        if result.status == SetStateStatus.ACCEPT:
-            engine_logger.debug(
-                f"Reported crashed task run {future.name!r} successfully."
+            logger.info(f"Crash detected! {state.message}")
+            logger.debug("Crash details:", exc_info=exception)
+
+            # Update the state of the task run
+            result = await client.set_task_run_state(
+                task_run_id=future.task_run.id, state=state, force=True
             )
+            if result.status == SetStateStatus.ACCEPT:
+                engine_logger.debug(
+                    f"Reported crashed task run {future.name!r} successfully."
+                )
+            else:
+                engine_logger.warning(
+                    f"Failed to report crashed task run {future.name!r}. "
+                    f"Orchestrator did not accept state: {result!r}"
+                )
         else:
-            engine_logger.warning(
-                f"Failed to report crashed task run {future.name!r}. "
-                f"Orchestrator did not accept state: {result!r}"
-            )
+            # Populate the state details on the local state
+            future._final_state.state_details = task_run.state.state_details
 
         crash_exceptions.append(exception)
 
@@ -1297,7 +1306,7 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
         # Do not capture aborts as crashes
         raise
     except BaseException as exc:
-        state = exception_to_crashed_state(exc)
+        state = await exception_to_crashed_state(exc)
         logger = flow_run_logger(flow_run)
         with anyio.CancelScope(shield=True):
             logger.error(f"Crash detected! {state.message}")
@@ -1313,6 +1322,38 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
 
         # Reraise the exception
         raise exc from None
+
+
+@asynccontextmanager
+async def report_task_run_crashes(task_run: TaskRun, client: OrionClient):
+    """
+    Detect task run crashes during this context and update the run to a proper final
+    state.
+
+    This context _must_ reraise the exception to properly exit the run.
+    """
+    try:
+        yield
+    except Abort:
+        # Do not capture aborts as crashes
+        raise
+    except BaseException as exc:
+        state = await exception_to_crashed_state(exc)
+        logger = task_run_logger(task_run)
+        with anyio.CancelScope(shield=True):
+            logger.error(f"Crash detected! {state.message}")
+            logger.debug("Crash details:", exc_info=exc)
+            await client.set_task_run_state(
+                state=state,
+                task_run_id=task_run.id,
+                force=True,
+            )
+            engine_logger.debug(
+                f"Reported crashed task run {task_run.name!r} successfully!"
+            )
+
+        # Reraise the exception
+        raise
 
 
 async def resolve_inputs(
