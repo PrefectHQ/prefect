@@ -1,7 +1,8 @@
+import uuid
+
 import pytest
 
 from prefect.exceptions import CrashedRun, FailedRun
-from prefect.futures import PrefectFuture
 from prefect.results import LiteralResult, ResultFactory
 from prefect.states import (
     Completed,
@@ -170,20 +171,11 @@ class TestReturnValueToState:
         # Aggregate type is failed
         assert result_state.is_failed()
 
-    async def test_single_state_in_future_is_processed(self, task_run, factory):
-        # Unlike a single state without a future, which represents an override of the
-        # return state, this is a child task run that is being used to determine the
-        # flow state
-        state = Completed(data="test")
-        future = PrefectFuture(
-            key=str(task_run.id),
-            name="hello",
-            task_runner=None,
-            _final_state=state,
-        )
-        future.task_run = task_run
-        future._submitted.set()
-        result_state = await return_value_to_state(future, factory)
+    @pytest.mark.parametrize("run_identifier", ["task_run_id", "flow_run_id"])
+    async def test_single_state_in_future_is_processed(self, run_identifier, factory):
+        state = Completed(data="test", state_details={run_identifier: uuid.uuid4()})
+        # The engine is responsible for resolving the futures
+        result_state = await return_value_to_state(state, factory)
         assert await result_state.result() == state
         assert result_state.is_completed()
         assert result_state.message == "All states completed."
