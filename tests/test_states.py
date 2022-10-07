@@ -58,7 +58,7 @@ class TestRaiseStateException:
 
     async def test_raises_value_error_if_nested_state_is_not_failed(self, state_cls):
         with pytest.raises(
-            ValueError, match="Failed state result was a state that was not failed"
+            ValueError, match="Expected failed or crashed state got Completed"
         ):
             await raise_state_exception(state_cls(data=Completed(data="test")))
 
@@ -81,7 +81,7 @@ class TestRaiseStateException:
         ]
         with pytest.raises(
             ValueError,
-            match="Failed state result contained multiple states but none were failed",
+            match="Failed state result was an iterable of states but none were failed",
         ):
             await raise_state_exception(state_cls(data=inner_states))
 
@@ -94,17 +94,9 @@ class TestRaiseStateException:
         ):
             await raise_state_exception(state_cls(data=value))
 
-    async def test_warns_and_raises_wrapper_if_result_is_base_exception(
-        self, state_cls
-    ):
-        with pytest.raises(
-            FailedRun if state_cls == Failed else CrashedRun, match="foo"
-        ):
-            with pytest.warns(
-                UserWarning,
-                match="State result is a 'BaseException' type and is not safe to re-raise",
-            ):
-                await raise_state_exception(state_cls(data=BaseException("foo")))
+    async def test_raises_base_exception(self, state_cls):
+        with pytest.raises(BaseException):
+            await raise_state_exception(state_cls(data=BaseException("foo")))
 
     async def test_raises_wrapper_with_state_message_if_result_is_null(self, state_cls):
         with pytest.raises(

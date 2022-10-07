@@ -1,6 +1,5 @@
 import sys
 import traceback
-import warnings
 from collections import Counter
 from types import TracebackType
 from typing import Any, Dict, Iterable, Optional
@@ -24,15 +23,15 @@ from prefect.utilities.collections import ensure_iterable
 
 def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
     exc_type = type(exc)
-    result = "".join(list(traceback.format_exception(exc_type, exc, tb=tb)))
+    formatted = "".join(list(traceback.format_exception(exc_type, exc, tb=tb)))
 
-    # Trim `prefect.foo.bar` paths from Prefect exception types
+    # Trim `prefect` module paths from our exception types
     if exc_type.__module__.startswith("prefect."):
-        result = result.replace(
+        formatted = formatted.replace(
             f"{exc_type.__module__}.{exc_type.__name__}", exc_type.__name__
         )
 
-    return result
+    return formatted
 
 
 async def exception_to_crashed_state(
@@ -214,9 +213,27 @@ async def get_state_result(state, raise_on_failure: bool = True) -> Any:
 
 
 @sync_compatible
-async def get_state_exception(
-    state: State, allow_base_exceptions: bool = True
-) -> BaseException:
+async def get_state_exception(state: State) -> BaseException:
+    """
+    If not given a FAILED or CRASHED state, this raise a value error.
+
+    If the state result is a state, its exception will be returned.
+
+    If the state result is an iterable of states, the exception of the first failure
+    will be returned.
+
+    If the state result is a string, a wrapper exception will be returned with the
+    string as the message.
+
+    If the state result is null, a wrapper exception will be returned with the state
+    message attached.
+
+    If the state result is not of a known type, a `TypeError` will be returned.
+
+    When a wrapper exception is returned, the type will be `FailedRun` if the state type
+    is FAILED or a `CrashedRun` if the state type is CRASHED.
+    """
+
     if state.is_failed():
         wrapper = FailedRun
     elif state.is_crashed():
@@ -240,25 +257,12 @@ async def get_state_exception(
     elif isinstance(result, BaseException):
         return result
 
-        if not allow_base_exceptions:
-            warnings.warn(
-                f"State result is a {type(result).__name__!r} type and is not safe "
-                f"to re-raise, it will be raised as a `{wrapper.__name__}` instead."
-            )
-            exc = wrapper(str(result))
-            exc.__cause__ = result
-            exc.__traceback__ = result.__traceback__
-        else:
-            exc = result
-
-        return exc
-
     elif isinstance(result, str):
         return wrapper(result)
 
     elif isinstance(result, State):
         # Return the exception from the inner state
-        return get_state_exception(result)
+        return await get_state_exception(result)
 
     elif is_state_iterable(result):
         # Return the first failure
@@ -267,7 +271,7 @@ async def get_state_exception(
                 return await get_state_exception(state)
 
         raise ValueError(
-            "Failed state result contained multiple states but none were failed."
+            "Failed state result was an iterable of states but none were failed."
         )
 
     else:
@@ -281,25 +285,10 @@ async def get_state_exception(
 async def raise_state_exception(state: State) -> None:
     """
     Given a FAILED or CRASHED state, raise the contained exception.
-
-    If not given a FAILED or CRASHED state, this function will return immediately.
-
-    If the state contains a result of multiple states, the first failure will be raised.
-
-    If the state result is a string, a wrapper exception will be raised with the
-    string as the message.
-
-    If the state result is a `BaseException`, a wrapper exception will be raised
-    instead to prevent a base exception from crashing the runtime.
-
-    If the state result is null, a wrapper exception will be raised with the state
-    message attached.
-
-    If the state result is not of a known type, a `TypeError` will be raised.
-
-    When a wrapper exception is raised, the type will be `FailedRun` if the state type is
-    FAILED or a `CrashedRun` if the state type is CRASHED.
     """
+    if not (state.is_failed() or state.is_crashed()):
+        return None
+
     raise await get_state_exception(state)
 
 
