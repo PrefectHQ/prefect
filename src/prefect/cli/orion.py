@@ -34,8 +34,8 @@ from prefect.settings import (
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import (
     kill_on_interrupt,
+    open_process,
     run_process,
-    start_process,
     stop_process,
 )
 
@@ -146,7 +146,7 @@ async def start(
 
     if detach is True:
         try:
-            start_process(command, pid_file, env=server_env)
+            await open_process(command, pid_file, env=server_env)
             exit_with_success(
                 "Orion running in background.\n"
                 f"Check out the dashboard at {base_url}"
@@ -189,9 +189,7 @@ async def stop():
             stop_process(pid_file)
             exit_with_success("Orion stopped!")
         except ValueError:
-            exit_with_error(
-                "The PID file does not contain a valid value. It has been removed!"
-            )
+            exit_with_error("The PID file does not contain Orion process information.")
         except ProcessLookupError:
             exit_with_error(
                 "Orion process not found! Maybe it crashed or quit unexpectedly.\n"

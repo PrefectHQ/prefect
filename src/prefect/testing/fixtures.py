@@ -56,7 +56,7 @@ async def hosted_orion_api():
             break
 
     # Will connect to the same database as normal test clients
-    async with open_process(
+    async with await open_process(
         command=[
             "uvicorn",
             "--factory",

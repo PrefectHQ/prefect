@@ -2,7 +2,6 @@ import os
 import signal
 import subprocess
 import sys
-from contextlib import asynccontextmanager
 from io import TextIOBase
 from typing import Callable, List, Optional, TextIO, Tuple, Union
 
@@ -14,37 +13,46 @@ from anyio.streams.text import TextReceiveStream, TextSendStream
 TextSink = Union[anyio.AsyncFile, TextIO, TextSendStream]
 
 
-@asynccontextmanager
-async def open_process(command: List[str], **kwargs):
+async def open_process(
+    command: Union[str, List[str]],
+    pid_file: Union[str, bytes, os.PathLike, None] = None,
+    **kwargs,
+) -> anyio.abc.Process:
     """
-    Like `anyio.open_process` but with:
-    - Support for Windows command joining
-    - Termination of the process on exception during yield
-    - Forced cleanup of process resources during cancellation
+    Start an external command in a subprocess.
+
+    Similar to `anyio.open_process` but with support for creating a PID file for commands that do not have a process
+    manager.
+
+    Args:
+        command: either a string to pass to the shell, or an iterable of strings containing the executable name or path
+            and its arguments.
+        pid_file: File name to store the process ID (PID). Only needed if the command does not have its own process
+            manager.
+        kwargs: Other arguments passed to the de function `anyio.open_process`.
+
+    Raises:
+        OSError: When trying to run a non-existent file or failing to write the PID file.
+
+    Returns:
+        An asynchronous process object.
+
     """
-    # Passing a string to open_process is equivalent to shell=True which is
-    # generally necessary for Unix-like commands on Windows but otherwise should
-    # be avoided
-    if sys.platform == "win32":
-        command = " ".join(command)
+    kwargs.setdefault("stdout", subprocess.DEVNULL)
+    kwargs.setdefault("stderr", subprocess.DEVNULL)
 
     process = await anyio.open_process(command, **kwargs)
 
-    try:
-        async with process:
-            yield process
-    finally:
+    if pid_file is not None:
         try:
+            with open(pid_file, "w") as f:
+                f.write(str(process.pid))
+        except OSError as e:
             process.terminate()
-        except ProcessLookupError:
-            # Occurs if the process is already terminated
-            pass
+            await process.wait()
+            raise OSError(f"Could not write PID to file {str(pid_file)!r}: {e}")
 
-        # Ensure the process resource is closed. If not shielded from cancellation,
-        # this resource an be left open and the subprocess output can be appear after
-        # the parent process has exited.
-        with anyio.CancelScope(shield=True):
-            await process.aclose()
+    return process
 
 
 async def run_process(
@@ -92,46 +100,6 @@ async def run_process(
             await consume_process_output(
                 process, stdout_sink=stream_output[0], stderr_sink=stream_output[1]
             )
-
-    return process
-
-
-def start_process(
-    command: List[str], pid_file: Union[str, bytes, os.PathLike, None] = None, **kwargs
-):
-    """
-    Start an external command in a detached process.
-
-    Similar to `run_process` but without waiting for the process to finish.
-    This allows the process to run in the background.
-
-    Args:
-        command: An iterable of strings containing the executable name or path and its arguments.
-        pid_file: File name to store the process ID (PID). Only needed if the command does not have its own process manager.
-
-    Raises:
-        OSError: When trying to run a non-existent file or failing to write the PID file.
-    Returns:
-        A process object.
-
-    """
-    if sys.platform == "win32":
-        kwargs.setdefault("creationflags", subprocess.CREATE_NEW_PROCESS_GROUP)
-
-    process = subprocess.Popen(
-        command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **kwargs
-    )
-
-    if pid_file is not None:
-        # Some commands have their own process manager. That's nice.
-        # I will control in a basic way those that do not have this feature.
-        try:
-            with open(pid_file, "w") as f:
-                f.write(str(process.pid))
-        except OSError as e:
-            process.terminate()
-            process.wait()
-            raise OSError(f"Could not write PID to file {str(pid_file)!r}: {e}")
 
     return process
 

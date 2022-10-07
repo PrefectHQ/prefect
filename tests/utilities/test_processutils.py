@@ -12,8 +12,8 @@ import pytest
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.processutils import (
     kill_on_interrupt,
+    open_process,
     run_process,
-    start_process,
     stop_process,
 )
 
@@ -23,6 +23,64 @@ def mock_open_process(monkeypatch):
     monkeypatch.setattr("anyio.open_process", AsyncMock())
     anyio.open_process.return_value = AsyncMock(spec=anyio.abc.Process, pid=123456)
     yield anyio.open_process
+
+
+async def test_open_process_with_defaults(mock_open_process):
+    await open_process(["echo", "hello world"])
+    mock_open_process.assert_awaited_once()
+
+    kwargs = mock_open_process.call_args[1]
+    assert "stdout" in kwargs
+    assert kwargs["stdout"] == subprocess.DEVNULL
+    assert "stderr" in kwargs
+    assert kwargs["stderr"] == subprocess.DEVNULL
+
+
+async def test_open_process_with_kwargs(mock_open_process):
+    await open_process(["echo", "hello world"], env={"test_kwarg": "test_kwarg"})
+    mock_open_process.assert_awaited_once()
+
+    kwargs = mock_open_process.call_args[1]
+    assert "env" in kwargs
+    assert kwargs["env"] == {"test_kwarg": "test_kwarg"}
+
+
+async def test_open_process_with_pid_file(tmp_path, mock_open_process):
+    pid_file = tmp_path / "test.pid"
+    assert os.path.exists(pid_file) is False
+
+    process = await open_process(["echo", "hello world"], pid_file=pid_file)
+    mock_open_process.assert_awaited_once()
+    assert process.pid == 123456
+    assert os.path.exists(pid_file) is True
+
+    with open(pid_file, "r") as f:
+        process_pid = f.read()
+    assert str(process.pid) == process_pid
+
+
+async def test_open_process_with_invalid_command(mock_open_process):
+    mock_open_process.side_effect = OSError("No such file or directory: command")
+
+    with pytest.raises(OSError, match="No such file or directory: command"):
+        await open_process(["test_invalid_command"])
+
+    mock_open_process.assert_awaited_once()
+
+
+async def test_open_process_with_invalid_pid_file(monkeypatch, mock_open_process):
+    mock_open = mock.mock_open()
+    mock_open.side_effect = OSError("monk_open error")
+    monkeypatch.setattr("builtins.open", mock_open)
+
+    with pytest.raises(
+        OSError, match="Could not write PID to file 'path/to/pid_file': monk_open error"
+    ):
+        await open_process(["echo", "hello world"], pid_file="path/to/pid_file")
+
+    mock_open_process.assert_awaited_once()
+    mock_open_process.return_value.terminate.assert_called_once()
+    mock_open_process.return_value.wait.assert_awaited_once()
 
 
 async def test_run_process_with_defaults(mock_open_process):
@@ -108,87 +166,6 @@ async def test_run_process_with_task_status(mock_open_process):
 
     fake_status.started.assert_called_once()
     mock_open_process.assert_awaited_once()
-
-
-@pytest.fixture
-def mock_subprocess_popen(monkeypatch) -> mock.MagicMock:
-    _mock = mock.Mock(spec=subprocess.Popen)
-    _mock.pid = 123456  # Fake PID
-    _mock.return_value = _mock
-
-    monkeypatch.setattr("subprocess.Popen", _mock)
-
-    return _mock
-
-
-def test_start_process(monkeypatch, mock_subprocess_popen):
-    start_process(["echo", "hello world"])
-    mock_subprocess_popen.assert_called_once()
-
-    kwargs = mock_subprocess_popen.call_args[1]
-    assert "stdout" in kwargs
-    assert kwargs["stdout"] == subprocess.DEVNULL
-    assert "stderr" in kwargs
-    assert kwargs["stderr"] == subprocess.DEVNULL
-
-
-def test_start_process_with_creation_flags(monkeypatch, mock_subprocess_popen):
-    monkeypatch.setattr("sys.platform", "win32")
-    monkeypatch.setattr("subprocess.CREATE_NEW_PROCESS_GROUP", 123, raising=False)
-
-    start_process(["echo", "hello world"])
-    mock_subprocess_popen.assert_called_once()
-
-    kwargs = mock_subprocess_popen.call_args[1]
-    assert "creationflags" in kwargs
-    assert kwargs["creationflags"] == 123
-
-
-def test_start_process_with_kwargs(mock_subprocess_popen):
-    start_process(["echo", "hello world"], env={"test_kwarg": "test_kwarg"})
-    mock_subprocess_popen.assert_called_once()
-
-    kwargs = mock_subprocess_popen.call_args[1]
-    assert "env" in kwargs
-    assert kwargs["env"] == {"test_kwarg": "test_kwarg"}
-
-
-def test_start_process_with_pid_file(tmp_path, mock_subprocess_popen):
-    pid_file = tmp_path / "test.pid"
-    assert os.path.exists(pid_file) is False
-
-    process = start_process(["echo", "hello world"], pid_file=pid_file)
-    mock_subprocess_popen.assert_called_once()
-    assert process.pid == 123456
-    assert os.path.exists(pid_file) is True
-
-    with open(pid_file, "r") as f:
-        process_pid = f.read()
-    assert str(process.pid) == process_pid
-
-
-def test_start_process_with_invalid_command(mock_subprocess_popen):
-    mock_subprocess_popen.side_effect = OSError("No such file or directory: command")
-
-    with pytest.raises(OSError, match="No such file or directory: command"):
-        start_process(["test_invalid_command"])
-
-    mock_subprocess_popen.assert_called_once()
-
-
-def test_start_process_with_invalid_pid_file(monkeypatch, mock_subprocess_popen):
-    mock_open = mock.mock_open()
-    mock_open.side_effect = OSError("monk_open error")
-    monkeypatch.setattr("builtins.open", mock_open)
-
-    with pytest.raises(
-        OSError, match="Could not write PID to file 'path/to/pid_file': monk_open error"
-    ):
-        start_process(["echo", "hello world"], pid_file="path/to/pid_file")
-
-    mock_subprocess_popen.assert_called_once()
-    mock_subprocess_popen.terminate.assert_called_once()
-    mock_subprocess_popen.wait.assert_called_once()
 
 
 @pytest.fixture
