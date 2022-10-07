@@ -208,7 +208,7 @@ async def ls(
         False, "--verbose", "-v", help="Display more information."
     ),
     work_queue_regex: str = typer.Option(
-        None, "--regex", "-r", help="Python regex string used to match work queue names"
+        None, "--match", "-m", help="Python regex string used to match work queue names"
     ),
 ):
     """
