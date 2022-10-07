@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, parse_obj_as, validator
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client
 from prefect.client.orion import inject_client
+from prefect.client.schemas import Scheduled
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
 from prefect.filesystems import LocalFileSystem
@@ -71,7 +72,7 @@ async def run_deployment(
     deployment = await client.read_deployment_by_name(name)
     flow_run = await client.create_flow_run_from_deployment(
         deployment.id,
-        state=schemas.states.Scheduled(scheduled_time=scheduled_time),
+        state=Scheduled(scheduled_time=scheduled_time),
         parameters=parameters,
     )
 
