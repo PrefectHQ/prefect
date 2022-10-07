@@ -5,7 +5,7 @@ import pytest
 from prefect import flow, task
 from prefect.context import get_run_context
 from prefect.filesystems import LocalFileSystem
-from prefect.results import ResultFactory, ResultLiteral, ResultReference
+from prefect.results import LiteralResult, PersistedResult, ResultFactory
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH
 
@@ -39,13 +39,13 @@ async def factory(orion_client):
 @pytest.mark.parametrize("value", [True, False, None])
 async def test_create_result_literal(value, factory):
     result = await factory.create_result(value)
-    assert isinstance(result, ResultLiteral)
+    assert isinstance(result, LiteralResult)
     assert await result.get() == value
 
 
 async def test_create_result_reference(factory):
     result = await factory.create_result({"foo": "bar"})
-    assert isinstance(result, ResultReference)
+    assert isinstance(result, PersistedResult)
     assert result.serializer_type == factory.serializer.type
     assert result.storage_block_id == factory.storage_block_id
     assert await result.get() == {"foo": "bar"}

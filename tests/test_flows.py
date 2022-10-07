@@ -24,7 +24,7 @@ from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
-from prefect.results import ResultReference
+from prefect.results import PersistedResult
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
 from prefect.states import StateType, raise_state_exception
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
@@ -1272,7 +1272,7 @@ class TestFlowResults:
 
         # Check that the storage block uses local path
         reference = state.result(fetch=False)
-        assert isinstance(reference, ResultReference)
+        assert isinstance(reference, PersistedResult)
         storage_block = Block._from_block_document(
             await orion_client.read_block_document(reference.storage_block_id)
         )
