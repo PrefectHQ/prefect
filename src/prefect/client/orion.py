@@ -370,6 +370,10 @@ class OrionClient:
             context: Optional run context data
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
+            name: Custom flow run name
+            tags: Iterable of tags for the flow run
+            idempotency_key: Optional key for flow run. Used to ensure the same flow run
+                is not created multiple times.
             parent_task_run_id: if a subflow run is being created, the placeholder task
                 run identifier in the parent flow
 
