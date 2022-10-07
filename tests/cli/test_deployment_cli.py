@@ -271,6 +271,40 @@ class TestInputValidation:
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
 
+    @pytest.fixture
+    def built_deployment_with_queue_and_limit_overrides(self, patch_import, tmp_path):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+        )
+        deployment_id = d.apply()
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "-q",
+                "the-queue-to-end-all-queues",
+                "--limit",
+                "424242",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+    async def test_setting_work_queue_concurrency_limits(
+        self, built_deployment_with_queue_and_limit_overrides, orion_client
+    ):
+        queue = await orion_client.read_work_queue_by_name(
+            "the-queue-to-end-all-queues"
+        )
+        assert queue.concurrency_limit == 424242
+
     def test_parsing_rrule_schedule_json(self, patch_import, tmp_path):
         invoke_and_assert(
             [
@@ -347,6 +381,29 @@ class TestOutputMessages:
                     f"that pulls work from the {d.work_queue_name!r} work queue:"
                 ),
                 f"$ prefect agent start -q {d.work_queue_name!r}",
+            ],
+        )
+
+    def test_updating_work_queue_concurrency_from_python_build(
+        self, patch_import, tmp_path
+    ):
+        d = Deployment.build_from_flow(
+            flow=my_flow,
+            name="TEST",
+            flow_name="my_flow",
+            output=str(tmp_path / "test.yaml"),
+            work_queue_name="prod",
+        )
+        invoke_and_assert(
+            [
+                "deployment",
+                "apply",
+                str(tmp_path / "test.yaml"),
+                "-l",
+                "42",
+            ],
+            expected_output_contains=[
+                "Updated concurrency limit on work queue prod to 42",
             ],
         )
 

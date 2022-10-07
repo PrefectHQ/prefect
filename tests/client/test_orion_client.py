@@ -1183,17 +1183,33 @@ class TestClientWorkQueues:
         assert lookup.id == queue.id
 
     async def test_create_then_match_work_queues(self, orion_client):
-        await orion_client.create_work_queue(name="one of these things is not like the other")
-        await orion_client.create_work_queue(name="one of these things just doesn't belong")
-        await orion_client.create_work_queue(name="can you tell which thing is not like the others")
+        await orion_client.create_work_queue(
+            name="one of these things is not like the other"
+        )
+        await orion_client.create_work_queue(
+            name="one of these things just doesn't belong"
+        )
+        await orion_client.create_work_queue(
+            name="can you tell which thing is not like the others"
+        )
         matched_queues = await orion_client.match_work_queues("one of these things.*")
         assert len(matched_queues) == 2
 
-    async def test_create_then_match_work_queues_using_compiled_pattern(self, orion_client):
-        await orion_client.create_work_queue(name="did you guess which thing was not like the others")
-        await orion_client.create_work_queue(name="did you guess which thing just doesn't belong")
-        await orion_client.create_work_queue(name="if you guessed this one is not like the others")
-        matched_queues = await orion_client.match_work_queues(re.compile("if you guessed.*"))
+    async def test_create_then_match_work_queues_using_compiled_pattern(
+        self, orion_client
+    ):
+        await orion_client.create_work_queue(
+            name="did you guess which thing was not like the others"
+        )
+        await orion_client.create_work_queue(
+            name="did you guess which thing just doesn't belong"
+        )
+        await orion_client.create_work_queue(
+            name="if you guessed this one is not like the others"
+        )
+        matched_queues = await orion_client.match_work_queues(
+            re.compile("if you guessed.*")
+        )
         assert len(matched_queues) == 1
 
     async def test_read_nonexistant_work_queue(self, orion_client):

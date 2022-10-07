@@ -398,7 +398,7 @@ async def apply(
         "--upload",
         help="A flag that, when provided, uploads this deployment's files to remote storage.",
     ),
-    work_queue_concurrency: str = typer.Option(
+    work_queue_concurrency: int = typer.Option(
         None,
         "--limit",
         "-l",
@@ -540,7 +540,7 @@ async def build(
             "Note that if a work queue is not set, work will not be scheduled."
         ),
     ),
-    work_queue_concurrency: str = typer.Option(
+    work_queue_concurrency: int = typer.Option(
         None,
         "--limit",
         "-l",
