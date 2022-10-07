@@ -343,9 +343,7 @@ class TestInputValidation:
     async def test_setting_work_queue_concurrency_limits_with_apply(
         self, applied_deployment_with_queue_and_limit_overrides, orion_client
     ):
-        queue = await orion_client.read_work_queue_by_name(
-            "the-mother-of-all-queues"
-        )
+        queue = await orion_client.read_work_queue_by_name("the-mother-of-all-queues")
         assert queue.concurrency_limit == 4242
 
     def test_parsing_rrule_schedule_json(self, patch_import, tmp_path):
