@@ -4,9 +4,9 @@ from tempfile import TemporaryDirectory
 from typing import Tuple
 
 import pytest
-from pydantic import ValidationError
 
 import prefect
+from prefect.exceptions import InvalidRepositoryURLError
 from prefect.filesystems import GitHub, LocalFileSystem, RemoteFileSystem
 from prefect.testing.utilities import AsyncMock
 
@@ -254,13 +254,14 @@ class TestGitHub:
         credential = "XYZ"
         repo = "https://github.com/PrefectHQ/prefect.git"
         g = GitHub(
-            repository_url=repo,
+            repository=repo,
             credentials=credential,
         )
         await g.get_directory()
         assert mock.await_count == 1
         assert (
-            f"git clone https://{credential}@{repo} --depth 1" in mock.await_args[0][0]
+            f"git clone https://{credential}@github.com/PrefectHQ/prefect.git --depth 1"
+            in mock.await_args[0][0]
         )
 
     async def test_ssh_fails_with_credential(self, monkeypatch):
@@ -274,14 +275,10 @@ class TestGitHub:
         mock = AsyncMock(return_value=p())
         monkeypatch.setattr(prefect.filesystems, "run_process", mock)
         credential = "XYZ"
-        error_msg = (
-            "Crendentials can only be used with GitHub repositories using the 'HTTPS' format"  # noqa
-            ".*"
-            "(type=value_error.invalidrepositoryurl)"
-        )
-        with pytest.raises(ValidationError, match=error_msg):
+        error_msg = "Crendentials can only be used with GitHub repositories using the 'HTTPS' format"  # noqa
+        with pytest.raises(InvalidRepositoryURLError, match=error_msg):
             GitHub(
-                repository_url="git@github.com:PrefectHQ/prefect.git",
+                repository="git@github.com:PrefectHQ/prefect.git",
                 credentials=credential,
             )
 
@@ -313,7 +310,7 @@ class TestGitHub:
                 )
 
                 g = GitHub(
-                    repository_url="https://github.com/PrefectHQ/prefect.git",
+                    repository="https://github.com/PrefectHQ/prefect.git",
                 )
                 await g.get_directory(local_path=tmp_dst)
 
@@ -353,7 +350,7 @@ class TestGitHub:
                 )
 
                 g = GitHub(
-                    repository_url="https://github.com/PrefectHQ/prefect.git",
+                    repository="https://github.com/PrefectHQ/prefect.git",
                 )
                 await g.get_directory(local_path=tmp_dst, from_path=sub_dir_name)
 
