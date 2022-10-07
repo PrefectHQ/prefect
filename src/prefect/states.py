@@ -31,12 +31,12 @@ R = TypeVar("R")
 
 
 def get_state_result(
-    state: State, raise_on_failure: bool = True, fetch: Optional[bool] = None
-):
+    state: State[R], raise_on_failure: bool = True, fetch: Optional[bool] = None
+) -> R:
     """
     Get the result from a state.
 
-    Implementation of `State.result()`
+    See `State.result()`
     """
     if fetch is None and (
         PREFECT_ASYNC_FETCH_STATE_RESULT or not in_async_main_thread()
@@ -62,107 +62,38 @@ def get_state_result(
         else:
             return state.data
     else:
-        from prefect.states import fetch_state_result
-
-        return fetch_state_result(state, raise_on_failure=raise_on_failure)
+        return _get_state_result(state, raise_on_failure=raise_on_failure)
 
 
-def Scheduled(
-    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
-) -> State:
-    """Convenience function for creating `Scheduled` states.
-
-    Returns:
-        State: a Scheduled state
+@sync_compatible
+async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     """
-    return schemas.states.Scheduled(cls=cls, scheduled_time=scheduled_time, **kwargs)
-
-
-def Completed(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Completed` states.
-
-    Returns:
-        State: a Completed state
+    Internal implementation for `get_state_result` without async backwards compatibility
     """
-    return schemas.states.Completed(cls=cls, **kwargs)
+    if raise_on_failure and (state.is_crashed() or state.is_failed()):
+        raise await get_state_exception(state)
 
+    if isinstance(state.data, DataDocument):
+        result = result_from_state_with_data_document(
+            state, raise_on_failure=raise_on_failure
+        )
+    elif isinstance(state.data, BaseResult):
+        result = await state.data.get()
+    elif state.data is None:
+        if state.is_failed() or state.is_crashed():
+            return await get_state_exception(state)
+        else:
+            raise ValueError(
+                "State data is missing. "
+                "Typically, this occurs when result persistence is disabled and the "
+                "state has been retrieved from the API."
+            )
 
-def Running(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Running` states.
+    else:
+        # The result is attached directly
+        result = state.data
 
-    Returns:
-        State: a Running state
-    """
-    return schemas.states.Running(cls=cls, **kwargs)
-
-
-def Failed(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Failed` states.
-
-    Returns:
-        State: a Failed state
-    """
-    return schemas.states.Failed(cls=cls, **kwargs)
-
-
-def Crashed(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Crashed` states.
-
-    Returns:
-        State: a Crashed state
-    """
-    return schemas.states.Crashed(cls=cls, **kwargs)
-
-
-def Cancelled(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Cancelled` states.
-
-    Returns:
-        State: a Cancelled state
-    """
-    return schemas.states.Cancelled(cls=cls, **kwargs)
-
-
-def Pending(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Pending` states.
-
-    Returns:
-        State: a Pending state
-    """
-    return schemas.states.Pending(cls=cls, **kwargs)
-
-
-def AwaitingRetry(
-    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
-) -> State:
-    """Convenience function for creating `AwaitingRetry` states.
-
-    Returns:
-        State: a AwaitingRetry state
-    """
-    return schemas.states.AwaitingRetry(
-        cls=cls, scheduled_time=scheduled_time, **kwargs
-    )
-
-
-def Retrying(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Retrying` states.
-
-    Returns:
-        State: a Retrying state
-    """
-    return schemas.states.Retrying(cls=cls, **kwargs)
-
-
-def Late(
-    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
-) -> State:
-    """Convenience function for creating `Late` states.
-
-    Returns:
-        State: a Late state
-    """
-    return schemas.states.Late(cls=cls, scheduled_time=scheduled_time, **kwargs)
+    return result
 
 
 def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
@@ -323,37 +254,6 @@ async def return_value_to_state(result: R, result_factory: ResultFactory) -> Sta
 
 
 @sync_compatible
-async def fetch_state_result(state, raise_on_failure: bool = True) -> Any:
-    """
-    Get the result from a state.
-    """
-    if raise_on_failure and (state.is_crashed() or state.is_failed()):
-        raise await get_state_exception(state)
-
-    if isinstance(state.data, DataDocument):
-        result = result_from_state_with_data_document(
-            state, raise_on_failure=raise_on_failure
-        )
-    elif isinstance(state.data, BaseResult):
-        result = await state.data.get()
-    elif state.data is None:
-        if state.is_failed() or state.is_crashed():
-            return await get_state_exception(state)
-        else:
-            raise ValueError(
-                "State data is missing. "
-                "Typically, this occurs when result persistence is disabled and the "
-                "state has been retrieved from the API."
-            )
-
-    else:
-        # The result is attached directly
-        result = state.data
-
-    return result
-
-
-@sync_compatible
 async def get_state_exception(state: State) -> BaseException:
     """
     If not given a FAILED or CRASHED state, this raise a value error.
@@ -502,3 +402,101 @@ class StateGroup:
 
     def __repr__(self) -> str:
         return f"StateGroup<{self.counts_message()}>"
+
+
+def Scheduled(
+    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
+) -> State:
+    """Convenience function for creating `Scheduled` states.
+
+    Returns:
+        State: a Scheduled state
+    """
+    return schemas.states.Scheduled(cls=cls, scheduled_time=scheduled_time, **kwargs)
+
+
+def Completed(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Completed` states.
+
+    Returns:
+        State: a Completed state
+    """
+    return schemas.states.Completed(cls=cls, **kwargs)
+
+
+def Running(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Running` states.
+
+    Returns:
+        State: a Running state
+    """
+    return schemas.states.Running(cls=cls, **kwargs)
+
+
+def Failed(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Failed` states.
+
+    Returns:
+        State: a Failed state
+    """
+    return schemas.states.Failed(cls=cls, **kwargs)
+
+
+def Crashed(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Crashed` states.
+
+    Returns:
+        State: a Crashed state
+    """
+    return schemas.states.Crashed(cls=cls, **kwargs)
+
+
+def Cancelled(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Cancelled` states.
+
+    Returns:
+        State: a Cancelled state
+    """
+    return schemas.states.Cancelled(cls=cls, **kwargs)
+
+
+def Pending(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Pending` states.
+
+    Returns:
+        State: a Pending state
+    """
+    return schemas.states.Pending(cls=cls, **kwargs)
+
+
+def AwaitingRetry(
+    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
+) -> State:
+    """Convenience function for creating `AwaitingRetry` states.
+
+    Returns:
+        State: a AwaitingRetry state
+    """
+    return schemas.states.AwaitingRetry(
+        cls=cls, scheduled_time=scheduled_time, **kwargs
+    )
+
+
+def Retrying(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Retrying` states.
+
+    Returns:
+        State: a Retrying state
+    """
+    return schemas.states.Retrying(cls=cls, **kwargs)
+
+
+def Late(
+    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
+) -> State:
+    """Convenience function for creating `Late` states.
+
+    Returns:
+        State: a Late state
+    """
+    return schemas.states.Late(cls=cls, scheduled_time=scheduled_time, **kwargs)
