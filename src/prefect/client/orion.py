@@ -829,13 +829,13 @@ class OrionClient:
 
     async def match_work_queues(
         self,
-        regex: str,
-    ) -> List[str]:
+        regex: Union[str, re.Pattern],
+    ) -> List[schemas.core.WorkQueue]:
         """
         Query Orion for work queues with names that match a Python regex string.
 
         Args:
-            regex: a Python regex string used to match work queue names
+            regex: a Python regex string or Pattern used to match work queue names
 
         Returns:
             a list of [WorkQueue model][prefect.orion.schemas.core.WorkQueue] representations
