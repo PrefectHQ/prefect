@@ -1,9 +1,9 @@
 """
 Asynchronous client implementation for communicating with the [Orion REST API](/api-ref/rest-api/).
 
-Explore the client by communicating with an in-memory webserver - no setup required:
+Explore the client by communicating with an in-memory webserver &mdash; no setup required:
 
-<div class="termy">
+<div class="terminal">
 ```
 $ # start python REPL with native await functionality
 $ python -m asyncio
@@ -17,5 +17,13 @@ $ python -m asyncio
 """
 from prefect.client.orion import get_client, OrionClient
 from prefect.client.cloud import get_cloud_client, CloudClient
+from prefect.client.base import app_lifespan_context, PrefectResponse, PrefectHttpxClient
 
-__all__ = ["get_client", "OrionClient", "get_cloud_client", "CloudClient"]
+__all__ = [
+    "get_client", 
+    "OrionClient", 
+    "get_cloud_client", 
+    "CloudClient", 
+    "app_lifespan_context", 
+    "PrefectResponse", 
+    "PrefectHttpxClient"]

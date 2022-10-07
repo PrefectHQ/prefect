@@ -85,6 +85,7 @@ def inject_client(fn):
 
 
 def get_client(httpx_settings: dict = None) -> "OrionClient":
+    """Why does this not have a docstring"""
     ctx = prefect.context.get_settings_context()
     return OrionClient(
         PREFECT_API_URL.value() or create_app(ctx.settings, ephemeral=True),
