@@ -1,8 +1,9 @@
+import sys
 import traceback
 import warnings
 from collections import Counter
 from types import TracebackType
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Iterable, Optional
 
 import anyio
 import httpx
@@ -57,16 +58,14 @@ def exception_to_crashed_state(exc: BaseException) -> Crashed:
     return Crashed(message=state_message)
 
 
-async def exception_to_failed_state(exc: BaseException = None, **kwargs) -> State:
+async def exception_to_failed_state(
+    exc: Optional[BaseException] = None,
+    result_factory: Optional[ResultFactory] = None,
+    **kwargs,
+) -> State:
     """
     Convenience function for creating `Failed` states from exceptions
     """
-    import sys
-
-    from prefect.context import get_run_context
-    from prefect.exceptions import MissingContextError
-    from prefect.states import format_exception
-
     if not exc:
         _, exc, exc_tb = sys.exc_info()
         if exc is None:
@@ -76,16 +75,12 @@ async def exception_to_failed_state(exc: BaseException = None, **kwargs) -> Stat
     else:
         exc_tb = exc.__traceback__
 
-    try:
-        ctx = get_run_context()
-        result_factory = ctx.result_factory
-    except MissingContextError:
-        result_factory = None
-
     if result_factory:
         data = await result_factory.create_result(exc)
     else:
-        data = None
+        # Attach the exception for local usage, will not be available when retrieved
+        # from the API
+        data = exc
 
     existing_message = kwargs.pop("message", "")
     if existing_message and not existing_message.endswith(" "):

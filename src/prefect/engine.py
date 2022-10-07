@@ -197,7 +197,7 @@ async def create_then_begin_flow_run(
             parameters = flow.validate_parameters(parameters)
         except Exception:
             state = await exception_to_failed_state(
-                message="Validation of flow parameters failed with error: "
+                message="Validation of flow parameters failed with error:"
             )
 
     flow_run = await client.create_flow_run(
@@ -442,6 +442,9 @@ async def create_and_begin_subflow_run(
             f"Created subflow run {flow_run.name!r} for flow {flow.name!r}"
         )
         logger = flow_run_logger(flow_run, flow)
+        result_factory = await ResultFactory.from_flow(
+            flow, client=parent_flow_run_context.client
+        )
 
         if flow.should_validate_parameters:
             failed_state = None
@@ -450,7 +453,9 @@ async def create_and_begin_subflow_run(
             except Exception:
                 message = "Validation of flow parameters failed with error:"
                 logger.exception(message)
-                failed_state = await exception_to_failed_state(message=message)
+                failed_state = await exception_to_failed_state(
+                    message=message, result_factory=result_factory
+                )
 
             if failed_state is not None:
                 await propose_state(
@@ -480,9 +485,7 @@ async def create_and_begin_subflow_run(
                     result_filesystem=parent_flow_run_context.result_filesystem,
                     task_runner=task_runner,
                     background_tasks=parent_flow_run_context.background_tasks,
-                    result_factory=await ResultFactory.from_flow(
-                        flow, client=parent_flow_run_context.client
-                    ),
+                    result_factory=result_factory,
                 ),
             )
 
@@ -597,7 +600,11 @@ async def orchestrate_flow_run(
                 # Generic exception in user code
                 message = "Flow run encountered an exception."
                 logger.exception("Encountered exception during execution:")
-            terminal_state = await exception_to_failed_state(name=name, message=message)
+            terminal_state = await exception_to_failed_state(
+                name=name,
+                message=message,
+                result_factory=flow_run_context.result_factory,
+            )
         else:
             if result is None:
                 # All tasks and subflows are reference tasks if there is no return value
@@ -1187,7 +1194,8 @@ async def orchestrate_task_run(
         except Exception as exc:
             logger.exception("Encountered exception during execution:")
             terminal_state = await exception_to_failed_state(
-                message="Task run encountered an exception:"
+                message="Task run encountered an exception:",
+                result_factory=task_run_context.result_factory,
             )
         else:
             terminal_state = await return_value_to_state(

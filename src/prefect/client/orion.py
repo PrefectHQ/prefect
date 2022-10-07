@@ -357,7 +357,7 @@ class OrionClient:
         flow_run_create = schemas.actions.DeploymentFlowRunCreate(
             parameters=parameters,
             context=context,
-            state=state,
+            state=state.to_state_create(),
             tags=tags,
             name=name,
         )
@@ -415,7 +415,7 @@ class OrionClient:
             context=context,
             tags=list(tags or []),
             parent_task_run_id=parent_task_run_id,
-            state=state,
+            state=state.to_state_create(),
             empirical_policy=schemas.core.FlowRunPolicy(
                 retries=flow.retries,
                 retry_delay=flow.retry_delay_seconds,
@@ -1514,7 +1514,7 @@ class OrionClient:
                 retries=task.retries,
                 retry_delay=task.retry_delay_seconds,
             ),
-            state=state,
+            state=state.to_state_create(),
             task_inputs=task_inputs or {},
         )
 
