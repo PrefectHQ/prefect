@@ -127,7 +127,7 @@ async def start(
     ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
-            if self.work_queue_regex:
+            if work_queue_regex:
                 app.console.print(
                     "Agent started! Looking for work from "
                     f"queue(s) that match the regex pattern: {work_queue_regex}..."
