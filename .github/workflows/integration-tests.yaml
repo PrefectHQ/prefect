@@ -91,7 +91,7 @@ jobs:
           - "2.4.4"
           - "2.4"
           - "2.5"
-          
+
           # We can include the following to always test against the last release
           # but the value is not particularly clear and we can just append the
           # last minor version at each release time
@@ -107,6 +107,9 @@ jobs:
             server-incompatible: true
           - prefect-version: "2.4.4"
             # This server release had a bug that made it incompatible
+            server-incompatible: true
+          - prefect-version: "2.4.2"
+          # This server enforces block protection behavior which has since been removed
             server-incompatible: true
 
 

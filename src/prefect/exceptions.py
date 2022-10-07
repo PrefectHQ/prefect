@@ -275,3 +275,9 @@ class BlockMissingCapabilities(PrefectException):
     """
     Raised when a block does not have required capabilities for a given operation.
     """
+
+
+class ProtectedBlockError(PrefectException):
+    """
+    Raised when an operation is prevented due to block protection.
+    """
