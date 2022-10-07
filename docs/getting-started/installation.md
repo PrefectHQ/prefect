@@ -166,7 +166,7 @@ You can also:
 
 ## Proxies
 
-Prefect supports communicating via proxies through the use of environment variables. Simply set `HTTPS_PROXY` and `SSL_CERT_FILE` in your environment, and the underlying network libraries will route Prefect’s requests appropriately. You can read more about this in the article [Using Prefect Cloud with proxies](https://discourse.prefect.io/t/using-prefect-cloud-with-proxies/1696).
+Prefect supports communicating via proxies through environment variables. Simply set `HTTPS_PROXY` and `SSL_CERT_FILE` in your environment, and the underlying network libraries will route Prefect’s requests appropriately. You can read more about this in the article [Using Prefect Cloud with proxies](https://discourse.prefect.io/t/using-prefect-cloud-with-proxies/1696).
 
 ## External requirements
 
