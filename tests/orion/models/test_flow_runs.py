@@ -146,6 +146,17 @@ class TestCreateFlowRun:
         )
         assert flow_run.id == anotha_flow_run.id
 
+    async def test_create_flow_run_with_differing_idempotency_key(self, flow, session):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, idempotency_key="test"),
+        )
+        anotha_flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, idempotency_key="foo"),
+        )
+        assert flow_run.id != anotha_flow_run.id
+
     async def test_create_flow_run_with_existing_idempotency_key_of_a_different_flow(
         self, flow, session, db
     ):
