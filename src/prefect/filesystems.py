@@ -793,13 +793,13 @@ class GitHub(ReadableDeploymentStorage):
         default=None,
         description="An optional reference to pin to; can be a branch name or tag.",
     )
-    credentials: Optional[SecretStr] = Field(
+    access_token: Optional[SecretStr] = Field(
         name="Personal Access Token",
         default=None,
         description="A github Personal Access Token (PAT).",
     )
 
-    @validator("credentials")
+    @validator("access_token")
     def _ensure_credentials_go_with_https(cls, v: str, values: dict):
         """Ensure that credentials are not provided with 'SSH' formatted GitHub URLs."""
         if v is not None:
@@ -823,10 +823,10 @@ class GitHub(ReadableDeploymentStorage):
         All other repos should be the same as `self.repository`.
         """
         url_components = urllib.parse.urlparse(self.repository)
-        if url_components.scheme == "https" and self.credentials is not None:
+        if url_components.scheme == "https" and self.access_token is not None:
             repo_url = url_components.netloc + url_components.path
             updated_components = url_components._replace(
-                netloc=f"{self.credentials.get_secret_value()}@{url_components.netloc}"
+                netloc=f"{self.access_token.get_secret_value()}@{url_components.netloc}"
             )
             full_url = urllib.parse.urlunparse(updated_components)
         else:

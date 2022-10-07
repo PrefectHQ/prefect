@@ -255,7 +255,7 @@ class TestGitHub:
         repo = "https://github.com/PrefectHQ/prefect.git"
         g = GitHub(
             repository=repo,
-            credentials=credential,
+            access_token=credential,
         )
         await g.get_directory()
         assert mock.await_count == 1
@@ -279,7 +279,7 @@ class TestGitHub:
         with pytest.raises(InvalidRepositoryURLError, match=error_msg):
             GitHub(
                 repository="git@github.com:PrefectHQ/prefect.git",
-                credentials=credential,
+                access_token=credential,
             )
 
     async def test_dir_contents_copied_correctly_with_get_directory(
