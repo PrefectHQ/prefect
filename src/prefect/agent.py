@@ -61,10 +61,22 @@ class OrionAgent:
             self.default_infrastructure = Process()
             self.default_infrastructure_document_id = None
 
-    async def update_agent_work_queues(self):
+    async def update_matched_agent_work_queues(self):
         if self.work_queue_regex:
             matched_queues = await self.client.match_work_queues(self.work_queue_regex)
-            self.work_queues = set(q.name for q in matched_queues)
+            matched_queues = set(q.name for q in matched_queues)
+            if matched_queues != self.work_queues:
+                new_queues = matched_queues - self.work_queues
+                removed_queues = self.work_queues - matched_queues
+                if new_queues:
+                    self.logger.info(
+                        f"Matched new work queues: {', '.join(new_queues)}"
+                    )
+                if removed_queues:
+                    self.logger.info(
+                        f"Work queues no longer matched: {', '.join(removed_queues)}"
+                    )
+            self.work_queues = matched_queues
 
     async def get_work_queues(self) -> Iterator[WorkQueue]:
         """
@@ -118,7 +130,7 @@ class OrionAgent:
 
         self.logger.debug("Checking for flow runs...")
 
-        await self.update_agent_work_queues()
+        await self.update_matched_agent_work_queues()
 
         before = pendulum.now("utc").add(
             seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
