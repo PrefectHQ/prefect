@@ -1032,7 +1032,9 @@ class OrionClient:
                 and e.response.json()["detail"]
                 == "protected block types cannot be deleted."
             ):
-                raise prefect.exceptions.ProtectedBlockError() from e
+                raise prefect.exceptions.ProtectedBlockError(
+                    "Protected block types cannot be deleted."
+                ) from e
             else:
                 raise
 
