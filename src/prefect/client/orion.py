@@ -364,14 +364,15 @@ class OrionClient:
         Create a flow run for a deployment.
 
         Args:
-            deployment: The deployment model to create the flow run from
+            deployment_id: The deployment ID to create the flow run from
             parameters: Parameter overrides for this flow run. Merged with the
                 deployment defaults
             context: Optional run context data
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
             name: Custom flow run name
-            tags: Iterable of tags for the flow run
+            tags: List of extra tags to apply to the flow run in
+                addition to `deployment.tags`
             idempotency_key: Optional key for flow run. Used to ensure the same flow run
                 is not created multiple times.
             parent_task_run_id: if a subflow run is being created, the placeholder task
