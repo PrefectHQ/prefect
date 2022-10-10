@@ -1257,6 +1257,7 @@ async def wait_for_task_runs_and_report_crashes(
         if not state.type == StateType.CRASHED:
             continue
 
+        # We use this utility instead of `state.result` for type checking
         exception = await get_state_exception(state)
 
         task_run = await client.read_task_run(future.task_run.id)
