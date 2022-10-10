@@ -15,19 +15,11 @@ from fastapi.security import HTTPBearer
 import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
-from prefect.client import OrionClient, get_client
 from prefect.client.orion import OrionClient, get_client, inject_client
-from prefect.client.schemas import (
-    Completed,
-    OrchestrationResult,
-    Pending,
-    Running,
-    Scheduled,
-    State,
-)
 from prefect.deprecated.data_documents import DataDocument
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
+from prefect.orion.schemas import OrchestrationResult
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.orion.schemas.schedules import IntervalSchedule
@@ -37,6 +29,7 @@ from prefect.settings import (
     PREFECT_ORION_DATABASE_MIGRATE_ON_START,
     temporary_settings,
 )
+from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
 

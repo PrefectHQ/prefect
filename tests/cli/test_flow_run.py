@@ -4,7 +4,7 @@ import pytest
 
 import prefect.exceptions
 from prefect import flow
-from prefect.client.schemas import Completed, Late, Running, Scheduled
+from prefect.states import Completed, Late, Running, Scheduled
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import sync_compatible
 

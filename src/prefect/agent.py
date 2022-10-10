@@ -11,15 +11,14 @@ import anyio.to_process
 import pendulum
 
 from prefect.blocks.core import Block
-from prefect.client import OrionClient, get_client
-from prefect.client.schemas import Pending
+from prefect.client.orion import OrionClient, get_client
 from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
-from prefect.states import exception_to_failed_state
+from prefect.states import Pending, exception_to_failed_state
 
 
 class OrionAgent:

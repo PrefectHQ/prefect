@@ -21,15 +21,16 @@ __ui_static_path__ = __module_path__ / "orion" / "ui"
 del _version, pathlib
 
 # Import user-facing API
-from prefect.orion.schemas.states import State
+from prefect.states import State
 from prefect.logging import get_run_logger
 from prefect.flows import flow, Flow
 from prefect.tasks import task, Task
 from prefect.context import tags
-from prefect.client import get_client
 from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped
 from prefect.results import BaseResult
+from prefect.client.orion import get_client, OrionClient
+from prefect.client.cloud import get_cloud_client, CloudClient
 
 # Import modules that register types
 import prefect.serializers
@@ -61,6 +62,12 @@ import prefect.plugins
 
 prefect.plugins.load_prefect_collections()
 
+
+# Ensure moved names are accessible at old locations
+import prefect.client
+
+prefect.client.get_client = get_client
+prefect.client.OrionClient = OrionClient
 
 # Attempt to warn users who are importing Prefect 1.x attributes that they may
 # have accidentally installed Prefect 2.x

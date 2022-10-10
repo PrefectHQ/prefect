@@ -1,10 +1,14 @@
 import pytest
 
-from prefect.client.schemas import Completed, Crashed, Failed, Pending, Running
 from prefect.exceptions import CrashedRun, FailedRun
 from prefect.futures import PrefectFuture
 from prefect.results import LiteralResult, ResultFactory
 from prefect.states import (
+    Completed,
+    Crashed,
+    Failed,
+    Pending,
+    Running,
     is_state,
     is_state_iterable,
     raise_state_exception,

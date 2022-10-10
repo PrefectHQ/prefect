@@ -125,7 +125,7 @@ class State(IDBaseModel, Generic[R]):
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
     def result(self, raise_on_failure: bool = True, fetch: Optional[bool] = None):
-        from prefect.client.schemas import State
+        from prefect.states import State
 
         warnings.warn(
             "`result` is no longer supported by `prefect.orion.schemas.states.State` "

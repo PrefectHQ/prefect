@@ -12,7 +12,6 @@ from pydantic import BaseModel
 
 import prefect.flows
 from prefect import engine, flow, task
-from prefect.client.schemas import Cancelled, Failed, Pending, Running, State
 from prefect.context import FlowRunContext
 from prefect.engine import (
     begin_flow_run,
@@ -37,6 +36,7 @@ from prefect.results import (
     get_default_result_serializer,
     get_default_result_storage,
 )
+from prefect.states import Cancelled, Failed, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
 from prefect.utilities.annotations import quote
