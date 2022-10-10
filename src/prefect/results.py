@@ -246,13 +246,13 @@ class ResultFactory(pydantic.BaseModel):
 
         If persistence is disabled, the object is returned unaltered.
 
-        Literal types are converted into `ResultLiteral`.
+        Literal types are converted into `LiteralResult`.
 
         Other types are serialized, persisted to storage, and a reference is returned.
         """
         if obj is None:
             # Always write nulls as result types to distinguish from unpersisted results
-            return await ResultLiteral.create(None)
+            return await LiteralResult.create(None)
 
         if not self.persist_result:
             # Attach the object directly if persistence is disabled; it will be dropped
@@ -260,9 +260,9 @@ class ResultFactory(pydantic.BaseModel):
             return obj
 
         if type(obj) in LITERAL_TYPES:
-            return await ResultLiteral.create(obj)
+            return await LiteralResult.create(obj)
 
-        return await ResultReference.create(
+        return await PersistedResult.create(
             obj,
             storage_block=self.storage_block,
             storage_block_id=self.storage_block_id,
@@ -291,7 +291,7 @@ class BaseResult(pydantic.BaseModel, Generic[R]):
         extra = "forbid"
 
 
-class ResultLiteral(BaseResult):
+class LiteralResult(BaseResult):
     """
     Result type for literal values like `None`, `True`, `False`.
 
@@ -309,9 +309,9 @@ class ResultLiteral(BaseResult):
     @classmethod
     @sync_compatible
     async def create(
-        cls: "Type[ResultLiteral]",
+        cls: "Type[LiteralResult]",
         obj: R,
-    ) -> "ResultLiteral[R]":
+    ) -> "LiteralResult[R]":
         if type(obj) not in LITERAL_TYPES:
             raise TypeError(
                 f"Unsupported type {type(obj).__name__!r} for result literal. "
@@ -321,12 +321,12 @@ class ResultLiteral(BaseResult):
         return cls(value=obj)
 
 
-class ResultReference(BaseResult):
+class PersistedResult(BaseResult):
     """
     Result type which stores a reference to a persisted result.
 
     When created, the user's object is serialized and stored. The format for the content
-    is defined by `ResultBlob`. This reference contains metadata necessary for retrieval
+    is defined by `PersistedResultBlob`. This reference contains metadata necessary for retrieval
     of the object, such as a reference to the storage block and the key where the
     content was written.
     """
@@ -358,7 +358,7 @@ class ResultReference(BaseResult):
         storage_block: ReadableFileSystem = Block._from_block_document(block_document)
         content = await storage_block.read_path(self.storage_key)
 
-        blob = ResultBlob.parse_raw(content)
+        blob = PersistedResultBlob.parse_raw(content)
         obj = blob.serializer.loads(blob.data)
         self._cache_object(obj)
 
@@ -367,13 +367,13 @@ class ResultReference(BaseResult):
     @classmethod
     @sync_compatible
     async def create(
-        cls: "Type[ResultReference]",
+        cls: "Type[PersistedResult]",
         obj: R,
         storage_block: WritableFileSystem,
         storage_block_id: uuid.UUID,
         serializer: Serializer,
         cache_object: bool = True,
-    ) -> "ResultReference[R]":
+    ) -> "PersistedResult[R]":
         """
         Create a new result reference from a user's object.
 
@@ -381,7 +381,7 @@ class ResultReference(BaseResult):
         key. It will then be cached on the returned result.
         """
         data = serializer.dumps(obj)
-        blob = ResultBlob(serializer=serializer, data=data)
+        blob = PersistedResultBlob(serializer=serializer, data=data)
 
         key = uuid.uuid4().hex
         await storage_block.write_path(key, content=blob.to_bytes())
@@ -399,9 +399,11 @@ class ResultReference(BaseResult):
         return result
 
 
-class ResultBlob(pydantic.BaseModel):
+class PersistedResultBlob(pydantic.BaseModel):
     """
-    The format of the content stored in a result file.
+    The format of the content stored by a persisted result.
+
+    Typically, this is written to a file as bytes.
     """
 
     serializer: Serializer
