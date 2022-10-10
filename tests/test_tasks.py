@@ -364,7 +364,7 @@ class TestTaskSubmit:
         def test_flow():
             f = foo.submit(1)
             b = bar.submit(f)
-            return b
+            return b.result()
 
         assert test_flow() == 2
 
