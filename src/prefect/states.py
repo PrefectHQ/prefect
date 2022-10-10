@@ -112,7 +112,7 @@ def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
 async def exception_to_crashed_state(
     exc: BaseException,
     result_factory: Optional[ResultFactory] = None,
-) -> Crashed:
+) -> State:
     """
     Takes an exception that occurs _outside_ of user code and converts it to a
     'Crash' exception with a 'Crashed' state.
