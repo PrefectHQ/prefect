@@ -2,69 +2,91 @@ import os
 import signal
 import subprocess
 import sys
-from contextlib import asynccontextmanager
 from io import TextIOBase
 from typing import Callable, List, Optional, TextIO, Tuple, Union
 
 import anyio
 import anyio.abc
+import psutil
 from anyio.streams.text import TextReceiveStream, TextSendStream
 
 TextSink = Union[anyio.AsyncFile, TextIO, TextSendStream]
 
 
-@asynccontextmanager
-async def open_process(command: List[str], **kwargs):
+async def open_process(
+    command: Union[str, List[str]],
+    pid_file: Union[str, bytes, os.PathLike, None] = None,
+    **kwargs,
+) -> anyio.abc.Process:
     """
-    Like `anyio.open_process` but with:
-    - Support for Windows command joining
-    - Termination of the process on exception during yield
-    - Forced cleanup of process resources during cancellation
+    Start an external command in a subprocess.
+
+    Similar to `anyio.open_process` but with support for creating a PID file for commands that do not have a process
+    manager.
+
+    Args:
+        command: either a string to pass to the shell, or an iterable of strings containing the executable name or path
+            and its arguments.
+        pid_file: File name to store the process ID (PID). Only needed if the command does not have its own process
+            manager.
+        kwargs: Other arguments passed to the de function `anyio.open_process`.
+
+    Raises:
+        OSError: When trying to run a non-existent file or failing to write the PID file.
+
+    Returns:
+        An asynchronous process object.
+
     """
-    # Passing a string to open_process is equivalent to shell=True which is
-    # generally necessary for Unix-like commands on Windows but otherwise should
-    # be avoided
-    if sys.platform == "win32":
-        command = " ".join(command)
+    kwargs.setdefault("stdout", subprocess.DEVNULL)
+    kwargs.setdefault("stderr", subprocess.DEVNULL)
 
     process = await anyio.open_process(command, **kwargs)
 
-    try:
-        async with process:
-            yield process
-    finally:
+    if pid_file is not None:
         try:
+            with open(pid_file, "w") as f:
+                f.write(str(process.pid))
+        except OSError as e:
             process.terminate()
-        except ProcessLookupError:
-            # Occurs if the process is already terminated
-            pass
+            await process.wait()
+            raise OSError(f"Could not write PID to file {str(pid_file)!r}: {e}")
 
-        # Ensure the process resource is closed. If not shielded from cancellation,
-        # this resource an be left open and the subprocess output can be appear after
-        # the parent process has exited.
-        with anyio.CancelScope(shield=True):
-            await process.aclose()
+    return process
 
 
 async def run_process(
-    command: List[str],
+    command: Union[str, List[str]],
     stream_output: Union[bool, Tuple[Optional[TextSink], Optional[TextSink]]] = False,
     task_status: Optional[anyio.abc.TaskStatus] = None,
     **kwargs,
-):
+) -> anyio.abc.Process:
     """
-    Like `anyio.run_process` but with:
+    Run an external command in a subprocess and wait until it completes.
 
-    - Use of our `open_process` utility to ensure resources are cleaned up
+    Similar to `anyio.run_process` but with:
     - Simple `stream_output` support to connect the subprocess to the parent stdout/err
     - Support for submission with `TaskGroup.start` marking as 'started' after the
         process has been created. When used, the PID is returned to the task status.
+
+    Args:
+        command: either a string to pass to the shell, or an iterable of strings containing the executable name or path
+            and its arguments.
+        stream_output:
+        task_status: Task to mark as 'started' after process creation. The process PID is returned to the task status.
+            process has been created.
+        kwargs: Other arguments passed to the de function `anyio.open_process`.
+
+    Returns:
+        An asynchronous process object.
 
     """
     if stream_output is True:
         stream_output = (sys.stdout, sys.stderr)
 
-    async with open_process(
+    # When you use the anyio.open_process with context managers via the with statement
+    # it waits for the sub-process to finish before continuing.
+    async with await open_process(
         command,
         stdout=subprocess.PIPE if stream_output else subprocess.DEVNULL,
         stderr=subprocess.PIPE if stream_output else subprocess.DEVNULL,
@@ -79,9 +101,50 @@ async def run_process(
                 process, stdout_sink=stream_output[0], stderr_sink=stream_output[1]
             )
 
-        await process.wait()
-
     return process
+
+
+def stop_process(pid_file: Union[str, bytes, os.PathLike]):
+    """
+    Stop an external command in a subprocess and delete its PID file if it exists.
+
+    Args:
+        pid_file: File name to read the process ID (PID).
+
+    Raises:
+        OSError: When unable to read the PID file.
+        ValueError: When the PID file does not contain a valid value.
+        ProcessLookupError: When no process with the given pid is found in the current process list, or when a process no longer exists.
+        PermissionError: When permission to perform an action is denied due to insufficient privileges.
+
+    """
+    try:
+        with open(pid_file, "r") as f:
+            pid = f.read()
+    except OSError as e:
+        raise OSError(f"Could not read PID from file {str(pid_file)!r}: {e}")
+
+    remove_pid_file = True
+    try:
+        process = psutil.Process(int(pid))
+
+        # Finish the process, wait a while and if it's still alive, kill it.
+        process.terminate()
+        try:
+            process.wait(3)
+        except psutil.TimeoutExpired:
+            process.kill()
+    except (ValueError, TypeError) as e:
+        remove_pid_file = False
+        raise ValueError(f"Invalid PID file {str(pid_file)!r}: {e}")
+    except psutil.NoSuchProcess as e:
+        raise ProcessLookupError(e)
+    except psutil.AccessDenied as e:
+        remove_pid_file = False
+        raise PermissionError(e)
+    finally:
+        if remove_pid_file is True and os.path.exists(pid_file):
+            os.remove(pid_file)
 
 
 async def consume_process_output(
