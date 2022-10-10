@@ -86,7 +86,7 @@ async def run_process(
 
     # When you use the anyio.open_process with context managers via the with statement
     # it waits for the sub-process to finish before continuing.
-    async with await anyio.open_process(
+    async with await open_process(
         command,
         stdout=subprocess.PIPE if stream_output else subprocess.DEVNULL,
         stderr=subprocess.PIPE if stream_output else subprocess.DEVNULL,
