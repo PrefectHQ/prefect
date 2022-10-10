@@ -1027,6 +1027,14 @@ class OrionClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            elif (
+                e.response.status_code == status.HTTP_403_FORBIDDEN
+                and e.response.json()["detail"]
+                == "protected block types cannot be deleted."
+            ):
+                raise prefect.exceptions.ProtectedBlockError(
+                    "Protected block types cannot be deleted."
+                ) from e
             else:
                 raise
 
