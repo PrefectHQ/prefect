@@ -48,56 +48,56 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
 
         Examples:
             >>> from prefect import flow, task
-        >>> @task
-        >>> def my_task(x):
-        >>>     return x
+            >>> @task
+            >>> def my_task(x):
+            >>>     return x
 
-        Get the result from a task future in a flow
+            Get the result from a task future in a flow
 
-        >>> @flow
-        >>> def my_flow():
-        >>>     future = my_task("hello")
-        >>>     state = future.wait()
-        >>>     result = state.result()
-        >>>     print(result)
-        >>> my_flow()
-        hello
+            >>> @flow
+            >>> def my_flow():
+            >>>     future = my_task("hello")
+            >>>     state = future.wait()
+            >>>     result = state.result()
+            >>>     print(result)
+            >>> my_flow()
+            hello
 
-        Get the result from a flow state
+            Get the result from a flow state
 
-        >>> @flow
-        >>> def my_flow():
-        >>>     return "hello"
-        >>> my_flow(return_state=True).result()
-        hello
+            >>> @flow
+            >>> def my_flow():
+            >>>     return "hello"
+            >>> my_flow(return_state=True).result()
+            hello
 
-        Get the result from a failed state
+            Get the result from a failed state
 
-        >>> @flow
-        >>> def my_flow():
-        >>>     raise ValueError("oh no!")
-        >>> state = my_flow(return_state=True)  # Error is wrapped in FAILED state
-        >>> state.result()  # Raises `ValueError`
+            >>> @flow
+            >>> def my_flow():
+            >>>     raise ValueError("oh no!")
+            >>> state = my_flow(return_state=True)  # Error is wrapped in FAILED state
+            >>> state.result()  # Raises `ValueError`
 
-        Get the result from a failed state without erroring
+            Get the result from a failed state without erroring
 
-        >>> @flow
-        >>> def my_flow():
-        >>>     raise ValueError("oh no!")
-        >>> state = my_flow(return_state=True)
-        >>> result = state.result(raise_on_failure=False)
-        >>> print(result)
-        ValueError("oh no!")
+            >>> @flow
+            >>> def my_flow():
+            >>>     raise ValueError("oh no!")
+            >>> state = my_flow(return_state=True)
+            >>> result = state.result(raise_on_failure=False)
+            >>> print(result)
+            ValueError("oh no!")
 
 
-        Get the result from a flow state in an async context
+            Get the result from a flow state in an async context
 
-        >>> @flow
-        >>> async def my_flow():
-        >>>     return "hello"
-        >>> state = await my_flow(return_state=True)
-        >>> await state.result()
-        hello
+            >>> @flow
+            >>> async def my_flow():
+            >>>     return "hello"
+            >>> state = await my_flow(return_state=True)
+            >>> await state.result()
+            hello
         """
         from prefect.states import get_state_result
 
