@@ -125,18 +125,34 @@ class State(IDBaseModel, Generic[R]):
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
     def result(self, raise_on_failure: bool = True, fetch: Optional[bool] = None):
+        # Backwards compatible `result` handling on the server-side schema
         from prefect.states import State
 
         warnings.warn(
             "`result` is no longer supported by `prefect.orion.schemas.states.State` "
             "and will be removed in a future release. When result retrieval is needed, "
-            "use `prefect.client.schemas.State`.",
+            "use `prefect.states.State`.",
             DeprecationWarning,
             stacklevel=2,
         )
 
         state = State.parse_obj(self)
         return state.result(raise_on_failure=raise_on_failure, fetch=fetch)
+
+    def to_state_create(self):
+        # Backwards compatibility for `to_state_create`
+        from prefect.orion.schemas import State
+
+        warnings.warn(
+            "`to_state_create` is not supported by `prefect.orion.schemas.states.State` "
+            "and will be removed in a future release. When working with states, use "
+            "`prefect.states.State` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        state = State.parse_obj(self)
+        return state.to_state_create()
 
     def __repr__(self) -> str:
         """
