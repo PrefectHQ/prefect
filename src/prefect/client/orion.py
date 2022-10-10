@@ -19,6 +19,7 @@ import prefect.settings
 from prefect.client.schemas import (
     FlowRun,
     OrchestrationResult,
+    Pending,
     Scheduled,
     State,
     TaskRun,
@@ -357,7 +358,7 @@ class OrionClient:
         flow_run_create = schemas.actions.DeploymentFlowRunCreate(
             parameters=parameters,
             context=context,
-            state=state,
+            state=state.to_state_create(),
             tags=tags,
             name=name,
         )
@@ -402,7 +403,7 @@ class OrionClient:
         context = context or {}
 
         if state is None:
-            state = schemas.states.Pending()
+            state = Pending()
 
         # Retrieve the flow id
         flow_id = await self.create_flow(flow)
@@ -415,7 +416,7 @@ class OrionClient:
             context=context,
             tags=list(tags or []),
             parent_task_run_id=parent_task_run_id,
-            state=state,
+            state=state.to_state_create(),
             empirical_policy=schemas.core.FlowRunPolicy(
                 retries=flow.retries,
                 retry_delay=flow.retry_delay_seconds,
@@ -1423,7 +1424,6 @@ class OrionClient:
         flow_run_id: UUID,
         state: State,
         force: bool = False,
-        backend_state_data: DataDocument = None,
     ) -> OrchestrationResult:
         """
         Set the state of a flow run.
@@ -1433,33 +1433,17 @@ class OrionClient:
             state: the state to set
             force: if True, disregard orchestration logic when setting the state,
                 forcing the Orion API to accept the state
-            backend_state_data: an optional data document representing the state's data,
-                if provided it will override `state.data`
 
         Returns:
             a [OrchestrationResult model][prefect.orion.orchestration.rules.OrchestrationResult]
                 representation of state orchestration output
         """
-        state_data = schemas.actions.StateCreate(
-            type=state.type,
-            name=state.name,
-            message=state.message,
-            data=backend_state_data or state.data,
-            state_details=state.state_details,
-        )
-        state_data.state_details.flow_run_id = flow_run_id
-
-        # Attempt to serialize the given data
-        try:
-            state_data_json = state_data.dict(json_compatible=True)
-        except TypeError:
-            # Drop the user data
-            state_data.data = None
-            state_data_json = state_data.dict(json_compatible=True)
+        state_create = state.to_state_create()
+        state_create.state_details.flow_run_id = flow_run_id
 
         response = await self._client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=state_data_json, force=force),
+            json=dict(state=state_create.dict(json_compatible=True), force=force),
         )
         return OrchestrationResult.parse_obj(response.json())
 
@@ -1518,7 +1502,7 @@ class OrionClient:
         tags = set(task.tags).union(extra_tags or [])
 
         if state is None:
-            state = schemas.states.Pending()
+            state = Pending()
 
         task_run_data = schemas.actions.TaskRunCreate(
             name=name,
@@ -1531,7 +1515,7 @@ class OrionClient:
                 retries=task.retries,
                 retry_delay=task.retry_delay_seconds,
             ),
-            state=state,
+            state=state.to_state_create(),
             task_inputs=task_inputs or {},
         )
 
@@ -1606,7 +1590,6 @@ class OrionClient:
         task_run_id: UUID,
         state: State,
         force: bool = False,
-        backend_state_data: DataDocument = None,
     ) -> OrchestrationResult:
         """
         Set the state of a task run.
@@ -1616,33 +1599,16 @@ class OrionClient:
             state: the state to set
             force: if True, disregard orchestration logic when setting the state,
                 forcing the Orion API to accept the state
-            backend_state_data: an optional orion data document representing the state's data,
-                if provided it will override `state.data`
 
         Returns:
             a [OrchestrationResult model][prefect.orion.orchestration.rules.OrchestrationResult]
                 representation of state orchestration output
         """
-        state_data = schemas.actions.StateCreate(
-            name=state.name,
-            type=state.type,
-            message=state.message,
-            data=backend_state_data or state.data,
-            state_details=state.state_details,
-        )
-        state_data.state_details.task_run_id = task_run_id
-
-        # Attempt to serialize the given data
-        try:
-            state_data_json = state_data.dict(json_compatible=True)
-        except TypeError:
-            # Drop the user data
-            state_data.data = None
-            state_data_json = state_data.dict(json_compatible=True)
-
+        state_create = state.to_state_create()
+        state_create.state_details.task_run_id = task_run_id
         response = await self._client.post(
             f"/task_runs/{task_run_id}/set_state",
-            json=dict(state=state_data_json, force=force),
+            json=dict(state=state_create.dict(json_compatible=True), force=force),
         )
         return OrchestrationResult.parse_obj(response.json())
 

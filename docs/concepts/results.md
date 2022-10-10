@@ -394,7 +394,7 @@ You can configure this to use a specific storage using one of the following:
 Generally, this means that tasks will use the result serializer configured on the flow unless otherwise specified.
 If there is no context to load the serializer from, the serializer defined by `PREFECT_RESULTS_DEFAULT_SERIALIZER` will be used. This setting defaults to Prefect's pickle serializer.
 
-You may set the configure the result serializer using:
+You may configure the result serializer using:
 
 - A type name, e.g. `"json"` or `"pickle"` &mdash; this corresponds to an instance with default values
 - An instance, e.g. `JSONSerializer(jsonlib="orjson")`
