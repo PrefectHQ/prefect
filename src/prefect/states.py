@@ -186,7 +186,7 @@ async def exception_to_failed_state(
     return Failed(data=data, message=message, **kwargs)
 
 
-async def return_value_to_state(result: R, result_factory: ResultFactory) -> State[R]:
+async def return_value_to_state(retval: R, result_factory: ResultFactory) -> State[R]:
     """
     Given a return value from a user's function, create a `State` the run should
     be placed in.
@@ -194,9 +194,8 @@ async def return_value_to_state(result: R, result_factory: ResultFactory) -> Sta
     - If data is returned, we create a 'COMPLETED' state with the data
     - If a single, manually created state is returned, we use that state as given
         (manual creation is determined by the lack of ids)
-    - If an upstream state or iterable of upstream states is returned, we apply the aggregate rule
-    - If a future or iterable of futures is returned, we resolve it into states then
-        apply the aggregate rule
+    - If an upstream state or iterable of upstream states is returned, we apply the
+        aggregate rule
 
     The aggregate rule says that given multiple states we will determine the final state
     such that:
@@ -205,23 +204,21 @@ async def return_value_to_state(result: R, result_factory: ResultFactory) -> Sta
     - If all of the states are COMPLETED the final state is COMPLETED
     - The states will be placed in the final state `data` attribute
 
-    The aggregate rule is applied to _single_ futures to distinguish from returning a
-    _single_ state. This prevents a flow from assuming the state of a single returned
-    task future.
+    Callers should resolve all futures into states before passing return values to this
+    function.
     """
 
     if (
-        is_state(result)
+        is_state(retval)
         # Check for manual creation
-        and not result.state_details.flow_run_id
-        and not result.state_details.task_run_id
+        and not retval.state_details.flow_run_id
+        and not retval.state_details.task_run_id
     ):
-        return result
+        return retval
 
-    # If we resolved a task future or futures into states, we will determine a new state
-    # from their aggregate
-    if is_state(result) or is_state_iterable(result):
-        states = StateGroup(ensure_iterable(result))
+    # Determine a new state from the aggregate of contained states
+    if is_state(retval) or is_state_iterable(retval):
+        states = StateGroup(ensure_iterable(retval))
 
         # Determine the new state type
         new_state_type = (
@@ -246,11 +243,11 @@ async def return_value_to_state(result: R, result_factory: ResultFactory) -> Sta
         return State(
             type=new_state_type,
             message=message,
-            data=await result_factory.create_result(result),
+            data=await result_factory.create_result(retval),
         )
 
-    # Otherwise, they just gave data and this is a completed result
-    return Completed(data=await result_factory.create_result(result))
+    # Otherwise, they just gave data and this is a completed retval
+    return Completed(data=await result_factory.create_result(retval))
 
 
 @sync_compatible
