@@ -3,7 +3,7 @@ import pytest
 from prefect.client.schemas import Completed, Crashed, Failed, Pending, Running
 from prefect.exceptions import CrashedRun, FailedRun
 from prefect.futures import PrefectFuture
-from prefect.results import ResultFactory, ResultLiteral
+from prefect.results import LiteralResult, ResultFactory
 from prefect.states import (
     is_state,
     is_state_iterable,
@@ -85,7 +85,7 @@ class TestRaiseStateException:
         ):
             await raise_state_exception(state_cls(data=inner_states))
 
-    @pytest.mark.parametrize("value", ["foo", ResultLiteral(value="foo")])
+    @pytest.mark.parametrize("value", ["foo", LiteralResult(value="foo")])
     async def test_raises_wrapper_with_message_if_result_is_string(
         self, state_cls, value
     ):
