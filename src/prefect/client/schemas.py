@@ -140,6 +140,13 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             return get_state_result(self, raise_on_failure=raise_on_failure)
 
     def to_state_create(self) -> schemas.actions.StateCreate:
+        """
+        Convert this state to a `StateCreate` type which can be used to set the state of
+        a run in the API.
+
+        This method will drop this state's `data` if it is not a result type. Only
+        results should be sent to the API. Other data is only available locally.
+        """
         from prefect.results import BaseResult
 
         return schemas.actions.StateCreate(
