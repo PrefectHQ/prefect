@@ -1438,12 +1438,12 @@ class OrionClient:
             a [OrchestrationResult model][prefect.orion.orchestration.rules.OrchestrationResult]
                 representation of state orchestration output
         """
-        state_data = state.to_state_create()
-        state_data.state_details.flow_run_id = flow_run_id
+        state_create = state.to_state_create()
+        state_create.state_details.flow_run_id = flow_run_id
 
         response = await self._client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=state_data.dict(json_compatible=True), force=force),
+            json=dict(state=state_create.dict(json_compatible=True), force=force),
         )
         return OrchestrationResult.parse_obj(response.json())
 
@@ -1604,11 +1604,11 @@ class OrionClient:
             a [OrchestrationResult model][prefect.orion.orchestration.rules.OrchestrationResult]
                 representation of state orchestration output
         """
-        state_data = state.to_state_create()
-        state_data.state_details.task_run_id = task_run_id
+        state_create = state.to_state_create()
+        state_create.state_details.task_run_id = task_run_id
         response = await self._client.post(
             f"/task_runs/{task_run_id}/set_state",
-            json=dict(state=state_data.dict(json_compatible=True), force=force),
+            json=dict(state=state_create.dict(json_compatible=True), force=force),
         )
         return OrchestrationResult.parse_obj(response.json())
 
