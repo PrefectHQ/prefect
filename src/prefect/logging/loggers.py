@@ -1,5 +1,5 @@
 import logging
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stdout
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
@@ -193,4 +193,46 @@ def disable_run_logger():
     are returned to its original state.
     """
     with disable_logger("prefect.flow_run"), disable_logger("prefect.task_run"):
+        yield
+
+
+class RedirectToLog:
+    """
+    Custom redirect of stdout messages to logs
+
+    Args:
+        - logger (logging.Logger, optional): an optional logger to redirect stdout. If
+            not provided a logger names `stdout` will be created.
+    """
+
+    def __init__(self, logger: logging.Logger = None) -> None:
+        self.stdout_logger = logger or get_logger("stdout")
+
+    def write(self, s: str) -> None:
+        """
+        Write message from stdout to a prefect logger.
+        Note: blank newlines will not be logged.
+
+        Args:
+            s (str): the message from stdout to be logged
+        """
+        if not isinstance(s, str):
+            # stdout is expecting str
+            raise TypeError(f"string argument expected, got {type(s)}")
+
+        if s.strip():
+            self.stdout_logger.info(s)
+
+    def flush(self) -> None:
+        """
+        Implemented flush operation for logger handler
+        """
+        for handler in self.stdout_logger.handlers:
+            handler.flush()
+
+
+@contextmanager
+def log_stdout():
+    logger = get_run_logger()
+    with redirect_stdout(RedirectToLog(logger)):
         yield
