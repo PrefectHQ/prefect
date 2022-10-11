@@ -5,6 +5,7 @@ from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ValidationError
 from typing_extensions import Literal
 
@@ -13,6 +14,13 @@ from prefect.cli import app
 from prefect.settings import PREFECT_CLOUD_URL
 
 login_api = FastAPI()
+
+login_api.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class LoginSuccess(BaseModel):
