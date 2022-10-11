@@ -4,6 +4,7 @@ from prefect.cli.root import app
 # isort: split
 
 import prefect.cli.agent
+import prefect.cli.login
 import prefect.cli.block
 import prefect.cli.cloud
 import prefect.cli.concurrency_limit
