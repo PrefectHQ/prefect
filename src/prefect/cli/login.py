@@ -80,3 +80,4 @@ def login():
         print(f"Invalid response from API: {output}")
 
     process.kill()
+    print(f":) got {payload!r}")
