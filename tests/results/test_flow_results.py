@@ -3,6 +3,7 @@ import pytest
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
+from prefect.results import LiteralResult
 from prefect.serializers import JSONSerializer, PickleSerializer, Serializer
 from prefect.settings import PREFECT_HOME
 from prefect.testing.utilities import (
@@ -39,6 +40,39 @@ async def test_flow_with_unpersisted_result(orion_client, persist_result):
     ).state
     with pytest.raises(MissingResult):
         await api_state.result()
+
+
+async def test_flow_result_not_missing_with_null_return(orion_client):
+    @flow
+    def foo():
+        return None
+
+    state = foo(return_state=True)
+    assert await state.result() is None
+
+    api_state = (
+        await orion_client.read_flow_run(state.state_details.flow_run_id)
+    ).state
+    assert await api_state.result() is None
+
+
+@pytest.mark.parametrize("value", [True, False, None])
+async def test_flow_literal_result_is_not_serialized_or_persisted(orion_client, value):
+    @flow(
+        persist_result=True,
+        result_serializer="pickle",
+        result_storage=LocalFileSystem(basepath=PREFECT_HOME.value()),
+    )
+    def foo():
+        return value
+
+    state = foo(return_state=True)
+    assert await state.result() is value
+
+    api_state = (
+        await orion_client.read_flow_run(state.state_details.flow_run_id)
+    ).state
+    assert await api_state.result() is value
 
 
 @pytest.mark.parametrize(
@@ -186,3 +220,23 @@ async def test_child_flow_result_storage(orion_client, source):
     ).state
     assert await api_state.result() == 1
     await assert_uses_result_storage(api_state, storage)
+
+
+async def test_child_flow_result_not_missing_with_null_return(orion_client):
+    @flow
+    def foo():
+        return bar(return_state=True)
+
+    @flow
+    def bar():
+        return None
+
+    parent_state = foo(return_state=True)
+    child_state = await parent_state.result()
+    assert isinstance(child_state.data, LiteralResult)
+    assert await child_state.result() is None
+
+    api_state = (
+        await orion_client.read_flow_run(child_state.state_details.flow_run_id)
+    ).state
+    assert await api_state.result() is None

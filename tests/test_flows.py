@@ -1241,6 +1241,13 @@ class TestSubflowRunLogs:
 
 
 class TestFlowResults:
+    """
+    See `tests/results/test_flow_results.py` instead please.
+
+    These tests were retained during the results rewrite but new tests should be added
+    in the dedicated file.
+    """
+
     async def test_flow_results_are_not_stored_by_default(self, orion_client):
         @flow
         def foo():

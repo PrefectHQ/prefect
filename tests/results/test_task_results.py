@@ -2,6 +2,7 @@ import pytest
 
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
+from prefect.results import LiteralResult
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import PREFECT_HOME
 from prefect.tasks import task
@@ -121,3 +122,47 @@ async def test_task_result_storage(orion_client, source):
     ).state
     assert await api_state.result() == 1
     await assert_uses_result_storage(api_state, storage)
+
+
+async def test_task_result_not_missing_with_null_return(orion_client):
+    @flow
+    def foo():
+        return bar(return_state=True)
+
+    @task
+    def bar():
+        return None
+
+    flow_state = foo(return_state=True)
+    task_state = await flow_state.result()
+    assert await task_state.result() is None
+
+    api_state = (
+        await orion_client.read_task_run(task_state.state_details.task_run_id)
+    ).state
+    assert await api_state.result() is None
+
+
+@pytest.mark.parametrize("value", [True, False, None])
+async def test_task_literal_result_is_not_serialized_or_persisted(orion_client, value):
+    @flow
+    def foo():
+        return bar(return_state=True)
+
+    @task(
+        persist_result=True,
+        result_serializer="pickle",
+        result_storage=LocalFileSystem(basepath=PREFECT_HOME.value()),
+    )
+    def bar():
+        return value
+
+    flow_state = foo(return_state=True)
+    task_state = await flow_state.result()
+    assert isinstance(task_state.data, LiteralResult)
+    assert await task_state.result() is value
+
+    api_state = (
+        await orion_client.read_task_run(task_state.state_details.task_run_id)
+    ).state
+    assert await api_state.result() is value
