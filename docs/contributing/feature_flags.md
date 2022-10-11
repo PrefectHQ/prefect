@@ -104,7 +104,6 @@ At runtime, you can check the flag by specifying the condition
 as a keyword argument to `flag_is_enabled()`:
 
 ```python
-
 from prefect.utilities.feature_flags import feature_flags
 
 # Note: The difference between this and the last example of using

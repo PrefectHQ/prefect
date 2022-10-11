@@ -426,16 +426,16 @@ PREFECT_ORION_BLOCKS_REGISTER_ON_START = Setting(
 PREFECT_FEATURE_FLAGGING_ENABLED = Setting(
     bool,
     default=False,
-    description="""Whether or not to enable Prefect's feature flagging system.
+    description="""Whether to enable Prefect's feature flagging system.
     Defaults to `False`.""",
 )
 
 PREFECT_FEATURE_FLAGGING_SETTINGS_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "feature_flags.yml",
-    description=f"""The path to a custom YAML feature flagging configuration 
-    file. If no file is found, the default `feature_flags.yml` is used. 
-    Defaults to `feature_flags.yml` in the Prefect home directory.""",
+    description=f"""The path to a custom YAML feature flagging configuration
+    file. If no file is found, the default `feature_flags.yml` is used.
+    Defaults to `feature_flags.yml` in the `PREFECT_HOME` directory.""",
     value_callback=template_with_settings(PREFECT_HOME),
 )
 

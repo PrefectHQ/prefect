@@ -114,19 +114,19 @@ class FeatureFlagger(FeatureFlagClient):
         """
         Check if a feature flag is enabled.
 
-        This function always returns False if the setting
+        This function always returns `False` if the setting
         `PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING` is false.
 
         NOTE: If `flag_is_enabled()` is called for a feature that has
-        conditions, but the caller does not give any conditions, the
-        current state of the flag is returned.
+        conditions, but the caller does not give any conditions, the current
+        state of the flag is returned.
 
         Args:
             flag_name: The name of the feature flag.
             default: The default return value to use if no feature flag with
-                     the given name exists. Defaults to False.
+                     the given name exists. Defaults to `False`.
             conditions: Keyword arguments, e.g. `is_admin=True`, to check
-                        against any Conditions on the flag.
+                        against any `Conditions` on the flag.
 
         Returns:
             bool: Whether the flag is enabled.
@@ -193,8 +193,6 @@ def get_default_feature_flagger() -> FeatureFlagger:
     Return the default feature flagger.
 
     The default feature flagger uses an in-memory flag store.
-
-    Once the feature flag
     """
     global _flagger
 
