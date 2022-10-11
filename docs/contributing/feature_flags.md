@@ -29,7 +29,7 @@ The ideal uses of feature flags are:
    a developer can test, merge, and deploy an incomplete feature.
    This lets us move faster and integrate in-progress systems early.
 
-2. Releasing a feature to a subset of users, AKA "canary releases."
+2. Releasing a feature to a subset of users, known as "canary releases."
    On this technique, we release a new (complete) feature to a small
    group of users, monitor the results, and gradually release the
    feature to more users until 100% of users see the new feature.
@@ -100,7 +100,7 @@ create_if_missing(MY_FLAG, conditions=[is_admin])
     You won't need to refer to the condition object later. This example
     includes it as a separate variable for ease of reading.
 
-Then, at runtime, you can check the flag by specifying the condition
+At runtime, you can check the flag by specifying the condition
 as a keyword argument to `flag_is_enabled()`:
 
 ```python

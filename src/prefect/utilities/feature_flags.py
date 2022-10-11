@@ -56,15 +56,15 @@ class FeatureFlagger(FeatureFlagClient):
 
         Args:
             flag_name: The name of the feature flag.
-            is_enabled: the initial enabled/disabled state of the flag if
-                        this function creates it
-            client_data: arbitrary data that we should store with the flag
-            bucketer: an optional "bucketer" from the `flipper` module, e.g.
+            is_enabled: The initial enabled/disabled state of the flag if
+                        this function creates it.
+            client_data: Arbitrary data that we should store with the flag.
+            bucketer: An optional "bucketer" from the `flipper` module, e.g.
                       `PercentageBucketer`, to use when determining if the
-                      flag is enabled
-            conditions: an optional iterable of `Condition` instances from the
+                      flag is enabled.
+            conditions: An optional iterable of `Condition` instances from the
                         `flipper` module against which we will check input data
-                        to determine if a flag is enabled
+                        to determine if a flag is enabled.
 
         Returns:
             `FeatureFlag` or None: Returns a created or existing flag or None
@@ -98,10 +98,10 @@ class FeatureFlagger(FeatureFlagClient):
         `PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING` is false.
 
         Args:
-            flag_name: the name of the feature flag
+            flag_name: The name of the feature flag.
 
         Returns:
-            bool: whether the flag exists
+            bool: Whether the flag exists.
         """
         if not settings.PREFECT_FEATURE_FLAGGING_ENABLED.value():
             return False
@@ -122,14 +122,14 @@ class FeatureFlagger(FeatureFlagClient):
         current state of the flag is returned.
 
         Args:
-            flag_name: the name of the feature flag
-            default: the default return value to use if no feature flag with
+            flag_name: The name of the feature flag.
+            default: The default return value to use if no feature flag with
                      the given name exists. Defaults to False.
-            conditions: keyword arguments, e.g. `is_admin=True`, to check
-                        against any Conditions on the flag
+            conditions: Keyword arguments, e.g. `is_admin=True`, to check
+                        against any Conditions on the flag.
 
         Returns:
-            bool: whether the flag is enabled
+            bool: Whether the flag is enabled.
         """
         if not settings.PREFECT_FEATURE_FLAGGING_ENABLED.value():
             return False
@@ -144,10 +144,10 @@ class FeatureFlagger(FeatureFlagClient):
         `PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING` is false.
 
         Args:
-            flag_name: the name of the feature flag
+            flag_name: The name of the feature flag.
 
         Returns:
-            FeatureFlag: the feature flag
+            FeatureFlag: The feature flag.
         """
 
         if not settings.PREFECT_FEATURE_FLAGGING_ENABLED.value():
@@ -163,12 +163,12 @@ class FeatureFlagger(FeatureFlagClient):
         `PREFECT_CLOUD_ENABLE_FEATURE_FLAGGING` is false.
 
         Args:
-            batch_size: batch size of flags to retrieve at a time
-            offset: the item number (zero-based) within the results to start
-                    pagination
+            batch_size: Batch size of flags to retrieve at a time.
+            offset: The item number (zero-based) within the results to start
+                    pagination.
 
         Returns:
-            List[FeatureFlag]: list of all feature flags in the store
+            List[FeatureFlag]: List of all feature flags in the store.
         """
         if not settings.PREFECT_FEATURE_FLAGGING_ENABLED.value():
             return []
