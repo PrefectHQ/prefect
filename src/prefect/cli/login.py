@@ -91,4 +91,7 @@ def login():
 
     process.kill()
 
-    print(f"Logged into account {payload.account_id}")
+    if payload.type == "success":
+        print(f"Logged into account {payload.content.account_id}")
+    elif payload.type == "failure":
+        print(f"Failed to login {payload.content.reason}")
