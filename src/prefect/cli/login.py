@@ -55,8 +55,8 @@ def login():
             "127.0.0.1",
             "--port",
             str(3001),
-            "--log-level",
-            "critical",
+            # "--log-level",
+            # "critical",
             "prefect.cli.login:login_api",
         ],
         stdout=subprocess.PIPE,
@@ -73,11 +73,14 @@ def login():
 
     app.console.print("Waiting for response...")
     # Quit after some time?
-    output = process.stdout.readline().strip()
+    output = None
+    while not output:
+        output = process.stdout.readline().strip()
     try:
         payload = LoginResult.parse_raw(output)
     except ValidationError:
         print(f"Invalid response from API: {output}")
+    else:
+        print(f":) got {payload!r}")
 
     process.kill()
-    print(f":) got {payload!r}")
