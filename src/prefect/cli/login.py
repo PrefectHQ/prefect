@@ -94,4 +94,4 @@ def login():
     if payload.type == "success":
         print(f"Logged into account {payload.content.account_id}")
     elif payload.type == "failure":
-        print(f"Failed to login {payload.content.reason}")
+        print(f"Failed to login: {payload.content.reason}")
