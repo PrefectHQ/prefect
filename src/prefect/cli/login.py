@@ -82,10 +82,11 @@ def login():
     app.console.print("Waiting for response...")
     # Quit after some time?
     payload = None
-    while not payload:
-        output = process.stdout.readline().strip()
+    for line in process.stdout:
+        line = line.strip()
         try:
-            payload = LoginResult.parse_raw(output)
+            payload = LoginResult.parse_raw(line)
+            break
         except ValidationError:
             pass
 
