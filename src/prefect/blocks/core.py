@@ -25,7 +25,7 @@ from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
-from prefect.client.orion import inject_client
+from prefect.client.utilities import inject_client
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging.loggers import disable_logger
 from prefect.orion.schemas.core import (
@@ -42,7 +42,7 @@ from prefect.utilities.importtools import to_qualified_name
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
-    from prefect.client import OrionClient
+    from prefect.client.orion import OrionClient
 
 R = TypeVar("R")
 P = ParamSpec("P")

@@ -6,10 +6,10 @@ import pytest
 from prefect import flow
 from prefect.agent import OrionAgent
 from prefect.blocks.core import Block
-from prefect.client.schemas import Completed, Pending, Running, Scheduled
 from prefect.exceptions import Abort, FailedRun
 from prefect.infrastructure.base import Infrastructure
 from prefect.orion import models, schemas
+from prefect.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dispatch import get_registry_for_type
 

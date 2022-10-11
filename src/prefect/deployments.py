@@ -16,9 +16,8 @@ import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from prefect.blocks.core import Block
-from prefect.client import OrionClient, get_client
-from prefect.client.orion import inject_client
-from prefect.client.schemas import Scheduled
+from prefect.client.orion import OrionClient, get_client
+from prefect.client.utilities import inject_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
 from prefect.filesystems import LocalFileSystem
@@ -26,6 +25,7 @@ from prefect.flows import Flow
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
+from prefect.states import Scheduled
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
