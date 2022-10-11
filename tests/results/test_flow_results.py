@@ -57,7 +57,9 @@ async def test_flow_result_not_missing_with_null_return(orion_client):
 
 
 @pytest.mark.parametrize("value", [True, False, None])
-async def test_flow_literal_result_is_not_serialized_or_persisted(orion_client, value):
+async def test_flow_literal_result_is_available_but_not_serialized_or_persisted(
+    orion_client, value
+):
     @flow(
         persist_result=True,
         result_serializer="pickle",
@@ -73,6 +75,22 @@ async def test_flow_literal_result_is_not_serialized_or_persisted(orion_client, 
         await orion_client.read_flow_run(state.state_details.flow_run_id)
     ).state
     assert await api_state.result() is value
+
+
+async def test_flow_exception_is_persisted(orion_client):
+    @flow(persist_result=True)
+    def foo():
+        raise ValueError("Hello world")
+
+    state = foo(return_state=True)
+    with pytest.raises(ValueError, match="Hello world"):
+        await state.result()
+
+    api_state = (
+        await orion_client.read_flow_run(state.state_details.flow_run_id)
+    ).state
+    with pytest.raises(ValueError, match="Hello world"):
+        await api_state.result()
 
 
 @pytest.mark.parametrize(

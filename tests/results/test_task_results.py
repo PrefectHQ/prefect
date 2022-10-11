@@ -10,6 +10,7 @@ from prefect.testing.utilities import (
     assert_uses_result_serializer,
     assert_uses_result_storage,
 )
+from prefect.utilities.annotations import quote
 
 
 @pytest.mark.parametrize("options", [{"retries": 3}])
@@ -144,7 +145,9 @@ async def test_task_result_not_missing_with_null_return(orion_client):
 
 
 @pytest.mark.parametrize("value", [True, False, None])
-async def test_task_literal_result_is_not_serialized_or_persisted(orion_client, value):
+async def test_task_literal_result_is_available_but_not_serialized_or_persisted(
+    orion_client, value
+):
     @flow
     def foo():
         return bar(return_state=True)
@@ -166,3 +169,24 @@ async def test_task_literal_result_is_not_serialized_or_persisted(orion_client, 
         await orion_client.read_task_run(task_state.state_details.task_run_id)
     ).state
     assert await api_state.result() is value
+
+
+async def test_task_exception_is_persisted(orion_client):
+    @flow
+    def foo():
+        return quote(bar(return_state=True))
+
+    @task(persist_result=True)
+    def bar():
+        raise ValueError("Hello world")
+
+    flow_state = foo(return_state=True)
+    task_state = (await flow_state.result()).unquote()
+    with pytest.raises(ValueError, match="Hello world"):
+        await task_state.result()
+
+    api_state = (
+        await orion_client.read_task_run(task_state.state_details.task_run_id)
+    ).state
+    with pytest.raises(ValueError, match="Hello world"):
+        await api_state.result()
