@@ -45,7 +45,6 @@ from prefect.exceptions import (
     MappingMissingIterable,
     UpstreamTaskError,
 )
-from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
 from prefect.logging.configuration import setup_logging
@@ -62,7 +61,7 @@ from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import ResultFactory
-from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_LOCAL_STORAGE_PATH
+from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
     Pending,
     Running,
@@ -347,10 +346,6 @@ async def begin_flow_run(
             flow.task_runner.start()
         )
 
-        result_filesystem = get_default_result_filesystem()
-        await result_filesystem._save(is_anonymous=True)
-        flow_run_context.result_filesystem = result_filesystem
-
         flow_run_context.result_factory = await ResultFactory.from_flow(
             flow, client=client
         )
@@ -486,7 +481,6 @@ async def create_and_begin_subflow_run(
                 partial_flow_run_context=PartialModel(
                     FlowRunContext,
                     sync_portal=parent_flow_run_context.sync_portal,
-                    result_filesystem=parent_flow_run_context.result_filesystem,
                     task_runner=task_runner,
                     background_tasks=parent_flow_run_context.background_tasks,
                     result_factory=result_factory,
@@ -990,7 +984,6 @@ async def submit_task_run(
             task_run=task_run,
             parameters=parameters,
             wait_for=wait_for,
-            result_filesystem=flow_run_context.result_filesystem,
             result_factory=await ResultFactory.from_task(
                 task, client=flow_run_context.client
             ),
@@ -1009,7 +1002,6 @@ async def begin_task_run(
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
-    result_filesystem: WritableFileSystem,
     result_factory: ResultFactory,
     settings: prefect.context.SettingsContext,
 ):
@@ -1083,7 +1075,6 @@ async def begin_task_run(
                 task_run=task_run,
                 parameters=parameters,
                 wait_for=wait_for,
-                result_filesystem=result_filesystem,
                 result_factory=result_factory,
                 interruptible=interruptible,
                 client=client,
@@ -1102,7 +1093,6 @@ async def orchestrate_task_run(
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
-    result_filesystem: WritableFileSystem,
     result_factory: ResultFactory,
     interruptible: bool,
     client: OrionClient,
@@ -1137,7 +1127,6 @@ async def orchestrate_task_run(
         task_run=task_run,
         task=task,
         client=client,
-        result_filesystem=result_filesystem,
         result_factory=result_factory,
     )
 
@@ -1577,13 +1566,6 @@ def link_state_to_result(state: State, result: Any) -> None:
 
     if flow_run_context:
         visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
-
-
-def get_default_result_filesystem() -> LocalFileSystem:
-    """
-    Generate a default file system for result storage.
-    """
-    return LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
 
 
 if __name__ == "__main__":

@@ -83,13 +83,14 @@ def test_context_exit_restores_previous_context():
     assert ExampleContext.get() is None
 
 
-async def test_flow_run_context(orion_client, local_filesystem):
+async def test_flow_run_context(orion_client):
     @flow
     def foo():
         pass
 
     test_task_runner = SequentialTaskRunner()
     flow_run = await orion_client.create_flow_run(foo)
+    result_factory = await ResultFactory.from_flow(foo)
 
     async with anyio.create_task_group() as task_group:
         with FlowRunContext(
@@ -97,8 +98,7 @@ async def test_flow_run_context(orion_client, local_filesystem):
             flow_run=flow_run,
             client=orion_client,
             task_runner=test_task_runner,
-            result_filesystem=local_filesystem,
-            result_factory=await ResultFactory.from_flow(foo),
+            result_factory=result_factory,
             background_tasks=task_group,
         ):
             ctx = FlowRunContext.get()
@@ -106,29 +106,27 @@ async def test_flow_run_context(orion_client, local_filesystem):
             assert ctx.flow_run == flow_run
             assert ctx.client is orion_client
             assert ctx.task_runner is test_task_runner
-            assert ctx.result_filesystem == local_filesystem
+            assert ctx.result_factory is result_factory
             assert isinstance(ctx.start_time, DateTime)
 
 
-async def test_task_run_context(orion_client, flow_run, local_filesystem):
+async def test_task_run_context(orion_client, flow_run):
     @task
     def foo():
         pass
 
     task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
+    result_factory = await ResultFactory.default_factory()
 
     with TaskRunContext(
         task=foo,
         task_run=task_run,
         client=orion_client,
-        result_filesystem=local_filesystem,
-        # `ResultFactory.from_task` requires a flow run context so we lie :)
-        result_factory=await ResultFactory.from_flow(foo, client=orion_client),
     ):
         ctx = TaskRunContext.get()
         assert ctx.task is foo
         assert ctx.task_run == task_run
-        assert ctx.result_filesystem == local_filesystem
+        assert ctx.result_factory is result_factory
         assert isinstance(ctx.start_time, DateTime)
 
 
@@ -167,7 +165,6 @@ async def test_get_run_context(orion_client, local_filesystem):
             flow_run=flow_run,
             client=orion_client,
             task_runner=test_task_runner,
-            result_filesystem=local_filesystem,
             background_tasks=task_group,
             result_factory=await ResultFactory.from_flow(foo, client=orion_client),
         ) as flow_ctx:
@@ -177,7 +174,6 @@ async def test_get_run_context(orion_client, local_filesystem):
                 task=bar,
                 task_run=task_run,
                 client=orion_client,
-                result_filesystem=local_filesystem,
                 result_factory=await ResultFactory.from_task(bar, client=orion_client),
             ) as task_ctx:
                 assert get_run_context() is task_ctx, "Task context takes precendence"
