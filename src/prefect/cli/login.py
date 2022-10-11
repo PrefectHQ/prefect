@@ -62,7 +62,7 @@ def login():
         stdout=subprocess.PIPE,
     )
 
-    target = quote("http://localhost/3001")
+    target = quote("http://localhost:3001")
 
     # TODO: Create a separate setting for this?
     cloud_ui_url = cloud_api_url.replace("https://api.", "https://")
