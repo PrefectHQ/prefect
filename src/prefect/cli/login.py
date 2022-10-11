@@ -63,8 +63,8 @@ def login():
             "127.0.0.1",
             "--port",
             str(3001),
-            # "--log-level",
-            # "critical",
+            "--log-level",
+            "critical",
             "prefect.cli.login:login_api",
         ],
         stdout=subprocess.PIPE,
@@ -87,8 +87,8 @@ def login():
         try:
             payload = LoginResult.parse_raw(output)
         except ValidationError:
-            print(f"Invalid response from API: {output}")
-        else:
-            print(f":) got {payload!r}")
+            pass
 
     process.kill()
+
+    print(f"Logged into account {payload.account_id}")
