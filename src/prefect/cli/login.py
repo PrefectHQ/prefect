@@ -73,14 +73,14 @@ def login():
 
     app.console.print("Waiting for response...")
     # Quit after some time?
-    output = None
-    while not output:
+    payload = None
+    while not payload:
         output = process.stdout.readline().strip()
-    try:
-        payload = LoginResult.parse_raw(output)
-    except ValidationError:
-        print(f"Invalid response from API: {output}")
-    else:
-        print(f":) got {payload!r}")
+        try:
+            payload = LoginResult.parse_raw(output)
+        except ValidationError:
+            print(f"Invalid response from API: {output}")
+        else:
+            print(f":) got {payload!r}")
 
     process.kill()
