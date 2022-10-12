@@ -32,7 +32,7 @@ async def provide_flow_policy():
     return provided_policy
 
 
-async def provide_restart_policy():
+async def provide_flow_restart_policy():
     provided_policy = ORCHESTRATION_DEPENDENCIES.get("flow_restart_policy")
 
     if provided_policy is None:
