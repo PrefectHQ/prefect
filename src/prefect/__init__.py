@@ -28,7 +28,7 @@ from prefect.tasks import task, Task
 from prefect.context import tags
 from prefect.client import get_client
 from prefect.manifests import Manifest
-from prefect.utilities.annotations import unmapped
+from prefect.utilities.annotations import unmapped, allow_failure
 
 # Import modules that register types
 import prefect.serializers
