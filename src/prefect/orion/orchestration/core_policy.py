@@ -50,6 +50,7 @@ class FlowRestartPolicy(BaseOrchestrationPolicy):
         return [
             OnlyRestartFromTerminalStates,
             PreventRestartingSubflowRuns,
+            PreventRestartingFlowsWithoutDeployments,
             RestartFlowRun,
         ]
 
@@ -480,7 +481,6 @@ class OnlyRestartFromTerminalStates(BaseOrchestrationRule):
 
 
 class PreventRestartingSubflowRuns(BaseOrchestrationRule):
-
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES
 
@@ -492,6 +492,20 @@ class PreventRestartingSubflowRuns(BaseOrchestrationRule):
     ) -> None:
         if self.run.parent_task_run_id:
             self.abort_transition("Cannot restart a subflow run.")
+
+
+class PreventRestartingFlowsWithoutDeployments(BaseOrchestrationRule):
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        if not self.run.deployment_id:
+            self.abort_transition("Cannot a run without an associated deployment.")
 
 
 class RestartFlowRun(BaseOrchestrationRule):
