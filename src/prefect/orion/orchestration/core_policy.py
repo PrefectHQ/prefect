@@ -43,11 +43,13 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
 
 class FlowRestartPolicy(BaseOrchestrationPolicy):
     """
-    Orchestration rules that run against flow-run-state transitions in priority order.
+    Orchestration rules that run against attempts to restart a flow-run.
     """
 
     def priority():
         return [
+            OnlyRestartFromTerminalStates,
+            PreventRestartingSubflowRuns,
             RestartFlowRun,
         ]
 
@@ -463,6 +465,35 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
             )
 
 
+class OnlyRestartFromTerminalStates(BaseOrchestrationRule):
+
+    FROM_STATES = list(set(ALL_ORCHESTRATION_STATES) - set(TERMINAL_STATES))
+    TO_STATES = [states.StateType.SCHEDULED]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        await self.abort_transition(reason="Can only restart runs that have terminated.")
+
+
+class PreventRestartingSubflowRuns(BaseOrchestrationRule):
+
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        if self.run.parent_task_run_id:
+            self.abort_transition("Cannot restart a subflow run.")
+
+
 class RestartFlowRun(BaseOrchestrationRule):
     FROM_STATES = TERMINAL_STATES
     TO_STATES = [states.StateType.SCHEDULED]
@@ -473,8 +504,6 @@ class RestartFlowRun(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ):
-        if self.run.parent_task_run_id:
-            self.abort_transition("Cannot restart a subflow run.")
         self.original_run_count = context.run.run_count
         context.run.run_count = 0  # reset run count to preserve retry behavior
         context.run.empirical_policy.restarts += 1
