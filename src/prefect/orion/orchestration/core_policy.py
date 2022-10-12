@@ -467,7 +467,7 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
 
 class OnlyRestartFromTerminalStates(BaseOrchestrationRule):
 
-    FROM_STATES = list(set(ALL_ORCHESTRATION_STATES) - set(TERMINAL_STATES))
+    FROM_STATES = set(ALL_ORCHESTRATION_STATES) - set(TERMINAL_STATES)
     TO_STATES = [states.StateType.SCHEDULED]
 
     async def before_transition(
@@ -516,9 +516,10 @@ class RestartFlowRun(BaseOrchestrationRule):
     ):
         task_runs = context.run.get_task_runs()
         for task_run in task_runs:
-            task_run.empirical_policy.flow_restart_index = (
-                context.run.empirical_policy.restarts - 1
-            )
+            if task_run.empirical_policy.flow_restart_index is None:
+                task_run.empirical_policy.flow_restart_index = (
+                    context.run.empirical_policy.restarts - 1
+                )
 
     async def cleanup(
         self,
