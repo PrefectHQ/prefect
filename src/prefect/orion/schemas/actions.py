@@ -137,7 +137,7 @@ class StateCreate(ActionBaseModel):
     type: schemas.states.StateType = FieldFrom(schemas.states.State)
     name: Optional[str] = FieldFrom(schemas.states.State)
     message: Optional[str] = FieldFrom(schemas.states.State)
-    data: Optional[schemas.data.DataDocument] = FieldFrom(schemas.states.State)
+    data: Optional[Any] = FieldFrom(schemas.states.State)
     state_details: schemas.states.StateDetails = FieldFrom(schemas.states.State)
 
     # DEPRECATED

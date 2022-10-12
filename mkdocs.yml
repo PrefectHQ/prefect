@@ -57,7 +57,7 @@ plugins:
         custom_templates: docs/templates
         handlers:
             python:
-                rendering:
+                options:
                     show_root_heading: True
                     show_object_full_path: False
                     show_category_heading: False

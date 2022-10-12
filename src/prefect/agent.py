@@ -11,15 +11,14 @@ import anyio.to_process
 import pendulum
 
 from prefect.blocks.core import Block
-from prefect.client import OrionClient, get_client
+from prefect.client.orion import OrionClient, get_client
 from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
-from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.states import Failed, Pending
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
+from prefect.states import Pending, exception_to_failed_state
 
 
 class OrionAgent:
@@ -292,10 +291,7 @@ class OrionAgent:
         try:
             await propose_state(
                 self.client,
-                Failed(
-                    message="Submission failed.",
-                    data=DataDocument.encode("cloudpickle", exc),
-                ),
+                await exception_to_failed_state(message="Submission failed.", exc=exc),
                 flow_run_id=flow_run.id,
             )
         except Abort:

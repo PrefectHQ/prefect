@@ -118,7 +118,7 @@ See the [Installation](/getting-started/installation/) documentation and [Window
 
 Prefect does not have any additional requirements besides those installed by `pip install --pre prefect`. The entire system, including the UI and services, can be run in a single process via `prefect orion start` and does not require Docker.
 
-To use PostgreSQL, users must provide the [connection string][prefect.settings.Settings.PREFECT_ORION_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable.
+To use PostgreSQL, users must provide the [connection string][prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable.
 
 ### What databases does Prefect support?
 

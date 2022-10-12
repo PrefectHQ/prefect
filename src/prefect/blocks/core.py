@@ -26,7 +26,7 @@ from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
 import prefect.exceptions
-from prefect.client.orion import inject_client
+from prefect.client.utilities import inject_client
 from prefect.logging.loggers import disable_logger
 from prefect.orion.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
@@ -42,7 +42,7 @@ from prefect.utilities.importtools import to_qualified_name
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
-    from prefect.client import OrionClient
+    from prefect.client.orion import OrionClient
 
 R = TypeVar("R")
 P = ParamSpec("P")
