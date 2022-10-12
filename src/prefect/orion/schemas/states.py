@@ -347,6 +347,15 @@ def AwaitingRetry(scheduled_time: datetime.datetime = None, **kwargs) -> State:
     return Scheduled(scheduled_time=scheduled_time, name="AwaitingRetry", **kwargs)
 
 
+def AwaitingRestart(scheduled_time: datetime.datetime = None, **kwargs) -> State:
+    """Convenience function for creating `AwaitingRestart` states.
+
+    Returns:
+        State: a AwaitingRestart state
+    """
+    return Scheduled(scheduled_time=scheduled_time, name="AwaitingRestart", **kwargs)
+
+
 def Retrying(**kwargs) -> State:
     """Convenience function for creating `Retrying` states.
 
