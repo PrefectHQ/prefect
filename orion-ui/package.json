@@ -14,7 +14,7 @@
     "@prefecthq/prefect-design": "1.1.16",
     "@prefecthq/vue-compositions": "0.1.49",
     "@types/lodash.debounce": "4.0.7",
-    "axios": "0.27.2",
+    "axios": "1.1.2",
     "d3": "^7.6.1",
     "lodash.debounce": "4.0.8",
     "pinia": "2.0.22",
