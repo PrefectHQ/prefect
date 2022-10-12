@@ -823,6 +823,11 @@ async def test_create_flow_run_from_deployment_idempotency(orion_client, deploym
 
     assert flow_run_2.id == flow_run_1.id
 
+    flow_run_3 = await orion_client.create_flow_run_from_deployment(
+        deployment.id, idempotency_key="bar"
+    )
+    assert flow_run_3.id != flow_run_1.id
+
 
 async def test_create_flow_run_from_deployment_with_options(orion_client, deployment):
     flow_run = await orion_client.create_flow_run_from_deployment(
