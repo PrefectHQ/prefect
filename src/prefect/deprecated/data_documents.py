@@ -1,22 +1,34 @@
 import base64
 import json
-from typing import TYPE_CHECKING, Any, Dict, Generic, Tuple, Type, TypeVar, Union
+import uuid
+import warnings
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generic,
+    Iterable,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import cloudpickle
+import pydantic
 from typing_extensions import Protocol
 
+from prefect.client.schemas import State
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
 if TYPE_CHECKING:
     from prefect.packaging.base import PackageManifest
-    from prefect.results import _Result
-
 
 T = TypeVar("T", bound="DataDocument")  # Generic for DataDocument class types
 D = TypeVar("D", bound=Any)  # Generic for DataDocument data types
 
+
 _SERIALIZERS: Dict[str, "Serializer"] = {}
-D = TypeVar("D")
 
 
 class Serializer(Protocol[D]):
@@ -206,6 +218,75 @@ class ResultSerializer:
 
     @staticmethod
     def loads(blob: bytes) -> "_Result":
-        from prefect.results import _Result
-
         return _Result.parse_raw(blob)
+
+
+def result_from_state_with_data_document(state: "State", raise_on_failure: bool) -> Any:
+    data = None
+
+    if state.data:
+        data = state.data.decode()
+
+    # Link the result to this state for dependency tracking
+    # Performing this here lets us capture relationships for futures resolved into
+    # data
+
+    if (state.is_failed() or state.is_crashed()) and raise_on_failure:
+        if isinstance(data, Exception):
+            raise data
+        elif isinstance(data, BaseException):
+            warnings.warn(
+                f"State result is a {type(data).__name__!r} type and is not safe "
+                "to re-raise, it will be returned instead."
+            )
+            return data
+        elif isinstance(data, State):
+            data.result()
+        elif isinstance(data, Iterable) and all([isinstance(o, State) for o in data]):
+            # raise the first failure we find
+            for state in data:
+                state.result()
+
+        # we don't make this an else in case any of the above conditionals doesn't raise
+        raise TypeError(
+            f"Unexpected result for failure state: {data!r} —— "
+            f"{type(data).__name__} cannot be resolved into an exception"
+        )
+
+    return data
+
+
+async def _persist_serialized_result(
+    content: bytes,
+    filesystem,
+) -> DataDocument:
+    key = uuid.uuid4().hex
+    await filesystem.write_path(key, content)
+    result = _Result(key=key, filesystem_document_id=filesystem._block_document_id)
+    return DataDocument.encode("result", result)
+
+
+async def _retrieve_serialized_result(document: DataDocument, client) -> bytes:
+    from prefect.blocks.core import Block
+
+    if document.encoding != "result":
+        raise TypeError(
+            f"Got unsupported data document encoding of {document.encoding!r}. "
+            "Expected 'result'."
+        )
+    result = document.decode()
+    filesystem_document = await client.read_block_document(
+        result.filesystem_document_id
+    )
+    filesystem = Block._from_block_document(filesystem_document)
+    return await filesystem.read_path(result.key)
+
+
+async def _retrieve_result(state, client):
+    serialized_result = await _retrieve_serialized_result(state.data, client)
+    return DataDocument.parse_raw(serialized_result).decode()
+
+
+class _Result(pydantic.BaseModel):
+    key: str
+    filesystem_document_id: uuid.UUID

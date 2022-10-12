@@ -39,7 +39,12 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
-from prefect.deprecated.data_documents import DataDocument
+from prefect.deprecated.data_documents import (
+    DataDocument,
+    _persist_serialized_result,
+    _retrieve_result,
+    _retrieve_serialized_result,
+)
 from prefect.exceptions import (
     Abort,
     MappingLengthMismatch,
@@ -62,12 +67,7 @@ from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateDetails, StateType
-from prefect.results import (
-    ResultFactory,
-    _persist_serialized_result,
-    _retrieve_result,
-    _retrieve_serialized_result,
-)
+from prefect.results import ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_LOCAL_STORAGE_PATH
 from prefect.states import (
     exception_to_crashed_state,
@@ -438,7 +438,7 @@ async def create_and_begin_subflow_run(
         flow_run = flow_runs[-1]
 
         # Hydrate the retrieved state
-        flow_run.state.data._cache_data(await _retrieve_result(flow_run.state))
+        flow_run.state.data._cache_data(await _retrieve_result(flow_run.state, client))
 
         # Set up variables required downstream
         terminal_state = flow_run.state
@@ -685,7 +685,7 @@ async def orchestrate_flow_run(
 
     if state.data is not None and state.data.encoding == "result":
         state.data = DataDocument.parse_raw(
-            await _retrieve_serialized_result(state.data)
+            await _retrieve_serialized_result(state.data, client=client)
         )
 
     return state
@@ -1127,7 +1127,9 @@ async def begin_task_run(
                 f"Retrieving result for state {task_run.state!r}..."
             )
             # Hydrate the state data
-            task_run.state.data._cache_data(await _retrieve_result(task_run.state))
+            task_run.state.data._cache_data(
+                await _retrieve_result(task_run.state, client)
+            )
             return task_run.state
 
 
@@ -1300,7 +1302,7 @@ async def orchestrate_task_run(
 
     if state.data is not None and state.data.encoding == "result":
         state.data = DataDocument.parse_raw(
-            await _retrieve_serialized_result(state.data)
+            await _retrieve_serialized_result(state.data, client=client)
         )
 
     return state
