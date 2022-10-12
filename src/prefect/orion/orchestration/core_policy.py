@@ -477,8 +477,7 @@ class RestartFlowRun(BaseOrchestrationRule):
             self.abort_transition("Cannot restart a subflow run.")
         self.original_run_count = context.run.run_count
         context.run.run_count = 0  # reset run count to preserve retry behavior
-        context.run.context.setdefault("restart_count", 0)
-        context.run.context["restart_count"] += 1
+        context.run.empirical_policy.restarts += 1
 
     async def after_transition(
         self,
@@ -488,7 +487,9 @@ class RestartFlowRun(BaseOrchestrationRule):
     ):
         task_runs = context.run.get_task_runs()
         for task_run in task_runs:
-            task_run.empirical_policy["flow_restarts"] = context.run.context["restart_count"]
+            task_run.empirical_policy.flow_restart_index = (
+                context.run.empirical_policy.restarts - 1
+            )
 
     async def cleanup(
         self,
@@ -497,4 +498,4 @@ class RestartFlowRun(BaseOrchestrationRule):
         context: OrchestrationContext,
     ):
         context.run.run_count = self.original_run_count
-        context.run.context["restart_count"] -= 1
+        context.run.empirical_policy.restarts -= 1
