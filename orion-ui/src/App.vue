@@ -136,7 +136,11 @@
 }
 
 .app { @apply
-  text-slate-900;
+  text-slate-900
+}
+
+.app {
+  --prefect-scroll-margin: theme('spacing.20');
 }
 
 .app__prefect-icon { @apply
@@ -153,6 +157,8 @@
 
 @screen lg {
   .app {
+    --prefect-scroll-margin: theme('spacing.2');
+
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
   }
