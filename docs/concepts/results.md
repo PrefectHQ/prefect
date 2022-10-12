@@ -194,6 +194,83 @@ def my_flow():
 my_flow()
 ```
 
+### Working with async results
+
+When **calling** flows or tasks, the result is returned directly:
+
+```python
+import asyncio
+from prefect import flow, task
+
+@task
+async def my_task():
+    return 1
+
+@flow
+async def my_flow():
+    task_result = await my_task()
+    return task_result + 1
+
+result = asyncio.run(my_flow())
+assert result == 2
+```
+
+When working with flow and task states, the result can be retreived with the `State.result()` method:
+
+```python
+import asyncio
+from prefect import flow, task
+
+@task
+async def my_task():
+    return 1
+
+@flow
+async def my_flow():
+    state = await my_task(return_state=True)
+    result = await state.result(fetch=True)
+    return result + 1
+
+async def main():
+    state = await my_flow(return_state=True)
+    assert await state.result(fetch=True) == 2
+
+asyncio.run(main())
+```
+
+!!! important "Resolving results"
+    Prefect 2.6.0 added automatic retrieval of persisted results.
+    Prior to this version, `State.result()` did not require an `await`.
+    For backwards compatibility, when used from an asynchronous context, `State.result()` returns a raw result type.
+    
+    You may opt-in to the new behavior by passing `fetch=True` as shown in the example above.
+    If you would like this behavior to be used automatically, you may enable the `PREFECT_ASYNC_FETCH_STATE_RESULT` setting.
+    If you do not opt-in to this behavior, you will see a warning.
+    
+    You may also opt-out by setting `fetch=False`.
+    This will silence the warning, but you will need to retrieve your result manually from the result type.
+
+When submitting tasks to a runner, the result can be retreived with the `Future.result()` method:
+
+```python
+import asyncio
+from prefect import flow, task
+
+@task
+async def my_task():
+    return 1
+
+@flow
+async def my_flow():
+    future = await my_task.submit()
+    result = await future.result()
+    return result + 1
+
+result = asyncio.run(my_flow())
+assert result == 2
+```
+
+
 ## Persisting results
 
 The Prefect API does not store your results [except in special cases](#storage-of-results-in-prefect). Instead, the result is _persisted_ to a storage location in your infrastructure and Prefect stores a _reference_ to the result.

@@ -417,6 +417,24 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
+PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(
+    bool,
+    default=False,
+    description=textwrap.dedent(
+        """
+        Determines whether `State.result()` fetches results automatically or not.
+        In Prefect 2.6.0, the `State.result()` method was updated to be async
+        to faciliate automatic retrieval of results from storage which means when 
+        writing async code you must `await` the call. For backwards compatibility, 
+        the result is not retrieved by default for async users. You may opt into this
+        per call by passing  `fetch=True` or toggle this setting to change the behavior
+        globally.
+        This setting does not affect users writing synchronous tasks and flows.
+        This setting does not affect retrieval of results when using `Future.result()`.
+        """
+    ),
+)
+
 PREFECT_ORION_BLOCKS_REGISTER_ON_START = Setting(
     bool,
     default=True,

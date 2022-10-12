@@ -241,11 +241,11 @@ def result_from_state_with_data_document(state: "State", raise_on_failure: bool)
             )
             return data
         elif isinstance(data, State):
-            data.result()
+            data.result(fetch=False)
         elif isinstance(data, Iterable) and all([isinstance(o, State) for o in data]):
             # raise the first failure we find
             for state in data:
-                state.result()
+                state.result(fetch=False)
 
         # we don't make this an else in case any of the above conditionals doesn't raise
         raise TypeError(
