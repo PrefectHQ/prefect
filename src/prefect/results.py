@@ -6,8 +6,7 @@ from typing_extensions import Self
 
 import prefect
 from prefect.blocks.core import Block
-from prefect.client import OrionClient
-from prefect.client.orion import OrionClient, inject_client
+from prefect.client.utilities import inject_client
 from prefect.exceptions import MissingContextError
 from prefect.filesystems import LocalFileSystem, ReadableFileSystem, WritableFileSystem
 from prefect.logging import get_logger
@@ -22,6 +21,8 @@ from prefect.utilities.pydantic import add_type_dispatch
 
 if TYPE_CHECKING:
     from prefect import Flow, Task
+    from prefect.client.orion import OrionClient
+
 
 ResultStorage = Union[WritableFileSystem, str]
 ResultSerializer = Union[Serializer, str]
@@ -101,7 +102,7 @@ class ResultFactory(pydantic.BaseModel):
     @classmethod
     @inject_client
     async def from_flow(
-        cls: Type[Self], flow: "Flow", client: OrionClient = None
+        cls: Type[Self], flow: "Flow", client: "OrionClient" = None
     ) -> Self:
         """
         Create a new result factory for a flow.
@@ -139,7 +140,7 @@ class ResultFactory(pydantic.BaseModel):
     @classmethod
     @inject_client
     async def from_task(
-        cls: Type[Self], task: "Task", client: OrionClient = None
+        cls: Type[Self], task: "Task", client: "OrionClient" = None
     ) -> Self:
         """
         Create a new result factory for a task.
@@ -180,7 +181,7 @@ class ResultFactory(pydantic.BaseModel):
         result_storage: ResultStorage,
         result_serializer: ResultSerializer,
         persist_result: bool,
-        client: OrionClient,
+        client: "OrionClient",
     ) -> Self:
         storage_block_id, storage_block = await cls.resolve_storage_block(
             result_storage, client=client
@@ -196,7 +197,7 @@ class ResultFactory(pydantic.BaseModel):
 
     @staticmethod
     async def resolve_storage_block(
-        result_storage: ResultStorage, client: OrionClient
+        result_storage: ResultStorage, client: "OrionClient"
     ) -> Tuple[uuid.UUID, WritableFileSystem]:
         """
         Resolve one of the valid `ResultStorage` input types into a saved block
@@ -347,7 +348,7 @@ class PersistedResult(BaseResult):
 
     @sync_compatible
     @inject_client
-    async def get(self, client: OrionClient) -> R:
+    async def get(self, client: "OrionClient") -> R:
         """
         Retrieve the data and deserialize it into the original object.
         """

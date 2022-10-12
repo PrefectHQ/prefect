@@ -1,12 +1,8 @@
-import datetime
-import warnings
-from typing import TYPE_CHECKING, Any, Generic, Optional, Type, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union, overload
 
 from pydantic import Field
 
 from prefect.orion import schemas
-from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
-from prefect.utilities.asyncutils import in_async_main_thread
 
 if TYPE_CHECKING:
     from prefect.deprecated.data_documents import DataDocument
@@ -18,8 +14,6 @@ R = TypeVar("R")
 class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
     """
     The state of a run.
-
-    This client-side extension adds a `result` interface.
     """
 
     data: Union["BaseResult[R]", "DataDocument[R]", Any] = Field(
@@ -36,7 +30,7 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
 
     def result(self, raise_on_failure: bool = True, fetch: Optional[bool] = None):
         """
-        Retrieve the result
+        Retrieve the result attached to this state.
 
         Args:
             raise_on_failure: a boolean specifying whether to raise an exception
@@ -105,39 +99,9 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             >>> await state.result()
             hello
         """
+        from prefect.states import get_state_result
 
-        if fetch is None and (
-            PREFECT_ASYNC_FETCH_STATE_RESULT or not in_async_main_thread()
-        ):
-            # Fetch defaults to `True` for sync users or async users who have opted in
-            fetch = True
-
-        if not fetch:
-            from prefect.deprecated.data_documents import (
-                DataDocument,
-                result_from_state_with_data_document,
-            )
-
-            if fetch is None and in_async_main_thread():
-                warnings.warn(
-                    "State.result() was called from an async context but not awaited. "
-                    "This method will be updated to return a coroutine by default in "
-                    "the future. Pass `fetch=True` and `await` the call to get rid of "
-                    "this warning.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-            # Backwards compatibility
-            if isinstance(self.data, DataDocument):
-                return result_from_state_with_data_document(
-                    self, raise_on_failure=raise_on_failure
-                )
-            else:
-                return self.data
-        else:
-            from prefect.states import get_state_result
-
-            return get_state_result(self, raise_on_failure=raise_on_failure)
+        return get_state_result(self, raise_on_failure=raise_on_failure, fetch=fetch)
 
     def to_state_create(self) -> schemas.actions.StateCreate:
         """
@@ -156,104 +120,6 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             data=self.data if isinstance(self.data, BaseResult) else None,
             state_details=self.state_details,
         )
-
-
-def Scheduled(
-    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
-) -> State:
-    """Convenience function for creating `Scheduled` states.
-
-    Returns:
-        State: a Scheduled state
-    """
-    return schemas.states.Scheduled(cls=cls, scheduled_time=scheduled_time, **kwargs)
-
-
-def Completed(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Completed` states.
-
-    Returns:
-        State: a Completed state
-    """
-    return schemas.states.Completed(cls=cls, **kwargs)
-
-
-def Running(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Running` states.
-
-    Returns:
-        State: a Running state
-    """
-    return schemas.states.Running(cls=cls, **kwargs)
-
-
-def Failed(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Failed` states.
-
-    Returns:
-        State: a Failed state
-    """
-    return schemas.states.Failed(cls=cls, **kwargs)
-
-
-def Crashed(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Crashed` states.
-
-    Returns:
-        State: a Crashed state
-    """
-    return schemas.states.Crashed(cls=cls, **kwargs)
-
-
-def Cancelled(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Cancelled` states.
-
-    Returns:
-        State: a Cancelled state
-    """
-    return schemas.states.Cancelled(cls=cls, **kwargs)
-
-
-def Pending(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Pending` states.
-
-    Returns:
-        State: a Pending state
-    """
-    return schemas.states.Pending(cls=cls, **kwargs)
-
-
-def AwaitingRetry(
-    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
-) -> State:
-    """Convenience function for creating `AwaitingRetry` states.
-
-    Returns:
-        State: a AwaitingRetry state
-    """
-    return schemas.states.AwaitingRetry(
-        cls=cls, scheduled_time=scheduled_time, **kwargs
-    )
-
-
-def Retrying(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Retrying` states.
-
-    Returns:
-        State: a Retrying state
-    """
-    return schemas.states.Retrying(cls=cls, **kwargs)
-
-
-def Late(
-    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
-) -> State:
-    """Convenience function for creating `Late` states.
-
-    Returns:
-        State: a Late state
-    """
-    return schemas.states.Late(cls=cls, scheduled_time=scheduled_time, **kwargs)
 
 
 class FlowRun(schemas.core.FlowRun.subclass()):

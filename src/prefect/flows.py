@@ -33,7 +33,6 @@ from fastapi.encoders import jsonable_encoder
 from pydantic.decorator import ValidatedFunction
 from typing_extensions import Literal, ParamSpec
 
-from prefect import State
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.exceptions import (
     MissingFlowError,
@@ -43,6 +42,7 @@ from prefect.exceptions import (
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.results import ResultSerializer, ResultStorage
+from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import is_async_fn

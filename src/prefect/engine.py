@@ -29,9 +29,9 @@ from typing_extensions import Literal
 
 import prefect
 import prefect.context
-from prefect.client import OrionClient, get_client
-from prefect.client.orion import inject_client
-from prefect.client.schemas import FlowRun, Pending, Running, State, TaskRun
+from prefect.client.orion import OrionClient, get_client
+from prefect.client.schemas import FlowRun, TaskRun
+from prefect.client.utilities import inject_client
 from prefect.context import (
     FlowRunContext,
     PrefectObjectRegistry,
@@ -47,7 +47,7 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem, WritableFileSystem
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture, call_repr
+from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
 from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import OrionHandler
 from prefect.logging.loggers import (
@@ -64,6 +64,9 @@ from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_LOCAL_STORAGE_PATH
 from prefect.states import (
+    Pending,
+    Running,
+    State,
     exception_to_crashed_state,
     exception_to_failed_state,
     get_state_exception,
@@ -617,7 +620,7 @@ async def orchestrate_flow_run(
                 ) or None
 
             terminal_state = await return_value_to_state(
-                result,
+                await resolve_futures_to_states(result),
                 result_factory=flow_run_context.result_factory,
             )
 
