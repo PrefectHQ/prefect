@@ -266,16 +266,13 @@ class ORMRun:
         """Total run time is incremented in the database whenever a RUNNING
         state is exited. To give up-to-date estimates, we estimate incremental
         run time for any runs currently in a RUNNING state."""
-        if self.state and self.state_type == schemas.states.StateType.RUNNING:
+        if self.state_type and self.state_type == schemas.states.StateType.RUNNING:
             return self.total_run_time + (pendulum.now() - self.state_timestamp)
         else:
             return self.total_run_time
 
     @estimated_run_time.expression
     def estimated_run_time(cls):
-        # use a correlated subquery to retrieve details from the state table
-        # TODO - does something need to happen here?
-        state_table = cls.state.property.target
         return (
             sa.select(
                 sa.case(
@@ -283,18 +280,15 @@ class ORMRun:
                         cls.state_type == schemas.states.StateType.RUNNING,
                         interval_add(
                             cls.total_run_time,
-                            date_diff(now(), state_table.c.timestamp),
+                            date_diff(now(), cls.state_timestamp),
                         ),
                     ),
                     else_=cls.total_run_time,
                 )
             )
-            .select_from(state_table)
-            .where(cls.state_id == state_table.c.id)
             # add a correlate statement so this can reuse the `FROM` clause
             # of any parent query
-            .correlate(cls, state_table)
-            .label("estimated_run_time")
+            .correlate(cls).label("estimated_run_time")
         )
 
     @hybrid_property
