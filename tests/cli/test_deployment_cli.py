@@ -444,7 +444,7 @@ class TestOutputMessages:
                 "42",
             ],
             expected_output_contains=[
-                "Updated concurrency limit on work queue prod to 42",
+                "Updated concurrency limit on work queue 'prod' to 42",
             ],
         )
 

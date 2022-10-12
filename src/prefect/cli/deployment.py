@@ -105,7 +105,8 @@ async def create_work_queue_and_set_concurrency_limit(
                     res.id, concurrency_limit=work_queue_concurrency
                 )
                 app.console.print(
-                    f"Updated concurrency limit on work queue {work_queue_name!r} to {work_queue_concurrency}", style="green",
+                    f"Updated concurrency limit on work queue {work_queue_name!r} to {work_queue_concurrency}",
+                    style="green",
                 )
             except Exception as exc:
                 exit_with_error(
