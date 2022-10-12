@@ -199,7 +199,11 @@ async def set_schedule(
         "timezone": timezone,
     }
     cron_schedule = {"cron": cron_string, "day_or": cron_day_or, "timezone": timezone}
-    rrule_schedule = json.loads(rrule_string)
+    if rrule_string is not None:
+        rrule_schedule = json.loads(rrule_string)
+    else:
+        # fall back to empty schedule dictionary
+        rrule_schedule = {"rrule": None}
 
     def updated_schedule_check(schedule):
         return any(v is not None for k, v in schedule.items() if k != "timezone")
