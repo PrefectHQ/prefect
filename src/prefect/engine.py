@@ -1393,7 +1393,7 @@ async def resolve_inputs(
             )
 
         # Only retrieve the result if requested as it may be expensive
-        return state.result(raise_on_failure=True, fetch=True) if return_data else None
+        return state.result(raise_on_failure=False, fetch=True) if return_data else None
 
     return await run_sync_in_worker_thread(
         visit_collection,
