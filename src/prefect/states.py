@@ -1,24 +1,99 @@
+import datetime
 import sys
 import traceback
+import warnings
 from collections import Counter
 from types import TracebackType
-from typing import Any, Dict, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type, TypeVar
 
 import anyio
 import httpx
 from typing_extensions import TypeGuard
 
-from prefect.client.schemas import Completed, Crashed, Failed, State
+from prefect.client.schemas import State
 from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
 )
 from prefect.exceptions import CrashedRun, FailedRun
-from prefect.futures import resolve_futures_to_states
+from prefect.orion import schemas
 from prefect.orion.schemas.states import StateType
 from prefect.results import BaseResult, R, ResultFactory
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
+from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 from prefect.utilities.collections import ensure_iterable
+
+if TYPE_CHECKING:
+    from prefect.deprecated.data_documents import DataDocument
+    from prefect.results import BaseResult
+
+R = TypeVar("R")
+
+
+def get_state_result(
+    state: State[R], raise_on_failure: bool = True, fetch: Optional[bool] = None
+) -> R:
+    """
+    Get the result from a state.
+
+    See `State.result()`
+    """
+    if fetch is None and (
+        PREFECT_ASYNC_FETCH_STATE_RESULT or not in_async_main_thread()
+    ):
+        # Fetch defaults to `True` for sync users or async users who have opted in
+        fetch = True
+
+    if not fetch:
+        if fetch is None and in_async_main_thread():
+            warnings.warn(
+                "State.result() was called from an async context but not awaited. "
+                "This method will be updated to return a coroutine by default in "
+                "the future. Pass `fetch=True` and `await` the call to get rid of "
+                "this warning.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        # Backwards compatibility
+        if isinstance(state.data, DataDocument):
+            return result_from_state_with_data_document(
+                state, raise_on_failure=raise_on_failure
+            )
+        else:
+            return state.data
+    else:
+        return _get_state_result(state, raise_on_failure=raise_on_failure)
+
+
+@sync_compatible
+async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
+    """
+    Internal implementation for `get_state_result` without async backwards compatibility
+    """
+    if raise_on_failure and (state.is_crashed() or state.is_failed()):
+        raise await get_state_exception(state)
+
+    if isinstance(state.data, DataDocument):
+        result = result_from_state_with_data_document(
+            state, raise_on_failure=raise_on_failure
+        )
+    elif isinstance(state.data, BaseResult):
+        result = await state.data.get()
+    elif state.data is None:
+        if state.is_failed() or state.is_crashed():
+            return await get_state_exception(state)
+        else:
+            raise ValueError(
+                "State data is missing. "
+                "Typically, this occurs when result persistence is disabled and the "
+                "state has been retrieved from the API."
+            )
+
+    else:
+        # The result is attached directly
+        result = state.data
+
+    return result
 
 
 def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
@@ -37,7 +112,7 @@ def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
 async def exception_to_crashed_state(
     exc: BaseException,
     result_factory: Optional[ResultFactory] = None,
-) -> Crashed:
+) -> State:
     """
     Takes an exception that occurs _outside_ of user code and converts it to a
     'Crash' exception with a 'Crashed' state.
@@ -111,7 +186,7 @@ async def exception_to_failed_state(
     return Failed(data=data, message=message, **kwargs)
 
 
-async def return_value_to_state(result: R, result_factory: ResultFactory) -> State[R]:
+async def return_value_to_state(retval: R, result_factory: ResultFactory) -> State[R]:
     """
     Given a return value from a user's function, create a `State` the run should
     be placed in.
@@ -119,9 +194,8 @@ async def return_value_to_state(result: R, result_factory: ResultFactory) -> Sta
     - If data is returned, we create a 'COMPLETED' state with the data
     - If a single, manually created state is returned, we use that state as given
         (manual creation is determined by the lack of ids)
-    - If an upstream state or iterable of upstream states is returned, we apply the aggregate rule
-    - If a future or iterable of futures is returned, we resolve it into states then
-        apply the aggregate rule
+    - If an upstream state or iterable of upstream states is returned, we apply the
+        aggregate rule
 
     The aggregate rule says that given multiple states we will determine the final state
     such that:
@@ -130,26 +204,21 @@ async def return_value_to_state(result: R, result_factory: ResultFactory) -> Sta
     - If all of the states are COMPLETED the final state is COMPLETED
     - The states will be placed in the final state `data` attribute
 
-    The aggregate rule is applied to _single_ futures to distinguish from returning a
-    _single_ state. This prevents a flow from assuming the state of a single returned
-    task future.
+    Callers should resolve all futures into states before passing return values to this
+    function.
     """
 
     if (
-        is_state(result)
+        is_state(retval)
         # Check for manual creation
-        and not result.state_details.flow_run_id
-        and not result.state_details.task_run_id
+        and not retval.state_details.flow_run_id
+        and not retval.state_details.task_run_id
     ):
-        return result
+        return retval
 
-    # Ensure any futures are resolved
-    result = await resolve_futures_to_states(result)
-
-    # If we resolved a task future or futures into states, we will determine a new state
-    # from their aggregate
-    if is_state(result) or is_state_iterable(result):
-        states = StateGroup(ensure_iterable(result))
+    # Determine a new state from the aggregate of contained states
+    if is_state(retval) or is_state_iterable(retval):
+        states = StateGroup(ensure_iterable(retval))
 
         # Determine the new state type
         new_state_type = (
@@ -174,42 +243,11 @@ async def return_value_to_state(result: R, result_factory: ResultFactory) -> Sta
         return State(
             type=new_state_type,
             message=message,
-            data=await result_factory.create_result(result),
+            data=await result_factory.create_result(retval),
         )
 
-    # Otherwise, they just gave data and this is a completed result
-    return Completed(data=await result_factory.create_result(result))
-
-
-@sync_compatible
-async def get_state_result(state, raise_on_failure: bool = True) -> Any:
-    """
-    Get the result from a state.
-    """
-    if raise_on_failure and (state.is_crashed() or state.is_failed()):
-        raise await get_state_exception(state)
-
-    if isinstance(state.data, DataDocument):
-        result = result_from_state_with_data_document(
-            state, raise_on_failure=raise_on_failure
-        )
-    elif isinstance(state.data, BaseResult):
-        result = await state.data.get()
-    elif state.data is None:
-        if state.is_failed() or state.is_crashed():
-            return await get_state_exception(state)
-        else:
-            raise ValueError(
-                "State data is missing. "
-                "Typically, this occurs when result persistence is disabled and the "
-                "state has been retrieved from the API."
-            )
-
-    else:
-        # The result is attached directly
-        result = state.data
-
-    return result
+    # Otherwise, they just gave data and this is a completed retval
+    return Completed(data=await result_factory.create_result(retval))
 
 
 @sync_compatible
@@ -361,3 +399,101 @@ class StateGroup:
 
     def __repr__(self) -> str:
         return f"StateGroup<{self.counts_message()}>"
+
+
+def Scheduled(
+    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
+) -> State:
+    """Convenience function for creating `Scheduled` states.
+
+    Returns:
+        State: a Scheduled state
+    """
+    return schemas.states.Scheduled(cls=cls, scheduled_time=scheduled_time, **kwargs)
+
+
+def Completed(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Completed` states.
+
+    Returns:
+        State: a Completed state
+    """
+    return schemas.states.Completed(cls=cls, **kwargs)
+
+
+def Running(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Running` states.
+
+    Returns:
+        State: a Running state
+    """
+    return schemas.states.Running(cls=cls, **kwargs)
+
+
+def Failed(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Failed` states.
+
+    Returns:
+        State: a Failed state
+    """
+    return schemas.states.Failed(cls=cls, **kwargs)
+
+
+def Crashed(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Crashed` states.
+
+    Returns:
+        State: a Crashed state
+    """
+    return schemas.states.Crashed(cls=cls, **kwargs)
+
+
+def Cancelled(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Cancelled` states.
+
+    Returns:
+        State: a Cancelled state
+    """
+    return schemas.states.Cancelled(cls=cls, **kwargs)
+
+
+def Pending(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Pending` states.
+
+    Returns:
+        State: a Pending state
+    """
+    return schemas.states.Pending(cls=cls, **kwargs)
+
+
+def AwaitingRetry(
+    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
+) -> State:
+    """Convenience function for creating `AwaitingRetry` states.
+
+    Returns:
+        State: a AwaitingRetry state
+    """
+    return schemas.states.AwaitingRetry(
+        cls=cls, scheduled_time=scheduled_time, **kwargs
+    )
+
+
+def Retrying(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Retrying` states.
+
+    Returns:
+        State: a Retrying state
+    """
+    return schemas.states.Retrying(cls=cls, **kwargs)
+
+
+def Late(
+    cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
+) -> State:
+    """Convenience function for creating `Late` states.
+
+    Returns:
+        State: a Late state
+    """
+    return schemas.states.Late(cls=cls, scheduled_time=scheduled_time, **kwargs)

@@ -10,8 +10,7 @@ import pytest
 
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.core import Block
-from prefect.client import OrionClient
-from prefect.client.schemas import State
+from prefect.client.orion import OrionClient
 from prefect.context import PrefectObjectRegistry
 from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
@@ -26,7 +25,7 @@ from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
 from prefect.results import PersistedResult
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
-from prefect.states import StateType, raise_state_exception
+from prefect.states import State, StateType, raise_state_exception
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
     exceptions_equal,

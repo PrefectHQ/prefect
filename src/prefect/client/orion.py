@@ -1,7 +1,6 @@
 import datetime
 import warnings
 from contextlib import AsyncExitStack
-from functools import wraps
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
@@ -15,14 +14,8 @@ import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
 import prefect.settings
-from prefect.client.schemas import (
-    FlowRun,
-    OrchestrationResult,
-    Pending,
-    Scheduled,
-    State,
-    TaskRun,
-)
+import prefect.states
+from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.deprecated.data_documents import DataDocument
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
@@ -40,52 +33,12 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
 )
-from prefect.utilities.asyncutils import asyncnullcontext
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
     from prefect.tasks import Task
 
 from prefect.client.base import PrefectHttpxClient, app_lifespan_context
-
-
-def inject_client(fn):
-    """
-    Simple helper to provide a context managed client to a asynchronous function.
-
-    The decorated function _must_ take a `client` kwarg and if a client is passed when
-    called it will be used instead of creating a new one, but it will not be context
-    managed as it is assumed that the caller is managing the context.
-    """
-
-    @wraps(fn)
-    async def with_injected_client(*args, **kwargs):
-        import prefect.context
-
-        client = None
-        flow_run_ctx = prefect.context.FlowRunContext.get()
-        task_run_ctx = prefect.context.TaskRunContext.get()
-
-        if "client" in kwargs and kwargs["client"] is not None:
-            # Client provided in kwargs
-            client = kwargs["client"]
-            client_context = asyncnullcontext()
-        elif flow_run_ctx is not None or task_run_ctx is not None:
-            # Client available in context
-            client = (flow_run_ctx or task_run_ctx).client
-            client_context = asyncnullcontext()
-        else:
-            # A new client is needed
-            client_context = get_client()
-
-        # Removes existing client to allow it to be set by setdefault below
-        kwargs.pop("client", None)
-
-        async with client_context as new_client:
-            kwargs.setdefault("client", new_client or client)
-            return await fn(*args, **kwargs)
-
-    return with_injected_client
 
 
 def get_client(httpx_settings: dict = None) -> "OrionClient":
@@ -359,7 +312,7 @@ class OrionClient:
         *,
         parameters: Dict[str, Any] = None,
         context: dict = None,
-        state: State = None,
+        state: prefect.states.State = None,
         name: str = None,
         tags: Iterable[str] = None,
         idempotency_key: str = None,
@@ -393,7 +346,7 @@ class OrionClient:
         """
         parameters = parameters or {}
         context = context or {}
-        state = state or Scheduled()
+        state = state or prefect.states.Scheduled()
         tags = tags or []
 
         flow_run_create = schemas.actions.DeploymentFlowRunCreate(
@@ -420,7 +373,7 @@ class OrionClient:
         context: dict = None,
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
-        state: State = None,
+        state: "prefect.states.State" = None,
     ) -> FlowRun:
         """
         Create a flow run for a flow.
@@ -446,7 +399,7 @@ class OrionClient:
         context = context or {}
 
         if state is None:
-            state = Pending()
+            state = prefect.states.Pending()
 
         # Retrieve the flow id
         flow_id = await self.create_flow(flow)
@@ -1474,7 +1427,7 @@ class OrionClient:
     async def set_flow_run_state(
         self,
         flow_run_id: UUID,
-        state: State,
+        state: "prefect.states.State",
         force: bool = False,
     ) -> OrchestrationResult:
         """
@@ -1499,7 +1452,9 @@ class OrionClient:
         )
         return OrchestrationResult.parse_obj(response.json())
 
-    async def read_flow_run_states(self, flow_run_id: UUID) -> List[State]:
+    async def read_flow_run_states(
+        self, flow_run_id: UUID
+    ) -> List[prefect.states.State]:
         """
         Query for the states of a flow run
 
@@ -1507,13 +1462,13 @@ class OrionClient:
             flow_run_id: the id of the flow run
 
         Returns:
-            a list of [State model][prefect.client.schemas.State] representation
+            a list of [State model][prefect.states.State] representation
                 of the flow run states
         """
         response = await self._client.get(
             "/flow_run_states/", params=dict(flow_run_id=flow_run_id)
         )
-        return pydantic.parse_obj_as(List[State], response.json())
+        return pydantic.parse_obj_as(List[prefect.states.State], response.json())
 
     async def create_task_run(
         self,
@@ -1522,7 +1477,7 @@ class OrionClient:
         dynamic_key: str,
         name: str = None,
         extra_tags: Iterable[str] = None,
-        state: State = None,
+        state: prefect.states.State = None,
         task_inputs: Dict[
             str,
             List[
@@ -1554,7 +1509,7 @@ class OrionClient:
         tags = set(task.tags).union(extra_tags or [])
 
         if state is None:
-            state = Pending()
+            state = prefect.states.Pending()
 
         task_run_data = schemas.actions.TaskRunCreate(
             name=name,
@@ -1640,7 +1595,7 @@ class OrionClient:
     async def set_task_run_state(
         self,
         task_run_id: UUID,
-        state: State,
+        state: prefect.states.State,
         force: bool = False,
     ) -> OrchestrationResult:
         """
@@ -1664,7 +1619,9 @@ class OrionClient:
         )
         return OrchestrationResult.parse_obj(response.json())
 
-    async def read_task_run_states(self, task_run_id: UUID) -> List[State]:
+    async def read_task_run_states(
+        self, task_run_id: UUID
+    ) -> List[prefect.states.State]:
         """
         Query for the states of a task run
 
@@ -1672,13 +1629,13 @@ class OrionClient:
             task_run_id: the id of the task run
 
         Returns:
-            a list of [State model][prefect.client.schemas.State] representation
+            a list of [prefect.states.State model][prefect.states.State] representation
                 of the task run states
         """
         response = await self._client.get(
             "/task_run_states/", params=dict(task_run_id=task_run_id)
         )
-        return pydantic.parse_obj_as(List[State], response.json())
+        return pydantic.parse_obj_as(List[prefect.states.State], response.json())
 
     async def create_logs(self, logs: Iterable[Union[LogCreate, dict]]) -> None:
         """

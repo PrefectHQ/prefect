@@ -1,6 +1,5 @@
 import pytest
 
-from prefect.client.schemas import Completed
 from prefect.deprecated.data_documents import (
     _SERIALIZERS,
     DataDocument,
@@ -8,6 +7,7 @@ from prefect.deprecated.data_documents import (
     register_serializer,
 )
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT, temporary_settings
+from prefect.states import Completed
 
 
 @pytest.fixture(autouse=True)

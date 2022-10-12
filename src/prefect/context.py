@@ -30,14 +30,15 @@ from pydantic import BaseModel, Field, PrivateAttr
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
-from prefect.client import OrionClient
-from prefect.client.schemas import FlowRun, State, TaskRun
+from prefect.client.orion import OrionClient
+from prefect.client.schemas import FlowRun, TaskRun
 from prefect.exceptions import MissingContextError
 from prefect.filesystems import WritableFileSystem
 from prefect.futures import PrefectFuture
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
+from prefect.states import State
 from prefect.task_runners import BaseTaskRunner
 from prefect.utilities.importtools import load_script_as_module
 

@@ -9,9 +9,10 @@ import cloudpickle
 import pytest
 
 from prefect import flow, task
-from prefect.client.schemas import State, TaskRun
+from prefect.client.schemas import TaskRun
 from prefect.deprecated.data_documents import DataDocument
 from prefect.orion.schemas.states import StateType
+from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, TaskConcurrencyType
 from prefect.testing.utilities import exceptions_equal
 
