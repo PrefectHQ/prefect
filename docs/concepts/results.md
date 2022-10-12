@@ -360,7 +360,7 @@ Toggling persistence manually will always override any behavior that Prefect wou
 
 [The result storage location](#result-storage-types) can be configured with the `result_storage` option. The `result_storage` option defaults to a null value, which infers storage from the context.
 Generally, this means that tasks will use the result storage configured on the flow unless otherwise specified.
-If there is no context to load the storage from and results must be persisted, results will be stored in `.prefect-results` in the run's working directory.
+If there is no context to load the storage from and results must be persisted, results will be stored in the path specified by the `PREFECT_LOCAL_STORAGE_PATH` setting (defaults to `~/.prefect/storage`).
 
 ```python
 from prefect import flow, task
