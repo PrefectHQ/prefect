@@ -138,7 +138,9 @@ async def test_agent_matches_multiple_work_queues_dynamically(
         await orion_client.create_work_queue(name=dev1)
         await agent.get_and_submit_flow_runs()
         assert prod3 in agent.work_queues
-        assert dev1 not in agent.work_queues, "work queue matcher should not match partial names"
+        assert (
+            dev1 not in agent.work_queues
+        ), "work queue matcher should not match partial names"
 
 
 async def test_matching_work_queues_handes_work_queue_deletion(
