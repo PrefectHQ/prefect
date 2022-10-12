@@ -18,6 +18,7 @@ import prefect.logging.configuration
 import prefect.settings
 from prefect import flow, task
 from prefect.context import FlowRunContext, TaskRunContext
+from prefect.deprecated.data_documents import _retrieve_result
 from prefect.exceptions import MissingContextError
 from prefect.infrastructure import Process
 from prefect.logging.configuration import (
@@ -35,7 +36,6 @@ from prefect.logging.loggers import (
     task_run_logger,
 )
 from prefect.orion.schemas.actions import LogCreate
-from prefect.results import _retrieve_result
 from prefect.settings import (
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_BATCH_INTERVAL,
@@ -191,7 +191,7 @@ async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deploym
     )
 
     state = (await orion_client.read_flow_run(flow_run.id)).state
-    settings = await _retrieve_result(state)
+    settings = await _retrieve_result(state, orion_client)
     api_logs = await orion_client.read_logs()
     api_log_messages = [log.message for log in api_logs]
 

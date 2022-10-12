@@ -397,10 +397,10 @@ Drawbacks of the JSON serializer:
 
 ## Result types
 
-Prefect uses the internal `Result` type to capture information about the result attached to a state. There are two types of `Result`:
+Prefect uses internal result types to capture information about the result attached to a state. The following types exist:
 
-- `ResultLiteral`
-- `ResultReference`
+- `ResultLiteral`: Stores simple values inline.
+- `ResultReference`: A reference to persisted values.
 
 All result types include a `get()` method that can be called to return the value of the result. This is done behind the scenes when the `result()` method is used on states or futures.
 
@@ -421,8 +421,20 @@ Result literals reduce the overhead required to persist simple results.
 
 Result references contain all of the information needed to retrieve the result from storage. This includes:
 
-- Storage: a reference to the [result storage](#result-storage-types) that can be used to read the serialized result.
-- Key: indicates where this specific result is in storage.
-- Serializer: description of the [result serializer](#result-serializer-types) that can be used to deserialize the result.
+- Storage: A reference to the [result storage](#result-storage-types) that can be used to read the serialized result.
+- Key: Indicates where this specific result is in storage.
 
-The `get()` method on result references retrieves the data from storage, deserializes it, and returns the original object. The `get()` operation will cache the resolved object to reduce the overhead of subsequent calls.
+References contain additional metadata, for inspection for the result:
+
+- Serializer type: The name of the [result serializer](#result-serializer-types) type.
+
+The `get()` method on result references retrieves the data from storage, deserializes it, and returns the original object.
+The `get()` operation will cache the resolved object to reduce the overhead of subsequent calls.
+
+#### Result blob
+
+When results are persisted to storage, they are always written as a JSON document. The schema for this is described by the `ResultBlob` type. The document contains:
+
+- The serialized data of the result.
+- A full description of [result serializer](#result-serializer-types) that can be used to deserialize the result data.
+- The Prefect version used to create the result.
