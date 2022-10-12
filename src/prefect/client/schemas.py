@@ -1,9 +1,12 @@
 import datetime
+import warnings
 from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar, Union, overload
 
 from pydantic import Field
 
 from prefect.orion import schemas
+from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
+from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 
 if TYPE_CHECKING:
     from prefect.deprecated.data_documents import DataDocument
@@ -31,19 +34,23 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
     def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
         ...
 
-    def result(self, raise_on_failure: bool = True):
+    def result(self, raise_on_failure: bool = True, fetch: Optional[bool] = None):
         """
-        Convenience method for access the data on the state's data document.
+        Retrieve the result
 
         Args:
             raise_on_failure: a boolean specifying whether to raise an exception
                 if the state is of type `FAILED` and the underlying data is an exception
+            fetch: a boolean specifying whether to resolve references to persisted
+                results into data. For synchronous users, this defaults to `True`.
+                For asynchronous users, this defaults to `False` for backwards
+                compatibility.
 
         Raises:
-            TypeError: if the state is failed but without an exception
+            TypeError: If the state is failed but the result is not an exception.
 
         Returns:
-            The underlying decoded data
+            The result of the run
 
         Examples:
             >>> from prefect import flow, task
@@ -67,7 +74,7 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             >>> @flow
             >>> def my_flow():
             >>>     return "hello"
-            >>> my_flow().result()
+            >>> my_flow(return_state=True).result()
             hello
 
             Get the result from a failed state
@@ -75,7 +82,7 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             >>> @flow
             >>> def my_flow():
             >>>     raise ValueError("oh no!")
-            >>> state = my_flow()  # Error is wrapped in FAILED state
+            >>> state = my_flow(return_state=True)  # Error is wrapped in FAILED state
             >>> state.result()  # Raises `ValueError`
 
             Get the result from a failed state without erroring
@@ -83,23 +90,65 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             >>> @flow
             >>> def my_flow():
             >>>     raise ValueError("oh no!")
-            >>> state = my_flow()
+            >>> state = my_flow(return_state=True)
             >>> result = state.result(raise_on_failure=False)
             >>> print(result)
             ValueError("oh no!")
+
+
+            Get the result from a flow state in an async context
+
+            >>> @flow
+            >>> async def my_flow():
+            >>>     return "hello"
+            >>> state = await my_flow(return_state=True)
+            >>> await state.result()
+            hello
         """
         from prefect.deprecated.data_documents import (
             DataDocument,
             result_from_state_with_data_document,
         )
-        from prefect.results import BaseResult
+
+        if fetch is None and (
+            PREFECT_ASYNC_FETCH_STATE_RESULT or not in_async_main_thread()
+        ):
+            # Fetch defaults to `True` for sync users or async users who have opted in
+            fetch = True
+
+        if not fetch:
+            if fetch is None and in_async_main_thread():
+                warnings.warn(
+                    "State.result() was called from an async context but not awaited. "
+                    "This method will be updated to return a coroutine by default in "
+                    "the future. Pass `fetch=True` and `await` the call to get rid of "
+                    "this warning.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            # Backwards compatibility
+            if isinstance(self.data, DataDocument):
+                return result_from_state_with_data_document(
+                    self, raise_on_failure=raise_on_failure
+                )
+            else:
+                return self.data
+        else:
+            return self._result(raise_on_failure=raise_on_failure)
+
+    @sync_compatible
+    async def _result(self, raise_on_failure: bool):
+        from prefect.deprecated.data_documents import (
+            DataDocument,
+            result_from_state_with_data_document,
+        )
 
         if isinstance(self.data, DataDocument):
             return result_from_state_with_data_document(
                 self, raise_on_failure=raise_on_failure
             )
         elif isinstance(self.data, BaseResult):
-            return self.data.load()
+            return await self.data.get()
         else:
             raise ValueError(
                 f"State data is of unknown result type {type(self.data).__name__!r}."
