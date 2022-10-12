@@ -72,8 +72,9 @@ plugins:
             - docs/collections/generate_catalog.py
             - docs/recipes/generate_catalog.py
 nav:
-    - Prefect 2: index.md
+    # - Prefect 2: index.md
     - Getting Started:
+        - Welcome to Prefect 2: index.md
         - Quick Start: getting-started/overview.md
         - Installation: getting-started/installation.md
         - Tutorials:
