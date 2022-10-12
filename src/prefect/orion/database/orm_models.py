@@ -493,6 +493,10 @@ class ORMFlowRun(ORMRun):
                 "ix_flow_run__state_name",
                 "state_name",
             ),
+            sa.Index(
+                "ix_flow_run__state_timestamp",
+                "state_timestamp",
+            ),
         )
 
 
