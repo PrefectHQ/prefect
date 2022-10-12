@@ -1,64 +1,36 @@
 import uuid
-from typing import TYPE_CHECKING, Any, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, Generic, Tuple, Type, TypeVar, Union
 
 import pydantic
 from typing_extensions import Self
 
+import prefect
 from prefect.blocks.core import Block
 from prefect.client import OrionClient
-from prefect.client.orion import inject_client
-from prefect.deprecated.data_documents import DataDocument
+from prefect.client.orion import OrionClient, inject_client
 from prefect.exceptions import MissingContextError
-from prefect.filesystems import LocalFileSystem, WritableFileSystem
+from prefect.filesystems import LocalFileSystem, ReadableFileSystem, WritableFileSystem
+from prefect.logging import get_logger
 from prefect.serializers import Serializer
 from prefect.settings import (
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
 )
+from prefect.utilities.annotations import NotSet
+from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.pydantic import add_type_dispatch
 
-ResultStorage = Union[WritableFileSystem, str]
-ResultSerializer = Union[Serializer, str]
 if TYPE_CHECKING:
     from prefect import Flow, Task
 
+LITERAL_TYPES = {type(None), bool}
+ResultStorage = Union[WritableFileSystem, str]
+ResultSerializer = Union[Serializer, str]
 
-async def _persist_serialized_result(
-    content: bytes, filesystem: WritableFileSystem
-) -> DataDocument:
-    key = uuid.uuid4().hex
-    await filesystem.write_path(key, content)
-    result = _Result(key=key, filesystem_document_id=filesystem._block_document_id)
-    return DataDocument.encode("result", result)
+logger = get_logger("results")
 
-
-@inject_client
-async def _retrieve_serialized_result(
-    document: DataDocument, client: OrionClient
-) -> bytes:
-    if document.encoding != "result":
-        raise TypeError(
-            f"Got unsupported data document encoding of {document.encoding!r}. "
-            "Expected 'result'."
-        )
-    result = document.decode()
-    filesystem_document = await client.read_block_document(
-        result.filesystem_document_id
-    )
-    filesystem = Block._from_block_document(filesystem_document)
-    return await filesystem.read_path(result.key)
-
-
-async def _retrieve_result(state):
-    serialized_result = await _retrieve_serialized_result(state.data)
-    return DataDocument.parse_raw(serialized_result).decode()
-
-
-class _Result(pydantic.BaseModel):
-    key: str
-    filesystem_document_id: uuid.UUID
-
-
-## ----
+# from prefect.orion.schemas.states import State
+R = TypeVar("R")
 
 
 def get_default_result_storage() -> ResultStorage:
@@ -105,14 +77,11 @@ class ResultFactory(pydantic.BaseModel):
     storage_block_id: uuid.UUID
     storage_block: WritableFileSystem
 
-    async def create_result(self, obj: Any) -> _Result:
-        """
-        Create a result from a user's return value.
-        """
-
     @classmethod
     @inject_client
-    async def from_flow(cls: Type[Self], flow: "Flow", client: OrionClient) -> Self:
+    async def from_flow(
+        cls: Type[Self], flow: "Flow", client: OrionClient = None
+    ) -> Self:
         """
         Create a new result factory for a flow.
         """
@@ -152,7 +121,9 @@ class ResultFactory(pydantic.BaseModel):
 
     @classmethod
     @inject_client
-    async def from_task(cls: Type[Self], task: "Task", client: OrionClient) -> Self:
+    async def from_task(
+        cls: Type[Self], task: "Task", client: OrionClient = None
+    ) -> Self:
         """
         Create a new result factory for a task.
         """
@@ -250,3 +221,164 @@ class ResultFactory(pydantic.BaseModel):
                 "Result serializer must be one of the following types: 'Serializer', "
                 f"'str'. Got unsupported type {type(serializer).__name__!r}."
             )
+
+    @sync_compatible
+    async def create_result(self, obj: R) -> "BaseResult[R]":
+        """
+        Create a result type for the given object.
+
+        Literal types are converted into `ResultLiteral`.
+
+        Other types are serialized, persisted to storage, and a reference is returned.
+        """
+        if type(obj) in LITERAL_TYPES:
+            return await ResultLiteral.create(obj)
+
+        return await ResultReference.create(
+            obj,
+            storage_block=self.storage_block,
+            storage_block_id=self.storage_block_id,
+            serializer=self.serializer,
+        )
+
+
+@add_type_dispatch
+class BaseResult(pydantic.BaseModel, Generic[R]):
+    type: str
+
+    @sync_compatible
+    async def get(self) -> R:
+        pass
+
+    @classmethod
+    @sync_compatible
+    async def create(
+        cls: "Type[BaseResult[R]]",
+        obj: R,
+        **kwargs: Any,
+    ) -> "BaseResult[R]":
+        pass
+
+    class Config:
+        extra = "forbid"
+
+
+class ResultLiteral(BaseResult):
+    """
+    Result type for literal values like `None`, `True`, and `False`.
+
+    These values are stored inline and JSON serialized when sent to the Prefect API.
+    They are not persisted to external result storage.
+    """
+
+    type = "literal"
+    value: Any
+
+    @sync_compatible
+    async def get(self) -> R:
+        return self.value
+
+    @classmethod
+    @sync_compatible
+    async def create(
+        cls: "Type[ResultLiteral]",
+        obj: R,
+    ) -> "ResultLiteral[R]":
+        if type(obj) not in LITERAL_TYPES:
+            raise TypeError(
+                f"Unsupported type {type(obj).__name__!r} for result literal. "
+                f"Expected one of: {', '.join(type_.__name__ for type_ in LITERAL_TYPES)}"
+            )
+
+        return cls(value=obj)
+
+
+class ResultReference(BaseResult):
+    """
+    Result type which stores a reference to a persisted result.
+
+    When created, the user's object is serialized and stored. The format for the content
+    is defined by `ResultBlob`. This reference contains metadata necessary for retrieval
+    of the object, such as a reference to the storage block and the key where the
+    content was written.
+    """
+
+    type = "reference"
+
+    serializer_type: str
+    storage_block_id: uuid.UUID
+    storage_key: str
+
+    _cache: Any = pydantic.PrivateAttr(NotSet)
+
+    def _cache_object(self, obj: Any) -> None:
+        self._cache = obj
+
+    def _has_cached_object(self) -> bool:
+        return self._cache is not NotSet
+
+    @sync_compatible
+    @inject_client
+    async def get(self, client: OrionClient) -> R:
+        """
+        Retrieve the data and deserialize it into the original object.
+        """
+        if self._has_cached_object():
+            return self._cache
+
+        block_document = await client.read_block_document(self.storage_block_id)
+        storage_block: ReadableFileSystem = Block._from_block_document(block_document)
+        content = await storage_block.read_path(self.storage_key)
+
+        blob = ResultBlob.parse_raw(content)
+        obj = blob.serializer.loads(blob.data)
+        self._cache_object(obj)
+
+        return obj
+
+    @classmethod
+    @sync_compatible
+    async def create(
+        cls: "Type[ResultReference]",
+        obj: R,
+        storage_block: WritableFileSystem,
+        storage_block_id: uuid.UUID,
+        serializer: Serializer,
+        cache_object: bool = True,
+    ) -> "ResultReference[R]":
+        """
+        Create a new result reference from a user's object.
+
+        The object will be serialized and written to the storage block under a unique
+        key. It will then be cached on the returned result.
+        """
+        data = serializer.dumps(obj)
+        blob = ResultBlob(serializer=serializer, data=data)
+
+        key = uuid.uuid4().hex
+        await storage_block.write_path(key, content=blob.to_bytes())
+
+        result = cls(
+            serializer_type=serializer.type,
+            storage_block_id=storage_block_id,
+            storage_key=key,
+        )
+
+        if cache_object:
+            # Attach the object to the result so it's available without deserialization
+            result._cache_object(obj)
+
+        return result
+
+
+class ResultBlob(pydantic.BaseModel):
+    """
+    The format of the content stored in a result file.
+    """
+
+    serializer: Serializer
+    data: bytes
+    prefect_version: str = pydantic.Field(default=prefect.__version__)
+
+    def to_bytes(self) -> bytes:
+        return self.json().encode()
