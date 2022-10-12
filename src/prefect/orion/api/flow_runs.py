@@ -279,17 +279,15 @@ async def restart_flow_run(
     ),
 ) -> OrchestrationResult:
     """Restart a flow run, invoking any orchestration rules."""
-    state = schemas.states.Scheduled()
+    state = schemas.states.AwaitingRestart(scheduled_time=pendulum.now("UTC"))
 
     async with db.session_context(begin_transaction=True) as session:
-        # figure out what to do with old task run states
 
         # create the state
         orchestration_result = await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run_id,
-            # convert to a full State object
-            state=schemas.states.State.parse_obj(state),
+            state=state,
             force=force,
             flow_policy=flow_policy,
         )
@@ -298,7 +296,7 @@ async def restart_flow_run(
     if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:
         response.status_code = status.HTTP_200_OK
     elif orchestration_result.status == schemas.responses.SetStateStatus.ABORT:
-        response.status_code = status.HTTP_200_OK
+        response.status_code = status.HTTP_403_FORBIDDEN
     else:
         response.status_code = status.HTTP_201_CREATED
 
