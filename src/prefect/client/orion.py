@@ -364,12 +364,19 @@ class OrionClient:
         Create a flow run for a deployment.
 
         Args:
-            deployment: The deployment model to create the flow run from
+            deployment_id: The deployment ID to create the flow run from
             parameters: Parameter overrides for this flow run. Merged with the
                 deployment defaults
             context: Optional run context data
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
+            name: An optional name for the flow run. If not provided, the server will
+                generate a name.
+            tags: An optional iterable of tags to apply to the flow run; these tags
+                are merged with the deployment's tags.
+            idempotency_key: Optional idempotency key for creation of the flow run.
+                If the key matches the key of an existing flow run, the existing run will
+                be returned instead of creating a new one.
             parent_task_run_id: if a subflow run is being created, the placeholder task
                 run identifier in the parent flow
 
@@ -696,7 +703,8 @@ class OrionClient:
             name (str): a unique name for the work queue
 
         Raises:
-            httpx.StatusError: if no work queue is found
+            prefect.exceptions.ObjectNotFound: if no work queue is found
+            httpx.HTTPStatusError: other status errors
 
         Returns:
             schemas.core.WorkQueue: a work queue API object
@@ -1027,6 +1035,14 @@ class OrionClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            elif (
+                e.response.status_code == status.HTTP_403_FORBIDDEN
+                and e.response.json()["detail"]
+                == "protected block types cannot be deleted."
+            ):
+                raise prefect.exceptions.ProtectedBlockError(
+                    "Protected block types cannot be deleted."
+                ) from e
             else:
                 raise
 

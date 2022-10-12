@@ -33,6 +33,7 @@ from prefect.testing.utilities import (
     flaky_on_windows,
     get_most_recent_flow_run,
 )
+from prefect.utilities.annotations import allow_failure, quote
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
 
@@ -1070,6 +1071,62 @@ class TestSubflowTaskInputs:
             flow_state.state_details.task_run_id
         )
 
+        assert flow_tracking_task_run.task_inputs == dict(
+            x=[TaskRunResult(id=task_state.state_details.task_run_id)],
+        )
+
+    async def test_subflow_with_one_upstream_task_future_and_allow_failure(
+        self, orion_client
+    ):
+        @task
+        def child_task():
+            raise ValueError()
+
+        @flow
+        def child_flow(x):
+            return x
+
+        @flow
+        def parent_flow():
+            future = child_task.submit()
+            flow_state = child_flow(x=allow_failure(future), return_state=True)
+            return quote((future.wait(), flow_state))
+
+        task_state, flow_state = parent_flow().unquote()
+        assert isinstance(flow_state.result(), ValueError)
+        flow_tracking_task_run = await orion_client.read_task_run(
+            flow_state.state_details.task_run_id
+        )
+
+        assert task_state.is_failed()
+        assert flow_tracking_task_run.task_inputs == dict(
+            x=[TaskRunResult(id=task_state.state_details.task_run_id)],
+        )
+
+    async def test_subflow_with_one_upstream_task_state_and_allow_failure(
+        self, orion_client
+    ):
+        @task
+        def child_task():
+            raise ValueError()
+
+        @flow
+        def child_flow(x):
+            return x
+
+        @flow
+        def parent_flow():
+            task_state = child_task(return_state=True)
+            flow_state = child_flow(x=allow_failure(task_state), return_state=True)
+            return quote((task_state, flow_state))
+
+        task_state, flow_state = parent_flow().unquote()
+        assert isinstance(flow_state.result(), ValueError)
+        flow_tracking_task_run = await orion_client.read_task_run(
+            flow_state.state_details.task_run_id
+        )
+
+        assert task_state.is_failed()
         assert flow_tracking_task_run.task_inputs == dict(
             x=[TaskRunResult(id=task_state.state_details.task_run_id)],
         )
