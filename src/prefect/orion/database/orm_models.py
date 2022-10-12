@@ -248,6 +248,7 @@ class ORMRun:
     )
     state_type = sa.Column(sa.Enum(schemas.states.StateType, name="state_type"))
     state_name = sa.Column(sa.String, nullable=True)
+    state_timestamp = sa.Column(Timestamp(), nullable=True)
     run_count = sa.Column(sa.Integer, server_default="0", default=0, nullable=False)
     expected_start_time = sa.Column(Timestamp())
     next_scheduled_start_time = sa.Column(Timestamp())
@@ -266,13 +267,14 @@ class ORMRun:
         state is exited. To give up-to-date estimates, we estimate incremental
         run time for any runs currently in a RUNNING state."""
         if self.state and self.state_type == schemas.states.StateType.RUNNING:
-            return self.total_run_time + (pendulum.now() - self.state.timestamp)
+            return self.total_run_time + (pendulum.now() - self.state_timestamp)
         else:
             return self.total_run_time
 
     @estimated_run_time.expression
     def estimated_run_time(cls):
         # use a correlated subquery to retrieve details from the state table
+        # TODO - does something need to happen here?
         state_table = cls.state.property.target
         return (
             sa.select(
