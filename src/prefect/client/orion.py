@@ -703,7 +703,8 @@ class OrionClient:
             name (str): a unique name for the work queue
 
         Raises:
-            httpx.StatusError: if no work queue is found
+            prefect.exceptions.ObjectNotFound: if no work queue is found
+            httpx.HTTPStatusError: other status errors
 
         Returns:
             schemas.core.WorkQueue: a work queue API object
