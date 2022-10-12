@@ -1,7 +1,7 @@
 """Add state_timestamp
 
 Revision ID: 22b7cb02e593
-Revises: e757138e954a
+Revises: 2d5e000696f1
 Create Date: 2022-10-12 10:20:48.760447
 
 """
@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "22b7cb02e593"
-down_revision = "e757138e954a"
+down_revision = "2d5e000696f1"
 branch_labels = None
 depends_on = None
 
