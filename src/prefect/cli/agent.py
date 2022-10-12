@@ -49,7 +49,10 @@ async def start(
         None,
         "-m",
         "--match",
-        help="A Python regex string used to match work queues for the agent to pull from.",
+        help=(
+            "A Python regex string used to match work queues for the agent to pull from,"
+            "for example `dev-.*` will match all work queues with a name that starts with `dev-`"
+        ),
     ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     api: str = SettingsOption(PREFECT_API_URL),
