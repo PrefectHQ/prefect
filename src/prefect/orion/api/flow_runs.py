@@ -260,3 +260,46 @@ async def set_flow_run_state(
         response.status_code = status.HTTP_201_CREATED
 
     return orchestration_result
+
+
+@router.post("/{id}/restart")
+async def restart_flow_run(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    force: bool = Body(
+        False,
+        description=(
+            "If false, orchestration rules will be applied that may alter "
+            "or prevent the state transition. If True, orchestration rules are not applied."
+        ),
+    ),
+    db: OrionDBInterface = Depends(provide_database_interface),
+    response: Response = None,
+    flow_policy: BaseOrchestrationPolicy = Depends(
+        orchestration_dependencies.provide_flow_policy
+    ),
+) -> OrchestrationResult:
+    """Restart a flow run, invoking any orchestration rules."""
+    state = schemas.states.Scheduled()
+
+    async with db.session_context(begin_transaction=True) as session:
+        # figure out what to do with old task run states
+
+        # create the state
+        orchestration_result = await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run_id,
+            # convert to a full State object
+            state=schemas.states.State.parse_obj(state),
+            force=force,
+            flow_policy=flow_policy,
+        )
+
+    # set the 201 because a new state was created
+    if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:
+        response.status_code = status.HTTP_200_OK
+    elif orchestration_result.status == schemas.responses.SetStateStatus.ABORT:
+        response.status_code = status.HTTP_200_OK
+    else:
+        response.status_code = status.HTTP_201_CREATED
+
+    return orchestration_result
