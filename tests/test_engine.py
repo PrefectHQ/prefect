@@ -115,7 +115,6 @@ async def get_flow_run_context(orion_client, result_factory, local_filesystem):
                 flow_run=flow_run,
                 client=orion_client,
                 task_runner=test_task_runner,
-                result_filesystem=local_filesystem,
                 result_factory=result_factory,
             )
 
@@ -154,7 +153,6 @@ class TestOrchestrateTaskRun:
                 task_run=task_run,
                 parameters={},
                 wait_for=None,
-                result_filesystem=local_filesystem,
                 result_factory=result_factory,
                 interruptible=False,
                 client=orion_client,
@@ -187,7 +185,6 @@ class TestOrchestrateTaskRun:
             task_run=task_run,
             parameters={},
             wait_for=None,
-            result_filesystem=local_filesystem,
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
@@ -227,7 +224,6 @@ class TestOrchestrateTaskRun:
                 task_run=task_run,
                 parameters={},
                 wait_for=None,
-                result_filesystem=local_filesystem,
                 result_factory=result_factory,
                 interruptible=False,
                 client=orion_client,
@@ -301,7 +297,6 @@ class TestOrchestrateTaskRun:
             # Nest the future in a collection to ensure that it is found
             parameters={"x": {"nested": [future]}},
             wait_for=None,
-            result_filesystem=local_filesystem,
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
@@ -343,7 +338,6 @@ class TestOrchestrateTaskRun:
             # Quote some data
             parameters={"x": quote(1)},
             wait_for=None,
-            result_filesystem=local_filesystem,
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
@@ -387,7 +381,6 @@ class TestOrchestrateTaskRun:
             task_run=task_run,
             parameters={"x": quote(upstream_task_state)},
             wait_for=None,
-            result_filesystem=local_filesystem,
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
@@ -439,7 +432,6 @@ class TestOrchestrateFlowRun:
             FlowRunContext,
             task_runner=SequentialTaskRunner(),
             sync_portal=None,
-            result_filesystem=local_filesystem,
             result_factory=result_factory,
         )
 
