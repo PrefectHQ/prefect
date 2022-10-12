@@ -796,12 +796,16 @@ class GitHub(ReadableDeploymentStorage):
     access_token: Optional[SecretStr] = Field(
         name="Personal Access Token",
         default=None,
-        description="A github Personal Access Token (PAT).",
+        description="A GitHub Personal Access Token (PAT).",
     )
 
     @validator("access_token")
-    def _ensure_credentials_go_with_https(cls, v: str, values: dict):
-        """Ensure that credentials are not provided with 'SSH' formatted GitHub URLs."""
+    def _ensure_credentials_go_with_https(cls, v: str, values: dict) -> str:
+        """Ensure that credentials are not provided with 'SSH' formatted GitHub URLs.
+
+        Note: validates `access_token` specifically so that it only fires when
+        private repositories are used.
+        """
         if v is not None:
             if urllib.parse.urlparse(values["repository"]).scheme != "https":
                 raise InvalidRepositoryURLError(
@@ -824,7 +828,6 @@ class GitHub(ReadableDeploymentStorage):
         """
         url_components = urllib.parse.urlparse(self.repository)
         if url_components.scheme == "https" and self.access_token is not None:
-            repo_url = url_components.netloc + url_components.path
             updated_components = url_components._replace(
                 netloc=f"{self.access_token.get_secret_value()}@{url_components.netloc}"
             )
@@ -878,8 +881,7 @@ class GitHub(ReadableDeploymentStorage):
 
         # Clone to a temporary directory and move the subdirectory over
         with TemporaryDirectory(suffix="prefect") as tmp_dir:
-            tmp_path_str = tmp_dir
-            cmd += f" {tmp_path_str}"
+            cmd += f" {tmp_dir}"
 
             err_stream = io.StringIO()
             out_stream = io.StringIO()
@@ -889,7 +891,7 @@ class GitHub(ReadableDeploymentStorage):
                 raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
 
             content_source, content_destination = self._get_paths(
-                dst_dir=local_path, src_dir=tmp_path_str, sub_directory=from_path
+                dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
             )
 
             copy_tree(src=content_source, dst=content_destination)
