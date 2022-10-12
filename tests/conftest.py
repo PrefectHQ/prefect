@@ -34,6 +34,7 @@ import prefect.settings
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_ASYNC_FETCH_STATE_RESULT,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
     PREFECT_HOME,
@@ -274,6 +275,8 @@ def pytest_sessionstart(session):
             # Disable pretty CLI output for easier assertions
             PREFECT_CLI_COLORS: False,
             PREFECT_CLI_WRAP_LINES: False,
+            # Enable future change
+            PREFECT_ASYNC_FETCH_STATE_RESULT: True,
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
             # Disable shipping logs to the API;
