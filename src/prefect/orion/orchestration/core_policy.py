@@ -490,7 +490,7 @@ class PreventRestartingSubflowRuns(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
-        if self.run.parent_task_run_id:
+        if context.run.parent_task_run_id:
             self.abort_transition("Cannot restart a subflow run.")
 
 
@@ -504,7 +504,7 @@ class PreventRestartingFlowsWithoutDeployments(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
-        if not self.run.deployment_id:
+        if not context.run.deployment_id:
             self.abort_transition("Cannot a run without an associated deployment.")
 
 
