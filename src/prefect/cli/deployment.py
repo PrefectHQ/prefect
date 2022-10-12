@@ -2,7 +2,7 @@
 Command line interface for working with deployments.
 """
 import json
-import os
+import sys
 import textwrap
 from datetime import timedelta
 from enum import Enum
@@ -321,11 +321,12 @@ async def run(
             "parameter values."
         ),
     ),
-    param_file: Optional[str] = typer.Option(
+    multiparams: Optional[str] = typer.Option(
         None,
+        "--params",
         help=(
-            "The path to a JSON file containing parameter keys and values. Any parameters "
-            "passed with `--param` will take precedence over these values."
+            "A mapping of parameters to values. To use a stdin, pass '-'. Any "
+            "parameters passed with `--param` will take precedence over these values."
         ),
     ),
 ):
@@ -336,29 +337,24 @@ async def run(
 
     The flow run will not execute until an agent starts.
     """
-    file_params = {}
-    if param_file:
-
+    multi_params = {}
+    if multiparams:
         try:
-            with open(param_file) as fp:
-                file_params = json.load(fp)
-        except FileNotFoundError:
-            exit_with_error(
-                f"Parameter file does not exist: {os.path.abspath(param_file)!r}"
-            )
+            if multiparams == "-":
+                multi_params = json.load(sys.stdin.read())
+            else:
+                multi_params = json.load(multiparams)
         except ValueError as exc:
-            exit_with_error(
-                f"Failed to parse JSON at {os.path.abspath(param_file)!r}: {exc}"
-            )
+            exit_with_error(f"Failed to parse JSON: {exc}")
 
     cli_params = _load_json_key_values(params, "parameter")
-    conflicting_keys = set(cli_params.keys()).intersection(file_params.keys())
+    conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
     if conflicting_keys:
         app.console.print(
-            "The following parameters were specified by file and CLI, the CLI value "
-            f"will be used: {conflicting_keys}"
+            "The following parameters were specified by `--param` and `--params`, the "
+            f"`--param` value will be used: {conflicting_keys}"
         )
-    parameters = {**file_params, **cli_params}
+    parameters = {**multi_params, **cli_params}
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
