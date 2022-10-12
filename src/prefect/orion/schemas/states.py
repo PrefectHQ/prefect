@@ -124,7 +124,7 @@ class State(IDBaseModel, Generic[R]):
         update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
-    def result(self, raise_on_failure: bool = True):
+    def result(self, raise_on_failure: bool = True, fetch: Optional[bool] = None):
         from prefect.client.schemas import State
 
         warnings.warn(
@@ -136,7 +136,7 @@ class State(IDBaseModel, Generic[R]):
         )
 
         state = State.parse_obj(self)
-        return state.result(raise_on_failure=raise_on_failure)
+        return state.result(raise_on_failure=raise_on_failure, fetch=fetch)
 
     def __repr__(self) -> str:
         """

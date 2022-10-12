@@ -975,7 +975,7 @@ async def test_run_logger_in_flow(orion_client):
 
     state = test_flow._run()
     flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
-    logger = state.result()
+    logger = await state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
         "flow_name": test_flow.name,
@@ -991,7 +991,7 @@ async def test_run_logger_extra_data(orion_client):
 
     state = test_flow._run()
     flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
-    logger = state.result()
+    logger = await state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
         "flow_name": "bar",
@@ -1010,9 +1010,9 @@ async def test_run_logger_in_nested_flow(orion_client):
     def test_flow():
         return child_flow._run()
 
-    child_state = test_flow._run().result()
+    child_state = await test_flow._run().result()
     flow_run = await orion_client.read_flow_run(child_state.state_details.flow_run_id)
-    logger = child_state.result()
+    logger = await child_state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
         "flow_name": child_flow.name,
@@ -1032,9 +1032,9 @@ async def test_run_logger_in_task(orion_client):
 
     flow_state = test_flow._run()
     flow_run = await orion_client.read_flow_run(flow_state.state_details.flow_run_id)
-    task_state = flow_state.result()
+    task_state = await flow_state.result()
     task_run = await orion_client.read_task_run(task_state.state_details.task_run_id)
-    logger = task_state.result()
+    logger = await task_state.result()
     assert logger.name == "prefect.task_runs"
     assert logger.extra == {
         "task_name": test_task.name,
