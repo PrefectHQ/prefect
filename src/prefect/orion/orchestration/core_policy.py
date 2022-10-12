@@ -41,6 +41,19 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
         ]
 
 
+class FlowRestartPolicy(BaseOrchestrationPolicy):
+    """
+    Orchestration rules that run against flow-run-state transitions in priority order.
+    """
+
+    def priority():
+        return [
+            PreventRedundantTransitions,
+            WaitForScheduledTime,
+            RetryFailedFlows,
+        ]
+
+
 class CoreTaskPolicy(BaseOrchestrationPolicy):
     """
     Orchestration rules that run against task-run-state transitions in priority order.
