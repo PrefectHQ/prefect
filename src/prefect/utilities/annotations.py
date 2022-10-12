@@ -4,14 +4,39 @@ T = TypeVar("T")
 
 
 class unmapped:
-    """A container that acts as an infinite array where all items are the same
-    value. Used for Task.map where there is a need to map over a single
-    value"""
+    """
+    Wrapper for iterables.
+
+    Indicates that this input should be sent as-is to all runs created during a mapping
+    operation instead of being split.
+    """
 
     def __init__(self, value: Any):
         self.value = value
 
     def __getitem__(self, _) -> Any:
+        # Internally, this acts as an infinite array where all items are the same value
+        return self.value
+
+
+class allow_failure:
+    """
+    Wrapper for states or futures.
+
+    Indicates that the upstream run for this input can be failed.
+
+    Generally, Prefect will not allow a downstream run to start if any of its inputs
+    are failed. This annotation allows you to opt into receiving a failed input
+    downstream.
+
+    If the input is from a failed run, the attached exception will be passed to your
+    function.
+    """
+
+    def __init__(self, value: Any):
+        self.value = value
+
+    def unwrap(self) -> Any:
         return self.value
 
 

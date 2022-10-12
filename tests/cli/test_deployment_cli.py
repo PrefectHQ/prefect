@@ -440,6 +440,19 @@ class TestUpdatingDeployments:
             expected_output_contains="Incompatible schedule parameters",
         )
 
+    def test_rrule_schedules_are_parsed_properly(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--rrule",
+                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17", "timezone": "America/New_York"}',
+            ],
+            expected_code=0,
+            expected_output_contains="Updated deployment schedule!",
+        )
+
     def test_pausing_and_resuming_schedules(self, flojo):
         invoke_and_assert(
             [

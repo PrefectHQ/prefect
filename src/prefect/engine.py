@@ -86,7 +86,7 @@ from prefect.task_runners import (
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
-from prefect.utilities.annotations import Quote, unmapped
+from prefect.utilities.annotations import Quote, allow_failure, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
@@ -825,6 +825,9 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
     inputs = set()
 
     def add_futures_and_states_to_inputs(obj):
+        if isinstance(obj, allow_failure):
+            obj = obj.unwrap()
+
         if isinstance(obj, PrefectFuture):
             run_async_from_worker_thread(obj._wait_for_submission)
             inputs.add(core.TaskRunResult(id=obj.task_run.id))
@@ -1386,6 +1389,11 @@ async def resolve_inputs(
 
     def resolve_input(expr):
         state = None
+        should_allow_failure = False
+
+        if isinstance(expr, allow_failure):
+            expr = expr.unwrap()
+            should_allow_failure = True
 
         if isinstance(expr, Quote):
             return expr.unquote()
@@ -1396,13 +1404,17 @@ async def resolve_inputs(
         else:
             return expr
 
-        if not state.is_completed():
+        # Do not allow uncompleted upstreams except failures when `allow_failure` has
+        # been used
+        if not state.is_completed() and not (
+            should_allow_failure and state.is_failed()
+        ):
             raise UpstreamTaskError(
                 f"Upstream task run '{state.state_details.task_run_id}' did not reach a 'COMPLETED' state."
             )
 
         # Only retrieve the result if requested as it may be expensive
-        return state.result() if return_data else None
+        return state.result(raise_on_failure=False) if return_data else None
 
     return await run_sync_in_worker_thread(
         visit_collection,
