@@ -23,22 +23,31 @@ from prefect.settings import (
 
 
 @inject_db
-async def _delete_auto_scheduled_runs(
+async def _delete_scheduled_runs(
     session: sa.orm.Session,
     deployment_id: UUID,
     db: OrionDBInterface,
+    auto_scheduled_only: bool = False,
 ):
     """
     This utility function deletes all of a deployment's scheduled runs that are
-    still in a Scheduled state and that were  auto-scheduled runs. It should be
-    run any time a deployment is created or modified in order to ensure that
-    future runs comply with the deployment's latest values.
+    still in a Scheduled state It should be run any time a deployment is created or
+    modified in order to ensure that future runs comply with the deployment's latest values.
+
+    Args:
+        deployment_id: the deplyment for which we should delete runs.
+        auto_scheduled_only: if True, only delete auto scheduled runs. Defaults to `False`.
     """
     delete_query = sa.delete(db.FlowRun).where(
         db.FlowRun.deployment_id == deployment_id,
         db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
-        db.FlowRun.auto_scheduled.is_(True),
     )
+
+    if auto_scheduled_only:
+        delete_query = delete_query.where(
+            db.FlowRun.auto_scheduled.is_(True),
+        )
+
     await session.execute(delete_query)
 
 
@@ -104,7 +113,9 @@ async def create_deployment(
 
     # because this could upsert a different schedule, delete any runs from the old
     # deployment
-    await _delete_auto_scheduled_runs(session=session, deployment_id=model.id, db=db)
+    await _delete_scheduled_runs(
+        session=session, deployment_id=model.id, db=db, auto_scheduled_only=True
+    )
 
     return model
 
@@ -140,8 +151,8 @@ async def update_deployment(
     result = await session.execute(update_stmt)
 
     # delete any auto scheduled runs that would have reflected the old deployment config
-    await _delete_auto_scheduled_runs(
-        session=session, deployment_id=deployment_id, db=db
+    await _delete_scheduled_runs(
+        session=session, deployment_id=deployment_id, db=db, auto_scheduled_only=True
     )
 
     # create work queue if it doesn't exist
@@ -343,11 +354,9 @@ async def delete_deployment(
     """
 
     # delete scheduled runs, both auto- and user- created.
-    delete_query = sa.delete(db.FlowRun).where(
-        db.FlowRun.deployment_id == deployment_id,
-        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+    await _delete_scheduled_runs(
+        session=session, deployment_id=deployment_id, auto_scheduled_only=False
     )
-    await session.execute(delete_query)
 
     result = await session.execute(
         delete(db.Deployment).where(db.Deployment.id == deployment_id)
