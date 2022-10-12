@@ -355,15 +355,19 @@ class PersistedResult(BaseResult):
         if self._has_cached_object():
             return self._cache
 
-        block_document = await client.read_block_document(self.storage_block_id)
-        storage_block: ReadableFileSystem = Block._from_block_document(block_document)
-        content = await storage_block.read_path(self.storage_key)
-
-        blob = PersistedResultBlob.parse_raw(content)
+        blob = await self._read_blob(client=client)
         obj = blob.serializer.loads(blob.data)
         self._cache_object(obj)
 
         return obj
+
+    @inject_client
+    async def _read_blob(self, client: "OrionClient") -> "PersistedResultBlob":
+        block_document = await client.read_block_document(self.storage_block_id)
+        storage_block: ReadableFileSystem = Block._from_block_document(block_document)
+        content = await storage_block.read_path(self.storage_key)
+        blob = PersistedResultBlob.parse_raw(content)
+        return blob
 
     @classmethod
     @sync_compatible

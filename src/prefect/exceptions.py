@@ -87,6 +87,13 @@ class UnspecifiedFlowError(PrefectException):
     """
 
 
+class MissingResult(PrefectException):
+    """
+    Raised when a result is missing from a state; often when result persistence is
+    disabled and the state is retrieved from the API.
+    """
+
+
 class ScriptError(PrefectException):
     """
     Raised when a script errors during evaluation while attempting to load data

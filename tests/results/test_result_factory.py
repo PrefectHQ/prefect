@@ -8,27 +8,10 @@ from prefect.filesystems import LocalFileSystem
 from prefect.results import LiteralResult, PersistedResult, ResultFactory
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH
+from prefect.testing.utilities import assert_blocks_equal
 
 DEFAULT_SERIALIZER = PickleSerializer
 DEFAULT_STORAGE = lambda: LocalFileSystem(basepath=PREFECT_LOCAL_STORAGE_PATH.value())
-
-
-def assert_blocks_equal(
-    found, expected, exclude_private: bool = True, **kwargs
-) -> bool:
-    assert isinstance(
-        found, type(expected)
-    ), f"Unexpected type {type(found).__name__}, expected {type(expected).__name__}"
-
-    if exclude_private:
-        exclude = set(kwargs.pop("exclude", set()))
-        for attr, _ in found._iter():
-            if attr.startswith("_"):
-                exclude.add(attr)
-
-    assert found.dict(exclude=exclude, **kwargs) == expected.dict(
-        exclude=exclude, **kwargs
-    )
 
 
 @pytest.fixture
