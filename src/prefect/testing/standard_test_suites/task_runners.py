@@ -9,9 +9,10 @@ import cloudpickle
 import pytest
 
 from prefect import flow, task
-from prefect.orion.schemas.core import TaskRun
-from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.states import State, StateType
+from prefect.client.schemas import TaskRun
+from prefect.deprecated.data_documents import DataDocument
+from prefect.orion.schemas.states import StateType
+from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, TaskConcurrencyType
 from prefect.testing.utilities import exceptions_equal
 
@@ -341,7 +342,7 @@ class TaskRunnerStandardTestSuite(ABC):
             state = await task_runner.wait(task_run.id, 5)
             assert state is not None, "wait timed out"
             assert isinstance(state, State), "wait should return a state"
-            assert state.result() == 1
+            assert await state.result() == 1
 
     @pytest.mark.parametrize("exception", [KeyboardInterrupt(), ValueError("test")])
     async def test_wait_captures_exceptions_as_crashed_state(
@@ -367,7 +368,7 @@ class TaskRunnerStandardTestSuite(ABC):
             assert state is not None, "wait timed out"
             assert isinstance(state, State), "wait should return a state"
             assert state.type == StateType.CRASHED
-            result = state.result(raise_on_failure=False)
+            result = await state.result(raise_on_failure=False)
 
         assert exceptions_equal(result, exception)
 

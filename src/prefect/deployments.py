@@ -16,8 +16,8 @@ import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from prefect.blocks.core import Block
-from prefect.client import OrionClient, get_client
-from prefect.client.orion import inject_client
+from prefect.client.orion import OrionClient, get_client
+from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry
 from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
 from prefect.filesystems import LocalFileSystem
@@ -25,6 +25,7 @@ from prefect.flows import Flow
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
+from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
@@ -110,7 +111,7 @@ async def run_deployment(
 
     flow_run = await client.create_flow_run_from_deployment(
         deployment.id,
-        state=schemas.states.Scheduled(scheduled_time=scheduled_time),
+        state=Scheduled(scheduled_time=scheduled_time),
         parameters=parameters,
         name=flow_run_name,
         parent_task_run_id=parent_task_run_id,
@@ -579,12 +580,15 @@ class Deployment(BaseModel):
         return file_count
 
     @sync_compatible
-    async def apply(self, upload: bool = False) -> UUID:
+    async def apply(
+        self, upload: bool = False, work_queue_concurrency: int = None
+    ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
 
         Args:
             upload: if True, deployment files are automatically uploaded to remote storage
+            work_queue_concurrency: If provided, sets the concurrency limit on the deployment's work queue
         """
         if not self.name or not self.flow_name:
             raise ValueError("Both a deployment name and flow name must be set.")
@@ -602,6 +606,17 @@ class Deployment(BaseModel):
 
             if upload:
                 await self.upload_to_storage()
+
+            if self.work_queue_name and work_queue_concurrency is not None:
+                try:
+                    res = await client.create_work_queue(name=self.work_queue_name)
+                except ObjectAlreadyExists:
+                    res = await client.read_work_queue_by_name(
+                        name=self.work_queue_name
+                    )
+                await client.update_work_queue(
+                    res.id, concurrency_limit=work_queue_concurrency
+                )
 
             # we assume storage was already saved
             storage_document_id = getattr(self.storage, "_block_document_id", None)

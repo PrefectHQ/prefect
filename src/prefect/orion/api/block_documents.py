@@ -4,7 +4,6 @@ Routes for interacting with block objects.
 from typing import List, Optional
 from uuid import UUID
 
-import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Query, status
 
 from prefect.orion import models, schemas
@@ -25,16 +24,23 @@ async def create_block_document(
     Create a new block document.
     """
     async with db.session_context(begin_transaction=True) as session:
-        try:
-            new_block_document = await models.block_documents.create_block_document(
-                session=session, block_document=block_document
+        if block_document.name is not None:
+            exists = (
+                await models.block_documents.block_document_with_unique_values_exists(
+                    session=session,
+                    block_type_id=block_document.block_type_id,
+                    name=block_document.name,
+                )
             )
-        except sa.exc.IntegrityError:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                detail="Block already exists",
-            )
-        return new_block_document
+            if exists:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    detail="Block already exists",
+                )
+
+        return await models.block_documents.create_block_document(
+            session=session, block_document=block_document
+        )
 
 
 @router.post("/filter")
