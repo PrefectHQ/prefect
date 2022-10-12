@@ -106,7 +106,7 @@ async def test_flow_run_context(orion_client):
             assert ctx.flow_run == flow_run
             assert ctx.client is orion_client
             assert ctx.task_runner is test_task_runner
-            assert ctx.result_factory is result_factory
+            assert ctx.result_factory == result_factory
             assert isinstance(ctx.start_time, DateTime)
 
 
@@ -122,11 +122,12 @@ async def test_task_run_context(orion_client, flow_run):
         task=foo,
         task_run=task_run,
         client=orion_client,
+        result_factory=result_factory,
     ):
         ctx = TaskRunContext.get()
         assert ctx.task is foo
         assert ctx.task_run == task_run
-        assert ctx.result_factory is result_factory
+        assert ctx.result_factory == result_factory
         assert isinstance(ctx.start_time, DateTime)
 
 
