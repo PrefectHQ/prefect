@@ -110,6 +110,9 @@ class FlowRunPolicy(PrefectBaseModel):
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
     )
+    restarts: int = Field(
+        default=0, description="Indicates the number of times this flow has restarted"
+    )
 
     @root_validator
     def populate_deprecated_fields(cls, values):
@@ -268,9 +271,9 @@ class TaskRunPolicy(PrefectBaseModel):
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
     )
-    flow_restarts: int = Field(
-        defualt=0,
-        description="If the parent flow has restarted, this indicates the flow restart this run is associated with."
+    flow_restart_index: Optional[int] = Field(
+        default=None,
+        description="If the parent flow has restarted, this indicates the flow restart this run is associated with.",
     )
 
     @root_validator
