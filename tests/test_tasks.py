@@ -23,7 +23,7 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal, flaky_on_windows
-from prefect.utilities.annotations import unmapped
+from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.collections import quote
 
 
@@ -330,6 +330,62 @@ class TestTaskSubmit:
             return "bar"
 
         assert bar() == "bar"
+
+    def test_downstream_does_not_run_if_upstream_fails(self):
+        @task
+        def fails():
+            raise ValueError("Fail task!")
+
+        @task
+        def bar(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = fails.submit()
+            b = bar.submit(f)
+            return b
+
+        flow_state = test_flow(return_state=True)
+        task_state = flow_state.result(raise_on_failure=False)
+        assert task_state.is_pending()
+        assert task_state.name == "NotReady"
+
+    def test_downstream_runs_if_upstream_succeeds(self):
+        @task
+        def foo(x):
+            return x
+
+        @task
+        def bar(y):
+            return y + 1
+
+        @flow
+        def test_flow():
+            f = foo.submit(1)
+            b = bar.submit(f)
+            return b.result()
+
+        assert test_flow() == 2
+
+    def test_downstream_receives_exception_if_upstream_fails_and_allow_failure(self):
+        @task
+        def fails():
+            raise ValueError("Fail task!")
+
+        @task
+        def bar(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = fails.submit()
+            b = bar.submit(allow_failure(f))
+            return b.result()
+
+        result = test_flow()
+        assert isinstance(result, ValueError)
+        assert "Fail task!" in str(result)
 
 
 class TestTaskStates:
@@ -1447,6 +1503,35 @@ class TestTaskInputs:
             x=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
         )
 
+    async def test_task_inputs_populated_with_state_upstream_wrapped_with_allow_failure(
+        self, orion_client
+    ):
+        @task
+        def upstream(x):
+            return x
+
+        @task
+        def downstream(x):
+            return x
+
+        @flow
+        def test_flow():
+            upstream_state = upstream(1, return_state=True)
+            downstream_state = downstream(
+                allow_failure(upstream_state), return_state=True
+            )
+            return upstream_state, downstream_state
+
+        upstream_state, downstream_state = test_flow()
+
+        task_run = await orion_client.read_task_run(
+            downstream_state.state_details.task_run_id
+        )
+
+        assert task_run.task_inputs == dict(
+            x=[TaskRunResult(id=upstream_state.state_details.task_run_id)],
+        )
+
     @pytest.mark.parametrize("result", [["Fred"], {"one": 1}, {1, 2, 2}, (1, 2)])
     async def test_task_inputs_populated_with_collection_result_upstream(
         self, result, orion_client, flow_with_upstream_downstream
@@ -1696,6 +1781,25 @@ class TestTaskWaitFor:
             @task
             def foo(wait_for):
                 pass
+
+    def test_downstream_runs_if_upstream_fails_with_allow_failure_annotation(self):
+        @task
+        def fails():
+            raise ValueError("Fail task!")
+
+        @task
+        def bar(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = fails.submit()
+            b = bar(2, wait_for=[allow_failure(f)], return_state=True)
+            return b
+
+        flow_state = test_flow(return_state=True)
+        task_state = flow_state.result(raise_on_failure=False)
+        assert task_state.result() == 2
 
 
 @pytest.mark.enable_orion_handler
