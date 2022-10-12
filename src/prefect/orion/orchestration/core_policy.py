@@ -48,9 +48,7 @@ class FlowRestartPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
-            PreventRedundantTransitions,
-            WaitForScheduledTime,
-            RetryFailedFlows,
+            RestartFlowRun,
         ]
 
 
@@ -463,3 +461,40 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
             await self.abort_transition(
                 reason=f"This run cannot transition to the {proposed_state_type} state from the {initial_state_type} state."
             )
+
+
+class RestartFlowRun(BaseOrchestrationRule):
+    FROM_STATES = TERMINAL_STATES
+    TO_STATES = [states.StateType.SCHEDULED]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ):
+        if self.run.parent_task_run_id:
+            self.abort_transition("Cannot restart a subflow run.")
+        self.original_run_count = context.run.run_count
+        context.run.run_count = 0  # reset run count to preserve retry behavior
+        context.run.context.setdefault("restart_count", 0)
+        context.run.context["restart_count"] += 1
+
+    async def after_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ):
+        task_runs = context.run.get_task_runs()
+        for task_run in task_runs:
+            task_run.empirical_policy["flow_restarts"] = context.run.context["restart_count"]
+
+    async def cleanup(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: OrchestrationContext,
+    ):
+        context.run.run_count = self.original_run_count
+        context.run.context["restart_count"] -= 1
