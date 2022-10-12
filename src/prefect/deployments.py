@@ -17,7 +17,6 @@ from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from prefect.blocks.core import Block
 from prefect.client.orion import OrionClient, get_client
-from prefect.client.schemas import Scheduled
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry
 from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
