@@ -64,7 +64,7 @@ def my_flow():
     future = my_task.submit()
     return future.result() + 1
 
-result = my_flow())
+result = my_flow()
 assert result == 2
 ```
 
@@ -155,7 +155,7 @@ def my_flow():
     state = my_task(return_state=True)
 
     maybe_result = state.result(raise_on_failure=False)
-    if isinstance(maybe_result, ValueError):"
+    if isinstance(maybe_result, ValueError):
         print("Oh no! The task failed. Falling back to '1'.")
         result = 1
     else:
