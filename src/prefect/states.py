@@ -15,7 +15,7 @@ from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
 )
-from prefect.exceptions import CrashedRun, FailedRun
+from prefect.exceptions import CrashedRun, FailedRun, MissingResult
 from prefect.orion import schemas
 from prefect.orion.schemas.states import StateType
 from prefect.results import BaseResult, R, ResultFactory
@@ -83,7 +83,7 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
         if state.is_failed() or state.is_crashed():
             return await get_state_exception(state)
         else:
-            raise ValueError(
+            raise MissingResult(
                 "State data is missing. "
                 "Typically, this occurs when result persistence is disabled and the "
                 "state has been retrieved from the API."

@@ -14,8 +14,15 @@ import pytest
 import prefect.context
 import prefect.orion.schemas as schemas
 import prefect.settings
+from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client
+from prefect.client.orion import OrionClient
+from prefect.client.utilities import inject_client
+from prefect.filesystems import ReadableFileSystem
 from prefect.orion.database.dependencies import temporary_database_interface
+from prefect.results import PersistedResult
+from prefect.serializers import Serializer
+from prefect.states import State
 
 
 def flaky_on_windows(fn, **kwargs):
@@ -141,3 +148,53 @@ async def get_most_recent_flow_run(client: OrionClient = None):
     )
 
     return flow_runs[0]
+
+
+def assert_blocks_equal(
+    found, expected, exclude_private: bool = True, **kwargs
+) -> bool:
+    assert isinstance(
+        found, type(expected)
+    ), f"Unexpected type {type(found).__name__}, expected {type(expected).__name__}"
+
+    if exclude_private:
+        exclude = set(kwargs.pop("exclude", set()))
+        for attr, _ in found._iter():
+            if attr.startswith("_"):
+                exclude.add(attr)
+
+    assert found.dict(exclude=exclude, **kwargs) == expected.dict(
+        exclude=exclude, **kwargs
+    )
+
+
+async def assert_uses_result_serializer(
+    state: State, serializer: Union[str, Serializer]
+):
+    assert isinstance(state.data, PersistedResult)
+    assert (
+        state.data.serializer_type == serializer
+        if isinstance(serializer, str)
+        else serializer.type
+    )
+    blob = await state.data._read_blob()
+    assert (
+        blob.serializer == serializer
+        if isinstance(serializer, Serializer)
+        else Serializer(type=serializer)
+    )
+
+
+@inject_client
+async def assert_uses_result_storage(
+    state: State, storage: Union[str, ReadableFileSystem], client: "OrionClient"
+):
+    assert isinstance(state.data, PersistedResult)
+    assert_blocks_equal(
+        Block._from_block_document(
+            await client.read_block_document(state.data.storage_block_id)
+        ),
+        storage
+        if isinstance(storage, Block)
+        else await Block.load(storage, client=client),
+    )

@@ -29,6 +29,10 @@ import asyncpg
 import pytest
 from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
 
+# Improve diff display for assertions in utilities
+# Note: This must occur before import of the module
+pytest.register_assert_rewrite("prefect.testing.utilities")
+
 import prefect
 import prefect.settings
 from prefect.logging.configuration import setup_logging
