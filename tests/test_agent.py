@@ -117,25 +117,28 @@ async def test_agent_matches_work_queues_dynamically(
 async def test_agent_matches_multiple_work_queues_dynamically(
     session, orion_client, prefect_caplog
 ):
-    candy1 = "look!-piece-o-candy"
-    candy2 = "look!!-piece-o-candy"
-    candy3 = "look!!!-piece-o-candy"
-    await orion_client.create_work_queue(name=candy1)
-    await orion_client.create_work_queue(name=candy2)
+    prod1 = "prod-deployment-1"
+    prod2 = "prod-deployment-2"
+    prod3 = "prod-deployment-3"
+    dev1 = "dev-data-producer"
+    await orion_client.create_work_queue(name=prod1)
+    await orion_client.create_work_queue(name=prod2)
 
-    async with OrionAgent(work_queue_prefix="look!") as agent:
+    async with OrionAgent(work_queue_prefix="prod-") as agent:
         assert not agent.work_queues
         await agent.get_and_submit_flow_runs()
-        assert candy1 in agent.work_queues
-        assert candy2 in agent.work_queues
+        assert prod1 in agent.work_queues
+        assert prod2 in agent.work_queues
 
         # bypass work_queue caching
         agent._work_queue_cache_expiration = pendulum.now("UTC") - pendulum.duration(
             minutes=1
         )
-        await orion_client.create_work_queue(name=candy3)
+        await orion_client.create_work_queue(name=prod3)
+        await orion_client.create_work_queue(name=dev1)
         await agent.get_and_submit_flow_runs()
-        assert candy3 in agent.work_queues
+        assert prod3 in agent.work_queues
+        assert dev1 not in agent.work_queues, "work queue matcher should not match partial names"
 
 
 async def test_matching_work_queues_handes_work_queue_deletion(
@@ -171,7 +174,7 @@ async def test_agent_creates_work_queue_if_doesnt_exist(session, prefect_caplog)
     assert f"Created work queue '{name}'." in prefect_caplog.text
 
 
-async def test_agent_does_not_create_work_queues_if_matching_with_regex(
+async def test_agent_does_not_create_work_queues_if_matching_with_prefix(
     session, prefect_caplog
 ):
     name = "hello-there"
@@ -179,7 +182,7 @@ async def test_agent_does_not_create_work_queues_if_matching_with_regex(
         session=session, name=name
     )
     async with OrionAgent(work_queues=[name]) as agent:
-        agent.work_queue_prefix = "general kenobi!"
+        agent.work_queue_prefix = "goodbye-"
         await agent.get_and_submit_flow_runs()
     assert not await models.work_queues.read_work_queue_by_name(
         session=session, name=name
