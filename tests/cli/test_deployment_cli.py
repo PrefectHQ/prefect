@@ -488,25 +488,26 @@ class TestDeploymentRun:
         flow = await orion_client.read_flow(deployment.flow_id)
         return f"{flow.name}/{deployment.name}"
 
-    def test_run_wraps_parameter_file_parsing_exception(
-        self, tmp_path, deployment_name
-    ):
-        params_file = tmp_path / "params_file"
-        params_file.write_text("not-valid-json", encoding="UTF-8")
+    def test_run_wraps_parameter_stdin_parsing_exception(self, deployment_name):
         invoke_and_assert(
-            ["deployment", "run", deployment_name, "--param-file", str(params_file)],
+            ["deployment", "run", deployment_name, "--params", "-"],
             expected_code=1,
             expected_output_contains="Failed to parse JSON",
+            user_input="not-valid-json",
         )
 
-    def test_run_wraps_parameter_file_not_found_exception(
-        self, tmp_path, deployment_name
-    ):
-        params_file = tmp_path / "params_file"
+    def test_run_wraps_parameter_stdin_empty(self, tmp_path, deployment_name):
         invoke_and_assert(
-            ["deployment", "run", deployment_name, "--param-file", str(params_file)],
+            ["deployment", "run", deployment_name, "--params", "-"],
             expected_code=1,
-            expected_output_contains="Parameter file does not exist",
+            expected_output_contains="No data passed to stdin",
+        )
+
+    def test_run_wraps_parameters_parsing_exception(self, deployment_name):
+        invoke_and_assert(
+            ["deployment", "run", deployment_name, "--params", "not-valid-json"],
+            expected_code=1,
+            expected_output_contains="Failed to parse JSON",
         )
 
     def test_wraps_parameter_json_parsing_exception(self, deployment_name):
@@ -563,19 +564,43 @@ class TestDeploymentRun:
         flow_run = flow_runs[0]
         assert flow_run.parameters == {"name": expected}
 
-    async def test_passes_parameters_from_file_to_flow_run(
+    async def test_passes_parameters_from_stdin_to_flow_run(
         self,
         deployment,
         deployment_name,
-        tmp_path,
         orion_client,
     ):
-        params_file = tmp_path / "params_file"
-        params_file.write_text(json.dumps({"name": "foo"}), encoding="UTF-8")
-
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            ["deployment", "run", deployment_name, "--param-file", str(params_file)],
+            ["deployment", "run", deployment_name, "--params", "-"],
+            json.dumps({"name": "foo"}),  # stdin
+        )
+
+        flow_runs = await orion_client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=[deployment.id])
+            )
+        )
+
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.parameters == {"name": "foo"}
+
+    async def test_passes_parameters_from_dict_to_flow_run(
+        self,
+        deployment,
+        deployment_name,
+        orion_client,
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            [
+                "deployment",
+                "run",
+                deployment_name,
+                "--params",
+                json.dumps({"name": "foo"}),
+            ],
         )
 
         flow_runs = await orion_client.read_flow_runs(

@@ -339,11 +339,13 @@ async def run(
     """
     multi_params = {}
     if multiparams:
+        if multiparams == "-":
+            multiparams = sys.stdin.read()
+            if not multiparams:
+                exit_with_error("No data passed to stdin")
+
         try:
-            if multiparams == "-":
-                multi_params = json.load(sys.stdin.read())
-            else:
-                multi_params = json.load(multiparams)
+            multi_params = json.loads(multiparams)
         except ValueError as exc:
             exit_with_error(f"Failed to parse JSON: {exc}")
 
