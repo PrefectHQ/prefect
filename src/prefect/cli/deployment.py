@@ -97,14 +97,14 @@ async def create_work_queue_and_set_concurrency_limit(
                 except ObjectAlreadyExists:
                     res = await client.read_work_queue_by_name(name=work_queue_name)
                     app.console.print(
-                        f"Work queue {work_queue_name} already exists with a concurrency limit of {res.concurrency_limit}, this limit is being updated...",
+                        f"Work queue {work_queue_name!r} already exists with a concurrency limit of {res.concurrency_limit}, this limit is being updated...",
                         style="red",
                     )
                 await client.update_work_queue(
                     res.id, concurrency_limit=work_queue_concurrency
                 )
                 app.console.print(
-                    f"Updated concurrency limit on work queue {work_queue_name} to {work_queue_concurrency}"
+                    f"Updated concurrency limit on work queue {work_queue_name!r} to {work_queue_concurrency}", style="green",
                 )
             except Exception as exc:
                 exit_with_error(
