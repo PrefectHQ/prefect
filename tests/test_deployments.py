@@ -716,7 +716,7 @@ class TestRunDeployment:
             )
 
         parent_state = foo(return_state=True)
-        child_flow_run = parent_state.result()
+        child_flow_run = await parent_state.result()
         assert child_flow_run.parent_task_run_id is not None
         task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)
         assert task_run.flow_run_id == parent_state.state_details.flow_run_id
@@ -744,7 +744,7 @@ class TestRunDeployment:
             return upstream_task_state, child_flow_run
 
         parent_state = foo(return_state=True)
-        upstream_task_state, child_flow_run = parent_state.result()
+        upstream_task_state, child_flow_run = await parent_state.result()
         assert child_flow_run.parent_task_run_id is not None
         task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)
         assert task_run.task_inputs == {
