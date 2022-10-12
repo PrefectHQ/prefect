@@ -1,5 +1,4 @@
 import datetime
-import re
 import warnings
 from contextlib import AsyncExitStack
 from functools import wraps

@@ -1,6 +1,5 @@
 import datetime
 import random
-import re
 import threading
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock

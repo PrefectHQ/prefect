@@ -2,7 +2,6 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
-import re
 from typing import Iterator, List, Optional, Set, Union
 from uuid import UUID
 
