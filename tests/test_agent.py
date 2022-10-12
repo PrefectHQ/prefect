@@ -6,10 +6,10 @@ import pytest
 from prefect import flow
 from prefect.agent import OrionAgent
 from prefect.blocks.core import Block
-from prefect.exceptions import Abort
+from prefect.client.schemas import Completed, Pending, Running, Scheduled
+from prefect.exceptions import Abort, FailedRun
 from prefect.infrastructure.base import Infrastructure
 from prefect.orion import models, schemas
-from prefect.orion.schemas.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dispatch import get_registry_for_type
 
@@ -467,9 +467,8 @@ class TestInfrastructureIntegration:
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
         assert state.is_failed()
-        result = await orion_client.resolve_datadoc(state.data)
-        with pytest.raises(ValueError, match="Bad!"):
-            raise result
+        with pytest.raises(FailedRun, match="Submission failed. ValueError: Bad!"):
+            await state.result()
 
     async def test_agent_fails_flow_if_infrastructure_submission_fails(
         self, orion_client, deployment, mock_infrastructure_run
@@ -503,9 +502,8 @@ class TestInfrastructureIntegration:
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
         assert state.is_failed()
-        result = await orion_client.resolve_datadoc(state.data)
-        with pytest.raises(ValueError, match="Hello!"):
-            raise result
+        with pytest.raises(FailedRun, match="Submission failed. ValueError: Hello!"):
+            await state.result()
 
     async def test_agent_does_not_fail_flow_if_infrastructure_watch_fails(
         self, orion_client, deployment, mock_infrastructure_run
