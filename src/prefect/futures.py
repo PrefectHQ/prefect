@@ -234,7 +234,7 @@ class PrefectFuture(Generic[R, A]):
         final_state = await self._wait(timeout=timeout)
         if not final_state:
             raise TimeoutError("Call timed out before task finished.")
-        return await final_state._result(raise_on_failure=raise_on_failure)
+        return await final_state.result(raise_on_failure=raise_on_failure, fetch=True)
 
     @overload
     def get_state(

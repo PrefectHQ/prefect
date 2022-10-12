@@ -23,9 +23,9 @@ from prefect.utilities.pydantic import add_type_dispatch
 if TYPE_CHECKING:
     from prefect import Flow, Task
 
-LITERAL_TYPES = {type(None), bool}
 ResultStorage = Union[WritableFileSystem, str]
 ResultSerializer = Union[Serializer, str]
+LITERAL_TYPES = {type(None), bool}
 
 logger = get_logger("results")
 
@@ -79,6 +79,27 @@ class ResultFactory(pydantic.BaseModel):
 
     @classmethod
     @inject_client
+    async def default_factory(cls, client: "OrionClient" = None, **kwargs):
+        """
+        Create a new result factory with default options.
+
+        Keyword arguments may be provided to override defaults. Null keys will be
+        ignored.
+        """
+        # Remove any null keys so `setdefault` can do its magic
+        for key, value in tuple(kwargs.items()):
+            if value is None:
+                kwargs.pop(key)
+
+        # Apply defaults
+        kwargs.setdefault("result_storage", get_default_result_storage())
+        kwargs.setdefault("result_serializer", get_default_result_serializer())
+        kwargs.setdefault("persist_result", False)
+
+        return await cls.from_settings(**kwargs, client=client)
+
+    @classmethod
+    @inject_client
     async def from_flow(
         cls: Type[Self], flow: "Flow", client: OrionClient = None
     ) -> Self:
@@ -90,34 +111,30 @@ class ResultFactory(pydantic.BaseModel):
         ctx = FlowRunContext.get()
         if ctx:
             # This is a child flow run
-            result_storage = flow.result_storage or ctx.result_factory.storage_block
-            result_serializer = flow.result_serializer or ctx.result_factory.serializer
-            persist_result = (
-                flow.persist_result
-                if flow.persist_result is not None
-                else
-                # !! Child flows persist their result by default if the parent flow
-                #    uses a feature that requires it
-                flow_features_require_child_result_persistence(ctx.flow)
+            return await cls.from_settings(
+                result_storage=flow.result_storage or ctx.result_factory.storage_block,
+                result_serializer=flow.result_serializer
+                or ctx.result_factory.serializer,
+                persist_result=(
+                    flow.persist_result
+                    if flow.persist_result is not None
+                    else
+                    # !! Child flows persist their result by default if the parent flow
+                    #    uses a feature that requires it
+                    flow_features_require_child_result_persistence(ctx.flow)
+                ),
+                client=client,
             )
         else:
-            result_storage = flow.result_storage or get_default_result_storage()
-            result_serializer = (
-                flow.result_serializer or get_default_result_serializer()
+            # This is a root flow run
+            # Pass the flow settings up to the default which will replace nulls with
+            # our default options
+            return await cls.default_factory(
+                client=client,
+                result_storage=flow.result_storage,
+                result_serializer=flow.result_serializer,
+                persist_result=flow.persist_result,
             )
-            persist_result = (
-                flow.persist_result
-                if flow.persist_result is not None
-                # !! Root flows do not persist their result by default ever at this time
-                else False
-            )
-
-        return await cls.from_settings(
-            result_storage=result_storage,
-            result_serializer=result_serializer,
-            persist_result=persist_result,
-            client=client,
-        )
 
     @classmethod
     @inject_client
@@ -223,14 +240,25 @@ class ResultFactory(pydantic.BaseModel):
             )
 
     @sync_compatible
-    async def create_result(self, obj: R) -> "BaseResult[R]":
+    async def create_result(self, obj: R) -> Union[R, "BaseResult[R]"]:
         """
         Create a result type for the given object.
+
+        If persistence is disabled, the object is returned unaltered.
 
         Literal types are converted into `ResultLiteral`.
 
         Other types are serialized, persisted to storage, and a reference is returned.
         """
+        if obj is None:
+            # Always write nulls as result types to distinguish from unpersisted results
+            return await ResultLiteral.create(None)
+
+        if not self.persist_result:
+            # Attach the object directly if persistence is disabled; it will be dropped
+            # when sent to the API
+            return obj
+
         if type(obj) in LITERAL_TYPES:
             return await ResultLiteral.create(obj)
 
@@ -265,7 +293,7 @@ class BaseResult(pydantic.BaseModel, Generic[R]):
 
 class ResultLiteral(BaseResult):
     """
-    Result type for literal values like `None`, `True`, and `False`.
+    Result type for literal values like `None`, `True`, `False`.
 
     These values are stored inline and JSON serialized when sent to the Prefect API.
     They are not persisted to external result storage.
