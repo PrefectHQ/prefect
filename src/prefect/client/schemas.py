@@ -1,11 +1,13 @@
 import datetime
-import warnings
-from typing import Generic, Iterable, Optional, Type, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Generic, Optional, Type, TypeVar, Union, overload
 
 from pydantic import Field
 
-from prefect.deprecated.data_documents import DataDocument
 from prefect.orion import schemas
+
+if TYPE_CHECKING:
+    from prefect.deprecated.data_documents import DataDocument
+    from prefect.results import BaseResult
 
 R = TypeVar("R")
 
@@ -17,18 +19,16 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
     This client-side extension adds a `result` interface.
     """
 
-    data: Optional[DataDocument[R]] = Field(
+    data: Optional[Union["BaseResult[R]", "DataDocument[R]"]] = Field(
         default=None,
     )
 
     @overload
-    def result(state_or_future: "State[R]", raise_on_failure: bool = True) -> R:
+    def result(self: "State[R]", raise_on_failure: bool = True) -> R:
         ...
 
     @overload
-    def result(
-        state_or_future: "State[R]", raise_on_failure: bool = False
-    ) -> Union[R, Exception]:
+    def result(self: "State[R]", raise_on_failure: bool = False) -> Union[R, Exception]:
         ...
 
     def result(self, raise_on_failure: bool = True):
@@ -88,40 +88,22 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
             >>> print(result)
             ValueError("oh no!")
         """
-        data = None
+        from prefect.deprecated.data_documents import (
+            DataDocument,
+            result_from_state_with_data_document,
+        )
+        from prefect.results import BaseResult
 
-        if self.data:
-            data = self.data.decode()
-
-        # Link the result to this state for dependency tracking
-        # Performing this here lets us capture relationships for futures resolved into
-        # data
-
-        if (self.is_failed() or self.is_crashed()) and raise_on_failure:
-            if isinstance(data, Exception):
-                raise data
-            elif isinstance(data, BaseException):
-                warnings.warn(
-                    f"State result is a {type(data).__name__!r} type and is not safe "
-                    "to re-raise, it will be returned instead."
-                )
-                return data
-            elif isinstance(data, State):
-                data.result()
-            elif isinstance(data, Iterable) and all(
-                [isinstance(o, State) for o in data]
-            ):
-                # raise the first failure we find
-                for state in data:
-                    state.result()
-
-            # we don't make this an else in case any of the above conditionals doesn't raise
-            raise TypeError(
-                f"Unexpected result for failure state: {data!r} —— "
-                f"{type(data).__name__} cannot be resolved into an exception"
+        if isinstance(self.data, DataDocument):
+            return result_from_state_with_data_document(
+                self, raise_on_failure=raise_on_failure
             )
-
-        return data
+        elif isinstance(self.data, BaseResult):
+            return self.data.load()
+        else:
+            raise ValueError(
+                f"State data is of unknown result type {type(self.data).__name__!r}."
+            )
 
 
 def Scheduled(
