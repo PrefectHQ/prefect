@@ -1432,7 +1432,7 @@ async def propose_state(
         flow_run_id: an optional flow run id, used when proposing flow run states
 
     Returns:
-        a [State model][prefect.orion.State] representation of the flow or task run
+        a [State model][prefect.orion.schemas.states] representation of the flow or task run
             state
 
     Raises:
