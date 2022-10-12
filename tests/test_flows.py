@@ -1093,7 +1093,7 @@ class TestSubflowTaskInputs:
             return quote((future.wait(), flow_state))
 
         task_state, flow_state = parent_flow().unquote()
-        assert isinstance(flow_state.result(), ValueError)
+        assert isinstance(await flow_state.result(), ValueError)
         flow_tracking_task_run = await orion_client.read_task_run(
             flow_state.state_details.task_run_id
         )
@@ -1121,7 +1121,7 @@ class TestSubflowTaskInputs:
             return quote((task_state, flow_state))
 
         task_state, flow_state = parent_flow().unquote()
-        assert isinstance(flow_state.result(), ValueError)
+        assert isinstance(await flow_state.result(), ValueError)
         flow_tracking_task_run = await orion_client.read_task_run(
             flow_state.state_details.task_run_id
         )
