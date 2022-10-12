@@ -18,7 +18,6 @@ import cloudpickle
 import pydantic
 from typing_extensions import Protocol
 
-from prefect.client.schemas import State
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
 if TYPE_CHECKING:
@@ -221,15 +220,13 @@ class ResultSerializer:
         return _Result.parse_raw(blob)
 
 
-def result_from_state_with_data_document(state: "State", raise_on_failure: bool) -> Any:
+def result_from_state_with_data_document(state, raise_on_failure: bool) -> Any:
     data = None
 
     if state.data:
         data = state.data.decode()
 
-    # Link the result to this state for dependency tracking
-    # Performing this here lets us capture relationships for futures resolved into
-    # data
+    from prefect.states import State
 
     if (state.is_failed() or state.is_crashed()) and raise_on_failure:
         if isinstance(data, Exception):
