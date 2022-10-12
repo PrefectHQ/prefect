@@ -18,10 +18,8 @@ from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.orchestration.core_policy import MinimalTaskPolicy
 from prefect.orion.orchestration.global_policy import GlobalTaskPolicy
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
-from prefect.orion.orchestration.rules import (
-    OrchestrationResult,
-    TaskOrchestrationContext,
-)
+from prefect.orion.orchestration.rules import TaskOrchestrationContext
+from prefect.orion.schemas.responses import OrchestrationResult
 
 
 @inject_db

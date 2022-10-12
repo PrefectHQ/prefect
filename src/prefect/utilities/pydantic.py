@@ -154,7 +154,10 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
 
     def __new__(cls: Type[Self], **kwargs) -> Self:
         if "type" in kwargs:
-            subcls = lookup_type(cls, dispatch_key=kwargs["type"])
+            try:
+                subcls = lookup_type(cls, dispatch_key=kwargs["type"])
+            except KeyError as exc:
+                raise pydantic.ValidationError(errors=[exc], model=cls)
             return cls_new(subcls)
         else:
             return cls_new(cls)
@@ -222,8 +225,10 @@ class PartialModel(Generic[M]):
         self.fields[__name] = __value
 
     def __repr__(self) -> str:
-        dsp_fields = ", ".join(f"{key}={repr(value)}" for key, value in self.fields)
-        return f"PartialModel({self.model_cls.__name__}{dsp_fields})"
+        dsp_fields = ", ".join(
+            f"{key}={repr(value)}" for key, value in self.fields.items()
+        )
+        return f"PartialModel(cls={self.model_cls.__name__}, {dsp_fields})"
 
 
 class JsonPatch(JsonPatchBase):
