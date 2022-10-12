@@ -45,13 +45,13 @@ async def start(
         "--work-queue",
         help="One or more work queue names for the agent to pull from.",
     ),
-    work_queue_regex: str = typer.Option(
+    work_queue_prefix: str = typer.Option(
         None,
         "-m",
         "--match",
         help=(
-            "A Python regex string used to match work queues for the agent to pull from,"
-            "for example `dev-.*` will match all work queues with a name that starts with `dev-`"
+            "Dynamically matches work queue names with the specified prefix for the agent to pull from,"
+            "for example `dev-` will match all work queues with a name that starts with `dev-`"
         ),
     ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
@@ -85,11 +85,11 @@ async def start(
             style="blue",
         )
 
-    if not work_queues and not tags and not work_queue_regex:
+    if not work_queues and not tags and not work_queue_prefix:
         exit_with_error("No work queues provided!", style="red")
-    elif bool(work_queues) + bool(tags) + bool(work_queue_regex) > 1:
+    elif bool(work_queues) + bool(tags) + bool(work_queue_prefix) > 1:
         exit_with_error(
-            "Only one of `work_queues`, `regex`, or `tags` can be provided.",
+            "Only one of `work_queues`, `match`, or `tags` can be provided.",
             style="red",
         )
 
@@ -126,14 +126,14 @@ async def start(
             )
 
     async with OrionAgent(
-        work_queues=work_queues, work_queue_regex=work_queue_regex
+        work_queues=work_queues, work_queue_prefix=work_queue_prefix
     ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
-            if work_queue_regex:
+            if work_queue_prefix:
                 app.console.print(
                     "Agent started! Looking for work from "
-                    f"queue(s) that match the regex pattern: {work_queue_regex}..."
+                    f"queue(s) that start with the prefix: {work_queue_prefix}..."
                 )
             else:
                 app.console.print(

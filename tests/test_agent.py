@@ -106,7 +106,7 @@ async def test_agent_matches_work_queues_dynamically(
 ):
     name = "wq-1"
     assert await models.work_queues.read_work_queue_by_name(session=session, name=name)
-    async with OrionAgent(work_queue_regex="wq-.*") as agent:
+    async with OrionAgent(work_queue_prefix="wq-") as agent:
         assert name not in agent.work_queues
         await agent.get_and_submit_flow_runs()
         assert name in agent.work_queues
@@ -123,7 +123,7 @@ async def test_agent_matches_multiple_work_queues_dynamically(
     await orion_client.create_work_queue(name=candy1)
     await orion_client.create_work_queue(name=candy2)
 
-    async with OrionAgent(work_queue_regex="look.*") as agent:
+    async with OrionAgent(work_queue_prefix="look!") as agent:
         assert not agent.work_queues
         await agent.get_and_submit_flow_runs()
         assert candy1 in agent.work_queues
@@ -143,7 +143,7 @@ async def test_matching_work_queues_handes_work_queue_deletion(
 ):
     name = "wq-1"
     assert await models.work_queues.read_work_queue_by_name(session=session, name=name)
-    async with OrionAgent(work_queue_regex="wq-.*") as agent:
+    async with OrionAgent(work_queue_prefix="wq-") as agent:
         await agent.get_and_submit_flow_runs()
         assert name in agent.work_queues
 
@@ -179,7 +179,7 @@ async def test_agent_does_not_create_work_queues_if_matching_with_regex(
         session=session, name=name
     )
     async with OrionAgent(work_queues=[name]) as agent:
-        agent.work_queue_regex = "general kenobi!"
+        agent.work_queue_prefix = "general kenobi!"
         await agent.get_and_submit_flow_runs()
     assert not await models.work_queues.read_work_queue_by_name(
         session=session, name=name

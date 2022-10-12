@@ -836,13 +836,13 @@ class OrionClient:
 
     async def match_work_queues(
         self,
-        regex: Union[str, re.Pattern],
+        prefix: str,
     ) -> List[schemas.core.WorkQueue]:
         """
-        Query Orion for work queues with names that match a Python regex string.
+        Query Orion for work queues with names with a specific prefix.
 
         Args:
-            regex: a Python regex string or Pattern used to match work queue names
+            prefix: a string used to match work queue name prefixes
 
         Returns:
             a list of [WorkQueue model][prefect.orion.schemas.core.WorkQueue] representations
@@ -859,7 +859,7 @@ class OrionClient:
             if not new_queues:
                 break
             filtered_queues = list(
-                filter(lambda q: re.match(regex, q.name), new_queues)
+                filter(lambda q: q.name.startswith(prefix), new_queues)
             )
             work_queues += filtered_queues
             current_page += 1

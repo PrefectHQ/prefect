@@ -27,7 +27,7 @@ class OrionAgent:
     def __init__(
         self,
         work_queues: List[str] = None,
-        work_queue_regex: Union[str, re.Pattern] = None,
+        work_queue_prefix: str = None,
         prefetch_seconds: int = None,
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
@@ -46,10 +46,7 @@ class OrionAgent:
         self.task_group: Optional[anyio.abc.TaskGroup] = None
         self.client: Optional[OrionClient] = None
 
-        if isinstance(work_queue_regex, str):
-            self.work_queue_regex = re.compile(work_queue_regex)
-        else:
-            self.work_queue_regex = work_queue_regex
+        self.work_queue_prefix = work_queue_prefix
 
         self._work_queue_cache_expiration: pendulum.DateTime = None
         self._work_queue_cache: List[WorkQueue] = []
@@ -67,8 +64,8 @@ class OrionAgent:
             self.default_infrastructure_document_id = None
 
     async def update_matched_agent_work_queues(self):
-        if self.work_queue_regex:
-            matched_queues = await self.client.match_work_queues(self.work_queue_regex)
+        if self.work_queue_prefix:
+            matched_queues = await self.client.match_work_queues(self.work_queue_prefix)
             matched_queues = set(q.name for q in matched_queues)
             if matched_queues != self.work_queues:
                 new_queues = matched_queues - self.work_queues
@@ -109,7 +106,7 @@ class OrionAgent:
             except ObjectNotFound:
 
                 # if the work queue wasn't found, create it
-                if not self.work_queue_regex:
+                if not self.work_queue_prefix:
                     # do not attempt to create work queues if the agent is polling for
                     # queues using a regex
                     try:
