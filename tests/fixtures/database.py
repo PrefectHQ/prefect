@@ -15,6 +15,7 @@ from prefect.orion.orchestration.rules import (
     TaskOrchestrationContext,
 )
 from prefect.orion.schemas import states
+from prefect.utilities.callables import parameter_schema
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -209,6 +210,9 @@ async def infrastructure_document_id_2(orion_client):
 async def deployment(
     session, flow, flow_function, infrastructure_document_id, storage_document_id
 ):
+    def hello(name: str):
+        pass
+
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
@@ -224,6 +228,7 @@ async def deployment(
             entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id,
             work_queue_name="wq",
+            parameter_openapi_schema=parameter_schema(hello),
         ),
     )
     await session.commit()

@@ -1,7 +1,6 @@
 """
 Routes for interacting with work queue objects.
 """
-
 from typing import List, Optional
 from uuid import UUID
 

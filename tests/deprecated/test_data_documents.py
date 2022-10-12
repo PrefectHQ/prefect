@@ -1,14 +1,21 @@
 import pytest
 
-from prefect.orion.schemas.data import DataDocument
-from prefect.orion.serializers import _SERIALIZERS, Serializer, register_serializer
+from prefect.deprecated.data_documents import (
+    _SERIALIZERS,
+    DataDocument,
+    Serializer,
+    register_serializer,
+)
+from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT, temporary_settings
+from prefect.states import Completed
 
 
 @pytest.fixture(autouse=True)
 def reset_registered_serializers(monkeypatch):
     _copy = _SERIALIZERS.copy()
-    monkeypatch.setattr("prefect.orion.serializers", _copy)
     yield
+    _SERIALIZERS.clear()
+    _SERIALIZERS.update(_copy)
 
 
 class TestDataDocument:
@@ -54,3 +61,25 @@ class TestDataDocument:
 
         datadoc = DataDocument(encoding="foo", blob=b"test")
         assert datadoc.decode() == "testfoo"
+
+
+async def test_async_state_result_with_data_document():
+    state = Completed(data=DataDocument.encode("json", 1))
+    result = state.result(fetch=False)
+
+    with temporary_settings({PREFECT_ASYNC_FETCH_STATE_RESULT: False}):
+        with pytest.warns(
+            DeprecationWarning,
+            match=r"State.result\(\) was called from an async context but not awaited.",
+        ):
+            result = state.result()
+
+    assert result == 1
+
+
+async def test_async_state_result_does_not_raise_warning_with_opt_out():
+    state = Completed(data=DataDocument.encode("json", 1))
+    with temporary_settings({PREFECT_ASYNC_FETCH_STATE_RESULT: False}):
+        result = state.result(fetch=False)
+
+    assert result == 1

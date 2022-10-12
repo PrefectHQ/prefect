@@ -10,23 +10,23 @@ import pytest
 
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.core import Block
-from prefect.client import OrionClient
+from prefect.client.orion import OrionClient
 from prefect.context import PrefectObjectRegistry
+from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
     InvalidNameError,
+    MissingResult,
     ParameterTypeError,
     ReservedArgumentError,
 )
-from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import State, StateType
-from prefect.results import _retrieve_result
+from prefect.orion.schemas.states import StateType
+from prefect.results import PersistedResult
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
-from prefect.states import StateType, raise_failed_state
+from prefect.states import State, StateType, raise_state_exception
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
     exceptions_equal,
@@ -249,7 +249,7 @@ class TestFlowCall:
         state = foo(1, 2, return_state=True)
 
         assert isinstance(state, State)
-        assert state.result() == 6
+        assert await state.result() == 6
 
     def test_call_coerces_parameter_types(self):
         class CustomType(pydantic.BaseModel):
@@ -367,7 +367,7 @@ class TestFlowCall:
         task_run_state = task_run_states[0]
         assert task_run_state.is_failed()
         with pytest.raises(ValueError, match="Test"):
-            raise_failed_state(task_run_states[0])
+            raise_state_exception(task_run_states[0])
 
     def test_flow_state_defaults_to_task_states_when_no_return_completed(self):
         @task
@@ -408,7 +408,7 @@ class TestFlowCall:
         assert all(isinstance(state, State) for state in states)
         assert states[0].result() == "foo"
         with pytest.raises(ValueError, match="bar"):
-            raise_failed_state(states[1])
+            raise_state_exception(states[1])
 
     def test_flow_state_default_handles_nested_failures(self):
         @task
@@ -433,7 +433,7 @@ class TestFlowCall:
         state = states[0]
         assert isinstance(state, State)
         with pytest.raises(ValueError, match="foo"):
-            raise_failed_state(state)
+            raise_state_exception(state)
 
     def test_flow_state_reflects_returned_multiple_task_run_states(self):
         @task
@@ -590,9 +590,9 @@ class TestSubflowCalls:
         parent_state = parent._run("foo")
 
         with pytest.raises(ParameterTypeError, match="not a valid integer"):
-            parent_state.result()
+            await parent_state.result()
 
-        child_state = parent_state.result(raise_on_failure=False)
+        child_state = await parent_state.result(raise_on_failure=False)
         flow_run = await orion_client.read_flow_run(
             child_state.state_details.flow_run_id
         )
@@ -623,7 +623,7 @@ class TestSubflowCalls:
 
         parent_state = parent._run()
         parent_flow_run_id = parent_state.state_details.flow_run_id
-        child_state = parent_state.result()
+        child_state = await parent_state.result()
         child_flow_run_id = child_state.state_details.flow_run_id
 
         child_flow_run = await orion_client.read_flow_run(child_flow_run_id)
@@ -688,7 +688,7 @@ class TestFlowRunTags:
             pass
 
         with tags("a", "b"):
-            subflow_state = my_flow._run().result()
+            subflow_state = await my_flow._run().result()
 
         flow_run = await orion_client.read_flow_run(
             subflow_state.state_details.flow_run_id
@@ -718,7 +718,7 @@ class TestFlowTimeouts:
         assert state.is_failed()
         assert state.name == "TimedOut"
         with pytest.raises(TimeoutError):
-            state.result()
+            await state.result()
         assert "exceeded timeout of 0.1 seconds" in state.message
 
     def test_timeout_only_applies_if_exceeded(self):
@@ -847,7 +847,7 @@ class TestFlowTimeouts:
 
         state = await my_flow._run()
 
-        runtime, subflow_state = state.result()
+        runtime, subflow_state = await state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
 
         assert not canary_file.exists()
@@ -881,7 +881,7 @@ class TestFlowTimeouts:
 
         state = my_flow._run()
 
-        runtime, subflow_state = state.result()
+        runtime, subflow_state = await state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
 
         # Wait in case the flow is just sleeping and will still create the canary
@@ -1093,7 +1093,7 @@ class TestSubflowTaskInputs:
             return quote((future.wait(), flow_state))
 
         task_state, flow_state = parent_flow().unquote()
-        assert isinstance(flow_state.result(), ValueError)
+        assert isinstance(await flow_state.result(), ValueError)
         flow_tracking_task_run = await orion_client.read_task_run(
             flow_state.state_details.task_run_id
         )
@@ -1121,7 +1121,7 @@ class TestSubflowTaskInputs:
             return quote((task_state, flow_state))
 
         task_state, flow_state = parent_flow().unquote()
-        assert isinstance(flow_state.result(), ValueError)
+        assert isinstance(await flow_state.result(), ValueError)
         flow_tracking_task_run = await orion_client.read_task_run(
             flow_state.state_details.task_run_id
         )
@@ -1250,7 +1250,7 @@ class TestSubflowRunLogs:
 
         state = my_flow._run()
         flow_run_id = state.state_details.flow_run_id
-        subflow_run_id = state.result().state_details.flow_run_id
+        subflow_run_id = (await state.result()).state_details.flow_run_id
 
         logs = await orion_client.read_logs()
         log_messages = [log.message for log in logs]
@@ -1281,10 +1281,10 @@ class TestSubflowRunLogs:
         def my_flow():
             logger = get_run_logger()
             logger.info("Hello world!")
-            return my_subflow._run()
+            return my_subflow(return_state=True)
 
-        state = my_flow._run()
-        subflow_run_id = state.result().state_details.flow_run_id
+        subflow_state = my_flow()
+        subflow_run_id = subflow_state.state_details.flow_run_id
 
         logs = await orion_client.read_logs()
         log_messages = [log.message for log in logs]
@@ -1298,39 +1298,68 @@ class TestSubflowRunLogs:
 
 
 class TestFlowResults:
-    async def test_flow_results_default_to_local_directory(self, orion_client):
+    """
+    See `tests/results/test_flow_results.py` instead please.
+
+    These tests were retained during the results rewrite but new tests should be added
+    in the dedicated file.
+    """
+
+    async def test_flow_results_are_not_stored_by_default(self, orion_client):
         @flow
         def foo():
             return 6
 
-        state = foo._run()
+        state = foo(return_state=True)
+
+        # Available in local cache
+        assert await state.result() == 6
+
+        # Data is not a reference
+        assert state.data == 6
 
         flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.state.data is None
 
-        server_state = flow_run.state
-        document = await orion_client.read_block_document(
-            server_state.data.decode().filesystem_document_id
+        with pytest.raises(MissingResult, match="State data is missing"):
+            await flow_run.state.result()
+
+    async def test_flow_results_are_stored_locally_if_enabled(self, orion_client):
+        @flow(persist_result=True)
+        def foo():
+            return 6
+
+        state = foo(return_state=True)
+
+        # Available from memory cache
+        assert await state.result() == 6
+
+        # Check that the storage block uses local path
+        reference = state.result(fetch=False)
+        assert isinstance(reference, PersistedResult)
+        storage_block = Block._from_block_document(
+            await orion_client.read_block_document(reference.storage_block_id)
         )
-        filesystem = Block._from_block_document(document)
-        assert isinstance(filesystem, LocalFileSystem)
-        assert filesystem.basepath == str(PREFECT_LOCAL_STORAGE_PATH.value())
-        result = await _retrieve_result(server_state)
-        assert result == state.result()
+        assert storage_block.basepath == str(PREFECT_LOCAL_STORAGE_PATH.value())
 
-    async def test_subflow_results_use_parent_flow_run_value_by_default(
+        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        # The result can be fetched using the API state
+        assert await flow_run.state.result() == 6
+
+    async def test_subflow_results_use_parent_flow_run_storage_block_by_default(
         self, orion_client, tmp_path
     ):
-        @flow
+        @flow(persist_result=True)
         async def foo():
             with temporary_settings({PREFECT_LOCAL_STORAGE_PATH: tmp_path / "foo"}):
-                return bar._run()
+                return bar(return_state=True)
 
-        @flow
+        @flow(persist_result=True)
         def bar():
             return 6
 
-        parent_state = await foo._run()
-        child_state = parent_state.result()
+        parent_state = await foo(return_state=True)
+        child_state = await parent_state.result()
 
         parent_flow_run = await orion_client.read_flow_run(
             parent_state.state_details.flow_run_id
@@ -1339,14 +1368,12 @@ class TestFlowResults:
             child_state.state_details.flow_run_id
         )
 
-        parent_result = parent_flow_run.state.data.decode()
-        child_result = child_flow_run.state.data.decode()
-        assert (
-            parent_result.filesystem_document_id == child_result.filesystem_document_id
-        )
+        parent_result_ref = parent_flow_run.state.result(fetch=False)
+        child_result_ref = child_flow_run.state.result(fetch=False)
+        assert parent_result_ref.storage_block_id == child_result_ref.storage_block_id
 
-        result = await _retrieve_result(child_flow_run.state)
-        assert result == child_state.result()
+        # The result can be fetched using the API state
+        assert await child_flow_run.state.result() == 6
 
 
 class TestFlowRetries:
@@ -1475,7 +1502,7 @@ class TestFlowRetries:
         assert flow_run_count == 2
 
         # The state is pulled from the API and needs to be decoded
-        document = my_flow().result().result()
+        document = await (await my_flow().result()).result()
         result = await orion_client.retrieve_data(document)
 
         assert result == "bar"
@@ -1508,7 +1535,7 @@ class TestFlowRetries:
             return child_flow()
 
         state = parent_flow._run()
-        assert state.result() == "hello"
+        assert await state.result() == "hello"
         assert flow_run_count == 2
         assert child_run_count == 2, "Child flow should be reset and run again"
 
@@ -1538,13 +1565,13 @@ class TestFlowRetries:
         def parent_flow():
             nonlocal flow_run_count
             flow_run_count += 1
-            child_state = child_flow()
+            child_result = child_flow()
 
             # Fail on the first flow run but not the retry
             if flow_run_count == 1:
                 raise ValueError()
 
-            return child_state
+            return child_result
 
         assert parent_flow() == "hello"
         assert flow_run_count == 2
@@ -1581,8 +1608,8 @@ class TestFlowRetries:
             return state
 
         parent_state = parent_flow._run()
-        child_state = parent_state.result()
-        assert child_state.result() == "hello"
+        child_state = await parent_state.result()
+        assert await child_state.result() == "hello"
         assert flow_run_count == 2
         assert child_flow_run_count == 2, "Child flow should run again"
 
