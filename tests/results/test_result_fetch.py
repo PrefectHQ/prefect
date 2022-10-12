@@ -1,9 +1,9 @@
 import pytest
 
 from prefect import flow, task
-from prefect.client.schemas import Completed
 from prefect.results import LiteralResult
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT, temporary_settings
+from prefect.states import Completed
 
 
 @pytest.fixture(autouse=True)
