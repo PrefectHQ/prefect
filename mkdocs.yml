@@ -218,7 +218,7 @@ nav:
         - Overview: contributing/overview.md
         - Style: contributing/style.md
         - Troubleshooting: contributing/common-mistakes.md
-        # - Testing Flow Runners: contributing/testing-flow-runners.md
+    - Open Prefect Cloud: https://app.prefect.cloud
 
 extra:
     analytics:
