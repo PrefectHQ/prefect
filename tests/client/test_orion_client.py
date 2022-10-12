@@ -17,7 +17,14 @@ import prefect.exceptions
 from prefect import flow, tags
 from prefect.client import OrionClient, get_client
 from prefect.client.orion import OrionClient, get_client, inject_client
-from prefect.client.schemas import OrchestrationResult, Pending, Running, Scheduled
+from prefect.client.schemas import (
+    Completed,
+    OrchestrationResult,
+    Pending,
+    Running,
+    Scheduled,
+    State,
+)
 from prefect.deprecated.data_documents import DataDocument
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
@@ -667,7 +674,7 @@ async def test_create_flow_run_with_state(orion_client):
     def foo():
         pass
 
-    flow_run = await orion_client.create_flow_run(foo, state=schemas.states.Running())
+    flow_run = await orion_client.create_flow_run(foo, state=Running())
     assert flow_run.state.is_running()
 
 
@@ -679,7 +686,7 @@ async def test_set_then_read_flow_run_state(orion_client):
     flow_run_id = (await orion_client.create_flow_run(foo)).id
     response = await orion_client.set_flow_run_state(
         flow_run_id,
-        state=schemas.states.Completed(message="Test!"),
+        state=Completed(message="Test!"),
     )
     assert isinstance(response, OrchestrationResult)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
@@ -804,7 +811,7 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
     # Flow version is not populated yet
     assert flow_run.flow_version is None
     # State is scheduled for now
-    assert flow_run.state.type == schemas.states.StateType.SCHEDULED
+    assert flow_run.state.type == StateType.SCHEDULED
     assert (
         pendulum.now("utc")
         .diff(flow_run.state.state_details.scheduled_time)
@@ -932,7 +939,7 @@ async def test_create_then_read_task_run_with_state(orion_client):
 
     flow_run = await orion_client.create_flow_run(foo)
     task_run = await orion_client.create_task_run(
-        bar, flow_run_id=flow_run.id, state=schemas.states.Running(), dynamic_key="0"
+        bar, flow_run_id=flow_run.id, state=Running(), dynamic_key="0"
     )
     assert task_run.state.is_running()
 
@@ -953,15 +960,15 @@ async def test_set_then_read_task_run_state(orion_client):
 
     response = await orion_client.set_task_run_state(
         task_run.id,
-        schemas.states.Completed(message="Test!"),
+        Completed(message="Test!"),
     )
 
     assert isinstance(response, OrchestrationResult)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
 
     run = await orion_client.read_task_run(task_run.id)
-    assert isinstance(run.state, schemas.states.State)
-    assert run.state.type == schemas.states.StateType.COMPLETED
+    assert isinstance(run.state, State)
+    assert run.state.type == StateType.COMPLETED
     assert run.state.message == "Test!"
 
 

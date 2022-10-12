@@ -56,6 +56,25 @@ class PrefectException(Exception):
     """
 
 
+class CrashedRun(PrefectException):
+    """
+    Raised when the result from a crashed run is retrieved.
+
+    This occurs when a string is attached to the state instead of an exception or if
+    the state's data is null.
+    """
+
+
+class FailedRun(PrefectException):
+    """
+    Raised when the result from a failed run is retrieved and an exception is not
+    attached.
+
+    This occurs when a string is attached to the state instead of an exception or if
+    the state's data is null.
+    """
+
+
 class MissingFlowError(PrefectException):
     """
     Raised when a given flow name is not found in the expected script.
