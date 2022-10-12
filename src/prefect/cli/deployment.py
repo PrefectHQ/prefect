@@ -24,6 +24,7 @@ from prefect.client import get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import Deployment, load_deployments_from_yaml
 from prefect.exceptions import (
+    ObjectAlreadyExists,
     ObjectNotFound,
     PrefectHTTPStatusError,
     ScriptError,
@@ -83,6 +84,38 @@ async def get_deployment(client, name, deployment_id):
         exit_with_error("Only provide a deployed flow's name or id")
 
     return deployment
+
+
+async def create_work_queue_and_set_concurrency_limit(
+    work_queue_name, work_queue_concurrency
+):
+    async with get_client() as client:
+        if work_queue_concurrency is not None and work_queue_name:
+            try:
+                try:
+                    res = await client.create_work_queue(name=work_queue_name)
+                except ObjectAlreadyExists:
+                    res = await client.read_work_queue_by_name(name=work_queue_name)
+                    if res.concurrency_limit != work_queue_concurrency:
+                        app.console.print(
+                            f"Work queue {work_queue_name!r} already exists with a concurrency limit of {res.concurrency_limit}, this limit is being updated...",
+                            style="red",
+                        )
+                await client.update_work_queue(
+                    res.id, concurrency_limit=work_queue_concurrency
+                )
+                app.console.print(
+                    f"Updated concurrency limit on work queue {work_queue_name!r} to {work_queue_concurrency}",
+                    style="green",
+                )
+            except Exception as exc:
+                exit_with_error(
+                    f"Failed to set concurrency limit on work queue {work_queue_name}."
+                )
+        elif work_queue_concurrency:
+            app.console.print(
+                f"No work queue set! The concurrency limit cannot be updated."
+            )
 
 
 class RichTextIO:
@@ -375,6 +408,12 @@ async def apply(
         "--upload",
         help="A flag that, when provided, uploads this deployment's files to remote storage.",
     ),
+    work_queue_concurrency: int = typer.Option(
+        None,
+        "--limit",
+        "-l",
+        help="Sets the concurrency limit on the work queue that handles this deployment's runs",
+    ),
 ):
     """
     Create or update a deployment from a YAML file.
@@ -386,6 +425,10 @@ async def apply(
             app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
         except Exception as exc:
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
+
+        await create_work_queue_and_set_concurrency_limit(
+            deployment.work_queue_name, work_queue_concurrency
+        )
 
         if upload:
             if (
@@ -506,6 +549,12 @@ async def build(
             "It will be created if it doesn't already exist. Defaults to `None`. "
             "Note that if a work queue is not set, work will not be scheduled."
         ),
+    ),
+    work_queue_concurrency: int = typer.Option(
+        None,
+        "--limit",
+        "-l",
+        help="Sets the concurrency limit on the work queue that handles this deployment's runs",
     ),
     infra_type: InfrastructureSlugs = typer.Option(
         None,
@@ -731,6 +780,10 @@ async def build(
     app.console.print(
         f"Deployment YAML created at '{Path(deployment_loc).absolute()!s}'.",
         style="green",
+    )
+
+    await create_work_queue_and_set_concurrency_limit(
+        deployment.work_queue_name, work_queue_concurrency
     )
 
     # we process these separately for informative output

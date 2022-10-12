@@ -580,12 +580,15 @@ class Deployment(BaseModel):
         return file_count
 
     @sync_compatible
-    async def apply(self, upload: bool = False) -> UUID:
+    async def apply(
+        self, upload: bool = False, work_queue_concurrency: int = None
+    ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
 
         Args:
             upload: if True, deployment files are automatically uploaded to remote storage
+            work_queue_concurrency: If provided, sets the concurrency limit on the deployment's work queue
         """
         if not self.name or not self.flow_name:
             raise ValueError("Both a deployment name and flow name must be set.")
@@ -603,6 +606,17 @@ class Deployment(BaseModel):
 
             if upload:
                 await self.upload_to_storage()
+
+            if self.work_queue_name and work_queue_concurrency is not None:
+                try:
+                    res = await client.create_work_queue(name=self.work_queue_name)
+                except ObjectAlreadyExists:
+                    res = await client.read_work_queue_by_name(
+                        name=self.work_queue_name
+                    )
+                await client.update_work_queue(
+                    res.id, concurrency_limit=work_queue_concurrency
+                )
 
             # we assume storage was already saved
             storage_document_id = getattr(self.storage, "_block_document_id", None)
