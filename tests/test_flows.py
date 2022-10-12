@@ -15,6 +15,7 @@ from prefect.context import PrefectObjectRegistry
 from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
     InvalidNameError,
+    MissingResult,
     ParameterTypeError,
     ReservedArgumentError,
 )
@@ -1297,6 +1298,13 @@ class TestSubflowRunLogs:
 
 
 class TestFlowResults:
+    """
+    See `tests/results/test_flow_results.py` instead please.
+
+    These tests were retained during the results rewrite but new tests should be added
+    in the dedicated file.
+    """
+
     async def test_flow_results_are_not_stored_by_default(self, orion_client):
         @flow
         def foo():
@@ -1313,7 +1321,7 @@ class TestFlowResults:
         flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.state.data is None
 
-        with pytest.raises(ValueError, match="State data is missing"):
+        with pytest.raises(MissingResult, match="State data is missing"):
             await flow_run.state.result()
 
     async def test_flow_results_are_stored_locally_if_enabled(self, orion_client):
