@@ -449,6 +449,16 @@ async def test_deployment(patch_import, tmp_path):
     return d, deployment_id
 
 
+async def test_deployment_apply_updates_concurrency_limit(
+    patch_import, tmp_path, orion_client
+):
+    d = Deployment(name="TEST", flow_name="fn")
+    deployment_id = await d.apply(work_queue_concurrency=424242)
+    queue_name = d.work_queue_name
+    work_queue = await orion_client.read_work_queue_by_name(queue_name)
+    assert work_queue.concurrency_limit == 424242
+
+
 class TestRunDeployment:
     @pytest.mark.parametrize(
         "terminal_state", list(sorted(s.name for s in states.TERMINAL_STATES))
@@ -716,7 +726,7 @@ class TestRunDeployment:
             )
 
         parent_state = foo(return_state=True)
-        child_flow_run = parent_state.result()
+        child_flow_run = await parent_state.result()
         assert child_flow_run.parent_task_run_id is not None
         task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)
         assert task_run.flow_run_id == parent_state.state_details.flow_run_id
@@ -744,7 +754,7 @@ class TestRunDeployment:
             return upstream_task_state, child_flow_run
 
         parent_state = foo(return_state=True)
-        upstream_task_state, child_flow_run = parent_state.result()
+        upstream_task_state, child_flow_run = await parent_state.result()
         assert child_flow_run.parent_task_run_id is not None
         task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)
         assert task_run.task_inputs == {
