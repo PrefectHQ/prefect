@@ -45,11 +45,9 @@ async def run_history(
     # prepare run-specific models
     if run_type == "flow_run":
         run_model = db.FlowRun
-        state_model = db.FlowRunState
         run_filter_function = models.flow_runs._apply_flow_run_filters
     elif run_type == "task_run":
         run_model = db.TaskRun
-        state_model = db.TaskRunState
         run_filter_function = models.task_runs._apply_task_run_filters
 
     # create a CTE for timestamp intervals
@@ -67,11 +65,9 @@ async def run_history(
                 run_model.expected_start_time,
                 run_model.estimated_run_time,
                 run_model.estimated_start_time_delta,
-                state_model.type.label("state_type"),
-                state_model.name.label("state_name"),
-            )
-            .select_from(run_model)
-            .join(state_model, run_model.state_id == state_model.id),
+                run_model.state_type,
+                run_model.state_name,
+            ).select_from(run_model),
             flow_filter=flows,
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,
