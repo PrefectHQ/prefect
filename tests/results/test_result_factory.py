@@ -32,31 +32,27 @@ def assert_blocks_equal(
 
 
 @pytest.fixture
-async def default_factory(orion_client):
-    @flow
-    def foo():
-        pass
-
-    return await ResultFactory.from_flow(foo, client=orion_client)
+async def factory(orion_client):
+    return await ResultFactory.default_factory(client=orion_client, persist_result=True)
 
 
 @pytest.mark.parametrize("value", [True, False, None])
-async def test_create_result_literal(value, default_factory):
-    result = await default_factory.create_result(value)
+async def test_create_result_literal(value, factory):
+    result = await factory.create_result(value)
     assert isinstance(result, ResultLiteral)
     assert await result.get() == value
 
 
-async def test_create_result_reference(default_factory):
-    result = await default_factory.create_result({"foo": "bar"})
+async def test_create_result_reference(factory):
+    result = await factory.create_result({"foo": "bar"})
     assert isinstance(result, ResultReference)
-    assert result.serializer_type == default_factory.serializer.type
-    assert result.storage_block_id == default_factory.storage_block_id
+    assert result.serializer_type == factory.serializer.type
+    assert result.storage_block_id == factory.storage_block_id
     assert await result.get() == {"foo": "bar"}
 
 
-async def test_create_result_reference_has_cached_object(default_factory):
-    result = await default_factory.create_result({"foo": "bar"})
+async def test_create_result_reference_has_cached_object(factory):
+    result = await factory.create_result({"foo": "bar"})
     assert result._has_cached_object()
 
 

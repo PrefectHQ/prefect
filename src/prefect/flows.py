@@ -488,6 +488,9 @@ def flow(
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
+    persist_result: Optional[bool] = None,
+    result_storage: Optional[ResultStorage] = None,
+    result_serializer: Optional[ResultSerializer] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
