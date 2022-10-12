@@ -282,7 +282,6 @@ async def restart_flow_run(
     state = schemas.states.AwaitingRestart(scheduled_time=pendulum.now("UTC"))
 
     async with db.session_context(begin_transaction=True) as session:
-
         # create the state
         orchestration_result = await models.flow_runs.set_flow_run_state(
             session=session,
