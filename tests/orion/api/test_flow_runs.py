@@ -686,6 +686,22 @@ class TestSetFlowRunState:
         assert run.state.data == data
 
 
+class TestRestartingFlowRuns:
+    async def test_flow_run_restarts(
+        self, failed_flow_run_with_deployment, client, session
+    ):
+        assert failed_flow_run_with_deployment.empirical_policy.restarts == 0
+        flow_run_id = failed_flow_run_with_deployment.id
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/restart",
+        )
+        session.expire_all()
+        restarted_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert restarted_run.empirical_policy.restarts == 1
+
+
 class TestFlowRunHistory:
     async def test_history_interval_must_be_one_second_or_larger(self, client):
         response = await client.post(
