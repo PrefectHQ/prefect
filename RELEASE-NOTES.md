@@ -56,12 +56,34 @@ def four()
 ```
 
 See the [documentation](https://docs.prefect.io/concepts/results/) for more details and examples.
-See the [tracking pull request](https://github.com/PrefectHQ/prefect/pull/6908) for implementation details.
+See https://github.com/PrefectHQ/prefect/pull/6908 for implementation details.
+
+### Support for waiting for tasks even if they fail
+
+You can now specify that a downstream task should wait for an upstream task and run even if the upstream task has failed.
+
+```python
+from prefect import task, flow, allow_failure
+
+@flow
+def foo():
+    upstream_future = fails_sometimes.submit()
+    important_cleanup(wait_for=[allow_failure(upstream_future)])
+
+@task
+def fails_sometimes():
+    raise RuntimeError("oh no!")
+
+@task
+def important_cleanup():
+    ...
+```
+
+See the https://github.com/PrefectHQ/prefect/pull/7120 for implementation details.
 
 ### Enhancements
 - Add support for dynamic work queue matching to agents via a `--match` option — https://github.com/PrefectHQ/prefect/pull/7099
 - Add `--param` / `--params` to `prefect deployment run` — https://github.com/PrefectHQ/prefect/pull/7018
-- Add `allow_failure` annotation to allow failed runs to be passed downstream — https://github.com/PrefectHQ/prefect/pull/7120
 - Add 'Show Active Runs' button to work queue page — https://github.com/PrefectHQ/prefect/pull/7092
 - Update block protection to only prevent deletion — https://github.com/PrefectHQ/prefect/pull/7042
 - Improve stability by optimizing the HTTP client — https://github.com/PrefectHQ/prefect/pull/7090
