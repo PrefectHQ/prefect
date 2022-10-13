@@ -290,9 +290,13 @@ Persistence of results requires a [**serializer**](#result-serializers) and a [*
 - `result_storage`: Where to store the result when persisted.
 - `result_serializer`: How to convert the result to a storable form.
 
+The flow decorator also includes the option:
+
+- `persist_results`: Whether the result of this flow and any tasks or subflows in it should be persisted to storage.
+
 #### Toggling persistence
 
-Persistence of the result of a task or flow can be configured with the `persist_result` option. The `persist_result` option defaults to a null value, which will automatically enable persistence if it is needed for a Prefect feature used by the flow or task.
+Persistence of the results in a flow can be configured with the `persist_results` option. The `persist_results` option defaults to a null value, which will automatically enable persistence if it is needed for a Prefect feature used in the flow.
 
 For example, the following flow has retries enabled. Flow retries require that all task results are persisted, so the task's result will be persisted:
 
@@ -337,7 +341,35 @@ def my_flow():
     my_other_task()
 ```
 
-Persistence of results can be manually toggled on or off:
+You may enable or disable persistence of all of the results in a flow manually by setting `persist_results`:
+
+```python
+from prefect import flow, task
+
+@flow(persist_results=True)
+def my_flow():
+    # This flow will persist its result
+
+    # This task will persist its result
+    my_task()
+
+    # This subflow will persist its result
+    my_subflow()
+
+
+@task
+def my_task():
+    ...
+
+@flow
+def my_subflow():
+    # Any tasks called in this subflow will not persist their results by default
+    ...
+```
+
+If you disable persistence with `persist_results`, results will not be persisted even if required for a feature you are using.
+
+Persistence of results can be manually toggled on or off per flow or task with `persist_result`:
 
 ```python
 from prefect import flow, task
@@ -355,6 +387,20 @@ def my_task():
 ```
 
 Toggling persistence manually will always override any behavior that Prefect would infer.
+
+You may toggle persistence of all of the results in a flow, but not persist the return value of the flow itself:
+
+```python
+from prefect import flow, task
+
+@flow(persist_result=False, persist_results=True)
+def my_flow():
+    # This task will persist its result
+    my_task()
+
+    # The return value of this flow will not be persisted
+    return 1
+```
 
 #### Result storage location
 

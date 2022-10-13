@@ -26,6 +26,23 @@ class MyIntSerializer(Serializer):
         return int.from_bytes(blob, byteorder="little")
 
 
+@pytest.mark.parametrize(
+    "options", [{"persist_results": True}, {"persist_result": True}]
+)
+async def test_flow_persisted_result_due_to_opt_in(orion_client, options):
+    @flow(**options)
+    def foo():
+        return 1
+
+    state = foo(return_state=True)
+    assert await state.result() == 1
+
+    api_state = (
+        await orion_client.read_flow_run(state.state_details.flow_run_id)
+    ).state
+    assert await api_state.result() == 1
+
+
 @pytest.mark.parametrize("persist_result", [False, None])
 async def test_flow_with_unpersisted_result(orion_client, persist_result):
     @flow(persist_result=persist_result)
@@ -150,8 +167,8 @@ async def test_flow_result_storage_by_slug(orion_client):
     await assert_uses_result_storage(api_state, slug, client=orion_client)
 
 
-@pytest.mark.parametrize("options", [{"retries": 3}])
-async def test_child_flow_persisted_result_due_to_parent_feature(orion_client, options):
+@pytest.mark.parametrize("options", [{"retries": 3}, {"persist_results": True}])
+async def test_child_flow_persisted_result_due_to_parent_options(orion_client, options):
     @flow(**options)
     def foo():
         return bar(return_state=True)

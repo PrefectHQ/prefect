@@ -119,10 +119,13 @@ class ResultFactory(pydantic.BaseModel):
                 persist_result=(
                     flow.persist_result
                     if flow.persist_result is not None
-                    else
                     # !! Child flows persist their result by default if the parent flow
-                    #    uses a feature that requires it
-                    flow_features_require_child_result_persistence(ctx.flow)
+                    #    uses a feature that requires it unless `persist_results` is set
+                    else (
+                        ctx.flow.persist_results
+                        if ctx.flow.persist_results is not None
+                        else flow_features_require_child_result_persistence(ctx.flow)
+                    )
                 ),
                 client=client,
             )
@@ -134,7 +137,11 @@ class ResultFactory(pydantic.BaseModel):
                 client=client,
                 result_storage=flow.result_storage,
                 result_serializer=flow.result_serializer,
-                persist_result=flow.persist_result,
+                persist_result=(
+                    flow.persist_result
+                    if flow.persist_result is not None
+                    else flow.persist_results
+                ),
             )
 
     @classmethod
@@ -161,9 +168,14 @@ class ResultFactory(pydantic.BaseModel):
             else
             # !! Tasks persist their result by default if their parent flow uses a
             #    feature that requires it or the task uses a feature that requires it
+            #    unless `persist_results` is set
             (
-                flow_features_require_child_result_persistence(ctx.flow)
-                or task_features_require_result_persistence(task)
+                ctx.flow.persist_results
+                if ctx.flow.persist_results is not None
+                else (
+                    flow_features_require_child_result_persistence(ctx.flow)
+                    or task_features_require_result_persistence(task)
+                )
             )
         )
 

@@ -13,8 +13,8 @@ from prefect.testing.utilities import (
 from prefect.utilities.annotations import quote
 
 
-@pytest.mark.parametrize("options", [{"retries": 3}])
-async def test_task_persisted_result_due_to_flow_feature(orion_client, options):
+@pytest.mark.parametrize("options", [{"retries": 3}, {"persist_results": True}])
+async def test_task_persisted_result_due_to_flow_options(orion_client, options):
     @flow(**options)
     def foo():
         return bar(return_state=True)

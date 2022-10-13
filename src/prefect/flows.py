@@ -101,6 +101,12 @@ class Flow(Generic[P, R]):
             should be persisted to result storage. Defaults to `None`, which indicates
             that Prefect should choose whether the result should be persisted depending on
             the features being used.
+        persist_results: An optional toggle indicating whther the results of tasks and
+            flows within this flow should be persisted to result storage. Defaults to
+            `None` which follows the bhavior of `persist_result`. If `True``, this flow
+            and all tasks or flows within it will persist their results unless they have
+            opted out. If `False,` this flow and all tasks or flows within it will not
+            persist their results unless they have opted in.
         result_storage: An optional block to use to perist the result of this flow.
             This value will be used as the default for any tasks in this flow.
             If not provided, the local file system will be used unless called as
@@ -126,6 +132,7 @@ class Flow(Generic[P, R]):
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
         persist_result: Optional[bool] = None,
+        persist_results: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
     ):
@@ -183,6 +190,7 @@ class Flow(Generic[P, R]):
                 ) from exc
 
         self.persist_result = persist_result
+        self.persist_results = persist_results
         self.result_storage = result_storage
         self.result_serializer = result_serializer
 
@@ -489,6 +497,7 @@ def flow(
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
     persist_result: Optional[bool] = None,
+    persist_results: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
@@ -507,6 +516,7 @@ def flow(
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
     persist_result: Optional[bool] = None,
+    persist_results: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
 ):
@@ -543,6 +553,11 @@ def flow(
             should be persisted to result storage. Defaults to `None`, which indicates
             that Prefect should choose whether the result should be persisted depending on
             the features being used.
+        persist_results: An optional toggle indicating whther the results of tasks and
+            flows within this flow should be persisted to result storage. Defaults to
+            `None` which follows the bhavior of `persist_result`. If set, this flow and
+            all tasks or flows within it will persist their results unless they have
+            opted out. If
         result_storage: An optional block to use to perist the result of this flow.
             This value will be used as the default for any tasks in this flow.
             If not provided, the local file system will be used unless called as
@@ -605,6 +620,7 @@ def flow(
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
                 persist_result=persist_result,
+                persist_results=persist_results,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
             ),
@@ -623,6 +639,7 @@ def flow(
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
                 persist_result=persist_result,
+                persist_results=persist_results,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
             ),
