@@ -30,7 +30,7 @@ See https://github.com/PrefectHQ/prefect/pull/6908
 - Fix rendering of Prefect settings in API reference — https://github.com/PrefectHQ/prefect/pull/7067
 
 ### Contributors
-- @jmg-duarte
+* @jmg-duarte
 * @kevin868 made their first contribution in https://github.com/PrefectHQ/prefect/pull/7109
 * @space-age-pete made their first contribution in https://github.com/PrefectHQ/prefect/pull/7122
 
