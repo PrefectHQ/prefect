@@ -107,12 +107,18 @@ async def failed_flow_run_with_deployment(session, flow, deployment):
         flow_version="0.1",
         deployment_id=deployment.id,
     )
-    model = await models.flow_runs.create_flow_run(
+    flow_run = await models.flow_runs.create_flow_run(
         session=session,
         flow_run=flow_run_create,
     )
+    await models.task_runs.create_task_run(
+        session=session,
+        task_run=schemas.actions.TaskRunCreate(
+            flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+        ),
+    )
     await session.commit()
-    return model
+    return flow_run
 
 
 @pytest.fixture
