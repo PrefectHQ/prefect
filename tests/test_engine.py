@@ -22,22 +22,35 @@ from prefect.engine import (
     orchestrate_task_run,
     retrieve_flow_then_begin_flow_run,
 )
-from prefect.exceptions import Abort, ParameterTypeError, SignatureMismatchError
+from prefect.exceptions import (
+    Abort,
+    CrashedRun,
+    ParameterTypeError,
+    SignatureMismatchError,
+)
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.filters import FlowRunFilter
-from prefect.orion.schemas.states import (
-    Cancelled,
-    Failed,
-    Pending,
-    Running,
-    State,
-    StateDetails,
-    StateType,
+from prefect.orion.schemas.states import StateDetails, StateType
+from prefect.results import (
+    ResultFactory,
+    get_default_result_serializer,
+    get_default_result_storage,
 )
+from prefect.states import Cancelled, Failed, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
 from prefect.utilities.annotations import quote
 from prefect.utilities.pydantic import PartialModel
+
+
+@pytest.fixture
+async def result_factory(orion_client):
+    return await ResultFactory.from_settings(
+        result_storage=get_default_result_storage(),
+        result_serializer=get_default_result_serializer(),
+        persist_result=False,
+        client=orion_client,
+    )
 
 
 @pytest.fixture
@@ -84,7 +97,7 @@ def flow_run_caplog(caplog):
 
 
 @pytest.fixture
-async def get_flow_run_context(orion_client, local_filesystem):
+async def get_flow_run_context(orion_client, result_factory, local_filesystem):
     partial_ctx = PartialModel(FlowRunContext)
 
     @flow
@@ -102,7 +115,7 @@ async def get_flow_run_context(orion_client, local_filesystem):
                 flow_run=flow_run,
                 client=orion_client,
                 task_runner=test_task_runner,
-                result_filesystem=local_filesystem,
+                result_factory=result_factory,
             )
 
     return _get_flow_run_context
@@ -115,6 +128,7 @@ class TestOrchestrateTaskRun:
         flow_run,
         mock_anyio_sleep,
         local_filesystem,
+        result_factory,
         monkeypatch,
     ):
         @task
@@ -139,16 +153,16 @@ class TestOrchestrateTaskRun:
                 task_run=task_run,
                 parameters={},
                 wait_for=None,
-                result_filesystem=local_filesystem,
+                result_factory=result_factory,
                 interruptible=False,
                 client=orion_client,
             )
 
         assert state.is_completed()
-        assert state.result() == 1
+        assert await state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
-        self, orion_client, flow_run, mock_anyio_sleep, local_filesystem
+        self, orion_client, flow_run, mock_anyio_sleep, result_factory, local_filesystem
     ):
         @task
         def foo():
@@ -171,17 +185,17 @@ class TestOrchestrateTaskRun:
             task_run=task_run,
             parameters={},
             wait_for=None,
-            result_filesystem=local_filesystem,
+            result_factory=result_factory,
             interruptible=False,
             client=orion_client,
         )
 
         mock_anyio_sleep.assert_not_called()
         assert state.is_completed()
-        assert state.result() == 1
+        assert await state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
-        self, mock_anyio_sleep, orion_client, flow_run, local_filesystem
+        self, mock_anyio_sleep, orion_client, flow_run, result_factory, local_filesystem
     ):
         # Define a task that fails once and then succeeds
         mock = MagicMock()
@@ -210,13 +224,13 @@ class TestOrchestrateTaskRun:
                 task_run=task_run,
                 parameters={},
                 wait_for=None,
-                result_filesystem=local_filesystem,
+                result_factory=result_factory,
                 interruptible=False,
                 client=orion_client,
             )
 
         # Check for a proper final result
-        assert state.result() == 1
+        assert await state.result() == 1
 
         # Check expected state transitions
         states = await orion_client.read_task_run_states(task_run.id)
@@ -233,7 +247,12 @@ class TestOrchestrateTaskRun:
         "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
     )
     async def test_returns_not_ready_when_any_upstream_futures_resolve_to_incomplete(
-        self, orion_client, flow_run, upstream_task_state, local_filesystem
+        self,
+        orion_client,
+        flow_run,
+        upstream_task_state,
+        result_factory,
+        local_filesystem,
     ):
         # Define a mock to ensure the task was not run
         mock = MagicMock()
@@ -278,7 +297,7 @@ class TestOrchestrateTaskRun:
             # Nest the future in a collection to ensure that it is found
             parameters={"x": {"nested": [future]}},
             wait_for=None,
-            result_filesystem=local_filesystem,
+            result_factory=result_factory,
             interruptible=False,
             client=orion_client,
         )
@@ -295,7 +314,7 @@ class TestOrchestrateTaskRun:
         )
 
     async def test_quoted_parameters_are_resolved(
-        self, orion_client, flow_run, local_filesystem
+        self, orion_client, flow_run, result_factory, local_filesystem
     ):
         # Define a mock to ensure the task was not run
         mock = MagicMock()
@@ -319,7 +338,7 @@ class TestOrchestrateTaskRun:
             # Quote some data
             parameters={"x": quote(1)},
             wait_for=None,
-            result_filesystem=local_filesystem,
+            result_factory=result_factory,
             interruptible=False,
             client=orion_client,
         )
@@ -334,7 +353,12 @@ class TestOrchestrateTaskRun:
         "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
     )
     async def test_states_in_parameters_can_be_incomplete_if_quoted(
-        self, orion_client, flow_run, upstream_task_state, local_filesystem
+        self,
+        orion_client,
+        flow_run,
+        upstream_task_state,
+        result_factory,
+        local_filesystem,
     ):
         # Define a mock to ensure the task was not run
         mock = MagicMock()
@@ -357,7 +381,7 @@ class TestOrchestrateTaskRun:
             task_run=task_run,
             parameters={"x": quote(upstream_task_state)},
             wait_for=None,
-            result_filesystem=local_filesystem,
+            result_factory=result_factory,
             interruptible=False,
             client=orion_client,
         )
@@ -403,12 +427,12 @@ class TestOrchestrateTaskRun:
 
 class TestOrchestrateFlowRun:
     @pytest.fixture
-    def partial_flow_run_context(self, local_filesystem):
+    def partial_flow_run_context(self, result_factory, local_filesystem):
         return PartialModel(
             FlowRunContext,
             task_runner=SequentialTaskRunner(),
             sync_portal=None,
-            result_filesystem=local_filesystem,
+            result_factory=result_factory,
         )
 
     async def test_waits_until_scheduled_start_time(
@@ -439,7 +463,7 @@ class TestOrchestrateFlowRun:
                 partial_flow_run_context=partial_flow_run_context,
             )
 
-        assert state.result() == 1
+        assert await state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
         self, orion_client, mock_anyio_sleep, partial_flow_run_context
@@ -471,7 +495,7 @@ class TestOrchestrateFlowRun:
             )
 
         mock_anyio_sleep.assert_not_called()
-        assert state.result() == 1
+        assert await state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
         self, orion_client, mock_anyio_sleep, partial_flow_run_context
@@ -505,7 +529,7 @@ class TestOrchestrateFlowRun:
             )
 
         # Check for a proper final result
-        assert state.result() == 1
+        assert await state.result() == 1
 
         # Check expected state transitions
         states = await orion_client.read_flow_run_states(flow_run.id)
@@ -564,10 +588,10 @@ class TestFlowRunCrashes:
             "Execution was cancelled by the runtime environment"
             in flow_run.state.message
         )
-        assert exceptions_equal(
-            flow_run.state.result(raise_on_failure=False),
-            anyio.get_cancelled_exc_class()(),
-        )
+        with pytest.raises(
+            CrashedRun, match="Execution was cancelled by the runtime environment"
+        ):
+            await flow_run.state.result()
 
     async def test_anyio_cancellation_crashes_subflow(self, flow_run, orion_client):
         started = anyio.Event()
@@ -598,10 +622,10 @@ class TestFlowRunCrashes:
         parent_flow_run = await orion_client.read_flow_run(flow_run.id)
         assert parent_flow_run.state.is_crashed()
         assert parent_flow_run.state.type == StateType.CRASHED
-        assert exceptions_equal(
-            parent_flow_run.state.result(raise_on_failure=False),
-            anyio.get_cancelled_exc_class()(),
-        )
+        with pytest.raises(
+            CrashedRun, match="Execution was cancelled by the runtime environment"
+        ):
+            await parent_flow_run.state.result()
 
         child_runs = await orion_client.read_flow_runs(
             flow_run_filter=FlowRunFilter(parent_task_run_id=dict(is_null_=False))
@@ -614,6 +638,10 @@ class TestFlowRunCrashes:
             "Execution was cancelled by the runtime environment"
             in child_run.state.message
         )
+        with pytest.raises(
+            CrashedRun, match="Execution was cancelled by the runtime environment"
+        ):
+            await child_run.state.result()
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_in_flow_function_crashes_flow(
@@ -632,9 +660,8 @@ class TestFlowRunCrashes:
         assert flow_run.state.is_crashed()
         assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
-        assert exceptions_equal(
-            flow_run.state.result(raise_on_failure=False), interrupt_type()
-        )
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await flow_run.state.result()
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_during_orchestration_crashes_flow(
@@ -658,8 +685,8 @@ class TestFlowRunCrashes:
         assert flow_run.state.is_crashed()
         assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
-        with pytest.warns(UserWarning, match="not safe to re-raise"):
-            assert exceptions_equal(flow_run.state.result(), interrupt_type())
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await flow_run.state.result()
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_in_flow_function_crashes_subflow(
@@ -682,9 +709,8 @@ class TestFlowRunCrashes:
         assert flow_run.state.is_crashed()
         assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
-        assert exceptions_equal(
-            flow_run.state.result(raise_on_failure=False), interrupt_type()
-        )
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await flow_run.state.result()
 
         child_runs = await orion_client.read_flow_runs(
             flow_run_filter=FlowRunFilter(parent_task_run_id=dict(is_null_=False))
@@ -832,8 +858,8 @@ class TestTaskRunCrashes:
         assert flow_run.state.is_crashed()
         assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
-        with pytest.warns(UserWarning, match="not safe to re-raise"):
-            assert exceptions_equal(flow_run.state.result(), interrupt_type())
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await flow_run.state.result()
 
         task_runs = await orion_client.read_task_runs()
         assert len(task_runs) == 1
@@ -841,8 +867,8 @@ class TestTaskRunCrashes:
         assert task_run.state.is_crashed()
         assert task_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in task_run.state.message
-        with pytest.warns(UserWarning, match="not safe to re-raise"):
-            assert exceptions_equal(task_run.state.result(), interrupt_type())
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await task_run.state.result()
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_in_task_orchestration_crashes_task_and_flow(
@@ -870,8 +896,8 @@ class TestTaskRunCrashes:
         assert flow_run.state.is_crashed()
         assert flow_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in flow_run.state.message
-        with pytest.warns(UserWarning, match="not safe to re-raise"):
-            assert exceptions_equal(flow_run.state.result(), interrupt_type())
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await flow_run.state.result()
 
         task_runs = await orion_client.read_task_runs()
         assert len(task_runs) == 1
@@ -879,8 +905,8 @@ class TestTaskRunCrashes:
         assert task_run.state.is_crashed()
         assert task_run.state.type == StateType.CRASHED
         assert "Execution was aborted" in task_run.state.message
-        with pytest.warns(UserWarning, match="not safe to re-raise"):
-            assert exceptions_equal(task_run.state.result(), interrupt_type())
+        with pytest.raises(CrashedRun, match="Execution was aborted"):
+            await task_run.state.result()
 
     async def test_error_in_task_orchestration_crashes_task_but_not_flow(
         self, flow_run, orion_client, monkeypatch
@@ -909,17 +935,18 @@ class TestTaskRunCrashes:
         assert flow_run.state.name == "Failed"
         assert "1/1 states failed" in flow_run.state.message
 
-        task_run_states = state.result(raise_on_failure=False)
+        task_run_states = await state.result(raise_on_failure=False)
         assert len(task_run_states) == 1
         task_run_state = task_run_states[0]
         assert task_run_state.is_crashed()
+
         assert task_run_state.type == StateType.CRASHED
         assert (
             "Execution was interrupted by an unexpected exception"
             in task_run_state.message
         )
         assert exceptions_equal(
-            task_run_state.result(raise_on_failure=False), exception
+            await task_run_state.result(raise_on_failure=False), exception
         )
 
         # Check that the state was reported to the server
@@ -956,7 +983,7 @@ class TestDeploymentFlowRun:
         state = await retrieve_flow_then_begin_flow_run(
             flow_run.id, client=orion_client
         )
-        assert state.result() == 1
+        assert await state.result() == 1
 
     async def test_retries_loaded_from_flow_definition(
         self, orion_client, patch_manifest_load, mock_anyio_sleep
@@ -1006,7 +1033,7 @@ class TestDeploymentFlowRun:
         )
         assert state.is_failed()
         with pytest.raises(ValueError, match="test!"):
-            state.result()
+            await state.result()
 
     async def test_parameters_are_cast_to_correct_type(
         self, orion_client, patch_manifest_load
@@ -1025,7 +1052,7 @@ class TestDeploymentFlowRun:
         state = await retrieve_flow_then_begin_flow_run(
             flow_run.id, client=orion_client
         )
-        assert state.result() == 1
+        assert await state.result() == 1
 
     async def test_state_is_failed_when_parameters_fail_validation(
         self, orion_client, patch_manifest_load
@@ -1045,12 +1072,14 @@ class TestDeploymentFlowRun:
             flow_run.id, client=orion_client
         )
         assert state.is_failed()
+        assert "Validation of flow parameters failed with error" in state.message
         assert (
-            state.message
-            == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - x: value is not a valid integer')"
+            "ParameterTypeError: Flow run received invalid parameters" in state.message
         )
+        assert "x: value is not a valid integer" in state.message
+
         with pytest.raises(ParameterTypeError, match="value is not a valid integer"):
-            state.result()
+            await state.result()
 
 
 class TestDynamicKeyHandling:
@@ -1138,11 +1167,14 @@ class TestCreateThenBeginFlowRun:
             client=orion_client,
         )
         assert state.type == StateType.FAILED
+        assert "Validation of flow parameters failed with error" in state.message
         assert (
-            state.message
-            == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
+            "ParameterTypeError: Flow run received invalid parameters" in state.message
         )
-        assert type(state.data.decode()) == ParameterTypeError
+        assert "dog: str type expected" in state.message
+        assert "cat: value is not a valid integer" in state.message
+        with pytest.raises(ParameterTypeError):
+            await state.result()
 
     async def test_handles_signature_mismatches(self, orion_client, parameterized_flow):
         state = await create_then_begin_flow_run(
@@ -1152,11 +1184,13 @@ class TestCreateThenBeginFlowRun:
             client=orion_client,
         )
         assert state.type == StateType.FAILED
+        assert "Validation of flow parameters failed with error" in state.message
         assert (
-            state.message
-            == "Validation of flow parameters failed with error: SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
+            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            in state.message
         )
-        assert type(state.data.decode()) == SignatureMismatchError
+        with pytest.raises(SignatureMismatchError):
+            await state.result()
 
     async def test_does_not_raise_signature_mismatch_on_missing_default_args(
         self, orion_client
@@ -1175,7 +1209,7 @@ class TestCreateThenBeginFlowRun:
             client=orion_client,
         )
         assert state.type == StateType.COMPLETED
-        assert state.data.decode() == ("bar", 1)
+        assert await state.result() == ("bar", 1)
 
     async def test_handles_other_errors(
         self, orion_client, parameterized_flow, monkeypatch
@@ -1195,11 +1229,10 @@ class TestCreateThenBeginFlowRun:
             client=orion_client,
         )
         assert state.type == StateType.FAILED
-        assert (
-            state.message
-            == "Validation of flow parameters failed with error: Exception('I am another exception!')"
-        )
-        assert type(state.data.decode()) == Exception
+        assert "Validation of flow parameters failed with error" in state.message
+        assert "Exception: I am another exception!" in state.message
+        with pytest.raises(Exception):
+            await state.result()
 
 
 class TestRetrieveFlowThenBeginFlowRun:
@@ -1218,11 +1251,14 @@ class TestRetrieveFlowThenBeginFlowRun:
         )
         state = await retrieve_flow_then_begin_flow_run(flow_run_id=new_flow_run.id)
         assert state.type == StateType.FAILED
+        assert "Validation of flow parameters failed with error" in state.message
         assert (
-            state.message
-            == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
+            "ParameterTypeError: Flow run received invalid parameters" in state.message
         )
-        assert type(state.data.decode()) == ParameterTypeError
+        assert "dog: str type expected" in state.message
+        assert "cat: value is not a valid integer" in state.message
+        with pytest.raises(ParameterTypeError):
+            await state.result()
 
     async def test_handles_signature_mismatches(self, orion_client, parameterized_flow):
         state = await create_then_begin_flow_run(
@@ -1232,11 +1268,13 @@ class TestRetrieveFlowThenBeginFlowRun:
             client=orion_client,
         )
         assert state.type == StateType.FAILED
+        assert "Validation of flow parameters failed with error" in state.message
         assert (
-            state.message
-            == "Validation of flow parameters failed with error: SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
+            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            in state.message
         )
-        assert type(state.data.decode()) == SignatureMismatchError
+        with pytest.raises(SignatureMismatchError):
+            await state.result()
 
     async def test_handles_other_errors(
         self, orion_client, parameterized_flow, monkeypatch
@@ -1256,11 +1294,10 @@ class TestRetrieveFlowThenBeginFlowRun:
             client=orion_client,
         )
         assert state.type == StateType.FAILED
-        assert (
-            state.message
-            == "Validation of flow parameters failed with error: Exception('I am another exception!')"
-        )
-        assert type(state.data.decode()) == Exception
+        assert "Validation of flow parameters failed with error" in state.message
+        assert "Exception: I am another exception!" in state.message
+        with pytest.raises(Exception):
+            await state.result()
 
 
 class TestCreateAndBeginSubflowRun:
@@ -1277,12 +1314,16 @@ class TestCreateAndBeginSubflowRun:
                 return_type="state",
                 client=orion_client,
             )
-            assert state.type == StateType.FAILED
-            assert (
-                state.message
-                == "Validation of flow parameters failed with error: ParameterTypeError('Flow run received invalid parameters:\\n - dog: str type expected\\n - cat: value is not a valid integer')"
-            )
-            assert type(state.data.decode()) == ParameterTypeError
+
+        assert state.type == StateType.FAILED
+        assert "Validation of flow parameters failed with error" in state.message
+        assert (
+            "ParameterTypeError: Flow run received invalid parameters" in state.message
+        )
+        assert "dog: str type expected" in state.message
+        assert "cat: value is not a valid integer" in state.message
+        with pytest.raises(ParameterTypeError):
+            await state.result()
 
     async def test_handles_signature_mismatches(
         self,
@@ -1290,19 +1331,22 @@ class TestCreateAndBeginSubflowRun:
         parameterized_flow,
         get_flow_run_context,
     ):
-        with await get_flow_run_context() as ctx:
+        with await get_flow_run_context():
             state = await create_and_begin_subflow_run(
                 flow=parameterized_flow,
                 parameters={"puppy": "a string", "kitty": 42},
                 return_type="state",
                 client=orion_client,
             )
-            assert state.type == StateType.FAILED
-            assert (
-                state.message
-                == "Validation of flow parameters failed with error: SignatureMismatchError(\"Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']\")"
-            )
-            assert type(state.data.decode()) == SignatureMismatchError
+
+        assert state.type == StateType.FAILED
+        assert "Validation of flow parameters failed with error" in state.message
+        assert (
+            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            in state.message
+        )
+        with pytest.raises(SignatureMismatchError):
+            await state.result()
 
     async def test_handles_other_errors(
         self, orion_client, parameterized_flow, monkeypatch
@@ -1322,11 +1366,10 @@ class TestCreateAndBeginSubflowRun:
             client=orion_client,
         )
         assert state.type == StateType.FAILED
-        assert (
-            state.message
-            == "Validation of flow parameters failed with error: Exception('I am another exception!')"
-        )
-        assert type(state.data.decode()) == Exception
+        assert "Validation of flow parameters failed with error" in state.message
+        assert "Exception: I am another exception!" in state.message
+        with pytest.raises(Exception):
+            await state.result()
 
 
 class TestLinkStateToResult:

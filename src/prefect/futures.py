@@ -22,9 +22,9 @@ from uuid import UUID
 
 import anyio
 
-from prefect.client import OrionClient
-from prefect.client.orion import inject_client
-from prefect.orion.schemas.states import State
+from prefect.client.orion import OrionClient
+from prefect.client.utilities import inject_client
+from prefect.states import State
 from prefect.utilities.asyncutils import (
     A,
     Async,
@@ -234,7 +234,7 @@ class PrefectFuture(Generic[R, A]):
         final_state = await self._wait(timeout=timeout)
         if not final_state:
             raise TimeoutError("Call timed out before task finished.")
-        return final_state.result(raise_on_failure=raise_on_failure)
+        return await final_state.result(raise_on_failure=raise_on_failure, fetch=True)
 
     @overload
     def get_state(
