@@ -884,12 +884,12 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         """
         Exit the async runtime context governed by this transform.
 
-        If the transition has been nullified upon exiting this transforms's context,
+        If the transition has been nullified or errorred upon exiting this transforms's context,
         nothing happens. Otherwise, `self.after_transition` will fire on every non-null
         proposed state.
         """
 
-        if not self.nullified_transition():
+        if not self.nullified_transition() and not self.errorred_transition():
             await self.after_transition(self.context)
             self.context.finalization_signature.append(str(self.__class__))
 
@@ -927,3 +927,13 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         """
 
         return self.context.proposed_state is None
+
+    def errorred_transition(self) -> bool:
+        """
+        Determines if the transition has encountered an exception.
+
+        Returns:
+            True if the transition is encountered an exception, False otherwise.
+        """
+
+        return self.context.orchestration_error is not None
