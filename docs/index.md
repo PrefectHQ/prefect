@@ -30,7 +30,7 @@ Prefect 1.0 Core, Server, and Cloud are our first-generation workflow and orches
 
 If you're ready to start migrating your workflows to Prefect 2.0, see our [migration guide](https://docs.prefect.io/migration-guide/).
 
-If you are unsure which Prefect version to choose for your specific use case, [this Prefect Discourse page](https://discourse.prefect.io/t/should-i-start-with-prefect-2-0-orion-skipping-prefect-1-0/544) may help you decide.
+We recommend starting new projects with [Prefect 2](https://docs.prefect.io/). If you have questions about specific use cases, see our [Prefect Discourse](https://discourse.prefect.io/) discussions for more information.
 
 <div class="features">
 <div class="feature">
