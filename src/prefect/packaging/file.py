@@ -4,8 +4,8 @@ from pydantic import Field
 from typing_extensions import Literal
 
 from prefect.blocks.core import Block
-from prefect.client import OrionClient
-from prefect.client.orion import inject_client
+from prefect.client.orion import OrionClient
+from prefect.client.utilities import inject_client
 from prefect.filesystems import LocalFileSystem, ReadableFileSystem, WritableFileSystem
 from prefect.flows import Flow
 from prefect.packaging.base import PackageManifest, Packager, Serializer
