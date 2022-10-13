@@ -8,9 +8,9 @@ import sqlalchemy as sa
 from fastapi import status
 
 from prefect.orion import models, schemas
-from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas import actions, core, responses, states
 from prefect.orion.schemas.core import TaskRunResult
+from prefect.orion.schemas.responses import OrchestrationResult
 
 
 class TestCreateFlowRun:
@@ -663,6 +663,27 @@ class TestSetFlowRunState:
         )
         assert response2.status_code == status.HTTP_201_CREATED
         assert response2.json()["status"] == "ACCEPT"
+
+    @pytest.mark.parametrize("data", [1, "test", {"foo": "bar"}])
+    async def test_set_flow_run_state_accepts_any_jsonable_data(
+        self, flow_run, client, session, data
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type="COMPLETED", data=data)),
+        )
+        assert response.status_code == 201
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+
+        flow_run_id = flow_run.id
+        session.expire(flow_run)
+
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert run.state.data == data
 
 
 class TestFlowRunHistory:

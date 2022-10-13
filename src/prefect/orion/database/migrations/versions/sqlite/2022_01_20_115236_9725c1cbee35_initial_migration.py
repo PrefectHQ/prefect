@@ -12,6 +12,18 @@ from alembic import op
 from sqlalchemy import Text
 
 import prefect
+from prefect.orion.utilities.schemas import PrefectBaseModel
+
+
+class DataDocument(PrefectBaseModel):
+    """
+    DataDocuments were deprecated in September 2022 and this stub is included here
+    to simplify removal from the library.
+    """
+
+    encoding: str
+    blob: bytes
+
 
 # revision identifiers, used by Alembic.
 revision = "9725c1cbee35"
@@ -266,9 +278,7 @@ def upgrade():
         ),
         sa.Column(
             "flow_data",
-            prefect.orion.utilities.database.Pydantic(
-                prefect.orion.schemas.data.DataDocument
-            ),
+            prefect.orion.utilities.database.Pydantic(DataDocument),
             nullable=True,
         ),
         sa.Column("flow_runner_type", sa.String(), nullable=True),
@@ -525,9 +535,7 @@ def upgrade():
         ),
         sa.Column(
             "data",
-            prefect.orion.utilities.database.Pydantic(
-                prefect.orion.schemas.data.DataDocument
-            ),
+            prefect.orion.utilities.database.Pydantic(DataDocument),
             nullable=True,
         ),
         sa.Column(
@@ -760,9 +768,7 @@ def upgrade():
         ),
         sa.Column(
             "data",
-            prefect.orion.utilities.database.Pydantic(
-                prefect.orion.schemas.data.DataDocument
-            ),
+            prefect.orion.utilities.database.Pydantic(DataDocument),
             nullable=True,
         ),
         sa.Column(

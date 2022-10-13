@@ -13,11 +13,11 @@ from prefect.orion.orchestration.rules import (
     BaseOrchestrationRule,
     BaseUniversalTransform,
     OrchestrationContext,
-    OrchestrationResult,
     TaskOrchestrationContext,
 )
 from prefect.orion.schemas import states
 from prefect.orion.schemas.responses import (
+    OrchestrationResult,
     SetStateStatus,
     StateAbortDetails,
     StateRejectDetails,

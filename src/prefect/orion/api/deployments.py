@@ -254,8 +254,11 @@ async def set_schedule_inactive(
         await session.commit()
 
         # delete any auto scheduled runs
-        await models.deployments._delete_auto_scheduled_runs(
-            session=session, deployment_id=deployment_id, db=db
+        await models.deployments._delete_scheduled_runs(
+            session=session,
+            deployment_id=deployment_id,
+            db=db,
+            auto_scheduled_only=True,
         )
 
         await session.commit()
