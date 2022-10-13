@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.models import concurrency_limits
+from prefect.orion.models import concurrency_limits, flow_runs
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
@@ -23,7 +23,7 @@ from prefect.orion.orchestration.rules import (
     OrchestrationContext,
     TaskOrchestrationContext,
 )
-from prefect.orion.schemas import filters, states
+from prefect.orion.schemas import actions, filters, states
 from prefect.orion.schemas.states import StateType
 
 
@@ -477,7 +477,9 @@ class OnlyRestartFromTerminalStates(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
-        await self.abort_transition(reason="Can only restart runs that have terminated.")
+        await self.abort_transition(
+            reason="Can only restart runs that have terminated."
+        )
 
 
 class PreventRestartingSubflowRuns(BaseOrchestrationRule):
@@ -491,7 +493,7 @@ class PreventRestartingSubflowRuns(BaseOrchestrationRule):
         context: OrchestrationContext,
     ) -> None:
         if context.run.parent_task_run_id:
-            self.abort_transition("Cannot restart a subflow run.")
+            await self.abort_transition("Cannot restart a subflow run.")
 
 
 class PreventRestartingFlowsWithoutDeployments(BaseOrchestrationRule):
@@ -505,7 +507,9 @@ class PreventRestartingFlowsWithoutDeployments(BaseOrchestrationRule):
         context: OrchestrationContext,
     ) -> None:
         if not context.run.deployment_id:
-            self.abort_transition("Cannot a run without an associated deployment.")
+            await self.abort_transition(
+                "Cannot restart a run without an associated deployment."
+            )
 
 
 class RestartFlowRun(BaseOrchestrationRule):
@@ -518,9 +522,18 @@ class RestartFlowRun(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ):
+        # update run count
         self.original_run_count = context.run.run_count
         context.run.run_count = 0  # reset run count to preserve retry behavior
-        context.run.empirical_policy.restarts += 1
+
+        # update empirical settings
+        self.original_settings = context.run_settings.copy()
+        new_settings = context.run_settings.copy()
+        new_settings.restarts += 1
+        flow_run_update = actions.FlowRunUpdate(empirical_policy=new_settings)
+        await flow_runs.update_flow_run(
+            context.session, context.run.id, flow_run_update
+        )
 
     async def after_transition(
         self,
@@ -528,7 +541,7 @@ class RestartFlowRun(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ):
-        task_runs = context.run.get_task_runs()
+        task_runs = await flow_runs.read_task_runs(context.session, context.run.id)
         for task_run in task_runs:
             if task_run.empirical_policy.flow_restart_index is None:
                 task_run.empirical_policy.flow_restart_index = (
@@ -541,5 +554,11 @@ class RestartFlowRun(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: OrchestrationContext,
     ):
+        # reset run count
         context.run.run_count = self.original_run_count
-        context.run.empirical_policy.restarts -= 1
+
+        # reset empirical settings
+        flow_run_update = actions.FlowRunUpdate(empirical_policy=self.original_settings)
+        await flow_runs.update_flow_run(
+            context.session, context.run.id, flow_run_update
+        )

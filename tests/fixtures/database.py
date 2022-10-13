@@ -100,6 +100,22 @@ async def flow_run(session, flow):
 
 
 @pytest.fixture
+async def failed_flow_run_with_deployment(session, flow, deployment):
+    flow_run_create = schemas.actions.FlowRunCreate(
+        state=schemas.states.Failed(),
+        flow_id=flow.id,
+        flow_version="0.1",
+        deployment_id=deployment.id,
+    )
+    model = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=flow_run_create,
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
 async def flow_run_state(session, flow_run, db):
     flow_run.set_state(db.FlowRunState(**schemas.states.Pending().dict()))
     await session.commit()
