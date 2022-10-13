@@ -19,7 +19,6 @@ from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.deprecated.data_documents import DataDocument
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
-from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.actions import (
     FlowRunNotificationPolicyCreate,
     LogCreate,
