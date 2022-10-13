@@ -2,9 +2,7 @@
 
 ## Release 2.6.0
 
-### Exciting New Features 🎉
-
-#### Add first-class configuration of results
+### First-class configuration of results 🎉
 
 ```python
 from prefect import flow, task
