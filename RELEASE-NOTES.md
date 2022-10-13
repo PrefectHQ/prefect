@@ -4,13 +4,13 @@
 
 ### First-class configuration of results 🎉
 
-Previously, Prefect serialized the results of all flows and tasks with pickle then wrote them to your local file system.
+Previously, Prefect serialized the results of all flows and tasks with pickle, then wrote them to your local file system.
 In this release, we're excited to announce this behavior is fully configurable and customizable.
 
 Here are some highlights:
 
 - Persistence of results is off by default.
-    - We will turn on result persistence automatically if needed for a feature you're using but you can always opt-out.
+    - We will turn on result persistence automatically if needed for a feature you're using, but you can always opt-out.
     - You can easily opt-in for any flow or task.
 - You can choose the result serializer.
     - By default, we continue to use a pickle serializer, now with the ability to choose a custom implementation.
@@ -19,7 +19,7 @@ Here are some highlights:
     - Unless your results are being persisted, they will not be serialized.
 - You can change the result storage.
     - By default, we will continue to use the local file system.
-    - You can specify any of our storage blocks i.e. AWS S3.
+    - You can specify any of our storage blocks, such as AWS S3.
     - You can use any storage block you have defined.
 
 All of the options can be customized per flow or task.
@@ -79,7 +79,7 @@ def important_cleanup():
     ...
 ```
 
-See the https://github.com/PrefectHQ/prefect/pull/7120 for implementation details.
+See https://github.com/PrefectHQ/prefect/pull/7120 for implementation details.
 
 ### Work queue match support for agents
 
