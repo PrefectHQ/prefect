@@ -223,6 +223,7 @@ class Flow(Generic[P, R]):
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = None,
         persist_result: Optional[bool] = NotSet,
+        persist_results: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
     ):
@@ -290,13 +291,18 @@ class Flow(Generic[P, R]):
             persist_result=(
                 persist_result if persist_result is not NotSet else self.persist_result
             ),
+            persist_results=(
+                persist_results
+                if persist_results is not NotSet
+                else self.persist_results
+            ),
             result_storage=(
-                result_storage if result_storage is not NotSet else self.persist_result
+                result_storage if result_storage is not NotSet else self.result_storage
             ),
             result_serializer=(
                 result_serializer
                 if result_serializer is not NotSet
-                else self.persist_result
+                else self.result_serializer
             ),
         )
 
