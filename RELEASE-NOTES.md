@@ -4,9 +4,36 @@
 
 ### Exciting New Features 🎉
 
-#### Add first-class support for results
+#### Add first-class configuration of results
 
-See https://github.com/PrefectHQ/prefect/pull/6908
+```python
+from prefect import flow, task
+
+@flow
+def foo():
+    one()
+    two()
+    three()
+
+
+# This task's result will be persisted
+@task(persist_result=True)
+def one():
+    return "one!"
+
+# This task will not persist its result
+@task(persist_result=False)
+def two():
+    return "two!"
+
+# This task will use a different serializer than the rest
+@task(persist_result=True, result_serializer="json")
+def three():
+    return "two!"
+```
+
+See the [documentation](https://docs.prefect.io/concepts/results/) for more details and examples.
+See the [tracking pull request](https://github.com/PrefectHQ/prefect/pull/6908) for implementation details.
 
 ### Enhancements
 - Add support for dynamic work queue matching to agents — https://github.com/PrefectHQ/prefect/pull/7099
