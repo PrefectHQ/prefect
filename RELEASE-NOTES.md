@@ -2,44 +2,39 @@
 
 ## Release 2.6.0
 
-## What's Changed
 ### Exciting New Features 🎉
-* Tracking: Add first-class results by @madkinsz in https://github.com/PrefectHQ/prefect/pull/6908
+
+#### Add first-class support for results
+
+See https://github.com/PrefectHQ/prefect/pull/6908
 
 ### Enhancements
-* Add 'Show Active Runs' button to WorkQueue page by @marichka-offen in https://github.com/PrefectHQ/prefect/pull/7092
-* Improve client stability by @zangell44 in https://github.com/PrefectHQ/prefect/pull/7090
-* Add `allow_failure` annotation to allow failed runs to be passed downstream by @madkinsz in https://github.com/PrefectHQ/prefect/pull/7120
-* History query refactor by @zangell44 in https://github.com/PrefectHQ/prefect/pull/7138
-* Agents with dynamic work queue matching by @anticorrelator in https://github.com/PrefectHQ/prefect/pull/7099
-* Always use _delete_auto_scheduled_runs utility by @zangell44 in https://github.com/PrefectHQ/prefect/pull/7102
-* Add `--param` / `--params` to `prefect deployment run` by @madkinsz in https://github.com/PrefectHQ/prefect/pull/7018
-* UI: implements FlowRunsFilterGroup component by @space-age-pete in https://github.com/PrefectHQ/prefect/pull/7122
-* UI: Add the `--prefect-scroll-margin` custom property by @pleek91 in https://github.com/PrefectHQ/prefect/pull/7146
+- Add support for dynamic work queue matching to agents — https://github.com/PrefectHQ/prefect/pull/7099
+- Add `--param` / `--params` to `prefect deployment run` — https://github.com/PrefectHQ/prefect/pull/7018
+- Add 'Show Active Runs' button to work queue page — https://github.com/PrefectHQ/prefect/pull/7092
+- Improve client stability by optimizing the HTTP client — https://github.com/PrefectHQ/prefect/pull/7090
+- Add `allow_failure` annotation to allow failed runs to be passed downstream — https://github.com/PrefectHQ/prefect/pull/7120
+- Optimize flow run history queries — https://github.com/PrefectHQ/prefect/pull/7138
+- Optimize server handling by saving log batches in individual transactions — https://github.com/PrefectHQ/prefect/pull/7141
+- Optimize deletion of auto-scheduled runs — https://github.com/PrefectHQ/prefect/pull/7102
 
 ### Fixes
-* Fix `DockerContainer` log streaming crash due to "marked for removal" by @madkinsz in https://github.com/PrefectHQ/prefect/pull/6860
-* Updates block protection to only prevent deletion by @desertaxle in https://github.com/PrefectHQ/prefect/pull/7042
-* Improve RRule string parsing by @anticorrelator in https://github.com/PrefectHQ/prefect/pull/7133
-* Proactively look for duplicate blocks instead of relying on `IntegrityError`. by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/7140
-* Save log batches in individual transactions. by @chrisguidry in https://github.com/PrefectHQ/prefect/pull/7141
+- Fix `DockerContainer` log streaming crash due to "marked for removal" — https://github.com/PrefectHQ/prefect/pull/6860
+- Update block protection to only prevent deletion — https://github.com/PrefectHQ/prefect/pull/7042
+- Improve RRule schedule string parsing — https://github.com/PrefectHQ/prefect/pull/7133
+- Improve handling of duplicate blocks, reducing errors in server logs — https://github.com/PrefectHQ/prefect/pull/7140
+- Fix flow run URLs in notifications and `prefect deployment run` output — https://github.com/PrefectHQ/prefect/pull/7153
 
 ### Documentation
-* Add documentation for support of proxies by @tpdorsey in https://github.com/PrefectHQ/prefect/pull/7087
-* Revisions to Organization docs by @tpdorsey in https://github.com/PrefectHQ/prefect/pull/7079
-* Update docstrings to render settings in API reference by @tpdorsey in https://github.com/PrefectHQ/prefect/pull/7067
-* Adds method for generating tags for collections catalog by @desertaxle in https://github.com/PrefectHQ/prefect/pull/7105
+- Add documentation for support of proxies — https://github.com/PrefectHQ/prefect/pull/7087
+- Fix rendering of Prefect settings in API reference — https://github.com/PrefectHQ/prefect/pull/7067
 
-### Uncategorized
-* Rename prefect-great-expecations.yaml to prefect-great-expectations.yaml by @ahuang11 in https://github.com/PrefectHQ/prefect/pull/7097
-* docs: provide a more detailed exception section by @jmg-duarte in https://github.com/PrefectHQ/prefect/pull/7136
-* Fix broken flow run URLs for notifications and creating runs from CLI by @anna-geller in https://github.com/PrefectHQ/prefect/pull/7153
-
-## New Contributors
+### Contributors
+- @jmg-duarte
 * @kevin868 made their first contribution in https://github.com/PrefectHQ/prefect/pull/7109
 * @space-age-pete made their first contribution in https://github.com/PrefectHQ/prefect/pull/7122
 
-**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/2.5.0...2.6.0
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.5.0...2.6.0
 
 ## Release 2.5.0
 
