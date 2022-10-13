@@ -467,7 +467,6 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
 
 
 class OnlyRestartFromTerminalStates(BaseOrchestrationRule):
-
     FROM_STATES = set(ALL_ORCHESTRATION_STATES) - set(TERMINAL_STATES)
     TO_STATES = [states.StateType.SCHEDULED]
 
@@ -528,8 +527,9 @@ class RestartFlowRun(BaseOrchestrationRule):
 
         # update empirical settings
         self.original_settings = context.run_settings.copy()
+        self.restarts = self.original_settings.restarts + 1
         new_settings = context.run_settings.copy()
-        new_settings.restarts += 1
+        new_settings.restarts = self.restarts
         flow_run_update = actions.FlowRunUpdate(empirical_policy=new_settings)
         await flow_runs.update_flow_run(
             context.session, context.run.id, flow_run_update
@@ -541,11 +541,16 @@ class RestartFlowRun(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ):
-        task_runs = await flow_runs.read_task_runs(context.session, context.run.id)
-        for task_run in task_runs:
+        from prefect.orion.models import task_runs
+
+        trs = await flow_runs.read_task_runs(context.session, context.run.id)
+        for task_run in trs:
             if task_run.empirical_policy.flow_restart_index is None:
-                task_run.empirical_policy.flow_restart_index = (
-                    context.run.empirical_policy.restarts - 1
+                task_policy = task_run.empirical_policy
+                task_policy.flow_restart_index = self.restarts - 1
+                task_run_update = actions.TaskRunUpdate(empirical_policy=task_policy)
+                await task_runs.update_task_run(
+                    context.session, task_run.id, task_run_update
                 )
 
     async def cleanup(
