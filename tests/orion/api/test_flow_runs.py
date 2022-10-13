@@ -699,7 +699,12 @@ class TestRestartingFlowRuns:
         restarted_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
         )
+        task_runs = await models.flow_runs.read_task_runs(
+            session=session, flow_run_id=flow_run_id
+        )
         assert restarted_run.empirical_policy.restarts == 1
+        assert len(task_runs) == 1
+        assert task_runs[0].empirical_policy.flow_restart_index == 0
 
 
 class TestFlowRunHistory:
