@@ -55,6 +55,9 @@ async def read_flow_run_history(
         db.FlowRun.start_time,
         db.FlowRun.expected_start_time,
         db.FlowRun.total_run_time,
+        # Although it isn't returned, we need to select
+        # this field in order to compute `estimated_run_time`
+        db.FlowRun.state_timestamp,
     ]
     async with db.session_context() as session:
         result = await models.flow_runs.read_flow_runs(

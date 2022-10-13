@@ -102,17 +102,6 @@ def my_task():
     print("Hello, I'm a task")
 ```
 
-## Task results
-
-Task results are cached in memory during execution of your flow run.
-
-Currently, task results are persisted to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. 
-
-!!! note "Task results, retries, and caching"
-    Since task results are both cached in memory and persisted to `PREFECT_LOCAL_STORAGE_PATH`, results are available within the context of of flow run and task retries use these results.
-    
-    However, [task caching](#caching) between flow runs is currently limited to flow runs with access to that local storage path.
-
 ## Tags
 
 Tags are optional string labels that enable you to identify and group tasks other than by name or flow. Tags are useful for:

@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.orion.models as models
 from prefect.orion import schemas
@@ -23,7 +24,7 @@ from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
 @inject_db
 async def create_block_document(
-    session: sa.orm.Session,
+    session: AsyncSession,
     block_document: schemas.actions.BlockDocumentCreate,
     db: OrionDBInterface,
 ):
@@ -63,12 +64,26 @@ async def create_block_document(
             ),
         )
 
-    # reload the block document in order to load the associated block schema relationship
+    # reload the block document in order to load the associated block schema
+    # relationship
     return await read_block_document_by_id(
         session=session,
         block_document_id=orm_block.id,
         include_secrets=False,
     )
+
+
+@inject_db
+async def block_document_with_unique_values_exists(
+    session: AsyncSession, block_type_id: UUID, name: str, db: OrionDBInterface
+) -> bool:
+    result = await session.execute(
+        sa.select(sa.exists(db.BlockDocument)).where(
+            db.BlockDocument.block_type_id == block_type_id,
+            db.BlockDocument.name == name,
+        )
+    )
+    return bool(result.scalar_one_or_none())
 
 
 def _separate_block_references_from_data(
@@ -109,7 +124,7 @@ def _separate_block_references_from_data(
 
 @inject_db
 async def read_block_document_by_id(
-    session: sa.orm.Session,
+    session: AsyncSession,
     block_document_id: UUID,
     db: OrionDBInterface,
     include_secrets: bool = False,
@@ -130,7 +145,7 @@ async def read_block_document_by_id(
 
 
 async def _construct_full_block_document(
-    session: sa.orm.Session,
+    session: AsyncSession,
     block_documents_with_references: List[
         Tuple[ORMBlockDocument, Optional[str], Optional[UUID]]
     ],
@@ -176,7 +191,9 @@ async def _construct_full_block_document(
                     "name": block_document.name,
                     "block_type": block_document.block_type,
                     "is_anonymous": block_document.is_anonymous,
-                    "block_document_references": full_child_block_document.block_document_references,
+                    "block_document_references": (
+                        full_child_block_document.block_document_references
+                    ),
                 }
             }
 
@@ -211,7 +228,7 @@ async def _find_parent_block_document(
 
 @inject_db
 async def read_block_document_by_name(
-    session: sa.orm.Session,
+    session: AsyncSession,
     name: str,
     block_type_slug: str,
     db: OrionDBInterface,
@@ -239,7 +256,7 @@ async def read_block_document_by_name(
 
 @inject_db
 async def read_block_documents(
-    session: sa.orm.Session,
+    session: AsyncSession,
     db: OrionDBInterface,
     block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
     block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
@@ -390,7 +407,7 @@ async def read_block_documents(
 
 @inject_db
 async def delete_block_document(
-    session: sa.orm.Session,
+    session: AsyncSession,
     block_document_id: UUID,
     db: OrionDBInterface,
 ) -> bool:
@@ -402,7 +419,7 @@ async def delete_block_document(
 
 @inject_db
 async def update_block_document(
-    session: sa.orm.Session,
+    session: AsyncSession,
     block_document_id: UUID,
     block_document: schemas.actions.BlockDocumentUpdate,
     db: OrionDBInterface,
@@ -505,7 +522,7 @@ def _find_block_document_reference(
 
 @inject_db
 async def create_block_document_reference(
-    session: sa.orm.Session,
+    session: AsyncSession,
     block_document_reference: schemas.actions.BlockDocumentReferenceCreate,
     db: OrionDBInterface,
 ):
@@ -531,7 +548,7 @@ async def create_block_document_reference(
 
 @inject_db
 async def delete_block_document_reference(
-    session: sa.orm.Session,
+    session: AsyncSession,
     block_document_reference_id: UUID,
     db: OrionDBInterface,
 ):
