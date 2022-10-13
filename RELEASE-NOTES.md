@@ -4,20 +4,31 @@
 
 ### First-class configuration of results 🎉
 
-Previously, Prefect persisted the result of all tasks to the local file system and serialized them with pickle.
+Previously, Prefect serialized the results of all flows and tasks with pickle then wrote them to your local file system.
 In this release, we're excited to announce this behavior is fully configurable and customizable.
 
 Here are some highlights:
 
-- Persistence of results is off by default, we will turn on result persistence automatically if needed for a feature you're using but you can always opt-out.
-- You can define your own serializers, but we've got JSON and pickle serializers out of the box.
-    - Our JSON serializer supports all of the types supported by Pydantic. There are hooks for support for your own types too.
-- You can change the location your results are persisted to, with support for remote storage like AWS S3.
+- Persistence of results is off by default.
+    - We will turn on result persistence automatically if needed for a feature you're using but you can always opt-out.
+    - You can easily opt-in for any flow or task.
+- You can choose the result serializer.
+    - By default, we continue to use a pickle serializer, now with the ability to choose a custom implementation.
+    - We now offer a JSON result serializer with support for all of the types supported by Pydantic.
+    - You can also write your own serializer for full control.
+    - Unless your results are being persisted, they will not be serialized.
+- You can change the result storage.
+    - By default, we will continue to use the local file system.
+    - You can specify any of our storage blocks i.e. AWS S3.
+    - You can use any storage block you have defined.
+
+All of the options can be customized per flow or task.
 
 ```python
 from prefect import flow, task
 
-@flow
+# This flow defines a default result serializer for itself and all tasks in it
+@flow(result_serializer="pickle")
 def foo():
     one()
     two()
@@ -48,18 +59,18 @@ See the [documentation](https://docs.prefect.io/concepts/results/) for more deta
 See the [tracking pull request](https://github.com/PrefectHQ/prefect/pull/6908) for implementation details.
 
 ### Enhancements
-- Add support for dynamic work queue matching to agents — https://github.com/PrefectHQ/prefect/pull/7099
+- Add support for dynamic work queue matching to agents via a `--match` option — https://github.com/PrefectHQ/prefect/pull/7099
 - Add `--param` / `--params` to `prefect deployment run` — https://github.com/PrefectHQ/prefect/pull/7018
-- Add 'Show Active Runs' button to work queue page — https://github.com/PrefectHQ/prefect/pull/7092
-- Improve client stability by optimizing the HTTP client — https://github.com/PrefectHQ/prefect/pull/7090
 - Add `allow_failure` annotation to allow failed runs to be passed downstream — https://github.com/PrefectHQ/prefect/pull/7120
+- Add 'Show Active Runs' button to work queue page — https://github.com/PrefectHQ/prefect/pull/7092
+- Update block protection to only prevent deletion — https://github.com/PrefectHQ/prefect/pull/7042
+- Improve stability by optimizing the HTTP client — https://github.com/PrefectHQ/prefect/pull/7090
 - Optimize flow run history queries — https://github.com/PrefectHQ/prefect/pull/7138
 - Optimize server handling by saving log batches in individual transactions — https://github.com/PrefectHQ/prefect/pull/7141
 - Optimize deletion of auto-scheduled runs — https://github.com/PrefectHQ/prefect/pull/7102
 
 ### Fixes
-- Fix `DockerContainer` log streaming crash due to "marked for removal" — https://github.com/PrefectHQ/prefect/pull/6860
-- Update block protection to only prevent deletion — https://github.com/PrefectHQ/prefect/pull/7042
+- Fix `DockerContainer` log streaming crash due to "marked for removal" error — https://github.com/PrefectHQ/prefect/pull/6860
 - Improve RRule schedule string parsing — https://github.com/PrefectHQ/prefect/pull/7133
 - Improve handling of duplicate blocks, reducing errors in server logs — https://github.com/PrefectHQ/prefect/pull/7140
 - Fix flow run URLs in notifications and `prefect deployment run` output — https://github.com/PrefectHQ/prefect/pull/7153
