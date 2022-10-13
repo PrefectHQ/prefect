@@ -58,7 +58,7 @@ def four()
 See the [documentation](https://docs.prefect.io/concepts/results/) for more details and examples.
 See https://github.com/PrefectHQ/prefect/pull/6908 for implementation details.
 
-### Support for waiting for tasks even if they fail
+### Waiting for tasks even if they fail
 
 You can now specify that a downstream task should wait for an upstream task and run even if the upstream task has failed.
 
@@ -81,8 +81,15 @@ def important_cleanup():
 
 See the https://github.com/PrefectHQ/prefect/pull/7120 for implementation details.
 
+### Work queue match support for agents
+
+Agents can now match multiple work queues by providing a `--match` string instead of specifying all of the work queues. The agent will poll every work queue with a name that starts with the given string. Your agent will detect new work queues that match the option without requiring a restart!
+
+```
+$ prefect agent start --match "foo-"
+```
+
 ### Enhancements
-- Add support for dynamic work queue matching to agents via a `--match` option — https://github.com/PrefectHQ/prefect/pull/7099
 - Add `--param` / `--params` to `prefect deployment run` — https://github.com/PrefectHQ/prefect/pull/7018
 - Add 'Show Active Runs' button to work queue page — https://github.com/PrefectHQ/prefect/pull/7092
 - Update block protection to only prevent deletion — https://github.com/PrefectHQ/prefect/pull/7042
