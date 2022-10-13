@@ -89,7 +89,8 @@ def generate_release_notes(
 
     # Replace the heading of the existing contributors section; append contributors
     release_notes = release_notes.replace(
-        "## New Contributors", "### Contributors" + contributors
+        "\n**Full Changelog**:",
+        "### Contributors" + contributors + "\n\n**All changes**:",
     )
 
     # Strip contributors from individual entries

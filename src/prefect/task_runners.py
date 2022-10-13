@@ -203,7 +203,7 @@ class SequentialTaskRunner(BaseTaskRunner):
         try:
             result = await call()
         except BaseException as exc:
-            result = exception_to_crashed_state(exc)
+            result = await exception_to_crashed_state(exc)
 
         self._results[key] = result
 
@@ -290,7 +290,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         try:
             self._results[key] = await call()
         except BaseException as exc:
-            self._results[key] = exception_to_crashed_state(exc)
+            self._results[key] = await exception_to_crashed_state(exc)
 
         self._result_events[key].set()
 

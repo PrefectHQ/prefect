@@ -35,6 +35,7 @@ from prefect.orion.schemas.responses import (
     StateAbortDetails,
     StateAcceptDetails,
     StateRejectDetails,
+    StateResponseDetails,
     StateWaitDetails,
 )
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -46,20 +47,6 @@ ALL_ORCHESTRATION_STATES = {*states.StateType, None}
 TERMINAL_STATES = states.TERMINAL_STATES
 
 logger = get_logger("orion")
-
-StateResponseDetails = Union[
-    StateAcceptDetails, StateWaitDetails, StateRejectDetails, StateAbortDetails
-]
-
-
-class OrchestrationResult(PrefectBaseModel):
-    """
-    A container for the output of state orchestration.
-    """
-
-    state: Optional[states.State]
-    status: SetStateStatus
-    details: StateResponseDetails
 
 
 class OrchestrationContext(PrefectBaseModel):

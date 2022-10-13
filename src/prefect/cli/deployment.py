@@ -2,10 +2,12 @@
 Command line interface for working with deployments.
 """
 import json
+import sys
+import textwrap
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pendulum
 import typer
@@ -21,9 +23,11 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.orion_utils import check_orion_connection, ui_base_url
 from prefect.cli.root import app
 from prefect.client import get_client
+from prefect.client.orion import OrionClient
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import Deployment, load_deployments_from_yaml
 from prefect.exceptions import (
+    ObjectAlreadyExists,
     ObjectNotFound,
     PrefectHTTPStatusError,
     ScriptError,
@@ -36,6 +40,7 @@ from prefect.orion.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
+from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_registry_for_type, lookup_type
 from prefect.utilities.filesystem import set_default_ignore_file
 
@@ -66,7 +71,7 @@ def assert_deployment_name_format(name: str) -> None:
         )
 
 
-async def get_deployment(client, name, deployment_id):
+async def get_deployment(client: OrionClient, name, deployment_id):
     if name is None and deployment_id is not None:
         try:
             deployment = await client.read_deployment(deployment_id)
@@ -83,6 +88,38 @@ async def get_deployment(client, name, deployment_id):
         exit_with_error("Only provide a deployed flow's name or id")
 
     return deployment
+
+
+async def create_work_queue_and_set_concurrency_limit(
+    work_queue_name, work_queue_concurrency
+):
+    async with get_client() as client:
+        if work_queue_concurrency is not None and work_queue_name:
+            try:
+                try:
+                    res = await client.create_work_queue(name=work_queue_name)
+                except ObjectAlreadyExists:
+                    res = await client.read_work_queue_by_name(name=work_queue_name)
+                    if res.concurrency_limit != work_queue_concurrency:
+                        app.console.print(
+                            f"Work queue {work_queue_name!r} already exists with a concurrency limit of {res.concurrency_limit}, this limit is being updated...",
+                            style="red",
+                        )
+                await client.update_work_queue(
+                    res.id, concurrency_limit=work_queue_concurrency
+                )
+                app.console.print(
+                    f"Updated concurrency limit on work queue {work_queue_name!r} to {work_queue_concurrency}",
+                    style="green",
+                )
+            except Exception as exc:
+                exit_with_error(
+                    f"Failed to set concurrency limit on work queue {work_queue_name}."
+                )
+        elif work_queue_concurrency:
+            app.console.print(
+                f"No work queue set! The concurrency limit cannot be updated."
+            )
 
 
 class RichTextIO:
@@ -199,7 +236,11 @@ async def set_schedule(
         "timezone": timezone,
     }
     cron_schedule = {"cron": cron_string, "day_or": cron_day_or, "timezone": timezone}
-    rrule_schedule = {"rrule": rrule_string, "timezone": timezone}
+    if rrule_string is not None:
+        rrule_schedule = json.loads(rrule_string)
+    else:
+        # fall back to empty schedule dictionary
+        rrule_schedule = {"rrule": None}
 
     def updated_schedule_check(schedule):
         return any(v is not None for k, v in schedule.items() if k != "timezone")
@@ -307,6 +348,24 @@ async def run(
     deployment_id: Optional[str] = typer.Option(
         None, "--id", help="A deployment id to search for if no name is given"
     ),
+    params: List[str] = typer.Option(
+        None,
+        "-p",
+        "--param",
+        help=(
+            "A key, value pair (key=value) specifying a flow parameter. The value will be "
+            "interpreted as JSON. May be passed multiple times to specify multiple "
+            "parameter values."
+        ),
+    ),
+    multiparams: Optional[str] = typer.Option(
+        None,
+        "--params",
+        help=(
+            "A mapping of parameters to values. To use a stdin, pass '-'. Any "
+            "parameters passed with `--param` will take precedence over these values."
+        ),
+    ),
 ):
     """
     Create a flow run for the given flow and deployment.
@@ -315,16 +374,75 @@ async def run(
 
     The flow run will not execute until an agent starts.
     """
+    multi_params = {}
+    if multiparams:
+        if multiparams == "-":
+            multiparams = sys.stdin.read()
+            if not multiparams:
+                exit_with_error("No data passed to stdin")
+
+        try:
+            multi_params = json.loads(multiparams)
+        except ValueError as exc:
+            exit_with_error(f"Failed to parse JSON: {exc}")
+
+    cli_params = _load_json_key_values(params, "parameter")
+    conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
+    if conflicting_keys:
+        app.console.print(
+            "The following parameters were specified by `--param` and `--params`, the "
+            f"`--param` value will be used: {conflicting_keys}"
+        )
+    parameters = {**multi_params, **cli_params}
+
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
-        flow_run = await client.create_flow_run_from_deployment(deployment.id)
+        flow = await client.read_flow(deployment.flow_id)
+
+        deployment_parameters = deployment.parameter_openapi_schema["properties"].keys()
+        unknown_keys = set(parameters.keys()).difference(deployment_parameters)
+        if unknown_keys:
+            available_parameters = (
+                (
+                    "The following parameters are available on the deployment: "
+                    + listrepr(deployment_parameters, sep=", ")
+                )
+                if deployment_parameters
+                else "This deployment does not accept parameters."
+            )
+
+            exit_with_error(
+                "The following parameters were specified but not found on the "
+                f"deployment: {listrepr(unknown_keys, sep=', ')}"
+                f"\n{available_parameters}"
+            )
+
+        app.console.print(
+            f"Creating flow run for deployment '{flow.name}/{deployment.name}'...",
+        )
+
+        flow_run = await client.create_flow_run_from_deployment(
+            deployment.id, parameters=parameters
+        )
 
     connection_status = await check_orion_connection()
-    ui = ui_base_url(connection_status)
+    ui_url = ui_base_url(connection_status)
 
-    app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
-    if ui:
-        app.console.print(f"View flow run in UI: {ui}/flow-run/{flow_run.id}")
+    if ui_url:
+        run_url = f"{ui_url}/flow-runs/flow-run/{flow_run.id}"
+    else:
+        run_url = "<no dashboard available>"
+
+    app.console.print(f"Created flow run {flow_run.name!r}.")
+    app.console.print(
+        textwrap.dedent(
+            f"""
+        └── UUID: {flow_run.id}
+        └── Parameters: {flow_run.parameters}
+        └── URL: {run_url}
+        """
+        ).strip()
+    )
 
 
 def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
@@ -371,6 +489,12 @@ async def apply(
         "--upload",
         help="A flag that, when provided, uploads this deployment's files to remote storage.",
     ),
+    work_queue_concurrency: int = typer.Option(
+        None,
+        "--limit",
+        "-l",
+        help="Sets the concurrency limit on the work queue that handles this deployment's runs",
+    ),
 ):
     """
     Create or update a deployment from a YAML file.
@@ -382,6 +506,10 @@ async def apply(
             app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
         except Exception as exc:
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
+
+        await create_work_queue_and_set_concurrency_limit(
+            deployment.work_queue_name, work_queue_concurrency
+        )
 
         if upload:
             if (
@@ -502,6 +630,12 @@ async def build(
             "It will be created if it doesn't already exist. Defaults to `None`. "
             "Note that if a work queue is not set, work will not be scheduled."
         ),
+    ),
+    work_queue_concurrency: int = typer.Option(
+        None,
+        "--limit",
+        "-l",
+        help="Sets the concurrency limit on the work queue that handles this deployment's runs",
     ),
     infra_type: InfrastructureSlugs = typer.Option(
         None,
@@ -729,6 +863,10 @@ async def build(
         style="green",
     )
 
+    await create_work_queue_and_set_concurrency_limit(
+        deployment.work_queue_name, work_queue_concurrency
+    )
+
     # we process these separately for informative output
     if not skip_upload:
         if (
@@ -768,3 +906,62 @@ async def build(
                 "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
                 style="red",
             )
+
+
+def _load_json_key_values(
+    cli_input: List[str], display_name: str
+) -> Dict[str, Union[dict, str, int]]:
+    """
+    Parse a list of strings formatted as "key=value" where the value is loaded as JSON.
+
+    We do the best here to display a helpful JSON parsing message, e.g.
+    ```
+    Error: Failed to parse JSON for parameter 'name' with value
+
+        foo
+
+    JSON Error: Expecting value: line 1 column 1 (char 0)
+    Did you forget to include quotes? You may need to escape so your shell does not remove them, e.g. \"
+    ```
+
+    Args:
+        cli_input: A list of "key=value" strings to parse
+        display_name: A name to display in exceptions
+
+    Returns:
+        A mapping of keys -> parsed values
+    """
+    parsed = {}
+
+    def cast_value(value: str) -> Any:
+        """Cast the value from a string to a valid JSON type; add quotes for the user
+        if necessary
+        """
+        try:
+            return json.loads(value)
+        except ValueError as exc:
+            if (
+                "Extra data" in str(exc) or "Expecting value" in str(exc)
+            ) and '"' not in value:
+                return cast_value(f'"{value}"')
+            raise exc
+
+    for spec in cli_input:
+        try:
+            key, _, value = spec.partition("=")
+        except ValueError:
+            exit_with_error(
+                f"Invalid {display_name} option {spec!r}. Expected format 'key=value'."
+            )
+
+        try:
+            parsed[key] = cast_value(value)
+        except ValueError as exc:
+            indented_value = textwrap.indent(value, prefix="\t")
+            exit_with_error(
+                f"Failed to parse JSON for {display_name} {key!r} with value"
+                f"\n\n{indented_value}\n\n"
+                f"JSON Error: {exc}"
+            )
+
+    return parsed

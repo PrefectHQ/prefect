@@ -12,13 +12,14 @@ tags:
 
 # Organizations in Prefect Cloud
 
-For larger teams, and companies with more complex needs around user and access management, organizations provide several features that enable you to collaborate securely at scale, including:
+For larger teams or companies with more complex needs around user and access management, organizations in Prefect Cloud provide several features that enable you to collaborate securely at scale, including:
 
-- Organizational accounts and membership management.
+- [Organizational accounts and membership](#organization-members) management.
 - [Role Based Access Controls (RBAC)](/ui/roles/) to configure user permissions at organization and workspace levels.
-- Service accounts to generate credentials for specific workloads.
+- [Service accounts](#service-accounts) to generate credentials for specific workloads.
 - Expanded and customizable [Flow Run Retention Policy](/ui/flow-runs/#flow-run-retention-policy).
 
+See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more about options for supporting more users, service accounts, and workspaces.
 
 ## Navigating organizations
 
@@ -36,7 +37,7 @@ When you select an organization, you'll see an overview of the organization.
 
 ![Viewing the Organization member page in Prefect Cloud.](/img/ui/org-members.png)
 
-Control granular access to workspaces by setting default access for all organization members, inviting specific members to collaborate in an organization workspace, or adding service account permissions.
+You can control granular access to workspaces by setting default access for all organization members, inviting specific members to collaborate in an organization workspace, or adding service account permissions.
 
 ### Inviting organization members
 
@@ -74,15 +75,15 @@ Within a workspace, select **Workspace Sharing**, then select the **+** icon to 
 Members and service accounts must already be configured for the organization. An Admin or Owner may configure a different role for the user or service account as needed.
 
 !!! note "Default workspace role"
-    You may make a workspace available to anyone in an organization by settings a default role for "Anyone at...". Anyone in the organization may access the workspace with the specified default role permissions.
+    You may make a workspace available to any user in an organization by settings a default role for "Anyone at...". Users in the organization may access the workspace with the specified default role permissions. Default workspace roles do not apply to service accounts.
 
-    The role given to users specifically added to the workspace overrides this setting.
+    The role given to users specifically added to the workspace is the union of workspace scopes given by the default workspace role and that users' role in the workspace.
     
-    You may set this to No Access if you do not want organization members not specifically added to the workspace to access it (organization Admins excepted). 
+    You may set this to "No Access" if you do not want organization members not specifically added to the workspace to access it (organization Admins excepted). 
 
 ## Organization and workspace roles
 
-Prefect Cloud enables configuring both organization and workspace roles for users.
+Prefect Cloud enables you to configure both organization and workspace roles for users.
 
 - Organization roles apply to users across an organization.
 - Workspace roles apply to users within a specific workspace.

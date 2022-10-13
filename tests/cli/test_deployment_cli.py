@@ -1,11 +1,15 @@
+import json
 from datetime import timedelta
 
 import pytest
 
 from prefect import flow
+from prefect.client.orion import OrionClient
 from prefect.deployments import Deployment
+from prefect.orion.schemas.filters import DeploymentFilter, DeploymentFilterId
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.testing.cli import invoke_and_assert
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 @flow
@@ -271,6 +275,81 @@ class TestInputValidation:
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
 
+    @pytest.fixture
+    def built_deployment_with_queue_and_limit_overrides(self, patch_import, tmp_path):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+        )
+        deployment_id = d.apply()
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "-q",
+                "the-queue-to-end-all-queues",
+                "--limit",
+                "424242",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+    @pytest.fixture
+    def applied_deployment_with_queue_and_limit_overrides(self, patch_import, tmp_path):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+        )
+        deployment_id = d.apply()
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "-q",
+                "the-mother-of-all-queues",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+        invoke_and_assert(
+            [
+                "deployment",
+                "apply",
+                str(tmp_path / "test.yaml"),
+                "-l",
+                "4242",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+    async def test_setting_work_queue_concurrency_limits_with_build(
+        self, built_deployment_with_queue_and_limit_overrides, orion_client
+    ):
+        queue = await orion_client.read_work_queue_by_name(
+            "the-queue-to-end-all-queues"
+        )
+        assert queue.concurrency_limit == 424242
+
+    async def test_setting_work_queue_concurrency_limits_with_apply(
+        self, applied_deployment_with_queue_and_limit_overrides, orion_client
+    ):
+        queue = await orion_client.read_work_queue_by_name("the-mother-of-all-queues")
+        assert queue.concurrency_limit == 4242
+
     def test_parsing_rrule_schedule_json(self, patch_import, tmp_path):
         invoke_and_assert(
             [
@@ -347,6 +426,29 @@ class TestOutputMessages:
                     f"that pulls work from the {d.work_queue_name!r} work queue:"
                 ),
                 f"$ prefect agent start -q {d.work_queue_name!r}",
+            ],
+        )
+
+    def test_updating_work_queue_concurrency_from_python_build(
+        self, patch_import, tmp_path
+    ):
+        d = Deployment.build_from_flow(
+            flow=my_flow,
+            name="TEST",
+            flow_name="my_flow",
+            output=str(tmp_path / "test.yaml"),
+            work_queue_name="prod",
+        )
+        invoke_and_assert(
+            [
+                "deployment",
+                "apply",
+                str(tmp_path / "test.yaml"),
+                "-l",
+                "42",
+            ],
+            expected_output_contains=[
+                "Updated concurrency limit on work queue 'prod' to 42",
             ],
         )
 
@@ -440,6 +542,19 @@ class TestUpdatingDeployments:
             expected_output_contains="Incompatible schedule parameters",
         )
 
+    def test_rrule_schedules_are_parsed_properly(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--rrule",
+                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17", "timezone": "America/New_York"}',
+            ],
+            expected_code=0,
+            expected_output_contains="Updated deployment schedule!",
+        )
+
     def test_pausing_and_resuming_schedules(self, flojo):
         invoke_and_assert(
             [
@@ -476,3 +591,135 @@ class TestUpdatingDeployments:
             ],
             expected_output_contains=["'is_schedule_active': True"],
         )
+
+
+class TestDeploymentRun:
+    @pytest.fixture
+    async def deployment_name(self, deployment, orion_client):
+        flow = await orion_client.read_flow(deployment.flow_id)
+        return f"{flow.name}/{deployment.name}"
+
+    def test_run_wraps_parameter_stdin_parsing_exception(self, deployment_name):
+        invoke_and_assert(
+            ["deployment", "run", deployment_name, "--params", "-"],
+            expected_code=1,
+            expected_output_contains="Failed to parse JSON",
+            user_input="not-valid-json",
+        )
+
+    def test_run_wraps_parameter_stdin_empty(self, tmp_path, deployment_name):
+        invoke_and_assert(
+            ["deployment", "run", deployment_name, "--params", "-"],
+            expected_code=1,
+            expected_output_contains="No data passed to stdin",
+        )
+
+    def test_run_wraps_parameters_parsing_exception(self, deployment_name):
+        invoke_and_assert(
+            ["deployment", "run", deployment_name, "--params", "not-valid-json"],
+            expected_code=1,
+            expected_output_contains="Failed to parse JSON",
+        )
+
+    def test_wraps_parameter_json_parsing_exception(self, deployment_name):
+        invoke_and_assert(
+            ["deployment", "run", deployment_name, "--param", 'x="foo"1'],
+            expected_code=1,
+            expected_output_contains=f"Failed to parse JSON for parameter 'x'",
+        )
+
+    def test_validates_parameters_are_in_deployment_schema(
+        self,
+        deployment_name,
+    ):
+        invoke_and_assert(
+            ["deployment", "run", deployment_name, "--param", f"x=test"],
+            expected_code=1,
+            expected_output_contains=[
+                "parameters were specified but not found on the deployment: 'x'",
+                "parameters are available on the deployment: 'name'",
+            ],
+        )
+
+    @pytest.mark.parametrize(
+        "given,expected",
+        [
+            ("foo", "foo"),
+            ('"foo"', "foo"),
+            (1, 1),
+            ('["one", "two"]', ["one", "two"]),
+            ('{"key": "val"}', {"key": "val"}),
+            ('["one", 2]', ["one", 2]),
+            ('{"key": 2}', {"key": 2}),
+        ],
+    )
+    async def test_passes_parameters_to_flow_run(
+        self, deployment, deployment_name, orion_client: OrionClient, given, expected
+    ):
+        """
+        This test ensures the parameters are set on the created flow run and that
+        data types are cast correctly.
+        """
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            ["deployment", "run", deployment_name, "--param", f"name={given}"],
+        )
+
+        flow_runs = await orion_client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=[deployment.id])
+            )
+        )
+
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.parameters == {"name": expected}
+
+    async def test_passes_parameters_from_stdin_to_flow_run(
+        self,
+        deployment,
+        deployment_name,
+        orion_client,
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            ["deployment", "run", deployment_name, "--params", "-"],
+            json.dumps({"name": "foo"}),  # stdin
+        )
+
+        flow_runs = await orion_client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=[deployment.id])
+            )
+        )
+
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.parameters == {"name": "foo"}
+
+    async def test_passes_parameters_from_dict_to_flow_run(
+        self,
+        deployment,
+        deployment_name,
+        orion_client,
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            [
+                "deployment",
+                "run",
+                deployment_name,
+                "--params",
+                json.dumps({"name": "foo"}),
+            ],
+        )
+
+        flow_runs = await orion_client.read_flow_runs(
+            deployment_filter=DeploymentFilter(
+                id=DeploymentFilterId(any_=[deployment.id])
+            )
+        )
+
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.parameters == {"name": "foo"}
