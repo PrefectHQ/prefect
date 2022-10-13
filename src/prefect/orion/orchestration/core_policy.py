@@ -38,6 +38,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
             PreventRedundantTransitions,
             WaitForScheduledTime,
             RetryFailedFlows,
+            # SoftRetryFailedFlows,
         ]
 
 
@@ -567,3 +568,34 @@ class RestartFlowRun(BaseOrchestrationRule):
         await flow_runs.update_flow_run(
             context.session, context.run.id, flow_run_update
         )
+
+
+class SoftRestartFlowRun(BaseOrchestrationRule):
+    FROM_STATES = TERMINAL_STATES
+    TO_STATES = [states.StateType.SCHEDULED]
+
+    async def after_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: FlowOrchestrationContext,
+    ) -> None:
+        from prefect.orion.models import task_runs
+
+        self.original_run_count = context.run.run_count
+        context.run.run_count = 0  # reset flow run count to preserve retry behavior
+
+        failed_task_runs = await task_runs.read_task_runs(
+            context.session,
+            flow_run_filter=filters.FlowRunFilter(id={"any_": [context.run.id]}),
+            task_run_filter=filters.TaskRunFilter(state={"type": {"any_": ["FAILED"]}}),
+        )
+        for run in failed_task_runs:
+            await task_runs.set_task_run_state(
+                context.session,
+                run.id,
+                state=states.AwaitingRetry(scheduled_time=scheduled_start_time),
+                force=True,
+            )
+            # Reset the run count so that the task run retries still work correctly
+            run.run_count = 0
