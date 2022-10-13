@@ -603,11 +603,11 @@ async def test_flow_run_lateness(client, session):
     assert interval.states[1].state_type == StateType.RUNNING
     assert interval.states[1].count_runs == 1
 
-    expected_lateness = pendulum.now("UTC") - dt.subtract(minutes=5)
+    expected_run_time = pendulum.now("UTC") - dt.subtract(minutes=5)
     assert (
-        expected_lateness - timedelta(seconds=2)
+        expected_run_time - timedelta(seconds=2)
         < interval.states[1].sum_estimated_run_time
-        < expected_lateness
+        < expected_run_time
     )
     assert interval.states[1].sum_estimated_lateness == timedelta(seconds=600)
 

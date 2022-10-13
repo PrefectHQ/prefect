@@ -2,7 +2,7 @@ import pytest
 
 from prefect import flow
 from prefect.blocks.core import Block
-from prefect.client import get_client
+from prefect.client.orion import get_client
 
 
 @pytest.fixture

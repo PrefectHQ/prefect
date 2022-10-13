@@ -1,5 +1,44 @@
 # Prefect Release Notes
 
+## Release 2.5.0
+
+### Exciting New Features 🎉
+
+- Add `prefect.deployments.run_deployment` to create a flow run for a deployment with support for:
+    - Configurable execution modes: returning immediately or waiting for completion of the run.
+    - Scheduling runs in the future or now.
+    - Custom flow run names.
+    - Automatic linking of created flow run to the flow run it is created from.
+    - Automatic tracking of upstream task results passed as parameters.
+  <br />
+  See https://github.com/PrefectHQ/prefect/pull/7047, https://github.com/PrefectHQ/prefect/pull/7081, and https://github.com/PrefectHQ/prefect/pull/7084
+
+### Enhancements
+- Add ability to delete multiple objects on flow run, flow, deployment and work queue pages — https://github.com/PrefectHQ/prefect/pull/7086
+- Update `put_directory` to exclude directories from upload counts — https://github.com/PrefectHQ/prefect/pull/7054
+- Always suppress griffe logs — https://github.com/PrefectHQ/prefect/pull/7059
+- Add OOM warning to `Process` exit code log message — https://github.com/PrefectHQ/prefect/pull/7070
+- Add idempotency key support to `OrionClient.create_flow_run_from_deployment` — https://github.com/PrefectHQ/prefect/pull/7074
+
+### Fixes
+- Fix default start date filter for deployments page in UI — https://github.com/PrefectHQ/prefect/pull/7025
+- Fix `sync_compatible` handling of wrapped async functions and generators — https://github.com/PrefectHQ/prefect/pull/7009
+- Fix bug where server could error due to an unexpected null in task caching logic — https://github.com/PrefectHQ/prefect/pull/7031
+- Add exception handling to block auto-registration — https://github.com/PrefectHQ/prefect/pull/6997
+- Remove the "sync caller" check from `sync_compatible` — https://github.com/PrefectHQ/prefect/pull/7073
+
+### Documentation
+- Add `ECSTask` block tutorial to recipes — https://github.com/PrefectHQ/prefect/pull/7066
+- Update documentation for organizations for member management, roles, and permissions — https://github.com/PrefectHQ/prefect/pull/7058
+
+## Collections
+- New [prefect-soda-core](https://sodadata.github.io/prefect-soda-core/) collection for integration with [Soda](https://www.soda.io/).
+
+### Contributors
+- @taljaards
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.4.5...2.5.0
+
 ## Release 2.4.5
 
 This release disables block protection. With block protection enabled, as in 2.4.3 and 2.4.4, client and server versions cannot be mismatched unless you are on a version before 2.4.0. Disabling block protection restores the ability for a client and server to have different version.

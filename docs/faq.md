@@ -96,6 +96,12 @@ def my_flow():
     y = task_2(wait_for=[x])
 ```
 
+### Does Prefect support proxies?
+
+Yes!
+
+Prefect supports communicating via proxies through the use of environment variables. You can read more about this in the [Installation](/getting-started/installation/#proxies) documentation and the article [Using Prefect Cloud with proxies](https://discourse.prefect.io/t/using-prefect-cloud-with-proxies/1696).
+
 ### Can I run Prefect flows on Linux?
 
 Yes! 
@@ -112,7 +118,7 @@ See the [Installation](/getting-started/installation/) documentation and [Window
 
 Prefect does not have any additional requirements besides those installed by `pip install --pre prefect`. The entire system, including the UI and services, can be run in a single process via `prefect orion start` and does not require Docker.
 
-To use PostgreSQL, users must provide the [connection string][prefect.settings.Settings.PREFECT_ORION_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable.
+To use PostgreSQL, users must provide the [connection string][prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable.
 
 ### What databases does Prefect support?
 

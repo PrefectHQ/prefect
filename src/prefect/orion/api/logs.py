@@ -22,8 +22,9 @@ async def create_logs(
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """Create new logs from the provided schema."""
-    async with db.session_context(begin_transaction=True) as session:
-        await models.logs.create_logs(session=session, logs=logs)
+    for batch in models.logs.split_logs_into_batches(logs):
+        async with db.session_context(begin_transaction=True) as session:
+            await models.logs.create_logs(session=session, logs=batch)
 
 
 @router.post("/filter")
