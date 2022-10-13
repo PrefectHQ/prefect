@@ -36,6 +36,7 @@ theme:
     custom_dir: docs/overrides
     favicon: img/favicon.png
     features:
+        - announce.dismiss
         - toc.integrate
         - navigation.tabs
         - navigation.tabs.sticky
@@ -218,7 +219,6 @@ nav:
         - Overview: contributing/overview.md
         - Style: contributing/style.md
         - Troubleshooting: contributing/common-mistakes.md
-        # - Testing Flow Runners: contributing/testing-flow-runners.md
 
 extra:
     analytics:
