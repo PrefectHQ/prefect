@@ -19,7 +19,13 @@ from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.deprecated.data_documents import DataDocument
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
-from prefect.orion.schemas.actions import LogCreate, WorkQueueCreate, WorkQueueUpdate
+from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.schemas.actions import (
+    FlowRunNotificationPolicyCreate,
+    LogCreate,
+    WorkQueueCreate,
+    WorkQueueUpdate,
+)
 from prefect.orion.schemas.core import (
     BlockDocument,
     BlockSchema,
@@ -1681,6 +1687,47 @@ class OrionClient:
             for log in logs
         ]
         await self._client.post(f"/logs/", json=serialized_logs)
+
+    async def create_flow_run_notification_policy(
+        self,
+        block_document_id: UUID,
+        is_active: bool = True,
+        tags: List[str] = None,
+        state_names: List[str] = None,
+        message_template: Optional[str] = None,
+    ) -> UUID:
+        """
+        Create a notification policy for flow runs
+
+        Args:
+            block_document_id: The block document UUID
+            is_active: Whether the notification policy is active
+            tags: List of flow tags
+            state_names: List of state names
+            message_template: Notification message template
+        """
+        if tags is None:
+            tags = []
+        if state_names is None:
+            state_names = []
+
+        policy = FlowRunNotificationPolicyCreate(
+            block_document_id=block_document_id,
+            is_active=is_active,
+            tags=tags,
+            state_names=state_names,
+            message_template=message_template,
+        )
+        response = await self._client.post(
+            "/flow_run_notification_policies/",
+            json=policy.dict(json_compatible=True),
+        )
+
+        policy_id = response.json().get("id")
+        if not policy_id:
+            raise httpx.RequestError(f"Malformed response: {response}")
+
+        return UUID(policy_id)
 
     async def read_logs(
         self, log_filter: LogFilter = None, limit: int = None, offset: int = None
