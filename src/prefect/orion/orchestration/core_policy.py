@@ -52,7 +52,7 @@ class FlowRestartPolicy(BaseOrchestrationPolicy):
             PreventRestartingSubflowRuns,
             PreventRestartingFlowsWithoutDeployments,
             RestartFlowRun,
-            # SoftRetryFailedFlows,
+            # SoftRestartFlowRun,
         ]
 
 
