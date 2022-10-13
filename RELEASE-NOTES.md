@@ -2,8 +2,6 @@
 
 ## Release 2.6.0
 
-<!-- Release notes generated using configuration in .github/release.yml at main -->
-
 ## What's Changed
 ### Exciting New Features 🎉
 * Tracking: Add first-class results by @madkinsz in https://github.com/PrefectHQ/prefect/pull/6908
