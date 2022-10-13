@@ -284,7 +284,6 @@ def test_deleting_a_block_type(tmp_path, orion_client):
         )
 
 
-@pytest.mark.xfail
 def test_deleting_a_protected_block_type(
     tmp_path, orion_client, install_system_block_types
 ):

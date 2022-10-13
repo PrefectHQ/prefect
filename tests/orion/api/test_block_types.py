@@ -354,21 +354,8 @@ class TestUpdateBlockType:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    @pytest.mark.xfail
-    async def test_update_system_block_type_fails(self, system_block_type, client):
+    async def test_update_system_block_type_succeeds(self, system_block_type, client):
         response = await client.patch(
-            f"/block_types/{system_block_type.id}",
-            json=BlockTypeUpdate(
-                description="Hi there!",
-            ).dict(json_compatible=True),
-        )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-        assert response.json()["detail"] == "protected block types cannot be updated."
-
-    async def test_update_system_block_type_does_not_fail_for_older_clients(
-        self, system_block_type, client_with_unprotected_block_api
-    ):
-        response = await client_with_unprotected_block_api.patch(
             f"/block_types/{system_block_type.id}",
             json=BlockTypeUpdate(
                 description="Hi there!",
@@ -389,19 +376,10 @@ class TestDeleteBlockType:
         response = await client.delete(f"/block_types/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    @pytest.mark.xfail
     async def test_delete_system_block_type_fails(self, system_block_type, client):
         response = await client.delete(f"/block_types/{system_block_type.id}")
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert response.json()["detail"] == "protected block types cannot be deleted."
-
-    async def test_delete_system_block_type_does_not_fail_for_older_clients(
-        self, system_block_type, client_with_unprotected_block_api
-    ):
-        response = await client_with_unprotected_block_api.delete(
-            f"/block_types/{system_block_type.id}"
-        )
-        assert response.status_code == status.HTTP_204_NO_CONTENT
 
 
 class TestReadBlockDocumentsForBlockType:

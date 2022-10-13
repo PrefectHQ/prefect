@@ -76,6 +76,10 @@ class TestPartialModel:
         assert isinstance(m, SimplePydantic)
         assert m == SimplePydantic(x=1, y=2)
 
+    def test_repr(self):
+        p = PartialModel(SimplePydantic, x=1, y=2)
+        assert repr(p) == "PartialModel(cls=SimplePydantic, x=1, y=2)"
+
     def test_init_with_invalid_field(self):
         with pytest.raises(ValueError, match="Field 'z' is not present in the model"):
             PartialModel(SimplePydantic, x=1, z=2)

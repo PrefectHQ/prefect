@@ -192,6 +192,9 @@ class CacheInsertion(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
         db: OrionDBInterface,
     ) -> None:
+        if not validated_state or not context.session:
+            return
+
         cache_key = validated_state.state_details.cache_key
         if cache_key:
             new_cache_item = db.TaskRunStateCache(

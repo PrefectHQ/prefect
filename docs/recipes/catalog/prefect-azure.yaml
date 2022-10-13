@@ -3,7 +3,7 @@ author: Prefect
 authorUrl: https://prefect.io
 description: Configure Prefect on Azure with Kubernetes, running a Prefect agent to execute deployment flow runs.
 topic: Azure
-recipeUrl: https://github.com/PrefectHQ/prefect-recipes/tree/main/video-demos/setup-azure-with-prefect
+recipeUrl: https://github.com/PrefectHQ/prefect-recipes/tree/main/devops/infrastructure-as-code/azure/setup-azure-with-prefect
 iconUrl: 
   - /img/collections/azure.png
   - /img/collections/kubernetes.png
