@@ -429,7 +429,7 @@ async def run(
     ui_url = ui_base_url(connection_status)
 
     if ui_url:
-        run_url = f"{ui_url}/flow-run/{flow_run.id}"
+        run_url = f"{ui_url}/flow-runs/flow-run/{flow_run.id}"
     else:
         run_url = "<no dashboard available>"
 
