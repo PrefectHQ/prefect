@@ -38,7 +38,6 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
             PreventRedundantTransitions,
             WaitForScheduledTime,
             RetryFailedFlows,
-            # SoftRetryFailedFlows,
         ]
 
 
@@ -53,6 +52,7 @@ class FlowRestartPolicy(BaseOrchestrationPolicy):
             PreventRestartingSubflowRuns,
             PreventRestartingFlowsWithoutDeployments,
             RestartFlowRun,
+            # SoftRetryFailedFlows,
         ]
 
 
