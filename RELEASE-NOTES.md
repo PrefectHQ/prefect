@@ -4,6 +4,16 @@
 
 ### First-class configuration of results 🎉
 
+Previously, Prefect persisted the result of all tasks to the local file system and serialized them with pickle.
+In this release, we're excited to announce this behavior is fully configurable and customizable.
+
+Here are some highlights:
+
+- Persistence of results is off by default, we will turn on result persistence automatically if needed for a feature you're using but you can always opt-out.
+- You can define your own serializers, but we've got JSON and pickle serializers out of the box.
+    - Our JSON serializer supports all of the types supported by Pydantic. There are hooks for support for your own types too.
+- You can change the location your results are persisted to, with support for remote storage like AWS S3.
+
 ```python
 from prefect import flow, task
 
@@ -13,8 +23,7 @@ def foo():
     two()
     three()
 
-
-# This task's result will be persisted
+# This task's result will be persisted to the local file system
 @task(persist_result=True)
 def one():
     return "one!"
@@ -27,7 +36,12 @@ def two():
 # This task will use a different serializer than the rest
 @task(persist_result=True, result_serializer="json")
 def three():
-    return "two!"
+    return "three!"
+
+# This task will persist its result to an S3 bucket
+@task(persist_result=True, result_storage="s3/my-s3-block")
+def four()
+    return "four!
 ```
 
 See the [documentation](https://docs.prefect.io/concepts/results/) for more details and examples.
