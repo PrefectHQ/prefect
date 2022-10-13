@@ -90,7 +90,7 @@ $ prefect agent start --match "foo-"
 ```
 
 ### Enhancements
-- Add `--param` / `--params` to `prefect deployment run` — https://github.com/PrefectHQ/prefect/pull/7018
+- Add `--param` / `--params` support `prefect deployment run` — https://github.com/PrefectHQ/prefect/pull/7018
 - Add 'Show Active Runs' button to work queue page — https://github.com/PrefectHQ/prefect/pull/7092
 - Update block protection to only prevent deletion — https://github.com/PrefectHQ/prefect/pull/7042
 - Improve stability by optimizing the HTTP client — https://github.com/PrefectHQ/prefect/pull/7090
