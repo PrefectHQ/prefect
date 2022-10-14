@@ -3,8 +3,13 @@ description: Check out the pre-built tasks and flows in the Prefect Collections 
 tags:
     - tasks
     - flows
+    - blocks
     - collections
     - task library
+    - integrations
+{% for tag in tags %}
+    - {{tag}}
+{% endfor %}
 ---
 
 # Prefect Collections Catalog
