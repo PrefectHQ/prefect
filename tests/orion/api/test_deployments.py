@@ -547,6 +547,19 @@ class TestReadDeployments:
         # sorted by name by default
         assert response.json()[0]["name"] == "My Deployment Y"
 
+    async def test_read_deployments_sort(self, deployments, client):
+        response = await client.post(
+            "/deployments/filter", json=dict(sort=schemas.sorting.DeploymentSort.NAME_ASC)
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["name"] == "My Deployment X"
+
+        response_desc = await client.post(
+            "/deployments/filter", json=dict(sort=schemas.sorting.DeploymentSort.NAME_DESC)
+        )
+        assert response_desc.status_code == status.HTTP_200_OK
+        assert response_desc.json()[0]["name"] == "My Deployment Y"
+
     async def test_read_deployments_returns_empty_list(self, client):
         response = await client.post("/deployments/filter")
         assert response.status_code == status.HTTP_200_OK
