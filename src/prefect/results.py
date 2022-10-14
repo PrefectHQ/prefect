@@ -1,3 +1,4 @@
+import abc
 import uuid
 from typing import TYPE_CHECKING, Any, Generic, Tuple, Type, TypeVar, Union
 
@@ -272,21 +273,22 @@ class ResultFactory(pydantic.BaseModel):
 
 
 @add_type_dispatch
-class BaseResult(pydantic.BaseModel, Generic[R]):
+class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
     type: str
 
     @sync_compatible
+    @abc.abstractmethod
     async def get(self) -> R:
-        pass
+        ...
 
-    @classmethod
     @sync_compatible
+    @abc.abstractclassmethod
     async def create(
         cls: "Type[BaseResult[R]]",
         obj: R,
         **kwargs: Any,
     ) -> "BaseResult[R]":
-        pass
+        ...
 
     class Config:
         extra = "forbid"
