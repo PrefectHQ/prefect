@@ -51,8 +51,8 @@ class FlowRestartPolicy(BaseOrchestrationPolicy):
             OnlyRestartFromTerminalStates,
             PreventRestartingSubflowRuns,
             PreventRestartingFlowsWithoutDeployments,
-            RestartFlowRun,
-            # SoftRestartFlowRun,
+            # RestartFlowRun,
+            SoftRestartFlowRun,
         ]
 
 
@@ -574,6 +574,26 @@ class SoftRestartFlowRun(BaseOrchestrationRule):
     FROM_STATES = TERMINAL_STATES
     TO_STATES = [states.StateType.SCHEDULED]
 
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ):
+        # update run count
+        self.original_run_count = context.run.run_count
+        context.run.run_count = 0  # reset run count to preserve retry behavior
+
+        # update empirical settings
+        self.original_settings = context.run_settings.copy()
+        self.restarts = self.original_settings.restarts + 1
+        new_settings = context.run_settings.copy()
+        new_settings.restarts = self.restarts
+        flow_run_update = actions.FlowRunUpdate(empirical_policy=new_settings)
+        await flow_runs.update_flow_run(
+            context.session, context.run.id, flow_run_update
+        )
+
     async def after_transition(
         self,
         initial_state: Optional[states.State],
@@ -581,9 +601,6 @@ class SoftRestartFlowRun(BaseOrchestrationRule):
         context: FlowOrchestrationContext,
     ) -> None:
         from prefect.orion.models import task_runs
-
-        self.original_run_count = context.run.run_count
-        context.run.run_count = 0  # reset flow run count to preserve retry behavior
 
         failed_task_runs = await task_runs.read_task_runs(
             context.session,
@@ -599,3 +616,32 @@ class SoftRestartFlowRun(BaseOrchestrationRule):
             )
             # Reset the run count so that the task run retries still work correctly
             run.run_count = 0
+
+        completed_task_runs = await task_runs.read_task_runs(
+            context.session,
+            flow_run_filter=filters.FlowRunFilter(id={"any_": [context.run.id]}),
+            task_run_filter=filters.TaskRunFilter(state={"type": {"any_": ["COMPLETED"]}}),
+        )
+        for task_run in completed_task_runs:
+            if task_run.empirical_policy.flow_restart_index is None:
+                task_policy = task_run.empirical_policy
+                task_policy.flow_restart_index = self.restarts - 1
+                task_run_update = actions.TaskRunUpdate(empirical_policy=task_policy)
+                await task_runs.update_task_run(
+                    context.session, task_run.id, task_run_update
+                )
+
+    async def cleanup(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: OrchestrationContext,
+    ):
+        # reset run count
+        context.run.run_count = self.original_run_count
+
+        # reset empirical settings
+        flow_run_update = actions.FlowRunUpdate(empirical_policy=self.original_settings)
+        await flow_runs.update_flow_run(
+            context.session, context.run.id, flow_run_update
+        )
