@@ -670,14 +670,24 @@ class TestRRuleSchedule:
         s2_dates = await s2.get_dates(5, start=datetime(1900, 1, 1, tz="UTC"))
         assert s1_dates == s2_dates
 
-    async def test_rrule_schedule_rejects_rrulesets_with_many_dtstarts(self):
+    async def test_rrule_schedule_rejects_rrulesets_with_many_dtstart_timezones(self):
         dt_nyc = datetime(2018, 1, 11, 4, tz="America/New_York")
         dt_chicago = datetime(2018, 1, 11, 3, tz="America/Chicago")
         rrset = rrule.rruleset(cache=True)
         rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_nyc))
         rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_chicago))
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="too many dtstart timezones"):
+            s = RRuleSchedule.from_rrule(rrset)
+
+    async def test_rrule_schedule_rejects_rrulesets_with_many_dtstarts(self):
+        dt_1 = datetime(2018, 1, 11, 4, tz="America/New_York")
+        dt_2 = datetime(2018, 2, 11, 4, tz="America/New_York")
+        rrset = rrule.rruleset(cache=True)
+        rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_1))
+        rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_2))
+
+        with pytest.raises(ValueError, match="too many dtstarts"):
             s = RRuleSchedule.from_rrule(rrset)
 
     @pytest.mark.xfail(reason="we currently cannot roundtrip RRuleSchedule objects")
