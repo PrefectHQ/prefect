@@ -1,4 +1,4 @@
-recipeName: Deployment with GitHub and Docker
+recipeName: Flow Deployment with GitHub Storage and Docker Infrastructure
 author: Prefect
 authorUrl: https://prefect.io
 description: Create a deployment with GitHub as a storage and Docker Container as an infrastructure 

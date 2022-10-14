@@ -67,7 +67,7 @@ def cleanup_all_new_docker_objects(docker: DockerClient, worker_id: str):
 
 @pytest.mark.timeout(120)
 @pytest.fixture(scope="session")
-def prefect_base_image(pytestconfig: pytest.Config, docker: DockerClient):
+def prefect_base_image(pytestconfig: "pytest.Config", docker: DockerClient):
     """Ensure that the prefect dev image is available and up-to-date"""
     image_name = get_prefect_image_name()
 
