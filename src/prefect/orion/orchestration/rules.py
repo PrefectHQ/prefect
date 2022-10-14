@@ -889,7 +889,7 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         proposed state.
         """
 
-        if not self.nullified_transition() and not self.errorred_transition():
+        if not self.nullified_transition() and not self.exception_in_transition():
             await self.after_transition(self.context)
             self.context.finalization_signature.append(str(self.__class__))
 
@@ -928,7 +928,7 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
 
         return self.context.proposed_state is None
 
-    def errorred_transition(self) -> bool:
+    def exception_in_transition(self) -> bool:
         """
         Determines if the transition has encountered an exception.
 
