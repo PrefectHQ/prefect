@@ -103,9 +103,9 @@ class Flow(Generic[P, R]):
             the features being used.
         persist_results: An optional toggle indicating whther the results of tasks and
             flows within this flow should be persisted to result storage. Defaults to
-            `None` which follows the bhavior of `persist_result`. If `True``, this flow
+            `None`, which follows the behavior of `persist_result`. If `True`, this flow
             and all tasks or flows within it will persist their results unless they have
-            opted out. If `False,` this flow and all tasks or flows within it will not
+            opted out. If `False`, this flow and all tasks or flows within it, will not
             persist their results unless they have opted in.
         result_storage: An optional block to use to perist the result of this flow.
             This value will be used as the default for any tasks in this flow.
@@ -559,11 +559,11 @@ def flow(
             should be persisted to result storage. Defaults to `None`, which indicates
             that Prefect should choose whether the result should be persisted depending on
             the features being used.
-        persist_results: An optional toggle indicating whther the results of tasks and
+        persist_results: An optional toggle indicating whether the results of tasks and
             flows within this flow should be persisted to result storage. Defaults to
-            `None` which follows the bhavior of `persist_result`. If set, this flow and
+            `None`, which follows the behavior of `persist_result`. If set, this flow and
             all tasks or flows within it will persist their results unless they have
-            opted out. If
+            opted out.
         result_storage: An optional block to use to perist the result of this flow.
             This value will be used as the default for any tasks in this flow.
             If not provided, the local file system will be used unless called as
