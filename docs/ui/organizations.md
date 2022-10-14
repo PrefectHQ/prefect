@@ -8,9 +8,10 @@ tags:
     - teams
     - workspaces
     - organizations
+    - service accounts
 ---
 
-# Organizations in Prefect Cloud
+# Organizations <span class="badge cloud"></span>
 
 For larger teams or companies with more complex needs around user and access management, organizations in Prefect Cloud provide several features that enable you to collaborate securely at scale, including:
 
@@ -21,15 +22,39 @@ For larger teams or companies with more complex needs around user and access man
 
 See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more about options for supporting more users, service accounts, and workspaces.
 
+## Organizations overview
+
+An organization is a type of account available on Prefect Cloud that enables more extensive and granular control over inviting workspace collaboration. Organizations are only available on Prefect Cloud.
+
+Within an organization account you can:
+
+- Invite members to join the organization.
+- Give members administrator or collaborator roles within the organization.
+- Create service accounts that have credentials for non-user API access.
+- Create organization workspaces.
+- Add or remove member and service account access to workspaces.
+- Assign workspace-specific roles and permissions to members and service accounts.
+
+For example, you might create a workspace for a specific team. Within that workspace, give a developer member with permissions to create, edit, and delete deployments, invite a service account for credentials to run an agent and flows on remote infrastructure, and invite a data scientist with read-only permissions to monitor the status of scheduled and completed flow runs.
+
 ## Navigating organizations
 
 You can see the organizations you're a member of, or create a new organization, by selecting the **Organizations** icon in the left navigation bar.
 
 ![Select the Organizations icon in Prefect Cloud.](/img/ui/organizations.png)
 
-When you select an organization, you'll see an overview of the organization.
+When you select an organization, the **Profile** page provides an overview of the organization.
 
-**Workspaces** shows you a list of workspaces within the organziation to which you have access.
+- **Workspaces** enables you to access and manage workspaces within the organization.
+- **Members** enables you to invite and manage users who are members of the organization.
+- **Service Accounts** enables you to view, create, or edit service accounts for your organization.
+- **Roles** enabls you to configure custom roles with permission scopes for your organization.
+
+## Organization workspaces
+
+**Workspaces** shows you a list of workspaces you can access within the organization. If you have been given the organization Admin role, you can create and manage workspaces here.
+
+![Viewing the Organization workspaces page in Prefect Cloud.](/img/ui/org-workspaces.png)
 
 ## Organization members
 
