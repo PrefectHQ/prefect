@@ -6,7 +6,7 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from fastapi import Body, Depends, Header, HTTPException, Path, status
+from fastapi import BackgroundTasks, Body, Depends, Header, HTTPException, Path, status
 
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
@@ -104,6 +104,7 @@ async def read_work_queue(
 
 @router.post("/{id}/get_runs")
 async def read_work_queue_runs(
+    background_tasks: BackgroundTasks,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     limit: int = dependencies.LimitBody(),
     scheduled_before: DateTimeTZ = Body(
@@ -131,6 +132,30 @@ async def read_work_queue_runs(
             limit=limit,
         )
 
+    background_tasks.add_task(
+        _record_work_queue_polls,
+        db=db,
+        work_queue_id=work_queue_id,
+        agent_id=agent_id,
+        x_prefect_ui=x_prefect_ui,
+    )
+
+    return flow_runs
+
+
+async def _record_work_queue_polls(
+    db: OrionDBInterface,
+    work_queue_id: UUID,
+    agent_id: Optional[UUID] = None,
+    x_prefect_ui: Optional[bool] = False,
+):
+    """
+    Records that a work queue has been polled.
+
+    If an agent_id is provided, we update this agent id's last poll time.
+    If x_prefect_ui is False, we will update `work_queue.last_polled`.
+    """
+    async with db.session_context(begin_transaction=True) as session:
         # The Prefect UI often calls this route to see which runs are enqueued.
         # We do not want to record this as an actual poll event.
         if not x_prefect_ui:
@@ -146,8 +171,6 @@ async def read_work_queue_runs(
             await models.agents.record_agent_poll(
                 session=session, agent_id=agent_id, work_queue_id=work_queue_id
             )
-
-    return flow_runs
 
 
 @router.post("/filter")
