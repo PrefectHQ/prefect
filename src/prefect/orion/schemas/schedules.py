@@ -358,7 +358,7 @@ class RRuleSchedule(PrefectBaseModel):
         return v
 
     @classmethod
-    def from_rrule(cls, rrule: dateutil.rrule.rrule, timezone: Optional[str] = None):
+    def from_rrule(cls, rrule: dateutil.rrule.rrule):
         if isinstance(rrule, dateutil.rrule.rrule):
             if rrule._dtstart.tzinfo is not None:
                 timezone = rrule._dtstart.tzinfo.name
@@ -391,13 +391,14 @@ class RRuleSchedule(PrefectBaseModel):
         here
         """
         rrule = dateutil.rrule.rrulestr(self.rrule, cache=True)
+        timezone = dateutil.tz.gettz(self.timezone)
         if isinstance(rrule, dateutil.rrule.rrule):
             kwargs = dict(
-                dtstart=rrule._dtstart.replace(tzinfo=pendulum.tz.timezone(self.timezone))
+                dtstart=rrule._dtstart.replace(tzinfo=timezone)
             )
             if rrule._until:
                 kwargs.update(
-                    until=rrule._until.replace(tzinfo=pendulum.tz.timezone(self.timezone)),
+                    until=rrule._until.replace(tzinfo=timezone),
                 )
             return rrule.replace(**kwargs)
         elif isinstance(rrule, dateutil.rrule.rruleset):
@@ -405,18 +406,18 @@ class RRuleSchedule(PrefectBaseModel):
             tz = self.timezone
             for ii, rr in enumerate(rrule._rrule):
                 kwargs = dict(
-                    dtstart=rr._dtstart.replace(tzinfo=pendulum.tz.timezone(tz))
+                    dtstart=rr._dtstart.replace(tzinfo=timezone)
                 )
                 if rr._until:
                     kwargs.update(
-                        until=rr._until.replace(tzinfo=pendulum.tz.timezone(tz)),
+                        until=rr._until.replace(tzinfo=timezone),
                     )
                 new_rrset.rrule(rr.replace(**kwargs))
             return new_rrset
 
     @validator("timezone", always=True)
     def valid_timezone(cls, v):
-        if v and v not in pendulum.timezones:
+        if v and v not in pytz.all_timezones_set:
             raise ValueError(f'Invalid timezone: "{v}"')
         elif v is None:
             return "UTC"
