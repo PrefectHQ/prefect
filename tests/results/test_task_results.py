@@ -74,7 +74,14 @@ async def test_task_persisted_result_due_to_opt_in(orion_client):
 
 @pytest.mark.parametrize(
     "serializer",
-    ["json", "pickle", JSONSerializer(), PickleSerializer()],
+    [
+        "json",
+        "pickle",
+        JSONSerializer(),
+        PickleSerializer(),
+        "compressed/pickle",
+        "compressed/json",
+    ],
 )
 @pytest.mark.parametrize("source", ["child", "parent"])
 async def test_task_result_serializer(orion_client, source, serializer):
