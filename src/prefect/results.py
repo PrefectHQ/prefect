@@ -276,13 +276,13 @@ class ResultFactory(pydantic.BaseModel):
 class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
     type: str
 
-    @sync_compatible
     @abc.abstractmethod
+    @sync_compatible
     async def get(self) -> R:
         ...
 
-    @sync_compatible
     @abc.abstractclassmethod
+    @sync_compatible
     async def create(
         cls: "Type[BaseResult[R]]",
         obj: R,
