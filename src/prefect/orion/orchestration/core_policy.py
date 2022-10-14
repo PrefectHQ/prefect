@@ -620,7 +620,9 @@ class SoftRestartFlowRun(BaseOrchestrationRule):
         completed_task_runs = await task_runs.read_task_runs(
             context.session,
             flow_run_filter=filters.FlowRunFilter(id={"any_": [context.run.id]}),
-            task_run_filter=filters.TaskRunFilter(state={"type": {"any_": ["COMPLETED"]}}),
+            task_run_filter=filters.TaskRunFilter(
+                state={"type": {"any_": ["COMPLETED"]}}
+            ),
         )
         for task_run in completed_task_runs:
             if task_run.empirical_policy.flow_restart_index is None:
