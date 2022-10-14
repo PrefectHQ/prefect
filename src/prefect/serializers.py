@@ -219,13 +219,13 @@ class JSONSerializer(Serializer):
 
 class CompressedSerializer(Serializer):
     """
-    Wraps another serializer, compressing its output
+    Wraps another serializer, compressing its output.
     Uses `lzma` by default. See `compressionlib` for using alternative libraries.
 
     Attributes:
-        serializer: The serializer to use before compression
+        serializer: The serializer to use before compression.
         compressionlib: The import path of a compression module to use.
-            Must have methods `compress(bytes) -> bytes` and `decompress(bytes) -> bytes`
+            Must have methods `compress(bytes) -> bytes` and `decompress(bytes) -> bytes`.
         level: If not null, the level of compression to pass to `compress`.
     """
 
