@@ -142,7 +142,7 @@ class FlowRunNotifications(LoopService):
             flow_run_id: the flow run id.
         """
         api_url = PREFECT_API_URL.value() or "http://ephemeral-orion/api"
-        ui_url = api_url.strip("/api")
+        ui_url = api_url.replace("/api", "")
         return f"{ui_url}/flow-runs/flow-run/{flow_run_id}"
 
 
