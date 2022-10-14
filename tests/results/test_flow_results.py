@@ -3,9 +3,11 @@ import pytest
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
+from prefect.orion import schemas
 from prefect.results import LiteralResult
 from prefect.serializers import JSONSerializer, PickleSerializer, Serializer
 from prefect.settings import PREFECT_HOME
+from prefect.states import Cancelled, Completed, Failed
 from prefect.testing.utilities import (
     assert_uses_result_serializer,
     assert_uses_result_storage,
@@ -292,3 +294,59 @@ def test_flow_resultlike_result_is_retained(persist_result, resultlike):
 
     result = my_flow()
     assert result == resultlike
+
+
+@pytest.mark.parametrize(
+    "return_state",
+    [
+        Completed(data="test"),
+        Cancelled(),
+        Failed(),
+    ],
+)
+@pytest.mark.parametrize("persist_result", [True, False])
+def test_flow_state_result_is_respected(persist_result, return_state):
+    @flow(persist_result=persist_result)
+    def my_flow():
+        return return_state
+
+    state = my_flow(return_state=True)
+    assert state.type == return_state.type
+
+    # State details must be excluded as the flow state includes ids
+    assert state.dict(exclude={"state_details"}) == return_state.dict(
+        exclude={"state_details"}
+    )
+
+    if return_state.data:
+        assert state.result(raise_on_failure=False) == return_state.data
+
+
+@pytest.mark.parametrize(
+    "return_state",
+    [
+        schemas.states.Completed(data="test"),
+        schemas.states.Cancelled(),
+        schemas.states.Failed(),
+    ],
+)
+@pytest.mark.parametrize("persist_result", [True, False])
+def test_flow_server_state_result_is_respected(persist_result, return_state):
+    # Tests for backwards compatibility with server-side state return values
+    @flow(persist_result=persist_result)
+    def my_flow():
+        return return_state
+
+    with pytest.warns(DeprecationWarning, match="Use `prefect.states.State` instead"):
+        state = my_flow(return_state=True)
+
+    assert state.type == return_state.type
+
+    # State details must be excluded as the flow state includes ids
+    assert state.dict(exclude={"state_details"}) == return_state.dict(
+        exclude={"state_details"}
+    )
+
+    if return_state.data:
+        with pytest.warns(DeprecationWarning, match="use `prefect.states.State`"):
+            assert state.result(raise_on_failure=False) == return_state.data
