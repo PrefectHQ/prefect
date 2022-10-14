@@ -1086,6 +1086,57 @@ class TestBaseUniversalTransform:
         assert before_hook.call_count == 0
         assert after_hook.call_count == 0
 
+    @pytest.mark.parametrize(
+        "intended_transition",
+        list(product([*states.StateType, None], [*states.StateType])),
+        ids=transition_names,
+    )
+    async def test_universal_transforms_never_fire_after_transition_on_errored_transitions(
+        self, session, task_run, intended_transition
+    ):
+        # nullified transitions occur when the proposed state becomes None
+        # and nothing is written to the database
+
+        side_effect = 0
+        before_hook = MagicMock()
+        after_hook = MagicMock()
+
+        class IllustrativeUniversalTransform(BaseUniversalTransform):
+            async def before_transition(self, context):
+                nonlocal side_effect
+                side_effect += 1
+                before_hook()
+
+            async def after_transition(self, context):
+                nonlocal side_effect
+                side_effect += 1
+                after_hook()
+
+        initial_state_type, proposed_state_type = intended_transition
+        initial_state = await commit_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
+        )
+
+        ctx = OrchestrationContext(
+            session=session,
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+        )
+
+        universal_transform = IllustrativeUniversalTransform(ctx)
+
+        async with universal_transform as ctx:
+            ctx.orchestration_error = Exception
+
+        assert side_effect == 1
+        assert before_hook.call_count == 1
+        assert (
+            after_hook.call_count == 0
+        ), "after_transition should not be called if orchestration encountered errors."
+
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestOrchestrationContext:
