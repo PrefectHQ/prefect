@@ -29,9 +29,10 @@ from prefect.orion.schemas.core import (
     BlockDocument,
     BlockSchema,
     BlockType,
+    FlowRunNotificationPolicy,
     QueueFilter,
 )
-from prefect.orion.schemas.filters import LogFilter
+from prefect.orion.schemas.filters import FlowRunNotificationPolicyFilter, LogFilter
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
@@ -1718,7 +1719,7 @@ class OrionClient:
             message_template=message_template,
         )
         response = await self._client.post(
-            "/flow_run_notification_policies/",
+            "/flow_run_notification_policies",
             json=policy.dict(json_compatible=True),
         )
 
@@ -1727,6 +1728,39 @@ class OrionClient:
             raise httpx.RequestError(f"Malformed response: {response}")
 
         return UUID(policy_id)
+
+    async def read_flow_run_notification_policies(
+        self,
+        flow_run_notification_policy_filter: FlowRunNotificationPolicyFilter,
+        limit: Optional[int] = None,
+        offset: int = 0,
+    ) -> List[FlowRunNotificationPolicy]:
+        """
+        Query Orion for flow run notification policies. Only policies matching all criteria will
+        be returned.
+
+        Args:
+            flow_run_notification_policy_filter: filter criteria for notification policies
+            limit: a limit for the notification policies query
+            offset: an offset for the notification policies query
+
+        Returns:
+            a list of [FlowRunNotificationPolicy model][schemas.core.FlowRunNotificationPolicy] representation
+                of the notification policies
+        """
+        body = {
+            "flow_run_notification_policy_filter": flow_run_notification_policy_filter.dict(
+                json_compatible=True
+            )
+            if flow_run_notification_policy_filter
+            else None,
+            "limit": limit,
+            "offset": offset,
+        }
+        response = await self._client.post(
+            "/flow_run_notification_policies/filter", json=body
+        )
+        return pydantic.parse_obj_as(List[FlowRunNotificationPolicy], response.json())
 
     async def read_logs(
         self, log_filter: LogFilter = None, limit: int = None, offset: int = None
