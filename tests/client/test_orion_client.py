@@ -2,6 +2,7 @@ import datetime
 import random
 import threading
 from datetime import datetime, timedelta, timezone
+from typing import List
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
@@ -22,7 +23,12 @@ from prefect.deprecated.data_documents import DataDocument
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.schemas.actions import LogCreate
-from prefect.orion.schemas.filters import LogFilter, LogFilterFlowRunId
+from prefect.orion.schemas.core import FlowRunNotificationPolicy
+from prefect.orion.schemas.filters import (
+    FlowRunNotificationPolicyFilter,
+    LogFilter,
+    LogFilterFlowRunId,
+)
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import StateType
 from prefect.settings import (
@@ -964,6 +970,34 @@ async def test_set_then_read_task_run_state(orion_client):
     assert isinstance(run.state, State)
     assert run.state.type == StateType.COMPLETED
     assert run.state.message == "Test!"
+
+
+async def test_create_then_read_flow_run_notification_policy(orion_client):
+    block_document_id = UUID("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    message_template = "Test message template!"
+    state_names = ["COMPLETED"]
+
+    notification_policy_id = await orion_client.create_flow_run_notification_policy(
+        block_document_id=block_document_id,
+        is_active=True,
+        tags=[],
+        state_names=state_names,
+        message_template=message_template,
+    )
+
+    response: List[
+        FlowRunNotificationPolicy
+    ] = await orion_client.read_flow_run_notification_policies(
+        FlowRunNotificationPolicyFilter(is_active=True),
+    )
+
+    assert len(response) == 1
+    assert response[0].id == notification_policy_id
+    assert response[0].block_document_id == block_document_id
+    assert response[0].message_template == message_template
+    assert response[0].is_active
+    assert response[0].tags == []
+    assert response[0].state_names == state_names
 
 
 async def test_read_filtered_logs(session, orion_client, deployment):
