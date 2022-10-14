@@ -43,9 +43,11 @@ class CubeJSClient:
         self.security_context = security_context
         self.secret = secret
         self.cube_base_url = self._get_cube_base_url()
+        self.cube_system_url = self._get_cube_system_url()
         self.api_token = self.get_api_token()
         self.query_api_url = self._get_query_api_url()
         self.generated_sql_api_url = self._get_generated_sql_api_url()
+        self.pre_aggregations_jobs_api_url = self._get_pre_aggregations_jobs_api_url()
         self.wait_api_call_secs = wait_api_call_secs
         self.max_wait_time = max_wait_time
 
@@ -175,3 +177,58 @@ class CubeJSClient:
             )["sql"]
 
         return data
+
+    def _get_cube_system_url(self) -> str:
+        """
+        Get Cube system API base URL.
+
+        Returns:
+            - Cube system API base url.
+        """
+        cube_base_url = self.__CUBEJS_CLOUD_BASE_URL
+        if self.subdomain:
+            cube_base_url = (
+                f"{cube_base_url.format(subdomain=self.subdomain)}/cubejs-system"
+            )
+        else:
+            cube_base_url = self.url
+        return cube_base_url
+
+    def _get_pre_aggregations_jobs_api_url(self) -> str:
+        """
+        Get Cube Pre-Aggregations Jobs API URL.
+
+        Returns:
+            - Cube Pre-Aggregations Jobs API URL.
+        """
+        return f"{self.cube_system_url}/v1/pre-aggregations/jobs"
+
+    def pre_aggregations_jobs(
+        self,
+        query: Dict,
+    ) -> Dict:
+        """
+        Call Cube `pre-aggregations/jobs` REST API enpoint and return list of
+        added jobs ids as a JSON object.
+
+        Args:
+            - query (dict): Parameters to pass to the `pre-aggregations/jobs` REST API.
+
+        Returns:
+            - Cube `pre-aggregations/jobs` API JSON response.
+        """
+
+        session = Session()
+        session.headers = {
+            "Content-type": "application/json",
+            "Authorization": self.api_token,
+        }
+
+        with session.post(url=self.pre_aggregations_jobs_api_url, data=query) as response:
+            if response.status_code == 200:
+                res = response.json()
+                return res
+            else:
+                raise FAIL(
+                    message=f"Cube `pre-aggregations/jobs` API failed! Error is: {response.reason}"
+                )
