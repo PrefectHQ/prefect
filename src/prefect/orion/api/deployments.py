@@ -136,7 +136,9 @@ async def read_deployments(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    sort: schemas.sorting.DeploymentSort = Body(schemas.sorting.DeploymentSort.NAME_ASC),
+    sort: schemas.sorting.DeploymentSort = Body(
+        schemas.sorting.DeploymentSort.NAME_ASC
+    ),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.Deployment]:
     """
