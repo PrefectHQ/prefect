@@ -282,7 +282,7 @@ The following Prefect features require results to be persisted:
 
 If results are not persisted, these features will not be usable.
 
-### Configuring results
+### Configuring persistence results
 
 Persistence of results requires a [**serializer**](#result-serializers) and a [**storage** location](#result-storage). Prefect sets defaults for these, and you should not need to adjust them until you want to customize behavior. You can configure results on the `flow` and `task` decorators with the following options:
 
@@ -430,9 +430,68 @@ The following data types will be stored by the API without persistence to storag
 If `persist_result` is set to `False`, these values will never be stored.
 
 
+## Caching of results in memory
+
+When running your workflows, Prefect will keep the results of all tasks and flows in memory so they can be passed downstream. In some cases, it is desirable to override this behavior. For example, if you are returning a large amount of data from a task it can be costly to keep it memory for the entire duration of the flow run.
+
+Flows and tasks both include an option to drop the result from memory:
+
+```python
+@flow(cache_result_in_memory=False)
+def foo():
+    return "pretend this is large data"
+
+@task(cache_result_in_memory=False)
+def bar():
+    return "pretend this is biiiig data"
+```
+
+When `cache_result_in_memory` is disabled, the result of your flow or task will not be available downstream unless persistence is enabled.
+
+```python
+@flow
+def foo():
+    # Raises an error
+    result = bar()
+
+    # This is oaky
+    state = bar(return_state=True)
+
+    # Raises an error
+    state.result()
+
+    # This is okay
+    future = bar.submit()
+
+    # Raises an error
+    future.result()
+
+@task(cache_result_in_memory=False)
+def bar():
+    return "pretend this is biiiig data"
+```
+
+If persistence has been enabled, the result will be pulled from storage when needed:
+
+```python
+@flow
+def foo():
+    # This all is great!
+    result = bar()
+    state = bar(return_state=True)
+    state.result()
+    future = bar.submit()
+    future.result()
+
+@task(persist_result=True, cache_result_in_memory=False)
+def bar():
+    return "pretend this is biiiig data"
+```
+
 ## Result storage types
 
 Result storage is responsible for reading and writing serialized data to an external location. At this time, any file system block can be used for result storage.
+
 ## Result serializer types
 
 A result serializer is responsible for converting your Python object to and from bytes. This is necessary to store the object outside of Python and retrieve it later.
