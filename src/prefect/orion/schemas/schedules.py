@@ -344,7 +344,6 @@ class RRuleSchedule(PrefectBaseModel):
 
     rrule: str
     timezone: Optional[str] = Field(default=None, example="America/New_York")
-    timezones: Optional[list[str]] = Field(default=None, example=["America/New_York", "UTC"])
 
     @validator("rrule")
     def validate_rrule_str(cls, v):
@@ -359,7 +358,7 @@ class RRuleSchedule(PrefectBaseModel):
         return v
 
     @classmethod
-    def from_rrule(cls, rrule: dateutil.rrule.rrule):
+    def from_rrule(cls, rrule: dateutil.rrule.rrule, timezone: Optional[str] = None):
         if isinstance(rrule, dateutil.rrule.rrule):
             if rrule._dtstart.tzinfo is not None:
                 timezone = rrule._dtstart.tzinfo.name
@@ -367,14 +366,22 @@ class RRuleSchedule(PrefectBaseModel):
                 timezone = "UTC"
             return RRuleSchedule(rrule=str(rrule), timezone=timezone)
         elif isinstance(rrule, dateutil.rrule.rruleset):
-            timezones = []
-            for rr in rrule._rrule:
-                if rr._dtstart.tzinfo is not None:
-                    timezones.append(rr._dtstart.tzinfo.name)
-                else:
-                    timezones.append("UTC")
+            dtstarts = [rr._dtstart for rr in rrule._rrule if rr._dtstart is not None]
+            unique_dstarts = set(pendulum.instance(d).in_tz("UTC") for d in dtstarts)
+            unique_timezones = set(d.tzinfo for d in dtstarts if d.tzinfo is not None)
+
+            if len(unique_timezones) > 1:
+                raise ValueError(f"rruleset has too many dtstart timezones: {rrule}")
+
+            if len(unique_dstarts) > 1:
+                raise ValueError(f"rruleset has too many dtstarts: {rrule}")
+
+            if unique_dstarts and unique_timezones:
+                timezone = dtstarts[0].tzinfo.name
+            else:
+                timezone = "UTC"
             rruleset_string = "\n".join(str(r) for r in rrule._rrule)
-            return RRuleSchedule(rrule=rruleset_string, timezones=timezones)
+            return RRuleSchedule(rrule=rruleset_string, timezone=timezone)
         else:
             raise ValueError(f"Invalid RRule object: {rrule}")
 
@@ -386,29 +393,30 @@ class RRuleSchedule(PrefectBaseModel):
         rrule = dateutil.rrule.rrulestr(self.rrule, cache=True)
         if isinstance(rrule, dateutil.rrule.rrule):
             kwargs = dict(
-                dtstart=rrule._dtstart.replace(tzinfo=dateutil.tz.gettz(self.timezone))
+                dtstart=rrule._dtstart.replace(tzinfo=pendulum.tz.timezone(self.timezone))
             )
             if rrule._until:
                 kwargs.update(
-                    until=rrule._until.replace(tzinfo=dateutil.tz.gettz(self.timezone)),
+                    until=rrule._until.replace(tzinfo=pendulum.tz.timezone(self.timezone)),
                 )
             return rrule.replace(**kwargs)
         elif isinstance(rrule, dateutil.rrule.rruleset):
             new_rrset = dateutil.rrule.rruleset(cache=True)
-            for tz, rr in zip(self.timezones, rrule._rrule):
+            tz = self.timezone
+            for ii, rr in enumerate(rrule._rrule):
                 kwargs = dict(
-                    dtstart=rr._dtstart.replace(tzinfo=dateutil.tz.gettz(tz))
+                    dtstart=rr._dtstart.replace(tzinfo=pendulum.tz.timezone(tz))
                 )
                 if rr._until:
                     kwargs.update(
-                        until=rr._until.replace(tzinfo=dateutil.tz.gettz(tz)),
+                        until=rr._until.replace(tzinfo=pendulum.tz.timezone(tz)),
                     )
                 new_rrset.rrule(rr.replace(**kwargs))
             return new_rrset
 
     @validator("timezone", always=True)
     def valid_timezone(cls, v):
-        if v and v not in pendulum.tz.timezones:
+        if v and v not in pendulum.timezones:
             raise ValueError(f'Invalid timezone: "{v}"')
         elif v is None:
             return "UTC"
