@@ -699,8 +699,12 @@ class TestRRuleSchedule:
         assert s1.timezone == "CET"
         assert s2.timezone == "CET"
         base_dates = list(base_rule.xafter(datetime(1900, 1, 1), count=5))
-        s1_dates = await s1.get_dates(5, start=pendulum.DateTime(year=1900, month=1, day=1))
-        s2_dates = await s2.get_dates(5, start=pendulum.DateTime(year=1900, month=1, day=1))
+        s1_dates = await s1.get_dates(
+            5, start=pendulum.DateTime(year=1900, month=1, day=1)
+        )
+        s2_dates = await s2.get_dates(
+            5, start=pendulum.DateTime(year=1900, month=1, day=1)
+        )
         assert base_dates == s1_dates == s2_dates
 
     async def test_rrule_from_str(self):

@@ -371,7 +371,9 @@ class RRuleSchedule(PrefectBaseModel):
             unique_timezones = set(d.tzinfo for d in dtstarts if d.tzinfo is not None)
 
             if len(unique_timezones) > 1:
-                raise ValueError(f"rruleset has too many dtstart timezones: {unique_timezones}")
+                raise ValueError(
+                    f"rruleset has too many dtstart timezones: {unique_timezones}"
+                )
 
             if len(unique_dstarts) > 1:
                 raise ValueError(f"rruleset has too many dtstarts: {unique_dstarts}")
@@ -393,9 +395,7 @@ class RRuleSchedule(PrefectBaseModel):
         rrule = dateutil.rrule.rrulestr(self.rrule, cache=True)
         timezone = dateutil.tz.gettz(self.timezone)
         if isinstance(rrule, dateutil.rrule.rrule):
-            kwargs = dict(
-                dtstart=rrule._dtstart.replace(tzinfo=timezone)
-            )
+            kwargs = dict(dtstart=rrule._dtstart.replace(tzinfo=timezone))
             if rrule._until:
                 kwargs.update(
                     until=rrule._until.replace(tzinfo=timezone),
@@ -405,9 +405,7 @@ class RRuleSchedule(PrefectBaseModel):
             new_rrset = dateutil.rrule.rruleset(cache=True)
             tz = self.timezone
             for ii, rr in enumerate(rrule._rrule):
-                kwargs = dict(
-                    dtstart=rr._dtstart.replace(tzinfo=timezone)
-                )
+                kwargs = dict(dtstart=rr._dtstart.replace(tzinfo=timezone))
                 if rr._until:
                     kwargs.update(
                         until=rr._until.replace(tzinfo=timezone),
