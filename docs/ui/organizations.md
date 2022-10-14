@@ -56,6 +56,8 @@ When you select an organization, the **Profile** page provides an overview of th
 
 ![Viewing the Organization workspaces page in Prefect Cloud.](/img/ui/org-workspaces.png)
 
+You can also select the Prefect icon to see all workspaces you have been invited to access, across personal accounts and organizations.
+
 ## Organization members
 
 **Members** shows you a list of users who are members of the organization. If you have been given the organization Admin role, you can invite new members and set organization roles for users here.
@@ -88,6 +90,11 @@ Service accounts are created at the organization level, but may be shared to ind
 
 !!! tip "Service account credentials"
     When you create a service account, Prefect Cloud creates a new API key for the account and provides the API configuration command for the execution environment. Save these to a safe location for future use. If the access credentials are lost or compromised, you should regenerate the credentials from the service account page.
+
+!!! note "Service account roles"
+    Service accounts are created at the organization level, and may then become members of workspaces within the organization.
+    
+    A service account may only be a Member of an organization. It can never be an organization Admin. You may apply any valid _workspace-level_ role to a service account.
 
 ## Workspace sharing
 
