@@ -4,7 +4,12 @@ from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
 from prefect.results import LiteralResult
-from prefect.serializers import JSONSerializer, PickleSerializer, Serializer
+from prefect.serializers import (
+    CompressedSerializer,
+    JSONSerializer,
+    PickleSerializer,
+    Serializer,
+)
 from prefect.settings import PREFECT_HOME
 from prefect.testing.utilities import (
     assert_uses_result_serializer,
@@ -95,7 +100,17 @@ async def test_flow_exception_is_persisted(orion_client):
 
 @pytest.mark.parametrize(
     "serializer",
-    ["json", "pickle", JSONSerializer(), PickleSerializer(), MyIntSerializer()],
+    [
+        "json",
+        "pickle",
+        JSONSerializer(),
+        PickleSerializer(),
+        MyIntSerializer(),
+        "int-custom",
+        "compressed/pickle",
+        "compressed/json",
+        CompressedSerializer(serializer=MyIntSerializer()),
+    ],
 )
 async def test_flow_result_serializer(serializer, orion_client):
     @flow(result_serializer=serializer, persist_result=True)
