@@ -399,6 +399,19 @@ You may configure the result serializer using:
 - A type name, e.g. `"json"` or `"pickle"` &mdash; this corresponds to an instance with default values
 - An instance, e.g. `JSONSerializer(jsonlib="orjson")`
 
+#### Compressing results
+
+Prefect provides a `CompressedSerializer` which can be used to _wrap_ other serializers to provide compression over the bytes they generate. The compressed serializer uses `lzma` compression by default. We test other compression schemes provided in the Python standard library such as `bz2` and `zlib`, but you should be able to use any compression library that provides `compress` and `decompress` methods.
+
+You may configure compression of results using:
+
+- A type name, prefixed with `compressed/` e.g. `"compressed/json"` or `"compressed/pickle"`
+- An instance e.g. `CompressedSerializer(serializer="pickle", compressionlib="lzma")`
+
+Note that the `"compressed/<serializer-type>"` shortcut will only work for serializers provided by Prefect. 
+If you are using custom serializers, you must pass a full instance.
+
+
 ### Storage of results in Prefect
 
 The Prefect API does not store your results in most cases for the following reasons:
