@@ -1330,6 +1330,7 @@ class OrionClient:
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
         limit: int = None,
+        sort: schemas.sorting.DeploymentSort = None,
         offset: int = 0,
     ) -> schemas.core.Deployment:
         """
@@ -1363,6 +1364,7 @@ class OrionClient:
             ),
             "limit": limit,
             "offset": offset,
+            "sort": sort,
         }
         response = await self._client.post(f"/deployments/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.Deployment], response.json())
