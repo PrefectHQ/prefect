@@ -44,7 +44,7 @@ Prefect supports several types of schedules that cover a wide range of use cases
 
 - [`Cron`](#cron) is most appropriate for users who are already familiar with `cron` from previous use.
 - [`Interval`](#interval) is best suited for deployments that need to run at some consistent cadence that isn't related to absolute time.
-- [`RRule`](#rrules) is best suited for deployments that rely on calendar logic for simple recurring schedules, irregular intervals, exclusions, or day-of-month adjustments.
+- [`RRule`](#rrule) is best suited for deployments that rely on calendar logic for simple recurring schedules, irregular intervals, exclusions, or day-of-month adjustments.
 
 
 ## Creating schedules through the CLI with the `deployment build` command
