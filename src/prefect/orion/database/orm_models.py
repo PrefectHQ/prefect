@@ -962,33 +962,6 @@ class ORMWorkQueue:
 
 
 @declarative_mixin
-class ORMAgent:
-    """SQLAlchemy model of an agent"""
-
-    name = sa.Column(sa.String, nullable=False)
-
-    @declared_attr
-    def work_queue_id(cls):
-        return sa.Column(
-            UUID,
-            sa.ForeignKey("work_queue.id"),
-            nullable=False,
-            index=True,
-        )
-
-    last_activity_time = sa.Column(
-        Timestamp(),
-        nullable=False,
-        server_default=now(),
-        default=lambda: pendulum.now("UTC"),
-    )
-
-    @declared_attr
-    def __table_args__(cls):
-        return (sa.UniqueConstraint("name"),)
-
-
-@declarative_mixin
 class ORMFlowRunNotificationPolicy:
     is_active = sa.Column(sa.Boolean, server_default="1", default=True, nullable=False)
     state_names = sa.Column(JSON, server_default="[]", default=[], nullable=False)
@@ -1065,7 +1038,6 @@ class BaseORMConfiguration(ABC):
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
-        agent_mixin=ORMAgent,
         block_type_mixin=ORMBlockType,
         block_schema_mixin=ORMBlockSchema,
         block_schema_reference_mixin=ORMBlockSchemaReference,
@@ -1112,7 +1084,6 @@ class BaseORMConfiguration(ABC):
             log_mixin=log_mixin,
             concurrency_limit_mixin=concurrency_limit_mixin,
             work_queue_mixin=work_queue_mixin,
-            agent_mixin=agent_mixin,
             block_type_mixin=block_type_mixin,
             block_schema_mixin=block_schema_mixin,
             block_schema_reference_mixin=block_schema_reference_mixin,
@@ -1153,7 +1124,6 @@ class BaseORMConfiguration(ABC):
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
-        agent_mixin=ORMAgent,
         block_type_mixin=ORMBlockType,
         block_schema_mixin=ORMBlockSchema,
         block_schema_reference_mixin=ORMBlockSchemaReference,
@@ -1201,9 +1171,6 @@ class BaseORMConfiguration(ABC):
         class WorkQueue(work_queue_mixin, self.Base):
             pass
 
-        class Agent(agent_mixin, self.Base):
-            pass
-
         class BlockType(block_type_mixin, self.Base):
             pass
 
@@ -1239,7 +1206,6 @@ class BaseORMConfiguration(ABC):
         self.Log = Log
         self.ConcurrencyLimit = ConcurrencyLimit
         self.WorkQueue = WorkQueue
-        self.Agent = Agent
         self.BlockType = BlockType
         self.BlockSchema = BlockSchema
         self.BlockSchemaReference = BlockSchemaReference

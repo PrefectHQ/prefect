@@ -164,11 +164,6 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.WorkQueue
 
     @property
-    def Agent(self):
-        """An agent model"""
-        return self.orm.Agent
-
-    @property
     def BlockType(self):
         """A block type model"""
         return self.orm.BlockType

@@ -785,20 +785,5 @@ class FlowRunNotificationPolicy(ORMBaseModel):
         return v
 
 
-class Agent(ORMBaseModel):
-    """An ORM representation of an agent"""
-
-    name: str = Field(
-        default_factory=lambda: generate_slug(2),
-        description="The name of the agent. If a name is not provided, it will be auto-generated.",
-    )
-    work_queue_id: UUID = Field(
-        default=..., description="The work queue with which the agent is associated."
-    )
-    last_activity_time: Optional[DateTimeTZ] = Field(
-        default=None, description="The last time this agent polled for work."
-    )
-
-
 Flow.update_forward_refs()
 FlowRun.update_forward_refs()

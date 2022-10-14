@@ -362,24 +362,24 @@ class TestGetRunsInWorkQueue:
         )
         assert ui_updated_work_queue.last_polled == updated_work_queue.last_polled
 
-    async def test_read_work_queue_runs_updates_agent_last_activity_time(
+    async def test_read_work_queue_runs_does_not_error_if_agent_id_provided_in_body(
         self,
         client,
         work_queue,
-        session,
     ):
-        now = pendulum.now("UTC")
+        """
+        At one point, we allowed an arbitrary agent identifier to be passed in the body of
+        this request for tracking. This was unused client side, and the API did not expose
+        any of the information tracked.
+
+        This test ensures that providing `agent_id` does not cause the api route to error.
+        """
         fake_agent_id = uuid4()
         response = await client.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(agent_id=str(fake_agent_id)),
         )
         assert response.status_code == status.HTTP_200_OK
-
-        agent = await models.agents.read_agent(session=session, agent_id=fake_agent_id)
-        assert agent.id == fake_agent_id
-        assert agent.work_queue_id == work_queue.id
-        assert agent.last_activity_time >= now
 
 
 class TestDeleteWorkQueue:

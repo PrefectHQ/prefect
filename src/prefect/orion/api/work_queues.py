@@ -110,10 +110,6 @@ async def read_work_queue_runs(
         None,
         description="Only flow runs scheduled to start before this time will be returned.",
     ),
-    agent_id: Optional[UUID] = Body(
-        None,
-        description="An optional unique identifier for the agent making this query. If provided, the Orion API will track the last time this agent polled the work queue.",
-    ),
     x_prefect_ui: Optional[bool] = Header(
         default=False,
         description="A header to indicate this request came from the Prefect UI.",
@@ -140,11 +136,6 @@ async def read_work_queue_runs(
                 work_queue=schemas.actions.WorkQueueUpdate(
                     last_polled=pendulum.now("UTC")
                 ),
-            )
-
-        if agent_id:
-            await models.agents.record_agent_poll(
-                session=session, agent_id=agent_id, work_queue_id=work_queue_id
             )
 
     return flow_runs

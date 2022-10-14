@@ -15,5 +15,4 @@ from . import (
     saved_searches,
     logs,
     work_queues,
-    agents,
 )
