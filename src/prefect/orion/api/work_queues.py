@@ -4,8 +4,9 @@ Routes for interacting with work queue objects.
 from typing import List, Optional
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import Body, Depends, Header, HTTPException, Path, status
 
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
@@ -113,6 +114,10 @@ async def read_work_queue_runs(
         None,
         description="An optional unique identifier for the agent making this query. If provided, the Orion API will track the last time this agent polled the work queue.",
     ),
+    x_prefect_ui: Optional[bool] = Header(
+        default=False,
+        description="A header to indicate this request came from the Prefect UI.",
+    ),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.FlowRun]:
     """
@@ -125,6 +130,17 @@ async def read_work_queue_runs(
             scheduled_before=scheduled_before,
             limit=limit,
         )
+
+        # The Prefect UI often calls this route to see which runs are enqueued.
+        # We do not want to record this as an actual poll event.
+        if not x_prefect_ui:
+            await models.work_queues.update_work_queue(
+                session=session,
+                work_queue_id=work_queue_id,
+                work_queue=schemas.actions.WorkQueueUpdate(
+                    last_polled=pendulum.now("UTC")
+                ),
+            )
 
         if agent_id:
             await models.agents.record_agent_poll(

@@ -648,6 +648,10 @@ class ORMTaskRun(ORMRun):
                 "ix_task_run__state_name",
                 "state_name",
             ),
+            sa.Index(
+                "ix_task_run__state_timestamp",
+                "state_timestamp",
+            ),
         )
 
 
@@ -945,6 +949,10 @@ class ORMWorkQueue:
     is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
     concurrency_limit = sa.Column(
         sa.Integer,
+        nullable=True,
+    )
+    last_polled = sa.Column(
+        Timestamp(),
         nullable=True,
     )
 

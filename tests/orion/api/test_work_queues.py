@@ -328,6 +328,40 @@ class TestGetRunsInWorkQueue:
 
         assert len(response1.json()) == min(limit, 2)
 
+    async def test_read_work_queue_runs_updates_work_queue_last_polled_time(
+        self,
+        client,
+        work_queue,
+        session,
+    ):
+        now = pendulum.now("UTC")
+        response = await client.post(
+            f"/work_queues/{work_queue.id}/get_runs",
+            json=dict(),
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        session.expunge_all()
+        updated_work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue.id
+        )
+        assert updated_work_queue.last_polled > now
+
+        # The Prefect UI often calls this route to see which runs are enqueued.
+        # We do not want to record this as an actual poll event.
+        ui_response = await client.post(
+            f"/work_queues/{work_queue.id}/get_runs",
+            json=dict(),
+            headers={"X-PREFECT-UI": "true"},
+        )
+        assert ui_response.status_code == status.HTTP_200_OK
+
+        session.expunge_all()
+        ui_updated_work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue.id
+        )
+        assert ui_updated_work_queue.last_polled == updated_work_queue.last_polled
+
     async def test_read_work_queue_runs_updates_agent_last_activity_time(
         self,
         client,

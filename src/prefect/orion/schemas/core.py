@@ -740,6 +740,9 @@ class WorkQueue(ORMBaseModel):
         description="DEPRECATED: Filter criteria for the work queue.",
         deprecated=True,
     )
+    last_polled: Optional[DateTimeTZ] = Field(
+        default=None, description="The last time an agent polled this queue for work."
+    )
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
