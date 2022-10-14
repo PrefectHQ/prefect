@@ -101,7 +101,7 @@ class Flow(Generic[P, R]):
             should be persisted to result storage. Defaults to `None`, which indicates
             that Prefect should choose whether the result should be persisted depending on
             the features being used.
-        persist_results: An optional toggle indicating whther the results of tasks and
+        persist_results: An optional toggle indicating whether the results of tasks and
             flows within this flow should be persisted to result storage. Defaults to
             `None`, which follows the behavior of `persist_result`. If `True`, this flow
             and all tasks or flows within it will persist their results unless they have
