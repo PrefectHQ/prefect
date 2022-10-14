@@ -371,10 +371,10 @@ class RRuleSchedule(PrefectBaseModel):
             unique_timezones = set(d.tzinfo for d in dtstarts if d.tzinfo is not None)
 
             if len(unique_timezones) > 1:
-                raise ValueError(f"rruleset has too many dtstart timezones: {rrule}")
+                raise ValueError(f"rruleset has too many dtstart timezones: {unique_timezones}")
 
             if len(unique_dstarts) > 1:
-                raise ValueError(f"rruleset has too many dtstarts: {rrule}")
+                raise ValueError(f"rruleset has too many dtstarts: {unique_dstarts}")
 
             if unique_dstarts and unique_timezones:
                 timezone = dtstarts[0].tzinfo.name
