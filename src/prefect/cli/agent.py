@@ -45,6 +45,15 @@ async def start(
         "--work-queue",
         help="One or more work queue names for the agent to pull from.",
     ),
+    work_queue_prefix: str = typer.Option(
+        None,
+        "-m",
+        "--match",
+        help=(
+            "Dynamically matches work queue names with the specified prefix for the agent to pull from,"
+            "for example `dev-` will match all work queues with a name that starts with `dev-`"
+        ),
+    ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     api: str = SettingsOption(PREFECT_API_URL),
     # deprecated tags
@@ -76,11 +85,12 @@ async def start(
             style="blue",
         )
 
-    if not work_queues and not tags:
+    if not work_queues and not tags and not work_queue_prefix:
         exit_with_error("No work queues provided!", style="red")
-    elif work_queues and tags:
+    elif bool(work_queues) + bool(tags) + bool(work_queue_prefix) > 1:
         exit_with_error(
-            "Either `work_queues` or `tags` can be provided, but not both.", style="red"
+            "Only one of `work_queues`, `match`, or `tags` can be provided.",
+            style="red",
         )
 
     if tags:
@@ -115,13 +125,21 @@ async def start(
                 f"Starting v{prefect.__version__} agent with ephemeral API..."
             )
 
-    async with OrionAgent(work_queues=work_queues) as agent:
+    async with OrionAgent(
+        work_queues=work_queues, work_queue_prefix=work_queue_prefix
+    ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
-            app.console.print(
-                "Agent started! Looking for work from "
-                f"queue(s): {', '.join(work_queues)}..."
-            )
+            if work_queue_prefix:
+                app.console.print(
+                    "Agent started! Looking for work from "
+                    f"queue(s) that start with the prefix: {work_queue_prefix}..."
+                )
+            else:
+                app.console.print(
+                    "Agent started! Looking for work from "
+                    f"queue(s): {', '.join(work_queues)}..."
+                )
 
         await critical_service_loop(
             agent.get_and_submit_flow_runs,

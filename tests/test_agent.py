@@ -101,6 +101,69 @@ async def test_agent_with_work_queue(orion_client, deployment):
     assert submitted_flow_run_ids == work_queue_flow_run_ids
 
 
+async def test_agent_matches_work_queues_dynamically(
+    session, work_queue, prefect_caplog
+):
+    name = "wq-1"
+    assert await models.work_queues.read_work_queue_by_name(session=session, name=name)
+    async with OrionAgent(work_queue_prefix="wq-") as agent:
+        assert name not in agent.work_queues
+        await agent.get_and_submit_flow_runs()
+        assert name in agent.work_queues
+
+    assert f"Matched new work queues: {name}" in prefect_caplog.text
+
+
+async def test_agent_matches_multiple_work_queues_dynamically(
+    session, orion_client, prefect_caplog
+):
+    prod1 = "prod-deployment-1"
+    prod2 = "prod-deployment-2"
+    prod3 = "prod-deployment-3"
+    dev1 = "dev-data-producer"
+    await orion_client.create_work_queue(name=prod1)
+    await orion_client.create_work_queue(name=prod2)
+
+    async with OrionAgent(work_queue_prefix="prod-") as agent:
+        assert not agent.work_queues
+        await agent.get_and_submit_flow_runs()
+        assert prod1 in agent.work_queues
+        assert prod2 in agent.work_queues
+
+        # bypass work_queue caching
+        agent._work_queue_cache_expiration = pendulum.now("UTC") - pendulum.duration(
+            minutes=1
+        )
+        await orion_client.create_work_queue(name=prod3)
+        await orion_client.create_work_queue(name=dev1)
+        await agent.get_and_submit_flow_runs()
+        assert prod3 in agent.work_queues
+        assert (
+            dev1 not in agent.work_queues
+        ), "work queue matcher should not match partial names"
+
+
+async def test_matching_work_queues_handes_work_queue_deletion(
+    session, work_queue, orion_client, prefect_caplog
+):
+    name = "wq-1"
+    assert await models.work_queues.read_work_queue_by_name(session=session, name=name)
+    async with OrionAgent(work_queue_prefix="wq-") as agent:
+        await agent.get_and_submit_flow_runs()
+        assert name in agent.work_queues
+
+        # bypass work_queue caching
+        agent._work_queue_cache_expiration = pendulum.now("UTC") - pendulum.duration(
+            minutes=1
+        )
+        await orion_client.delete_work_queue_by_id(work_queue.id)
+        await agent.get_and_submit_flow_runs()
+        assert name not in agent.work_queues
+
+    assert f"Matched new work queues: {name}" in prefect_caplog.text
+    assert f"Work queues no longer matched: {name}" in prefect_caplog.text
+
+
 async def test_agent_creates_work_queue_if_doesnt_exist(session, prefect_caplog):
     name = "hello-there"
     assert not await models.work_queues.read_work_queue_by_name(
@@ -111,6 +174,22 @@ async def test_agent_creates_work_queue_if_doesnt_exist(session, prefect_caplog)
     assert await models.work_queues.read_work_queue_by_name(session=session, name=name)
 
     assert f"Created work queue '{name}'." in prefect_caplog.text
+
+
+async def test_agent_does_not_create_work_queues_if_matching_with_prefix(
+    session, prefect_caplog
+):
+    name = "hello-there"
+    assert not await models.work_queues.read_work_queue_by_name(
+        session=session, name=name
+    )
+    async with OrionAgent(work_queues=[name]) as agent:
+        agent.work_queue_prefix = "goodbye-"
+        await agent.get_and_submit_flow_runs()
+    assert not await models.work_queues.read_work_queue_by_name(
+        session=session, name=name
+    )
+    assert f"Created work queue '{name}'." not in prefect_caplog.text
 
 
 async def test_agent_gracefully_handles_error_when_creating_work_queue(

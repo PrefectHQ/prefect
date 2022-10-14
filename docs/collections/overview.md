@@ -3,32 +3,10 @@ description: Prefect Collections provide pre-built tasks and flows that help you
 tags:
     - tasks
     - flows
+    - blocks
     - collections
     - task library
     - contributing
-    - Airbyte
-    - AWS
-    - Azure
-    - CubeJS
-    - Dask
-    - Databricks
-    - dbt
-    - send email
-    - Fugue
-    - GCP
-    - GitHub
-    - Great Expectations
-    - Jupyter
-    - MetricFlow
-    - Monday
-    - OpenMetadata
-    - Ray
-    - Slack
-    - Snowflake
-    - SQLAlchemy
-    - Stitch
-    - Transform
-    - Twitter
 ---
 
 # Prefect Collections

@@ -1188,6 +1188,19 @@ class TestClientWorkQueues:
         assert lookup.name == "foo"
         assert lookup.id == queue.id
 
+    async def test_create_then_match_work_queues(self, orion_client):
+        await orion_client.create_work_queue(
+            name="one of these things is not like the other"
+        )
+        await orion_client.create_work_queue(
+            name="one of these things just doesn't belong"
+        )
+        await orion_client.create_work_queue(
+            name="can you tell which thing is not like the others"
+        )
+        matched_queues = await orion_client.match_work_queues("one of these things")
+        assert len(matched_queues) == 2
+
     async def test_read_nonexistant_work_queue(self, orion_client):
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await orion_client.read_work_queue_by_name("foo")
