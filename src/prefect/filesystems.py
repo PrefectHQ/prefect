@@ -796,7 +796,7 @@ class GitHub(ReadableDeploymentStorage):
     access_token: Optional[SecretStr] = Field(
         name="Personal Access Token",
         default=None,
-        description="A GitHub Personal Access Token (PAT).",
+        description="A GitHub Personal Access Token (PAT) with repo scope.",
     )
 
     @validator("access_token")
