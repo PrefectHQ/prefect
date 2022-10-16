@@ -7,7 +7,7 @@
     <template v-if="blockType">
       <BlockTypeCardLayout :block-type="blockType">
         <template v-if="blockSchema">
-          <BlockSchemaCreateForm :block-schema="blockSchema" v-on="{ submit, cancel }" />
+          <BlockSchemaCreateForm :key="blockSchema.id" :block-schema="blockSchema" v-on="{ submit, cancel }" />
         </template>
       </BlockTypeCardLayout>
     </template>
