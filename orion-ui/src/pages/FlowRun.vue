@@ -84,7 +84,7 @@
   const flowRunId = useRouteParam('id')
 
   const tabs = computed(() => {
-    const values = ['Logs', 'Task Runs', 'Sub Flow Runs', 'Parameters']
+    const values = ['Logs', 'Task Runs', 'SubFlow Runs', 'Parameters']
 
     if (!media.xl) {
       values.push('Details')
