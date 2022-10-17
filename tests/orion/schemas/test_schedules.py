@@ -647,6 +647,66 @@ class TestRRuleSchedule:
         with pytest.raises(ValidationError, match="(invalid 'FREQ': DAILYBAD)"):
             RRuleSchedule(rrule="FREQ=DAILYBAD")
 
+    async def test_rrule_schedule_handles_complex_rrulesets(self):
+        s = RRuleSchedule(
+            rrule="DTSTART:19970902T090000\n"
+            "RRULE:FREQ=YEARLY;COUNT=2;BYDAY=TU\n"
+            "RRULE:FREQ=YEARLY;COUNT=1;BYDAY=TH\n"
+        )
+        dates_from_1900 = await s.get_dates(5, start=datetime(1900, 1, 1, tz="UTC"))
+        dates_from_2000 = await s.get_dates(5, start=datetime(2000, 1, 1, tz="UTC"))
+        assert len(dates_from_1900) == 3
+        assert len(dates_from_2000) == 0
+
+    @pytest.mark.xfail(reason="we currently cannot roundtrip RRuleSchedule objects")
+    async def test_rrule_schedule_handles_rruleset_roundtrips(self):
+        s1 = RRuleSchedule(
+            rrule="DTSTART:19970902T090000\n"
+            "RRULE:FREQ=YEARLY;COUNT=2;BYDAY=TU\n"
+            "RRULE:FREQ=YEARLY;COUNT=1;BYDAY=TH\n"
+        )
+        s2 = RRuleSchedule.from_rrule(s1.to_rrule())
+        s1_dates = await s1.get_dates(5, start=datetime(1900, 1, 1, tz="UTC"))
+        s2_dates = await s2.get_dates(5, start=datetime(1900, 1, 1, tz="UTC"))
+        assert s1_dates == s2_dates
+
+    async def test_rrule_schedule_rejects_rrulesets_with_many_dtstart_timezones(self):
+        dt_nyc = datetime(2018, 1, 11, 4, tz="America/New_York")
+        dt_chicago = datetime(2018, 1, 11, 3, tz="America/Chicago")
+        rrset = rrule.rruleset(cache=True)
+        rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_nyc))
+        rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_chicago))
+
+        with pytest.raises(ValueError, match="too many dtstart timezones"):
+            s = RRuleSchedule.from_rrule(rrset)
+
+    async def test_rrule_schedule_rejects_rrulesets_with_many_dtstarts(self):
+        dt_1 = datetime(2018, 1, 11, 4, tz="America/New_York")
+        dt_2 = datetime(2018, 2, 11, 4, tz="America/New_York")
+        rrset = rrule.rruleset(cache=True)
+        rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_1))
+        rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_2))
+
+        with pytest.raises(ValueError, match="too many dtstarts"):
+            s = RRuleSchedule.from_rrule(rrset)
+
+    @pytest.mark.xfail(reason="we currently cannot roundtrip RRuleSchedule objects")
+    async def test_rrule_schedule_handles_rrule_roundtrips(self):
+        dt = datetime(2018, 3, 11, 4, tz="Europe/Berlin")
+        base_rule = rrule.rrule(rrule.HOURLY, dtstart=dt)
+        s1 = RRuleSchedule.from_rrule(base_rule)
+        s2 = RRuleSchedule.from_rrule(s1.to_rrule())
+        assert s1.timezone == "CET"
+        assert s2.timezone == "CET"
+        base_dates = list(base_rule.xafter(datetime(1900, 1, 1), count=5))
+        s1_dates = await s1.get_dates(
+            5, start=pendulum.DateTime(year=1900, month=1, day=1)
+        )
+        s2_dates = await s2.get_dates(
+            5, start=pendulum.DateTime(year=1900, month=1, day=1)
+        )
+        assert base_dates == s1_dates == s2_dates
+
     async def test_rrule_from_str(self):
         # create a schedule from an RRule object
         s1 = RRuleSchedule.from_rrule(
