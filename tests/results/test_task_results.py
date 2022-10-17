@@ -74,7 +74,14 @@ async def test_task_persisted_result_due_to_opt_in(orion_client):
 
 @pytest.mark.parametrize(
     "serializer",
-    ["json", "pickle", JSONSerializer(), PickleSerializer()],
+    [
+        "json",
+        "pickle",
+        JSONSerializer(),
+        PickleSerializer(),
+        "compressed/pickle",
+        "compressed/json",
+    ],
 )
 @pytest.mark.parametrize("source", ["child", "parent"])
 async def test_task_result_serializer(orion_client, source, serializer):
@@ -190,3 +197,45 @@ async def test_task_exception_is_persisted(orion_client):
     ).state
     with pytest.raises(ValueError, match="Hello world"):
         await api_state.result()
+
+
+@pytest.mark.parametrize("empty_type", [dict, list])
+@pytest.mark.parametrize("persist_result", [True, False])
+def test_task_empty_result_is_retained(persist_result, empty_type):
+    @task(persist_result=persist_result)
+    def my_task():
+        return empty_type()
+
+    @flow
+    def my_flow():
+        return quote(my_task())
+
+    result = my_flow().unquote()
+    assert result == empty_type()
+
+
+@pytest.mark.parametrize(
+    "resultlike",
+    [
+        {"type": "foo"},
+        {"type": "literal", "user-stuff": "bar"},
+        {"type": "persisted"},
+    ],
+)
+@pytest.mark.parametrize("persist_result", [True, False])
+def test_task_resultlike_result_is_retained(persist_result, resultlike):
+    """
+    Since Pydantic will coerce dictionaries into `BaseResult` types, we need to be sure
+    that user dicts that look like a bit like results do not cause problems
+    """
+
+    @task(persist_result=persist_result)
+    def my_task():
+        return resultlike
+
+    @flow
+    def my_flow():
+        return quote(my_task())
+
+    result = my_flow().unquote()
+    assert result == resultlike
