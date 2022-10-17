@@ -132,7 +132,7 @@ class ORMFlowRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(Pydantic(schemas.data.DataDocument), nullable=True)
+    data = sa.Column(sa.JSON, nullable=True)
 
     @declared_attr
     def flow_run(cls):
@@ -186,7 +186,7 @@ class ORMTaskRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(Pydantic(schemas.data.DataDocument), nullable=True)
+    data = sa.Column(sa.JSON, nullable=True)
 
     @declared_attr
     def task_run(cls):
@@ -248,6 +248,7 @@ class ORMRun:
     )
     state_type = sa.Column(sa.Enum(schemas.states.StateType, name="state_type"))
     state_name = sa.Column(sa.String, nullable=True)
+    state_timestamp = sa.Column(Timestamp(), nullable=True)
     run_count = sa.Column(sa.Integer, server_default="0", default=0, nullable=False)
     expected_start_time = sa.Column(Timestamp())
     next_scheduled_start_time = sa.Column(Timestamp())
@@ -265,15 +266,13 @@ class ORMRun:
         """Total run time is incremented in the database whenever a RUNNING
         state is exited. To give up-to-date estimates, we estimate incremental
         run time for any runs currently in a RUNNING state."""
-        if self.state and self.state_type == schemas.states.StateType.RUNNING:
-            return self.total_run_time + (pendulum.now() - self.state.timestamp)
+        if self.state_type and self.state_type == schemas.states.StateType.RUNNING:
+            return self.total_run_time + (pendulum.now() - self.state_timestamp)
         else:
             return self.total_run_time
 
     @estimated_run_time.expression
     def estimated_run_time(cls):
-        # use a correlated subquery to retrieve details from the state table
-        state_table = cls.state.property.target
         return (
             sa.select(
                 sa.case(
@@ -281,18 +280,15 @@ class ORMRun:
                         cls.state_type == schemas.states.StateType.RUNNING,
                         interval_add(
                             cls.total_run_time,
-                            date_diff(now(), state_table.c.timestamp),
+                            date_diff(now(), cls.state_timestamp),
                         ),
                     ),
                     else_=cls.total_run_time,
                 )
             )
-            .select_from(state_table)
-            .where(cls.state_id == state_table.c.id)
             # add a correlate statement so this can reuse the `FROM` clause
             # of any parent query
-            .correlate(cls, state_table)
-            .label("estimated_run_time")
+            .correlate(cls).label("estimated_run_time")
         )
 
     @hybrid_property
@@ -496,6 +492,10 @@ class ORMFlowRun(ORMRun):
             sa.Index(
                 "ix_flow_run__state_name",
                 "state_name",
+            ),
+            sa.Index(
+                "ix_flow_run__state_timestamp",
+                "state_timestamp",
             ),
         )
 
@@ -711,6 +711,10 @@ class ORMDeployment:
                 "flow_id",
                 "name",
                 unique=True,
+            ),
+            sa.Index(
+                "ix_deployment__created",
+                "created",
             ),
         )
 

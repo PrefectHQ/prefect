@@ -137,7 +137,7 @@ class StateCreate(ActionBaseModel):
     type: schemas.states.StateType = FieldFrom(schemas.states.State)
     name: Optional[str] = FieldFrom(schemas.states.State)
     message: Optional[str] = FieldFrom(schemas.states.State)
-    data: Optional[schemas.data.DataDocument] = FieldFrom(schemas.states.State)
+    data: Optional[Any] = FieldFrom(schemas.states.State)
     state_details: schemas.states.StateDetails = FieldFrom(schemas.states.State)
 
     # DEPRECATED
@@ -220,6 +220,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields

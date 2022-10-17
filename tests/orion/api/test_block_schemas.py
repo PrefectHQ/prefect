@@ -146,25 +146,10 @@ class TestCreateBlockSchema:
         assert response_2.status_code == status.HTTP_200_OK
         assert response_1.json() == response_2.json()
 
-    async def test_create_block_schema_for_system_block_type_fails(
+    async def test_create_block_schema_for_system_block_type_succeeds(
         self, system_block_type, client
     ):
         response = await client.post(
-            "/block_schemas/",
-            json=BlockSchemaCreate(fields={}, block_type_id=system_block_type.id).dict(
-                json_compatible=True
-            ),
-        )
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-        assert (
-            response.json()["detail"]
-            == "Block schemas for protected block types cannot be created."
-        )
-
-    async def test_create_block_schema_for_system_block_type_does_not_fail_for_older_clients(
-        self, system_block_type, client_with_unprotected_block_api
-    ):
-        response = await client_with_unprotected_block_api.post(
             "/block_schemas/",
             json=BlockSchemaCreate(fields={}, block_type_id=system_block_type.id).dict(
                 json_compatible=True
@@ -227,22 +212,6 @@ class TestDeleteBlockSchema:
             response.json()["detail"]
             == "Block schemas for protected block types cannot be deleted."
         )
-
-    async def test_delete_block_schema_for_system_block_type_does_not_fail_for_older_clients(
-        self, session, system_block_type, client_with_unprotected_block_api
-    ):
-        block_schema = await models.block_schemas.create_block_schema(
-            session=session,
-            block_schema=schemas.actions.BlockSchemaCreate(
-                fields={}, block_type_id=system_block_type.id
-            ),
-        )
-        await session.commit()
-
-        response = await client_with_unprotected_block_api.delete(
-            f"/block_schemas/{block_schema.id}"
-        )
-        assert response.status_code == status.HTTP_204_NO_CONTENT
 
 
 class TestReadBlockSchema:

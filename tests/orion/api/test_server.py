@@ -306,3 +306,19 @@ class TestMemoizeBlockAutoRegistration:
             await _memoize_block_auto_registration(test_func)()
 
         test_func.assert_called_once()
+
+    async def test_does_not_fail_on_read_only_filesystem(self, enable_memoization):
+        try:
+            PREFECT_MEMO_STORE_PATH.value().parent.chmod(744)
+
+            test_func = AsyncMock()
+
+            with patch("prefect.orion.api.server.hash_objects") as mock:
+                mock.return_value = None
+                await _memoize_block_auto_registration(test_func)()
+
+            test_func.assert_called_once()
+
+            assert not PREFECT_MEMO_STORE_PATH.value().exists()
+        finally:
+            PREFECT_MEMO_STORE_PATH.value().parent.chmod(777)

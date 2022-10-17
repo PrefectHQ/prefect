@@ -4,8 +4,8 @@ Intended for internal use by the Orion API.
 """
 from typing import List
 
-import sqlalchemy as sa
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
@@ -22,12 +22,17 @@ NUMBER_OF_LOG_FIELDS = len(schemas.core.Log.schema()["properties"])
 LOG_BATCH_SIZE = MAXIMUM_QUERY_PARAMETERS // NUMBER_OF_LOG_FIELDS
 
 
+def split_logs_into_batches(logs):
+    for batch in batched_iterable(logs, LOG_BATCH_SIZE):
+        yield batch
+
+
 @inject_db
 async def create_logs(
-    session: sa.orm.Session, db: OrionDBInterface, logs: List[schemas.core.Log]
+    session: AsyncSession, db: OrionDBInterface, logs: List[schemas.core.Log]
 ):
     """
-    Creates new logs.
+    Creates new logs
 
     Args:
         session: a database session
@@ -37,13 +42,12 @@ async def create_logs(
         None
     """
     log_insert = await db.insert(db.Log)
-    for batch in batched_iterable(logs, LOG_BATCH_SIZE):
-        await session.execute(log_insert.values([log.dict() for log in batch]))
+    await session.execute(log_insert.values([log.dict() for log in logs]))
 
 
 @inject_db
 async def read_logs(
-    session: sa.orm.Session,
+    session: AsyncSession,
     db: OrionDBInterface,
     log_filter: schemas.filters.LogFilter,
     offset: int = None,

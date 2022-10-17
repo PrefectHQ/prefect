@@ -3,7 +3,6 @@ Utilities for interoperability with async functions and workers from various con
 """
 import ctypes
 import inspect
-import sys
 import threading
 import warnings
 from contextlib import asynccontextmanager
@@ -32,12 +31,24 @@ def is_async_fn(
     func: Union[Callable[P, R], Callable[P, Awaitable[R]]]
 ) -> TypeGuard[Callable[P, Awaitable[R]]]:
     """
-    This wraps `iscoroutinefunction` with a `TypeGuard` such that we can perform a
-    conditional check and type checkers will narrow the expected type.
+    Returns `True` if a function returns a coroutine.
 
     See https://github.com/microsoft/pyright/issues/2142 for an example use
     """
+    while hasattr(func, "__wrapped__"):
+        func = func.__wrapped__
+
     return inspect.iscoroutinefunction(func)
+
+
+def is_async_gen_fn(func):
+    """
+    Returns `True` if a function is an async generator.
+    """
+    while hasattr(func, "__wrapped__"):
+        func = func.__wrapped__
+
+    return inspect.isasyncgenfunction(func)
 
 
 async def run_sync_in_worker_thread(
@@ -174,34 +185,12 @@ def sync_compatible(async_fn: T) -> T:
     - If we cannot find an event loop, we will create a new one and run the async method
         then tear down the loop.
     """
-    # TODO: This is breaking type hints on the callable... mypy is behind the curve
-    #       on argument annotations. We can still fix this for editors though.
-    if not inspect.iscoroutinefunction(async_fn):
-        raise TypeError("The decorated function must be async.")
 
     @wraps(async_fn)
-    def wrapper(*args, **kwargs):
+    def coroutine_wrapper(*args, **kwargs):
         if in_async_main_thread():
-            caller_frame = sys._getframe(1)
-            caller_module = caller_frame.f_globals.get("__name__", "unknown")
-            caller_async = caller_frame.f_code.co_flags & inspect.CO_COROUTINE
-            if caller_async or any(
-                # Add exceptions for the internals anyio/asyncio which can run
-                # coroutines from synchronous functions
-                caller_module.startswith(f"{module}.")
-                for module in ["asyncio", "anyio"]
-            ):
-                # In the main async context; return the coro for them to await
-                return async_fn(*args, **kwargs)
-            else:
-                # In the main thread but call was made from a sync method
-                raise RuntimeError(
-                    "A 'sync_compatible' method was called from a context that was "
-                    "previously async but is now sync. The sync call must be changed "
-                    "to run in a worker thread to support sending the coroutine for "
-                    f"{async_fn.__name__!r} to the main thread."
-                )
-
+            # In the main async context; return the coro for them to await
+            return async_fn(*args, **kwargs)
         elif in_async_worker_thread():
             # In a sync context but we can access the event loop thread; send the async
             # call to the parent
@@ -210,6 +199,15 @@ def sync_compatible(async_fn: T) -> T:
             # In a sync context and there is no event loop; just create an event loop
             # to run the async code then tear it down
             return run_async_in_new_loop(async_fn, *args, **kwargs)
+
+    # TODO: This is breaking type hints on the callable... mypy is behind the curve
+    #       on argument annotations. We can still fix this for editors though.
+    if is_async_fn(async_fn):
+        wrapper = coroutine_wrapper
+    elif is_async_gen_fn(async_fn):
+        raise ValueError("Async generators cannot yet be marked as `sync_compatible`")
+    else:
+        raise TypeError("The decorated function must be async.")
 
     wrapper.aio = async_fn
     return wrapper

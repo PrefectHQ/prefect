@@ -23,22 +23,31 @@ from prefect.settings import (
 
 
 @inject_db
-async def _delete_auto_scheduled_runs(
+async def _delete_scheduled_runs(
     session: sa.orm.Session,
     deployment_id: UUID,
     db: OrionDBInterface,
+    auto_scheduled_only: bool = False,
 ):
     """
     This utility function deletes all of a deployment's scheduled runs that are
-    still in a Scheduled state and that were  auto-scheduled runs. It should be
-    run any time a deployment is created or modified in order to ensure that
-    future runs comply with the deployment's latest values.
+    still in a Scheduled state It should be run any time a deployment is created or
+    modified in order to ensure that future runs comply with the deployment's latest values.
+
+    Args:
+        deployment_id: the deplyment for which we should delete runs.
+        auto_scheduled_only: if True, only delete auto scheduled runs. Defaults to `False`.
     """
     delete_query = sa.delete(db.FlowRun).where(
         db.FlowRun.deployment_id == deployment_id,
         db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
-        db.FlowRun.auto_scheduled.is_(True),
     )
+
+    if auto_scheduled_only:
+        delete_query = delete_query.where(
+            db.FlowRun.auto_scheduled.is_(True),
+        )
+
     await session.execute(delete_query)
 
 
@@ -104,7 +113,9 @@ async def create_deployment(
 
     # because this could upsert a different schedule, delete any runs from the old
     # deployment
-    await _delete_auto_scheduled_runs(session=session, deployment_id=model.id, db=db)
+    await _delete_scheduled_runs(
+        session=session, deployment_id=model.id, db=db, auto_scheduled_only=True
+    )
 
     return model
 
@@ -140,8 +151,8 @@ async def update_deployment(
     result = await session.execute(update_stmt)
 
     # delete any auto scheduled runs that would have reflected the old deployment config
-    await _delete_auto_scheduled_runs(
-        session=session, deployment_id=deployment_id, db=db
+    await _delete_scheduled_runs(
+        session=session, deployment_id=deployment_id, db=db, auto_scheduled_only=True
     )
 
     # create work queue if it doesn't exist
@@ -251,6 +262,7 @@ async def read_deployments(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    sort: schemas.sorting.DeploymentSort = schemas.sorting.DeploymentSort.NAME_ASC,
 ):
     """
     Read deployments.
@@ -263,13 +275,13 @@ async def read_deployments(
         flow_run_filter: only select deployments whose flow runs match these criteria
         task_run_filter: only select deployments whose task runs match these criteria
         deployment_filter: only select deployment that match these filters
-
+        sort: the sort criteria for selected deployments. Defaults to `name` ASC.
 
     Returns:
         List[db.Deployment]: deployments
     """
 
-    query = select(db.Deployment).order_by(db.Deployment.name)
+    query = select(db.Deployment).order_by(sort.as_sql_sort(db=db))
 
     query = await _apply_deployment_filters(
         query=query,
@@ -343,11 +355,9 @@ async def delete_deployment(
     """
 
     # delete scheduled runs, both auto- and user- created.
-    delete_query = sa.delete(db.FlowRun).where(
-        db.FlowRun.deployment_id == deployment_id,
-        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+    await _delete_scheduled_runs(
+        session=session, deployment_id=deployment_id, auto_scheduled_only=False
     )
-    await session.execute(delete_query)
 
     result = await session.execute(
         delete(db.Deployment).where(db.Deployment.id == deployment_id)
@@ -361,6 +371,7 @@ async def schedule_runs(
     start_time: datetime.datetime = None,
     end_time: datetime.datetime = None,
     max_runs: int = None,
+    auto_scheduled: bool = True,
 ) -> List[UUID]:
     """
     Schedule flow runs for a deployment
@@ -392,6 +403,7 @@ async def schedule_runs(
         start_time=start_time,
         end_time=end_time,
         max_runs=max_runs,
+        auto_scheduled=auto_scheduled,
     )
     return await _insert_scheduled_flow_runs(session=session, runs=runs)
 
@@ -404,6 +416,7 @@ async def _generate_scheduled_flow_runs(
     end_time: datetime.datetime,
     max_runs: int,
     db: OrionDBInterface,
+    auto_scheduled: bool = True,
 ) -> List[Dict]:
     """
     Given a `deployment_id` and schedule, generates a list of flow run objects and
@@ -436,6 +449,10 @@ async def _generate_scheduled_flow_runs(
         n=max_runs, start=start_time, end=end_time
     )
 
+    tags = deployment.tags
+    if auto_scheduled:
+        tags = ["auto-scheduled"] + tags
+
     for date in dates:
         runs.append(
             {
@@ -446,8 +463,8 @@ async def _generate_scheduled_flow_runs(
                 "parameters": deployment.parameters,
                 "infrastructure_document_id": deployment.infrastructure_document_id,
                 "idempotency_key": f"scheduled {deployment.id} {date}",
-                "tags": ["auto-scheduled"] + deployment.tags,
-                "auto_scheduled": True,
+                "tags": tags,
+                "auto_scheduled": auto_scheduled,
                 "state": schemas.states.Scheduled(
                     scheduled_time=date,
                     message="Flow run scheduled",

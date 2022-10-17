@@ -4,7 +4,7 @@ import pendulum
 import pydantic
 import pytest
 
-from prefect.orion.schemas.data import DataDocument
+from prefect.deprecated.data_documents import DataDocument
 from prefect.orion.schemas.states import (
     AwaitingRetry,
     Completed,
@@ -56,6 +56,11 @@ class TestState:
         assert isinstance(new_state.id, UUID)
         # New state timestamp
         assert new_state.timestamp >= dt
+
+    def test_state_result_warns_and_uses_client_result(self):
+        state = State(data=DataDocument(encoding="text", blob=b"abc"), type="COMPLETED")
+        with pytest.warns(DeprecationWarning, match="`result` is no longer supported"):
+            assert state.result() == "abc"
 
 
 class TestStateTypeFunctions:

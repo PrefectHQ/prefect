@@ -1,5 +1,205 @@
 # Prefect Release Notes
 
+## Release 2.6.1
+
+### Fixes
+- Fix bug where return values of `{}` or `[]` could be coerced to `None` — https://github.com/PrefectHQ/prefect/pull/7181
+
+## Contributors
+* @acookin made their first contribution in https://github.com/PrefectHQ/prefect/pull/7172
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.0...2.6.1
+
+## Release 2.6.0
+
+### First-class configuration of results 🎉
+
+Previously, Prefect serialized the results of all flows and tasks with pickle, then wrote them to your local file system.
+In this release, we're excited to announce this behavior is fully configurable and customizable.
+
+Here are some highlights:
+
+- Persistence of results is off by default.
+    - We will turn on result persistence automatically if needed for a feature you're using, but you can always opt-out.
+    - You can easily opt-in for any flow or task.
+- You can choose the result serializer.
+    - By default, we continue to use a pickle serializer, now with the ability to choose a custom implementation.
+    - We now offer a JSON result serializer with support for all of the types supported by Pydantic.
+    - You can also write your own serializer for full control.
+    - Unless your results are being persisted, they will not be serialized.
+- You can change the result storage.
+    - By default, we will continue to use the local file system.
+    - You can specify any of our storage blocks, such as AWS S3.
+    - You can use any storage block you have defined.
+
+All of the options can be customized per flow or task.
+
+```python
+from prefect import flow, task
+
+# This flow defines a default result serializer for itself and all tasks in it
+@flow(result_serializer="pickle")
+def foo():
+    one()
+    two()
+    three()
+
+# This task's result will be persisted to the local file system
+@task(persist_result=True)
+def one():
+    return "one!"
+
+# This task will not persist its result
+@task(persist_result=False)
+def two():
+    return "two!"
+
+# This task will use a different serializer than the rest
+@task(persist_result=True, result_serializer="json")
+def three():
+    return "three!"
+
+# This task will persist its result to an S3 bucket
+@task(persist_result=True, result_storage="s3/my-s3-block")
+def four()
+    return "four!
+```
+
+See the [documentation](https://docs.prefect.io/concepts/results/) for more details and examples.
+See https://github.com/PrefectHQ/prefect/pull/6908 for implementation details.
+
+### Waiting for tasks even if they fail
+
+You can now specify that a downstream task should wait for an upstream task and run even if the upstream task has failed.
+
+```python
+from prefect import task, flow, allow_failure
+
+@flow
+def foo():
+    upstream_future = fails_sometimes.submit()
+    important_cleanup(wait_for=[allow_failure(upstream_future)])
+
+@task
+def fails_sometimes():
+    raise RuntimeError("oh no!")
+
+@task
+def important_cleanup():
+    ...
+```
+
+See https://github.com/PrefectHQ/prefect/pull/7120 for implementation details.
+
+### Work queue match support for agents
+
+Agents can now match multiple work queues by providing a `--match` string instead of specifying all of the work queues. The agent will poll every work queue with a name that starts with the given string. Your agent will detect new work queues that match the option without requiring a restart!
+
+```
+$ prefect agent start --match "foo-"
+```
+
+### Enhancements
+- Add `--param` / `--params` support `prefect deployment run` — https://github.com/PrefectHQ/prefect/pull/7018
+- Add 'Show Active Runs' button to work queue page — https://github.com/PrefectHQ/prefect/pull/7092
+- Update block protection to only prevent deletion — https://github.com/PrefectHQ/prefect/pull/7042
+- Improve stability by optimizing the HTTP client — https://github.com/PrefectHQ/prefect/pull/7090
+- Optimize flow run history queries — https://github.com/PrefectHQ/prefect/pull/7138
+- Optimize server handling by saving log batches in individual transactions — https://github.com/PrefectHQ/prefect/pull/7141
+- Optimize deletion of auto-scheduled runs — https://github.com/PrefectHQ/prefect/pull/7102
+
+### Fixes
+- Fix `DockerContainer` log streaming crash due to "marked for removal" error — https://github.com/PrefectHQ/prefect/pull/6860
+- Improve RRule schedule string parsing — https://github.com/PrefectHQ/prefect/pull/7133
+- Improve handling of duplicate blocks, reducing errors in server logs — https://github.com/PrefectHQ/prefect/pull/7140
+- Fix flow run URLs in notifications and `prefect deployment run` output — https://github.com/PrefectHQ/prefect/pull/7153
+
+### Documentation
+- Add documentation for support of proxies — https://github.com/PrefectHQ/prefect/pull/7087
+- Fix rendering of Prefect settings in API reference — https://github.com/PrefectHQ/prefect/pull/7067
+
+### Contributors
+* @jmg-duarte
+* @kevin868 made their first contribution in https://github.com/PrefectHQ/prefect/pull/7109
+* @space-age-pete made their first contribution in https://github.com/PrefectHQ/prefect/pull/7122
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.5.0...2.6.0
+
+## Release 2.5.0
+
+### Exciting New Features 🎉
+
+- Add `prefect.deployments.run_deployment` to create a flow run for a deployment with support for:
+    - Configurable execution modes: returning immediately or waiting for completion of the run.
+    - Scheduling runs in the future or now.
+    - Custom flow run names.
+    - Automatic linking of created flow run to the flow run it is created from.
+    - Automatic tracking of upstream task results passed as parameters.
+  <br />
+  See https://github.com/PrefectHQ/prefect/pull/7047, https://github.com/PrefectHQ/prefect/pull/7081, and https://github.com/PrefectHQ/prefect/pull/7084
+
+### Enhancements
+- Add ability to delete multiple objects on flow run, flow, deployment and work queue pages — https://github.com/PrefectHQ/prefect/pull/7086
+- Update `put_directory` to exclude directories from upload counts — https://github.com/PrefectHQ/prefect/pull/7054
+- Always suppress griffe logs — https://github.com/PrefectHQ/prefect/pull/7059
+- Add OOM warning to `Process` exit code log message — https://github.com/PrefectHQ/prefect/pull/7070
+- Add idempotency key support to `OrionClient.create_flow_run_from_deployment` — https://github.com/PrefectHQ/prefect/pull/7074
+
+### Fixes
+- Fix default start date filter for deployments page in UI — https://github.com/PrefectHQ/prefect/pull/7025
+- Fix `sync_compatible` handling of wrapped async functions and generators — https://github.com/PrefectHQ/prefect/pull/7009
+- Fix bug where server could error due to an unexpected null in task caching logic — https://github.com/PrefectHQ/prefect/pull/7031
+- Add exception handling to block auto-registration — https://github.com/PrefectHQ/prefect/pull/6997
+- Remove the "sync caller" check from `sync_compatible` — https://github.com/PrefectHQ/prefect/pull/7073
+
+### Documentation
+- Add `ECSTask` block tutorial to recipes — https://github.com/PrefectHQ/prefect/pull/7066
+- Update documentation for organizations for member management, roles, and permissions — https://github.com/PrefectHQ/prefect/pull/7058
+
+## Collections
+- New [prefect-soda-core](https://sodadata.github.io/prefect-soda-core/) collection for integration with [Soda](https://www.soda.io/).
+
+### Contributors
+- @taljaards
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.4.5...2.5.0
+
+## Release 2.4.5
+
+This release disables block protection. With block protection enabled, as in 2.4.3 and 2.4.4, client and server versions cannot be mismatched unless you are on a version before 2.4.0. Disabling block protection restores the ability for a client and server to have different version.
+
+Block protection was added in 2.4.1 to prevent users from deleting block types that are necessary for the system to function. With this change, you are able to delete block types that will cause your flow runs to fail. New safeguards that do not affect client/server compatibility will be added in the future.
+
+## Release 2.4.3
+
+**When running a server with this version, the client must be the same version. This does not apply to clients connecting to Prefect Cloud.**
+
+### Enhancements
+- Warn if user tries to login with API key from Cloud 1 — https://github.com/PrefectHQ/prefect/pull/6958
+- Improve concurrent task runner performance — https://github.com/PrefectHQ/prefect/pull/6948
+- Raise a `MissingContextError` when `get_run_logger` is called outside a run context — https://github.com/PrefectHQ/prefect/pull/6980
+- Adding caching to API configuration lookups to improve performance — https://github.com/PrefectHQ/prefect/pull/6959
+- Move `quote` to `prefect.utilities.annotations` — https://github.com/PrefectHQ/prefect/pull/6993
+- Add state filters and sort-by to the work-queue, flow and deployment pages — https://github.com/PrefectHQ/prefect/pull/6985
+
+### Fixes
+- Fix login to private Docker registries — https://github.com/PrefectHQ/prefect/pull/6889
+- Update `Flow.with_options` to actually pass retry settings to new object — https://github.com/PrefectHQ/prefect/pull/6963
+- Fix compatibility for protected blocks when client/server versions are mismatched — https://github.com/PrefectHQ/prefect/pull/6986
+- Ensure `python-slugify` is always used even if [unicode-slugify](https://github.com/mozilla/unicode-slugify) is installed — https://github.com/PrefectHQ/prefect/pull/6955
+
+### Documentation
+- Update documentation for specifying schedules from the CLI — https://github.com/PrefectHQ/prefect/pull/6968
+- Add results concept to documentation — https://github.com/PrefectHQ/prefect/pull/6992
+
+### Collections
+- New [`prefect-hex` collection](https://prefecthq.github.io/prefect-hex/) — https://github.com/PrefectHQ/prefect/pull/6974
+- New [`CloudRunJob` infrastructure block](https://prefecthq.github.io/prefect-gcp/cloud_run/) in `prefect-gcp` — https://github.com/PrefectHQ/prefect-gcp/pull/48
+
+### Contributors
+* @Hongbo-Miao made their first contribution in https://github.com/PrefectHQ/prefect/pull/6956
+* @hateyouinfinity made their first contribution in https://github.com/PrefectHQ/prefect/pull/6955
+
 ## Release 2.4.2
 
 ### Fixes

@@ -358,7 +358,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
                 else:
                     self.filesystem.put_file(f, fpath)
 
-            counter += 1
+                counter += 1
 
         return counter
 
