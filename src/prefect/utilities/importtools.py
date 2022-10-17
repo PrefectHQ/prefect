@@ -40,7 +40,7 @@ def from_qualified_name(name: str) -> Any:
         the imported object
 
     Example:
-        >>> obj = import_object("random.randint")
+        >>> obj = from_qualified_name("random.randint")
         >>> import random
         >>> obj == random.randint
         True
