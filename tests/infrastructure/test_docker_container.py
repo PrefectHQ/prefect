@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import anyio.abc
+import docker
 import pytest
 
 from prefect.docker import get_prefect_image_name
@@ -729,3 +730,53 @@ def test_run_requires_command():
     container = DockerContainer(command=[])
     with pytest.raises(ValueError, match="cannot be run with empty command"):
         container.run()
+
+
+def test_stream_container_logs(capsys, mock_docker_client):
+    mock_container = mock_docker_client.containers.get.return_value
+    mock_container.logs = MagicMock(return_value=[b"hello", b"world"])
+
+    DockerContainer(command=["doesnt", "matter"]).run()
+
+    captured = capsys.readouterr()
+    assert captured.out == "hello\nworld\n"
+
+
+def test_logs_warning_when_container_marked_for_removal(caplog, mock_docker_client):
+    warning = (
+        "Docker container fake-name was marked for removal before logs "
+        "could be retrieved. Output will not be streamed"
+    )
+    mock_container = mock_docker_client.containers.get.return_value
+    mock_container.logs = MagicMock(side_effect=docker.errors.APIError(warning))
+
+    DockerContainer(
+        command=["doesnt", "matter"],
+    ).run()
+
+    assert "Docker container fake-name was marked for removal" in caplog.text
+
+
+def test_logs_when_unexpected_docker_error(caplog, mock_docker_client):
+    mock_container = mock_docker_client.containers.get.return_value
+    mock_container.logs = MagicMock(side_effect=docker.errors.APIError("..."))
+
+    DockerContainer(
+        command=["doesnt", "matter"],
+    ).run()
+
+    assert (
+        "An unexpected Docker API error occured while streaming output from container fake-name."
+        in caplog.text
+    )
+
+
+@pytest.mark.service("docker")
+def test_stream_container_logs_on_real_container(capsys):
+    DockerContainer(
+        command=["echo", "hello"],
+        stream_output=True,
+    ).run()
+
+    captured = capsys.readouterr()
+    assert "hello" in captured.out

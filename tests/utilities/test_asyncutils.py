@@ -2,7 +2,8 @@ import asyncio
 import threading
 import time
 import uuid
-from functools import partial
+from contextlib import asynccontextmanager, contextmanager
+from functools import partial, wraps
 
 import anyio
 import pytest
@@ -14,12 +15,101 @@ from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
     in_async_worker_thread,
+    is_async_fn,
+    is_async_gen_fn,
     run_async_from_worker_thread,
     run_async_in_new_loop,
     run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
     sync_compatible,
 )
+
+
+def test_is_async_fn_sync():
+    def foo():
+        pass
+
+    assert not is_async_fn(foo)
+
+
+def test_is_async_fn_lambda():
+    assert not is_async_fn(lambda: True)
+
+
+def test_is_async_fn_sync_context_manager():
+    @contextmanager
+    def foo():
+        pass
+
+    assert not is_async_fn(foo)
+
+
+def test_is_async_fn_async():
+    async def foo():
+        pass
+
+    assert is_async_fn(foo)
+
+
+def test_is_async_fn_async_decorated_with_sync():
+    def wrapper(fn):
+        @wraps(fn)
+        def inner():
+            return fn()
+
+        return inner
+
+    @wrapper
+    async def foo():
+        pass
+
+    assert is_async_fn(foo)
+
+
+def test_is_async_fn_async_decorated_with_asyncontextmanager():
+    @asynccontextmanager
+    async def foo():
+        yield False
+
+    assert not is_async_fn(foo)
+
+
+def test_is_async_gen_fn_async_decorated_with_asyncontextmanager():
+    @asynccontextmanager
+    async def foo():
+        yield True
+
+    assert is_async_gen_fn(foo)
+
+
+def test_is_async_gen_fn_async_decorated_with_asyncontextmanager():
+    @asynccontextmanager
+    async def foo():
+        yield True
+
+    assert is_async_gen_fn(foo)
+
+
+def test_is_async_gen_fn_sync_decorated_with_contextmanager():
+    @contextmanager
+    def foo():
+        yield True
+
+    assert not is_async_gen_fn(foo)
+
+
+def test_is_async_gen_fn_async_that_returns():
+    async def foo():
+        return False
+
+    assert not is_async_gen_fn(foo)
+
+
+def test_is_async_gen_fn_async_that_yields():
+    async def foo():
+        yield True
+
+    assert is_async_gen_fn(foo)
 
 
 def test_in_async_main_thread_sync():
@@ -198,13 +288,12 @@ async def test_sync_compatible_call_from_sync_in_async_thread():
 
     def run_fn():
         # Here we are back in a sync context but still in the async main thread
-        sync_compatible_fn(1, y=2)
+        return sync_compatible_fn(1, y=2)
 
-    with pytest.raises(
-        RuntimeError,
-        match="method was called from a context that was previously async but is now sync",
-    ):
-        run_fn()
+    # Returns a coroutine
+    coro = run_fn()
+
+    assert await coro == 6
 
 
 async def test_sync_compatible_call_with_taskgroup():
@@ -247,6 +336,15 @@ def test_sync_compatible_requires_async_function():
         @sync_compatible
         def foo():
             pass
+
+
+def test_sync_compatible_with_async_context_manager():
+    with pytest.raises(ValueError, match="Async generators cannot yet be marked"):
+
+        @sync_compatible
+        @asynccontextmanager
+        async def foo():
+            yield "bar"
 
 
 def test_add_event_loop_shutdown_callback_is_called_with_asyncio_run():
