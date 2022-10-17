@@ -49,6 +49,16 @@ def get_default_result_serializer() -> ResultSerializer:
     return PREFECT_RESULTS_DEFAULT_SERIALIZER.value()
 
 
+def flow_features_require_result_persistence(flow: "Flow") -> bool:
+    """
+    Returns `True` if the given flow uses features that require its result to be
+    persisted.
+    """
+    if not flow.cache_result_in_memory:
+        return True
+    return False
+
+
 def flow_features_require_child_result_persistence(flow: "Flow") -> bool:
     """
     Returns `True` if the given flow uses features that require child flow and task
@@ -65,6 +75,8 @@ def task_features_require_result_persistence(task: "Task") -> bool:
     persisted.
     """
     if task.cache_key_fn:
+        return True
+    if not task.cache_result_in_memory:
         return True
     return False
 
@@ -123,9 +135,12 @@ class ResultFactory(pydantic.BaseModel):
                     flow.persist_result
                     if flow.persist_result is not None
                     else
-                    # !! Child flows persist their result by default if the parent flow
-                    #    uses a feature that requires it
-                    flow_features_require_child_result_persistence(ctx.flow)
+                    # !! Child flows persist their result by default if the it or the
+                    #    parent flow uses a feature that requires it
+                    (
+                        flow_features_require_result_persistence(flow)
+                        or flow_features_require_child_result_persistence(ctx.flow)
+                    )
                 ),
                 cache_result_in_memory=flow.cache_result_in_memory,
                 client=client,
@@ -138,7 +153,14 @@ class ResultFactory(pydantic.BaseModel):
                 client=client,
                 result_storage=flow.result_storage,
                 result_serializer=flow.result_serializer,
-                persist_result=flow.persist_result,
+                persist_result=(
+                    flow.persist_result
+                    if flow.persist_result is not None
+                    else
+                    # !! Flows persist their result by default if uses a feature that
+                    #    requires it
+                    flow_features_require_result_persistence(flow)
+                ),
                 cache_result_in_memory=flow.cache_result_in_memory,
             )
 

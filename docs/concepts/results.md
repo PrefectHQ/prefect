@@ -294,6 +294,12 @@ Persistence of results requires a [**serializer**](#result-serializers) and a [*
 
 Persistence of the result of a task or flow can be configured with the `persist_result` option. The `persist_result` option defaults to a null value, which will automatically enable persistence if it is needed for a Prefect feature used by the flow or task.
 
+The effect of features on persistence of results:
+- Flow retries: enables persistence of task and subflow results
+- Disabling in-memory caching: enables persistence of the given flow or task result
+- Task cache key: enables persistence of the given task result
+- Task retries: does not affect persistence of results
+
 For example, the following flow has retries enabled. Flow retries require that all task results are persisted, so the task's result will be persisted:
 
 ```python
@@ -446,9 +452,35 @@ def bar():
     return "pretend this is biiiig data"
 ```
 
-When `cache_result_in_memory` is disabled, the result of your flow or task will not be available downstream unless persistence is enabled.
+When `cache_result_in_memory` is disabled, the result of your flow or task will be persisted by default. The result will then be pulled from storage when needed.
 
 ```python
+@flow
+def foo():
+    result = bar()
+    state = bar(return_state=True)
+
+    # The result will be retrieved from storage here
+    state.result()
+
+    future = bar.submit()
+    # The result will be retrieved from storage here
+    future.result()
+
+@task(cache_result_in_memory=False)
+def bar():
+    # This result will persisted
+    return "pretend this is biiiig data"
+```
+
+If both `cache_result_in_memory` and persistence are disabled, your results will not be available downstream.
+
+```python
+
+@task(persist_result=False, cache_result_in_memory=False)
+def bar():
+    return "pretend this is biiiig data"
+
 @flow
 def foo():
     # Raises an error
@@ -465,28 +497,8 @@ def foo():
 
     # Raises an error
     future.result()
-
-@task(cache_result_in_memory=False)
-def bar():
-    return "pretend this is biiiig data"
 ```
 
-If persistence has been enabled, the result will be pulled from storage when needed:
-
-```python
-@flow
-def foo():
-    # This all is great!
-    result = bar()
-    state = bar(return_state=True)
-    state.result()
-    future = bar.submit()
-    future.result()
-
-@task(persist_result=True, cache_result_in_memory=False)
-def bar():
-    return "pretend this is biiiig data"
-```
 
 ## Result storage types
 
