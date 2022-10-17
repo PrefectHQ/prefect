@@ -272,12 +272,12 @@ class Task(Generic[P, R]):
                 persist_result if persist_result is not NotSet else self.persist_result
             ),
             result_storage=(
-                result_storage if result_storage is not NotSet else self.persist_result
+                result_storage if result_storage is not NotSet else self.result_storage
             ),
             result_serializer=(
                 result_serializer
                 if result_serializer is not NotSet
-                else self.persist_result
+                else self.result_serializer
             ),
         )
 
