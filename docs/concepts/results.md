@@ -282,7 +282,7 @@ The following Prefect features require results to be persisted:
 
 If results are not persisted, these features will not be usable.
 
-### Configuring persistence results
+### Configuring persistence of results
 
 Persistence of results requires a [**serializer**](#result-serializers) and a [**storage** location](#result-storage). Prefect sets defaults for these, and you should not need to adjust them until you want to customize behavior. You can configure results on the `flow` and `task` decorators with the following options:
 
@@ -434,7 +434,7 @@ If `persist_result` is set to `False`, these values will never be stored.
 
 When running your workflows, Prefect will keep the results of all tasks and flows in memory so they can be passed downstream. In some cases, it is desirable to override this behavior. For example, if you are returning a large amount of data from a task it can be costly to keep it memory for the entire duration of the flow run.
 
-Flows and tasks both include an option to drop the result from memory:
+Flows and tasks both include an option to drop the result from memory with `cache_result_in_memory`:
 
 ```python
 @flow(cache_result_in_memory=False)

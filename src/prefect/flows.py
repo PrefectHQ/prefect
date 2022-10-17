@@ -239,7 +239,7 @@ class Flow(Generic[P, R]):
             persist_result: A new option for enabling or disabling result persistence.
             result_storage: A new storage type to use for results.
             result_serializer: A new serializer to use for results.
-            cache_result_in_memory: A new toggle indicating if the flow's result should
+            cache_result_in_memory: A new value indicating if the flow's result should
                 be cached in memory.
 
         Returns:
