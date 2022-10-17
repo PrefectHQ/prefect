@@ -279,8 +279,9 @@ The following Prefect features require results to be persisted:
 
 - Task cache keys
 - Flow run retries
+- Disabling in-memory caching
 
-If results are not persisted, these features will not be usable.
+If results are not persisted, these features may not be usable.
 
 ### Configuring persistence of results
 
@@ -293,12 +294,6 @@ Persistence of results requires a [**serializer**](#result-serializers) and a [*
 #### Toggling persistence
 
 Persistence of the result of a task or flow can be configured with the `persist_result` option. The `persist_result` option defaults to a null value, which will automatically enable persistence if it is needed for a Prefect feature used by the flow or task.
-
-The effect of features on persistence of results:
-- Flow retries: enables persistence of task and subflow results
-- Disabling in-memory caching: enables persistence of the given flow or task result
-- Task cache key: enables persistence of the given task result
-- Task retries: does not affect persistence of results
 
 For example, the following flow has retries enabled. Flow retries require that all task results are persisted, so the task's result will be persisted:
 
