@@ -36,7 +36,7 @@ async def test_create_result_reference(factory):
 
 async def test_create_result_reference_has_cached_object(factory):
     result = await factory.create_result({"foo": "bar"})
-    assert result._has_cached_object()
+    assert result.has_cached_object()
 
 
 def test_root_flow_default_result_settings():
@@ -46,6 +46,7 @@ def test_root_flow_default_result_settings():
 
     result_factory = foo()
     assert result_factory.persist_result is False
+    assert result_factory.cache_result_in_memory is True
     assert result_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(result_factory.storage_block, DEFAULT_STORAGE())
     assert isinstance(result_factory.storage_block_id, uuid.UUID)
@@ -59,6 +60,23 @@ def test_root_flow_custom_persist_setting(toggle):
 
     result_factory = foo()
     assert result_factory.persist_result is toggle
+    assert result_factory.serializer == DEFAULT_SERIALIZER()
+    assert_blocks_equal(result_factory.storage_block, DEFAULT_STORAGE())
+    assert isinstance(result_factory.storage_block_id, uuid.UUID)
+
+
+@pytest.mark.parametrize("toggle", [True, False])
+def test_root_flow_custom_cache_setting(toggle):
+    result_factory = None
+
+    @flow(cache_result_in_memory=toggle)
+    def foo():
+        nonlocal result_factory
+        result_factory = get_run_context().result_factory
+
+    foo()
+    assert result_factory.persist_result is False
+    assert result_factory.cache_result_in_memory is toggle
     assert result_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(result_factory.storage_block, DEFAULT_STORAGE())
     assert isinstance(result_factory.storage_block_id, uuid.UUID)
@@ -168,6 +186,29 @@ def test_child_flow_custom_persist_setting():
     parent_factory, child_factory = foo()
     assert parent_factory.persist_result is False
     assert child_factory.persist_result is True
+    assert child_factory.serializer == DEFAULT_SERIALIZER()
+    assert_blocks_equal(child_factory.storage_block, DEFAULT_STORAGE())
+    assert isinstance(child_factory.storage_block_id, uuid.UUID)
+
+
+@pytest.mark.parametrize("toggle", [True, False])
+def test_child_flow_custom_cache_setting(toggle):
+    child_factory = None
+
+    @flow
+    def foo():
+        bar()
+        return get_run_context().result_factory
+
+    @flow(cache_result_in_memory=toggle)
+    def bar():
+        nonlocal child_factory
+        child_factory = get_run_context().result_factory
+
+    parent_factory = foo()
+    assert parent_factory.cache_result_in_memory is True
+    assert child_factory.persist_result is False
+    assert child_factory.cache_result_in_memory is toggle
     assert child_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(child_factory.storage_block, DEFAULT_STORAGE())
     assert isinstance(child_factory.storage_block_id, uuid.UUID)
@@ -341,6 +382,29 @@ def test_task_custom_persist_setting():
     flow_factory, task_factory = foo()
     assert flow_factory.persist_result is False
     assert task_factory.persist_result is True
+    assert task_factory.serializer == DEFAULT_SERIALIZER()
+    assert_blocks_equal(task_factory.storage_block, DEFAULT_STORAGE())
+    assert isinstance(task_factory.storage_block_id, uuid.UUID)
+
+
+@pytest.mark.parametrize("toggle", [True, False])
+def test_task_custom_cache_setting(toggle):
+    task_factory = None
+
+    @flow
+    def foo():
+        bar()
+        return get_run_context().result_factory
+
+    @task(cache_result_in_memory=toggle)
+    def bar():
+        nonlocal task_factory
+        task_factory = get_run_context().result_factory
+
+    flow_factory = foo()
+    assert flow_factory.cache_result_in_memory is True
+    assert task_factory.persist_result is False
+    assert task_factory.cache_result_in_memory is toggle
     assert task_factory.serializer == DEFAULT_SERIALIZER()
     assert_blocks_equal(task_factory.storage_block, DEFAULT_STORAGE())
     assert isinstance(task_factory.storage_block_id, uuid.UUID)
