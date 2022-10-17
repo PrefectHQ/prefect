@@ -131,13 +131,6 @@ class FlowRunUpdate(ActionBaseModel):
 
 
 @copy_model_fields
-class TaskRunUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a task run."""
-
-    empirical_policy: schemas.core.TaskRunPolicy = FieldFrom(schemas.core.TaskRun)
-
-
-@copy_model_fields
 class StateCreate(ActionBaseModel):
     """Data used by the Orion API to create a new state."""
 
