@@ -1,6 +1,5 @@
 import hashlib
 import inspect
-import logging
 import sys
 import warnings
 from abc import ABC
@@ -26,8 +25,9 @@ from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
-from prefect.client.orion import inject_client
-from prefect.exceptions import PrefectHTTPStatusError
+import prefect.exceptions
+from prefect.client.utilities import inject_client
+from prefect.logging.loggers import disable_logger
 from prefect.orion.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
@@ -42,7 +42,7 @@ from prefect.utilities.importtools import to_qualified_name
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
-    from prefect.client import OrionClient
+    from prefect.client.orion import OrionClient
 
 R = TypeVar("R")
 P = ParamSpec("P")
@@ -409,11 +409,10 @@ class Block(BaseModel, ABC):
         `<module>:11: No type or annotation for parameter 'write_json'`
         because griffe is unable to parse the types from pydantic.BaseModel.
         """
-        griffe_logger = logging.getLogger("griffe.docstrings.google")
-        griffe_logger.disabled = True
-        docstring = Docstring(cls.__doc__)
-        parsed = parse(docstring, Parser.google)
-        griffe_logger.disabled = False
+        with disable_logger("griffe.docstrings.google"):
+            with disable_logger("griffe.agents.nodes"):
+                docstring = Docstring(cls.__doc__)
+                parsed = parse(docstring, Parser.google)
         return parsed
 
     @classmethod
@@ -690,20 +689,17 @@ class Block(BaseModel, ABC):
                     if Block.is_block_class(type_):
                         await type_.register_type_and_schema(client=client)
 
-        exception_stack = list()
         try:
             block_type = await client.read_block_type_by_slug(
                 slug=cls.get_block_type_slug()
             )
+            cls._block_type_id = block_type.id
             await client.update_block_type(
                 block_type_id=block_type.id, block_type=cls._to_block_type()
             )
         except prefect.exceptions.ObjectNotFound:
             block_type = await client.create_block_type(block_type=cls._to_block_type())
-        except PrefectHTTPStatusError as exc:
-            exception_stack.append(exc)
-
-        cls._block_type_id = block_type.id
+            cls._block_type_id = block_type.id
 
         try:
             block_schema = await client.read_block_schema_by_checksum(
@@ -716,10 +712,6 @@ class Block(BaseModel, ABC):
             )
 
         cls._block_schema_id = block_schema.id
-
-        if exception_stack:
-            # reraise any exceptions encountered while trying to update Block Types and Schemas
-            raise exception_stack[0]
 
     @inject_client
     async def _save(
@@ -756,13 +748,7 @@ class Block(BaseModel, ABC):
         self._is_anonymous = is_anonymous
 
         # Ensure block type and schema are registered before saving block document.
-        try:
-            await self.register_type_and_schema(client=client)
-        except PrefectHTTPStatusError as exc:
-            if exc.response.status_code == 403:
-                pass  # do not fail when trying to update a protected block
-            else:
-                raise exc
+        await self.register_type_and_schema(client=client)
 
         try:
             block_document = await client.create_block_document(

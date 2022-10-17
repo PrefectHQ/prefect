@@ -1,9 +1,10 @@
 import hashlib
-import json
 from pathlib import Path
 from typing import Optional, Union
 
 import cloudpickle
+
+from prefect.serializers import JSONSerializer
 
 
 def stable_hash(*args: Union[str, bytes], hash_algo=hashlib.md5) -> str:
@@ -46,9 +47,8 @@ def hash_objects(*args, hash_algo=hashlib.md5, **kwargs) -> Optional[str]:
     On failure of both, `None` will be returned
     """
     try:
-        return stable_hash(
-            json.dumps((args, kwargs), sort_keys=True), hash_algo=hash_algo
-        )
+        serializer = JSONSerializer(dumps_kwargs={"sort_keys": True})
+        return stable_hash(serializer.dumps((args, kwargs)), hash_algo=hash_algo)
     except Exception:
         pass
 

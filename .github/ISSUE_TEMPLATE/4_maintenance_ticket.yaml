@@ -1,0 +1,37 @@
+name: 🛠️ Track a maintenence task
+description: These are for changes that are not user or product related for maintenance of this repository.
+labels: ["status:backlog", "maintenance"]
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: First check
+      description: Please confirm and check all the following options.
+      options:
+        - label: I am a contributor to the Prefect codebase
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Description
+      description: A clear description of what task needs to occur. Please cover the current behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Impact
+      description: Provide details about why this task is important and what it will change.
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Provide additional context here.
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: "**Happy engineering!**"

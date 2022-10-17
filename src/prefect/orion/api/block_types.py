@@ -3,7 +3,6 @@ from uuid import UUID
 
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Query, status
-from packaging.version import Version
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
@@ -12,13 +11,6 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/block_types", tags=["Block types"])
-LAST_UNPROTECTED_BLOCK_VERSION = Version("0.8.0")
-
-
-def api_handles_protected_blocks(api_version):
-    if api_version is None:
-        return True
-    return api_version > LAST_UNPROTECTED_BLOCK_VERSION
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -109,7 +101,6 @@ async def update_block_type(
     block_type: schemas.actions.BlockTypeUpdate,
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
     db: OrionDBInterface = Depends(provide_database_interface),
-    api_version=Depends(dependencies.provide_request_api_version),
 ):
     """
     Update a block type.
@@ -122,11 +113,6 @@ async def update_block_type(
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, detail="Block type not found"
             )
-        elif db_block_type.is_protected and api_handles_protected_blocks(api_version):
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                detail="protected block types cannot be updated.",
-            )
         await models.block_types.update_block_type(
             session=session, block_type=block_type, block_type_id=block_type_id
         )
@@ -136,7 +122,6 @@ async def update_block_type(
 async def delete_block_type(
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
     db: OrionDBInterface = Depends(provide_database_interface),
-    api_version=Depends(dependencies.provide_request_api_version),
 ):
     async with db.session_context(begin_transaction=True) as session:
         db_block_type = await models.block_types.read_block_type(
@@ -146,7 +131,7 @@ async def delete_block_type(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Block type not found"
             )
-        elif db_block_type.is_protected and api_handles_protected_blocks(api_version):
+        elif db_block_type.is_protected:
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 detail="protected block types cannot be deleted.",
