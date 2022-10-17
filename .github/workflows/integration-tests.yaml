@@ -113,6 +113,8 @@ jobs:
             server-incompatible: true
           - prefect-version: "2.5"
             server-incompatible: true
+          - prefect-version: "2.6"
+            server-incompatible: true
 
       fail-fast: false
 
