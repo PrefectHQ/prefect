@@ -814,7 +814,7 @@ class GitHub(ReadableDeploymentStorage):
                         "using the 'HTTPS' format. You must either remove the "
                         "credential if you wish to use the 'SSH' format and are not "
                         "using a private repository, or you must change the repository "
-                        "url to the 'HTTPS' format. "
+                        "URL to the 'HTTPS' format. "
                     )
                 )
 
