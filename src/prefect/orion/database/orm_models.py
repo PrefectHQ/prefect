@@ -712,6 +712,10 @@ class ORMDeployment:
                 "name",
                 unique=True,
             ),
+            sa.Index(
+                "ix_deployment__created",
+                "created",
+            ),
         )
 
 

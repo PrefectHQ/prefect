@@ -215,3 +215,80 @@ class JSONSerializer(Serializer):
         if self.object_decoder:
             kwargs["object_hook"] = from_qualified_name(self.object_decoder)
         return json.loads(blob.decode(), **kwargs)
+
+
+class CompressedSerializer(Serializer):
+    """
+    Wraps another serializer, compressing its output.
+    Uses `lzma` by default. See `compressionlib` for using alternative libraries.
+
+    Attributes:
+        serializer: The serializer to use before compression.
+        compressionlib: The import path of a compression module to use.
+            Must have methods `compress(bytes) -> bytes` and `decompress(bytes) -> bytes`.
+        level: If not null, the level of compression to pass to `compress`.
+    """
+
+    type: Literal["compressed"] = "compressed"
+
+    serializer: Serializer
+    compressionlib: str = "lzma"
+
+    @pydantic.validator("serializer", pre=True)
+    def cast_type_names_to_serializers(cls, value):
+        if isinstance(value, str):
+            return Serializer(type=value)
+        return value
+
+    @pydantic.validator("compressionlib")
+    def check_compressionlib(cls, value):
+        """
+        Check that the given pickle library is importable and has compress/decompress
+        methods.
+        """
+        try:
+            compresser = from_qualified_name(value)
+        except (ImportError, AttributeError) as exc:
+            raise ValueError(
+                f"Failed to import requested compression library: {value!r}."
+            ) from exc
+
+        if not callable(getattr(compresser, "compress", None)):
+            raise ValueError(
+                f"Compression library at {value!r} does not have a 'compress' method."
+            )
+
+        if not callable(getattr(compresser, "decompress", None)):
+            raise ValueError(
+                f"Compression library at {value!r} does not have a 'decompress' method."
+            )
+
+        return value
+
+    def dumps(self, obj: Any) -> bytes:
+        blob = self.serializer.dumps(obj)
+        compresser = from_qualified_name(self.compressionlib)
+        return base64.encodebytes(compresser.compress(blob))
+
+    def loads(self, blob: bytes) -> Any:
+        compresser = from_qualified_name(self.compressionlib)
+        uncompressed = compresser.decompress(base64.decodebytes(blob))
+        return self.serializer.loads(uncompressed)
+
+
+class CompressedPickleSerializer(CompressedSerializer):
+    """
+    A compressed serializer preconfigured to use the pickle serializer.
+    """
+
+    type: Literal["compressed/pickle"] = "compressed/pickle"
+    serializer: Serializer = pydantic.Field(default_factory=PickleSerializer)
+
+
+class CompressedJSONSerializer(CompressedSerializer):
+    """
+    A compressed serializer preconfigured to use the json serializer.
+    """
+
+    type: Literal["compressed/json"] = "compressed/json"
+    serializer: Serializer = pydantic.Field(default_factory=JSONSerializer)
