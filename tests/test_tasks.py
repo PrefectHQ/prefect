@@ -18,6 +18,7 @@ from prefect.exceptions import (
     MappingMissingIterable,
     ReservedArgumentError,
 )
+from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFuture
 from prefect.orion import models
 from prefect.orion.schemas.core import TaskRunResult
@@ -1954,6 +1955,9 @@ class TestTaskWithOptions:
             cache_expiration=datetime.timedelta(days=1),
             retries=2,
             retry_delay_seconds=5,
+            persist_result=True,
+            result_serializer="pickle",
+            result_storage=LocalFileSystem(basepath="foo"),
         )
         def initial_task():
             pass
@@ -1966,6 +1970,9 @@ class TestTaskWithOptions:
             cache_expiration=datetime.timedelta(days=2),
             retries=5,
             retry_delay_seconds=10,
+            persist_result=False,
+            result_serializer="json",
+            result_storage=LocalFileSystem(basepath="bar"),
         )
 
         assert task_with_options.name == "Copied task"
@@ -1975,6 +1982,9 @@ class TestTaskWithOptions:
         assert task_with_options.cache_expiration == datetime.timedelta(days=2)
         assert task_with_options.retries == 5
         assert task_with_options.retry_delay_seconds == 10
+        assert task_with_options.persist_result is False
+        assert task_with_options.result_serializer == "json"
+        assert task_with_options.result_storage == LocalFileSystem(basepath="bar")
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         def cache_key_fn(*_):
@@ -1988,6 +1998,9 @@ class TestTaskWithOptions:
             cache_expiration=datetime.timedelta(days=1),
             retries=2,
             retry_delay_seconds=5,
+            persist_result=False,
+            result_serializer="json",
+            result_storage=LocalFileSystem(),
         )
         def initial_task():
             pass
@@ -2005,6 +2018,27 @@ class TestTaskWithOptions:
         assert task_with_options.cache_expiration == datetime.timedelta(days=1)
         assert task_with_options.retries == 2
         assert task_with_options.retry_delay_seconds == 5
+        assert task_with_options.persist_result is False
+        assert task_with_options.result_serializer == "json"
+        assert task_with_options.result_storage == LocalFileSystem()
+
+    def test_with_options_can_unset_result_options_with_none(self):
+        @task(
+            persist_result=True,
+            result_serializer="json",
+            result_storage=LocalFileSystem(),
+        )
+        def initial_task():
+            pass
+
+        task_with_options = initial_task.with_options(
+            persist_result=None,
+            result_serializer=None,
+            result_storage=None,
+        )
+        assert task_with_options.persist_result is None
+        assert task_with_options.result_serializer is None
+        assert task_with_options.result_storage is None
 
     def test_tags_are_copied_from_original_task(self):
         "Ensure changes to the tags on the original task don't affect the new task"
