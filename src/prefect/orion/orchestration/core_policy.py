@@ -34,22 +34,11 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
+            RestartFlowRun,
             PreventTransitionsFromTerminalStates,
             PreventRedundantTransitions,
             WaitForScheduledTime,
             RetryFailedFlows,
-        ]
-
-
-class FlowRestartPolicy(BaseOrchestrationPolicy):
-    """
-    Orchestration rules that run against attempts to restart a flow-run.
-    """
-
-    def priority():
-        return [
-            RestartProtection,
-            SoftRestartFlowRun,
         ]
 
 
@@ -424,7 +413,7 @@ class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
-        if proposed_state.name != "AwaitingRestart":
+        if proposed_state.name != "Restarting":
             await self.abort_transition(reason="This run has already terminated.")
 
 
@@ -465,30 +454,7 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
             )
 
 
-class RestartProtection(BaseOrchestrationRule):
-    FROM_STATES = TERMINAL_STATES
-    TO_STATES = [states.StateType.SCHEDULED]
-
-    async def before_transition(
-        self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: OrchestrationContext,
-    ) -> None:
-        if proposed_state.name != "AwaitingRestart":
-            await self.abort_transition(
-                reason="Can only restart runs that have terminated."
-            )
-        if context.run.parent_task_run_id:
-            await self.abort_transition("Cannot restart a subflow run.")
-
-        if not context.run.deployment_id:
-            await self.abort_transition(
-                "Cannot restart a run without an associated deployment."
-            )
-
-
-class SoftRestartFlowRun(BaseOrchestrationRule):
+class RestartFlowRun(BaseOrchestrationRule):
     FROM_STATES = TERMINAL_STATES
     TO_STATES = [states.StateType.SCHEDULED]
 
@@ -498,6 +464,14 @@ class SoftRestartFlowRun(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ):
+        if context.run.parent_task_run_id:
+            await self.abort_transition("Cannot restart a subflow run.")
+
+        if not context.run.deployment_id:
+            await self.abort_transition(
+                "Cannot restart a run without an associated deployment."
+            )
+
         # update run count
         self.original_run_count = context.run.run_count
         context.run.run_count = 0  # reset run count to preserve retry behavior
