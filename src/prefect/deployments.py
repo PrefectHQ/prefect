@@ -152,11 +152,15 @@ async def load_flow_from_flow_run(
             )
             storage_block = Block._from_block_document(storage_document)
         else:
-            basepath = deployment.path or Path(deployment.manifest_path).parent
-            storage_block = LocalFileSystem(basepath=basepath)
-
+            basepath = Path(PureWindowsPath(deployment.path).as_posix()) or Path(
+                PureWindowsPath(deployment.manifest_path.parent).as_posix()
+            )
+            storage_block = LocalFileSystem(basepath=f'"{basepath}"')
+        print(basepath)
         sys.path.insert(0, ".")
-        await storage_block.get_directory(from_path=deployment.path, local_path=".")
+
+        deployment_path = Path(PureWindowsPath(deployment.path).as_posix())
+        await storage_block.get_directory(from_path=deployment_path, local_path=".")
 
     flow_run_logger(flow_run).debug(
         f"Loading flow for deployment {deployment.name!r}..."
