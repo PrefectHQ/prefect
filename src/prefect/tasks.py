@@ -284,7 +284,7 @@ class Task(Generic[P, R]):
             ),
             cache_result_in_memory=(
                 cache_result_in_memory
-                if cache_result_in_memory is None
+                if cache_result_in_memory is not None
                 else self.cache_result_in_memory
             ),
         )
