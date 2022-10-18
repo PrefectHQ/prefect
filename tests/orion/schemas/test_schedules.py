@@ -2,6 +2,7 @@ from datetime import datetime as pydatetime
 from datetime import timedelta
 from unittest import mock
 
+import dateutil
 import pendulum
 import pytest
 from dateutil import rrule
@@ -658,7 +659,86 @@ class TestRRuleSchedule:
         assert len(dates_from_1900) == 3
         assert len(dates_from_2000) == 0
 
-    @pytest.mark.xfail(reason="we currently cannot roundtrip RRuleSchedule objects")
+    async def test_rrule_schedule_preserves_and_localizes_rrules(self):
+        timezone = "America/New_York"
+        s = RRuleSchedule(
+            rrule="DTSTART:19970902T090000\n"
+            "rrule:FREQ=YEARLY;COUNT=2;BYDAY=TU\n"
+            "RRULE:FREQ=YEARLY;COUNT=1;BYDAY=TH\n",
+            timezone=timezone,
+        )
+        expected_tzinfo = dateutil.tz.gettz(timezone)
+        converted_rruleset = s.to_rrule()
+        assert len(converted_rruleset._rrule) == 2
+        assert converted_rruleset._rrule[0]._dtstart.tzinfo == expected_tzinfo
+
+    async def test_rrule_schedule_preserves_and_localizes_exrules(self):
+        timezone = "America/New_York"
+        s = RRuleSchedule(
+            rrule="DTSTART:19970902T090000\n"
+            "EXRULE:FREQ=YEARLY;COUNT=2;BYDAY=TU\n"
+            "RRULE:FREQ=YEARLY;COUNT=1;BYDAY=TH\n",
+            timezone=timezone,
+        )
+        expected_tzinfo = dateutil.tz.gettz(timezone)
+        converted_rruleset = s.to_rrule()
+        assert len(converted_rruleset._rrule) == 1
+        assert len(converted_rruleset._exrule) == 1
+        assert converted_rruleset._exrule[0]._dtstart.tzinfo == expected_tzinfo
+
+    async def test_rrule_schedule_preserves_and_localizes_rdates(self):
+        timezone = "America/New_York"
+        s = RRuleSchedule(
+            rrule="RDATE:20221012T134000Z,20221012T230000Z,20221013T120000Z,20221014T120000Z,20221015T120000Z",
+            timezone=timezone,
+        )
+        expected_tzinfo = dateutil.tz.gettz(timezone)
+        converted_rruleset = s.to_rrule()
+        assert len(converted_rruleset._rdate) == 5
+        assert len(converted_rruleset._exdate) == 0
+        assert all(rd.tzinfo == expected_tzinfo for rd in converted_rruleset._rdate)
+
+    async def test_rrule_schedule_preserves_and_localizes_exdates(self):
+        timezone = "America/New_York"
+        s = RRuleSchedule(
+            rrule="EXDATE:20221012T134000Z,20221012T230000Z,20221013T120000Z,20221014T120000Z,20221015T120000Z",
+            timezone=timezone,
+        )
+        expected_tzinfo = dateutil.tz.gettz(timezone)
+        converted_rruleset = s.to_rrule()
+        assert len(converted_rruleset._rdate) == 0
+        assert len(converted_rruleset._exdate) == 5
+        assert all(rd.tzinfo == expected_tzinfo for rd in converted_rruleset._exdate)
+
+    async def test_serialization_preserves_rrules_rdates_exrules_exdates(self):
+        dt_nyc = datetime(2018, 1, 11, 4, tz="America/New_York")
+        last_leap_year = datetime(2020, 2, 29, tz="America/New_York")
+        next_leap_year = datetime(2024, 2, 29, tz="America/New_York")
+        rrset = rrule.rruleset(cache=True)
+        rrset.rrule(rrule.rrule(rrule.HOURLY, count=10, dtstart=dt_nyc))
+        rrset.exrule(rrule.rrule(rrule.DAILY, count=10, dtstart=dt_nyc))
+        rrset.rdate(last_leap_year)
+        rrset.exdate(next_leap_year)
+
+        expected_tzinfo = dateutil.tz.gettz("America/New_York")
+        serialized_schedule = RRuleSchedule.from_rrule(rrset)
+        roundtrip_rruleset = serialized_schedule.to_rrule()
+
+        # assert string serialization preserves all rruleset components
+        assert len(roundtrip_rruleset._rrule) == 1
+        assert len(roundtrip_rruleset._exrule) == 1
+        assert len(roundtrip_rruleset._rdate) == 1
+        assert len(roundtrip_rruleset._exdate) == 1
+
+        # assert rruleset localizes all rruleset components
+        assert roundtrip_rruleset._rrule[0]._dtstart.tzinfo == expected_tzinfo
+        assert roundtrip_rruleset._exrule[0]._dtstart.tzinfo == expected_tzinfo
+        assert roundtrip_rruleset._rdate[0].tzinfo == expected_tzinfo
+        assert roundtrip_rruleset._exdate[0].tzinfo == expected_tzinfo
+
+    @pytest.mark.xfail(
+        reason="we currently cannot roundtrip RRuleSchedule objects for all timezones"
+    )
     async def test_rrule_schedule_handles_rruleset_roundtrips(self):
         s1 = RRuleSchedule(
             rrule="DTSTART:19970902T090000\n"
@@ -690,7 +770,9 @@ class TestRRuleSchedule:
         with pytest.raises(ValueError, match="too many dtstarts"):
             s = RRuleSchedule.from_rrule(rrset)
 
-    @pytest.mark.xfail(reason="we currently cannot roundtrip RRuleSchedule objects")
+    @pytest.mark.xfail(
+        reason="we currently cannot roundtrip RRuleSchedule objects for all timezones"
+    )
     async def test_rrule_schedule_handles_rrule_roundtrips(self):
         dt = datetime(2018, 3, 11, 4, tz="Europe/Berlin")
         base_rule = rrule.rrule(rrule.HOURLY, dtstart=dt)
