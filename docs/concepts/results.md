@@ -389,7 +389,7 @@ my_flow()  # The flow has no result storage configured and no parent, the local 
 
 
 # Reconfigure the flow to use a different storage type
-new_flow = my_flow.with_options(result_storage=S3(bucket="my-bucket"))
+new_flow = my_flow.with_options(result_storage=S3(bucket_path="my-bucket"))
 
 new_flow()  # The flow and task within it will use S3 for result storage.
 ```
