@@ -49,6 +49,53 @@ async def test_flow_with_unpersisted_result(orion_client, persist_result):
         await api_state.result()
 
 
+async def test_flow_with_uncached_and_unpersisted_result(orion_client):
+    @flow(persist_result=False, cache_result_in_memory=False)
+    def foo():
+        return 1
+
+    state = foo(return_state=True)
+    with pytest.raises(MissingResult):
+        await state.result()
+
+    api_state = (
+        await orion_client.read_flow_run(state.state_details.flow_run_id)
+    ).state
+    with pytest.raises(MissingResult):
+        await api_state.result()
+
+
+async def test_flow_with_uncached_but_persisted_result(orion_client):
+    @flow(persist_result=True, cache_result_in_memory=False)
+    def foo():
+        return 1
+
+    state = foo(return_state=True)
+    assert not state.data.has_cached_object()
+    assert await state.result() == 1
+
+    api_state = (
+        await orion_client.read_flow_run(state.state_details.flow_run_id)
+    ).state
+    assert await api_state.result() == 1
+
+
+async def test_flow_with_uncached_but_literal_result(orion_client):
+    @flow(persist_result=True, cache_result_in_memory=False)
+    def foo():
+        return True
+
+    state = foo(return_state=True)
+    # Literal results are always cached
+    assert state.data.has_cached_object()
+    assert await state.result() is True
+
+    api_state = (
+        await orion_client.read_flow_run(state.state_details.flow_run_id)
+    ).state
+    assert await api_state.result() is True
+
+
 async def test_flow_result_not_missing_with_null_return(orion_client):
     @flow
     def foo():
