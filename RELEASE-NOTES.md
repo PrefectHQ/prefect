@@ -1,4 +1,12 @@
 # Prefect Release Notes
+
+## Release 2.6.3
+
+### Fixes
+- Fix handling of `cache_result_in_memory` in `Task.with_options` — https://github.com/PrefectHQ/prefect/pull/7227
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.2...2.6.3
+
 ## Release 2.6.2
 
 ### Enhancements
