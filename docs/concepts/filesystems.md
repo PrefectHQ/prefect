@@ -163,7 +163,7 @@ The `GCS` file system block enables interaction with Google Cloud Storage. Under
 
 | Property | Description |
 | --- | --- |
-| bucket_path | A GCS bucket path |
+| basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
 | service_account_info | The contents of a service account keyfile as a JSON string.                                                                  |
 | project | The project the GCS bucket resides in. If not provided, the project will be inferred from the credentials or environment.    |
 
@@ -173,7 +173,7 @@ To create a block:
 ```python
 from prefect.filesystems import GCS
 
-block = GCS(bucket_path="my-bucket/folder/")
+block = GCS(basepath="my-bucket/folder/")
 block.save("dev")
 ```
 
@@ -195,7 +195,7 @@ The `S3` file system block enables interaction with Amazon S3. Under the hood, `
 
 | Property | Description |
 | --- | --- |
-| bucket_path | An S3 bucket path |
+| basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
 | aws_access_key_id | AWS Access Key ID |
 | aws_secret_access_key | AWS Secret Access Key |
 
@@ -205,7 +205,7 @@ To create a block:
 ```python
 from prefect.filesystems import S3
 
-block = S3(bucket_path="my-bucket/folder/")
+block = S3(basepath="my-bucket/folder/")
 block.save("dev")
 ```
 
