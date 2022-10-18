@@ -89,6 +89,7 @@ jobs:
           - "2.3"
           - "2.4"
           - "2.5"
+          - "2.6"
 
           # We can include the following to always test against the last release
           # but the value is not particularly clear and we can just append the
@@ -112,8 +113,6 @@ jobs:
           - prefect-version: "2.4"
             server-incompatible: true
           - prefect-version: "2.5"
-            server-incompatible: true
-          - prefect-version: "2.6"
             server-incompatible: true
 
       fail-fast: false
