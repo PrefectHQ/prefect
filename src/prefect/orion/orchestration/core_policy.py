@@ -50,6 +50,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             CacheRetrieval,
+            UpdateRetryingRestartingTaskRuns,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             PreventTransitionsFromTerminalStates,
             PreventRedundantTransitions,
@@ -282,21 +283,6 @@ class RetryFailedFlows(BaseOrchestrationRule):
             seconds=run_settings.retry_delay or 0
         )
 
-        failed_task_runs = await task_runs.read_task_runs(
-            context.session,
-            flow_run_filter=filters.FlowRunFilter(id={"any_": [context.run.id]}),
-            task_run_filter=filters.TaskRunFilter(state={"type": {"any_": ["FAILED"]}}),
-        )
-        for run in failed_task_runs:
-            await task_runs.set_task_run_state(
-                context.session,
-                run.id,
-                state=states.AwaitingRetry(scheduled_time=scheduled_start_time),
-                force=True,
-            )
-            # Reset the run count so that the task run retries still work correctly
-            run.run_count = 0
-
         # Generate a new state for the flow
         retry_state = states.AwaitingRetry(
             scheduled_time=scheduled_start_time,
@@ -304,6 +290,55 @@ class RetryFailedFlows(BaseOrchestrationRule):
             data=proposed_state.data,
         )
         await self.reject_transition(state=retry_state, reason="Retrying")
+
+
+class RestartFlowRun(BaseOrchestrationRule):
+    FROM_STATES = TERMINAL_STATES
+    TO_STATES = [states.StateType.SCHEDULED]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: FlowOrchestrationContext,
+    ):
+        if context.run.parent_task_run_id:
+            await self.abort_transition("Cannot restart a subflow run.")
+
+        if not context.run.deployment_id:
+            await self.abort_transition(
+                "Cannot restart a run without an associated deployment."
+            )
+
+        # reset run count to 0
+        self.original_run_count = context.run.run_count
+        context.run.run_count = 0  # reset run count to preserve retry behavior
+
+        # update empirical settings
+        self.original_settings = context.run_settings.copy()
+        self.restarts = self.original_settings.restarts + 1
+        new_settings = context.run_settings.copy()
+        new_settings.restarts = self.restarts
+        flow_run_update = actions.FlowRunUpdate(empirical_policy=new_settings)
+        await flow_runs.update_flow_run(
+            context.session, context.run.id, flow_run_update
+        )
+        await self.rename_state("AwaitingRestart")
+
+    async def cleanup(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: OrchestrationContext,
+    ):
+        # restore run count side effect
+        context.run.run_count = self.original_run_count
+
+        # restore empirical settings side effect
+        flow_run_update = actions.FlowRunUpdate(empirical_policy=self.original_settings)
+        await flow_runs.update_flow_run(
+            context.session, context.run.id, flow_run_update
+        )
 
 
 class RetryFailedTasks(BaseOrchestrationRule):
@@ -407,13 +442,18 @@ class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
     FROM_STATES = TERMINAL_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES
 
+    NAMED_STATE_EXCEPTIONS = {
+        "Restarting",
+        "Retrying",
+    }
+
     async def before_transition(
         self,
         initial_state: Optional[states.State],
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
-        if proposed_state.name != "Restarting":
+        if proposed_state.name not in self.NAMED_STATE_EXCEPTIONS:
             await self.abort_transition(reason="This run has already terminated.")
 
 
@@ -454,76 +494,31 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
             )
 
 
-class RestartFlowRun(BaseOrchestrationRule):
+class UpdateRetryingRestartingTaskRuns(BaseOrchestrationRule):
     FROM_STATES = TERMINAL_STATES
-    TO_STATES = [states.StateType.SCHEDULED]
+    TO_STATES = [states.StateType.RUNNING]
 
     async def before_transition(
         self,
         initial_state: Optional[states.State],
         proposed_state: Optional[states.State],
-        context: OrchestrationContext,
+        context: TaskOrchestrationContext,
     ):
-        if context.run.parent_task_run_id:
-            await self.abort_transition("Cannot restart a subflow run.")
-
-        if not context.run.deployment_id:
-            await self.abort_transition(
-                "Cannot restart a run without an associated deployment."
-            )
-
-        # update run count
+        # reset run count to 0
         self.original_run_count = context.run.run_count
         context.run.run_count = 0  # reset run count to preserve retry behavior
 
-        # update empirical settings
-        self.original_settings = context.run_settings.copy()
-        self.restarts = self.original_settings.restarts + 1
-        new_settings = context.run_settings.copy()
-        new_settings.restarts = self.restarts
-        flow_run_update = actions.FlowRunUpdate(empirical_policy=new_settings)
-        await flow_runs.update_flow_run(
-            context.session, context.run.id, flow_run_update
-        )
-
-    async def after_transition(
-        self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: FlowOrchestrationContext,
-    ) -> None:
-        from prefect.orion.models import task_runs
-
-        failed_task_runs = await task_runs.read_task_runs(
-            context.session,
-            flow_run_filter=filters.FlowRunFilter(id={"any_": [context.run.id]}),
-            task_run_filter=filters.TaskRunFilter(state={"type": {"any_": ["FAILED"]}}),
-        )
-        for run in failed_task_runs:
-            await task_runs.set_task_run_state(
-                context.session,
-                run.id,
-                state=states.AwaitingRetry(scheduled_time=scheduled_start_time),
-                force=True,
-            )
-            # Reset the run count so that the task run retries still work correctly
-            run.run_count = 0
-
-        completed_task_runs = await task_runs.read_task_runs(
-            context.session,
-            flow_run_filter=filters.FlowRunFilter(id={"any_": [context.run.id]}),
-            task_run_filter=filters.TaskRunFilter(
-                state={"type": {"any_": ["COMPLETED"]}}
-            ),
-        )
-        for task_run in completed_task_runs:
-            if task_run.empirical_policy.flow_restart_index is None:
-                task_policy = task_run.empirical_policy
-                task_policy.flow_restart_index = self.restarts - 1
-                task_run_update = actions.TaskRunUpdate(empirical_policy=task_policy)
-                await task_runs.update_task_run(
-                    context.session, task_run.id, task_run_update
-                )
+        self.flow_run = await context.flow_run()
+        if self.flow_run.run_count == 1:
+            # if the flow run count is 1, the flow is restarting
+            if self.flow_run.empirical_policy.restarts > context.run.empirical_policy.flow_restart_attempt:
+                # update flow restart attmpt counter
+                # reset flow retry attmpt counter
+                await self.rename_state("Restarting")
+        elif self.flow_run.run_count > context.run.empirical_policy.flow_retry_attempt:
+            # if the flow run count is > 1, the flow is retrying
+            # update flow retry attmpt counter
+            await self.rename_state("Retrying")
 
     async def cleanup(
         self,
