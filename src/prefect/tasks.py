@@ -138,6 +138,7 @@ class Task(Generic[P, R]):
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
+        cache_result_in_memory: bool = True,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -167,6 +168,7 @@ class Task(Generic[P, R]):
         self.persist_result = persist_result
         self.result_storage = result_storage
         self.result_serializer = result_serializer
+        self.cache_result_in_memory = cache_result_in_memory
 
         # Warn if this task's `name` conflicts with another task while having a
         # different function. This is to detect the case where two or more tasks
@@ -204,6 +206,7 @@ class Task(Generic[P, R]):
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
+        cache_result_in_memory: Optional[bool] = None,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -272,12 +275,17 @@ class Task(Generic[P, R]):
                 persist_result if persist_result is not NotSet else self.persist_result
             ),
             result_storage=(
-                result_storage if result_storage is not NotSet else self.persist_result
+                result_storage if result_storage is not NotSet else self.result_storage
             ),
             result_serializer=(
                 result_serializer
                 if result_serializer is not NotSet
-                else self.persist_result
+                else self.result_serializer
+            ),
+            cache_result_in_memory=(
+                cache_result_in_memory
+                if cache_result_in_memory is None
+                else self.cache_result_in_memory
             ),
         )
 
@@ -723,6 +731,7 @@ def task(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
+    cache_result_in_memory: bool = True,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -741,6 +750,7 @@ def task(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
+    cache_result_in_memory: bool = True,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -838,6 +848,7 @@ def task(
                 persist_result=persist_result,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
+                cache_result_in_memory=cache_result_in_memory,
             ),
         )
     else:
@@ -856,5 +867,6 @@ def task(
                 persist_result=persist_result,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
+                cache_result_in_memory=cache_result_in_memory,
             ),
         )
