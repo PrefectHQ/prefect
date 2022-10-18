@@ -1,4 +1,31 @@
 # Prefect Release Notes
+## Release 2.6.2
+
+### Enhancements
+- Add `CompressedSerializer` for compression of other result serializers — https://github.com/PrefectHQ/prefect/pull/7164
+- Add option to drop task or flow return values from memory — https://github.com/PrefectHQ/prefect/pull/7174
+- Add support for creating and reading notification policies from the client — https://github.com/PrefectHQ/prefect/pull/7154
+- Add API support for sorting deployments — https://github.com/PrefectHQ/prefect/pull/7187
+- Improve searching and sorting of flows and deployments in the UI —  https://github.com/PrefectHQ/prefect/pull/7160
+- Improve recurrence rule schedule parsing with support for compound rules  — https://github.com/PrefectHQ/prefect/pull/7165
+- Add support for private GitHub repositories — https://github.com/PrefectHQ/prefect/pull/7107
+
+### Fixes
+- Improve orchestration handling of `after_transition` when exception encountered — https://github.com/PrefectHQ/prefect/pull/7156
+- Prevent block name from being reused on the block creation form in the UI — https://github.com/PrefectHQ/prefect/pull/7096
+- Fix bug where `with_options` incorrectly updates result settings — https://github.com/PrefectHQ/prefect/pull/7186
+- Add backwards compatibility for return of server-states from flows and tasks — https://github.com/PrefectHQ/prefect/pull/7189
+- Fix naming of subflow runs tab on flow run page in the UI — https://github.com/PrefectHQ/prefect/pull/7192
+- Fix `prefect orion start` error on Windows when module path contains spaces — https://github.com/PrefectHQ/prefect/pull/7224
+
+
+### Collections
+- New [prefect-monte-carlo](https://prefecthq.github.io/prefect-monte-carlo/) collection for interaction with [Monte Carlo](https://www.montecarlodata.com/)
+
+### Contributors
+- @jmg-duarte
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.1...2.6.2
 
 ## Release 2.6.1
 
