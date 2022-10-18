@@ -6,7 +6,7 @@ import importlib
 import json
 import sys
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -162,7 +162,7 @@ async def load_flow_from_flow_run(
         f"Loading flow for deployment {deployment.name!r}..."
     )
 
-    import_path = deployment.entrypoint
+    import_path = Path(PureWindowsPath(deployment.entrypoint))
 
     # for backwards compat
     if deployment.manifest_path:
