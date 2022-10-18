@@ -16,6 +16,8 @@
 - Fix bug where `with_options` incorrectly updates result settings — https://github.com/PrefectHQ/prefect/pull/7186
 - Add backwards compatibility for return of server-states from flows and tasks — https://github.com/PrefectHQ/prefect/pull/7189
 - Fix naming of subflow runs tab on flow run page in the UI — https://github.com/PrefectHQ/prefect/pull/7192
+- Fix `prefect orion start` error on Windows when module path contains spaces — https://github.com/PrefectHQ/prefect/pull/7224
+
 
 ### Collections
 - New [prefect-monte-carlo](https://prefecthq.github.io/prefect-monte-carlo/) collection for interaction with [Monte Carlo](https://www.montecarlodata.com/)
