@@ -7,7 +7,7 @@
 - Add support for creating and reading notification policies from the client — https://github.com/PrefectHQ/prefect/pull/7154
 - Add API support for sorting of deployments — https://github.com/PrefectHQ/prefect/pull/7187
 - Improve searching and sorting of flows and deployments in the UI —  https://github.com/PrefectHQ/prefect/pull/7160
-- Improve rrule parsing with support for compound rules and rrulesets  — https://github.com/PrefectHQ/prefect/pull/7165
+- Improve recurrence rule schedule parsing with support for compound rules  — https://github.com/PrefectHQ/prefect/pull/7165
 - Add support for private GitHub repositories — https://github.com/PrefectHQ/prefect/pull/7107
 
 ### Fixes
