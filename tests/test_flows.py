@@ -19,6 +19,7 @@ from prefect.exceptions import (
     ParameterTypeError,
     ReservedArgumentError,
 )
+from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
@@ -151,6 +152,9 @@ class TestFlowWithOptions:
             task_runner=ConcurrentTaskRunner,
             timeout_seconds=10,
             validate_parameters=True,
+            persist_result=True,
+            result_serializer="pickle",
+            result_storage=LocalFileSystem(basepath="foo"),
         )
         def initial_flow():
             pass
@@ -163,6 +167,9 @@ class TestFlowWithOptions:
             retry_delay_seconds=20,
             timeout_seconds=5,
             validate_parameters=False,
+            persist_result=False,
+            result_serializer="json",
+            result_storage=LocalFileSystem(basepath="bar"),
         )
 
         assert flow_with_options.name == "Copied flow"
@@ -172,6 +179,9 @@ class TestFlowWithOptions:
         assert flow_with_options.retries == 3
         assert flow_with_options.retry_delay_seconds == 20
         assert flow_with_options.should_validate_parameters is False
+        assert flow_with_options.persist_result is False
+        assert flow_with_options.result_serializer == "json"
+        assert flow_with_options.result_storage == LocalFileSystem(basepath="bar")
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         @flow(
@@ -182,6 +192,9 @@ class TestFlowWithOptions:
             validate_parameters=True,
             retries=3,
             retry_delay_seconds=20,
+            persist_result=False,
+            result_serializer="json",
+            result_storage=LocalFileSystem(),
         )
         def initial_flow():
             pass
@@ -196,6 +209,9 @@ class TestFlowWithOptions:
         assert flow_with_options.should_validate_parameters is True
         assert flow_with_options.retries == 3
         assert flow_with_options.retry_delay_seconds == 20
+        assert flow_with_options.persist_result is False
+        assert flow_with_options.result_serializer == "json"
+        assert flow_with_options.result_storage == LocalFileSystem()
 
     def test_with_options_can_unset_timeout_seconds_with_zero(self):
         @flow(timeout_seconds=1)
@@ -204,6 +220,24 @@ class TestFlowWithOptions:
 
         flow_with_options = initial_flow.with_options(timeout_seconds=0)
         assert flow_with_options.timeout_seconds is None
+
+    def test_with_options_can_unset_result_options_with_none(self):
+        @flow(
+            persist_result=True,
+            result_serializer="json",
+            result_storage=LocalFileSystem(),
+        )
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options(
+            persist_result=None,
+            result_serializer=None,
+            result_storage=None,
+        )
+        assert flow_with_options.persist_result is None
+        assert flow_with_options.result_serializer is None
+        assert flow_with_options.result_storage is None
 
     def test_with_options_signature_aligns_with_flow_signature(self):
         flow_params = set(inspect.signature(flow).parameters.keys())

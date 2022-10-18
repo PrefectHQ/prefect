@@ -141,12 +141,12 @@ class State(IDBaseModel, Generic[R]):
 
     def to_state_create(self):
         # Backwards compatibility for `to_state_create`
-        from prefect.orion.schemas import State
+        from prefect.client.schemas import State
 
         warnings.warn(
-            "`to_state_create` is not supported by `prefect.orion.schemas.states.State` "
-            "and will be removed in a future release. When working with states, use "
-            "`prefect.states.State` instead.",
+            "Use of `prefect.orion.schemas.states.State` from the client is deprecated "
+            "and support will be removed in a future release. "
+            "Use `prefect.states.State` instead.",
             DeprecationWarning,
             stacklevel=2,
         )
