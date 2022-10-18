@@ -271,8 +271,12 @@ class TaskRunPolicy(PrefectBaseModel):
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
     )
-    flow_restart_index: Optional[int] = Field(
-        default=None,
+    flow_restart_attempt: Optional[int] = Field(
+        default=0,
+        description="If the parent flow has restarted, this indicates the flow restart this run is associated with.",
+    )
+    flow_retry_attempt: Optional[int] = Field(
+        default=0,
         description="If the parent flow has restarted, this indicates the flow restart this run is associated with.",
     )
 
