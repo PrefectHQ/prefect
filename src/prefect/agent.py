@@ -63,9 +63,7 @@ class OrionAgent:
 
     async def update_matched_agent_work_queues(self):
         if self.work_queue_prefix:
-            matched_queues = []
-            for prefix in self.work_queue_prefix:
-                matched_queues += await self.client.match_work_queues(prefix)
+            matched_queues = await self.client.match_work_queues(self.work_queue_prefix)
             matched_queues = set(q.name for q in matched_queues)
             if matched_queues != self.work_queues:
                 new_queues = matched_queues - self.work_queues
