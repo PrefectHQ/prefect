@@ -104,7 +104,7 @@ async def test_service_sends_notifications(
     "api_url,ui_url",
     [
         (None, "http://ephemeral-orion/api"),
-        ("https://api.cloud.prefect.io/api", "https://cloud.prefect.io"),
+        ("https://api.prefect.cloud/api", "https://app.prefect.cloud"),
         ("http://my-orion/api", "http://my-orion/"),
     ],
 )
