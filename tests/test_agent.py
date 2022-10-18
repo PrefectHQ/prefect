@@ -143,6 +143,21 @@ async def test_agent_matches_multiple_work_queues_dynamically(
         ), "work queue matcher should not match partial names"
 
 
+async def test_agent_matches_multiple_work_queue_prefixes(
+    session, orion_client, prefect_caplog
+):
+    prod = "prod-deployment"
+    dev = "dev-data-producer"
+    await orion_client.create_work_queue(name=prod)
+    await orion_client.create_work_queue(name=dev)
+
+    async with OrionAgent(work_queue_prefix=["prod-", "dev-"]) as agent:
+        assert not agent.work_queues
+        await agent.get_and_submit_flow_runs()
+        assert prod in agent.work_queues
+        assert dev in agent.work_queues
+
+
 async def test_matching_work_queues_handes_work_queue_deletion(
     session, work_queue, orion_client, prefect_caplog
 ):
