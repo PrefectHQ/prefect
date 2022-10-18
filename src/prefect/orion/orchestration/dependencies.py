@@ -6,7 +6,6 @@ from contextlib import contextmanager
 ORCHESTRATION_DEPENDENCIES = {
     "task_policy": None,
     "flow_policy": None,
-    "flow_restart_policy": None,
 }
 
 
@@ -28,17 +27,6 @@ async def provide_flow_policy():
         from prefect.orion.orchestration.core_policy import CoreFlowPolicy
 
         provided_policy = CoreFlowPolicy
-
-    return provided_policy
-
-
-async def provide_flow_restart_policy():
-    provided_policy = ORCHESTRATION_DEPENDENCIES.get("flow_restart_policy")
-
-    if provided_policy is None:
-        from prefect.orion.orchestration.core_policy import FlowRestartPolicy
-
-        provided_policy = FlowRestartPolicy
 
     return provided_policy
 

@@ -275,7 +275,7 @@ async def restart_flow_run(
     db: OrionDBInterface = Depends(provide_database_interface),
     response: Response = None,
     flow_policy: BaseOrchestrationPolicy = Depends(
-        orchestration_dependencies.provide_flow_restart_policy
+        orchestration_dependencies.provide_flow_policy
     ),
 ) -> OrchestrationResult:
     """Restart a flow run, invoking any orchestration rules."""
