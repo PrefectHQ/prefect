@@ -388,13 +388,19 @@ class RRuleSchedule(PrefectBaseModel):
                 rruleset_string += "\n".join(str(r) for r in rrule._rrule)
             if rrule._exrule:
                 rruleset_string += "\n" if rruleset_string else ""
-                rruleset_string += "\n".join(str(r) for r in rrule._exrule).replace("RRULE", "EXRULE")
+                rruleset_string += "\n".join(str(r) for r in rrule._exrule).replace(
+                    "RRULE", "EXRULE"
+                )
             if rrule._rdate:
                 rruleset_string += "\n" if rruleset_string else ""
-                rruleset_string += "RDATE:" + ",".join(rd.strftime("%Y%m%dT%H%M%SZ") for rd in rrule._rdate)
+                rruleset_string += "RDATE:" + ",".join(
+                    rd.strftime("%Y%m%dT%H%M%SZ") for rd in rrule._rdate
+                )
             if rrule._exdate:
                 rruleset_string += "\n" if rruleset_string else ""
-                rruleset_string += "EXDATE:" + ",".join(exd.strftime("%Y%m%dT%H%M%SZ") for exd in rrule._exdate)
+                rruleset_string += "EXDATE:" + ",".join(
+                    exd.strftime("%Y%m%dT%H%M%SZ") for exd in rrule._exdate
+                )
             return RRuleSchedule(rrule=rruleset_string, timezone=timezone)
         else:
             raise ValueError(f"Invalid RRule object: {rrule}")

@@ -736,7 +736,9 @@ class TestRRuleSchedule:
         assert roundtrip_rruleset._rdate[0].tzinfo == expected_tzinfo
         assert roundtrip_rruleset._exdate[0].tzinfo == expected_tzinfo
 
-    @pytest.mark.xfail(reason="we currently cannot roundtrip RRuleSchedule objects for all timezones")
+    @pytest.mark.xfail(
+        reason="we currently cannot roundtrip RRuleSchedule objects for all timezones"
+    )
     async def test_rrule_schedule_handles_rruleset_roundtrips(self):
         s1 = RRuleSchedule(
             rrule="DTSTART:19970902T090000\n"
@@ -768,7 +770,9 @@ class TestRRuleSchedule:
         with pytest.raises(ValueError, match="too many dtstarts"):
             s = RRuleSchedule.from_rrule(rrset)
 
-    @pytest.mark.xfail(reason="we currently cannot roundtrip RRuleSchedule objects for all timezones")
+    @pytest.mark.xfail(
+        reason="we currently cannot roundtrip RRuleSchedule objects for all timezones"
+    )
     async def test_rrule_schedule_handles_rrule_roundtrips(self):
         dt = datetime(2018, 3, 11, 4, tz="Europe/Berlin")
         base_rule = rrule.rrule(rrule.HOURLY, dtstart=dt)
