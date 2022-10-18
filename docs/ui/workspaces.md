@@ -17,7 +17,7 @@ The number of available workspaces varies by [Prefect Cloud plan](https://www.pr
 
 ### Workspaces overview
 
-When you first log into Prefect Cloud, you will be prompted to create your own initial workspace.
+When you first log into Prefect Cloud, you will be prompted to create your own initial workspace. After creating your workspace, you'll be able to view flow runs, flows, deployments, and other workspace-specific features in the Prefect Cloud UI.
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-new-workspace.png)
 
@@ -43,3 +43,31 @@ Your list of available workspaces may include:
 
 Your user permissions within workspaces may vary. [Organizations](/ui/organizations/) can assign roles and permissions at the workspace level.
 
+## Create a workspace
+
+On the **Workspaces** page, select the **+** icon to create a new workspace. You'll be prompted to configure:
+
+- The workspace owner &mdash; the user account or organization managing the workspace.
+- A handle, or name, for the workspace. This name must be unique within your account or organization.
+- An optional description for the workspace.
+
+![Creating a new workspace in the Prefect Cloud UI.](/img/ui/create-workspace.png)
+
+Select **Create** to actually create the new workspace. The number of available workspaces varies by [Prefect Cloud plan](https://www.prefect.io/pricing/). See [Pricing](https://www.prefect.io/pricing/) if you need additional workspaces or users. 
+
+## Workspace settings
+
+Within a workspace, select **Workspace Settings** to view or edit workspace details.  
+
+![Managing a workspace in the Prefect Cloud UI.](/img/ui/workspace-settings.png)
+
+This page enables you to copy the configuration string for a local development or execution environment to work this workspace.
+
+The options menu enables you to edit workspace details or delete the workspace.
+
+!!! warning "Deleting a workspace"
+    Deleting a workspace deletes all deployments, flow run history, work queues, and notifications configured in workspace.
+
+## Workspace collaborators
+
+## Workspace sharing <span class="badge orgs"></span>
