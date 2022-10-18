@@ -124,7 +124,7 @@ You need to install `adlfs` to use it.
 
 ## GitHub
 
-The `GitHub` filesystem block enables interaction with GitHub repositories. This block is currently read-only and limited to public repositories.
+The `GitHub` filesystem block enables interaction with GitHub repositories. This block is read-only and works with both public and private repositories.
 
 `GitHub` properties include:
 
@@ -132,13 +132,17 @@ The `GitHub` filesystem block enables interaction with GitHub repositories. This
 | --- | --- |
 | reference | An optional reference to pin to, such as a branch name or tag. |
 | repository | The URL of a GitHub repository to read from, in either HTTPS or SSH format. |
+| access_token | A GitHub Personal Access Token (PAT) with `repo` scope. |
 
 To create a block:
 
 ```python
 from prefect.filesystems import GitHub
 
-block = GitHub(repository="https://github.com/my-repo/")
+block = GitHub(
+    repository="https://github.com/my-repo/",
+    access_token=<my_access_token> # only required for private repos
+)
 block.get_directory("folder-in-repo") # specify a subfolder of repo
 block.save("dev")
 ```
