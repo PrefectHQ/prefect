@@ -382,7 +382,19 @@ class RRuleSchedule(PrefectBaseModel):
                 timezone = dtstarts[0].tzinfo.name
             else:
                 timezone = "UTC"
-            rruleset_string = "\n".join(str(r) for r in rrule._rrule)
+
+            rruleset_string = ""
+            if rrule._rrule:
+                rruleset_string += "\n".join(str(r) for r in rrule._rrule)
+            if rrule._exrule:
+                rruleset_string += "\n" if rruleset_string else ""
+                rruleset_string += "\n".join(str(r) for r in rrule._exrule).replace("RRULE", "EXRULE")
+            if rrule._rdate:
+                rruleset_string += "\n" if rruleset_string else ""
+                rruleset_string += "RDATE:" + ",".join(rd.strftime("%Y%m%dT%H%M%SZ") for rd in rrule._rdate)
+            if rrule._exdate:
+                rruleset_string += "\n" if rruleset_string else ""
+                rruleset_string += "EXDATE:" + ",".join(exd.strftime("%Y%m%dT%H%M%SZ") for exd in rrule._exdate)
             return RRuleSchedule(rrule=rruleset_string, timezone=timezone)
         else:
             raise ValueError(f"Invalid RRule object: {rrule}")
@@ -402,16 +414,43 @@ class RRuleSchedule(PrefectBaseModel):
                 )
             return rrule.replace(**kwargs)
         elif isinstance(rrule, dateutil.rrule.rruleset):
-            new_rrset = dateutil.rrule.rruleset(cache=True)
             tz = self.timezone
-            for ii, rr in enumerate(rrule._rrule):
+
+            # update rrules
+            localized_rrules = []
+            for rr in rrule._rrule:
                 kwargs = dict(dtstart=rr._dtstart.replace(tzinfo=timezone))
                 if rr._until:
                     kwargs.update(
                         until=rr._until.replace(tzinfo=timezone),
                     )
-                new_rrset.rrule(rr.replace(**kwargs))
-            return new_rrset
+                localized_rrules.append(rr.replace(**kwargs))
+            rrule._rrule = localized_rrules
+
+            # update exrules
+            localized_exrules = []
+            for exr in rrule._exrule:
+                kwargs = dict(dtstart=exr._dtstart.replace(tzinfo=timezone))
+                if exr._until:
+                    kwargs.update(
+                        until=exr._until.replace(tzinfo=timezone),
+                    )
+                localized_exrules.append(exr.replace(**kwargs))
+            rrule._exrule = localized_exrules
+
+            # update rdates
+            localized_rdates = []
+            for rd in rrule._rdate:
+                localized_rdates.append(rd.replace(tzinfo=timezone))
+            rrule._rdate = localized_rdates
+
+            # update exdates
+            localized_exdates = []
+            for exd in rrule._exdate:
+                localized_exdates.append(exd.replace(tzinfo=timezone))
+            rrule._exdate = localized_exdates
+
+            return rrule
 
     @validator("timezone", always=True)
     def valid_timezone(cls, v):
