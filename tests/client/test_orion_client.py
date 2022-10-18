@@ -972,13 +972,14 @@ async def test_set_then_read_task_run_state(orion_client):
     assert run.state.message == "Test!"
 
 
-async def test_create_then_read_flow_run_notification_policy(orion_client):
-    block_document_id = UUID("3fa85f64-5717-4562-b3fc-2c963f66afa6")
+async def test_create_then_read_flow_run_notification_policy(
+    orion_client, block_document
+):
     message_template = "Test message template!"
     state_names = ["COMPLETED"]
 
     notification_policy_id = await orion_client.create_flow_run_notification_policy(
-        block_document_id=block_document_id,
+        block_document_id=block_document.id,
         is_active=True,
         tags=[],
         state_names=state_names,
@@ -988,12 +989,12 @@ async def test_create_then_read_flow_run_notification_policy(orion_client):
     response: List[
         FlowRunNotificationPolicy
     ] = await orion_client.read_flow_run_notification_policies(
-        FlowRunNotificationPolicyFilter(is_active=True),
+        FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
     )
 
     assert len(response) == 1
     assert response[0].id == notification_policy_id
-    assert response[0].block_document_id == block_document_id
+    assert response[0].block_document_id == block_document.id
     assert response[0].message_template == message_template
     assert response[0].is_active
     assert response[0].tags == []

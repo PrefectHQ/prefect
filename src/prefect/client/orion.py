@@ -1719,7 +1719,7 @@ class OrionClient:
             message_template=message_template,
         )
         response = await self._client.post(
-            "/flow_run_notification_policies",
+            "/flow_run_notification_policies/",
             json=policy.dict(json_compatible=True),
         )
 
