@@ -23,6 +23,7 @@ DEFAULT_PATH = __root_path__ / "flows"
 
 
 def run_flows(search_path: Union[str, Path]):
+    count = 0
     print(f"Running integration tests with client version: {__version__}")
     for file in sorted(Path(search_path).glob("*.py")):
         print(f" {file.relative_to(search_path)} ".center(90, "-"), flush=True)
