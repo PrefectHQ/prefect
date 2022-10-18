@@ -4,8 +4,8 @@ from packaging.version import Version
 import prefect
 from prefect import flow, get_client
 
-# The version results were added in; commit g9986f5e4d
-RESULTS_VERSION = "2.5.0+42"
+# The version results were added in
+RESULTS_VERSION = "2.6.0"
 
 
 @flow
