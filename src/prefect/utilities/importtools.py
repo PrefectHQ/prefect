@@ -26,6 +26,8 @@ def to_qualified_name(obj: Any) -> str:
     Returns:
         str: the qualified name
     """
+    if not hasattr(obj, "__qualname__"):
+        return obj.__module__ + "." + type(obj).__qualname__
     return obj.__module__ + "." + obj.__qualname__
 
 

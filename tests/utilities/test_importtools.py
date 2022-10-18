@@ -58,6 +58,7 @@ def reset_sys_modules():
         (prefect.tasks.Task.__call__, "prefect.tasks.Task.__call__"),
         (lambda x: x + 1, "tests.utilities.test_importtools.<lambda>"),
         (my_fn, "tests.utilities.test_importtools.my_fn"),
+        (Foo(), "tests.utilities.test_importtools.Foo"),
     ],
 )
 def test_to_qualified_name(obj, expected):
