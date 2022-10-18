@@ -538,7 +538,7 @@ async def apply(
         ui = ui_base_url(connection_status)
 
         if ui:
-            app.console.print(f"View Deployment in UI: {ui}/deployment/{deployment_id}")
+            app.console.print(f"View Deployment in UI: {ui}/deployments/deployment/{deployment_id}")
 
         if deployment.work_queue_name is not None:
             app.console.print(
