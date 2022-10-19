@@ -52,7 +52,6 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
         return [
             CacheRetrieval,
             PermitRerunningFailedTaskRuns,
-            PermitRerunningSubflowTasks,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             PreventTransitionsFromTerminalStates,
             PreventRedundantTransitions,
@@ -510,70 +509,6 @@ class PermitRerunningFailedTaskRuns(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ):
-        # reset run count to 0
-        self.original_run_count = context.run.run_count
-        context.run.run_count = 0  # reset run count to preserve retry behavior
-
-        self.original_settings = context.run_settings.copy()
-
-        self.flow_run = await context.flow_run()
-        if self.flow_run.run_count == 1:
-            # if the flow run count is 1, the flow is restarting
-            if (
-                self.flow_run.empirical_policy.restarts
-                > context.run.empirical_policy.flow_restart_attempt
-            ):
-                updated_settings = context.run_settings.copy()
-                updated_settings.flow_restart_attempt += 1
-                updated_settings.flow_retry_attempt = 0
-
-                task_run_update = actions.FlowRunUpdate(
-                    empirical_policy=updated_settings
-                )
-                await models.task_runs.update_task_run(
-                    context.session, context.run.id, task_run_update
-                )
-                await self.rename_state("Restarting")
-        elif self.flow_run.run_count > context.run.empirical_policy.flow_retry_attempt:
-            # if the flow run count is > 1, the flow is retrying
-            updated_settings = context.run_settings.copy()
-            updated_settings.flow_retry_attempt += 1
-
-            task_run_update = actions.TaskRunUpdate(empirical_policy=updated_settings)
-            await models.task_runs.update_task_run(
-                context.session, context.run.id, task_run_update
-            )
-            await self.rename_state("Retrying")
-
-    async def cleanup(
-        self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
-        context: OrchestrationContext,
-    ):
-        # reset run count
-        context.run.run_count = self.original_run_count
-
-        # reset empirical settings
-        task_run_update = actions.TaskRunUpdate(empirical_policy=self.original_settings)
-        await models.task_runs.update_task_run(
-            context.session, context.run.id, task_run_update
-        )
-
-
-class PermitRerunningSubflowTasks(BaseOrchestrationRule):
-    FROM_STATES = TERMINAL_STATES
-    TO_STATES = [states.StateType.RUNNING]
-
-    async def before_transition(
-        self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: TaskOrchestrationContext,
-    ):
-        if not context.run.child_flow_run_id:
-            return
-
         # reset run count to 0
         self.original_run_count = context.run.run_count
         context.run.run_count = 0  # reset run count to preserve retry behavior
