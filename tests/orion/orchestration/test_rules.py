@@ -489,6 +489,55 @@ class TestBaseOrchestrationRule:
         assert after_transition_hook.call_count == 1
         assert cleanup_step.call_count == 0
 
+    async def test_rules_can_pass_parameters_via_context(self, session, task_run):
+        before_transition_hook = MagicMock()
+        special_message = None
+
+        class MessagePassingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                await self.update_context_parameters("a special message", "hello!")
+                # context parameters should not be sensitive to mutation
+                context.parameters["a special message"] = "I can't hear you"
+
+        class MessageReadingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                before_transition_hook()
+                nonlocal special_message
+                special_message = context.parameters["a special message"]
+
+        # this rule seems valid because the initial and proposed states match the intended transition
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await commit_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = (
+            states.State(type=proposed_state_type)
+        )
+
+        ctx = OrchestrationContext(
+            session=session,
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+        )
+
+        message_passer = MessagePassingRule(ctx, *intended_transition)
+        async with message_passer as ctx:
+            message_reader = MessageReadingRule(ctx, *intended_transition)
+            async with message_reader as ctx:
+                pass
+
+        assert before_transition_hook.call_count == 1
+        assert special_message == "hello!"
+
+
     @pytest.mark.parametrize(
         "intended_transition",
         list(product([*states.StateType, None], [*states.StateType])),
