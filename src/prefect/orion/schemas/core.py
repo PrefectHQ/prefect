@@ -46,6 +46,30 @@ def raise_on_invalid_name(name: str) -> None:
         )
 
 
+class CreatedBy(PrefectBaseModel):
+    id: Optional[UUID] = Field(
+        default=None, description="The id of the creator of the object."
+    )
+    type: Optional[str] = Field(
+        default=None, description="The type of the creator of the object."
+    )
+    display_value: Optional[str] = Field(
+        default=None, description="The display value for the creator."
+    )
+
+
+class UpdatedBy(PrefectBaseModel):
+    id: Optional[UUID] = Field(
+        default=None, description="The id of the updater of the object."
+    )
+    type: Optional[str] = Field(
+        default=None, description="The type of the updater of the object."
+    )
+    display_value: Optional[str] = Field(
+        default=None, description="The display value for the updater."
+    )
+
+
 class Flow(ORMBaseModel):
     """An ORM representation of flow data."""
 
@@ -221,6 +245,10 @@ class FlowRun(ORMBaseModel):
     infrastructure_document_id: Optional[UUID] = Field(
         default=None,
         description="The block document defining infrastructure to use this flow run.",
+    )
+    created_by: Optional[CreatedBy] = Field(
+        default=None,
+        description="Optional information about the creator of this flow run.",
     )
 
     # relationships
@@ -470,6 +498,12 @@ class Deployment(ORMBaseModel):
     infrastructure_document_id: Optional[UUID] = Field(
         default=None,
         description="The block document defining infrastructure to use for flow runs.",
+    )
+    created_by: Optional[CreatedBy] = Field(
+        None, description="Optional information about the creator of this deployment."
+    )
+    updated_by: Optional[UpdatedBy] = Field(
+        None, description="Optional information about the updater of this deployment."
     )
 
     @validator("name", check_fields=False)
