@@ -110,9 +110,6 @@ class FlowRunPolicy(PrefectBaseModel):
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
     )
-    restarts: int = Field(
-        default=0, description="Indicates the number of times this flow has restarted"
-    )
 
     @root_validator
     def populate_deprecated_fields(cls, values):
@@ -185,16 +182,16 @@ class FlowRun(ORMBaseModel):
     state_name: Optional[str] = Field(
         default=None, description="The name of the current flow run state."
     )
-
     run_count: int = Field(
         default=0, description="The number of times the flow run was executed."
     )
-
+    restarts: int = Field(
+        default=0, description="Indicates the number of times this flow has restarted"
+    )
     expected_start_time: Optional[DateTimeTZ] = Field(
         default=None,
         description="The flow run's expected start time.",
     )
-
     next_scheduled_start_time: Optional[DateTimeTZ] = Field(
         default=None,
         description="The next time the flow run is scheduled to start.",
@@ -270,14 +267,6 @@ class TaskRunPolicy(PrefectBaseModel):
     retries: Optional[int] = Field(default=None, description="The number of retries.")
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
-    )
-    flow_restart_attempt: Optional[int] = Field(
-        default=0,
-        description="If the parent flow has restarted, this indicates the flow restart this run is associated with.",
-    )
-    flow_retry_attempt: Optional[int] = Field(
-        default=0,
-        description="If the parent flow has retried, this indicates the flow retry this run is associated with.",
     )
 
     @root_validator
@@ -369,7 +358,6 @@ class TaskRun(ORMBaseModel):
         default_factory=dict,
         description="Tracks the source of inputs to a task run. Used for internal bookkeeping.",
     )
-
     state_type: Optional[schemas.states.StateType] = Field(
         default=None, description="The type of the current task run state."
     )
@@ -379,7 +367,14 @@ class TaskRun(ORMBaseModel):
     run_count: int = Field(
         default=0, description="The number of times the task run has been executed."
     )
-
+    flow_restart_attempt: int = Field(
+        default=0,
+        description="If the parent flow has restarted, this indicates the flow restart this run is associated with.",
+    )
+    flow_retry_attempt: int = Field(
+        default=0,
+        description="If the parent flow has retried, this indicates the flow retry this run is associated with.",
+    )
     expected_start_time: Optional[DateTimeTZ] = Field(
         default=None,
         description="The task run's expected start time.",
