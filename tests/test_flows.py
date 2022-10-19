@@ -155,6 +155,7 @@ class TestFlowWithOptions:
             persist_result=True,
             result_serializer="pickle",
             result_storage=LocalFileSystem(basepath="foo"),
+            cache_result_in_memory=False,
         )
         def initial_flow():
             pass
@@ -170,6 +171,7 @@ class TestFlowWithOptions:
             persist_result=False,
             result_serializer="json",
             result_storage=LocalFileSystem(basepath="bar"),
+            cache_result_in_memory=True,
         )
 
         assert flow_with_options.name == "Copied flow"
@@ -182,6 +184,7 @@ class TestFlowWithOptions:
         assert flow_with_options.persist_result is False
         assert flow_with_options.result_serializer == "json"
         assert flow_with_options.result_storage == LocalFileSystem(basepath="bar")
+        assert flow_with_options.cache_result_in_memory is True
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         @flow(
@@ -195,6 +198,7 @@ class TestFlowWithOptions:
             persist_result=False,
             result_serializer="json",
             result_storage=LocalFileSystem(),
+            cache_result_in_memory=False,
         )
         def initial_flow():
             pass
@@ -212,6 +216,7 @@ class TestFlowWithOptions:
         assert flow_with_options.persist_result is False
         assert flow_with_options.result_serializer == "json"
         assert flow_with_options.result_storage == LocalFileSystem()
+        assert flow_with_options.cache_result_in_memory is False
 
     def test_with_options_can_unset_timeout_seconds_with_zero(self):
         @flow(timeout_seconds=1)

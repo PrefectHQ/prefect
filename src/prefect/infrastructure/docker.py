@@ -102,7 +102,7 @@ class DockerRegistry(BaseDockerLogin):
     Attributes:
         username: The username to log into the registry with.
         password: The password to log into the registry with.
-        registry_url: The URL to the registry. Generally, "http" or "https" can be
+        registry_url: The URL to the registry such as registry.hub.docker.com. Generally, "http" or "https" can be
             omitted.
         reauth: If already logged into the registry, should login be performed again?
             This setting defaults to `True` to support common token authentication

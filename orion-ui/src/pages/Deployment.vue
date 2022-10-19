@@ -10,7 +10,7 @@
     </template>
 
     <p-tabs v-if="deployment" :tabs="tabs">
-      <template #overview>
+      <template #description>
         <p-content secondary>
           <DeploymentDeprecatedMessage v-if="deployment.deprecated" />
           <template v-else-if="deployment.description">
@@ -47,7 +47,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter } from '@prefecthq/orion-design'
+  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter, useTabs } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
@@ -65,18 +65,13 @@
     interval: 300000,
   }
 
-  const tabs = computed(() => {
-    const values = ['Overview', 'Runs']
-
-    if (!deployment.value?.deprecated) {
-      values.push('Parameters')
-    }
-    if (!media.xl) {
-      values.push('Details')
-    }
-
-    return values
-  })
+  const computedTabs = computed(() => [
+    { label: 'Details', hidden: media.xl },
+    { label: 'Description' },
+    { label: 'Runs' },
+    { label: 'Parameters', hidden: deployment.value?.deprecated },
+  ])
+  const tabs = useTabs(computedTabs)
 
   const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
   const deployment = computed(() => deploymentSubscription.response)
