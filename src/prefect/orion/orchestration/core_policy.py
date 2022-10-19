@@ -446,6 +446,7 @@ class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
     NAMED_STATE_EXCEPTIONS = {
         "Restarting",
         "Retrying",
+        "AwaitingRestart",
     }
 
     async def before_transition(
