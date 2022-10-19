@@ -24,7 +24,7 @@ from prefect.orion.orchestration.rules import (
     OrchestrationContext,
     TaskOrchestrationContext,
 )
-from prefect.orion.schemas import actions, filters, states
+from prefect.orion.schemas import actions, states
 from prefect.orion.schemas.states import StateType
 
 
@@ -273,10 +273,9 @@ class RetryFailedFlows(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ) -> None:
-        from prefect.orion.models import task_runs
-
         run_settings = context.run_settings
         run_count = context.run.run_count
+
         if run_settings.retries is None or run_count > run_settings.retries:
             return  # Retry count exceeded, allow transition to failed
 
