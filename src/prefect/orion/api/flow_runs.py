@@ -279,7 +279,7 @@ async def restart_flow_run(
     ),
 ) -> OrchestrationResult:
     """Restart a flow run, invoking any orchestration rules."""
-    state = schemas.states.AwaitingRestart(scheduled_time=pendulum.now("UTC"))
+    state = schemas.states.Scheduled(scheduled_time=pendulum.now("UTC"))
 
     async with db.session_context(begin_transaction=True) as session:
         # create the state
