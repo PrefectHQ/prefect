@@ -420,7 +420,9 @@ async def create_and_begin_subflow_run(
     # Resolve any task futures in the input
     parameters = await resolve_inputs(parameters)
 
-    if parent_task_run.state.is_final() and not rerunning:
+    if parent_task_run.state.is_final() and not (
+        rerunning and not parent_task_run.state.is_completed()
+    ):
         # Retrieve the most recent flow run from the database
         flow_runs = await client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
