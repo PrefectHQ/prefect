@@ -75,11 +75,11 @@ class KubernetesJob(Infrastructure):
         default="kubernetes-job", description="The type of infrastructure."
     )
     # shortcuts for the most common user-serviceable settings
-    image: str = Field(
+    image: Optional[str] = Field(
         default_factory=get_prefect_image_name,
         description="The tag of a Docker image to use for the job. Defaults to the Prefect image.",
     )
-    namespace: str = Field(
+    namespace: Optional[str] = Field(
         default="default", description="The Kubernetes namespace to use for this job."
     )
     service_account_name: Optional[str] = Field(
@@ -278,18 +278,25 @@ class KubernetesJob(Infrastructure):
         """Produces the JSON 6902 patch for the most commonly used customizations, like
         image and namespace, which we offer as top-level parameters (with sensible
         default values)"""
-        shortcuts = [
-            {
-                "op": "add",
-                "path": "/metadata/namespace",
-                "value": self.namespace,
-            },
-            {
-                "op": "add",
-                "path": "/spec/template/spec/containers/0/image",
-                "value": self.image,
-            },
-        ]
+        shortcuts = []
+
+        if self.namespace:
+            shortcuts.append(
+                {
+                    "op": "add",
+                    "path": "/metadata/namespace",
+                    "value": self.namespace,
+                }
+            )
+
+        if self.image:
+            shortcuts.append(
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/containers/0/image",
+                    "value": self.image,
+                }
+            )
 
         shortcuts += [
             {
