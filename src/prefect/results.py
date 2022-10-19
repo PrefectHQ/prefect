@@ -1,3 +1,4 @@
+import abc
 import uuid
 from typing import TYPE_CHECKING, Any, Generic, Tuple, Type, TypeVar, Union
 
@@ -14,6 +15,7 @@ from prefect.serializers import Serializer
 from prefect.settings import (
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
+    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
@@ -48,6 +50,23 @@ def get_default_result_serializer() -> ResultSerializer:
     return PREFECT_RESULTS_DEFAULT_SERIALIZER.value()
 
 
+def get_default_persist_setting() -> bool:
+    """
+    Return the default option for result persistence (False).
+    """
+    return PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
+
+
+def flow_features_require_result_persistence(flow: "Flow") -> bool:
+    """
+    Returns `True` if the given flow uses features that require its result to be
+    persisted.
+    """
+    if not flow.cache_result_in_memory:
+        return True
+    return False
+
+
 def flow_features_require_child_result_persistence(flow: "Flow") -> bool:
     """
     Returns `True` if the given flow uses features that require child flow and task
@@ -65,6 +84,8 @@ def task_features_require_result_persistence(task: "Task") -> bool:
     """
     if task.cache_key_fn:
         return True
+    if not task.cache_result_in_memory:
+        return True
     return False
 
 
@@ -74,6 +95,7 @@ class ResultFactory(pydantic.BaseModel):
     """
 
     persist_result: bool
+    cache_result_in_memory: bool
     serializer: Serializer
     storage_block_id: uuid.UUID
     storage_block: WritableFileSystem
@@ -95,7 +117,8 @@ class ResultFactory(pydantic.BaseModel):
         # Apply defaults
         kwargs.setdefault("result_storage", get_default_result_storage())
         kwargs.setdefault("result_serializer", get_default_result_serializer())
-        kwargs.setdefault("persist_result", False)
+        kwargs.setdefault("persist_result", get_default_persist_setting())
+        kwargs.setdefault("cache_result_in_memory", True)
 
         return await cls.from_settings(**kwargs, client=client)
 
@@ -120,10 +143,15 @@ class ResultFactory(pydantic.BaseModel):
                     flow.persist_result
                     if flow.persist_result is not None
                     else
-                    # !! Child flows persist their result by default if the parent flow
-                    #    uses a feature that requires it
-                    flow_features_require_child_result_persistence(ctx.flow)
+                    # !! Child flows persist their result by default if the it or the
+                    #    parent flow uses a feature that requires it
+                    (
+                        flow_features_require_result_persistence(flow)
+                        or flow_features_require_child_result_persistence(ctx.flow)
+                        or get_default_persist_setting()
+                    )
                 ),
+                cache_result_in_memory=flow.cache_result_in_memory,
                 client=client,
             )
         else:
@@ -134,7 +162,18 @@ class ResultFactory(pydantic.BaseModel):
                 client=client,
                 result_storage=flow.result_storage,
                 result_serializer=flow.result_serializer,
-                persist_result=flow.persist_result,
+                persist_result=(
+                    flow.persist_result
+                    if flow.persist_result is not None
+                    else
+                    # !! Flows persist their result by default if uses a feature that
+                    #    requires it
+                    (
+                        flow_features_require_result_persistence(flow)
+                        or get_default_persist_setting()
+                    )
+                ),
+                cache_result_in_memory=flow.cache_result_in_memory,
             )
 
     @classmethod
@@ -164,13 +203,16 @@ class ResultFactory(pydantic.BaseModel):
             (
                 flow_features_require_child_result_persistence(ctx.flow)
                 or task_features_require_result_persistence(task)
+                or get_default_persist_setting()
             )
         )
+        cache_result_in_memory = task.cache_result_in_memory
 
         return await cls.from_settings(
             result_storage=result_storage,
             result_serializer=result_serializer,
             persist_result=persist_result,
+            cache_result_in_memory=cache_result_in_memory,
             client=client,
         )
 
@@ -181,6 +223,7 @@ class ResultFactory(pydantic.BaseModel):
         result_storage: ResultStorage,
         result_serializer: ResultSerializer,
         persist_result: bool,
+        cache_result_in_memory: bool,
         client: "OrionClient",
     ) -> Self:
         storage_block_id, storage_block = await cls.resolve_storage_block(
@@ -193,6 +236,7 @@ class ResultFactory(pydantic.BaseModel):
             storage_block_id=storage_block_id,
             serializer=serializer,
             persist_result=persist_result,
+            cache_result_in_memory=cache_result_in_memory,
         )
 
     @staticmethod
@@ -258,7 +302,12 @@ class ResultFactory(pydantic.BaseModel):
         if not self.persist_result:
             # Attach the object directly if persistence is disabled; it will be dropped
             # when sent to the API
-            return obj
+            if self.cache_result_in_memory:
+                return obj
+            # Unless in-memory caching has been disabled, then this result will not be
+            # available downstream
+            else:
+                return None
 
         if type(obj) in LITERAL_TYPES:
             return await LiteralResult.create(obj)
@@ -268,25 +317,35 @@ class ResultFactory(pydantic.BaseModel):
             storage_block=self.storage_block,
             storage_block_id=self.storage_block_id,
             serializer=self.serializer,
+            cache_object=self.cache_result_in_memory,
         )
 
 
 @add_type_dispatch
-class BaseResult(pydantic.BaseModel, Generic[R]):
+class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
     type: str
 
+    _cache: Any = pydantic.PrivateAttr(NotSet)
+
+    def _cache_object(self, obj: Any) -> None:
+        self._cache = obj
+
+    def has_cached_object(self) -> bool:
+        return self._cache is not NotSet
+
+    @abc.abstractmethod
     @sync_compatible
     async def get(self) -> R:
-        pass
+        ...
 
-    @classmethod
+    @abc.abstractclassmethod
     @sync_compatible
     async def create(
         cls: "Type[BaseResult[R]]",
         obj: R,
         **kwargs: Any,
     ) -> "BaseResult[R]":
-        pass
+        ...
 
     class Config:
         extra = "forbid"
@@ -302,6 +361,10 @@ class LiteralResult(BaseResult):
 
     type = "literal"
     value: Any
+
+    def has_cached_object(self) -> bool:
+        # This result type always has the object cached in memory
+        return True
 
     @sync_compatible
     async def get(self) -> R:
@@ -338,21 +401,13 @@ class PersistedResult(BaseResult):
     storage_block_id: uuid.UUID
     storage_key: str
 
-    _cache: Any = pydantic.PrivateAttr(NotSet)
-
-    def _cache_object(self, obj: Any) -> None:
-        self._cache = obj
-
-    def _has_cached_object(self) -> bool:
-        return self._cache is not NotSet
-
     @sync_compatible
     @inject_client
     async def get(self, client: "OrionClient") -> R:
         """
         Retrieve the data and deserialize it into the original object.
         """
-        if self._has_cached_object():
+        if self.has_cached_object():
             return self._cache
 
         blob = await self._read_blob(client=client)
