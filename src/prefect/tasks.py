@@ -152,7 +152,7 @@ class Task(Generic[P, R]):
             if not hasattr(self.fn, "__name__"):
                 self.name = type(self.fn).__name__
             else:
-                self.task_key = self.fn.__name__
+                self.name = self.fn.__name__
         else:
             self.name = name
 
