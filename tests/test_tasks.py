@@ -1,7 +1,7 @@
 import datetime
 import inspect
 import warnings
-from typing import Dict, List
+from typing import Any, Dict, List
 from unittest.mock import MagicMock
 from uuid import UUID
 
@@ -154,6 +154,15 @@ class TestTaskCall:
         assert state.is_failed()
         with pytest.raises(ValueError, match="Test"):
             state.result()
+
+    def test_task_supports_callable_objects(self):
+        class A:
+            def __call__(self, *_args: Any, **_kwargs: Any) -> Any:
+                return "hello"
+
+        a = A()
+        task = Task(fn=a, name="Task")
+        assert task.fn is a
 
 
 class TestTaskRun:
