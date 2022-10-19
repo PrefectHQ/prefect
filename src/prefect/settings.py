@@ -326,6 +326,17 @@ PREFECT_RESULTS_DEFAULT_SERIALIZER = Setting(
 )
 """The default serializer to use when not otherwise specified."""
 
+
+PREFECT_RESULTS_PERSIST_BY_DEFAULT = Setting(
+    bool,
+    default=False,
+)
+"""
+The default setting for persisting results when not otherwise specified. If enabled,
+flow and task results will be persisted unless they opt out.
+"""
+
+
 PREFECT_LOCAL_STORAGE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "storage",
