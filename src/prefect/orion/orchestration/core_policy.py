@@ -312,14 +312,7 @@ class RestartFlowRun(BaseOrchestrationRule):
         context.run.run_count = 0  # reset run count to preserve retry behavior
 
         # update empirical settings
-        self.original_settings = context.run_settings.copy()
-        self.restarts = self.original_settings.restarts + 1
-        new_settings = context.run_settings.copy()
-        new_settings.restarts = self.restarts
-        flow_run_update = actions.FlowRunUpdate(empirical_policy=new_settings)
-        await flow_runs.update_flow_run(
-            context.session, context.run.id, flow_run_update
-        )
+        context.restarts += 1
         await self.rename_state("AwaitingRestart")
         await self.update_context_parameters("permit-rescheduling", True)
 
@@ -333,10 +326,7 @@ class RestartFlowRun(BaseOrchestrationRule):
         context.run.run_count = self.original_run_count
 
         # restore empirical settings side effect
-        flow_run_update = actions.FlowRunUpdate(empirical_policy=self.original_settings)
-        await flow_runs.update_flow_run(
-            context.session, context.run.id, flow_run_update
-        )
+        context.run.restarts = max(context.run.restarts - 1, 0)
 
 
 class RetryFailedTasks(BaseOrchestrationRule):
@@ -516,36 +506,20 @@ class PermitRerunningFailedTaskRuns(BaseOrchestrationRule):
         self.original_run_count = context.run.run_count
         context.run.run_count = 0  # reset run count to preserve retry behavior
 
-        self.original_settings = context.run_settings.copy()
+        self.original_retry_attempt = context.run.flow_retry_attempt
+        self.original_restart_attempt = context.run.flow_restart_attempt
 
         self.flow_run = await context.flow_run()
         if self.flow_run.run_count == 1:
             # if the flow run count is 1, the flow is restarting
-            if (
-                self.flow_run.empirical_policy.restarts
-                > context.run.empirical_policy.flow_restart_attempt
-            ):
-                updated_settings = context.run_settings.copy()
-                updated_settings.flow_restart_attempt += 1
-                updated_settings.flow_retry_attempt = 0
-
-                task_run_update = actions.FlowRunUpdate(
-                    empirical_policy=updated_settings
-                )
-                await models.task_runs.update_task_run(
-                    context.session, context.run.id, task_run_update
-                )
+            if self.flow_run.restarts > context.run.flow_restart_attempt:
+                context.run.flow_restart_attempt += 1
+                context.run.flow_retry_attempt = 0
                 await self.rename_state("RetryingViaRestart")
                 await self.update_context_parameters("permit-rerunning", True)
-        elif self.flow_run.run_count > context.run.empirical_policy.flow_retry_attempt:
+        elif self.flow_run.run_count > context.run.flow_retry_attempt:
             # if the flow run count is > 1, the flow is retrying
-            updated_settings = context.run_settings.copy()
-            updated_settings.flow_retry_attempt += 1
-
-            task_run_update = actions.TaskRunUpdate(empirical_policy=updated_settings)
-            await models.task_runs.update_task_run(
-                context.session, context.run.id, task_run_update
-            )
+            context.run.flow_retry_attempt += 1
             await self.rename_state("Retrying")
             await self.update_context_parameters("permit-rerunning", True)
 
@@ -558,8 +532,6 @@ class PermitRerunningFailedTaskRuns(BaseOrchestrationRule):
         # reset run count
         context.run.run_count = self.original_run_count
 
-        # reset empirical settings
-        task_run_update = actions.TaskRunUpdate(empirical_policy=self.original_settings)
-        await models.task_runs.update_task_run(
-            context.session, context.run.id, task_run_update
-        )
+        # reset retry and restart counters
+        context.run.flow_retry_attempt = self.original_retry_attempt
+        context.run.flow_restart_attempt = self.original_restart_attempt
