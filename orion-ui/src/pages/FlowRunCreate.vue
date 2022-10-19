@@ -14,6 +14,7 @@
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, h } from 'vue'
   import { useRouter } from 'vue-router'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { deploymentsApi } from '@/services/deploymentsApi'
 
@@ -37,8 +38,15 @@
     }
   }
 
-
   const goBack = (): void => {
     router.back()
   }
+
+  const title = computed<string>(() => {
+    if (!deployment.value) {
+      return 'Create Flow Run for Deployment'
+    }
+    return `Create Flow Run for Deployment: ${deployment.value.name}`
+  })
+  usePageTitle(title)
 </script>

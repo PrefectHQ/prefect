@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple
 import anyio.abc
 import packaging.version
 from pydantic import Field, validator
-from slugify import slugify
 from typing_extensions import Literal
 
 import prefect
@@ -20,6 +19,7 @@ from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.importtools import lazy_import
+from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
     import docker
@@ -46,15 +46,22 @@ class BaseDockerLogin(Block, ABC):
     _block_schema_capabilities = ["docker-login"]
 
     @abstractmethod
-    async def login() -> None:
+    async def login(self) -> "DockerClient":
         """
-        Log in with `docker login`, persisting credentials.
+        Log in and return an authenticated `DockerClient`.
+        (DEPRECATED) Use `get_docker_client` instead of `login`.
         """
 
-    def _login(self, username, password, registry_url, reauth):
+    @abstractmethod
+    async def get_docker_client(self) -> "DockerClient":
+        """
+        Log in and return an authenticated `DockerClient`.
+        """
+
+    def _login(self, username, password, registry_url, reauth) -> "DockerClient":
         client = self._get_docker_client()
 
-        return client.login(
+        client.login(
             username=username,
             password=password,
             registry=registry_url,
@@ -63,7 +70,10 @@ class BaseDockerLogin(Block, ABC):
             reauth=reauth,
         )
 
-    def _get_docker_client(self):
+        return client
+
+    @staticmethod
+    def _get_docker_client():
         try:
 
             with warnings.catch_warnings():
@@ -87,13 +97,12 @@ class DockerRegistry(BaseDockerLogin):
     """
     Connects to a Docker registry.
 
-    Requires a Docker Engine to be connectable. Login information is persisted to disk
-    at the Docker default location.
+    Requires a Docker Engine to be connectable.
 
     Attributes:
         username: The username to log into the registry with.
         password: The password to log into the registry with.
-        registry_url: The URL to the registry. Generally, "http" or "https" can be
+        registry_url: The URL to the registry such as registry.hub.docker.com. Generally, "http" or "https" can be
             omitted.
         reauth: If already logged into the registry, should login be performed again?
             This setting defaults to `True` to support common token authentication
@@ -102,28 +111,40 @@ class DockerRegistry(BaseDockerLogin):
 
     _block_type_name = "Docker Registry"
     username: str = Field(
-        ..., description="The username to log into the registry with."
+        default=..., description="The username to log into the registry with."
     )
     password: SecretStr = Field(
-        ..., description="The password to log into the registry with."
+        default=..., description="The password to log into the registry with."
     )
     registry_url: str = Field(
-        ...,
+        default=...,
         description='The URL to the registry. Generally, "http" or "https" can be omitted.',
     )
     reauth: bool = Field(
-        True, description="Whether or not to reauthenticate on each interaction."
+        default=True,
+        description="Whether or not to reauthenticate on each interaction.",
     )
 
     @sync_compatible
-    async def login(self):
-        return await run_sync_in_worker_thread(
+    async def login(self) -> "DockerClient":
+        warnings.warn(
+            "`login` is deprecated. Instead, use `get_docker_client` to obtain an authenticated `DockerClient`.",
+            category=DeprecationWarning,
+            stacklevel=3,
+        )
+        return await self.get_docker_client()
+
+    @sync_compatible
+    async def get_docker_client(self) -> "DockerClient":
+        client = await run_sync_in_worker_thread(
             self._login,
             self.username,
             self.password.get_secret_value(),
             self.registry_url,
             self.reauth,
         )
+
+        return client
 
 
 class DockerContainerResult(InfrastructureResult):
@@ -147,6 +168,8 @@ class DockerContainer(Infrastructure):
             Defaults to the Prefect image.
         image_pull_policy: Specifies if the image should be pulled. One of 'ALWAYS',
             'NEVER', 'IF_NOT_PRESENT'.
+        image_registry: A `DockerRegistry` block containing credentials to use if `image` is stored in a private
+            image registry.
         labels: An optional dictionary of labels, mapping name to value.
         name: An optional name for the container.
         network_mode: Set the network mode for the created container. Defaults to 'host'
@@ -172,14 +195,14 @@ class DockerContainer(Infrastructure):
     """
 
     type: Literal["docker-container"] = Field(
-        "docker-container", description="The type of infrastructure."
+        default="docker-container", description="The type of infrastructure."
     )
     image: str = Field(
-        description="Tag of a Docker image to use. Defaults to the Prefect image.",
         default_factory=get_prefect_image_name,
+        description="Tag of a Docker image to use. Defaults to the Prefect image.",
     )
-    image_pull_policy: ImagePullPolicy = Field(
-        None, description="Specifies if the image should be pulled."
+    image_pull_policy: Optional[ImagePullPolicy] = Field(
+        default=None, description="Specifies if the image should be pulled."
     )
     image_registry: Optional[DockerRegistry] = None
     networks: List[str] = Field(
@@ -187,18 +210,19 @@ class DockerContainer(Infrastructure):
         description="A list of strings specifying Docker networks to connect the container to.",
     )
     network_mode: Optional[str] = Field(
-        None,
+        default=None,
         description="The network mode for the created container (e.g. host, bridge). If 'networks' is set, this cannot be set.",
     )
     auto_remove: bool = Field(
-        False, description="If set, the container will be removed on completion."
+        default=False,
+        description="If set, the container will be removed on completion.",
     )
     volumes: List[str] = Field(
         default_factory=list,
         description='A list of volume mount strings in the format of "local_path:container_path".',
     )
     stream_output: bool = Field(
-        True,
+        default=True,
         description="If set, the output will be streamed from the container to local standard output.",
     )
 
@@ -283,7 +307,13 @@ class DockerContainer(Infrastructure):
         )
 
     def _create_and_start_container(self) -> "Container":
-        docker_client = self._get_client()
+        if self.image_registry:
+            # If an image registry block was supplied, load an authenticated Docker
+            # client from the block. Otherwise, use an unauthenticated client to
+            # pull images from public registries.
+            docker_client = self.image_registry.get_docker_client()
+        else:
+            docker_client = self._get_client()
 
         container_settings = self._build_container_settings(docker_client)
 
@@ -398,8 +428,7 @@ class DockerContainer(Infrastructure):
         Pull the image we're going to use to create the container.
         """
         image, tag = self._get_image_and_tag()
-        if self.image_registry:
-            self.image_registry.login()
+
         return docker_client.images.pull(image, tag)
 
     def _create_container(self, docker_client: "DockerClient", **kwargs) -> "Container":
@@ -467,19 +496,34 @@ class DockerContainer(Infrastructure):
         )
         yield container
 
-        for log in container.logs(stream=True):
-            log: bytes
-            if self.stream_output:
-                print(log.decode().rstrip())
+        if self.stream_output:
+            try:
+                for log in container.logs(stream=True):
+                    log: bytes
+                    print(log.decode().rstrip())
+            except docker.errors.APIError as exc:
+                if "marked for removal" in str(exc):
+                    self.logger.warning(
+                        f"Docker container {container.name} was marked for removal before "
+                        "logs could be retrieved. Output will not be streamed. "
+                    )
+                else:
+                    self.logger.exception(
+                        "An unexpected Docker API error occured while streaming output "
+                        f"from container {container.name}."
+                    )
 
-        container.reload()
-        if container.status != status:
-            self.logger.info(
-                f"Docker container {container.name!r} has status {container.status!r}"
-            )
-        yield container
+            container.reload()
+            if container.status != status:
+                self.logger.info(
+                    f"Docker container {container.name!r} has status {container.status!r}"
+                )
+            yield container
 
         container.wait()
+        self.logger.info(
+            f"Docker container {container.name!r} has status {container.status!r}"
+        )
         yield container
 
     def _get_client(self):

@@ -35,6 +35,7 @@ from prefect.orion.schemas.responses import (
     StateAbortDetails,
     StateAcceptDetails,
     StateRejectDetails,
+    StateResponseDetails,
     StateWaitDetails,
 )
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -46,20 +47,6 @@ ALL_ORCHESTRATION_STATES = {*states.StateType, None}
 TERMINAL_STATES = states.TERMINAL_STATES
 
 logger = get_logger("orion")
-
-StateResponseDetails = Union[
-    StateAcceptDetails, StateWaitDetails, StateRejectDetails, StateAbortDetails
-]
-
-
-class OrchestrationResult(PrefectBaseModel):
-    """
-    A container for the output of state orchestration.
-    """
-
-    state: Optional[states.State]
-    status: SetStateStatus
-    details: StateResponseDetails
 
 
 class OrchestrationContext(PrefectBaseModel):
@@ -897,12 +884,12 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         """
         Exit the async runtime context governed by this transform.
 
-        If the transition has been nullified upon exiting this transforms's context,
+        If the transition has been nullified or errorred upon exiting this transforms's context,
         nothing happens. Otherwise, `self.after_transition` will fire on every non-null
         proposed state.
         """
 
-        if not self.nullified_transition():
+        if not self.nullified_transition() and not self.exception_in_transition():
             await self.after_transition(self.context)
             self.context.finalization_signature.append(str(self.__class__))
 
@@ -940,3 +927,13 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         """
 
         return self.context.proposed_state is None
+
+    def exception_in_transition(self) -> bool:
+        """
+        Determines if the transition has encountered an exception.
+
+        Returns:
+            True if the transition is encountered an exception, False otherwise.
+        """
+
+        return self.context.orchestration_error is not None

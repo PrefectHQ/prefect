@@ -97,7 +97,7 @@ The `Azure` file system block enables interaction with Azure Datalake and Azure 
 
 | Property | Description |
 | --- | --- |
-| basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
+| bucket_path | String path to the location of files on the remote filesystem. Access to files outside of the bucket path will not be allowed. |
 | azure_storage_connection_string | Azure storage connection string. |
 | azure_storage_account_name | Azure storage account name. |
 | azure_storage_account_key | Azure storage account key. |
@@ -111,7 +111,7 @@ To create a block:
 ```python
 from prefect.filesystems import Azure
 
-block = Azure(basepath="my-bucket/folder/")
+block = Azure(bucket_path="my-bucket/folder/")
 block.save("dev")
 ```
 
@@ -127,7 +127,7 @@ You need to install `adlfs` to use it.
 
 ## GitHub
 
-The `GitHub` filesystem block enables interaction with GitHub repositories. This block is currently read-only and limited to public repositories.
+The `GitHub` filesystem block enables interaction with GitHub repositories. This block is read-only and works with both public and private repositories.
 
 `GitHub` properties include:
 
@@ -135,13 +135,17 @@ The `GitHub` filesystem block enables interaction with GitHub repositories. This
 | --- | --- |
 | reference | An optional reference to pin to, such as a branch name or tag. |
 | repository | The URL of a GitHub repository to read from, in either HTTPS or SSH format. |
+| access_token | A GitHub Personal Access Token (PAT) with `repo` scope. |
 
 To create a block:
 
 ```python
 from prefect.filesystems import GitHub
 
-block = GitHub(repository="https://github.com/my-repo/")
+block = GitHub(
+    repository="https://github.com/my-repo/",
+    access_token=<my_access_token> # only required for private repos
+)
 block.get_directory("folder-in-repo") # specify a subfolder of repo
 block.save("dev")
 ```
@@ -162,7 +166,7 @@ The `GCS` file system block enables interaction with Google Cloud Storage. Under
 
 | Property | Description |
 | --- | --- |
-| basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
+| bucket_path | A GCS bucket path |
 | service_account_info | The contents of a service account keyfile as a JSON string.                                                                  |
 | project | The project the GCS bucket resides in. If not provided, the project will be inferred from the credentials or environment.    |
 
@@ -172,7 +176,7 @@ To create a block:
 ```python
 from prefect.filesystems import GCS
 
-block = GCS(basepath="my-bucket/folder/")
+block = GCS(bucket_path="my-bucket/folder/")
 block.save("dev")
 ```
 
@@ -194,7 +198,7 @@ The `S3` file system block enables interaction with Amazon S3. Under the hood, `
 
 | Property | Description |
 | --- | --- |
-| basepath | String path to the location of files on the remote filesystem. Access to files outside of the base path will not be allowed. |
+| bucket_path | An S3 bucket path |
 | aws_access_key_id | AWS Access Key ID |
 | aws_secret_access_key | AWS Secret Access Key |
 
@@ -204,7 +208,7 @@ To create a block:
 ```python
 from prefect.filesystems import S3
 
-block = S3(basepath="my-bucket/folder/")
+block = S3(bucket_path="my-bucket/folder/")
 block.save("dev")
 ```
 

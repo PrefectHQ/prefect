@@ -44,7 +44,7 @@ Prefect supports several types of schedules that cover a wide range of use cases
 
 - [`Cron`](#cron) is most appropriate for users who are already familiar with `cron` from previous use.
 - [`Interval`](#interval) is best suited for deployments that need to run at some consistent cadence that isn't related to absolute time.
-- [`RRule`](#rrules) is best suited for deployments that rely on calendar logic for simple recurring schedules, irregular intervals, exclusions, or day-of-month adjustments.
+- [`RRule`](#rrule) is best suited for deployments that rely on calendar logic for simple recurring schedules, irregular intervals, exclusions, or day-of-month adjustments.
 
 
 ## Creating schedules through the CLI with the `deployment build` command
@@ -57,7 +57,7 @@ prefect deployment build demo.py:pipeline -n etl --cron "0 0 * * *"
 ```
 </div>
 
-This schedule will create flow runs for this deployment every day at midnight. You cannot set a timezone for your schedule from the CLI at the present time.
+This schedule will create flow runs for this deployment every day at midnight. 
 
 `interval` and `rrule` are the other two command line schedule flags.
 

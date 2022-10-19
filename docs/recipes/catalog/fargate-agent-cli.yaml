@@ -1,0 +1,8 @@
+recipeName: Agent on ECS Fargate with AWS CLI
+author: Prefect
+authorUrl: https://prefect.io
+description: Run a Prefect 2 agent on ECS Fargate using the AWS CLI.
+topic: AWS
+recipeUrl: https://github.com/PrefectHQ/prefect-recipes/tree/main/devops/infrastructure-as-code/aws/cli-prefect2-ecs-agent
+iconUrl: 
+  - /img/collections/aws.png

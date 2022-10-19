@@ -67,7 +67,12 @@ class TestCreateLogs:
         assert len(logs) == 2
 
         for i, log in enumerate(logs):
-            assert LogCreate.from_orm(log).dict(json_compatible=True) == log_data[i]
+            assert (
+                Log.from_orm(log).dict(
+                    json_compatible=True, exclude={"created", "id", "updated"}
+                )
+                == log_data[i]
+            )
 
     async def test_create_logs_with_task_run_id_and_returns_number_created(
         self, session, client, flow_run_id, task_run_id, log_data
@@ -79,7 +84,12 @@ class TestCreateLogs:
         logs = await models.logs.read_logs(session=session, log_filter=log_filter)
         assert len(logs) == 1
 
-        assert LogCreate.from_orm(logs[0]).dict(json_compatible=True) == log_data[1]
+        assert (
+            Log.from_orm(logs[0]).dict(
+                json_compatible=True, exclude={"created", "id", "updated"}
+            )
+            == log_data[1]
+        )
 
     async def test_database_failure(
         self, client_without_exceptions, session, flow_run_id, task_run_id, log_data

@@ -5,9 +5,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, Query, Response, status
-from fastapi.responses import Response
 
-from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.database.dependencies import provide_database_interface
@@ -24,9 +22,9 @@ async def create_block_schema(
     response: Response,
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockSchema:
+    from prefect.blocks.core import Block
 
     async with db.session_context(begin_transaction=True) as session:
-        # check if the requested block type is protected
         block_type = await models.block_types.read_block_type(
             session=session, block_type_id=block_schema.block_type_id
         )
@@ -35,16 +33,13 @@ async def create_block_schema(
                 status.HTTP_404_NOT_FOUND,
                 detail=f"Block type {block_schema.block_type_id} not found.",
             )
-        elif block_type.is_protected:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                detail="Block schemas for protected block types cannot be created.",
-            )
 
         block_schema_checksum = Block._calculate_schema_checksum(block_schema.fields)
         existing_block_schema = (
             await models.block_schemas.read_block_schema_by_checksum(
-                session=session, checksum=block_schema_checksum
+                session=session,
+                checksum=block_schema_checksum,
+                version=block_schema.version,
             )
         )
         if existing_block_schema:
@@ -65,6 +60,7 @@ async def create_block_schema(
 async def delete_block_schema(
     block_schema_id: UUID = Path(..., description="The block schema id", alias="id"),
     db: OrionDBInterface = Depends(provide_database_interface),
+    api_version=Depends(dependencies.provide_request_api_version),
 ):
     """
     Delete a block schema by id.

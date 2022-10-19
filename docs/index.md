@@ -37,7 +37,7 @@ Prefect 2 was designed for incremental adoption into your workflows. The documen
 
 **Getting started**
 
-Begin by [installing Prefect 2](/getting-started/installation/) on your machine, then follow one of our [friendly tutorials](/tutorials/first-steps/) to learn by example. See the [Getting Started overview](/getting-started/overview/) for more.
+Begin by [installing Prefect 2](/getting-started/installation/) on your machine, then follow one of our [friendly tutorials](/tutorials/first-steps/) to learn by example. See our [Quick Start](/getting-started/overview/) guide for details if you're ready to jump right in.
 
 Even if you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps. Prefect 2 offers significant new functionality.
 
@@ -129,8 +129,6 @@ Prefect 2 is designed for incremental adoption. You can decorate as many of your
 
 To dive right in and see what Prefect 2 can do, simply sprinkle in a few decorators and add a little configuration, like the example below. 
 
-### Basic example
-
 This code fetches data about GitHub stars for a few repositories. Add the three highlighted lines of code to your functions to use Prefect, and you're off to the races! 
 
 
@@ -195,31 +193,6 @@ Click on your flow name to see logs and other details.
 
 ![screenshot of prefect orion dashboard with logs, radar plot, and flow info](./img/intro-ui-logs.png)
 
-Let's show how the aforementioned basic example can be expanded to run concurrently!
-
-### Simple concurrency
-
-By changing the task calls to use the `.submit()` method, the tasks will be submitted to a worker for execution. This allows multiple tasks to run at once! Prefect 2 comes with built-in threaded concurrency and only this one line change is needed to begin using it.
-
-```python hl_lines="13"
-from prefect import flow, task
-import httpx
-
-@task(retries=3)
-def get_stars(repo):
-    url = f"https://api.github.com/repos/{repo}"
-    count = httpx.get(url).json()["stargazers_count"]
-    print(f"{repo} has {count} stars!")
-
-@flow()
-def github_stars(repos):
-    for repo in repos:
-        get_stars.submit(repo)
-
-# call the flow!
-if __name__ == "__main__":
-    github_stars(["PrefectHQ/Prefect", "PrefectHQ/prefect-aws",  "PrefectHQ/prefect-dbt"])
-```
 
 The above example just scratch the surface of how Prefect can help you coordinate your dataflows.
 

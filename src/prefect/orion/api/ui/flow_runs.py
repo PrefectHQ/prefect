@@ -19,18 +19,20 @@ router = OrionRouter(prefix="/ui/flow_runs", tags=["Flow Runs", "UI"])
 
 
 class SimpleFlowRun(PrefectBaseModel):
-    id: UUID = Field(..., description="The flow run id.")
-    state_type: schemas.states.StateType = Field(..., description="The state type.")
+    id: UUID = Field(default=..., description="The flow run id.")
+    state_type: schemas.states.StateType = Field(
+        default=..., description="The state type."
+    )
     timestamp: DateTimeTZ = Field(
-        ...,
+        default=...,
         description="The start time of the run, or the expected start time "
         "if it hasn't run yet.",
     )
     duration: datetime.timedelta = Field(
-        ..., description="The total run time of the run."
+        default=..., description="The total run time of the run."
     )
     lateness: datetime.timedelta = Field(
-        ..., description="The delay between the expected and actual start time."
+        default=..., description="The delay between the expected and actual start time."
     )
 
 
@@ -53,6 +55,9 @@ async def read_flow_run_history(
         db.FlowRun.start_time,
         db.FlowRun.expected_start_time,
         db.FlowRun.total_run_time,
+        # Although it isn't returned, we need to select
+        # this field in order to compute `estimated_run_time`
+        db.FlowRun.state_timestamp,
     ]
     async with db.session_context() as session:
         result = await models.flow_runs.read_flow_runs(

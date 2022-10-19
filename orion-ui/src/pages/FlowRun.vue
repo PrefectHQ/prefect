@@ -76,6 +76,7 @@
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { flowRunsApi } from '@/services/flowRunsApi'
 
@@ -83,7 +84,12 @@
   const flowRunId = useRouteParam('id')
 
   const tabs = computed(() => {
-    const values = ['Logs', 'Task Runs', 'Sub Flow Runs', 'Parameters']
+    const values = [
+      'Logs',
+      'Task Runs',
+      'Subflow Runs',
+      'Parameters',
+    ]
 
     if (!media.xl) {
       values.push('Details')
@@ -105,6 +111,14 @@
 
   const stateType = computed(() => flowRun.value?.stateType)
   useFavicon(stateType)
+
+  const title = computed(() => {
+    if (!flowRun.value) {
+      return 'Flow Run'
+    }
+    return `Flow Run: ${flowRun.value.name}`
+  })
+  usePageTitle(title)
 </script>
 
 <style>

@@ -1,6 +1,6 @@
 import contextlib
 import random
-from itertools import product
+from itertools import combinations_with_replacement, product
 from unittest import mock
 
 import pendulum
@@ -11,6 +11,7 @@ from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
+    PreventRedundantTransitions,
     PreventTransitionsFromTerminalStates,
     ReleaseTaskConcurrencySlots,
     RenameReruns,
@@ -166,6 +167,41 @@ class TestCachingBackendLogic:
 
         assert ctx2.response_status == expected_status
         assert ctx2.validated_state.name == expected_name
+
+    async def test_cache_insertion_requires_validated_state(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Regression test for the bug observed when exiting the CacheInsertion
+        rule after a database error that prevented committing the validated state"""
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.COMPLETED
+        intended_transition = (initial_state_type, proposed_state_type)
+        expiration = pendulum.now().subtract(days=1)
+
+        ctx1 = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details={"cache_key": "cache-hit", "cache_expiration": expiration},
+            proposed_details={"cache_key": "cache-hit", "cache_expiration": expiration},
+        )
+
+        with pytest.raises(ValueError, match="this better be mine"):
+            async with contextlib.AsyncExitStack() as stack:
+                ctx1 = await stack.enter_async_context(
+                    CacheInsertion(ctx1, *intended_transition)
+                )
+                # Simulate an exception (for example, a database error) that happens
+                # within the context manager; when this happens, we've observed the
+                # CacheInsertion to raise:
+                #
+                #   AttributeError: 'NoneType' object has no attribute 'state_details'
+                #
+                # because the `validated_state` passed to its after_transition
+                # handler is None
+                raise ValueError("this better be mine")
 
     @pytest.mark.parametrize(
         "proposed_state_type",
@@ -518,6 +554,73 @@ class TestTransitionsFromTerminalStatesRule:
         state_protection = PreventTransitionsFromTerminalStates(
             ctx, *intended_transition
         )
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+
+@pytest.mark.parametrize("run_type", ["task", "flow"])
+class TestPreventingRedundantTransitionsRule:
+    active_states = (
+        states.StateType.RUNNING,
+        states.StateType.PENDING,
+        states.StateType.SCHEDULED,
+        None,
+    )
+    all_transitions = set(product(ALL_ORCHESTRATION_STATES, ALL_ORCHESTRATION_STATES))
+    redundant_transitions = set(combinations_with_replacement(active_states, 2))
+
+    # Cast to sorted lists for deterministic ordering.
+    # Sort as strings to handle `None`.
+    active_transitions = list(
+        sorted(all_transitions - redundant_transitions, key=lambda item: str(item))
+    )
+    redundant_transitions = list(
+        sorted(redundant_transitions, key=lambda item: str(item))
+    )
+
+    @pytest.mark.parametrize(
+        "intended_transition", redundant_transitions, ids=transition_names
+    )
+    async def test_redundant_transitions_are_aborted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        intended_transition,
+    ):
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+        )
+
+        state_protection = PreventRedundantTransitions(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    @pytest.mark.parametrize(
+        "intended_transition", active_transitions, ids=transition_names
+    )
+    async def test_all_other_transitions_are_accepted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        intended_transition,
+    ):
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+        )
+
+        state_protection = PreventRedundantTransitions(ctx, *intended_transition)
 
         async with state_protection as ctx:
             await ctx.validate_proposed_state()

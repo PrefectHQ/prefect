@@ -18,6 +18,8 @@ import prefect.logging.configuration
 import prefect.settings
 from prefect import flow, task
 from prefect.context import FlowRunContext, TaskRunContext
+from prefect.deprecated.data_documents import _retrieve_result
+from prefect.exceptions import MissingContextError
 from prefect.infrastructure import Process
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
@@ -26,6 +28,7 @@ from prefect.logging.configuration import (
 )
 from prefect.logging.handlers import OrionHandler, OrionLogWorker
 from prefect.logging.loggers import (
+    disable_logger,
     disable_run_logger,
     flow_run_logger,
     get_logger,
@@ -33,7 +36,6 @@ from prefect.logging.loggers import (
     task_run_logger,
 )
 from prefect.orion.schemas.actions import LogCreate
-from prefect.results import _retrieve_result
 from prefect.settings import (
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_BATCH_INTERVAL,
@@ -189,7 +191,7 @@ async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deploym
     )
 
     state = (await orion_client.read_flow_run(flow_run.id)).state
-    settings = await _retrieve_result(state)
+    settings = await _retrieve_result(state, orion_client)
     api_logs = await orion_client.read_logs()
     api_log_messages = [log.message for log in api_logs]
 
@@ -907,7 +909,7 @@ def test_task_run_logger_with_kwargs(task_run):
 
 
 def test_run_logger_fails_outside_context():
-    with pytest.raises(RuntimeError, match="no active flow or task run context"):
+    with pytest.raises(MissingContextError, match="no active flow or task run context"):
         get_run_logger()
 
 
@@ -924,11 +926,10 @@ async def test_run_logger_with_explicit_context(
         pass
 
     task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
-    context = TaskRunContext(
+    context = TaskRunContext.construct(
         task=foo,
         task_run=task_run,
         client=orion_client,
-        result_filesystem=local_filesystem,
     )
 
     logger = get_run_logger(context)
@@ -957,11 +958,10 @@ async def test_run_logger_with_explicit_context_overrides_existing(
 
     task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
     # Use `bar` instead of `foo` in context
-    context = TaskRunContext(
+    context = TaskRunContext.construct(
         task=bar,
         task_run=task_run,
         client=orion_client,
-        result_filesystem=local_filesystem,
     )
 
     logger = get_run_logger(context)
@@ -975,7 +975,7 @@ async def test_run_logger_in_flow(orion_client):
 
     state = test_flow._run()
     flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
-    logger = state.result()
+    logger = await state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
         "flow_name": test_flow.name,
@@ -991,7 +991,7 @@ async def test_run_logger_extra_data(orion_client):
 
     state = test_flow._run()
     flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
-    logger = state.result()
+    logger = await state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
         "flow_name": "bar",
@@ -1010,9 +1010,9 @@ async def test_run_logger_in_nested_flow(orion_client):
     def test_flow():
         return child_flow._run()
 
-    child_state = test_flow._run().result()
+    child_state = await test_flow._run().result()
     flow_run = await orion_client.read_flow_run(child_state.state_details.flow_run_id)
-    logger = child_state.result()
+    logger = await child_state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
         "flow_name": child_flow.name,
@@ -1032,9 +1032,9 @@ async def test_run_logger_in_task(orion_client):
 
     flow_state = test_flow._run()
     flow_run = await orion_client.read_flow_run(flow_state.state_details.flow_run_id)
-    task_state = flow_state.result()
+    task_state = await flow_state.result()
     task_run = await orion_client.read_task_run(task_state.state_details.task_run_id)
-    logger = task_state.result()
+    logger = await task_state.result()
     assert logger.name == "prefect.task_runs"
     assert logger.extra == {
         "task_name": test_task.name,
@@ -1044,6 +1044,38 @@ async def test_run_logger_in_task(orion_client):
         "flow_run_id": str(flow_run.id),
         "flow_run_name": flow_run.name,
     }
+
+
+def test_without_disable_logger(caplog):
+    """
+    Sanity test to double check whether caplog actually works
+    so can be more confident in the asserts in test_disable_logger.
+    """
+    logger = logging.getLogger("griffe.agents.nodes")
+
+    def function_with_logging(logger):
+        assert not logger.disabled
+        logger.critical("it's enabled!")
+        return 42
+
+    function_with_logging(logger)
+    assert not logger.disabled
+    assert caplog.record_tuples == [("griffe.agents.nodes", 50, "it's enabled!")]
+
+
+def test_disable_logger(caplog):
+    logger = logging.getLogger("griffe.agents.nodes")
+
+    def function_with_logging(logger):
+        logger.critical("I know this is critical, but it's disabled!")
+        return 42
+
+    with disable_logger(logger.name):
+        assert logger.disabled
+        function_with_logging(logger)
+
+    assert not logger.disabled
+    assert caplog.record_tuples == []
 
 
 def test_disable_run_logger(caplog):

@@ -45,11 +45,13 @@ class Process(Infrastructure):
         name: A name for the process. For display purposes only.
     """
 
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
+
     type: Literal["process"] = Field(
-        "process", description="The type of infrastructure."
+        default="process", description="The type of infrastructure."
     )
     stream_output: bool = Field(
-        True,
+        default=True,
         description="If set, output will be streamed from the process to local standard output.",
     )
 
@@ -83,9 +85,22 @@ class Process(Infrastructure):
         display_name = display_name or f" {process.pid}"
 
         if process.returncode:
+            help_message = None
+            if process.returncode == -9:
+                help_message = (
+                    "This indicates that the process exited due to a SIGKILL signal. "
+                    "Typically, this is caused by high memory usage causing the "
+                    "operating system to terminate the process."
+                )
+            elif process.returncode == 247:
+                help_message = (
+                    "This indicates that the process was terminated due to high "
+                    "memory usage."
+                )
+
             self.logger.error(
                 f"Process{display_name} exited with status code: "
-                f"{process.returncode}"
+                f"{process.returncode}" + (f"; {help_message}" if help_message else "")
             )
         else:
             self.logger.info(f"Process{display_name} exited cleanly.")

@@ -40,12 +40,12 @@ def generate_slug(n_words: int) -> str:
     return "-".join(words)
 
 
-def obfuscate_string(s: str) -> str:
+def obfuscate_string(s: str, show_tail=False) -> str:
     """
     Obfuscates a string by returning a new string of 8 characters. If the input
-    string is longer than 10 characters, then up to 4 of its final characters
-    will become final characters of the obfuscated string; all other characters
-    are "*".
+    string is longer than 10 characters and show_tail is True, then up to 4 of
+    its final characters will become final characters of the obfuscated string;
+    all other characters are "*".
 
     "abc"      -> "********"
     "abcdefgh" -> "********"
@@ -55,6 +55,6 @@ def obfuscate_string(s: str) -> str:
     result = OBFUSCATED_PREFIX + "*" * 4
     # take up to 4 characters, but only after the 10th character
     suffix = s[10:][-4:]
-    if suffix:
+    if suffix and show_tail:
         result = f"{result[:-len(suffix)]}{suffix}"
     return result

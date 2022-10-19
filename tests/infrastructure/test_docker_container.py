@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import anyio.abc
+import docker
 import pytest
 
 from prefect.docker import get_prefect_image_name
@@ -223,10 +224,7 @@ def test_allows_unsetting_environment_variables(
     assert "PREFECT_TEST_MODE" not in call_env
 
 
-def test_uses_image_registry_setting(
-    mock_docker_client,
-):
-
+def test_uses_image_registry_setting(mock_docker_client):
     DockerContainer(
         command=["echo", "hello"],
         image_registry=DockerRegistry(
@@ -235,9 +233,30 @@ def test_uses_image_registry_setting(
         image_pull_policy="ALWAYS",
     ).run()
 
+    # ensure that login occurs when DockerContainer is provided an
+    # image registry
     mock_docker_client.login.assert_called_once_with(
         username="foo", password="bar", registry="example.test", reauth=True
     )
+
+
+def test_uses_image_registry_client(mock_docker_client, monkeypatch):
+    container = DockerContainer(
+        command=["echo", "hello"],
+        image_registry=DockerRegistry(
+            username="foo", password="bar", registry_url="example.test"
+        ),
+        image_pull_policy="ALWAYS",
+    )
+
+    # ensure that DockerContainer is asking for an authenticated
+    # DockerClient from DockerRegistry.
+    mock_get_client = MagicMock()
+    mock_get_client.return_value = mock_docker_client
+    monkeypatch.setattr(container.image_registry, "get_docker_client", mock_get_client)
+    container.run()
+    mock_get_client.assert_called_once()
+    mock_docker_client.images.pull.assert_called_once()
 
 
 async def test_uses_image_registry_setting_after_save(
@@ -257,12 +276,34 @@ async def test_uses_image_registry_setting_after_save(
     ).save("test-docker-container")
 
     container = await DockerContainer.load("test-docker-container")
-
     await container.run()
 
     mock_docker_client.login.assert_called_once_with(
         username="foo", password="bar", registry="example.test", reauth=True
     )
+
+
+async def test_uses_image_registry_client_after_save(mock_docker_client, monkeypatch):
+    await DockerRegistry(
+        username="foo", password="bar", registry_url="example.test"
+    ).save("test-docker-registry")
+
+    await DockerContainer(
+        command=["echo", "hello"],
+        image_registry=await DockerRegistry.load("test-docker-registry"),
+        image_pull_policy="ALWAYS",
+    ).save("test-docker-container")
+
+    container = await DockerContainer.load("test-docker-container")
+
+    # ensure that the saved and reloaded DockerContainer is asking for an authenticated
+    # DockerClient from DockerRegistry.
+    mock_get_client = MagicMock()
+    mock_get_client.return_value = mock_docker_client
+    monkeypatch.setattr(container.image_registry, "get_docker_client", mock_get_client)
+    await container.run()
+    mock_get_client.assert_called_once()
+    mock_docker_client.images.pull.assert_called_once()
 
 
 @pytest.mark.parametrize("localhost", ["localhost", "127.0.0.1"])
@@ -689,3 +730,53 @@ def test_run_requires_command():
     container = DockerContainer(command=[])
     with pytest.raises(ValueError, match="cannot be run with empty command"):
         container.run()
+
+
+def test_stream_container_logs(capsys, mock_docker_client):
+    mock_container = mock_docker_client.containers.get.return_value
+    mock_container.logs = MagicMock(return_value=[b"hello", b"world"])
+
+    DockerContainer(command=["doesnt", "matter"]).run()
+
+    captured = capsys.readouterr()
+    assert captured.out == "hello\nworld\n"
+
+
+def test_logs_warning_when_container_marked_for_removal(caplog, mock_docker_client):
+    warning = (
+        "Docker container fake-name was marked for removal before logs "
+        "could be retrieved. Output will not be streamed"
+    )
+    mock_container = mock_docker_client.containers.get.return_value
+    mock_container.logs = MagicMock(side_effect=docker.errors.APIError(warning))
+
+    DockerContainer(
+        command=["doesnt", "matter"],
+    ).run()
+
+    assert "Docker container fake-name was marked for removal" in caplog.text
+
+
+def test_logs_when_unexpected_docker_error(caplog, mock_docker_client):
+    mock_container = mock_docker_client.containers.get.return_value
+    mock_container.logs = MagicMock(side_effect=docker.errors.APIError("..."))
+
+    DockerContainer(
+        command=["doesnt", "matter"],
+    ).run()
+
+    assert (
+        "An unexpected Docker API error occured while streaming output from container fake-name."
+        in caplog.text
+    )
+
+
+@pytest.mark.service("docker")
+def test_stream_container_logs_on_real_container(capsys):
+    DockerContainer(
+        command=["echo", "hello"],
+        stream_output=True,
+    ).run()
+
+    captured = capsys.readouterr()
+    assert "hello" in captured.out

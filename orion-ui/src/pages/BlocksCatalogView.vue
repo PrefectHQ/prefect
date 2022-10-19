@@ -12,6 +12,7 @@
   import { PageHeadingBlocksCatalogView, BlockTypeCard } from '@prefecthq/orion-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { blockTypesApi } from '@/services/blockTypesApi'
 
   const blockTypeSlugParam = useRouteParam('blockTypeSlug')
@@ -25,4 +26,12 @@
 
   const blockTypeSubscription = useSubscriptionWithDependencies(blockTypesApi.getBlockTypeBySlug, blockTypeSubscriptionArgs)
   const blockType = computed(() => blockTypeSubscription.response)
+
+  const blockTypeTitle = computed<string | null>(() => {
+    if (!blockType.value) {
+      return null
+    }
+    return `Block Type: ${blockType.value.name}`
+  })
+  usePageTitle(blockTypeTitle)
 </script>

@@ -36,6 +36,7 @@ theme:
     custom_dir: docs/overrides
     favicon: img/favicon.png
     features:
+        - announce.dismiss
         - toc.integrate
         - navigation.tabs
         - navigation.tabs.sticky
@@ -57,7 +58,7 @@ plugins:
         custom_templates: docs/templates
         handlers:
             python:
-                rendering:
+                options:
                     show_root_heading: True
                     show_object_full_path: False
                     show_category_heading: False
@@ -72,28 +73,31 @@ plugins:
             - docs/collections/generate_catalog.py
             - docs/recipes/generate_catalog.py
 nav:
-    - Prefect 2: index.md
-    - 'Getting Started':
-        - Overview: getting-started/overview.md
+    # - Prefect 2: index.md
+    - Getting Started:
+        - Welcome to Prefect 2: index.md
+        - Quick Start: getting-started/overview.md
         - Installation: getting-started/installation.md
         - Tutorials:
-            - tutorials/first-steps.md
-            - tutorials/flow-task-config.md
-            - tutorials/execution.md
-            - tutorials/orion.md
-            - tutorials/deployments.md
-            - tutorials/storage.md
-            - tutorials/docker.md
-            # - tutorials/kubernetes-flow-runner.md
-            - tutorials/testing.md
-            - tutorials/dask-ray-task-runners.md
-            - Prefect Cloud: ui/cloud-getting-started.md
+            - Prefect Fundamentals:
+                - tutorials/first-steps.md
+                - tutorials/flow-task-config.md
+                - tutorials/execution.md
+                - tutorials/orion.md
+                - tutorials/deployments.md
+                - tutorials/storage.md
+                - tutorials/docker.md
+                - Prefect Cloud: ui/cloud-getting-started.md
+            - Advanced Tutorials:
+                - tutorials/testing.md
+                - tutorials/dask-ray-task-runners.md
         - Migration Guide: migration-guide.md
         - Prefect Recipes: recipes/recipes.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
         - Tasks: concepts/tasks.md
+        - Results: concepts/results.md
         - States: concepts/states.md
         - Infrastructure: concepts/infrastructure.md
         - Task Runners: concepts/task-runners.md
@@ -118,6 +122,7 @@ nav:
             - Prefect Cloud Overview: ui/cloud.md
             - Prefect Cloud Quickstart: ui/cloud-getting-started.md
             - Organizations: ui/organizations.md
+            - Roles (RBAC): ui/roles.md
     - Collections:
         - Overview: collections/overview.md
         - Collections Catalog: collections/catalog.md
@@ -215,7 +220,6 @@ nav:
         - Overview: contributing/overview.md
         - Style: contributing/style.md
         - Troubleshooting: contributing/common-mistakes.md
-        # - Testing Flow Runners: contributing/testing-flow-runners.md
 
 extra:
     analytics:

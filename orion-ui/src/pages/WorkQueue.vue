@@ -14,12 +14,24 @@
         <CodeBanner :command="workQueueCliCommand" title="Work queue is ready to go!" subtitle="Work queues define the work to be done and agents poll a specific work queue for new work." />
       </template>
 
-      <p-tabs :tabs="tabs">
+      <p-tabs v-model:selected="selectedTab" :tabs="tabs">
         <template #details>
           <WorkQueueDetails v-if="workQueue" :work-queue="workQueue" />
         </template>
+
         <template #upcoming-runs>
-          <WorkQueueFlowRunsList v-if="workQueue" :work-queue="workQueue" />
+          <div class="work-queue__upcoming-runs">
+            <WorkQueueFlowRunsList v-if="workQueue" :work-queue="workQueue" />
+            <template v-if="activeRunsBuildUp">
+              <p-button secondary class="work-queue__active-runs-button" @click="showActiveRuns">
+                Show active runs
+              </p-button>
+            </template>
+          </div>
+        </template>
+
+        <template #runs>
+          <FlowRunFilteredList v-model:states="states" :flow-run-filter="selectedFilter" />
         </template>
       </p-tabs>
 
@@ -32,12 +44,13 @@
 
 
 <script lang="ts" setup>
-  import { WorkQueueDetails, PageHeadingWorkQueue, WorkQueueFlowRunsList, CodeBanner, localization } from '@prefecthq/orion-design'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter, inject, flowRunsApiKey, StateType, useFlowRunFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed, watch } from 'vue'
+  import { computed, watch, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { useToast } from '@/compositions'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { workQueuesApi } from '@/services/workQueuesApi'
 
@@ -45,7 +58,7 @@
   const showToast = useToast()
 
   const tabs = computed(() => {
-    const values = ['Upcoming Runs']
+    const values = ['Upcoming Runs', 'Runs']
 
     if (!media.xl) {
       values.unshift('Details')
@@ -57,16 +70,44 @@
   const workQueueId = useRouteParam('id')
   const workQueueCliCommand = computed(() => `prefect agent start ${workQueue.value ? ` --work-queue "${workQueue.value.name}"` : ''}`)
 
+  const states = ref<StateType[]>([])
+  const selectedTab = ref<string | undefined>()
+  const showActiveRuns = (): void => {
+    states.value = ['running', 'pending']
+    selectedTab.value = 'Runs'
+  }
+
   const subscriptionOptions = {
     interval: 300000,
   }
 
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value], subscriptionOptions)
   const workQueue = computed(() => workQueueSubscription.response)
+  const workQueueConcurrency = computed(() => workQueue.value?.concurrencyLimit)
+  const workQueuePaused = computed(() => workQueue.value?.isPaused)
+  const activeRunsBuildUp = computed(() => !!(workQueueConcurrency.value && workQueueConcurrency.value <= activeFlowRunsCount.value && !workQueuePaused.value))
+
+  const workQueueName = computed(() => workQueue.value ? [workQueue.value.name] : [])
+  const recentFlowRunFilter = useRecentFlowRunFilter({ workQueues: workQueueName })
+  const flowRunFilter = useFlowRunFilter({ workQueues: workQueueName })
+  const selectedFilter = computed(() => activeRunsBuildUp.value ? flowRunFilter.value : recentFlowRunFilter.value)
 
   const routeToQueues = (): void => {
     router.push(routes.workQueues())
   }
+
+  const title = computed(() => {
+    if (!workQueue.value) {
+      return 'Work Queue'
+    }
+    return `Work Queue: ${workQueue.value.name}`
+  })
+  usePageTitle(title)
+
+  const flowRunsApi = inject(flowRunsApiKey)
+  const activeFlowRunsFilter = useFlowRunFilter({ states: ['Running', 'Pending'], workQueues: workQueueName })
+  const flowRunsCountSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [activeFlowRunsFilter.value], { interval: 30000 })
+  const activeFlowRunsCount = computed(()=> flowRunsCountSubscription.response ?? [])
 
   watch(() => workQueue.value?.deprecated, value => {
     if (value) {
@@ -80,5 +121,14 @@
 .work-queue__body {
   @apply
   p-0
+}
+
+.work-queue__controls-list,
+.work-queue__upcoming-runs { @apply
+  grid
+  gap-2
+}
+.work-queue__active-runs-button { @apply
+  justify-self-center
 }
 </style>

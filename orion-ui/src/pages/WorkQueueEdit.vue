@@ -12,6 +12,7 @@
   import { WorkQueueEditForm, PageHeadingWorkQueueEdit, WorkQueueEdit } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam } from '@prefecthq/vue-compositions'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import router from '@/router'
   import { workQueuesApi } from '@/services/workQueuesApi'
 
@@ -33,4 +34,6 @@
       console.error(error)
     }
   }
+
+  usePageTitle(`Edit Work Queue: ${workQueueDetails.name}`)
 </script>

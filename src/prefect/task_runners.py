@@ -49,6 +49,7 @@ Example:
 For usage details, see the [Task Runners](/concepts/task-runners/) documentation.
 """
 import abc
+import asyncio
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import (
     TYPE_CHECKING,
@@ -202,7 +203,7 @@ class SequentialTaskRunner(BaseTaskRunner):
         try:
             result = await call()
         except BaseException as exc:
-            result = exception_to_crashed_state(exc)
+            result = await exception_to_crashed_state(exc)
 
         self._results[key] = result
 
@@ -230,8 +231,10 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
         # Runtime attributes
         self._task_group: anyio.abc.TaskGroup = None
+        self._result_events: Dict[UUID, anyio.abc.Event] = {}
         self._results: Dict[UUID, Any] = {}
         self._keys: Set[UUID] = set()
+
         super().__init__()
 
     @property
@@ -253,6 +256,8 @@ class ConcurrentTaskRunner(BaseTaskRunner):
                 "The concurrent task runner cannot be used to submit work after "
                 "serialization."
             )
+
+        self._result_events[key] = anyio.Event()
 
         # Rely on the event loop for concurrency
         self._task_group.start_soon(self._run_and_store_result, key, call)
@@ -285,17 +290,33 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         try:
             self._results[key] = await call()
         except BaseException as exc:
-            self._results[key] = exception_to_crashed_state(exc)
+            self._results[key] = await exception_to_crashed_state(exc)
 
-    async def _get_run_result(self, key: UUID, timeout: float = None):
+        self._result_events[key].set()
+
+    async def _get_run_result(
+        self, key: UUID, timeout: float = None
+    ) -> Optional[State]:
         """
         Block until the run result has been populated.
         """
+        result = None  # Return value on timeout
+
         with anyio.move_on_after(timeout):
+
+            # Attempt to use the event to wait for the result. This is much more efficient
+            # than the spin-lock that follows but does not work if the wait call
+            # happens from an event loop in a different thread than the one from which
+            # the event was created
+            result_event = self._result_events[key]
+            if result_event._event._loop == asyncio.get_running_loop():
+                await result_event.wait()
+
             result = self._results.get(key)
             while not result:
                 await anyio.sleep(0)  # yield to other tasks
                 result = self._results.get(key)
+
         return result
 
     async def _start(self, exit_stack: AsyncExitStack):

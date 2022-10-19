@@ -164,7 +164,7 @@ async def update_block_type(
     update_statement = (
         sa.update(db.BlockType)
         .where(db.BlockType.id == block_type_id)
-        .values(**block_type.dict(shallow=True, exclude_unset=True))
+        .values(**block_type.dict(shallow=True, exclude_unset=True, exclude={"id"}))
     )
     result = await session.execute(update_statement)
     return result.rowcount > 0
