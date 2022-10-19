@@ -155,7 +155,7 @@ class TestTaskCall:
         with pytest.raises(ValueError, match="Test"):
             state.result()
 
-    def test_task_supports_callable_objects(self):
+    def test_task_with_name_supports_callable_objects(self):
         class A:
             def __call__(self, *_args: Any, **_kwargs: Any) -> Any:
                 return "hello"
@@ -163,6 +163,47 @@ class TestTaskCall:
         a = A()
         task = Task(fn=a, name="Task")
         assert task.fn is a
+
+    def test_task_supports_callable_objects(self):
+        class A:
+            def __call__(self, *_args: Any, **_kwargs: Any) -> Any:
+                return "hello"
+
+        a = A()
+        task = Task(fn=a)
+        assert task.fn is a
+
+    def test_task_run_with_name_from_callable_object(self):
+        class Foo:
+            message = "hello"
+
+            def __call__(self, prefix: str, suffix: str) -> Any:
+                return prefix + self.message + suffix
+
+        obj = Foo()
+        foo = Task(fn=obj, name="Task")
+
+        @flow
+        def bar():
+            return foo("a", suffix="b")
+
+        assert bar() == "ahellob"
+
+    def test_task_run_from_callable_object(self):
+        class Foo:
+            message = "hello"
+
+            def __call__(self, prefix: str, suffix: str) -> Any:
+                return prefix + self.message + suffix
+
+        obj = Foo()
+        foo = Task(fn=obj)
+
+        @flow
+        def bar():
+            return foo("a", suffix="b")
+
+        assert bar() == "ahellob"
 
 
 class TestTaskRun:
