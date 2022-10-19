@@ -321,7 +321,7 @@ class RestartFlowRun(BaseOrchestrationRule):
             context.session, context.run.id, flow_run_update
         )
         await self.rename_state("AwaitingRestart")
-        await self.update_context_parameters("rerunning", True)
+        await self.update_context_parameters("permit-rescheduling", True)
 
     async def cleanup(
         self,
@@ -392,7 +392,7 @@ class RenameReruns(BaseOrchestrationRule):
             if initial_state.name == "AwaitingRetry":
                 await self.rename_state("Retrying")
             else:
-                await self.rename_state("Rerunning")
+                await self.rename_state("permit-Rerunning")
 
 
 class WaitForScheduledTime(BaseOrchestrationRule):
@@ -446,8 +446,19 @@ class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
-        if not context.parameters.get("rerunning", False):
-            await self.abort_transition(reason="This run has already terminated.")
+        if proposed_state.is_running() and context.parameters.get(
+            "permit-rerunning", False
+        ):
+            # allow transitions into a running state if permitted by a previous rule
+            return
+
+        if proposed_state.is_running() and context.parameters.get(
+            "permit-rescheduling", False
+        ):
+            # allow transitions into a scheduled state if permitted by a previous rule
+            return
+
+        await self.abort_transition(reason="This run has already terminated.")
 
 
 class PreventRedundantTransitions(BaseOrchestrationRule):
@@ -525,7 +536,7 @@ class PermitRerunningFailedTaskRuns(BaseOrchestrationRule):
                     context.session, context.run.id, task_run_update
                 )
                 await self.rename_state("RetryingViaRestart")
-                await self.update_context_parameters("rerunning", True)
+                await self.update_context_parameters("permit-rerunning", True)
         elif self.flow_run.run_count > context.run.empirical_policy.flow_retry_attempt:
             # if the flow run count is > 1, the flow is retrying
             updated_settings = context.run_settings.copy()
@@ -536,7 +547,7 @@ class PermitRerunningFailedTaskRuns(BaseOrchestrationRule):
                 context.session, context.run.id, task_run_update
             )
             await self.rename_state("Retrying")
-            await self.update_context_parameters("rerunning", True)
+            await self.update_context_parameters("permit-rerunning", True)
 
     async def cleanup(
         self,
