@@ -266,29 +266,6 @@ class DependencyResult(PrefectBaseModel):
     untrackable_result: bool
 
 
-async def read_task_runs(
-    session: AsyncSession,
-    flow_run_id: UUID,
-) -> List[DependencyResult]:
-    """
-    Get all task runs for a given flow run.
-    """
-    flow_run = await models.flow_runs.read_flow_run(
-        session=session, flow_run_id=flow_run_id
-    )
-    if not flow_run:
-        raise ObjectNotFoundError(f"Flow run with id {flow_run_id} not found")
-
-    task_runs = await models.task_runs.read_task_runs(
-        session=session,
-        flow_run_filter=schemas.filters.FlowRunFilter(
-            id=schemas.filters.FlowRunFilterId(any_=[flow_run_id])
-        ),
-    )
-
-    return task_runs
-
-
 async def read_task_run_dependencies(
     session: AsyncSession,
     flow_run_id: UUID,
