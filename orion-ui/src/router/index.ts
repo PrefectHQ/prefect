@@ -24,7 +24,6 @@ const routeRecords: AppRouteRecord[] = [
         component: FlowRunsPage,
       },
       {
-        name: 'flow-run',
         path: 'flow-run/:id',
         children: [
           {
