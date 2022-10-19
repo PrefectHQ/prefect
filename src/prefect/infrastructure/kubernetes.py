@@ -172,9 +172,10 @@ class KubernetesJob(Infrastructure):
 
     @root_validator
     def default_namespace(cls, values):
-        job = values["job"]
+        job = values.get("job")
+
         namespace = values.get("namespace")
-        job_namespace = job["metadata"].get("namespace")
+        job_namespace = job["metadata"].get("namespace") if job else None
 
         if not namespace and not job_namespace:
             values["namespace"] = "default"
@@ -183,9 +184,13 @@ class KubernetesJob(Infrastructure):
 
     @root_validator
     def default_image(cls, values):
-        job = values["job"]
+        job = values.get("job")
         image = values.get("image")
-        job_image = job["spec"]["template"]["spec"]["containers"][0].get("image")
+        job_image = (
+            job["spec"]["template"]["spec"]["containers"][0].get("image")
+            if job
+            else None
+        )
 
         if not image and not job_image:
             values["image"] = get_prefect_image_name()
