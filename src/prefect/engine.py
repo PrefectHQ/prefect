@@ -1095,7 +1095,7 @@ async def begin_task_run(
             task_run_logger(task_run).info(
                 f"Task run '{task_run.id}' already finished."
             )
-        return task_run.state
+            return task_run.state
 
 
 async def orchestrate_task_run(

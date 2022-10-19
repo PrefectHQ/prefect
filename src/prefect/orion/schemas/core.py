@@ -277,7 +277,7 @@ class TaskRunPolicy(PrefectBaseModel):
     )
     flow_retry_attempt: Optional[int] = Field(
         default=0,
-        description="If the parent flow has restarted, this indicates the flow restart this run is associated with.",
+        description="If the parent flow has retried, this indicates the flow retry this run is associated with.",
     )
 
     @root_validator
