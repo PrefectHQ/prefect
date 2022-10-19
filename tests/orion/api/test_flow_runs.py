@@ -702,7 +702,7 @@ class TestRestartingFlowRuns:
         task_runs = await models.flow_runs.read_task_runs(
             session=session, flow_run_id=flow_run_id
         )
-        assert restarted_run.empirical_policy.restarts == 1
+        assert restarted_run.restarts == 1
         assert restarted_run.state.type == "SCHEDULED"
         assert len(task_runs) == 1
 
