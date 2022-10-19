@@ -353,6 +353,7 @@ class ORMFlowRun(ORMRun):
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     idempotency_key = sa.Column(sa.String)
     context = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    restarts = sa.Column(sa.Integer, server_default="0", default=0, nullable=False)
     empirical_policy = sa.Column(
         Pydantic(schemas.core.FlowRunPolicy),
         server_default="{}",
@@ -518,6 +519,8 @@ class ORMTaskRun(ORMRun):
     cache_key = sa.Column(sa.String)
     cache_expiration = sa.Column(Timestamp())
     task_version = sa.Column(sa.String)
+    flow_retry_attempt = sa.Column(sa.Integer, server_default="0", default=0, nullable=False)
+    flow_restart_attempt = sa.Column(sa.Integer, server_default="0", default=0, nullable=False)
     empirical_policy = sa.Column(
         Pydantic(schemas.core.TaskRunPolicy),
         server_default="{}",
