@@ -291,6 +291,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
         )
         await self.reject_transition(state=retry_state, reason="Retrying")
 
+
 class RestartFlowRun(BaseOrchestrationRule):
     FROM_STATES = TERMINAL_STATES
     TO_STATES = [states.StateType.SCHEDULED]
