@@ -703,8 +703,8 @@ class TestRestartingFlowRuns:
             session=session, flow_run_id=flow_run_id
         )
         assert restarted_run.empirical_policy.restarts == 1
+        assert restarted_run.state.type == "SCHEDULED"
         assert len(task_runs) == 1
-        assert task_runs[0].empirical_policy.flow_restart_index == 0
 
 
 class TestFlowRunHistory:
