@@ -100,6 +100,7 @@ class OrchestrationContext(PrefectBaseModel):
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
     response_details: StateResponseDetails = Field(default_factory=StateAcceptDetails)
     orchestration_error: Optional[Exception] = Field(default=None)
+    parameters: Dict[Any, Any] = Field(default_factory=dict)
 
     @property
     def initial_state_type(self) -> Optional[states.StateType]:
@@ -143,6 +144,7 @@ class OrchestrationContext(PrefectBaseModel):
         safe_copy.validated_state = (
             self.validated_state.copy() if self.validated_state else None
         )
+        safe_copy.parameters = self.parameters.copy()
         return safe_copy
 
     def entry_context(self):
@@ -823,6 +825,9 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         """
 
         self.context.proposed_state.name = state_name
+
+    async def update_context_parameters(self, key, value):
+        self.context.parameters.update({key: value})
 
 
 class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
