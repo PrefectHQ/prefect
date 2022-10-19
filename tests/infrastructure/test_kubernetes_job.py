@@ -214,7 +214,9 @@ def test_allows_image_setting_from_manifest(
 
     manifest = KubernetesJob.base_job_manifest()
     manifest["spec"]["template"]["spec"]["containers"][0]["image"] = "test"
-    KubernetesJob(command=["echo", "hello"], job=manifest).run(MagicMock())
+    job = KubernetesJob(command=["echo", "hello"], job=manifest)
+    assert job.image is None
+    job.run(MagicMock())
     mock_k8s_batch_client.create_namespaced_job.assert_called_once()
     image = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
         "template"
@@ -380,7 +382,9 @@ def test_allows_namespace_setting_from_manifest(
     mock_watch.stream = _mock_pods_stream_that_returns_running_pod
     manifest = KubernetesJob.base_job_manifest()
     manifest["metadata"]["namespace"] = "test"
-    KubernetesJob(command=["echo", "hello"], job=manifest).run(MagicMock())
+    job = KubernetesJob(command=["echo", "hello"], job=manifest)
+    assert job.namespace is None
+    job.run(MagicMock())
     mock_k8s_batch_client.create_namespaced_job.assert_called_once()
     namespace = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["metadata"][
         "namespace"
