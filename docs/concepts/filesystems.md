@@ -101,6 +101,9 @@ The `Azure` file system block enables interaction with Azure Datalake and Azure 
 | azure_storage_connection_string | Azure storage connection string. |
 | azure_storage_account_name | Azure storage account name. |
 | azure_storage_account_key | Azure storage account key. |
+| azure_storage_tenant_id | Azure storage tenant ID. |
+| azure_storage_client_id | Azure storage client ID. |
+| azure_storage_client_secret | Azure storage client secret. |
 
 
 To create a block:
