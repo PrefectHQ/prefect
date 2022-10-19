@@ -138,6 +138,7 @@ class Task(Generic[P, R]):
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
+        cache_result_in_memory: bool = True,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -147,13 +148,24 @@ class Task(Generic[P, R]):
         self.fn = fn
         self.isasync = inspect.iscoroutinefunction(self.fn)
 
-        self.name = name or self.fn.__name__
+        if not name:
+            if not hasattr(self.fn, "__name__"):
+                self.name = type(self.fn).__name__
+            else:
+                self.name = self.fn.__name__
+        else:
+            self.name = name
+
         self.version = version
 
         raise_for_reserved_arguments(self.fn, ["return_state", "wait_for"])
 
         self.tags = set(tags if tags else [])
-        self.task_key = to_qualified_name(self.fn)
+
+        if not hasattr(self.fn, "__qualname__"):
+            self.task_key = to_qualified_name(type(self.fn))
+        else:
+            self.task_key = to_qualified_name(self.fn)
 
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
@@ -167,6 +179,7 @@ class Task(Generic[P, R]):
         self.persist_result = persist_result
         self.result_storage = result_storage
         self.result_serializer = result_serializer
+        self.cache_result_in_memory = cache_result_in_memory
 
         # Warn if this task's `name` conflicts with another task while having a
         # different function. This is to detect the case where two or more tasks
@@ -204,6 +217,7 @@ class Task(Generic[P, R]):
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
+        cache_result_in_memory: Optional[bool] = None,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -278,6 +292,11 @@ class Task(Generic[P, R]):
                 result_serializer
                 if result_serializer is not NotSet
                 else self.result_serializer
+            ),
+            cache_result_in_memory=(
+                cache_result_in_memory
+                if cache_result_in_memory is not None
+                else self.cache_result_in_memory
             ),
         )
 
@@ -723,6 +742,7 @@ def task(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
+    cache_result_in_memory: bool = True,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -741,6 +761,7 @@ def task(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
+    cache_result_in_memory: bool = True,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -838,6 +859,7 @@ def task(
                 persist_result=persist_result,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
+                cache_result_in_memory=cache_result_in_memory,
             ),
         )
     else:
@@ -856,5 +878,6 @@ def task(
                 persist_result=persist_result,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
+                cache_result_in_memory=cache_result_in_memory,
             ),
         )

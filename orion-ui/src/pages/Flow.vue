@@ -10,7 +10,7 @@
       </template>
 
       <template #deployments>
-        <DeploymentsTable :deployments="flowDeployments" @update="flowDeploymentsSubscription.refresh()" @delete="flowDeploymentsSubscription.refresh()" />
+        <DeploymentsTable :filter="deploymentsFilter" />
       </template>
 
       <template #runs>
@@ -25,14 +25,13 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, UnionFilters, useRecentFlowRunFilter } from '@prefecthq/orion-design'
+  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useRecentFlowRunFilter, UseDeploymentFilterArgs } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
-  import { useSubscription, useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
+  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router/routes'
-  import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowsApi } from '@/services/flowsApi'
 
   const flowId = useRouteParam('id')
@@ -55,24 +54,11 @@
   const flow = computed(() => flowSubscription.response)
 
   const flowFilter = useRecentFlowRunFilter({ flows: [flowId.value] })
+  const deploymentsFilter = computed<UseDeploymentFilterArgs>(() => ({
+    flows: [flowId.value],
+  }))
 
-  const flowDeploymentFilterArgs = computed<[filter: UnionFilters] | null>(() => {
-    if (!flowId.value) {
-      return null
-    }
-    return [
-      {
-        flows: {
-          id: {
-            any_: [flowId.value],
-          },
-        },
-      },
-    ]
-  })
 
-  const flowDeploymentsSubscription = useSubscriptionWithDependencies(deploymentsApi.getDeployments, flowDeploymentFilterArgs)
-  const flowDeployments = computed(() => flowDeploymentsSubscription.response ?? [])
   function deleteFlow(): void {
     router.push(routes.flows())
   }
