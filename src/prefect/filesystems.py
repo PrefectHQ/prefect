@@ -616,6 +616,21 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         title="Azure storage account key",
         description="Equivalent to the AZURE_STORAGE_ACCOUNT_KEY environment variable.",
     )
+    azure_storage_tenant_id: Optional[SecretStr] = Field(
+        None,
+        title="Azure storage tenant ID",
+        description="Equivalent to the AZURE_TENANT_ID environment variable.",
+    )
+    azure_storage_client_id: Optional[SecretStr] = Field(
+        None,
+        title="Azure storage client ID",
+        description="Equivalent to the AZURE_CLIENT_ID environment variable.",
+    )
+    azure_storage_client_secret: Optional[SecretStr] = Field(
+        None,
+        title="Azure storage client secret",
+        description="Equivalent to the AZURE_CLIENT_SECRET environment variable.",
+    )
     _remote_file_system: RemoteFileSystem = None
 
     @property
@@ -635,6 +650,14 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
             ] = self.azure_storage_account_name.get_secret_value()
         if self.azure_storage_account_key:
             settings["account_key"] = self.azure_storage_account_key.get_secret_value()
+        if self.azure_storage_tenant_id:
+            settings["tenant_id"] = self.azure_storage_tenant_id.get_secret_value()
+        if self.azure_storage_client_id:
+            settings["client_id"] = self.azure_storage_client_id.get_secret_value()
+        if self.azure_storage_client_secret:
+            settings[
+                "client_secret"
+            ] = self.azure_storage_client_secret.get_secret_value()
         self._remote_file_system = RemoteFileSystem(
             basepath=f"az://{self.bucket_path}", settings=settings
         )
