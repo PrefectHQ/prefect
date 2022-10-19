@@ -24,9 +24,9 @@ To jump right in and get started using Prefect 2, you'll need to complete the fo
 
 - [Install Prefect](/getting-started/installation/).
 
-That's it! You're ready to [start writing local flows](/tutorials/first-steps/). Flow run details for these flows will appear in the Prefect 2 UI without additional configuration.
+That's it! You're ready to [start writing local flows](/tutorials/first-steps/). Flow run details for these flows will appear in the [Prefect 2 UI](/ui/overview/) without additional configuration.
 
-If you want to start running flows on a schedule, via the API, from the UI, or on distributed infrastructure, you'll need to understand additional concepts and perform some configuration.
+If you want to start running flows on a schedule, via the API, from the Prefect UI, or on distributed infrastructure, you'll need to understand a few additional concepts and perform some configuration.
 
 - Start a [Prefect Orion API server](/ui/overview/) with `prefect orion start` or create a [free Prefect Cloud account](/ui/cloud-getting-started/).
 - Configure [storage](/tutorials/storage/) to persist flow and task data.
