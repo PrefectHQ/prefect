@@ -295,28 +295,6 @@ class TestFlowRetryingRule:
             await ctx.validate_proposed_state()
 
         # When retrying a flow any failed tasks should be set to AwaitingRetry
-        read_task_runs.assert_awaited_once_with(
-            session,
-            flow_run_filter=filters.FlowRunFilter(id={"any_": [ctx.run.id]}),
-            task_run_filter=filters.TaskRunFilter(state={"type": {"any_": ["FAILED"]}}),
-        )
-        set_task_run_state.assert_has_awaits(
-            [
-                mock.call(
-                    session,
-                    "task_run_001",
-                    state=states.AwaitingRetry(scheduled_time=now),
-                    force=True,
-                ),
-                mock.call(
-                    session,
-                    "task_run_002",
-                    state=states.AwaitingRetry(scheduled_time=now),
-                    force=True,
-                ),
-            ]
-        )
-
         assert ctx.response_status == SetStateStatus.REJECT
         assert ctx.validated_state_type == states.StateType.SCHEDULED
 
