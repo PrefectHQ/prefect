@@ -11,7 +11,11 @@ const routeRecords: AppRouteRecord[] = [
     redirect: routes.flowRuns(),
   },
   {
-    name: 'flow-runs',
+    name: 'flow-runs-old',
+    path: '/runs',
+    redirect: routes.flowRuns(),
+  },
+  {
     path: '/flow-runs',
     children: [
       {
