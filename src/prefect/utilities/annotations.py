@@ -1,9 +1,27 @@
-from typing import Any, Generic, TypeVar
+from abc import ABC
+from typing import Generic, TypeVar
 
 T = TypeVar("T")
 
 
-class unmapped:
+class BaseAnnotation(ABC):
+    """
+    Base class for Prefect annotation types
+    """
+
+    def __init__(self, value: T):
+        self.value = value
+
+    def unwrap(self) -> T:
+        return self.value
+
+    def __eq__(self, other: object) -> bool:
+        if not type(self) == type(other):
+            return False
+        return self.unwrap() == other.unwrap()
+
+
+class unmapped(BaseAnnotation):
     """
     Wrapper for iterables.
 
@@ -11,15 +29,12 @@ class unmapped:
     operation instead of being split.
     """
 
-    def __init__(self, value: Any):
-        self.value = value
-
-    def __getitem__(self, _) -> Any:
+    def __getitem__(self, _) -> T:
         # Internally, this acts as an infinite array where all items are the same value
-        return self.value
+        return self.unwrap()
 
 
-class allow_failure:
+class allow_failure(BaseAnnotation):
     """
     Wrapper for states or futures.
 
@@ -32,12 +47,6 @@ class allow_failure:
     If the input is from a failed run, the attached exception will be passed to your
     function.
     """
-
-    def __init__(self, value: Any):
-        self.value = value
-
-    def unwrap(self) -> Any:
-        return self.value
 
 
 class Quote(Generic[T]):

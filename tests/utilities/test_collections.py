@@ -6,6 +6,7 @@ from typing import Any
 import pydantic
 import pytest
 
+from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.collections import (
     AutoEnum,
     dict_to_flatdict,
@@ -14,6 +15,10 @@ from prefect.utilities.collections import (
     remove_nested_keys,
     visit_collection,
 )
+
+
+class ExampleAnnotation(BaseAnnotation):
+    pass
 
 
 class Color(AutoEnum):
@@ -213,6 +218,7 @@ class TestVisitCollection:
             (SimpleDataclass(x=1, y=2), SimpleDataclass(x=1, y=-2)),
             (SimplePydantic(x=1, y=2), SimplePydantic(x=1, y=-2)),
             (ExtraPydantic(x=1, y=2, z=3), ExtraPydantic(x=1, y=-2, z=3)),
+            (ExampleAnnotation(4), ExampleAnnotation(-4)),
         ],
     )
     def test_visit_collection_and_transform_data(self, inp, expected):

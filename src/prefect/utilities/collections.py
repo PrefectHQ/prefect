@@ -28,7 +28,7 @@ from unittest.mock import Mock
 import pydantic
 
 # Moved to `prefect.utilities.annotations` but preserved here for compatibility
-from prefect.utilities.annotations import Quote, quote  # noqa
+from prefect.utilities.annotations import BaseAnnotation, Quote, quote  # noqa
 
 
 class AutoEnum(str, Enum):
@@ -228,6 +228,7 @@ def visit_collection(
     - Dict (note: keys are also visited recursively)
     - Dataclass
     - Pydantic model
+    - Prefect annotations
 
     Args:
         expr (Any): a Python object or expression
@@ -319,6 +320,10 @@ def visit_collection(
             result = model_instance
         else:
             result = None
+
+    elif isinstance(expr, BaseAnnotation):
+        result = type(expr)(visit_nested(expr.unwrap()))
+
     else:
         result = result if return_data else None
 
