@@ -52,7 +52,7 @@ When you select an organization, the **Profile** page provides an overview of th
 
 ## Organization workspaces
 
-**Workspaces** shows you a list of workspaces you can access within the organization. If you have been given the organization Admin role, you can create and manage workspaces here.
+**Workspaces** shows you a list of [workspaces you can access within the organization](/ui/workspaces/). If you have been given the organization Admin role, you can create and manage workspaces here.
 
 ![Viewing the Organization workspaces page in Prefect Cloud.](/img/ui/org-workspaces.png)
 
@@ -80,7 +80,7 @@ The maximum number of organization members varies. See the [Prefect Cloud plans]
 
 ## Service accounts
 
-Service accounts enable you to create a Prefect Cloud API key that is not associated with a user account. Service accounts are typically used to configure API access for running agents or executing flow runs on remote infrastructure.
+[Service accounts](/ui/service-accounts/) enable you to create a Prefect Cloud API key that is not associated with a user account. Service accounts are typically used to configure API access for running agents or executing flow runs on remote infrastructure.
 
 Select **Service Accounts** to view, create, or edit service accounts for your organization.
 
@@ -96,9 +96,11 @@ Service accounts are created at the organization level, but may be shared to ind
     
     A service account may only be a Member of an organization. It can never be an organization Admin. You may apply any valid _workspace-level_ role to a service account.
 
+See the [service accounts](/ui/service-accounts/) documentation for more information.
+
 ## Workspace sharing
 
-You may give organization members and service accounts access to workspaces within an organization. Each workspace within an organization may have its own members and service accounts with roles and permissions specific to that workspace. Organization Admins have full access to all workspaces in an organization.
+[Workspace sharing](/ui/workspaces/#workspace-sharing) enables you to give organization members and service accounts access to workspaces within an organization. Each workspace within an organization may have its own members and service accounts with roles and permissions specific to that workspace. Organization Admins have full access to all workspaces in an organization.
 
 Within a workspace, select **Workspace Sharing**, then select the **+** icon to add new members or service accounts to the workspace. Only organization Admins and workspace Owners may add members or service accounts to a workspace.
 
@@ -113,9 +115,11 @@ Members and service accounts must already be configured for the organization. An
     
     You may set this to "No Access" if you do not want organization members not specifically added to the workspace to access it (organization Admins excepted). 
 
+See the [Workspace sharing](/ui/workspaces/#workspace-sharing) documentation for more information.
+
 ## Organization and workspace roles
 
-Prefect Cloud enables you to configure both organization and workspace roles for users.
+Prefect Cloud enables you to configure both [organization and workspace roles](/ui/roles/) for users.
 
 - Organization roles apply to users across an organization.
 - Workspace roles apply to users within a specific workspace.
@@ -126,4 +130,4 @@ Select **Roles** within an organziation to see the configured roles for your org
 
 Prefect Cloud provides default roles that cover most use cases. You may also create custom roles to suit your specific organization needs.
 
-See [Roles (RBAC)](/ui/roles/) for details on default and custom role permissions.
+See the [Roles (RBAC)](/ui/roles/) documentation for more information on default and custom role permissions.
