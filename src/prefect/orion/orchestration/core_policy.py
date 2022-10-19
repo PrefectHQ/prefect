@@ -11,9 +11,9 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import select
 
+from prefect.orion import models
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion import models
 from prefect.orion.models import concurrency_limits, flow_runs
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
@@ -496,7 +496,11 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
 
 
 class PermitRetryingRestartingFailedTaskRuns(BaseOrchestrationRule):
-    FROM_STATES = [states.StateType.FAILED, states.StateType.CRASHED, states.StateType.CANCELLED]
+    FROM_STATES = [
+        states.StateType.FAILED,
+        states.StateType.CRASHED,
+        states.StateType.CANCELLED,
+    ]
     TO_STATES = [states.StateType.RUNNING]
 
     async def before_transition(
@@ -514,12 +518,17 @@ class PermitRetryingRestartingFailedTaskRuns(BaseOrchestrationRule):
         self.flow_run = await context.flow_run()
         if self.flow_run.run_count == 1:
             # if the flow run count is 1, the flow is restarting
-            if self.flow_run.empirical_policy.restarts > context.run.empirical_policy.flow_restart_attempt:
+            if (
+                self.flow_run.empirical_policy.restarts
+                > context.run.empirical_policy.flow_restart_attempt
+            ):
                 updated_settings = context.run_settings.copy()
                 updated_settings.flow_restart_attempt += 1
                 updated_settings.flow_retry_attempt = 0
 
-                task_run_update = actions.FlowRunUpdate(empirical_policy=updated_settings)
+                task_run_update = actions.FlowRunUpdate(
+                    empirical_policy=updated_settings
+                )
                 await models.task_runs.update_task_run(
                     context.session, context.run.id, task_run_update
                 )
