@@ -400,6 +400,13 @@ async def create_and_begin_subflow_run(
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
 
+    flow_run_count = parent_flow_run_context.flow_run.run_count
+    flow_restarts = parent_flow_run_context.flow_run.empirical_policy.restarts
+
+    restarting = flow_restarts > 1 and flow_run_count == 1
+    retrying = flow_run_count > 1
+    rerunning = restarting or retrying
+
     # Generate a task in the parent flow run to represent the result of the subflow run
     dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
     parent_task_run = await client.create_task_run(
@@ -413,8 +420,7 @@ async def create_and_begin_subflow_run(
     # Resolve any task futures in the input
     parameters = await resolve_inputs(parameters)
 
-    if parent_task_run.state.is_final():
-
+    if parent_task_run.state.is_final() and not rerunning:
         # Retrieve the most recent flow run from the database
         flow_runs = await client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
@@ -433,7 +439,7 @@ async def create_and_begin_subflow_run(
             flow,
             parameters=flow.serialize_parameters(parameters),
             parent_task_run_id=parent_task_run.id,
-            state=parent_task_run.state,
+            state=parent_task_run.state if not rerunning else Pending(),
             tags=TagsContext.get().current_tags,
         )
 
@@ -456,6 +462,7 @@ async def create_and_begin_subflow_run(
                     message=message, result_factory=result_factory
                 )
 
+
             if failed_state is not None:
                 await propose_state(
                     client,
@@ -469,7 +476,6 @@ async def create_and_begin_subflow_run(
                 report_flow_run_crashes(flow_run=flow_run, client=client)
             )
             task_runner = await stack.enter_async_context(flow.task_runner.start())
-
             terminal_state = await orchestrate_flow_run(
                 flow,
                 flow_run=flow_run,
