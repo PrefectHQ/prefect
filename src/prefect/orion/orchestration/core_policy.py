@@ -11,10 +11,9 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import select
 
-from prefect.orion import models
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.models import concurrency_limits, flow_runs
+from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
@@ -24,7 +23,7 @@ from prefect.orion.orchestration.rules import (
     OrchestrationContext,
     TaskOrchestrationContext,
 )
-from prefect.orion.schemas import actions, states
+from prefect.orion.schemas import states
 from prefect.orion.schemas.states import StateType
 
 
