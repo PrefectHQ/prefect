@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Union
 
 import anyio.abc
 import yaml
-from pydantic import Field, validator
+from pydantic import Field, root_validator, validator
 from typing_extensions import Literal
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
@@ -76,11 +76,18 @@ class KubernetesJob(Infrastructure):
     )
     # shortcuts for the most common user-serviceable settings
     image: Optional[str] = Field(
-        default_factory=get_prefect_image_name,
-        description="The tag of a Docker image to use for the job. Defaults to the Prefect image.",
+        default=None,
+        description=(
+            "The tag of a Docker image to use for the job. Defaults to the Prefect "
+            "image unless an image is already present in a provided job manifest."
+        ),
     )
     namespace: Optional[str] = Field(
-        default="default", description="The Kubernetes namespace to use for this job."
+        default=None,
+        description=(
+            "The Kubernetes namespace to use for this job. Defaults to 'default' "
+            "unless a namespace is already present in a provided job manifest."
+        ),
     )
     service_account_name: Optional[str] = Field(
         default=None, description="The Kubernetes service account to use for this job."
@@ -162,6 +169,28 @@ class KubernetesJob(Infrastructure):
         if isinstance(value, list):
             return JsonPatch(value)
         return value
+
+    @root_validator
+    def default_namespace(cls, values):
+        job = values["job"]
+        namespace = values.get("namespace")
+        job_namespace = job["metadata"].get("namespace")
+
+        if not namespace and not job_namespace:
+            values["namespace"] = "default"
+
+        return values
+
+    @root_validator
+    def default_image(cls, values):
+        job = values["job"]
+        image = values.get("image")
+        job_image = job["spec"]["template"]["spec"]["containers"][0].get("image")
+
+        if not image and not job_image:
+            values["image"] = get_prefect_image_name()
+
+        return values
 
     # Support serialization of the 'JsonPatch' type
     class Config:

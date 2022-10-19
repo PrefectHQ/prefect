@@ -205,19 +205,21 @@ def test_uses_image_setting(
     assert image == "foo"
 
 
-def test_allows_null_image_setting(
+def test_allows_image_setting_from_manifest(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
 ):
     mock_watch.stream = _mock_pods_stream_that_returns_running_pod
 
-    KubernetesJob(command=["echo", "hello"], image=None).run(MagicMock())
+    manifest = KubernetesJob.base_job_manifest()
+    manifest["spec"]["template"]["spec"]["containers"][0]["image"] = "test"
+    KubernetesJob(command=["echo", "hello"], job=manifest).run(MagicMock())
     mock_k8s_batch_client.create_namespaced_job.assert_called_once()
-    container = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
+    image = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
         "template"
-    ]["spec"]["containers"][0]
-    assert "image" not in container
+    ]["spec"]["containers"][0]["image"]
+    assert image == "test"
 
 
 def test_uses_labels_setting(
@@ -370,19 +372,20 @@ def test_uses_namespace_setting(
     assert namespace == "foo"
 
 
-def test_allows_null_namespace_setting(
+def test_allows_namespace_setting_from_manifest(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
 ):
     mock_watch.stream = _mock_pods_stream_that_returns_running_pod
-
-    KubernetesJob(command=["echo", "hello"], namespace=None).run(MagicMock())
+    manifest = KubernetesJob.base_job_manifest()
+    manifest["metadata"]["namespace"] = "test"
+    KubernetesJob(command=["echo", "hello"], job=manifest).run(MagicMock())
     mock_k8s_batch_client.create_namespaced_job.assert_called_once()
-    metadata = namespace = mock_k8s_batch_client.create_namespaced_job.call_args[0][1][
-        "metadata"
+    namespace = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["metadata"][
+        "namespace"
     ]
-    assert "namespace" not in metadata
+    assert namespace == "test"
 
 
 def test_uses_service_account_name_setting(
