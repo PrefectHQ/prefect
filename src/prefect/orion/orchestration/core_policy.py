@@ -392,7 +392,7 @@ class RenameReruns(BaseOrchestrationRule):
             if initial_state.name == "AwaitingRetry":
                 await self.rename_state("Retrying")
             else:
-                await self.rename_state("permit-Rerunning")
+                await self.rename_state("Rerunning")
 
 
 class WaitForScheduledTime(BaseOrchestrationRule):
