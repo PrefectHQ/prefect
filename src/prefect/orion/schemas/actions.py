@@ -96,8 +96,6 @@ class DeploymentCreate(ActionBaseModel):
     version: Optional[str] = FieldFrom(schemas.core.Deployment)
     entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
     infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
-    created_by: Optional[schemas.core.CreatedBy] = FieldFrom(schemas.core.Deployment)
-    updated_by: Optional[schemas.core.UpdatedBy] = FieldFrom(schemas.core.Deployment)
 
 
 @copy_model_fields
@@ -119,7 +117,6 @@ class DeploymentUpdate(ActionBaseModel):
     manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
-    updated_by: Optional[schemas.core.UpdatedBy] = FieldFrom(schemas.core.Deployment)
 
 
 @copy_model_fields
@@ -205,7 +202,6 @@ class FlowRunCreate(ActionBaseModel):
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    created_by: Optional[schemas.core.CreatedBy] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields
@@ -225,7 +221,6 @@ class DeploymentFlowRunCreate(ActionBaseModel):
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
     parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
-    created_by: Optional[schemas.core.CreatedBy] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields
