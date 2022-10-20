@@ -206,3 +206,18 @@ async def delete_work_queue(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
         )
+
+
+@router.get("/{id}/status")
+async def read_work_queue_status(
+    work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
+    db: OrionDBInterface = Depends(provide_database_interface),
+) -> schemas.core.WorkQueueStatusDetail:
+    """
+    Get the status of a work queue.
+    """
+    async with db.session_context() as session:
+        work_queue_status = await models.work_queues.read_work_queue_status(
+            session=session, work_queue_id=work_queue_id
+        )
+    return work_queue_status

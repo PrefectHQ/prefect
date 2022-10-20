@@ -5,6 +5,7 @@ import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
+import pendulum
 from pydantic import Field, HttpUrl, root_validator, validator
 from typing_extensions import Literal
 
@@ -748,6 +749,61 @@ class WorkQueue(ORMBaseModel):
     def validate_name_characters(cls, v):
         raise_on_invalid_name(v)
         return v
+
+
+class WorkQueueHealthPolicy(PrefectBaseModel):
+    maximum_late_runs: Optional[int] = Field(
+        default=0,
+        description="The maximum number of late runs in the work queue before it is deemed unhealthy. Defaults to `0`.",
+    )
+    maximum_seconds_since_last_polled: Optional[int] = Field(
+        default=60,
+        description="The maximum number of time in seconds elapsed since work queue has been polled before it is deemed unhealthy. Defaults to `60`.",
+    )
+
+    def evaluate_health_status(
+        self, late_runs_count: int, last_polled: Optional[DateTimeTZ] = None
+    ) -> bool:
+        """
+        Given empirical information about the state of the work queue, evaulate its health status.
+
+        Args:
+            late_runs: the count of late runs for the work queue.
+            last_polled: the last time the work queue was polled, if available.
+
+        Returns:
+            bool: whether or not the work queue is healthy.
+        """
+        healthy = True
+        if (
+            self.maximum_late_runs is not None
+            and late_runs_count > self.maximum_late_runs
+        ):
+            healthy = False
+
+        if self.maximum_seconds_since_last_polled is not None:
+            if (
+                last_polled is None
+                or pendulum.now("UTC").diff(last_polled).in_seconds()
+                > self.maximum_seconds_since_last_polled
+            ):
+                healthy = False
+
+        return healthy
+
+
+class WorkQueueStatusDetail(PrefectBaseModel):
+    healthy: bool = Field(..., description="Whether or not the work queue is healthy.")
+    late_runs_count: int = Field(
+        default=0, description="The number of late flow runs in the work queue."
+    )
+    last_polled: Optional[DateTimeTZ] = Field(
+        default=None, description="The last time an agent polled this queue for work."
+    )
+    health_check_policy: WorkQueueHealthPolicy = Field(
+        ...,
+        description="The policy used to determine whether or not the work queue is healthy.",
+    )
 
 
 class FlowRunNotificationPolicy(ORMBaseModel):

@@ -393,3 +393,104 @@ class TestDeleteWorkQueue:
     async def test_delete_work_queue_returns_404_if_does_not_exist(self, client):
         response = await client.delete(f"/work_queues/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestReadWorkQueueStatus:
+    @pytest.fixture
+    async def recently_polled_work_queue(self, session):
+        work_queue = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.core.WorkQueue(
+                name="wq-1",
+                description="All about my work queue",
+                last_polled=pendulum.now("UTC"),
+            ),
+        )
+        await session.commit()
+        return work_queue
+
+    @pytest.fixture
+    async def not_recently_polled_work_queue(self, session):
+        work_queue = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.core.WorkQueue(
+                name="wq-1",
+                description="All about my work queue",
+                last_polled=pendulum.now("UTC").subtract(days=1),
+            ),
+        )
+        await session.commit()
+        return work_queue
+
+    @pytest.fixture
+    async def work_queue_with_late_runs(self, session, flow):
+        work_queue = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.core.WorkQueue(
+                name="wq-1",
+                description="All about my work queue",
+                last_polled=pendulum.now("UTC"),
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Late(
+                    scheduled_time=pendulum.now().subtract(minutes=60)
+                ),
+                work_queue_name=work_queue.name,
+            ),
+        )
+        await session.commit()
+        return work_queue
+
+    async def test_read_work_queue_status(self, client, recently_polled_work_queue):
+        response = await client.get(
+            f"/work_queues/{recently_polled_work_queue.id}/status"
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+
+        parsed_response = pydantic.parse_obj_as(
+            schemas.core.WorkQueueStatusDetail, response.json()
+        )
+        assert parsed_response.healthy is True
+        assert parsed_response.late_runs_count == 0
+        assert parsed_response.last_polled == recently_polled_work_queue.last_polled
+
+    async def test_read_work_queue_status_unhealthy_due_to_lack_of_polls(
+        self, client, not_recently_polled_work_queue
+    ):
+        response = await client.get(
+            f"/work_queues/{not_recently_polled_work_queue.id}/status"
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+
+        parsed_response = pydantic.parse_obj_as(
+            schemas.core.WorkQueueStatusDetail, response.json()
+        )
+        assert parsed_response.healthy is False
+        assert parsed_response.late_runs_count == 0
+        assert parsed_response.last_polled == not_recently_polled_work_queue.last_polled
+
+    async def test_read_work_queue_status_unhealthy_due_to_late_runs(
+        self, client, work_queue_with_late_runs
+    ):
+        response = await client.get(
+            f"/work_queues/{work_queue_with_late_runs.id}/status"
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+
+        parsed_response = pydantic.parse_obj_as(
+            schemas.core.WorkQueueStatusDetail, response.json()
+        )
+        assert parsed_response.healthy is False
+        assert parsed_response.late_runs_count == 1
+        assert parsed_response.last_polled == work_queue_with_late_runs.last_polled
+
+    async def test_read_work_queue_status_returns_404_if_does_not_exist(self, client):
+        response = await client.get(f"/work_queues/{uuid4()}/status")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
