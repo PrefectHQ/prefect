@@ -518,9 +518,7 @@ class TestBaseOrchestrationRule:
         initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = (
-            states.State(type=proposed_state_type)
-        )
+        proposed_state = states.State(type=proposed_state_type)
 
         ctx = OrchestrationContext(
             session=session,
@@ -536,7 +534,6 @@ class TestBaseOrchestrationRule:
 
         assert before_transition_hook.call_count == 1
         assert special_message == "hello!"
-
 
     @pytest.mark.parametrize(
         "intended_transition",
