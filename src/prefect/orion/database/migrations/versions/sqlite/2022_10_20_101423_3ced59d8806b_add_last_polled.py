@@ -1,7 +1,7 @@
 """Add last_polled
 
 Revision ID: 3ced59d8806b
-Revises: ad4b1b4d1e9d
+Revises: fa319f214160
 Create Date: 2022-10-14 10:14:23.979848
 
 """
@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "3ced59d8806b"
-down_revision = "ad4b1b4d1e9d"
+down_revision = "fa319f214160"
 branch_labels = None
 depends_on = None
 
