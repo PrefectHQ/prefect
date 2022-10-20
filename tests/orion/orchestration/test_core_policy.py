@@ -586,7 +586,7 @@ class TestPermitRerunningFailedTaskRunsRule:
         ctx.run.flow_restart_attempt = 1
         ctx.run.run_count = 2
 
-        assert ctx.run.flow_restart_attempt == 0
+        assert ctx.run.flow_restart_attempt == 1
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in rerun_policy:
