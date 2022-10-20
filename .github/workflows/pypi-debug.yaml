@@ -19,21 +19,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Setup
+        run: |
+          apt-get update && apt-get install -y traceroute
+
       - name: "DNS"
         run: |
+          set -v
           dig ${{ matrix.endpoint }} A
           dig ${{ matrix.endpoint }} AAAA
 
       - name: "Traceroutes"
         run: |
+          set -v
           traceroute ${{ matrix.endpoint }}
-          # traceroute6 ${{ matrix.endpoint }}
+          traceroute6 ${{ matrix.endpoint }}
 
       - name: "HTTPS requests"
         run: |
+          set -v
           curl -vvv -I --ipv4 https://${{ matrix.endpoint }}${{ matrix.request-route }}
-          # curl -vvv -I --ipv6 https://${{ matrix.endpoint }}${{ matrix.request-route }}
+          curl -vvv -I --ipv6 https://${{ matrix.endpoint }}${{ matrix.request-route }}
 
       - name: "TLS debug"
         run: |
+          set -v
           echo -n | openssl s_client -4 -connect ${{ matrix.endpoint }}:443
