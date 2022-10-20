@@ -428,10 +428,25 @@ def initialize_orchestration(flow):
         run_tags=None,
         initial_details=None,
         proposed_details=None,
+        flow_retries: int = None,
+        flow_run_count: int = None
     ):
+        flow_create_kwargs = {}
+        empirical_policy = {}
+        if flow_retries:
+            empirical_policy.update({"retries": flow_retries})
+
+        if empirical_policy:
+            flow_create_kwargs.update({"empirical_policy": empirical_policy})
+
+        if flow_run_count:
+            flow_create_kwargs.update({"run_count": flow_run_count})
+
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version="0.1"),
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, flow_version="0.1", **flow_create_kwargs
+            ),
         )
 
         if run_type == "flow":

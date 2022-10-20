@@ -202,6 +202,7 @@ class FlowRunCreate(ActionBaseModel):
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    run_count: Optional[int] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields

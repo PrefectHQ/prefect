@@ -2,16 +2,17 @@ import contextlib
 import random
 from itertools import combinations_with_replacement, product
 from unittest import mock
+from uuid import uuid4
 
 import pendulum
 import pytest
-from uuid import uuid4
 
 from prefect.orion import schemas
 from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
+    PermitRerunningFailedTaskRuns,
     PreventRedundantTransitions,
     PreventTransitionsFromTerminalStates,
     ReleaseTaskConcurrencySlots,
@@ -443,6 +444,119 @@ class TestFlowRestartRule:
         assert ctx.response_status == SetStateStatus.REJECT
         assert ctx.run.restarts == 0
         assert ctx.run.run_count == 2
+
+
+class TestPermitRerunningFailedTaskRunsRule:
+    async def test_bypasses_terminal_state_rule_if_restarting(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        rerun_policy = [
+            PermitRerunningFailedTaskRuns,
+            PreventTransitionsFromTerminalStates,
+        ]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session, "task", *intended_transition, flow_retries=3,
+        )
+        flow_run = await ctx.flow_run()
+        flow_run.run_count = 1
+        flow_run.restarts = 1
+        ctx.run.flow_retry_attempt = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in rerun_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_bypasses_terminal_state_rule_if_available_retry_attempts(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        rerun_policy = [
+            PermitRerunningFailedTaskRuns,
+            PreventTransitionsFromTerminalStates,
+        ]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            flow_retries=3,
+        )
+        flow_run = await ctx.flow_run()
+        flow_run.run_count = 2
+        ctx.run.flow_retry_attempt = 0
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in rerun_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.flow_retry_attempt == 2, "Must set the retry attempt to the run count"
+
+    async def test_cannot_bypass_terminal_state_rule_if_too_many_retry_attempts(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        rerun_policy = [
+            PermitRerunningFailedTaskRuns,
+            PreventTransitionsFromTerminalStates,
+        ]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+        flow_run = await ctx.flow_run()
+        flow_run.empirical_policy.retries = 1
+        ctx.run.flow_retry_attempt = 1
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in rerun_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    async def test_cannot_bypass_terminal_state_rule_if_too_many_retry_attempts_after_restart(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        rerun_policy = [
+            PermitRerunningFailedTaskRuns,
+            PreventTransitionsFromTerminalStates,
+        ]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+        flow_run = await ctx.flow_run()
+        flow_run.empirical_policy.retries = 2
+        flow_run.restarts = 1
+        ctx.run.flow_retry_attempt = 2
+        ctx.run.flow_restart_attempt = 1
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in rerun_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ABORT
 
 
 class TestTaskRetryingRule:

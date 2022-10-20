@@ -511,16 +511,17 @@ class PermitRerunningFailedTaskRuns(BaseOrchestrationRule):
         self.original_restart_attempt = context.run.flow_restart_attempt
 
         self.flow_run = await context.flow_run()
-        if self.flow_run.run_count == 1:
+        # breakpoint()
+        if self.flow_run.run_count == 1 and self.flow_run.restarts > 0:
             # if the flow run count is 1, the flow is restarting
             if self.flow_run.restarts > context.run.flow_restart_attempt:
                 context.run.flow_restart_attempt += 1
                 context.run.flow_retry_attempt = 0
                 await self.rename_state("RetryingViaRestart")
                 await self.update_context_parameters("permit-rerunning", True)
-        elif self.flow_run.run_count > context.run.flow_retry_attempt:
-            # if the flow run count is > 1, the flow is retrying
-            context.run.flow_retry_attempt += 1
+        elif self.flow_run.empirical_policy.retries > context.run.flow_retry_attempt:
+            # otherwise, the flow is retrying
+            context.run.flow_retry_attempt = self.flow_run.run_count
             await self.rename_state("Retrying")
             await self.update_context_parameters("permit-rerunning", True)
 
