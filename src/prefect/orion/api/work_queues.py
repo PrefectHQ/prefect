@@ -132,13 +132,15 @@ async def read_work_queue_runs(
             limit=limit,
         )
 
-    background_tasks.add_task(
-        _record_work_queue_polls,
-        db=db,
-        work_queue_id=work_queue_id,
-        agent_id=agent_id,
-        x_prefect_ui=x_prefect_ui,
-    )
+    # The Prefect UI often calls this route to see which runs are enqueued.
+    # We do not want to record this as an actual poll event.
+    if not x_prefect_ui:
+        background_tasks.add_task(
+            _record_work_queue_polls,
+            db=db,
+            work_queue_id=work_queue_id,
+            agent_id=agent_id,
+        )
 
     return flow_runs
 
@@ -147,25 +149,19 @@ async def _record_work_queue_polls(
     db: OrionDBInterface,
     work_queue_id: UUID,
     agent_id: Optional[UUID] = None,
-    x_prefect_ui: Optional[bool] = False,
 ):
     """
     Records that a work queue has been polled.
 
     If an agent_id is provided, we update this agent id's last poll time.
-    If x_prefect_ui is False, we will update `work_queue.last_polled`.
     """
     async with db.session_context(begin_transaction=True) as session:
-        # The Prefect UI often calls this route to see which runs are enqueued.
-        # We do not want to record this as an actual poll event.
-        if not x_prefect_ui:
-            await models.work_queues.update_work_queue(
-                session=session,
-                work_queue_id=work_queue_id,
-                work_queue=schemas.actions.WorkQueueUpdate(
-                    last_polled=pendulum.now("UTC")
-                ),
-            )
+
+        await models.work_queues.update_work_queue(
+            session=session,
+            work_queue_id=work_queue_id,
+            work_queue=schemas.actions.WorkQueueUpdate(last_polled=pendulum.now("UTC")),
+        )
 
         if agent_id:
             await models.agents.record_agent_poll(
