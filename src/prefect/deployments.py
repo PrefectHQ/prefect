@@ -30,7 +30,7 @@ from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
-from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.importtools import import_object
 from prefect.utilities.slugify import slugify
 
@@ -162,7 +162,7 @@ async def load_flow_from_flow_run(
         f"Loading flow for deployment {deployment.name!r}..."
     )
 
-    import_path = deployment.entrypoint
+    import_path = relative_path_to_current_platform(deployment.entrypoint)
 
     # for backwards compat
     if deployment.manifest_path:
@@ -650,13 +650,11 @@ class Deployment(BaseModel):
         output: str = None,
         skip_upload: bool = False,
         apply: bool = False,
+        load_existing: bool = True,
         **kwargs,
     ) -> "Deployment":
         """
         Configure a deployment for a given flow.
-
-        Note that this method loads any settings that may already be configured for the named deployment
-        server-side (e.g., schedules, default parameter values, etc.).
 
         Args:
             flow: A flow function to deploy
@@ -665,6 +663,8 @@ class Deployment(BaseModel):
                 file in the location specified by `output`
             skip_upload: if True, deployment files are not automatically uploaded to remote storage
             apply: if True, the deployment is automatically registered with the API
+            load_existing: if True, load any settings that may already be configured for the named deployment
+                server-side (e.g., schedules, default parameter values, etc.)
             **kwargs: other keyword arguments to pass to the constructor for the `Deployment` class
         """
         if not name:
@@ -691,7 +691,8 @@ class Deployment(BaseModel):
             entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
             deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
 
-        await deployment.load()
+        if load_existing:
+            await deployment.load()
 
         # set a few attributes for this flow object
         deployment.parameter_openapi_schema = parameter_schema(flow)

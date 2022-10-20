@@ -165,6 +165,84 @@ class TestCreateDeployment:
         assert deployment.schedule == schedule
         assert deployment.infrastructure_document_id == infrastructure_document_id
 
+    async def test_create_deployment_with_created_by(self, session, flow):
+        created_by = schemas.core.CreatedBy(
+            id=uuid4(), type="A-TYPE", display_value="creator-of-things"
+        )
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My New Deployment",
+                flow_id=flow.id,
+                created_by=created_by,
+                tags=["tag1"],
+            ),
+        )
+
+        assert deployment.created_by
+        assert deployment.created_by.id == created_by.id
+        assert deployment.created_by.display_value == created_by.display_value
+        assert deployment.created_by.type == created_by.type
+
+        # created_by unaffected by upsert
+        new_created_by = schemas.core.CreatedBy(
+            id=uuid4(), type="B-TYPE", display_value="other-creator-of-things"
+        )
+        updated_deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My New Deployment",
+                flow_id=flow.id,
+                created_by=new_created_by,
+                tags=["tag2"],
+            ),
+        )
+        # confirm upsert
+        assert deployment.id == updated_deployment.id
+        assert updated_deployment.tags == ["tag2"]
+        # confirm created_by unaffected
+        assert updated_deployment.created_by.id == created_by.id
+        assert updated_deployment.created_by.display_value == created_by.display_value
+        assert updated_deployment.created_by.type == created_by.type
+
+    async def test_create_deployment_with_updated_by(self, session, flow):
+        updated_by = schemas.core.UpdatedBy(
+            id=uuid4(), type="A-TYPE", display_value="updator-of-things"
+        )
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My New Deployment",
+                flow_id=flow.id,
+                updated_by=updated_by,
+            ),
+        )
+
+        assert deployment.updated_by
+        assert deployment.updated_by.id == updated_by.id
+        assert deployment.updated_by.display_value == updated_by.display_value
+        assert deployment.updated_by.type == updated_by.type
+
+        # updated_by updated via upsert
+        new_updated_by = schemas.core.UpdatedBy(
+            id=uuid4(), type="B-TYPE", display_value="other-updator-of-things"
+        )
+        updated_deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My New Deployment",
+                flow_id=flow.id,
+                updated_by=new_updated_by,
+            ),
+        )
+        # confirm updated_by upsert
+        assert deployment.id == updated_deployment.id
+        assert updated_deployment.updated_by.id == new_updated_by.id
+        assert (
+            updated_deployment.updated_by.display_value == new_updated_by.display_value
+        )
+        assert updated_deployment.updated_by.type == new_updated_by.type
+
 
 class TestReadDeployment:
     async def test_read_deployment(
