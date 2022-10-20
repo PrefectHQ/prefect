@@ -12,9 +12,9 @@ import sqlalchemy as sa
 from packaging.version import Version
 from sqlalchemy import select
 
+from prefect.orion import models
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion import models
 from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
@@ -297,7 +297,9 @@ class RetryFailedFlows(BaseOrchestrationRule):
             failed_task_runs = await models.task_runs.read_task_runs(
                 context.session,
                 flow_run_filter=filters.FlowRunFilter(id={"any_": [context.run.id]}),
-                task_run_filter=filters.TaskRunFilter(state={"type": {"any_": ["FAILED"]}}),
+                task_run_filter=filters.TaskRunFilter(
+                    state={"type": {"any_": ["FAILED"]}}
+                ),
             )
             for run in failed_task_runs:
                 await task_runs.set_task_run_state(
