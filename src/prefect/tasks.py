@@ -199,7 +199,7 @@ class Task(Generic[P, R]):
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
         cache_expiration: datetime.timedelta = None,
-        retries: int = 0,
+        retries: Optional[int] = NotSet,
         retry_delay_seconds: Union[float, int] = 0,
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
@@ -266,7 +266,7 @@ class Task(Generic[P, R]):
             tags=tags or copy(self.tags),
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
-            retries=retries or self.retries,
+            retries=retries if retries is not NotSet else self.retries,
             retry_delay_seconds=retry_delay_seconds or self.retry_delay_seconds,
             persist_result=(
                 persist_result if persist_result is not NotSet else self.persist_result
