@@ -213,7 +213,6 @@ class TestVisitCollection:
             (SimpleDataclass(x=1, y=2), SimpleDataclass(x=1, y=-2)),
             (SimplePydantic(x=1, y=2), SimplePydantic(x=1, y=-2)),
             (ExtraPydantic(x=1, y=2, z=3), ExtraPydantic(x=1, y=-2, z=3)),
-            (ExampleAnnotation(4), ExampleAnnotation(-4)),
         ],
     )
     def test_visit_collection_and_transform_data(self, inp, expected):
