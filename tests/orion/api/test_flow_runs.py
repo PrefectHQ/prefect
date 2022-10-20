@@ -697,7 +697,9 @@ class TestRestartingFlowRuns:
 
         response = await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=dict(type="SCHEDULED", name="restartable with any state name")),
+            json=dict(
+                state=dict(type="SCHEDULED", name="restartable with any state name")
+            ),
         )
 
         session.expire_all()
@@ -718,7 +720,9 @@ class TestRestartingFlowRuns:
 
         response = await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=dict(type="RUNNING", name="restartable with any state name")),
+            json=dict(
+                state=dict(type="RUNNING", name="restartable with any state name")
+            ),
         )
 
         session.expire_all()
