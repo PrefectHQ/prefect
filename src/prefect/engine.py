@@ -77,7 +77,7 @@ from prefect.task_runners import (
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
-from prefect.utilities.annotations import allow_failure, unmapped
+from prefect.utilities.annotations import allow_failure, revisit, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
@@ -1368,7 +1368,7 @@ async def resolve_inputs(
 
         if isinstance(expr, allow_failure):
             context["allow_failure"] = True
-            return expr.unwrap()
+            return revisit(expr.unwrap())
 
         if isinstance(expr, PrefectFuture):
             state = run_async_from_worker_thread(expr._wait)

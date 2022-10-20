@@ -88,7 +88,7 @@ class NotSet:
 
 class revisit(BaseAnnotation[T]):
     """
-    Wrapper `visit_collection`
+    Wrapper for `visit_collection` return values.
 
-    Indicates that a returned item should be revisited.
+    Indicates that a returned item should be visited again.
     """

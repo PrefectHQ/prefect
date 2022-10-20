@@ -28,8 +28,8 @@ from unittest.mock import Mock
 
 import pydantic
 
-# Moved to `prefect.utilities.annotations` but preserved here for compatibility
-from prefect.utilities.annotations import BaseAnnotation, Quote, quote  # noqa
+# Quote moved to `prefect.utilities.annotations` but preserved here for compatibility
+from prefect.utilities.annotations import BaseAnnotation, Quote, quote, revisit  # noqa
 
 
 class AutoEnum(str, Enum):
@@ -267,15 +267,12 @@ def visit_collection(
         else:
             return visit_fn(expr)
 
-    # Visit every expression (if a new object is returned, visit again)
-    seen = set()
-    result = expr
-    while id(result) not in seen:
-        result = visit_expression(result)
-        seen.add(id(result))
+    # Visit every expression
+    result = visit_expression(expr)
 
-    if return_data:
+    if return_data or isinstance(result, revisit):
         # Only mutate the expression while returning data, otherwise it could be null
+        # An exception is made for the `revisit` annotation
         expr = result
 
     # Then, visit every child of the expression recursively
@@ -339,6 +336,10 @@ def visit_collection(
             result = model_instance
         else:
             result = None
+
+    elif isinstance(expr, revisit):
+        # `revisit` is not rewrapped since it is a signal to this function
+        result = visit_nested(expr.unwrap())
 
     elif isinstance(expr, BaseAnnotation):
         result = expr.rewrap(visit_nested(expr.unwrap()))

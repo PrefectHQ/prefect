@@ -440,6 +440,29 @@ class TestTaskSubmit:
         assert isinstance(result, ValueError)
         assert "Fail task!" in str(result)
 
+    def test_downstream_receives_exception_in_collection_if_upstream_fails_and_allow_failure(
+        self,
+    ):
+        @task
+        def fails():
+            raise ValueError("Fail task!")
+
+        @task
+        def bar(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = fails.submit()
+            b = bar.submit(allow_failure([f, 1, 2]))
+            return b.result()
+
+        result = test_flow()
+        assert isinstance(result, list)
+        assert isinstance(result[0], ValueError)
+        assert result[1:] == [1, 2]
+        assert "Fail task!" in str(result)
+
 
 class TestTaskStates:
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
