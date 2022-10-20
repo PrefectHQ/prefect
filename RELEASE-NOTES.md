@@ -1,5 +1,32 @@
 # Prefect Release Notes
 
+## Release 2.6.4
+
+### Enhancements
+- UI: Rename deployment "Overview" tab to "Description" — https://github.com/PrefectHQ/prefect/pull/7234
+- Add `Deployment.build_from_flow` toggle to disable loading of existing values from the API — https://github.com/PrefectHQ/prefect/pull/7218
+- Add `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting to globally toggle the result persistence default — https://github.com/PrefectHQ/prefect/pull/7228
+- Add support for using callable objects as tasks — https://github.com/PrefectHQ/prefect/pull/7217
+- Add authentication as service principal to the `Azure` storage block — https://github.com/PrefectHQ/prefect/pull/6844
+- Update default database timeout from 1 to 5 seconds — https://github.com/PrefectHQ/prefect/pull/7246
+
+### Fixes
+- Allow image/namespace fields to be loaded from Kubernetes job manifest — https://github.com/PrefectHQ/prefect/pull/7244
+- UI: Update settings API call to respect `ORION_UI_SERVE_BASE` environment variable — https://github.com/PrefectHQ/prefect/pull/7068
+
+### Collections
+- New [`prefect-kv`](https://github.com/madkinsz/prefect-kv) collection
+- `prefect-aws`: Update `S3Bucket` block for use with deployments — https://github.com/PrefectHQ/prefect-aws/pull/82
+- `prefect-aws`: Add support for arbitrary user customizations to `ECSTask` block — https://github.com/PrefectHQ/prefect-aws/pull/120
+- `prefect-azure`: New `AzureContainerInstanceJob` block to run flows or commands as containers in Azure — https://github.com/PrefectHQ/prefect-azure/pull/45
+
+### Contributors
+- @Trymzet
+- @jmg-duarte
+- @mthanded made their first contribution in https://github.com/PrefectHQ/prefect/pull/7068
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.3...2.6.4
+
 ## Release 2.6.3
 
 ### Fixes
