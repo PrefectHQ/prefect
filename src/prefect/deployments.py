@@ -6,7 +6,7 @@ import importlib
 import json
 import sys
 from datetime import datetime
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -30,7 +30,7 @@ from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
-from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.filesystem import platform_specific_relpath, tmpchdir
 from prefect.utilities.importtools import import_object
 from prefect.utilities.slugify import slugify
 
@@ -162,8 +162,7 @@ async def load_flow_from_flow_run(
         f"Loading flow for deployment {deployment.name!r}..."
     )
 
-    # import_path = deployment.entrypoint
-    import_path = Path(PureWindowsPath(deployment.entrypoint).as_posix())
+    import_path = platform_specific_relpath(deployment.entrypoint)
 
     # for backwards compat
     if deployment.manifest_path:
