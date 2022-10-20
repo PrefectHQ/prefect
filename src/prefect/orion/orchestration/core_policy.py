@@ -292,6 +292,8 @@ class RetryFailedFlows(BaseOrchestrationRule):
         )
 
         # support old-style flow run retries for older clients
+        # older flow retries require us to loop over failed tasks to update their state
+        # this is not required after API version 0.8.3
         api_version = context.parameters.get("api-version", None)
         if api_version and api_version < Version("0.8.3"):
             failed_task_runs = await models.task_runs.read_task_runs(
