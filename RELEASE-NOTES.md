@@ -16,9 +16,10 @@
 
 ### Collections
 - New [`prefect-kv`](https://github.com/madkinsz/prefect-kv) collection for persisting key-value data
-- `prefect-aws`: Update `S3Bucket` block for use with deployments — https://github.com/PrefectHQ/prefect-aws/pull/82
-- `prefect-aws`: Add support for arbitrary user customizations to `ECSTask` block — https://github.com/PrefectHQ/prefect-aws/pull/120
-- `prefect-azure`: New `AzureContainerInstanceJob` block to run flows or commands as containers in Azure — https://github.com/PrefectHQ/prefect-azure/pull/45
+- `prefect-aws`: Update [`S3Bucket`](https://prefecthq.github.io/prefect-aws/s3/#prefect_aws.s3.S3Bucket) storage block to enable use with deployments — https://github.com/PrefectHQ/prefect-aws/pull/82
+- `prefect-aws`: Add support for arbitrary user customizations to [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) block — https://github.com/PrefectHQ/prefect-aws/pull/120
+- `prefect-aws`: Removed the experimental designation from the [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) block — https://github.com/PrefectHQ/prefect-aws/pull/120
+- `prefect-azure`: New [`AzureContainerInstanceJob`](https://prefecthq.github.io/prefect-azure/container_instance/) infrastructure block to run flows or commands as containers on Azure — https://github.com/PrefectHQ/prefect-azure/pull/45
 
 ### Contributors
 - @Trymzet
