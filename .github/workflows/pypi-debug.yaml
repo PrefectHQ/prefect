@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Setup
         run: |
-          apt-get update && apt-get install -y traceroute
+          sudo apt-get update && sudo apt-get install -y traceroute
 
       - name: "DNS"
         run: |
