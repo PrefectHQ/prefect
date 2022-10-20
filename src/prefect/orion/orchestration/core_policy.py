@@ -514,8 +514,9 @@ class PermitRerunningFailedTaskRuns(BaseOrchestrationRule):
             and self.flow_run.restarts > 0
             and (self.flow_run.restarts > context.run.flow_restart_attempt)
         )
+
         retrying = not restarting and (
-            self.flow_run.run_count <= self.flow_run.empirical_policy.retries
+            self.flow_run.run_count <= (self.flow_run.empirical_policy.retries + 1)
         )
 
         if restarting:

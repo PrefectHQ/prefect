@@ -503,7 +503,7 @@ class TestPermitRerunningFailedTaskRunsRule:
             flow_retries=3,
         )
         flow_run = await ctx.flow_run()
-        flow_run.run_count = 3
+        flow_run.run_count = 4
         flow_run.restarts = 0
         ctx.run.flow_retry_attempt = 1
         ctx.run.run_count = 2
@@ -521,8 +521,8 @@ class TestPermitRerunningFailedTaskRunsRule:
         ), "The restart attempt tracker should not change for retries"
         assert ctx.proposed_state.name == "Retrying"
         assert (
-            ctx.run.flow_retry_attempt == 2
-        ), "The flow has run thrice, so this task has attempted to retry twice"
+            ctx.run.flow_retry_attempt == 3
+        ), "The flow has run four times, so this task has attempted to retry three times"
 
     async def test_cannot_bypass_terminal_state_rule_if_too_many_retry_attempts(
         self,
@@ -543,7 +543,7 @@ class TestPermitRerunningFailedTaskRunsRule:
             flow_retries=3,
         )
         flow_run = await ctx.flow_run()
-        flow_run.run_count = 4
+        flow_run.run_count = 5
         flow_run.restarts = 0
         ctx.run.flow_retry_attempt = 1
         ctx.run.run_count = 2
@@ -581,7 +581,7 @@ class TestPermitRerunningFailedTaskRunsRule:
             flow_retries=1,
         )
         flow_run = await ctx.flow_run()
-        flow_run.run_count = 2
+        flow_run.run_count = 3
         flow_run.restarts = 2
         ctx.run.flow_retry_attempt = 1
         ctx.run.flow_restart_attempt = 1
