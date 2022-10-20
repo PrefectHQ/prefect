@@ -200,3 +200,24 @@ class TestWorkQueueHealthPolicy:
         assert (
             policy.evaluate_health_status(late_runs_count=2, last_polled=None) is False
         )
+
+
+class TestTaskRun:
+    def test_task_run_cache_key_length_is_limited(self):
+        really_large_cache_key = "X" * 5_000
+        with pytest.raises(pydantic.ValidationError):
+            schemas.core.TaskRun(
+                id=uuid4(),
+                flow_run_id=uuid4(),
+                task_key="foo",
+                dynamic_key="0",
+                cache_key=really_large_cache_key,
+            )
+
+        with pytest.raises(pydantic.ValidationError):
+            schemas.actions.TaskRunCreate(
+                flow_run_id=uuid4(),
+                task_key="foo",
+                dynamic_key="0",
+                cache_key=really_large_cache_key,
+            )

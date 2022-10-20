@@ -364,6 +364,7 @@ class TaskRun(ORMBaseModel):
     )
     cache_key: Optional[str] = Field(
         default=None,
+        max_length=2_000,
         description="An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run.",
     )
     cache_expiration: Optional[DateTimeTZ] = Field(
