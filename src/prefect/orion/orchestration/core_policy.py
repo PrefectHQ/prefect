@@ -305,13 +305,15 @@ class RestartFlowRun(BaseOrchestrationRule):
             await self.abort_transition(
                 "Cannot restart a run without an associated deployment."
             )
+            return
 
         # reset run count to 0
         self.original_run_count = context.run.run_count
         context.run.run_count = 0  # reset run count to preserve retry behavior
 
-        # update empirical settings
-        context.restarts += 1
+        # update restart counter
+        context.run.restarts += 1
+
         await self.rename_state("AwaitingRestart")
         await self.update_context_parameters("permit-rescheduling", True)
 
@@ -441,7 +443,7 @@ class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
             # allow transitions into a running state if permitted by a previous rule
             return
 
-        if proposed_state.is_running() and context.parameters.get(
+        if proposed_state.is_scheduled() and context.parameters.get(
             "permit-rescheduling", False
         ):
             # allow transitions into a scheduled state if permitted by a previous rule

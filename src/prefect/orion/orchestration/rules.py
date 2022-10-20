@@ -823,8 +823,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         the canonical state TYPE, and will not fizzle or invalidate any other rules
         that might govern this state transition.
         """
-
-        self.context.proposed_state.name = state_name
+        if self.context.proposed_state is not None:
+            self.context.proposed_state.name = state_name
 
     async def update_context_parameters(self, key, value):
         self.context.parameters.update({key: value})
