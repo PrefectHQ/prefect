@@ -293,7 +293,7 @@ Persistence of results requires a [**serializer**](#result-serializers) and a [*
 
 #### Toggling persistence
 
-Persistence of the result of a task or flow can be configured with the `persist_result` option. The `persist_result` option defaults to a null value, which will automatically enable persistence if it is needed for a Prefect feature used by the flow or task.
+Persistence of the result of a task or flow can be configured with the `persist_result` option. The `persist_result` option defaults to a null value, which will automatically enable persistence if it is needed for a Prefect feature used by the flow or task. Otherwise, persistence is disabled by default.
 
 For example, the following flow has retries enabled. Flow retries require that all task results are persisted, so the task's result will be persisted:
 
@@ -310,6 +310,8 @@ def my_flow():
     # so Prefect will persist its result at runtie
     my_task()
 ```
+
+Flow retries do not require the flow's result to be persisted, so it will not be.
 
 In this next example, one task has caching enabled. Task caching requires that the given task's result is persisted:
 
@@ -356,6 +358,14 @@ def my_task():
 ```
 
 Toggling persistence manually will always override any behavior that Prefect would infer.
+
+You may also change Prefect's default persistence behavior with the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting. To persist results by default, even if they are not needed for a feature change the value to a truthy value:
+
+```
+$ prefect config set PREFECT_RESULTS_PERSIST_BY_DEFAULT=true
+```
+
+Task and flows with `persist_result=False` will not persist their results even if `PREFECT_RESULTS_PERSIST_BY_DEFAULT` is `true`.
 
 #### Result storage location
 
