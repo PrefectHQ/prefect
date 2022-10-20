@@ -1,7 +1,6 @@
 from abc import ABC
 from typing import Generic, TypeVar
 
-C = TypeVar("C")
 T = TypeVar("T")
 
 
