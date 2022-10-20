@@ -82,10 +82,7 @@ async def create_deployment(
                 **deployment.dict(
                     shallow=True,
                     exclude_unset=True,
-                    exclude={
-                        "id",
-                        "created",
-                    },
+                    exclude={"id", "created", "created_by"},
                 ),
             },
         )
@@ -262,6 +259,7 @@ async def read_deployments(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    sort: schemas.sorting.DeploymentSort = schemas.sorting.DeploymentSort.NAME_ASC,
 ):
     """
     Read deployments.
@@ -274,13 +272,13 @@ async def read_deployments(
         flow_run_filter: only select deployments whose flow runs match these criteria
         task_run_filter: only select deployments whose task runs match these criteria
         deployment_filter: only select deployment that match these filters
-
+        sort: the sort criteria for selected deployments. Defaults to `name` ASC.
 
     Returns:
         List[db.Deployment]: deployments
     """
 
-    query = select(db.Deployment).order_by(db.Deployment.name)
+    query = select(db.Deployment).order_by(sort.as_sql_sort(db=db))
 
     query = await _apply_deployment_filters(
         query=query,

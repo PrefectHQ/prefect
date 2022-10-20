@@ -330,11 +330,13 @@ async def raise_state_exception(state: State) -> None:
     raise await get_state_exception(state)
 
 
-def is_state(obj: Any) -> TypeGuard[State]:
+def is_state(obj: Any) -> TypeGuard[schemas.states.State]:
     """
-    Check if the given object is a state type
+    Check if the given object is a state instance
     """
-    return isinstance(obj, State)
+    # We may want to narrow this to client-side state types but for now this provides
+    # backwards compatibility
+    return isinstance(obj, schemas.states.State)
 
 
 def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
