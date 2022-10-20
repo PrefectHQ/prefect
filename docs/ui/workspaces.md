@@ -9,7 +9,7 @@ tags:
 
 # Workspaces <span class="badge cloud"></span>
 
-A workspace is an isolated environment within Prefect Cloud for your flows and deployments. Workspaces are only available to Prefect Cloud accounts.
+A workspace is a discrete environment within Prefect Cloud for your flows and deployments. Workspaces are only available to Prefect Cloud accounts.
 
 Workspaces could be used in any way you like to organize or compartmentalize your workflows. For example, you could use separate workspaces to isolate dev, staging, and prod environments, or to provide separation between different teams.
 
@@ -101,4 +101,4 @@ Select **Send** to initiate the invitation.
 
 To add a service account to a workspace, select the Service Accounts **+** icon. You can select from a list of existing service accounts configured for the organization. Select a Workspace Role for the service account. This will be the initial role for the service account within the workspace. A workspace Owner can change this role at any time. Select **Share** to finalize adding the service account.
 
-To delete a workspace collaborator or service account, select **Remove** from the menu on the left side of the user or service account information on this page.
+To delete a workspace collaborator or service account, select **Remove** from the menu on the right side of the user or service account information on this page.

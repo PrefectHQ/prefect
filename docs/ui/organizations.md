@@ -29,9 +29,9 @@ An organization is a type of account available on Prefect Cloud that enables mor
 Within an organization account you can:
 
 - Invite members to join the organization.
-- Give members administrator or collaborator roles within the organization.
+- Give members administrator or member roles within the organization.
 - Create service accounts that have credentials for non-user API access.
-- Create organization workspaces.
+- Manage workspace access for all organization members.
 - Add or remove member and service account access to workspaces.
 - Assign workspace-specific roles and permissions to members and service accounts.
 
@@ -48,7 +48,7 @@ When you select an organization, the **Profile** page provides an overview of th
 - **Workspaces** enables you to access and manage workspaces within the organization.
 - **Members** enables you to invite and manage users who are members of the organization.
 - **Service Accounts** enables you to view, create, or edit service accounts for your organization.
-- **Roles** enabls you to configure custom roles with permission scopes for your organization.
+- **Roles** enables you to view details for all workspace roles, and configure custom workspace roles with permission scopes for your organization.
 
 ## Organization workspaces
 
