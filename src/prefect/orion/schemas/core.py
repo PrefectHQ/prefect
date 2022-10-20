@@ -105,7 +105,6 @@ class FlowRunPolicy(PrefectBaseModel):
         description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
         deprecated=True,
     )
-
     retries: Optional[int] = Field(default=None, description="The number of retries.")
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
@@ -263,7 +262,6 @@ class TaskRunPolicy(PrefectBaseModel):
         description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
         deprecated=True,
     )
-
     retries: Optional[int] = Field(default=None, description="The number of retries.")
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."

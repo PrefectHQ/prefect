@@ -465,11 +465,13 @@ def initialize_orchestration(flow):
         if flow_run_count:
             flow_create_kwargs.update({"run_count": flow_run_count})
 
+        flow_run_model = schemas.core.FlowRun(
+            flow_id=flow.id, flow_version="0.1", **flow_create_kwargs
+        )
+
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(
-                flow_id=flow.id, flow_version="0.1", **flow_create_kwargs
-            ),
+            flow_run=flow_run_model,
         )
 
         if run_type == "flow":
