@@ -35,7 +35,7 @@ Within an organization account you can:
 - Add or remove member and service account access to workspaces.
 - Assign workspace-specific roles and permissions to members and service accounts.
 
-For example, you might create a workspace for a specific team. Within that workspace, give a developer member with permissions to create, edit, and delete deployments, invite a service account for credentials to run an agent and flows on remote infrastructure, and invite a data scientist with read-only permissions to monitor the status of scheduled and completed flow runs.
+For example, you might create a workspace for a specific team. Within that workspace, give a developer member full Collaborator role access, and invite a data scientist with Read-only Collaborator permissions to monitor the status of scheduled and completed flow runs.
 
 ## Navigating organizations
 
@@ -121,13 +121,13 @@ See the [Workspace sharing](/ui/workspaces/#workspace-sharing) documentation for
 
 Prefect Cloud enables you to configure both [organization and workspace roles](/ui/roles/) for users.
 
-- Organization roles apply to users across an organization.
+- Organization roles apply to users across an organization. These roles are Admin and Member.
 - Workspace roles apply to users within a specific workspace.
 
-Select **Roles** within an organziation to see the configured roles for your organization. 
+Select **Roles** within an organziation to see the configured workspace roles for your organization. 
 
 ![Organization roles in Prefect Cloud.](/img/ui/org-roles.png)
 
-Prefect Cloud provides default roles that cover most use cases. You may also create custom roles to suit your specific organization needs.
+Prefect Cloud provides default workspace roles that cover most use cases. You may also create custom workspace roles to suit your specific organization needs.
 
 See the [Roles (RBAC)](/ui/roles/) documentation for more information on default and custom role permissions.
