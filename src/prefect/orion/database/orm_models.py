@@ -361,6 +361,12 @@ class ORMFlowRun(ORMRun):
         nullable=False,
     )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    created_by = sa.Column(
+        Pydantic(schemas.core.CreatedBy),
+        server_default=None,
+        default=None,
+        nullable=True,
+    )
 
     @declared_attr
     def infrastructure_document_id(cls):
@@ -687,6 +693,18 @@ class ORMDeployment:
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     parameter_openapi_schema = sa.Column(JSON, default=dict, nullable=True)
+    created_by = sa.Column(
+        Pydantic(schemas.core.CreatedBy),
+        server_default=None,
+        default=None,
+        nullable=True,
+    )
+    updated_by = sa.Column(
+        Pydantic(schemas.core.UpdatedBy),
+        server_default=None,
+        default=None,
+        nullable=True,
+    )
 
     @declared_attr
     def infrastructure_document_id(cls):
