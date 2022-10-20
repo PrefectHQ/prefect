@@ -148,13 +148,24 @@ class Task(Generic[P, R]):
         self.fn = fn
         self.isasync = inspect.iscoroutinefunction(self.fn)
 
-        self.name = name or self.fn.__name__
+        if not name:
+            if not hasattr(self.fn, "__name__"):
+                self.name = type(self.fn).__name__
+            else:
+                self.name = self.fn.__name__
+        else:
+            self.name = name
+
         self.version = version
 
         raise_for_reserved_arguments(self.fn, ["return_state", "wait_for"])
 
         self.tags = set(tags if tags else [])
-        self.task_key = to_qualified_name(self.fn)
+
+        if not hasattr(self.fn, "__qualname__"):
+            self.task_key = to_qualified_name(type(self.fn))
+        else:
+            self.task_key = to_qualified_name(self.fn)
 
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
