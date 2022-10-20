@@ -13,6 +13,7 @@
 ### Fixes
 - Allow image/namespace fields to be loaded from Kubernetes job manifest — https://github.com/PrefectHQ/prefect/pull/7244
 - UI: Update settings API call to respect `ORION_UI_SERVE_BASE` environment variable — https://github.com/PrefectHQ/prefect/pull/7068
+- Fix entrypoint path error when deployment is created on Windows then run on Unix — https://github.com/PrefectHQ/prefect/pull/7261
 
 ### Collections
 - New [`prefect-kv`](https://github.com/madkinsz/prefect-kv) collection for persisting key-value data
