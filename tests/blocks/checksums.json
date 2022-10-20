@@ -15,6 +15,6 @@
     "kubernetes-cluster-config": "sha256:90d421e948bfbe4cdc98b124995f0edd0f84b0837549ad1390423bad8e31cf3b",
     "docker-registry": "sha256:6db1457676eee0b54ca2834b06f80a80f7c90112e64f1bdd26afb2e62fcceed9",
     "docker-container": "sha256:ee3348b26a5d0e0226e2d3cf6f2e85a3592c3b19fb8a988dfccceee972b9b9eb",
-    "kubernetes-job": "sha256:686f931093d8fa3a80dee6eb66516be7b022bf29c44a38766da8571f25fede8b",
+    "kubernetes-job": "sha256:a27bd569f16c47d6e39f0c04d1724dc7a670ca5d6013d930c517b79954ee9b97",
     "process": "sha256:227b03037cf895d9a70603554b792f573e7e59b81a585d51a43ec1f826e81da3"
 }
