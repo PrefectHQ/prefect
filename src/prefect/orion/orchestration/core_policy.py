@@ -25,7 +25,7 @@ from prefect.orion.orchestration.rules import (
     OrchestrationContext,
     TaskOrchestrationContext,
 )
-from prefect.orion.schemas import states
+from prefect.orion.schemas import filters, states
 from prefect.orion.schemas.states import StateType
 
 
@@ -302,7 +302,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
                 ),
             )
             for run in failed_task_runs:
-                await task_runs.set_task_run_state(
+                await models.task_runs.set_task_run_state(
                     context.session,
                     run.id,
                     state=states.AwaitingRetry(scheduled_time=scheduled_start_time),
