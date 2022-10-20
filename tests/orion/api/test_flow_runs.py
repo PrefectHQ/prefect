@@ -690,7 +690,9 @@ class TestRestartingFlowRuns:
     async def test_flow_run_restarts(
         self, failed_flow_run_with_deployment, client, session
     ):
-        assert failed_flow_run_with_deployment.empirical_policy.restarts == 0
+        assert failed_flow_run_with_deployment.restarts == 0
+        assert failed_flow_run_with_deployment.run_count == 1
+        assert failed_flow_run_with_deployment.deployment_id
         flow_run_id = failed_flow_run_with_deployment.id
         response = await client.post(
             f"/flow_runs/{flow_run_id}/restart",
@@ -699,12 +701,27 @@ class TestRestartingFlowRuns:
         restarted_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
         )
-        task_runs = await models.flow_runs.read_task_runs(
+        assert restarted_run.restarts == 1
+        assert restarted_run.run_count == 0, "restarted flows reset the run count"
+        assert restarted_run.state.type == "SCHEDULED"
+
+    async def test_cannot_restart_flow_run_without_deployment(
+        self, failed_flow_run_without_deployment, client, session
+    ):
+        assert failed_flow_run_without_deployment.restarts == 0
+        assert failed_flow_run_without_deployment.run_count == 1
+        assert not failed_flow_run_without_deployment.deployment_id
+        flow_run_id = failed_flow_run_without_deployment.id
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/restart",
+        )
+        session.expire_all()
+        restarted_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
         )
-        assert restarted_run.restarts == 1
-        assert restarted_run.state.type == "SCHEDULED"
-        assert len(task_runs) == 1
+        assert restarted_run.restarts == 0
+        assert restarted_run.run_count == 1, "the run count should not change"
+        assert restarted_run.state.type == "FAILED"
 
 
 class TestFlowRunHistory:
