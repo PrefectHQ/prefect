@@ -1,8 +1,9 @@
-from pathlib import Path
+import sys
+from pathlib import Path, PosixPath, WindowsPath
 
 import pytest
 
-from prefect.utilities.filesystem import filter_files
+from prefect.utilities.filesystem import filter_files, relative_path_to_current_platform
 
 
 class TestFilterFiles:
@@ -112,3 +113,39 @@ class TestFilterFiles:
             {"utilities/__pycache__", "venv/__pycache__"} if include_dirs else set()
         )
         assert {f for f in filtered if "pycache" in f} == expected
+
+
+class TestPlatformSpecificRelpath:
+    @pytest.mark.skipif(sys.platform == "win32", reason="This is a unix-specific test")
+    @pytest.mark.parametrize(
+        "path_str,expected",
+        [
+            ("mypath.py:my_flow", "mypath.py:my_flow"),
+            (r"my\test\path.py:my_flow", "my/test/path.py:my_flow"),
+            ("my\\test\\path.py:my_flow", "my/test/path.py:my_flow"),
+            ("my/test/path.py:my_flow", "my/test/path.py:my_flow"),
+        ],
+    )
+    def test_paths_on_unix(self, path_str, expected):
+        new_path = relative_path_to_current_platform(path_str)
+
+        assert isinstance(new_path, PosixPath)
+        assert str(new_path) == expected
+
+    @pytest.mark.skipif(
+        sys.platform != "win32", reason="This is a windows-specific test"
+    )
+    @pytest.mark.parametrize(
+        "path_str,expected",
+        [
+            ("mypath.py:my_flow", "mypath.py:my_flow"),
+            (r"my\test\path.py:my_flow", "my\\test\\path.py:my_flow"),
+            ("my\\test\\path.py:my_flow", "my\\test\\path.py:my_flow"),
+            ("my/test/path.py:my_flow", "my\\test\\path.py:my_flow"),
+        ],
+    )
+    def test_paths_on_windows(self, path_str, expected):
+        new_path = relative_path_to_current_platform(path_str)
+
+        assert isinstance(new_path, WindowsPath)
+        assert str(new_path) == expected
