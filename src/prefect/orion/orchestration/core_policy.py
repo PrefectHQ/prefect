@@ -503,25 +503,30 @@ class PermitRerunningFailedTaskRuns(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ):
-        # reset run count to 0
         self.original_run_count = context.run.run_count
-        context.run.run_count = 0  # reset run count to preserve retry behavior
-
         self.original_retry_attempt = context.run.flow_retry_attempt
         self.original_restart_attempt = context.run.flow_restart_attempt
 
         self.flow_run = await context.flow_run()
-        # breakpoint()
-        if self.flow_run.run_count == 1 and self.flow_run.restarts > 0:
-            # if the flow run count is 1, the flow is restarting
-            if self.flow_run.restarts > context.run.flow_restart_attempt:
-                context.run.flow_restart_attempt += 1
-                context.run.flow_retry_attempt = 0
-                await self.rename_state("RetryingViaRestart")
-                await self.update_context_parameters("permit-rerunning", True)
-        elif self.flow_run.empirical_policy.retries > context.run.flow_retry_attempt:
-            # otherwise, the flow is retrying
-            context.run.flow_retry_attempt = self.flow_run.run_count
+
+        restarting = (
+            self.flow_run.run_count == 1
+            and self.flow_run.restarts > 0
+            and (self.flow_run.restarts > context.run.flow_restart_attempt)
+        )
+        retrying = not restarting and (
+             self.flow_run.run_count <= self.flow_run.empirical_policy.retries
+        )
+
+        if restarting:
+            context.run.run_count = 0  # reset run count to preserve retry behavior
+            context.run.flow_restart_attempt += 1
+            context.run.flow_retry_attempt = 0
+            await self.rename_state("RetryingViaRestart")
+            await self.update_context_parameters("permit-rerunning", True)
+        elif retrying:
+            context.run.run_count = 0  # reset run count to preserve retry behavior
+            context.run.flow_retry_attempt = self.flow_run.run_count - 1
             await self.rename_state("Retrying")
             await self.update_context_parameters("permit-rerunning", True)
 
