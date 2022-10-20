@@ -128,6 +128,7 @@ class Flow(Generic[P, R]):
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
+        cache_result_in_memory: bool = True,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -185,6 +186,7 @@ class Flow(Generic[P, R]):
         self.persist_result = persist_result
         self.result_storage = result_storage
         self.result_serializer = result_serializer
+        self.cache_result_in_memory = cache_result_in_memory
 
         # Check for collision in the registry
         registry = PrefectObjectRegistry.get()
@@ -217,6 +219,7 @@ class Flow(Generic[P, R]):
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
+        cache_result_in_memory: bool = None,
     ):
         """
         Create a new flow from the current object, updating provided options.
@@ -236,6 +239,8 @@ class Flow(Generic[P, R]):
             persist_result: A new option for enabling or disabling result persistence.
             result_storage: A new storage type to use for results.
             result_serializer: A new serializer to use for results.
+            cache_result_in_memory: A new value indicating if the flow's result should
+                be cached in memory.
 
         Returns:
             A new `Flow` instance.
@@ -283,12 +288,17 @@ class Flow(Generic[P, R]):
                 persist_result if persist_result is not NotSet else self.persist_result
             ),
             result_storage=(
-                result_storage if result_storage is not NotSet else self.persist_result
+                result_storage if result_storage is not NotSet else self.result_storage
             ),
             result_serializer=(
                 result_serializer
                 if result_serializer is not NotSet
-                else self.persist_result
+                else self.result_serializer
+            ),
+            cache_result_in_memory=(
+                cache_result_in_memory
+                if cache_result_in_memory is not None
+                else self.cache_result_in_memory
             ),
         )
 
@@ -491,6 +501,7 @@ def flow(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
+    cache_result_in_memory: bool = True,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -509,6 +520,7 @@ def flow(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
+    cache_result_in_memory: bool = True,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -607,6 +619,7 @@ def flow(
                 persist_result=persist_result,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
+                cache_result_in_memory=cache_result_in_memory,
             ),
         )
     else:
@@ -625,6 +638,7 @@ def flow(
                 persist_result=persist_result,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
+                cache_result_in_memory=cache_result_in_memory,
             ),
         )
 

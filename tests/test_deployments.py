@@ -354,6 +354,32 @@ class TestDeploymentBuild:
         assert d.tags == ["A", "B"]
         assert d.version == "12"
 
+    async def test_build_from_flow_doesnt_load_existing(self, flow_function):
+        d = await Deployment.build_from_flow(
+            flow_function,
+            name="foo",
+            tags=["A", "B"],
+            description="foobar",
+            version="12",
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.description == "foobar"
+        assert d.tags == ["A", "B"]
+        assert d.version == "12"
+
+        d = await Deployment.build_from_flow(
+            flow_function,
+            name="foo",
+            version="12",
+            load_existing=False,
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.description != "foobar"
+        assert d.tags != ["A", "B"]
+        assert d.version == "12"
+
 
 class TestYAML:
     def test_deployment_yaml_roundtrip(self, tmp_path):
