@@ -45,7 +45,7 @@ logger = get_logger("orion")
 enforce_minimum_version = EnforceMinimumAPIVersion(
     # this should be <= ORION_API_VERSION; clients that send
     # a version header under this value will be rejected
-    minimum_api_version="0.8.0",
+    minimum_api_version="0.9.0",
     logger=logger,
 )
 
