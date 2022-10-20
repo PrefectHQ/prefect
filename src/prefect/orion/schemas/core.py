@@ -500,10 +500,12 @@ class Deployment(ORMBaseModel):
         description="The block document defining infrastructure to use for flow runs.",
     )
     created_by: Optional[CreatedBy] = Field(
-        None, description="Optional information about the creator of this deployment."
+        default=None,
+        description="Optional information about the creator of this deployment.",
     )
     updated_by: Optional[UpdatedBy] = Field(
-        None, description="Optional information about the updater of this deployment."
+        default=None,
+        description="Optional information about the updater of this deployment.",
     )
 
     @validator("name", check_fields=False)
