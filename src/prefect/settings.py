@@ -326,6 +326,17 @@ PREFECT_RESULTS_DEFAULT_SERIALIZER = Setting(
 )
 """The default serializer to use when not otherwise specified."""
 
+
+PREFECT_RESULTS_PERSIST_BY_DEFAULT = Setting(
+    bool,
+    default=False,
+)
+"""
+The default setting for persisting results when not otherwise specified. If enabled,
+flow and task results will be persisted unless they opt out.
+"""
+
+
 PREFECT_LOCAL_STORAGE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "storage",
@@ -511,7 +522,7 @@ PREFECT_ORION_DATABASE_MIGRATE_ON_START = Setting(
 
 PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     Optional[float],
-    default=1,
+    default=5.0,
 )
 """A statement timeout, in seconds, applied to all database
 interactions made by the API. Defaults to `1`.

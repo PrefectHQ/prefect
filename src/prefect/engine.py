@@ -60,7 +60,7 @@ from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateDetails, StateType
-from prefect.results import ResultFactory
+from prefect.results import BaseResult, ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
     Pending,
@@ -1447,10 +1447,14 @@ async def propose_state(
 
     # Handle task and sub-flow tracing
     if state.is_final():
-        if state.data is not None:
-            link_state_to_result(
-                state, await state.result(raise_on_failure=False, fetch=True)
-            )
+        if isinstance(state.data, BaseResult) and state.data.has_cached_object():
+            # Avoid fetching the result unless it is cached, otherwise we defeat
+            # the purpose of disabling `cache_result_in_memory`
+            result = await state.result(raise_on_failure=False, fetch=True)
+        else:
+            result = state.data
+
+        link_state_to_result(state, result)
 
     # Attempt to set the state
     if task_run_id:

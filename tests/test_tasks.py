@@ -1,7 +1,7 @@
 import datetime
 import inspect
 import warnings
-from typing import Dict, List
+from typing import Any, Dict, List
 from unittest.mock import MagicMock
 from uuid import UUID
 
@@ -18,6 +18,7 @@ from prefect.exceptions import (
     MappingMissingIterable,
     ReservedArgumentError,
 )
+from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFuture
 from prefect.orion import models
 from prefect.orion.schemas.core import TaskRunResult
@@ -153,6 +154,56 @@ class TestTaskCall:
         assert state.is_failed()
         with pytest.raises(ValueError, match="Test"):
             state.result()
+
+    def test_task_with_name_supports_callable_objects(self):
+        class A:
+            def __call__(self, *_args: Any, **_kwargs: Any) -> Any:
+                return "hello"
+
+        a = A()
+        task = Task(fn=a, name="Task")
+        assert task.fn is a
+
+    def test_task_supports_callable_objects(self):
+        class A:
+            def __call__(self, *_args: Any, **_kwargs: Any) -> Any:
+                return "hello"
+
+        a = A()
+        task = Task(fn=a)
+        assert task.fn is a
+
+    def test_task_run_with_name_from_callable_object(self):
+        class Foo:
+            message = "hello"
+
+            def __call__(self, prefix: str, suffix: str) -> Any:
+                return prefix + self.message + suffix
+
+        obj = Foo()
+        foo = Task(fn=obj, name="Task")
+
+        @flow
+        def bar():
+            return foo("a", suffix="b")
+
+        assert bar() == "ahellob"
+
+    def test_task_run_from_callable_object(self):
+        class Foo:
+            message = "hello"
+
+            def __call__(self, prefix: str, suffix: str) -> Any:
+                return prefix + self.message + suffix
+
+        obj = Foo()
+        foo = Task(fn=obj)
+
+        @flow
+        def bar():
+            return foo("a", suffix="b")
+
+        assert bar() == "ahellob"
 
 
 class TestTaskRun:
@@ -1954,6 +2005,10 @@ class TestTaskWithOptions:
             cache_expiration=datetime.timedelta(days=1),
             retries=2,
             retry_delay_seconds=5,
+            persist_result=True,
+            result_serializer="pickle",
+            result_storage=LocalFileSystem(basepath="foo"),
+            cache_result_in_memory=False,
         )
         def initial_task():
             pass
@@ -1966,6 +2021,10 @@ class TestTaskWithOptions:
             cache_expiration=datetime.timedelta(days=2),
             retries=5,
             retry_delay_seconds=10,
+            persist_result=False,
+            result_serializer="json",
+            result_storage=LocalFileSystem(basepath="bar"),
+            cache_result_in_memory=True,
         )
 
         assert task_with_options.name == "Copied task"
@@ -1975,6 +2034,10 @@ class TestTaskWithOptions:
         assert task_with_options.cache_expiration == datetime.timedelta(days=2)
         assert task_with_options.retries == 5
         assert task_with_options.retry_delay_seconds == 10
+        assert task_with_options.persist_result is False
+        assert task_with_options.result_serializer == "json"
+        assert task_with_options.result_storage == LocalFileSystem(basepath="bar")
+        assert task_with_options.cache_result_in_memory is True
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         def cache_key_fn(*_):
@@ -1988,6 +2051,10 @@ class TestTaskWithOptions:
             cache_expiration=datetime.timedelta(days=1),
             retries=2,
             retry_delay_seconds=5,
+            persist_result=False,
+            result_serializer="json",
+            result_storage=LocalFileSystem(),
+            cache_result_in_memory=False,
         )
         def initial_task():
             pass
@@ -2005,6 +2072,28 @@ class TestTaskWithOptions:
         assert task_with_options.cache_expiration == datetime.timedelta(days=1)
         assert task_with_options.retries == 2
         assert task_with_options.retry_delay_seconds == 5
+        assert task_with_options.persist_result is False
+        assert task_with_options.result_serializer == "json"
+        assert task_with_options.result_storage == LocalFileSystem()
+        assert task_with_options.cache_result_in_memory is False
+
+    def test_with_options_can_unset_result_options_with_none(self):
+        @task(
+            persist_result=True,
+            result_serializer="json",
+            result_storage=LocalFileSystem(),
+        )
+        def initial_task():
+            pass
+
+        task_with_options = initial_task.with_options(
+            persist_result=None,
+            result_serializer=None,
+            result_storage=None,
+        )
+        assert task_with_options.persist_result is None
+        assert task_with_options.result_serializer is None
+        assert task_with_options.result_storage is None
 
     def test_tags_are_copied_from_original_task(self):
         "Ensure changes to the tags on the original task don't affect the new task"

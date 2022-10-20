@@ -82,10 +82,7 @@ async def create_deployment(
                 **deployment.dict(
                     shallow=True,
                     exclude_unset=True,
-                    exclude={
-                        "id",
-                        "created",
-                    },
+                    exclude={"id", "created", "created_by"},
                 ),
             },
         )

@@ -37,7 +37,7 @@ Prefect 2 was designed for incremental adoption into your workflows. The documen
 
 **Getting started**
 
-Begin by [installing Prefect 2](/getting-started/installation/) on your machine, then follow one of our [friendly tutorials](/tutorials/first-steps/) to learn by example. See the [Getting Started overview](/getting-started/overview/) for more.
+Begin by [installing Prefect 2](/getting-started/installation/) on your machine, then follow one of our [friendly tutorials](/tutorials/first-steps/) to learn by example. See our [Quick Start](/getting-started/overview/) guide for details if you're ready to jump right in.
 
 Even if you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps. Prefect 2 offers significant new functionality.
 

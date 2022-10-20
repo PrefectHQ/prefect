@@ -31,11 +31,7 @@ from prefect.exceptions import (
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.states import StateDetails, StateType
-from prefect.results import (
-    ResultFactory,
-    get_default_result_serializer,
-    get_default_result_storage,
-)
+from prefect.results import ResultFactory
 from prefect.states import Cancelled, Failed, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
@@ -45,10 +41,7 @@ from prefect.utilities.pydantic import PartialModel
 
 @pytest.fixture
 async def result_factory(orion_client):
-    return await ResultFactory.from_settings(
-        result_storage=get_default_result_storage(),
-        result_serializer=get_default_result_serializer(),
-        persist_result=False,
+    return await ResultFactory.default_factory(
         client=orion_client,
     )
 
