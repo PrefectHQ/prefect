@@ -292,6 +292,15 @@ class RetryFailedFlows(BaseOrchestrationRule):
 
 
 class RestartFlowRun(BaseOrchestrationRule):
+    """
+    Permits rescheduling a flow run in a terminal state; restarting execution.
+
+    If the orchestrated flow run has an associated deployment, this rule will permit a
+    transition back into a scheduled state as well as performing all necessary
+    bookkeeping such as: tracking the number of times a flow run has been restarted and
+    resetting the run count so flow-level retries can still fire.
+    """
+
     FROM_STATES = TERMINAL_STATES
     TO_STATES = [states.StateType.SCHEDULED]
 
@@ -426,6 +435,9 @@ class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
     Orchestration logic in Orion assumes that once runs enter a terminal state, no
     further action will be taken on them. This rule prevents unintended transitions out
     of terminal states and sents an instruction to the client to abort any execution.
+
+    Rules that run prior to this one can pass a message via context parameters to permit
+    specific transitions for special cases such as restarting and retrying flow runs.
     """
 
     FROM_STATES = TERMINAL_STATES
@@ -490,6 +502,16 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
 
 
 class PermitRerunningFailedTaskRuns(BaseOrchestrationRule):
+    """
+    Permits rerunning a task run in a terminal state; enables retries and restarts.
+
+    While rerunning a flow, the client will attempt to re-orchestrate tasks that may
+    have previously failed. This rule will permit transitions back into a running state
+    if the parent flow run is either currently restarting or retrying. The task run's
+    run count will also be reset so task-level retries can still fire and tracking
+    metadata is updated.
+    """
+
     FROM_STATES = [
         states.StateType.FAILED,
         states.StateType.CRASHED,

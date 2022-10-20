@@ -827,6 +827,17 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             self.context.proposed_state.name = state_name
 
     async def update_context_parameters(self, key, value):
+        """
+        Updates the "parameters" dictionary attribute with the specified key-value pair.
+
+        This mechanism streamlines the process of passing messages and information
+        between orchestration rules if necessary and is simpler and more ephemeral than
+        message-passing via the database or some other side-effect. This mechanism can
+        be used to break up large rules for ease of testing or comprehension, but note
+        that any rules coupled this way (or any other way) are no longer independent and
+        the order in which they appear in the orchestration policy priority will matter.
+        """
+
         self.context.parameters.update({key: value})
 
 
