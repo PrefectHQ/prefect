@@ -15,6 +15,7 @@ from prefect.serializers import Serializer
 from prefect.settings import (
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_RESULTS_DEFAULT_SERIALIZER,
+    PREFECT_RESULTS_PERSIST_BY_DEFAULT,
 )
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import sync_compatible
@@ -47,6 +48,13 @@ def get_default_result_serializer() -> ResultSerializer:
     Generate a default file system for result storage.
     """
     return PREFECT_RESULTS_DEFAULT_SERIALIZER.value()
+
+
+def get_default_persist_setting() -> bool:
+    """
+    Return the default option for result persistence (False).
+    """
+    return PREFECT_RESULTS_PERSIST_BY_DEFAULT.value()
 
 
 def flow_features_require_result_persistence(flow: "Flow") -> bool:
@@ -109,7 +117,7 @@ class ResultFactory(pydantic.BaseModel):
         # Apply defaults
         kwargs.setdefault("result_storage", get_default_result_storage())
         kwargs.setdefault("result_serializer", get_default_result_serializer())
-        kwargs.setdefault("persist_result", False)
+        kwargs.setdefault("persist_result", get_default_persist_setting())
         kwargs.setdefault("cache_result_in_memory", True)
 
         return await cls.from_settings(**kwargs, client=client)
@@ -140,6 +148,7 @@ class ResultFactory(pydantic.BaseModel):
                     (
                         flow_features_require_result_persistence(flow)
                         or flow_features_require_child_result_persistence(ctx.flow)
+                        or get_default_persist_setting()
                     )
                 ),
                 cache_result_in_memory=flow.cache_result_in_memory,
@@ -159,7 +168,10 @@ class ResultFactory(pydantic.BaseModel):
                     else
                     # !! Flows persist their result by default if uses a feature that
                     #    requires it
-                    flow_features_require_result_persistence(flow)
+                    (
+                        flow_features_require_result_persistence(flow)
+                        or get_default_persist_setting()
+                    )
                 ),
                 cache_result_in_memory=flow.cache_result_in_memory,
             )
@@ -191,6 +203,7 @@ class ResultFactory(pydantic.BaseModel):
             (
                 flow_features_require_child_result_persistence(ctx.flow)
                 or task_features_require_result_persistence(task)
+                or get_default_persist_setting()
             )
         )
         cache_result_in_memory = task.cache_result_in_memory
