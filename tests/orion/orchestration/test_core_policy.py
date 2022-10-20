@@ -5,6 +5,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+from uuid import uuid4
 
 from prefect.orion import schemas
 from prefect.orion.models import concurrency_limits
@@ -15,6 +16,7 @@ from prefect.orion.orchestration.core_policy import (
     PreventTransitionsFromTerminalStates,
     ReleaseTaskConcurrencySlots,
     RenameReruns,
+    RestartFlowRun,
     RetryFailedFlows,
     RetryFailedTasks,
     SecureTaskConcurrencySlots,
@@ -322,6 +324,125 @@ class TestFlowRetryingRule:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.FAILED
+
+
+class TestFlowRestartRule:
+    async def test_cannot_restart_without_deployment(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        restart_policy = [RestartFlowRun]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.run_count = 2
+        ctx.run_settings.retries = 1
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in restart_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ABORT
+        assert ctx.run.run_count == 2
+        assert ctx.run.restarts == 0
+
+    async def test_restarting_resets_run_counts_and_increments_restarts(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        restart_policy = [RestartFlowRun]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.deployment_id = uuid4()
+        ctx.run.run_count = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in restart_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.restarts == 1
+        assert ctx.run.run_count == 0
+
+    async def test_restarting_bypasses_terminal_state_protection(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        restart_policy = [RestartFlowRun, PreventTransitionsFromTerminalStates]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.deployment_id = uuid4()
+        ctx.run.run_count = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in restart_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.restarts == 1
+        assert ctx.run.run_count == 0
+
+    async def test_cleans_up_after_invalid_transition(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                # this rule mutates the proposed state type, but won't fizzle itself upon exiting
+                mutated_state = proposed_state.copy()
+                mutated_state.type = random.choice(
+                    list(
+                        set(states.StateType)
+                        - {initial_state.type, proposed_state.type}
+                    )
+                )
+                await self.reject_transition(
+                    mutated_state, reason="for testing, of course"
+                )
+
+        restart_policy = [RestartFlowRun, StateMutatingRule]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.deployment_id = uuid4()
+        ctx.run.run_count = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in restart_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.run.restarts == 0
+        assert ctx.run.run_count == 2
 
 
 class TestTaskRetryingRule:
