@@ -4,6 +4,7 @@ Utilities for working with file systems
 import os
 import pathlib
 from contextlib import contextmanager
+from pathlib import Path, PureWindowsPath
 from typing import Union
 
 import fsspec
@@ -107,3 +108,13 @@ def to_display_path(
     relative_path = str(path.relative_to(relative_to))
     absolute_path = str(path)
     return relative_path if len(relative_path) < len(absolute_path) else absolute_path
+
+
+def platform_specific_relpath(path_str: str) -> Path:
+    """
+    Given a relative path string, using either front or back slashes,
+    returns the appropriate `WindowsPath` or `PosixPath` object, with the
+    correct path.
+    """
+
+    return Path(PureWindowsPath(path_str).as_posix())
