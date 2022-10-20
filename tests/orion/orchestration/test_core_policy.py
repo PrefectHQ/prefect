@@ -577,10 +577,10 @@ class TestPermitRerunningFailedTaskRunsRule:
             session,
             "task",
             *intended_transition,
-            flow_retries=3,
+            flow_retries=1,
         )
         flow_run = await ctx.flow_run()
-        flow_run.run_count = 1
+        flow_run.run_count = 2
         flow_run.restarts = 2
         ctx.run.flow_retry_attempt = 1
         ctx.run.flow_restart_attempt = 1
