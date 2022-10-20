@@ -492,6 +492,8 @@ def initialize_orchestration(flow):
                 run.tags = run_tags
             context = TaskOrchestrationContext
             state_constructor = commit_task_run_state
+        else:
+            raise NotImplementedError("Only 'task' and 'flow' run types are supported")
 
         await session.commit()
 
