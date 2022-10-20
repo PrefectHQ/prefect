@@ -236,6 +236,10 @@ jobs:
   publish-release:
     name: Publish to PyPI
     environment: "prod"
+    # We will wait to start this until all of its upstreams have completed
+    # but we will only _require_ that `build-release` is successful to
+    # allow manual approval of a release
+    if: ${{ needs.build-release.result == 'success' }}
     needs: [build-release, publish-test-release]
     runs-on: ubuntu-latest
 
