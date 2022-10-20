@@ -46,6 +46,27 @@ def transition_names(transition):
     return initial + proposed
 
 
+@pytest.fixture
+def fizzling_rule():
+    class FizzlingRule(BaseOrchestrationRule):
+        FROM_STATES = ALL_ORCHESTRATION_STATES
+        TO_STATES = ALL_ORCHESTRATION_STATES
+
+        async def before_transition(self, initial_state, proposed_state, context):
+            # this rule mutates the proposed state type, but won't fizzle itself upon exiting
+            mutated_state = proposed_state.copy()
+            mutated_state.type = random.choice(
+                list(
+                    set(states.StateType)
+                    - {initial_state.type, proposed_state.type}
+                )
+            )
+            await self.reject_transition(
+                mutated_state, reason="for testing, of course"
+            )
+    return FizzlingRule
+
+
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestWaitForScheduledTimeRule:
     async def test_late_scheduled_states_just_run(
@@ -407,25 +428,9 @@ class TestFlowRestartRule:
         self,
         session,
         initialize_orchestration,
+        fizzling_rule,
     ):
-        class StateMutatingRule(BaseOrchestrationRule):
-            FROM_STATES = ALL_ORCHESTRATION_STATES
-            TO_STATES = ALL_ORCHESTRATION_STATES
-
-            async def before_transition(self, initial_state, proposed_state, context):
-                # this rule mutates the proposed state type, but won't fizzle itself upon exiting
-                mutated_state = proposed_state.copy()
-                mutated_state.type = random.choice(
-                    list(
-                        set(states.StateType)
-                        - {initial_state.type, proposed_state.type}
-                    )
-                )
-                await self.reject_transition(
-                    mutated_state, reason="for testing, of course"
-                )
-
-        restart_policy = [RestartFlowRun, StateMutatingRule]
+        restart_policy = [RestartFlowRun, fizzling_rule]
         initial_state_type = states.StateType.FAILED
         proposed_state_type = states.StateType.SCHEDULED
         intended_transition = (initial_state_type, proposed_state_type)
@@ -599,6 +604,42 @@ class TestPermitRerunningFailedTaskRunsRule:
         ), "The restart attempt tracker should not change for retries"
         assert ctx.proposed_state is None
         assert ctx.run.flow_retry_attempt == 1
+
+    async def test_cleans_up_after_invalid_transition(
+        self,
+        session,
+        initialize_orchestration,
+        fizzling_rule,
+    ):
+        rerun_policy = [
+            PermitRerunningFailedTaskRuns,
+            fizzling_rule,
+        ]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            flow_retries=3,
+        )
+        flow_run = await ctx.flow_run()
+        flow_run.run_count = 1
+        flow_run.restarts = 1
+        ctx.run.flow_retry_attempt = 2
+        ctx.run.run_count = 1
+
+        assert ctx.run.run_count == 1
+        assert ctx.run.flow_restart_attempt == 0
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in rerun_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.run.run_count == 1
+        assert ctx.run.flow_restart_attempt == 0
 
 
 class TestTaskRetryingRule:
