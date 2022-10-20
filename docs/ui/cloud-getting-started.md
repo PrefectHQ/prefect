@@ -11,7 +11,7 @@ tags:
     - getting started
 ---
 
-# Getting Started with Prefect Cloud
+# Getting Started with Prefect Cloud <span class="badge cloud"></span>
 
 The following sections will get you set up and using Prefect Cloud, using these steps:
 

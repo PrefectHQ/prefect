@@ -153,12 +153,15 @@ github_stars(["PrefectHQ/Prefect", "PrefectHQ/prefect-aws",  "PrefectHQ/prefect-
 
 Run the code:
 
+<div class="terminal">
 ```bash
 python github_stars_example.py
 ```
+</div>
 
 And see the logger's output in your terminal:
 
+<div class="terminal">
 ```bash
 10:56:06.988 | INFO    | prefect.engine - Created flow run 'grinning-crab' for flow 'github-stars'
 10:56:06.988 | INFO    | Flow run 'grinning-crab' - Using task runner 'ConcurrentTaskRunner'
@@ -174,6 +177,7 @@ PrefectHQ/prefect-dbt has 12 stars!
 10:56:07.464 | INFO    | Task run 'get_stars-2ca9fbe1-2' - Finished in state Completed()
 10:56:07.477 | INFO    | Flow run 'grinning-crab' - Finished in state Completed('All states completed.')
 ```
+</div>
 
 By adding `retries=3 ` to the `@task` decorator, the `get_stars` function automatically reruns up to three times on failure!
 
@@ -181,9 +185,11 @@ By adding `retries=3 ` to the `@task` decorator, the `get_stars` function automa
 
 Fire up the Prefect UI locally by entering this command in your terminal:
 
+<div class="terminal">
 ```bash
 prefect orion start
 ```
+</div>
 
 Follow the link in your terminal to see the dashboard.
 
