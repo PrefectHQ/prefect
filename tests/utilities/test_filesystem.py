@@ -3,7 +3,7 @@ from pathlib import Path, PosixPath, WindowsPath
 
 import pytest
 
-from prefect.utilities.filesystem import filter_files, platform_specific_relpath
+from prefect.utilities.filesystem import filter_files, relative_path_to_current_platform
 
 
 class TestFilterFiles:
@@ -127,7 +127,7 @@ class TestPlatformSpecificRelpath:
         ],
     )
     def test_paths_on_unix(self, path_str, expected):
-        new_path = platform_specific_relpath(path_str)
+        new_path = relative_path_to_current_platform(path_str)
 
         assert isinstance(new_path, PosixPath)
         assert str(new_path) == expected
@@ -145,7 +145,7 @@ class TestPlatformSpecificRelpath:
         ],
     )
     def test_paths_on_windows(self, path_str, expected):
-        new_path = platform_specific_relpath(path_str)
+        new_path = relative_path_to_current_platform(path_str)
 
         assert isinstance(new_path, WindowsPath)
         assert str(new_path) == expected
