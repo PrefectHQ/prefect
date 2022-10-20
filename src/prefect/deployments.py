@@ -30,7 +30,7 @@ from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
-from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.importtools import import_object
 from prefect.utilities.slugify import slugify
 
@@ -162,7 +162,7 @@ async def load_flow_from_flow_run(
         f"Loading flow for deployment {deployment.name!r}..."
     )
 
-    import_path = deployment.entrypoint
+    import_path = relative_path_to_current_platform(deployment.entrypoint)
 
     # for backwards compat
     if deployment.manifest_path:
