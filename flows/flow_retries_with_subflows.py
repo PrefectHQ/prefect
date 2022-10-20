@@ -21,13 +21,13 @@ def parent_flow():
     global flow_run_count
     flow_run_count += 1
 
-    state = child_flow()
+    result = child_flow()
 
     # It is important that the flow run fails after the child flow run is created
     if flow_run_count < 3:
         raise ValueError()
 
-    return state
+    return result
 
 
 if __name__ == "__main__":
