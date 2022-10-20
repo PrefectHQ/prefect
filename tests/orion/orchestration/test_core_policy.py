@@ -56,14 +56,10 @@ def fizzling_rule():
             # this rule mutates the proposed state type, but won't fizzle itself upon exiting
             mutated_state = proposed_state.copy()
             mutated_state.type = random.choice(
-                list(
-                    set(states.StateType)
-                    - {initial_state.type, proposed_state.type}
-                )
+                list(set(states.StateType) - {initial_state.type, proposed_state.type})
             )
-            await self.reject_transition(
-                mutated_state, reason="for testing, of course"
-            )
+            await self.reject_transition(mutated_state, reason="for testing, of course")
+
     return FizzlingRule
 
 
