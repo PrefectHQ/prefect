@@ -33,13 +33,17 @@ jobs:
         run: |
           set -v
           traceroute ${{ matrix.endpoint }}
-          traceroute6 ${{ matrix.endpoint }}
+
+          # GitHub Actions does not support ipv6
+          # traceroute6 ${{ matrix.endpoint }}
 
       - name: "HTTPS requests"
         run: |
           set -v
           curl -vvv -I --ipv4 https://${{ matrix.endpoint }}${{ matrix.request-route }}
-          curl -vvv -I --ipv6 https://${{ matrix.endpoint }}${{ matrix.request-route }}
+
+          # GitHub Actions does not support ipv6
+          # curl -vvv -I --ipv6 https://${{ matrix.endpoint }}${{ matrix.request-route }}
 
       - name: "TLS debug"
         run: |
