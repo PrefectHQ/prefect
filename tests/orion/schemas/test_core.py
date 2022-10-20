@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+import pendulum
 import pydantic
 import pytest
 
@@ -168,3 +169,34 @@ class TestTaskRunPolicy:
 
         assert new_policy.retries == 1
         assert new_policy.retry_delay == 2
+
+
+class TestWorkQueueHealthPolicy:
+    def test_health_policy_enforces_max_late_runs(self):
+        policy = schemas.core.WorkQueueHealthPolicy(
+            maximum_late_runs=1, maximum_seconds_since_last_polled=None
+        )
+
+        assert policy.evaluate_health_status(late_runs_count=0) is True
+        assert policy.evaluate_health_status(late_runs_count=2) is False
+
+    def test_health_policy_enforces_seconds_since_last_polled(self):
+        policy = schemas.core.WorkQueueHealthPolicy(
+            maximum_late_runs=None, maximum_seconds_since_last_polled=30
+        )
+
+        assert (
+            policy.evaluate_health_status(
+                late_runs_count=0, last_polled=pendulum.now("UTC")
+            )
+            is True
+        )
+        assert (
+            policy.evaluate_health_status(
+                late_runs_count=2, last_polled=pendulum.now("UTC").subtract(seconds=60)
+            )
+            is False
+        )
+        assert (
+            policy.evaluate_health_status(late_runs_count=2, last_polled=None) is False
+        )
