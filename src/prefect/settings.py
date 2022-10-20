@@ -522,7 +522,7 @@ PREFECT_ORION_DATABASE_MIGRATE_ON_START = Setting(
 
 PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     Optional[float],
-    default=1,
+    default=5.0,
 )
 """A statement timeout, in seconds, applied to all database
 interactions made by the API. Defaults to `1`.
