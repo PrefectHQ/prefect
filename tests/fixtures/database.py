@@ -101,7 +101,7 @@ async def flow_run(session, flow):
 
 @pytest.fixture
 async def failed_flow_run_without_deployment(session, flow, deployment):
-    flow_run_create = schemas.actions.FlowRunCreate(
+    flow_run_model = schemas.core.FlowRun(
         state=schemas.states.Failed(),
         flow_id=flow.id,
         flow_version="0.1",
@@ -109,7 +109,7 @@ async def failed_flow_run_without_deployment(session, flow, deployment):
     )
     flow_run = await models.flow_runs.create_flow_run(
         session=session,
-        flow_run=flow_run_create,
+        flow_run=flow_run_model,
     )
     await models.task_runs.create_task_run(
         session=session,
@@ -123,7 +123,7 @@ async def failed_flow_run_without_deployment(session, flow, deployment):
 
 @pytest.fixture
 async def failed_flow_run_with_deployment(session, flow, deployment):
-    flow_run_create = schemas.actions.FlowRunCreate(
+    flow_run_model = schemas.core.FlowRun(
         state=schemas.states.Failed(),
         flow_id=flow.id,
         flow_version="0.1",
@@ -132,7 +132,7 @@ async def failed_flow_run_with_deployment(session, flow, deployment):
     )
     flow_run = await models.flow_runs.create_flow_run(
         session=session,
-        flow_run=flow_run_create,
+        flow_run=flow_run_model,
     )
     await models.task_runs.create_task_run(
         session=session,
