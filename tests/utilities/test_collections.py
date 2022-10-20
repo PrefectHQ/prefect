@@ -381,6 +381,19 @@ class TestVisitCollection:
         )
         assert result == expected
 
+    def test_visit_collection_context(self):
+        foo = [1, 2, [3, 4], [5, [6, 7]], 8, 9]
+
+        def visit(expr, context):
+            if isinstance(expr, list):
+                context["depth"] += 1
+                return expr
+            else:
+                return expr + context["depth"]
+
+        result = visit_collection(foo, visit, context={"depth": 0}, return_data=True)
+        assert result == [2, 3, [5, 6], [7, [9, 10]], 9, 10]
+
 
 class TestRemoveKeys:
     def test_remove_single_key(self):

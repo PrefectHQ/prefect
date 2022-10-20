@@ -16,6 +16,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Optional,
     Set,
     Tuple,
     Type,
@@ -210,6 +211,7 @@ def visit_collection(
     visit_fn: Callable[[Any], Any],
     return_data: bool = False,
     max_depth: int = -1,
+    context: Optional[dict] = None,
 ):
     """
     This function visits every element of an arbitrary Python collection. If an element
@@ -242,6 +244,10 @@ def visit_collection(
             descend to N layers deep. If set to any negative integer, no limit will be
             enforced and recursion will continue until terminal items are reached. By
             default, recursion is unlimited.
+        context: An optional dictionary. If passed, the context will be sent to each
+            call to the `visit_fn`. The context can be mutated by each visitor and will
+            be available for later visits to expressions at the given depth. Values
+            will not be available "up" a level from a given expression.
     """
 
     def visit_nested(expr):
@@ -251,10 +257,23 @@ def visit_collection(
             visit_fn=visit_fn,
             return_data=return_data,
             max_depth=max_depth - 1,
+            # Copy the context on nested calls so it does not "propagate up"
+            context=context.copy() if context is not None else None,
         )
 
-    # Visit every expression
-    result = visit_fn(expr)
+    def visit_expression(expr):
+        if context is not None:
+            return visit_fn(expr, context)
+        else:
+            return visit_fn(expr)
+
+    # Visit every expression (if a new object is returned, visit again)
+    seen = set()
+    result = expr
+    while id(result) not in seen:
+        result = visit_expression(result)
+        seen.add(id(result))
+
     if return_data:
         # Only mutate the expression while returning data, otherwise it could be null
         expr = result
@@ -322,7 +341,7 @@ def visit_collection(
             result = None
 
     elif isinstance(expr, BaseAnnotation):
-        result = type(expr)(visit_nested(expr.unwrap()))
+        result = expr.rewrap(visit_nested(expr.unwrap()))
 
     else:
         result = result if return_data else None

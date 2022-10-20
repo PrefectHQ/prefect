@@ -1,10 +1,11 @@
 from abc import ABC
 from typing import Generic, TypeVar
 
+C = TypeVar("C")
 T = TypeVar("T")
 
 
-class BaseAnnotation(ABC):
+class BaseAnnotation(ABC, Generic[T]):
     """
     Base class for Prefect annotation types
     """
@@ -15,13 +16,19 @@ class BaseAnnotation(ABC):
     def unwrap(self) -> T:
         return self.value
 
+    def rewrap(self, value: T) -> "BaseAnnotation[T]":
+        return type(self)(value)
+
     def __eq__(self, other: object) -> bool:
         if not type(self) == type(other):
             return False
         return self.unwrap() == other.unwrap()
 
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.value!r})"
 
-class unmapped(BaseAnnotation):
+
+class unmapped(BaseAnnotation[T]):
     """
     Wrapper for iterables.
 
@@ -34,7 +41,7 @@ class unmapped(BaseAnnotation):
         return self.unwrap()
 
 
-class allow_failure(BaseAnnotation):
+class allow_failure(BaseAnnotation[T]):
     """
     Wrapper for states or futures.
 
@@ -49,18 +56,15 @@ class allow_failure(BaseAnnotation):
     """
 
 
-class Quote(Generic[T]):
+class Quote(BaseAnnotation[T]):
     """
     Simple wrapper to mark an expression as a different type so it will not be coerced
     by Prefect. For example, if you want to return a state from a flow without having
     the flow assume that state.
     """
 
-    def __init__(self, data: T) -> None:
-        self.data = data
-
     def unquote(self) -> T:
-        return self.data
+        return self.unwrap()
 
 
 def quote(expr: T) -> Quote[T]:
@@ -79,4 +83,12 @@ def quote(expr: T) -> Quote[T]:
 class NotSet:
     """
     Singleton to distinguish `None` from a value that is not provided by the user.
+    """
+
+
+class revisit(BaseAnnotation[T]):
+    """
+    Wrapper `visit_collection`
+
+    Indicates that a returned item should be revisited.
     """
