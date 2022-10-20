@@ -192,6 +192,19 @@ class TestCreateFlowRun:
         assert flow_run.flow_id == flow.id
         assert flow_run.deployment_id == deployment.id
 
+    async def test_create_flow_run_with_created_by(self, flow, session):
+        created_by = schemas.core.CreatedBy(
+            id=uuid4(), type="A-TYPE", display_value="creator-of-things"
+        )
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, created_by=created_by),
+        )
+        assert flow_run.created_by
+        assert flow_run.created_by.id == created_by.id
+        assert flow_run.created_by.display_value == created_by.display_value
+        assert flow_run.created_by.type == created_by.type
+
 
 class TestUpdateFlowRun:
     async def test_update_flow_run_succeeds(
