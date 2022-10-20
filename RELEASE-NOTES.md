@@ -15,7 +15,7 @@
 - UI: Update settings API call to respect `ORION_UI_SERVE_BASE` environment variable — https://github.com/PrefectHQ/prefect/pull/7068
 
 ### Collections
-- New [`prefect-kv`](https://github.com/madkinsz/prefect-kv) collection
+- New [`prefect-kv`](https://github.com/madkinsz/prefect-kv) collection for persisting key-value data
 - `prefect-aws`: Update `S3Bucket` block for use with deployments — https://github.com/PrefectHQ/prefect-aws/pull/82
 - `prefect-aws`: Add support for arbitrary user customizations to `ECSTask` block — https://github.com/PrefectHQ/prefect-aws/pull/120
 - `prefect-azure`: New `AzureContainerInstanceJob` block to run flows or commands as containers in Azure — https://github.com/PrefectHQ/prefect-azure/pull/45
