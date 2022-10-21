@@ -675,10 +675,18 @@ async def build(
         "--interval",
         help="An integer specifying an interval (in seconds) that will be used to set an IntervalSchedule on the deployment.",
     ),
+    interval_anchor: Optional[str] = typer.Option(
+        None, "--anchor-date", help="The anchor date for an interval schedule"
+    ),
     rrule: str = typer.Option(
         None,
         "--rrule",
         help="An RRule that will be used to set an RRuleSchedule on the deployment.",
+    ),
+    timezone: str = typer.Option(
+        None,
+        "--timezone",
+        help="A timezone that will be passed to cron or interval schedules.",
     ),
     path: str = typer.Option(
         None,
@@ -771,11 +779,24 @@ async def build(
         # server-side definition of this deployment
         infrastructure = None
 
+    if interval_anchor and not interval:
+        exit_with_error("An anchor date can only be provided with an interval schedule")
+
     schedule = None
     if cron:
-        schedule = CronSchedule(cron=cron)
+        cron_kwargs = {"cron": cron, "timezone": timezone}
+        schedule = CronSchedule(
+            **{k: v for k, v in cron_kwargs.items() if v is not None}
+        )
     elif interval:
-        schedule = IntervalSchedule(interval=timedelta(seconds=interval))
+        interval_kwargs = {
+            "interval": timedelta(seconds=interval),
+            "anchor_date": interval_anchor,
+            "timezone": timezone,
+        }
+        schedule = IntervalSchedule(
+            **{k: v for k, v in interval_kwargs.items() if v is not None}
+        )
     elif rrule:
         try:
             schedule = RRuleSchedule(**json.loads(rrule))

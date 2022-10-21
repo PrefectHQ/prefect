@@ -1,6 +1,7 @@
 import json
 from datetime import timedelta
 
+import pendulum
 import pytest
 
 from prefect import flow
@@ -250,6 +251,88 @@ class TestInputValidation:
             ],
             expected_code=1,
             temp_dir=tmp_path,
+        )
+
+    def test_passing_cron_schedules_to_build(self, patch_import, tmp_path):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--cron",
+                "0 4 * * *",
+                "--timezone",
+                "Europe/Berlin",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert (
+            deployment.schedule.cron
+            == "0 4 * * *"
+        )
+        assert (
+            deployment.schedule.timezone
+            == "Europe/Berlin"
+        )
+
+    def test_passing_interval_schedules_to_build(self, patch_import, tmp_path):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--interval",
+                "42",
+                "--anchor-date",
+                "2018-02-02",
+                "--timezone",
+                "America/New_York",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert (
+            deployment.schedule.interval
+            == timedelta(seconds=42)
+        )
+        assert (
+            deployment.schedule.anchor_date
+            == pendulum.parse("2018-02-02")
+        )
+        assert (
+            deployment.schedule.timezone
+            == "America/New_York"
+        )
+
+    def test_passing_anchor_without_interval_exits(self, patch_import, tmp_path):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--anchor-date",
+                "2018-02-02",
+            ],
+            expected_code=1,
+            temp_dir=tmp_path,
+            expected_output_contains="An anchor date can only be provided with an interval schedule"
         )
 
     def test_parsing_rrule_schedule_string_literal(self, patch_import, tmp_path):
