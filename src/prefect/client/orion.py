@@ -808,7 +808,7 @@ class OrionClient:
         """
         page_length = 100
         current_page = 0
-        work_queues = []
+        work_queues = set()
 
         while True:
             new_queues = await self.read_work_queues(
@@ -816,15 +816,15 @@ class OrionClient:
             )
             if not new_queues:
                 break
-            filtered_queues = []
+            filtered_queues = set()
             for q in new_queues:
                 for p in prefixes:
                     if q.name.startswith(p):
-                        filtered_queues.append(q)
-            work_queues += filtered_queues
+                        filtered_queues.add(q)
+            work_queues.update(filtered_queues)
             current_page += 1
 
-        return work_queues
+        return list(work_queues)
 
     async def delete_work_queue_by_id(
         self,
