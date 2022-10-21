@@ -908,7 +908,7 @@ class GitHub(ReadableDeploymentStorage):
 
             err_stream = io.StringIO()
             out_stream = io.StringIO()
-            process = await run_process(cmd, stream_output=(out_stream, err_stream))
+            process = await run_process([cmd], stream_output=(out_stream, err_stream))
             if process.returncode != 0:
                 err_stream.seek(0)
                 raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
