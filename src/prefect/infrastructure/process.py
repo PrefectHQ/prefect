@@ -1,7 +1,9 @@
 import asyncio
+import contextlib
 import os
 import sys
 import tempfile
+from pathlib import Path
 from typing import Optional, Union
 
 import anyio.abc
@@ -11,7 +13,6 @@ from typing_extensions import Literal
 
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import run_process
 
 
@@ -55,10 +56,11 @@ class Process(Infrastructure):
         default=True,
         description="If set, output will be streamed from the process to local standard output.",
     )
-    cwd: Union[str, bytes, None] = Field(
+    working_dir: Union[str, Path, None] = Field(
         default=None,
-        description="If set, the process will open within the specified path as the working directory.",
-    )  # Needs the "PathLike[str]" definition to fully match anyio.open_process
+        description="If set, the process will open within the specified path as the working directory."
+        " Otherwise, a temporary directory will be created.",
+    )  # Underlying accepted types are str, bytes, PathLike[str], None
 
     @sync_compatible
     async def run(
@@ -73,22 +75,23 @@ class Process(Infrastructure):
 
         # Open a subprocess to execute the flow run
         self.logger.info(f"Opening process{display_name}...")
-        if self.cwd is None:
-            with tempfile.TemporaryDirectory(suffix="prefect") as tmp_dir:
-                process = await self._create_process(
-                    display_name=display_name,
-                    task_status=task_status,
-                    working_dir=tmp_dir,
-                )
-        else:
-            # We have specified a working directory for the process.
-            # NOTE: This will not clean up the working directory like the TemporaryDirectory will.
-            with tmpchdir(self.cwd) as tmp_dir:
-                process = await self._create_process(
-                    display_name=display_name,
-                    task_status=task_status,
-                    working_dir=tmp_dir,
-                )
+        working_dir_ctx = (
+            tempfile.TemporaryDirectory(suffix="prefect")
+            if not self.working_dir
+            else contextlib.nullcontext(self.working_dir)
+        )
+        with working_dir_ctx as working_dir:
+            self.logger.debug(
+                f"Process{display_name} running command: {' '.join(self.command)} in {working_dir}"
+            )
+
+            process = await run_process(
+                self.command,
+                stream_output=self.stream_output,
+                task_status=task_status,
+                env=self._get_environment_variables(),
+                cwd=working_dir,
+            )
 
         # Use the pid for display if no name was given
         display_name = display_name or f" {process.pid}"
@@ -123,19 +126,6 @@ class Process(Infrastructure):
         return " \\\n".join(
             [f"{key}={value}" for key, value in environment.items()]
             + [" ".join(self.command)]
-        )
-
-    async def _create_process(self, display_name, task_status, working_dir):
-        self.logger.debug(
-            f"Process{display_name} running command: {' '.join(self.command)} in {working_dir}"
-        )
-
-        return await run_process(
-            self.command,
-            stream_output=self.stream_output,
-            task_status=task_status,
-            env=self._get_environment_variables(),
-            cwd=working_dir,
         )
 
     def _get_environment_variables(self, include_os_environ: bool = True):

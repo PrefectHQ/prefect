@@ -59,9 +59,17 @@ def test_process_runs_command(tmp_path):
     assert (tmp_path / "canary").exists()
 
 
-def test_process_runs_command_in_working_dir(tmp_path, capsys):
+def test_process_runs_command_in_working_dir_str(tmpdir, capsys):
     assert Process(
-        command=["bash", "-c", "pwd"], stream_output=True, cwd=str(tmp_path)
+        command=["bash", "-c", "pwd"], stream_output=True, working_dir=str(tmpdir)
+    ).run()
+    out, _ = capsys.readouterr()
+    assert str(tmpdir) in out
+
+
+def test_process_runs_command_in_working_dir_path(tmp_path, capsys):
+    assert Process(
+        command=["bash", "-c", "pwd"], stream_output=True, working_dir=tmp_path
     ).run()
     out, _ = capsys.readouterr()
     assert str(tmp_path) in out
