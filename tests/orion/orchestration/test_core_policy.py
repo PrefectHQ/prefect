@@ -448,10 +448,12 @@ class TestFlowRestartRule:
 
 
 class TestPermitRerunningFailedTaskRunsRule:
+    @pytest.mark.parametrize("restarts", [1, 2, 42])
     async def test_bypasses_terminal_state_rule_if_restarting(
         self,
         session,
         initialize_orchestration,
+        restarts,
     ):
         rerun_policy = [
             PermitRerunningFailedTaskRuns,
@@ -468,7 +470,7 @@ class TestPermitRerunningFailedTaskRunsRule:
         )
         flow_run = await ctx.flow_run()
         flow_run.run_count = 1
-        flow_run.restarts = 1
+        flow_run.restarts = restarts
         ctx.run.flow_retry_attempt = 2
         ctx.run.run_count = 1
 
@@ -481,7 +483,9 @@ class TestPermitRerunningFailedTaskRunsRule:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.run.run_count == 0
-        assert ctx.run.flow_restart_attempt == 1
+        assert (
+            ctx.run.flow_restart_attempt == restarts
+        ), "`flow_restart_attempt` should match the flow restarts counter"
         assert ctx.proposed_state.name == "RetryingViaRestart"
 
     async def test_bypasses_terminal_state_rule_if_available_retry_attempts(
