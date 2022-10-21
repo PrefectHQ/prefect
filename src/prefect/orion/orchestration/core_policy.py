@@ -568,7 +568,7 @@ class PermitRerunningFailedTaskRuns(BaseOrchestrationRule):
 
         if restarting:
             context.run.run_count = 0  # reset run count to preserve retry behavior
-            context.run.flow_restart_attempt += 1
+            context.run.flow_restart_attempt = self.flow_run.restarts
             context.run.flow_retry_attempt = 0
             await self.rename_state("RetryingViaRestart")
             await self.update_context_parameters("permit-rerunning", True)
