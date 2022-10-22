@@ -818,9 +818,8 @@ class OrionClient:
                 break
             filtered_queues = []
             for q in new_queues:
-                for p in prefixes:
-                    if q.name.startswith(p):
-                        filtered_queues.append(q)
+                if any((q.name.startswith(p) for p in prefixes)):
+                    filtered_queues.append(q)
             work_queues += filtered_queues
             current_page += 1
 
