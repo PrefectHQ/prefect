@@ -36,8 +36,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
-            RestartFlowRun,
-            PreventTransitionsFromTerminalStates,
+            PreventFlowTransitionsFromTerminalStates,
             PreventRedundantTransitions,
             WaitForScheduledTime,
             RetryFailedFlows,
@@ -52,13 +51,13 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             CacheRetrieval,
-            PermitRerunningFailedTaskRuns,
-            SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
-            PreventTransitionsFromTerminalStates,
+            PreventTaskTransitionsFromTerminalStates,
             PreventRedundantTransitions,
+            SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             WaitForScheduledTime,
             RetryFailedTasks,
             RenameReruns,
+            UpdateFlowRunTrackerOnTasks,
             CacheInsertion,
             ReleaseTaskConcurrencySlots,
         ]
@@ -284,13 +283,6 @@ class RetryFailedFlows(BaseOrchestrationRule):
             seconds=run_settings.retry_delay or 0
         )
 
-        # Generate a new state for the flow
-        retry_state = states.AwaitingRetry(
-            scheduled_time=scheduled_start_time,
-            message=proposed_state.message,
-            data=proposed_state.data,
-        )
-
         # support old-style flow run retries for older clients
         # older flow retries require us to loop over failed tasks to update their state
         # this is not required after API version 0.8.3
@@ -313,55 +305,13 @@ class RetryFailedFlows(BaseOrchestrationRule):
                 # Reset the run count so that the task run retries still work correctly
                 run.run_count = 0
 
+        # Generate a new state for the flow
+        retry_state = states.AwaitingRetry(
+            scheduled_time=scheduled_start_time,
+            message=proposed_state.message,
+            data=proposed_state.data,
+        )
         await self.reject_transition(state=retry_state, reason="Retrying")
-
-
-class RestartFlowRun(BaseOrchestrationRule):
-    """
-    Permits rescheduling a flow run in a terminal state; restarting execution.
-
-    If the orchestrated flow run has an associated deployment, this rule will permit a
-    transition back into a scheduled state as well as performing all necessary
-    bookkeeping such as: tracking the number of times a flow run has been restarted and
-    resetting the run count so flow-level retries can still fire.
-    """
-
-    FROM_STATES = TERMINAL_STATES
-    TO_STATES = [states.StateType.SCHEDULED]
-
-    async def before_transition(
-        self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: FlowOrchestrationContext,
-    ):
-        if not context.run.deployment_id:
-            await self.abort_transition(
-                "Cannot restart a run without an associated deployment."
-            )
-            return
-
-        # reset run count to 0
-        self.original_run_count = context.run.run_count
-        context.run.run_count = 0  # reset run count to preserve retry behavior
-
-        # update restart counter
-        context.run.restarts += 1
-
-        await self.rename_state("AwaitingRestart")
-        await self.update_context_parameters("permit-rescheduling", True)
-
-    async def cleanup(
-        self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
-        context: OrchestrationContext,
-    ):
-        # restore run count side effect
-        context.run.run_count = self.original_run_count
-
-        # restore empirical settings side effect
-        context.run.restarts = max(context.run.restarts - 1, 0)
 
 
 class RetryFailedTasks(BaseOrchestrationRule):
@@ -453,7 +403,25 @@ class WaitForScheduledTime(BaseOrchestrationRule):
             )
 
 
-class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
+class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
+    """
+    Tracks the flow run attempt a task run state is associated with.
+    """
+
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [states.StateType.RUNNING]
+
+    async def after_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        self.flow_run = await context.flow_run()
+        context.run.flow_run_run_count = self.flow_run.run_count
+
+
+class PreventTaskTransitionsFromTerminalStates(BaseOrchestrationRule):
     """
     Prevents transitions from terminal states.
 
@@ -461,8 +429,11 @@ class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
     further action will be taken on them. This rule prevents unintended transitions out
     of terminal states and sents an instruction to the client to abort any execution.
 
-    Rules that run prior to this one can pass a message via context parameters to permit
-    specific transitions for special cases such as restarting and retrying flow runs.
+    While rerunning a flow, the client will attempt to re-orchestrate tasks that may
+    have previously failed. This rule will permit transitions back into a running state
+    if the parent flow run is either currently restarting or retrying. The task run's
+    run count will also be reset so task-level retries can still fire and tracking
+    metadata is updated.
     """
 
     FROM_STATES = TERMINAL_STATES
@@ -472,21 +443,70 @@ class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
         self,
         initial_state: Optional[states.State],
         proposed_state: Optional[states.State],
-        context: OrchestrationContext,
+        context: TaskOrchestrationContext,
     ) -> None:
-        if proposed_state.is_running() and context.parameters.get(
-            "permit-rerunning", False
-        ):
-            # allow transitions into a running state if permitted by a previous rule
-            return
 
-        if proposed_state.is_scheduled() and context.parameters.get(
-            "permit-rescheduling", False
+        # permit rerunning a task if the flow is retrying
+        if proposed_state.is_running() and (
+            initial_state.is_failed()
+            or initial_state.is_crashed()
+            or initial_state.is_cancelled()
         ):
-            # allow transitions into a scheduled state if permitted by a previous rule
-            return
+            self.original_run_count = context.run.run_count
+            self.original_retry_attempt = context.run.flow_run_run_count
+
+            self.flow_run = await context.flow_run()
+            flow_retrying = context.run.flow_run_run_count < self.flow_run.run_count
+
+            if flow_retrying:
+                context.run.run_count = 0  # reset run count to preserve retry behavior
+                await self.rename_state("Retrying")
+                return
 
         await self.abort_transition(reason="This run has already terminated.")
+
+    async def cleanup(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: OrchestrationContext,
+    ):
+        # reset run count
+        context.run.run_count = self.original_run_count
+
+
+class PreventFlowTransitionsFromTerminalStates(BaseOrchestrationRule):
+    """
+    Prevents transitions from terminal states.
+
+    Orchestration logic in Orion assumes that once runs enter a terminal state, no
+    further action will be taken on them. This rule prevents unintended transitions out
+    of terminal states and sents an instruction to the client to abort any execution.
+
+    If the orchestrated flow run has an associated deployment, this rule will permit a
+    transition back into a scheduled state as well as performing all necessary
+    bookkeeping such as: tracking the number of times a flow run has been restarted and
+    resetting the run count so flow-level retries can still fire.
+    """
+
+    FROM_STATES = TERMINAL_STATES
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: FlowOrchestrationContext,
+    ) -> None:
+
+        # permit transitions into back into a scheduled state for manual retries
+        if proposed_state.is_scheduled() and proposed_state.name == "AwaitingRetry":
+            if not context.run.deployment_id:
+                await self.abort_transition(
+                    "Cannot restart a run without an associated deployment."
+                )
+        else:
+            await self.abort_transition(reason="This run has already terminated.")
 
 
 class PreventRedundantTransitions(BaseOrchestrationRule):
@@ -524,69 +544,3 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
             await self.abort_transition(
                 reason=f"This run cannot transition to the {proposed_state_type} state from the {initial_state_type} state."
             )
-
-
-class PermitRerunningFailedTaskRuns(BaseOrchestrationRule):
-    """
-    Permits rerunning a task run in a terminal state; enables retries and restarts.
-
-    While rerunning a flow, the client will attempt to re-orchestrate tasks that may
-    have previously failed. This rule will permit transitions back into a running state
-    if the parent flow run is either currently restarting or retrying. The task run's
-    run count will also be reset so task-level retries can still fire and tracking
-    metadata is updated.
-    """
-
-    FROM_STATES = [
-        states.StateType.FAILED,
-        states.StateType.CRASHED,
-        states.StateType.CANCELLED,
-    ]
-    TO_STATES = [states.StateType.RUNNING]
-
-    async def before_transition(
-        self,
-        initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
-        context: TaskOrchestrationContext,
-    ):
-        self.original_run_count = context.run.run_count
-        self.original_retry_attempt = context.run.flow_retry_attempt
-        self.original_restart_attempt = context.run.flow_restart_attempt
-
-        self.flow_run = await context.flow_run()
-
-        restarting = (
-            self.flow_run.run_count == 1
-            and self.flow_run.restarts > 0
-            and (self.flow_run.restarts > context.run.flow_restart_attempt)
-        )
-
-        retrying = not restarting and (
-            self.flow_run.run_count <= (self.flow_run.empirical_policy.retries + 1)
-        )
-
-        if restarting:
-            context.run.run_count = 0  # reset run count to preserve retry behavior
-            context.run.flow_restart_attempt = self.flow_run.restarts
-            context.run.flow_retry_attempt = 0
-            await self.rename_state("RetryingViaRestart")
-            await self.update_context_parameters("permit-rerunning", True)
-        elif retrying:
-            context.run.run_count = 0  # reset run count to preserve retry behavior
-            context.run.flow_retry_attempt = self.flow_run.run_count - 1
-            await self.rename_state("Retrying")
-            await self.update_context_parameters("permit-rerunning", True)
-
-    async def cleanup(
-        self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
-        context: OrchestrationContext,
-    ):
-        # reset run count
-        context.run.run_count = self.original_run_count
-
-        # reset retry and restart counters
-        context.run.flow_retry_attempt = self.original_retry_attempt
-        context.run.flow_restart_attempt = self.original_restart_attempt
