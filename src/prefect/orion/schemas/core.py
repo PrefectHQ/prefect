@@ -130,7 +130,6 @@ class FlowRunPolicy(PrefectBaseModel):
         description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
         deprecated=True,
     )
-
     retries: Optional[int] = Field(default=None, description="The number of retries.")
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
@@ -207,16 +206,13 @@ class FlowRun(ORMBaseModel):
     state_name: Optional[str] = Field(
         default=None, description="The name of the current flow run state."
     )
-
     run_count: int = Field(
         default=0, description="The number of times the flow run was executed."
     )
-
     expected_start_time: Optional[DateTimeTZ] = Field(
         default=None,
         description="The flow run's expected start time.",
     )
-
     next_scheduled_start_time: Optional[DateTimeTZ] = Field(
         default=None,
         description="The next time the flow run is scheduled to start.",
@@ -292,7 +288,6 @@ class TaskRunPolicy(PrefectBaseModel):
         description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
         deprecated=True,
     )
-
     retries: Optional[int] = Field(default=None, description="The number of retries.")
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
@@ -387,7 +382,6 @@ class TaskRun(ORMBaseModel):
         default_factory=dict,
         description="Tracks the source of inputs to a task run. Used for internal bookkeeping.",
     )
-
     state_type: Optional[schemas.states.StateType] = Field(
         default=None, description="The type of the current task run state."
     )
@@ -397,7 +391,10 @@ class TaskRun(ORMBaseModel):
     run_count: int = Field(
         default=0, description="The number of times the task run has been executed."
     )
-
+    flow_run_run_count: int = Field(
+        default=0,
+        description="If the parent flow has retried, this indicates the flow retry this run is associated with.",
+    )
     expected_start_time: Optional[DateTimeTZ] = Field(
         default=None,
         description="The task run's expected start time.",
