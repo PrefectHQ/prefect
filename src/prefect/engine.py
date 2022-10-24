@@ -400,12 +400,7 @@ async def create_and_begin_subflow_run(
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
 
-    flow_run_count = parent_flow_run_context.flow_run.run_count
-    flow_restarts = parent_flow_run_context.flow_run.restarts
-
-    restarting = flow_restarts > 1 and flow_run_count == 1
-    retrying = flow_run_count > 1
-    rerunning = restarting or retrying
+    rerunning = parent_flow_run_context.flow_run.run_count > 1
 
     # Generate a task in the parent flow run to represent the result of the subflow run
     dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)

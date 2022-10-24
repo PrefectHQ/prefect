@@ -209,9 +209,6 @@ class FlowRun(ORMBaseModel):
     run_count: int = Field(
         default=0, description="The number of times the flow run was executed."
     )
-    restarts: int = Field(
-        default=0, description="Indicates the number of times this flow has restarted"
-    )
     expected_start_time: Optional[DateTimeTZ] = Field(
         default=None,
         description="The flow run's expected start time.",
@@ -394,11 +391,7 @@ class TaskRun(ORMBaseModel):
     run_count: int = Field(
         default=0, description="The number of times the task run has been executed."
     )
-    flow_restart_attempt: int = Field(
-        default=0,
-        description="If the parent flow has restarted, this indicates the flow restart this run is associated with.",
-    )
-    flow_retry_attempt: int = Field(
+    flow_run_run_count: int = Field(
         default=0,
         description="If the parent flow has retried, this indicates the flow retry this run is associated with.",
     )
