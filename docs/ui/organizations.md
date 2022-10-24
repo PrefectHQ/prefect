@@ -135,6 +135,6 @@ See the [Roles (RBAC)](/ui/roles/) documentation for more information on default
 
 ## Single Sign-on (SSO) <span class="badge enterprise"></span>
 
-Prefect Cloud [Enterprise plans](https://www.prefect.io/pricing) offer [single sign-on (SSO)](/ui/sso/) authentication integration with your team’s identity provider. SSO integration can bet set up with identity providers that support OIDC and SAML.
+Prefect Cloud [Organization plans](https://www.prefect.io/pricing) and above offer [single sign-on (SSO)](/ui/sso/) authentication integration with your team’s identity provider. SSO integration can bet set up with identity providers that support OIDC and SAML.
 
 See the [Single Sign-on (SSO)](/ui/sso/) documentation for more information on default and custom role permissions.

@@ -15,14 +15,14 @@ tags:
 
 # Single Sign-on (SSO) <span class="badge cloud"></span> <span class="badge orgs"></span> <span class="badge enterprise"></span>
 
-Prefect Cloud [Enterprise plans](https://www.prefect.io/pricing) offer single sign-on (SSO) integration with your team’s identity provider. SSO integration can bet set up with any identity provider that supports: 
+Prefect Cloud [Organization plans](https://www.prefect.io/pricing) and above offer single sign-on (SSO) integration with your team’s identity provider. SSO integration can bet set up with any identity provider that supports: 
 
 - OIDC
 - SAML 2.0
 
 When using SSO, Prefect Cloud won't store passwords for any accounts managed by your identity provider. Members of your Prefect Cloud organization will instead log in to the organization and authenticate using your identity provider.
 
-When SSO integration has been set up, all other authentication methods are disabled, so that you can ensure that authentication is managed exclusively by your identity provider.
+Once your SSO integration has been set up, non-admins will be required to authenticate through SSO when accessing organization resources.
 
 See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more about options for supporting more users and workspaces, service accounts, and SSO.
 
@@ -34,16 +34,12 @@ If you haven't enabled SSO for a domain yet, enter the email domains for which y
 
 ![Adding an email domain for single sign-on in the Prefect Cloud UI.](/img/ui/cloud-sso.png)
 
-Under **Enabled Domains**, select the domains from the **Domains** list, then select **Generate Link**. This step creates a WorkOS link you can use to configure SSO with your identity provider.
+Under **Enabled Domains**, select the domains from the **Domains** list, then select **Generate Link**. This step creates a link you can use to configure SSO with your identity provider.
 
-![Generating a WorkOS configuration link for single sign-on in the Prefect Cloud UI.](/img/ui/cloud-sso-provider.png)
+![Generating a configuration link for single sign-on in the Prefect Cloud UI.](/img/ui/cloud-sso-provider.png)
 
-Using the provided link, navigate to the WorkOS Identity Provider Configuration dashboard. Select your identity provider to continue configuration. WorkOS provides instructions specific you your identity provider.
+Using the provided link navigate to the Identity Provider Configuration dashboard and select your identity provider to continue configuration. If your provider isn't listed, you can continue with the `SAML` or `Open ID Connect` choices instead.
 
-![Opening the WorkOS Identity Provider Configuration dashboard in WorkOS.](/img/ui/cloud-sso-workos.png)
+![Opening the Identity Provider Configuration dashboard.](/img/ui/cloud-sso-workos.png)
 
-When you complete SSO configuration in WorkOS, your configured users will be able to log into Prefect Cloud using SSO authentication via your identity provider, giving you full control over application access.
-
-![Logging in to Prefect Cloud using Google ID SSO.](/img/ui/cloud-sso-login.png)
-
-See the [WorkOS Integrations](https://workos.com/docs/integrations) documentation for further details about individual identity provider configurations.
+Once you complete SSO configuration your users will be required to authenticate via your identity provider when accessing organization resources, giving you full control over application access.
