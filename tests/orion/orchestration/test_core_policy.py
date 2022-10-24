@@ -20,6 +20,7 @@ from prefect.orion.orchestration.core_policy import (
     RetryFailedFlows,
     RetryFailedTasks,
     SecureTaskConcurrencySlots,
+    UpdateFlowRunTrackerOnTasks,
     WaitForScheduledTime,
 )
 from prefect.orion.orchestration.rules import (
@@ -448,6 +449,41 @@ class TestManualFlowRetries:
         assert ctx.run.run_count == 3
 
 
+class TestUpdatingFlowRunTrackerOnTasks:
+    @pytest.mark.parametrize(
+        "flow_run_count,initial_state_type",
+        list(product((5, 42), ALL_ORCHESTRATION_STATES)),
+    )
+    async def test_task_runs_track_corresponding_flow_runs(
+        self,
+        session,
+        initialize_orchestration,
+        flow_run_count,
+        initial_state_type,
+    ):
+        update_policy = [
+            UpdateFlowRunTrackerOnTasks,
+        ]
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            flow_run_count=flow_run_count,
+        )
+
+        flow_run = await ctx.flow_run()
+        assert flow_run.run_count == flow_run_count
+        ctx.run.flow_run_run_count = 1
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in update_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.run.flow_run_run_count == flow_run_count
+
+
 class TestPermitRerunningFailedTaskRuns:
     async def test_bypasses_terminal_state_rule_if_flow_is_retrying(
         self,
@@ -456,6 +492,7 @@ class TestPermitRerunningFailedTaskRuns:
     ):
         rerun_policy = [
             PreventTaskTransitionsFromTerminalStates,
+            UpdateFlowRunTrackerOnTasks,
         ]
         initial_state_type = states.StateType.FAILED
         proposed_state_type = states.StateType.RUNNING
@@ -480,7 +517,7 @@ class TestPermitRerunningFailedTaskRuns:
         assert ctx.proposed_state.name == "Retrying"
         assert (
             ctx.run.flow_run_run_count == 4
-        ), "The task should update the flow run run count tracker"
+        ), "Orchestration should update the flow run run count tracker"
 
     async def test_cannot_bypass_terminal_state_rule_if_exceeding_flow_runs(
         self,
@@ -489,6 +526,7 @@ class TestPermitRerunningFailedTaskRuns:
     ):
         rerun_policy = [
             PreventTaskTransitionsFromTerminalStates,
+            UpdateFlowRunTrackerOnTasks,
         ]
         initial_state_type = states.StateType.FAILED
         proposed_state_type = states.StateType.RUNNING
@@ -523,6 +561,7 @@ class TestPermitRerunningFailedTaskRuns:
 
         rerun_policy = [
             PreventTaskTransitionsFromTerminalStates,
+            UpdateFlowRunTrackerOnTasks,
         ]
         initial_state_type = states.StateType.FAILED
         proposed_state_type = states.StateType.RUNNING
@@ -547,7 +586,7 @@ class TestPermitRerunningFailedTaskRuns:
         assert ctx.proposed_state.name == "Retrying"
         assert (
             ctx.run.flow_run_run_count == 4
-        ), "The task should update the flow run run count tracker"
+        ), "Orchestration should update the flow run run count tracker"
 
     async def test_cleans_up_after_invalid_transition(
         self,
@@ -557,6 +596,7 @@ class TestPermitRerunningFailedTaskRuns:
     ):
         rerun_policy = [
             PreventTaskTransitionsFromTerminalStates,
+            UpdateFlowRunTrackerOnTasks,
             fizzling_rule,
         ]
         initial_state_type = states.StateType.FAILED
@@ -580,9 +620,7 @@ class TestPermitRerunningFailedTaskRuns:
         assert ctx.response_status == SetStateStatus.REJECT
         assert ctx.run.run_count == 2
         assert ctx.proposed_state.name == "Retrying"
-        assert (
-            ctx.run.flow_run_run_count == 2
-        ), "The task should update the flow run run count tracker"
+        assert ctx.run.flow_run_run_count == 2
 
 
 class TestTaskRetryingRule:

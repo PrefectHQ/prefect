@@ -57,6 +57,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
             WaitForScheduledTime,
             RetryFailedTasks,
             RenameReruns,
+            UpdateFlowRunTrackerOnTasks,
             CacheInsertion,
             ReleaseTaskConcurrencySlots,
         ]
@@ -402,6 +403,24 @@ class WaitForScheduledTime(BaseOrchestrationRule):
             )
 
 
+class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
+    """
+    Tracks the flow run attempt a task run state is associated with.
+    """
+
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [states.StateType.RUNNING]
+
+    async def after_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        self.flow_run = await context.flow_run()
+        context.run.flow_run_run_count = self.flow_run.run_count
+
+
 class PreventTaskTransitionsFromTerminalStates(BaseOrchestrationRule):
     """
     Prevents transitions from terminal states.
@@ -441,7 +460,6 @@ class PreventTaskTransitionsFromTerminalStates(BaseOrchestrationRule):
 
             if flow_retrying:
                 context.run.run_count = 0  # reset run count to preserve retry behavior
-                context.run.flow_run_run_count = self.flow_run.run_count
                 await self.rename_state("Retrying")
                 return
 
@@ -455,9 +473,6 @@ class PreventTaskTransitionsFromTerminalStates(BaseOrchestrationRule):
     ):
         # reset run count
         context.run.run_count = self.original_run_count
-
-        # reset retry counter
-        context.run.flow_run_run_count = self.original_retry_attempt
 
 
 class PreventFlowTransitionsFromTerminalStates(BaseOrchestrationRule):
