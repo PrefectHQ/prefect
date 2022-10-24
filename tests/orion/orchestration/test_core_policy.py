@@ -448,18 +448,14 @@ class TestManualFlowRetries:
         assert ctx.run.run_count == 3
 
 
-@pytest.mark.skip
 class TestPermitRerunningFailedTaskRunsRule:
-    @pytest.mark.parametrize("restarts", [1, 2, 42])
-    async def test_bypasses_terminal_state_rule_if_restarting(
+    async def test_bypasses_terminal_state_rule_if_flow_is_retrying(
         self,
         session,
         initialize_orchestration,
-        restarts,
     ):
         rerun_policy = [
-            PermitRerunningFailedTaskRuns,
-            PreventTransitionsFromTerminalStates,
+            PreventTaskTransitionsFromTerminalStates,
         ]
         initial_state_type = states.StateType.FAILED
         proposed_state_type = states.StateType.RUNNING
@@ -468,50 +464,12 @@ class TestPermitRerunningFailedTaskRunsRule:
             session,
             "task",
             *intended_transition,
-            flow_retries=3,
-        )
-        flow_run = await ctx.flow_run()
-        flow_run.run_count = 1
-        flow_run.restarts = restarts
-        ctx.run.flow_retry_attempt = 2
-        ctx.run.run_count = 1
-
-        assert ctx.run.run_count == 1
-        assert ctx.run.flow_restart_attempt == 0
-
-        async with contextlib.AsyncExitStack() as stack:
-            for rule in rerun_policy:
-                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
-
-        assert ctx.response_status == SetStateStatus.ACCEPT
-        assert ctx.run.run_count == 0
-        assert (
-            ctx.run.flow_restart_attempt == restarts
-        ), "`flow_restart_attempt` should match the flow restarts counter"
-        assert ctx.proposed_state.name == "RetryingViaRestart"
-
-    async def test_bypasses_terminal_state_rule_if_available_retry_attempts(
-        self,
-        session,
-        initialize_orchestration,
-    ):
-        rerun_policy = [
-            PermitRerunningFailedTaskRuns,
-            PreventTransitionsFromTerminalStates,
-        ]
-        initial_state_type = states.StateType.FAILED
-        proposed_state_type = states.StateType.RUNNING
-        intended_transition = (initial_state_type, proposed_state_type)
-        ctx = await initialize_orchestration(
-            session,
-            "task",
-            *intended_transition,
-            flow_retries=3,
+            flow_retries=10,
         )
         flow_run = await ctx.flow_run()
         flow_run.run_count = 4
         flow_run.restarts = 0
-        ctx.run.flow_retry_attempt = 1
+        ctx.run.flow_retry_attempt = 2
         ctx.run.run_count = 2
 
         assert ctx.run.flow_restart_attempt == 0
@@ -522,22 +480,18 @@ class TestPermitRerunningFailedTaskRunsRule:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.run.run_count == 0
-        assert (
-            ctx.run.flow_restart_attempt == 0
-        ), "The restart attempt tracker should not change for retries"
         assert ctx.proposed_state.name == "Retrying"
         assert (
             ctx.run.flow_retry_attempt == 3
         ), "The flow has run four times, so this task has attempted to retry three times"
 
-    async def test_cannot_bypass_terminal_state_rule_if_too_many_retry_attempts(
+    async def test_cannot_bypass_terminal_state_rule_if_exceeding_flow_runs(
         self,
         session,
         initialize_orchestration,
     ):
         rerun_policy = [
-            PermitRerunningFailedTaskRuns,
-            PreventTransitionsFromTerminalStates,
+            PreventTaskTransitionsFromTerminalStates,
         ]
         initial_state_type = states.StateType.FAILED
         proposed_state_type = states.StateType.RUNNING
@@ -546,12 +500,12 @@ class TestPermitRerunningFailedTaskRunsRule:
             session,
             "task",
             *intended_transition,
-            flow_retries=3,
+            flow_retries=10,
         )
         flow_run = await ctx.flow_run()
-        flow_run.run_count = 5
+        flow_run.run_count = 3
         flow_run.restarts = 0
-        ctx.run.flow_retry_attempt = 1
+        ctx.run.flow_retry_attempt = 2
         ctx.run.run_count = 2
 
         assert ctx.run.flow_restart_attempt == 0
@@ -562,20 +516,19 @@ class TestPermitRerunningFailedTaskRunsRule:
 
         assert ctx.response_status == SetStateStatus.ABORT
         assert ctx.run.run_count == 2
-        assert (
-            ctx.run.flow_restart_attempt == 0
-        ), "The restart attempt tracker should not change for retries"
         assert ctx.proposed_state is None
-        assert ctx.run.flow_retry_attempt == 1
+        assert ctx.run.flow_retry_attempt == 2
 
-    async def test_cannot_bypass_terminal_state_rule_if_too_many_retry_attempts_after_restart(
+    async def test_bypasses_terminal_state_rule_even_if_configured_automatic_retries_is_exceeded(
         self,
         session,
         initialize_orchestration,
     ):
+        # this functionality enables manual retries to occur even if all automatic
+        # retries have been consumed
+
         rerun_policy = [
-            PermitRerunningFailedTaskRuns,
-            PreventTransitionsFromTerminalStates,
+            PreventTaskTransitionsFromTerminalStates,
         ]
         initial_state_type = states.StateType.FAILED
         proposed_state_type = states.StateType.RUNNING
@@ -587,25 +540,23 @@ class TestPermitRerunningFailedTaskRunsRule:
             flow_retries=1,
         )
         flow_run = await ctx.flow_run()
-        flow_run.run_count = 3
-        flow_run.restarts = 2
-        ctx.run.flow_retry_attempt = 1
-        ctx.run.flow_restart_attempt = 1
+        flow_run.run_count = 4
+        flow_run.restarts = 0
+        ctx.run.flow_retry_attempt = 2
         ctx.run.run_count = 2
 
-        assert ctx.run.flow_restart_attempt == 1
+        assert ctx.run.flow_restart_attempt == 0
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in rerun_policy:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
 
-        assert ctx.response_status == SetStateStatus.ABORT
-        assert ctx.run.run_count == 2
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.run_count == 0
+        assert ctx.proposed_state.name == "Retrying"
         assert (
-            ctx.run.flow_restart_attempt == 1
-        ), "The restart attempt tracker should not change for retries"
-        assert ctx.proposed_state is None
-        assert ctx.run.flow_retry_attempt == 1
+            ctx.run.flow_retry_attempt == 3
+        ), "The flow has run four times, so this task has attempted to retry three times"
 
     async def test_cleans_up_after_invalid_transition(
         self,
@@ -614,7 +565,7 @@ class TestPermitRerunningFailedTaskRunsRule:
         fizzling_rule,
     ):
         rerun_policy = [
-            PermitRerunningFailedTaskRuns,
+            PreventTaskTransitionsFromTerminalStates,
             fizzling_rule,
         ]
         initial_state_type = states.StateType.FAILED
@@ -624,15 +575,14 @@ class TestPermitRerunningFailedTaskRunsRule:
             session,
             "task",
             *intended_transition,
-            flow_retries=3,
+            flow_retries=10,
         )
         flow_run = await ctx.flow_run()
-        flow_run.run_count = 1
-        flow_run.restarts = 1
+        flow_run.run_count = 4
+        flow_run.restarts = 0
         ctx.run.flow_retry_attempt = 2
-        ctx.run.run_count = 1
+        ctx.run.run_count = 2
 
-        assert ctx.run.run_count == 1
         assert ctx.run.flow_restart_attempt == 0
 
         async with contextlib.AsyncExitStack() as stack:
@@ -640,8 +590,11 @@ class TestPermitRerunningFailedTaskRunsRule:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
 
         assert ctx.response_status == SetStateStatus.REJECT
-        assert ctx.run.run_count == 1
-        assert ctx.run.flow_restart_attempt == 0
+        assert ctx.run.run_count == 2
+        assert ctx.proposed_state.name == "Retrying"
+        assert (
+            ctx.run.flow_retry_attempt == 2
+        ), "The flow has run four times, so this task has attempted to retry three times"
 
 
 class TestTaskRetryingRule:
