@@ -437,9 +437,7 @@ class PreventTaskTransitionsFromTerminalStates(BaseOrchestrationRule):
             self.original_retry_attempt = context.run.flow_retry_attempt
 
             self.flow_run = await context.flow_run()
-            flow_retrying = (
-                context.run.flow_retry_attempt < self.flow_run.run_count - 1
-            )
+            flow_retrying = context.run.flow_retry_attempt < self.flow_run.run_count - 1
 
             if flow_retrying:
                 context.run.run_count = 0  # reset run count to preserve retry behavior
