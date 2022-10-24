@@ -468,11 +468,8 @@ class TestPermitRerunningFailedTaskRunsRule:
         )
         flow_run = await ctx.flow_run()
         flow_run.run_count = 4
-        flow_run.restarts = 0
         ctx.run.flow_retry_attempt = 2
         ctx.run.run_count = 2
-
-        assert ctx.run.flow_restart_attempt == 0
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in rerun_policy:
@@ -504,11 +501,8 @@ class TestPermitRerunningFailedTaskRunsRule:
         )
         flow_run = await ctx.flow_run()
         flow_run.run_count = 3
-        flow_run.restarts = 0
         ctx.run.flow_retry_attempt = 2
         ctx.run.run_count = 2
-
-        assert ctx.run.flow_restart_attempt == 0
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in rerun_policy:
@@ -541,11 +535,8 @@ class TestPermitRerunningFailedTaskRunsRule:
         )
         flow_run = await ctx.flow_run()
         flow_run.run_count = 4
-        flow_run.restarts = 0
         ctx.run.flow_retry_attempt = 2
         ctx.run.run_count = 2
-
-        assert ctx.run.flow_restart_attempt == 0
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in rerun_policy:
@@ -579,11 +570,8 @@ class TestPermitRerunningFailedTaskRunsRule:
         )
         flow_run = await ctx.flow_run()
         flow_run.run_count = 4
-        flow_run.restarts = 0
         ctx.run.flow_retry_attempt = 2
         ctx.run.run_count = 2
-
-        assert ctx.run.flow_restart_attempt == 0
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in rerun_policy:
