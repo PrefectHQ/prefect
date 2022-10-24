@@ -40,6 +40,6 @@ Under **Enabled Domains**, select the domains from the **Domains** list, then se
 
 Using the provided link navigate to the Identity Provider Configuration dashboard and select your identity provider to continue configuration. If your provider isn't listed, you can continue with the `SAML` or `Open ID Connect` choices instead.
 
-![Opening the Identity Provider Configuration dashboard.](/img/ui/cloud-sso-workos.png)
+![Opening the Identity Provider Configuration dashboard.](/img/ui/cloud-sso-dashboard.png)
 
 Once you complete SSO configuration your users will be required to authenticate via your identity provider when accessing organization resources, giving you full control over application access.
