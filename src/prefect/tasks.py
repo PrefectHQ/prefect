@@ -281,9 +281,11 @@ class Task(Generic[P, R]):
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
             retries=retries if retries is not NotSet else self.retries,
-            retry_delay_seconds=retry_delay_seconds
-            if retry_delay_seconds is not NotSet
-            else self.retry_delay_seconds,
+            retry_delay_seconds=(
+                retry_delay_seconds
+                if retry_delay_seconds is not NotSet
+                else self.retry_delay_seconds
+            ),
             persist_result=(
                 persist_result if persist_result is not NotSet else self.persist_result
             ),
