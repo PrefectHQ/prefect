@@ -391,7 +391,7 @@ class TaskRun(ORMBaseModel):
     run_count: int = Field(
         default=0, description="The number of times the task run has been executed."
     )
-    flow_retry_attempt: int = Field(
+    flow_run_run_count: int = Field(
         default=0,
         description="If the parent flow has retried, this indicates the flow retry this run is associated with.",
     )
