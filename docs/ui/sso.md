@@ -15,14 +15,14 @@ tags:
 
 # Single Sign-on (SSO) <span class="badge cloud"></span> <span class="badge orgs"></span> <span class="badge enterprise"></span>
 
-Prefect Cloud [Organization plans](https://www.prefect.io/pricing) and above offer single sign-on (SSO) integration with your team’s identity provider. SSO integration can bet set up with any identity provider that supports: 
+Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer single sign-on (SSO) integration with your team’s identity provider. SSO integration can bet set up with any identity provider that supports: 
 
 - OIDC
 - SAML 2.0
 
 When using SSO, Prefect Cloud won't store passwords for any accounts managed by your identity provider. Members of your Prefect Cloud organization will instead log in to the organization and authenticate using your identity provider.
 
-Once your SSO integration has been set up, non-admins will be required to authenticate through SSO when accessing organization resources.
+Once your SSO integration has been set up, non-admins will be required to authenticate through the SSO provider when accessing organization resources.
 
 See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more about options for supporting more users and workspaces, service accounts, and SSO.
 
