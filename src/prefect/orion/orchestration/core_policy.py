@@ -284,13 +284,6 @@ class RetryFailedFlows(BaseOrchestrationRule):
             seconds=run_settings.retry_delay or 0
         )
 
-        # Generate a new state for the flow
-        retry_state = states.AwaitingRetry(
-            scheduled_time=scheduled_start_time,
-            message=proposed_state.message,
-            data=proposed_state.data,
-        )
-
         # support old-style flow run retries for older clients
         # older flow retries require us to loop over failed tasks to update their state
         # this is not required after API version 0.8.3
@@ -313,6 +306,12 @@ class RetryFailedFlows(BaseOrchestrationRule):
                 # Reset the run count so that the task run retries still work correctly
                 run.run_count = 0
 
+        # Generate a new state for the flow
+        retry_state = states.AwaitingRetry(
+            scheduled_time=scheduled_start_time,
+            message=proposed_state.message,
+            data=proposed_state.data,
+        )
         await self.reject_transition(state=retry_state, reason="Retrying")
 
 
@@ -335,21 +334,16 @@ class RestartFlowRun(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ):
-        if not context.run.deployment_id:
-            await self.abort_transition(
-                "Cannot restart a run without an associated deployment."
-            )
-            return
+        if proposed_state.name != "AwaitingRetry":
+            if not context.run.deployment_id:
+                await self.abort_transition(
+                    "Cannot restart a run without an associated deployment."
+                )
+                return
 
-        # reset run count to 0
-        self.original_run_count = context.run.run_count
-        context.run.run_count = 0  # reset run count to preserve retry behavior
-
-        # update restart counter
-        context.run.restarts += 1
-
-        await self.rename_state("AwaitingRestart")
-        await self.update_context_parameters("permit-rescheduling", True)
+            # reset run count to 0
+            self.original_run_count = context.run.run_count
+            context.run.run_count = 0  # reset run count to preserve retry behavior
 
     async def cleanup(
         self,
@@ -359,9 +353,6 @@ class RestartFlowRun(BaseOrchestrationRule):
     ):
         # restore run count side effect
         context.run.run_count = self.original_run_count
-
-        # restore empirical settings side effect
-        context.run.restarts = max(context.run.restarts - 1, 0)
 
 
 class RetryFailedTasks(BaseOrchestrationRule):
@@ -552,31 +543,14 @@ class PermitRerunningFailedTaskRuns(BaseOrchestrationRule):
     ):
         self.original_run_count = context.run.run_count
         self.original_retry_attempt = context.run.flow_retry_attempt
-        self.original_restart_attempt = context.run.flow_restart_attempt
 
         self.flow_run = await context.flow_run()
+        rerunning = self.run.flow_run_retry_attempt < self.flow_run.run_count - 1
 
-        restarting = (
-            self.flow_run.run_count == 1
-            and self.flow_run.restarts > 0
-            and (self.flow_run.restarts > context.run.flow_restart_attempt)
-        )
-
-        retrying = not restarting and (
-            self.flow_run.run_count <= (self.flow_run.empirical_policy.retries + 1)
-        )
-
-        if restarting:
-            context.run.run_count = 0  # reset run count to preserve retry behavior
-            context.run.flow_restart_attempt = self.flow_run.restarts
-            context.run.flow_retry_attempt = 0
-            await self.rename_state("RetryingViaRestart")
-            await self.update_context_parameters("permit-rerunning", True)
-        elif retrying:
+        if rerunning:
             context.run.run_count = 0  # reset run count to preserve retry behavior
             context.run.flow_retry_attempt = self.flow_run.run_count - 1
             await self.rename_state("Retrying")
-            await self.update_context_parameters("permit-rerunning", True)
 
     async def cleanup(
         self,
@@ -587,6 +561,5 @@ class PermitRerunningFailedTaskRuns(BaseOrchestrationRule):
         # reset run count
         context.run.run_count = self.original_run_count
 
-        # reset retry and restart counters
+        # reset retry counter
         context.run.flow_retry_attempt = self.original_retry_attempt
-        context.run.flow_restart_attempt = self.original_restart_attempt
