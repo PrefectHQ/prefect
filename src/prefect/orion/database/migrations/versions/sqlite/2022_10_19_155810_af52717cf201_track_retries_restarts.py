@@ -19,7 +19,7 @@ def upgrade():
     with op.batch_alter_table("task_run", schema=None) as batch_op:
         batch_op.add_column(
             sa.Column(
-                "flow_retry_attempt", sa.Integer(), server_default="0", nullable=False
+                "flow_run_run_count", sa.Integer(), server_default="0", nullable=False
             )
         )
 
@@ -28,6 +28,6 @@ def upgrade():
 
 def downgrade():
     with op.batch_alter_table("task_run", schema=None) as batch_op:
-        batch_op.drop_column("flow_retry_attempt")
+        batch_op.drop_column("flow_run_run_count")
 
     # ### end Alembic commands ###
