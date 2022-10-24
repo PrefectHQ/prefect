@@ -12,9 +12,9 @@ from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
-    PreventRedundantTransitions,
-    HandleTaskTerminalStateTransitions,
     HandleFlowTerminalStateTransitions,
+    HandleTaskTerminalStateTransitions,
+    PreventRedundantTransitions,
     ReleaseTaskConcurrencySlots,
     RenameReruns,
     RetryFailedFlows,
