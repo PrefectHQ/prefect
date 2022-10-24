@@ -448,7 +448,7 @@ class TestManualFlowRetries:
         assert ctx.run.run_count == 3
 
 
-class TestPermitRerunningFailedTaskRunsRule:
+class TestPermitRerunningFailedTaskRuns:
     async def test_bypasses_terminal_state_rule_if_flow_is_retrying(
         self,
         session,
@@ -468,7 +468,7 @@ class TestPermitRerunningFailedTaskRunsRule:
         )
         flow_run = await ctx.flow_run()
         flow_run.run_count = 4
-        ctx.run.flow_retry_attempt = 2
+        ctx.run.flow_run_run_count = 2
         ctx.run.run_count = 2
 
         async with contextlib.AsyncExitStack() as stack:
@@ -479,8 +479,8 @@ class TestPermitRerunningFailedTaskRunsRule:
         assert ctx.run.run_count == 0
         assert ctx.proposed_state.name == "Retrying"
         assert (
-            ctx.run.flow_retry_attempt == 3
-        ), "The flow has run four times, so this task has attempted to retry three times"
+            ctx.run.flow_run_run_count == 4
+        ), "The task should update the flow run run count tracker"
 
     async def test_cannot_bypass_terminal_state_rule_if_exceeding_flow_runs(
         self,
@@ -501,7 +501,7 @@ class TestPermitRerunningFailedTaskRunsRule:
         )
         flow_run = await ctx.flow_run()
         flow_run.run_count = 3
-        ctx.run.flow_retry_attempt = 2
+        ctx.run.flow_run_run_count = 3
         ctx.run.run_count = 2
 
         async with contextlib.AsyncExitStack() as stack:
@@ -511,9 +511,9 @@ class TestPermitRerunningFailedTaskRunsRule:
         assert ctx.response_status == SetStateStatus.ABORT
         assert ctx.run.run_count == 2
         assert ctx.proposed_state is None
-        assert ctx.run.flow_retry_attempt == 2
+        assert ctx.run.flow_run_run_count == 3
 
-    async def test_bypasses_terminal_state_rule_even_if_configured_automatic_retries_is_exceeded(
+    async def test_bypasses_terminal_state_rule_if_configured_automatic_retries_is_exceeded(
         self,
         session,
         initialize_orchestration,
@@ -535,7 +535,7 @@ class TestPermitRerunningFailedTaskRunsRule:
         )
         flow_run = await ctx.flow_run()
         flow_run.run_count = 4
-        ctx.run.flow_retry_attempt = 2
+        ctx.run.flow_run_run_count = 2
         ctx.run.run_count = 2
 
         async with contextlib.AsyncExitStack() as stack:
@@ -546,8 +546,8 @@ class TestPermitRerunningFailedTaskRunsRule:
         assert ctx.run.run_count == 0
         assert ctx.proposed_state.name == "Retrying"
         assert (
-            ctx.run.flow_retry_attempt == 3
-        ), "The flow has run four times, so this task has attempted to retry three times"
+            ctx.run.flow_run_run_count == 4
+        ), "The task should update the flow run run count tracker"
 
     async def test_cleans_up_after_invalid_transition(
         self,
@@ -570,7 +570,7 @@ class TestPermitRerunningFailedTaskRunsRule:
         )
         flow_run = await ctx.flow_run()
         flow_run.run_count = 4
-        ctx.run.flow_retry_attempt = 2
+        ctx.run.flow_run_run_count = 2
         ctx.run.run_count = 2
 
         async with contextlib.AsyncExitStack() as stack:
@@ -581,8 +581,8 @@ class TestPermitRerunningFailedTaskRunsRule:
         assert ctx.run.run_count == 2
         assert ctx.proposed_state.name == "Retrying"
         assert (
-            ctx.run.flow_retry_attempt == 2
-        ), "The flow has run four times, so this task has attempted to retry three times"
+            ctx.run.flow_run_run_count == 2
+        ), "The task should update the flow run run count tracker"
 
 
 class TestTaskRetryingRule:
