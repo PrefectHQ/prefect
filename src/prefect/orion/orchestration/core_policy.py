@@ -36,7 +36,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
-            PreventFlowTransitionsFromTerminalStates,
+            HandleFlowTerminalStateTransitions,
             PreventRedundantTransitions,
             WaitForScheduledTime,
             RetryFailedFlows,
@@ -51,7 +51,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             CacheRetrieval,
-            PreventTaskTransitionsFromTerminalStates,
+            HandleTaskTerminalStateTransitions,
             PreventRedundantTransitions,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             WaitForScheduledTime,
@@ -421,7 +421,7 @@ class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
         context.run.flow_run_run_count = self.flow_run.run_count
 
 
-class PreventTaskTransitionsFromTerminalStates(BaseOrchestrationRule):
+class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
     """
     Prevents transitions from terminal states.
 
@@ -475,7 +475,7 @@ class PreventTaskTransitionsFromTerminalStates(BaseOrchestrationRule):
         context.run.run_count = self.original_run_count
 
 
-class PreventFlowTransitionsFromTerminalStates(BaseOrchestrationRule):
+class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
     """
     Prevents transitions from terminal states.
 
