@@ -237,6 +237,7 @@ async def set_flow_run_state(
     flow_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
+    api_version=Depends(dependencies.provide_request_api_version),
 ) -> OrchestrationResult:
     """Set a flow run state, invoking any orchestration rules."""
 
@@ -249,6 +250,7 @@ async def set_flow_run_state(
             state=schemas.states.State.parse_obj(state),
             force=force,
             flow_policy=flow_policy,
+            api_version=api_version,
         )
 
     # set the 201 because a new state was created
