@@ -686,71 +686,101 @@ class TestSetFlowRunState:
         assert run.state.data == data
 
 
-class TestRestartingFlowRuns:
-    async def test_flow_run_restarts(
+class TestManuallyRetryingFlowRuns:
+    async def test_manual_flow_run_retries(
         self, failed_flow_run_with_deployment, client, session
     ):
-        assert failed_flow_run_with_deployment.restarts == 0
         assert failed_flow_run_with_deployment.run_count == 1
         assert failed_flow_run_with_deployment.deployment_id
         flow_run_id = failed_flow_run_with_deployment.id
 
         response = await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(
-                state=dict(type="SCHEDULED", name="restartable with any state name")
-            ),
+            json=dict(state=dict(type="SCHEDULED", name="AwaitingRetry")),
         )
 
         session.expire_all()
         restarted_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
         )
-        assert restarted_run.restarts == 1
-        assert restarted_run.run_count == 0, "restarted flows reset the run count"
+        assert restarted_run.run_count == 1, "manual retries preserve the run count"
         assert restarted_run.state.type == "SCHEDULED"
 
-    async def test_only_proposing_scheduled_states_restarts(
-        self, failed_flow_run_with_deployment, client, session
+    async def test_manual_flow_run_retries_succeed_even_if_exceeding_retries_setting(
+        self, failed_flow_run_with_deployment_with_no_more_retries, client, session
     ):
-        assert failed_flow_run_with_deployment.restarts == 0
-        assert failed_flow_run_with_deployment.run_count == 1
-        assert failed_flow_run_with_deployment.deployment_id
-        flow_run_id = failed_flow_run_with_deployment.id
+        assert failed_flow_run_with_deployment_with_no_more_retries.run_count == 3
+        assert (
+            failed_flow_run_with_deployment_with_no_more_retries.empirical_policy.retries
+            == 2
+        )
+        assert failed_flow_run_with_deployment_with_no_more_retries.deployment_id
+        flow_run_id = failed_flow_run_with_deployment_with_no_more_retries.id
 
         response = await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(
-                state=dict(type="RUNNING", name="restartable with any state name")
-            ),
+            json=dict(state=dict(type="SCHEDULED", name="AwaitingRetry")),
         )
 
         session.expire_all()
         restarted_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
         )
-        assert restarted_run.restarts == 0
-        assert restarted_run.run_count == 1, "the run count should not change"
+        assert restarted_run.run_count == 3, "manual retries preserve the run count"
+        assert restarted_run.state.type == "SCHEDULED"
+
+    async def test_manual_flow_run_retries_require_an_awaitingretry_state_name(
+        self, failed_flow_run_with_deployment, client, session
+    ):
+        assert failed_flow_run_with_deployment.run_count == 1
+        assert failed_flow_run_with_deployment.deployment_id
+        flow_run_id = failed_flow_run_with_deployment.id
+
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/set_state",
+            json=dict(state=dict(type="SCHEDULED", name="NotAwaitingRetry")),
+        )
+
+        session.expire_all()
+        restarted_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert restarted_run.state.type == "FAILED"
+
+    async def test_only_proposing_scheduled_states_manually_retries(
+        self, failed_flow_run_with_deployment, client, session
+    ):
+        assert failed_flow_run_with_deployment.run_count == 1
+        assert failed_flow_run_with_deployment.deployment_id
+        flow_run_id = failed_flow_run_with_deployment.id
+
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/set_state",
+            json=dict(state=dict(type="RUNNING", name="AwaitingRetry")),
+        )
+
+        session.expire_all()
+        restarted_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
         assert restarted_run.state.type == "FAILED"
 
     async def test_cannot_restart_flow_run_without_deployment(
         self, failed_flow_run_without_deployment, client, session
     ):
-        assert failed_flow_run_without_deployment.restarts == 0
         assert failed_flow_run_without_deployment.run_count == 1
         assert not failed_flow_run_without_deployment.deployment_id
         flow_run_id = failed_flow_run_without_deployment.id
 
         response = await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=dict(type="SCHEDULED", name="informative state name")),
+            json=dict(state=dict(type="RUNNING", name="AwaitingRetry")),
         )
 
         session.expire_all()
         restarted_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
         )
-        assert restarted_run.restarts == 0
         assert restarted_run.run_count == 1, "the run count should not change"
         assert restarted_run.state.type == "FAILED"
 
