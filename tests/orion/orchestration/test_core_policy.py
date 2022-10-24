@@ -12,9 +12,9 @@ from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
-    PreventFlowTransitionsFromTerminalStates,
     PreventRedundantTransitions,
-    PreventTaskTransitionsFromTerminalStates,
+    HandleTaskTerminalStateTransitions,
+    HandleFlowTerminalStateTransitions,
     ReleaseTaskConcurrencySlots,
     RenameReruns,
     RetryFailedFlows,
@@ -350,7 +350,7 @@ class TestManualFlowRetries:
         session,
         initialize_orchestration,
     ):
-        manual_retry_policy = [PreventFlowTransitionsFromTerminalStates]
+        manual_retry_policy = [HandleFlowTerminalStateTransitions]
         initial_state_type = states.StateType.FAILED
         proposed_state_type = states.StateType.SCHEDULED
         intended_transition = (initial_state_type, proposed_state_type)
@@ -376,7 +376,7 @@ class TestManualFlowRetries:
         session,
         initialize_orchestration,
     ):
-        manual_retry_policy = [PreventFlowTransitionsFromTerminalStates]
+        manual_retry_policy = [HandleFlowTerminalStateTransitions]
         initial_state_type = states.StateType.FAILED
         proposed_state_type = states.StateType.SCHEDULED
         intended_transition = (initial_state_type, proposed_state_type)
@@ -401,7 +401,7 @@ class TestManualFlowRetries:
         session,
         initialize_orchestration,
     ):
-        manual_retry_policy = [PreventFlowTransitionsFromTerminalStates]
+        manual_retry_policy = [HandleFlowTerminalStateTransitions]
         initial_state_type = states.StateType.FAILED
         proposed_state_type = states.StateType.SCHEDULED
         intended_transition = (initial_state_type, proposed_state_type)
@@ -427,7 +427,7 @@ class TestManualFlowRetries:
         session,
         initialize_orchestration,
     ):
-        manual_retry_policy = [PreventFlowTransitionsFromTerminalStates]
+        manual_retry_policy = [HandleFlowTerminalStateTransitions]
         initial_state_type = states.StateType.FAILED
         proposed_state_type = states.StateType.SCHEDULED
         intended_transition = (initial_state_type, proposed_state_type)
@@ -491,7 +491,7 @@ class TestPermitRerunningFailedTaskRuns:
         initialize_orchestration,
     ):
         rerun_policy = [
-            PreventTaskTransitionsFromTerminalStates,
+            HandleTaskTerminalStateTransitions,
             UpdateFlowRunTrackerOnTasks,
         ]
         initial_state_type = states.StateType.FAILED
@@ -525,7 +525,7 @@ class TestPermitRerunningFailedTaskRuns:
         initialize_orchestration,
     ):
         rerun_policy = [
-            PreventTaskTransitionsFromTerminalStates,
+            HandleTaskTerminalStateTransitions,
             UpdateFlowRunTrackerOnTasks,
         ]
         initial_state_type = states.StateType.FAILED
@@ -560,7 +560,7 @@ class TestPermitRerunningFailedTaskRuns:
         # retries have been consumed
 
         rerun_policy = [
-            PreventTaskTransitionsFromTerminalStates,
+            HandleTaskTerminalStateTransitions,
             UpdateFlowRunTrackerOnTasks,
         ]
         initial_state_type = states.StateType.FAILED
@@ -595,7 +595,7 @@ class TestPermitRerunningFailedTaskRuns:
         fizzling_rule,
     ):
         rerun_policy = [
-            PreventTaskTransitionsFromTerminalStates,
+            HandleTaskTerminalStateTransitions,
             UpdateFlowRunTrackerOnTasks,
             fizzling_rule,
         ]
@@ -804,9 +804,9 @@ class TestTransitionsFromTerminalStatesRule:
         )
 
         if run_type == "task":
-            protection_rule = PreventTaskTransitionsFromTerminalStates
+            protection_rule = HandleTaskTerminalStateTransitions
         elif run_type == "flow":
-            protection_rule = PreventFlowTransitionsFromTerminalStates
+            protection_rule = HandleFlowTerminalStateTransitions
 
         state_protection = protection_rule(ctx, *intended_transition)
 
@@ -832,9 +832,9 @@ class TestTransitionsFromTerminalStatesRule:
         )
 
         if run_type == "task":
-            protection_rule = PreventTaskTransitionsFromTerminalStates
+            protection_rule = HandleTaskTerminalStateTransitions
         elif run_type == "flow":
-            protection_rule = PreventFlowTransitionsFromTerminalStates
+            protection_rule = HandleFlowTerminalStateTransitions
 
         state_protection = protection_rule(ctx, *intended_transition)
 
