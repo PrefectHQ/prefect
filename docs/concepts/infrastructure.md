@@ -227,12 +227,9 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 | stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
 
 
-### ECSTask <span class="badge experimental"></span>
+### ECSTask
 
 [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) infrastructure runs your flow in an ECS Task.
-
-!!! note "Experimental block"
-    This infrastructure block is experimental. The interfaces of this block may change without notice.
 
 Requirements for `ECSTask`:
 
