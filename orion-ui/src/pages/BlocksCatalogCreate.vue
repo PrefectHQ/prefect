@@ -15,9 +15,9 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocksCatalogCreate, BlockTypeCardLayout, BlockSchemaCreateForm, BlockDocumentCreateNamed } from '@prefecthq/orion-design'
+  import { PageHeadingBlocksCatalogCreate, BlockTypeCardLayout, BlockSchemaCreateForm, BlockDocumentCreateNamed, asSingle } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
-  import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
+  import { useRouteParam, useRouteQueryParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -27,6 +27,7 @@
   import { blockTypesApi } from '@/services/blockTypesApi'
 
   const router = useRouter()
+  const redirect = useRouteQueryParam('redirect')
 
   const blockTypeSlugParam = useRouteParam('blockTypeSlug')
   const blockTypeSubscriptionArgs = computed<Parameters<typeof blockTypesApi.getBlockTypeBySlug> | null>(() => {
@@ -54,10 +55,7 @@
   function submit(request: BlockDocumentCreateNamed): void {
     blockDocumentsApi
       .createBlockDocument(request)
-      .then(({ id }) => {
-        showToast('Block created successfully', 'success')
-        router.push(routes.block(id))
-      })
+      .then(({ id }) => onSuccess(id))
       .catch(err => {
         showToast('Failed to create block', 'error')
         console.error(err)
@@ -68,11 +66,25 @@
     router.back()
   }
 
+  function onSuccess(id: string): void {
+    showToast('Block created successfully', 'success')
+
+    if (redirect.value) {
+      const route = router.resolve(asSingle(redirect.value))
+
+      router.push(route)
+      return
+    }
+
+    router.push(routes.block(id))
+  }
+
   const title = computed<string>(() => {
     if (blockType.value) {
       return `Create ${blockType.value.name} Block`
     }
     return 'Create Block'
   })
+
   usePageTitle(title)
 </script>
