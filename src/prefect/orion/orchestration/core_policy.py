@@ -51,7 +51,6 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             CacheRetrieval,
-            PermitRerunningFailedTaskRuns,
             PreventTaskTransitionsFromTerminalStates,
             PreventRedundantTransitions,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
@@ -439,7 +438,7 @@ class PreventTaskTransitionsFromTerminalStates(BaseOrchestrationRule):
 
             self.flow_run = await context.flow_run()
             flow_retrying = (
-                self.run.flow_run_retry_attempt < self.flow_run.run_count - 1
+                context.run.flow_retry_attempt < self.flow_run.run_count - 1
             )
 
             if flow_retrying:
