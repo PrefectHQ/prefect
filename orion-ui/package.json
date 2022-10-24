@@ -10,8 +10,8 @@
     "test": "playwright test"
   },
   "dependencies": {
-    "@prefecthq/orion-design": "1.0.111",
-    "@prefecthq/prefect-design": "1.1.17",
+    "@prefecthq/orion-design": "1.1.0",
+    "@prefecthq/prefect-design": "1.1.22",
     "@prefecthq/vue-compositions": "0.2.1",
     "@types/lodash.debounce": "4.0.7",
     "axios": "0.27.2",
