@@ -23,7 +23,7 @@
         <FlowRunTaskRuns v-if="flowRun" :flow-run-id="flowRun.id" />
       </template>
 
-      <template #sub-flow-runs>
+      <template #subflow-runs>
         <FlowRunSubFlows v-if="flowRun" :flow-run-id="flowRun.id" />
       </template>
 

@@ -12,7 +12,7 @@ tags:
     - RBAC
 ---
 
-# User roles in Prefect Cloud
+# User and Service Account Roles <span class="badge cloud"></span> <span class="badge orgs"></span>
 
 [Organizations](/ui/organizations/) in Prefect Cloud let you give people in your organization access to the appropriate Prefect functionality within your organization and within specific workspaces. 
 

@@ -360,6 +360,12 @@ class ORMFlowRun(ORMRun):
         nullable=False,
     )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    created_by = sa.Column(
+        Pydantic(schemas.core.CreatedBy),
+        server_default=None,
+        default=None,
+        nullable=True,
+    )
 
     @declared_attr
     def infrastructure_document_id(cls):
@@ -518,6 +524,9 @@ class ORMTaskRun(ORMRun):
     cache_key = sa.Column(sa.String)
     cache_expiration = sa.Column(Timestamp())
     task_version = sa.Column(sa.String)
+    flow_run_run_count = sa.Column(
+        sa.Integer, server_default="0", default=0, nullable=False
+    )
     empirical_policy = sa.Column(
         Pydantic(schemas.core.TaskRunPolicy),
         server_default="{}",
@@ -648,6 +657,10 @@ class ORMTaskRun(ORMRun):
                 "ix_task_run__state_name",
                 "state_name",
             ),
+            sa.Index(
+                "ix_task_run__state_timestamp",
+                "state_timestamp",
+            ),
         )
 
 
@@ -680,6 +693,18 @@ class ORMDeployment:
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     parameter_openapi_schema = sa.Column(JSON, default=dict, nullable=True)
+    created_by = sa.Column(
+        Pydantic(schemas.core.CreatedBy),
+        server_default=None,
+        default=None,
+        nullable=True,
+    )
+    updated_by = sa.Column(
+        Pydantic(schemas.core.UpdatedBy),
+        server_default=None,
+        default=None,
+        nullable=True,
+    )
 
     @declared_attr
     def infrastructure_document_id(cls):
@@ -949,6 +974,10 @@ class ORMWorkQueue:
     is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
     concurrency_limit = sa.Column(
         sa.Integer,
+        nullable=True,
+    )
+    last_polled = sa.Column(
+        Timestamp(),
         nullable=True,
     )
 
