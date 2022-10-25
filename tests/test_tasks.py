@@ -2122,6 +2122,15 @@ class TestTaskWithOptions:
         with_options_params.remove("self")
         assert task_params == with_options_params
 
+    def test_with_options_allows_override_of_0_retries(self):
+        @task(retries=3, retry_delay_seconds=10)
+        def initial_task():
+            pass
+
+        task_with_options = initial_task.with_options(retries=0, retry_delay_seconds=0)
+        assert task_with_options.retries == 0
+        assert task_with_options.retry_delay_seconds == 0
+
 
 class TestTaskRegistration:
     def test_task_is_registered(self):
