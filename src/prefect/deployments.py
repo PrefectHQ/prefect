@@ -30,7 +30,7 @@ from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
-from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.importtools import import_object
 from prefect.utilities.slugify import slugify
 
@@ -162,7 +162,7 @@ async def load_flow_from_flow_run(
         f"Loading flow for deployment {deployment.name!r}..."
     )
 
-    import_path = deployment.entrypoint
+    import_path = relative_path_to_current_platform(deployment.entrypoint)
 
     # for backwards compat
     if deployment.manifest_path:
@@ -649,6 +649,7 @@ class Deployment(BaseModel):
         name: str,
         output: str = None,
         skip_upload: bool = False,
+        ignore_file: str = ".prefectignore",
         apply: bool = False,
         load_existing: bool = True,
         **kwargs,
@@ -662,6 +663,9 @@ class Deployment(BaseModel):
             output (optional): if provided, the full deployment specification will be written as a YAML
                 file in the location specified by `output`
             skip_upload: if True, deployment files are not automatically uploaded to remote storage
+            ignore_file: an optional path to a `.prefectignore` file that specifies filename patterns
+                to ignore when uploading to remote storage; if not provided, looks for `.prefectignore`
+                in the current working directory
             apply: if True, the deployment is automatically registered with the API
             load_existing: if True, load any settings that may already be configured for the named deployment
                 server-side (e.g., schedules, default parameter values, etc.)
@@ -717,7 +721,7 @@ class Deployment(BaseModel):
                 deployment.storage
                 and "put-directory" in deployment.storage.get_block_capabilities()
             ):
-                await deployment.upload_to_storage()
+                await deployment.upload_to_storage(ignore_file=ignore_file)
 
         if output:
             await deployment.to_yaml(output)
