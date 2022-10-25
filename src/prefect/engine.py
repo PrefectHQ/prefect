@@ -1126,7 +1126,9 @@ async def orchestrate_task_run(
         The final state of the run
     """
     logger = task_run_logger(task_run, task=task)
-    task_run_context = TaskRunContext(
+
+    partial_task_run_context = PartialModel(
+        TaskRunContext,
         task_run=task_run,
         task=task,
         client=client,
@@ -1150,8 +1152,9 @@ async def orchestrate_task_run(
         )
 
     # Generate the cache key to attach to proposed states
+    # The cache key uses a TaskRunContext that does not include a `timeout_context``
     cache_key = (
-        task.cache_key_fn(task_run_context, resolved_parameters)
+        task.cache_key_fn(partial_task_run_context.finalize(), resolved_parameters)
         if task.cache_key_fn
         else None
     )
@@ -1165,34 +1168,63 @@ async def orchestrate_task_run(
 
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
+        # Need to create timeout_context from inside of loop so that a
+        # new context is created on retries
+        timeout_context = (
+            anyio.fail_after(task.timeout_seconds)
+            if task.timeout_seconds
+            else nullcontext()
+        )
+
         # Retrieve the latest metadata for the task run context
         task_run = await client.read_task_run(task_run.id)
 
         try:
-            args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
+            with timeout_context as timeout_scope:
+                task_run_context = partial_task_run_context.finalize(
+                    timeout_scope=timeout_scope
+                )
+                args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
 
-            if PREFECT_DEBUG_MODE.value():
-                logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
-            else:
-                logger.debug(f"Beginning execution...", extra={"state_message": True})
-
-            with task_run_context.copy(
-                update={"task_run": task_run, "start_time": pendulum.now("UTC")}
-            ):
-                if task.isasync:
-                    result = await task.fn(*args, **kwargs)
+                if PREFECT_DEBUG_MODE.value():
+                    logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
                 else:
-                    run_sync = (
-                        run_sync_in_interruptible_worker_thread
-                        if interruptible
-                        else run_sync_in_worker_thread
+                    logger.debug(
+                        f"Beginning execution...", extra={"state_message": True}
                     )
-                    result = await run_sync(task.fn, *args, **kwargs)
 
-        except Exception:
-            logger.exception("Encountered exception during execution:")
+                with task_run_context.copy(
+                    update={"task_run": task_run, "start_time": pendulum.now("UTC")}
+                ):
+                    if task.isasync:
+                        result = await task.fn(*args, **kwargs)
+                    else:
+                        run_sync = (
+                            run_sync_in_interruptible_worker_thread
+                            if interruptible or timeout_scope
+                            else run_sync_in_worker_thread
+                        )
+                        result = await run_sync(task.fn, *args, **kwargs)
+
+        except Exception as exc:
+            name = message = None
+            if (
+                # Task run timeouts
+                isinstance(exc, TimeoutError)
+                and timeout_scope
+                # Only update the message if the timeout was actually encountered since
+                # this could be a timeout in the user's code
+                and timeout_scope.cancel_called
+            ):
+                name = "TimedOut"
+                message = f"Task run exceeded timeout of {task.timeout_seconds} seconds"
+            else:
+                message = "Task run encountered an exception:"
+                logger.exception("Encountered exception during execution:")
+
             terminal_state = await exception_to_failed_state(
-                message="Task run encountered an exception:",
+                name=name,
+                message=message,
                 result_factory=task_run_context.result_factory,
             )
         else:
