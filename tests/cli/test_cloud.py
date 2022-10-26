@@ -5,7 +5,6 @@ from prefect.context import use_profile
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
-    PREFECT_DEBUG_MODE,
     Profile,
     ProfilesCollection,
     load_profiles,
@@ -62,7 +61,7 @@ def mock_select_workspace(workspaces):
     return list(workspaces)[0]
 
 
-def test_invalid_login(monkeypatch):
+def test_login_with_invalid_key(monkeypatch):
     monkeypatch.setattr(
         "prefect.client.cloud.get_cloud_client", get_unauthorized_mock_cloud_client
     )
@@ -89,7 +88,7 @@ def test_invalid_login(monkeypatch):
     )
 
 
-def test_login_creates_profile(monkeypatch):
+def test_login_without_workspace_handle(monkeypatch):
     monkeypatch.setattr("prefect.cli.cloud.get_cloud_client", get_mock_cloud_client)
     monkeypatch.setattr("prefect.cli.cloud.select_workspace", mock_select_workspace)
 
@@ -101,48 +100,101 @@ def test_login_creates_profile(monkeypatch):
     with use_profile(cloud_profile):
         invoke_and_assert(
             ["cloud", "login", "--key", API_KEY],
-            user_input="test-profile",
             expected_code=0,
             expected_output_contains=(
-                "Logged in to Prefect Cloud using profile 'test-profile'",
-                "Workspace is currently set to 'account-1/workspace-1'",
+                f"Logged in to Prefect Cloud using profile {cloud_profile!r}.\n"
+                f"Workspace is currently set to {FULL_HANDLE!r}. "
+                "The workspace can be changed using `prefect cloud workspace set`."
             ),
         )
 
     profiles = load_profiles()
-    assert profiles["test-profile"].settings == {
+    assert profiles[cloud_profile].settings == {
         PREFECT_API_URL: FULL_URL,
         PREFECT_API_KEY: API_KEY,
     }
 
 
-def test_login_preserves_original_profile(monkeypatch):
+def test_login_with_workspace_handle(monkeypatch):
     monkeypatch.setattr("prefect.cli.cloud.get_cloud_client", get_mock_cloud_client)
-    monkeypatch.setattr("prefect.cli.cloud.select_workspace", mock_select_workspace)
 
     cloud_profile = "cloud-foo"
     save_profiles(
+        ProfilesCollection([Profile(name=cloud_profile, settings={})], active=None)
+    )
+
+    with use_profile(cloud_profile):
+        invoke_and_assert(
+            ["cloud", "login", "--key", API_KEY, "--workspace", FULL_HANDLE],
+            expected_code=0,
+            expected_output_contains=(
+                f"Logged in to Prefect Cloud using profile {cloud_profile!r}.\n"
+                f"Workspace is currently set to {FULL_HANDLE!r}. "
+                "The workspace can be changed using `prefect cloud workspace set`."
+            ),
+        )
+
+    profiles = load_profiles()
+    assert profiles[cloud_profile].settings == {
+        PREFECT_API_URL: FULL_URL,
+        PREFECT_API_KEY: API_KEY,
+    }
+
+
+def test_login_with_invalid_workspace_handle(monkeypatch):
+    monkeypatch.setattr("prefect.cli.cloud.get_cloud_client", get_mock_cloud_client)
+
+    cloud_profile = "cloud-foo"
+    save_profiles(
+        ProfilesCollection([Profile(name=cloud_profile, settings={})], active=None)
+    )
+
+    with use_profile(cloud_profile):
+        invoke_and_assert(
+            ["cloud", "login", "--key", API_KEY, "--workspace", "foo/bar"],
+            expected_code=1,
+            expected_output_contains="Workspace 'foo/bar' not found.",
+        )
+
+
+def test_logout_current_profile_is_not_logged():
+    cloud_profile = "cloud-foo"
+    save_profiles(
+        ProfilesCollection([Profile(name=cloud_profile, settings={})], active=None)
+    )
+
+    with use_profile(cloud_profile):
+        invoke_and_assert(
+            ["cloud", "logout"],
+            expected_code=1,
+            expected_output_contains="Current profile is not logged into Prefect Cloud.",
+        )
+
+
+def test_logout_reset_prefect_api_key_and_prefect_api_url():
+    cloud_profile = "cloud-foo"
+    save_profiles(
         ProfilesCollection(
-            [Profile(name=cloud_profile, settings={PREFECT_DEBUG_MODE: True})],
+            [
+                Profile(
+                    name=cloud_profile,
+                    settings={PREFECT_API_URL: FULL_URL, PREFECT_API_KEY: API_KEY},
+                )
+            ],
             active=None,
         )
     )
 
     with use_profile(cloud_profile):
         invoke_and_assert(
-            ["cloud", "login", "--key", API_KEY],
-            user_input="test-profile",
+            ["cloud", "logout"],
             expected_code=0,
-            expected_output_contains=(
-                "Logged in to Prefect Cloud using profile 'test-profile'",
-                "Workspace is currently set to 'account-1/workspace-1'",
-            ),
+            expected_output_contains="Logged out from Prefect Cloud.",
         )
 
     profiles = load_profiles()
-    assert profiles[cloud_profile].settings == {
-        PREFECT_DEBUG_MODE: True,
-    }
+    assert PREFECT_API_URL not in profiles[cloud_profile].settings
+    assert PREFECT_API_KEY not in profiles[cloud_profile].settings
 
 
 def test_cannot_set_workspace_if_you_are_not_logged_in():
