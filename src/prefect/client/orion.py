@@ -161,11 +161,12 @@ class OrionClient:
             **httpx_settings,
         )
 
-        # See https://www.python-httpx.org/advanced/#custom-transports If we're using an
-        # HTTP/S client (not the ephemeral client), adjust the transport to add retries
-        # _after_ it is instantiated. If we alter the transport before instantiation,
-        # the transport will not be aware of proxies unless we reproduce all of the
-        # logic to make it so.
+        # See https://www.python-httpx.org/advanced/#custom-transports
+        # 
+        # If we're using an HTTP/S client (not the ephemeral client), adjust the
+        # transport to add retries _after_ it is instantiated. If we alter the transport
+        # before instantiation, the transport will not be aware of proxies unless we
+        # reproduce all of the logic to make it so.
         #
         # Only alter the transport to set our default of 3 retries, don't modify any
         # transport a user may have provided via httpx_settings.
