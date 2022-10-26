@@ -2,16 +2,27 @@
 Command line interface for interacting with Prefect Cloud
 """
 import re
-from typing import Dict, Iterable
+import signal
+import urllib.parse
+import webbrowser
+from typing import Dict, Iterable, List, Optional, Tuple, Union
+from uuid import UUID
 
+import anyio
 import httpx
 import readchar
 import typer
+import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from rich.live import Live
 from rich.table import Table
+from typing_extensions import Literal
 
 import prefect.context
 import prefect.settings
+from prefect.cli import app
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
@@ -25,6 +36,7 @@ from prefect.settings import (
     update_current_profile,
 )
 
+# Set up the `prefect cloud` and `prefect cloud workspaces` CLI applications
 cloud_app = PrefectTyper(
     name="cloud", help="Commands for interacting with Prefect Cloud"
 )
@@ -33,6 +45,66 @@ workspace_app = PrefectTyper(
 )
 cloud_app.add_typer(workspace_app, aliases=["workspaces"])
 app.add_typer(cloud_app)
+
+
+# Set up a little API server for browser based `prefect cloud login`
+
+login_api = FastAPI()
+
+login_api.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class LoginSuccess(BaseModel):
+    api_key: str
+    workspace_id: UUID
+    account_id: UUID
+
+
+class LoginFailed(BaseModel):
+    reason: str
+
+
+class LoginResult(BaseModel):
+    type: Literal["success", "failure"]
+    content: Union[LoginSuccess, LoginFailed]
+
+
+class ServerExit(Exception):
+    pass
+
+
+@login_api.post("/success")
+def receive_login(payload: LoginSuccess):
+    login_api.extra["result"] = LoginResult(type="success", content=payload)
+    login_api.extra["result-event"].set()
+
+
+@login_api.post("/failure")
+def receive_failure(payload: LoginFailed):
+    login_api.extra["result"] = LoginResult(type="failure", content=payload)
+    login_api.extra["result-event"].set()
+
+
+async def serve_login_api(cancel_scope, task_status):
+    task_status.started()
+
+    config = uvicorn.Config(
+        "prefect.cli.login:login_api", port=3001, log_level="critical"
+    )
+    server = uvicorn.Server(config)
+
+    try:
+        await server.serve()
+    except anyio.get_cancelled_exc_class():
+        pass  # Already cancelled, do not cancel again
+    else:
+        # Uvicorn overrides signal handlers so without this Ctrl-C is broken
+        cancel_scope.cancel()
 
 
 def build_url_from_workspace(workspace: Dict) -> str:
@@ -133,12 +205,126 @@ def select_workspace(workspaces: Iterable[str]) -> str:
         return selected_workspace
 
 
+def prompt_select_from_list(
+    console, prompt: str, options: Union[List[str], List[Tuple[str, str]]]
+) -> str:
+    """
+    Given a list of options, display the values to user in a table and prompt them
+    to select one.
+
+    Args:
+        options: A list of options to present to the user.
+            A list of tuples can be passed as key value pairs. If a value is chosen, the
+            key will be returned.
+
+    Returns:
+        str: the selected option
+    """
+
+    current_idx = 0
+    selected_option = None
+
+    def build_table() -> Table:
+        """
+        Generate a table of options. The `current_idx` will be highlighted.
+        """
+
+        table = Table(box=False, header_style=None, padding=(0, 0))
+        table.add_column(
+            f"? [bold]{prompt}[/] [bright_blue][Use arrows to move; enter to select]",
+            justify="left",
+            no_wrap=True,
+        )
+
+        for i, option in enumerate(options):
+            if isinstance(option, tuple):
+                option = option[1]
+
+            if i == current_idx:
+                # Use blue for selected options
+                table.add_row("[bold][blue]> " + option)
+            else:
+                table.add_row("  " + option)
+        return table
+
+    with Live(build_table(), auto_refresh=False, console=console) as live:
+        while selected_option is None:
+            key = readchar.readkey()
+
+            if key == readchar.key.UP:
+                current_idx = current_idx - 1
+                # wrap to bottom if at the top
+                if current_idx < 0:
+                    current_idx = len(options) - 1
+            elif key == readchar.key.DOWN:
+                current_idx = current_idx + 1
+                # wrap to top if at the bottom
+                if current_idx >= len(options):
+                    current_idx = 0
+            elif key == readchar.key.CTRL_C:
+                # gracefully exit with no message
+                exit_with_error("")
+            elif key == readchar.key.ENTER:
+                selected_option = options[current_idx]
+                if isinstance(selected_option, tuple):
+                    selected_option = selected_option[0]
+
+            live.update(build_table(), refresh=True)
+
+        return selected_option
+
+
+async def login_with_browser() -> str:
+    """
+    Perform login using the browser.
+
+    On failure, this function will exit the process.
+    On success, it will return an API key.
+    """
+    cloud_api_url = PREFECT_CLOUD_URL.value()
+
+    target = urllib.parse.quote("http://localhost:3001")
+
+    # TODO: Create a separate setting for this?
+    cloud_ui_url = cloud_api_url.replace("https://api.", "https://")
+    ui_login_url = cloud_ui_url.replace("/api", f"/authorize?callback={target}")
+
+    result_event = login_api.extra["result-event"] = anyio.Event()
+
+    async with anyio.create_task_group() as tg:
+
+        await tg.start(serve_login_api, tg.cancel_scope)
+
+        app.console.print("Opening browser...")
+        webbrowser.open_new_tab(ui_login_url)
+
+        async with anyio.move_on_after(120) as timeout_scope:
+            app.console.print("Waiting for response...")
+            await result_event.wait()
+
+        # Uvicorn installs signal handlers, this is the cleanest way to shutdown the
+        # login API
+        signal.raise_signal(signal.SIGINT)
+
+    result = login_api.extra.get("result")
+    if not result:
+        if timeout_scope.cancel_called:
+            exit_with_error("Timed out while waiting for authorization.")
+        else:
+            exit_with_error(f"Aborted.")
+
+    if result.type == "success":
+        return result.content.api_key
+    elif result.type == "failure":
+        exit_with_success(f"Failed to login: {result.content.reason}")
+
+
 @cloud_app.command()
 async def login(
-    key: str = typer.Option(
-        ..., "--key", "-k", help="API Key to authenticate with Prefect", prompt=True
+    key: Optional[str] = typer.Option(
+        None, "--key", "-k", help="API Key to authenticate with Prefect"
     ),
-    workspace_handle: str = typer.Option(
+    workspace_handle: Optional[str] = typer.Option(
         None,
         "--workspace",
         "-w",
@@ -150,6 +336,22 @@ async def login(
     Creates a new profile configured to use the specified PREFECT_API_KEY.
     Uses a previously configured profile if it exists.
     """
+
+    if not key:
+        choice = prompt_select_from_list(
+            app.console,
+            "How would you like to authenticate the Prefect CLI?",
+            [
+                ("browser", "Login with a web browser"),
+                ("key", "Paste an authentication key"),
+            ],
+        )
+
+        if choice == "key":
+            key = typer.prompt("Paste your authentication token")
+        elif choice == "browser":
+            key = await login_with_browser()
+
     async with get_cloud_client(api_key=key) as client:
         try:
             workspaces = await client.read_workspaces()
