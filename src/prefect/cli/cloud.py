@@ -2,6 +2,7 @@
 Command line interface for interacting with Prefect Cloud
 """
 import re
+import signal
 import traceback
 import urllib.parse
 import webbrowser
@@ -96,7 +97,7 @@ def receive_failure(payload: LoginFailed):
 
 
 async def serve_login_api(cancel_scope):
-    config = uvicorn.Config(login_api, port=3001, log_level="debug")
+    config = uvicorn.Config(login_api, port=3001, log_level="critical")
     server = uvicorn.Server(config)
 
     try:
@@ -324,7 +325,7 @@ async def login_with_browser() -> str:
 
         # Uvicorn installs signal handlers, this is the cleanest way to shutdown the
         # login API
-        # signal.raise_signal(signal.SIGINT)
+        signal.raise_signal(signal.SIGINT)
 
     result = login_api.extra.get("result")
     if not result:
