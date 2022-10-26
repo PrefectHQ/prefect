@@ -23,7 +23,7 @@
         <FlowRunTaskRuns v-if="flowRun" :flow-run-id="flowRun.id" />
       </template>
 
-      <template #sub-flow-runs>
+      <template #subflow-runs>
         <FlowRunSubFlows v-if="flowRun" :flow-run-id="flowRun.id" />
       </template>
 
@@ -84,7 +84,12 @@
   const flowRunId = useRouteParam('id')
 
   const tabs = computed(() => {
-    const values = ['Logs', 'Task Runs', 'Sub Flow Runs', 'Parameters']
+    const values = [
+      'Logs',
+      'Task Runs',
+      'Subflow Runs',
+      'Parameters',
+    ]
 
     if (!media.xl) {
       values.push('Details')

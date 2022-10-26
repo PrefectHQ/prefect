@@ -9,6 +9,7 @@ from pydantic import Field, root_validator, validator
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import (
+    DateTimeTZ,
     FieldFrom,
     PrefectBaseModel,
     copy_model_fields,
@@ -356,6 +357,7 @@ class WorkQueueUpdate(ActionBaseModel):
     description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
     is_paused: bool = FieldFrom(schemas.core.WorkQueue)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
+    last_polled: Optional[DateTimeTZ] = FieldFrom(schemas.core.WorkQueue)
 
     # DEPRECATED
 

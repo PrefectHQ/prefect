@@ -3,9 +3,16 @@ import pytest
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
+from prefect.orion import schemas
 from prefect.results import LiteralResult
-from prefect.serializers import JSONSerializer, PickleSerializer, Serializer
+from prefect.serializers import (
+    CompressedSerializer,
+    JSONSerializer,
+    PickleSerializer,
+    Serializer,
+)
 from prefect.settings import PREFECT_HOME
+from prefect.states import Cancelled, Completed, Failed
 from prefect.testing.utilities import (
     assert_uses_result_serializer,
     assert_uses_result_storage,
@@ -40,6 +47,53 @@ async def test_flow_with_unpersisted_result(orion_client, persist_result):
     ).state
     with pytest.raises(MissingResult):
         await api_state.result()
+
+
+async def test_flow_with_uncached_and_unpersisted_result(orion_client):
+    @flow(persist_result=False, cache_result_in_memory=False)
+    def foo():
+        return 1
+
+    state = foo(return_state=True)
+    with pytest.raises(MissingResult):
+        await state.result()
+
+    api_state = (
+        await orion_client.read_flow_run(state.state_details.flow_run_id)
+    ).state
+    with pytest.raises(MissingResult):
+        await api_state.result()
+
+
+async def test_flow_with_uncached_but_persisted_result(orion_client):
+    @flow(persist_result=True, cache_result_in_memory=False)
+    def foo():
+        return 1
+
+    state = foo(return_state=True)
+    assert not state.data.has_cached_object()
+    assert await state.result() == 1
+
+    api_state = (
+        await orion_client.read_flow_run(state.state_details.flow_run_id)
+    ).state
+    assert await api_state.result() == 1
+
+
+async def test_flow_with_uncached_but_literal_result(orion_client):
+    @flow(persist_result=True, cache_result_in_memory=False)
+    def foo():
+        return True
+
+    state = foo(return_state=True)
+    # Literal results are always cached
+    assert state.data.has_cached_object()
+    assert await state.result() is True
+
+    api_state = (
+        await orion_client.read_flow_run(state.state_details.flow_run_id)
+    ).state
+    assert await api_state.result() is True
 
 
 async def test_flow_result_not_missing_with_null_return(orion_client):
@@ -95,7 +149,17 @@ async def test_flow_exception_is_persisted(orion_client):
 
 @pytest.mark.parametrize(
     "serializer",
-    ["json", "pickle", JSONSerializer(), PickleSerializer(), MyIntSerializer()],
+    [
+        "json",
+        "pickle",
+        JSONSerializer(),
+        PickleSerializer(),
+        MyIntSerializer(),
+        "int-custom",
+        "compressed/pickle",
+        "compressed/json",
+        CompressedSerializer(serializer=MyIntSerializer()),
+    ],
 )
 async def test_flow_result_serializer(serializer, orion_client):
     @flow(result_serializer=serializer, persist_result=True)
@@ -258,3 +322,93 @@ async def test_child_flow_result_not_missing_with_null_return(orion_client):
         await orion_client.read_flow_run(child_state.state_details.flow_run_id)
     ).state
     assert await api_state.result() is None
+
+
+@pytest.mark.parametrize("empty_type", [dict, list])
+@pytest.mark.parametrize("persist_result", [True, False])
+def test_flow_empty_result_is_retained(persist_result, empty_type):
+    @flow(persist_result=persist_result)
+    def my_flow():
+        return empty_type()
+
+    result = my_flow()
+    assert result == empty_type()
+
+
+@pytest.mark.parametrize(
+    "resultlike",
+    [
+        {"type": "foo"},
+        {"type": "literal", "user-stuff": "bar"},
+        {"type": "persisted"},
+    ],
+)
+@pytest.mark.parametrize("persist_result", [True, False])
+def test_flow_resultlike_result_is_retained(persist_result, resultlike):
+    """
+    Since Pydantic will coerce dictionaries into `BaseResult` types, we need to be sure
+    that user dicts that look like a bit like results do not cause problems
+    """
+
+    @flow(persist_result=persist_result)
+    def my_flow():
+        return resultlike
+
+    result = my_flow()
+    assert result == resultlike
+
+
+@pytest.mark.parametrize(
+    "return_state",
+    [
+        Completed(data="test"),
+        Cancelled(),
+        Failed(),
+    ],
+)
+@pytest.mark.parametrize("persist_result", [True, False])
+def test_flow_state_result_is_respected(persist_result, return_state):
+    @flow(persist_result=persist_result)
+    def my_flow():
+        return return_state
+
+    state = my_flow(return_state=True)
+    assert state.type == return_state.type
+
+    # State details must be excluded as the flow state includes ids
+    assert state.dict(exclude={"state_details"}) == return_state.dict(
+        exclude={"state_details"}
+    )
+
+    if return_state.data:
+        assert state.result(raise_on_failure=False) == return_state.data
+
+
+@pytest.mark.parametrize(
+    "return_state",
+    [
+        schemas.states.Completed(data="test"),
+        schemas.states.Cancelled(),
+        schemas.states.Failed(),
+    ],
+)
+@pytest.mark.parametrize("persist_result", [True, False])
+def test_flow_server_state_result_is_respected(persist_result, return_state):
+    # Tests for backwards compatibility with server-side state return values
+    @flow(persist_result=persist_result)
+    def my_flow():
+        return return_state
+
+    with pytest.warns(DeprecationWarning, match="Use `prefect.states.State` instead"):
+        state = my_flow(return_state=True)
+
+    assert state.type == return_state.type
+
+    # State details must be excluded as the flow state includes ids
+    assert state.dict(exclude={"state_details"}) == return_state.dict(
+        exclude={"state_details"}
+    )
+
+    if return_state.data:
+        with pytest.warns(DeprecationWarning, match="use `prefect.states.State`"):
+            assert state.result(raise_on_failure=False) == return_state.data

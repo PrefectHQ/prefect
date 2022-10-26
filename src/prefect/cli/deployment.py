@@ -238,6 +238,9 @@ async def set_schedule(
     cron_schedule = {"cron": cron_string, "day_or": cron_day_or, "timezone": timezone}
     if rrule_string is not None:
         rrule_schedule = json.loads(rrule_string)
+        if timezone:
+            # override timezone if specified via CLI argument
+            rrule_schedule.update({"timezone": timezone})
     else:
         # fall back to empty schedule dictionary
         rrule_schedule = {"rrule": None}
@@ -429,7 +432,7 @@ async def run(
     ui_url = ui_base_url(connection_status)
 
     if ui_url:
-        run_url = f"{ui_url}/flow-run/{flow_run.id}"
+        run_url = f"{ui_url}/flow-runs/flow-run/{flow_run.id}"
     else:
         run_url = "<no dashboard available>"
 
@@ -675,10 +678,18 @@ async def build(
         "--interval",
         help="An integer specifying an interval (in seconds) that will be used to set an IntervalSchedule on the deployment.",
     ),
+    interval_anchor: Optional[str] = typer.Option(
+        None, "--anchor-date", help="The anchor date for an interval schedule"
+    ),
     rrule: str = typer.Option(
         None,
         "--rrule",
         help="An RRule that will be used to set an RRuleSchedule on the deployment.",
+    ),
+    timezone: str = typer.Option(
+        None,
+        "--timezone",
+        help="Deployment schedule timezone string e.g. 'America/New_York'",
     ),
     path: str = typer.Option(
         None,
@@ -771,16 +782,32 @@ async def build(
         # server-side definition of this deployment
         infrastructure = None
 
+    if interval_anchor and not interval:
+        exit_with_error("An anchor date can only be provided with an interval schedule")
+
     schedule = None
     if cron:
-        schedule = CronSchedule(cron=cron)
+        cron_kwargs = {"cron": cron, "timezone": timezone}
+        schedule = CronSchedule(
+            **{k: v for k, v in cron_kwargs.items() if v is not None}
+        )
     elif interval:
-        schedule = IntervalSchedule(interval=timedelta(seconds=interval))
+        interval_kwargs = {
+            "interval": timedelta(seconds=interval),
+            "anchor_date": interval_anchor,
+            "timezone": timezone,
+        }
+        schedule = IntervalSchedule(
+            **{k: v for k, v in interval_kwargs.items() if v is not None}
+        )
     elif rrule:
         try:
             schedule = RRuleSchedule(**json.loads(rrule))
+            if timezone:
+                # override timezone if specified via CLI argument
+                schedule.timezone = timezone
         except json.JSONDecodeError:
-            schedule = RRuleSchedule(rrule=rrule)
+            schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
 
     # parse storage_block
     if storage_block:
