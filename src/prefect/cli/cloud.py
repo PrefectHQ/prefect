@@ -2,7 +2,7 @@
 Command line interface for interacting with Prefect Cloud
 """
 import re
-import signal
+import traceback
 import urllib.parse
 import webbrowser
 from typing import Dict, Iterable, List, Optional, Tuple, Union
@@ -49,7 +49,12 @@ app.add_typer(cloud_app)
 
 # Set up a little API server for browser based `prefect cloud login`
 
-login_api = FastAPI()
+
+def set_login_api_ready_event():
+    login_api.extra["ready-event"].set()
+
+
+login_api = FastAPI(on_startup=[set_login_api_ready_event])
 
 login_api.add_middleware(
     CORSMiddleware,
@@ -90,19 +95,22 @@ def receive_failure(payload: LoginFailed):
     login_api.extra["result-event"].set()
 
 
-async def serve_login_api(cancel_scope, task_status):
-    task_status.started()
-
-    config = uvicorn.Config(
-        "prefect.cli.login:login_api", port=3001, log_level="critical"
-    )
+async def serve_login_api(cancel_scope):
+    config = uvicorn.Config(login_api, port=3001, log_level="debug")
     server = uvicorn.Server(config)
 
     try:
         await server.serve()
     except anyio.get_cancelled_exc_class():
         pass  # Already cancelled, do not cancel again
+    except SystemExit as exc:
+        # If uvicorn is misconfigured, it will throw a system exit and hide the exc
+        app.console.print("[red][bold]X Error starting login service!")
+        cause = exc.__context__  # Hide the system exit
+        traceback.print_exception(type(cause), value=cause, tb=cause.__traceback__)
+        cancel_scope.cancel()
     else:
+        # Exit if we are done serving the API
         # Uvicorn overrides signal handlers so without this Ctrl-C is broken
         cancel_scope.cancel()
 
@@ -289,26 +297,38 @@ async def login_with_browser() -> str:
     cloud_ui_url = cloud_api_url.replace("https://api.", "https://")
     ui_login_url = cloud_ui_url.replace("/api", f"/authorize?callback={target}")
 
+    # Set up an event that the login API will toggle on startup
+    ready_event = login_api.extra["ready-event"] = anyio.Event()
+
+    # Set up an event that the login API will set when a response comes from the UI
     result_event = login_api.extra["result-event"] = anyio.Event()
 
+    timeout_scope = None
     async with anyio.create_task_group() as tg:
 
-        await tg.start(serve_login_api, tg.cancel_scope)
+        # Run a server in the background to get payload from the browser
+        tg.start_soon(serve_login_api, tg.cancel_scope)
 
+        # Wait for the login server to be ready
+        async with anyio.fail_after(10):
+            await ready_event.wait()
+
+        # Then open the authorization page in a new browser tab
         app.console.print("Opening browser...")
         webbrowser.open_new_tab(ui_login_url)
 
+        # Wait for the response from the browser,
         async with anyio.move_on_after(120) as timeout_scope:
             app.console.print("Waiting for response...")
             await result_event.wait()
 
         # Uvicorn installs signal handlers, this is the cleanest way to shutdown the
         # login API
-        signal.raise_signal(signal.SIGINT)
+        # signal.raise_signal(signal.SIGINT)
 
     result = login_api.extra.get("result")
     if not result:
-        if timeout_scope.cancel_called:
+        if timeout_scope and timeout_scope.cancel_called:
             exit_with_error("Timed out while waiting for authorization.")
         else:
             exit_with_error(f"Aborted.")
