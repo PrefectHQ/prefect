@@ -150,8 +150,6 @@ async def login(
     Creates a new profile configured to use the specified PREFECT_API_KEY.
     Uses a previously configured profile if it exists.
     """
-    profiles = load_profiles()
-
     async with get_cloud_client(api_key=key) as client:
         try:
             workspaces = await client.read_workspaces()
@@ -171,6 +169,8 @@ async def login(
             )
         except httpx.HTTPStatusError as exc:
             exit_with_error(f"Error connecting to Prefect Cloud: {exc!r}")
+
+    profiles = load_profiles()
 
     for profile_name in profiles:
         if key == profiles[profile_name].settings.get(PREFECT_API_KEY):
@@ -192,41 +192,19 @@ async def login(
                     )
                     current_workspace = workspace_handle
 
-                exit_with_success(
-                    f"Logged in to Prefect Cloud using profile {profile_name!r}.\n"
-                    f"Workspace is currently set to {current_workspace!r}. "
-                    f"The workspace can be changed using `prefect cloud workspace set`."
-                )
-
-    workspace_handle_details = {
-        f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
-        for workspace in workspaces
-    }
+            exit_with_success(
+                f"Logged in to Prefect Cloud using profile {profile_name!r}.\n"
+                f"Workspace is currently set to {current_workspace!r}. "
+                f"The workspace can be changed using `prefect cloud workspace set`."
+            )
 
     if not workspace_handle:
         workspace_handle = select_workspace(workspace_handle_details.keys())
 
-    cloud_profile_name = app.console.input(
-        "Creating a profile for this Prefect Cloud login. Please specify a profile name: "
-    )
+    if workspace_handle not in workspace_handle_details:
+        exit_with_error(f"Workspace {workspace_handle!r} not found.")
 
-    cloud_profile_name = cloud_profile_name.strip()
-    if cloud_profile_name == "":
-        exit_with_error("Please provide a non-empty profile name.")
-
-    if cloud_profile_name in profiles:
-        exit_with_error(f"Profile {cloud_profile_name!r} already exists.")
-
-    profiles.add_profile(
-        profiles[profiles.active_name].copy(
-            update={
-                "name": cloud_profile_name,
-            }
-        )
-    )
-
-    profiles.update_profile(
-        cloud_profile_name,
+    current_profile = update_current_profile(
         {
             PREFECT_API_URL: build_url_from_workspace(
                 workspace_handle_details[workspace_handle]
@@ -235,14 +213,34 @@ async def login(
         },
     )
 
-    profiles.set_active(cloud_profile_name)
-    save_profiles(profiles)
-
     exit_with_success(
-        f"Logged in to Prefect Cloud using profile {cloud_profile_name!r}.\n"
+        f"Logged in to Prefect Cloud using profile {current_profile.name!r}.\n"
         f"Workspace is currently set to {workspace_handle!r}. "
         f"The workspace can be changed using `prefect cloud workspace set`."
     )
+
+
+@cloud_app.command()
+async def logout():
+    """
+    Logout the current workspace.
+    Reset PREFECT_API_KEY and PREFECT_API_URL to default.
+    """
+    current_profile = prefect.context.get_settings_context().profile
+    if current_profile is None:
+        exit_with_error("There is no current profile set.")
+
+    if current_profile.settings.get(PREFECT_API_KEY) is None:
+        exit_with_error("Current profile is not logged into Prefect Cloud.")
+
+    update_current_profile(
+        {
+            PREFECT_API_URL: None,
+            PREFECT_API_KEY: None,
+        },
+    )
+
+    exit_with_success("Logged out from Prefect Cloud.")
 
 
 @workspace_app.command()
