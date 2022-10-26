@@ -25,7 +25,7 @@ class OrionAgent:
     def __init__(
         self,
         work_queues: List[str] = None,
-        work_queue_prefix: str = None,
+        work_queue_prefix: Union[str, List[str]] = None,
         prefetch_seconds: int = None,
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
@@ -44,6 +44,8 @@ class OrionAgent:
         self.task_group: Optional[anyio.abc.TaskGroup] = None
         self.client: Optional[OrionClient] = None
 
+        if isinstance(work_queue_prefix, str):
+            work_queue_prefix = [work_queue_prefix]
         self.work_queue_prefix = work_queue_prefix
 
         self._work_queue_cache_expiration: pendulum.DateTime = None
