@@ -25,7 +25,7 @@ def test_process_stream_output(capsys, stream_output):
 
     if not stream_output:
         assert err == ""
-        assert out == ""
+        assert "hello world" not in out
     else:
         assert "hello world" in out
 
@@ -38,8 +38,7 @@ def test_process_streams_stderr(capsys):
         command=["bash", "-c", ">&2 echo hello world"], stream_output=True
     ).run()
 
-    out, err = capsys.readouterr()
-    assert out == ""
+    _, err = capsys.readouterr()
     assert err.strip() == "hello world"
 
 
