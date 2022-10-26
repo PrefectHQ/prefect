@@ -4,6 +4,7 @@ from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
+import httpcore
 import httpx
 import pendulum
 import pydantic
@@ -126,9 +127,7 @@ class OrionClient:
                     keepalive_expiry=25,
                 ),
             )
-            # See https://www.python-httpx.org/advanced/#custom-transports
-            # `retries` specifies the number of retries on connection errors
-            httpx_settings.setdefault("transport", httpx.AsyncHTTPTransport(retries=3))
+
             # See https://www.python-httpx.org/http2/
             # Enabling HTTP/2 support on the client does not necessarily mean that your requests
             # and responses will be transported over HTTP/2, since both the client and the server
@@ -161,6 +160,28 @@ class OrionClient:
         self._client = PrefectHttpxClient(
             **httpx_settings,
         )
+
+        # See https://www.python-httpx.org/advanced/#custom-transports
+        # 
+        # If we're using an HTTP/S client (not the ephemeral client), adjust the
+        # transport to add retries _after_ it is instantiated. If we alter the transport
+        # before instantiation, the transport will not be aware of proxies unless we
+        # reproduce all of the logic to make it so.
+        #
+        # Only alter the transport to set our default of 3 retries, don't modify any
+        # transport a user may have provided via httpx_settings.
+        #
+        # Making liberal use of getattr and isinstance checks here to avoid any
+        # surprises if the internals of httpx or httpcore change on us
+        if isinstance(api, str) and not httpx_settings.get("transport"):
+            transport_for_url = getattr(self._client, "_transport_for_url", None)
+            if callable(transport_for_url):
+                orion_transport = transport_for_url(httpx.URL(api))
+                if isinstance(orion_transport, httpx.AsyncHTTPTransport):
+                    pool = getattr(orion_transport, "_pool", None)
+                    if isinstance(pool, httpcore.AsyncConnectionPool):
+                        pool._retries = 3
+
         self.logger = get_logger("client")
 
     @property
@@ -800,13 +821,13 @@ class OrionClient:
 
     async def match_work_queues(
         self,
-        prefix: str,
+        prefixes: List[str],
     ) -> List[schemas.core.WorkQueue]:
         """
         Query Orion for work queues with names with a specific prefix.
 
         Args:
-            prefix: a string used to match work queue name prefixes
+            prefixes: a list of strings used to match work queue name prefixes
 
         Returns:
             a list of [WorkQueue model][prefect.orion.schemas.core.WorkQueue] representations
@@ -822,9 +843,10 @@ class OrionClient:
             )
             if not new_queues:
                 break
-            filtered_queues = list(
-                filter(lambda q: q.name.startswith(prefix), new_queues)
-            )
+            filtered_queues = []
+            for q in new_queues:
+                if any((q.name.startswith(p) for p in prefixes)):
+                    filtered_queues.append(q)
             work_queues += filtered_queues
             current_page += 1
 
