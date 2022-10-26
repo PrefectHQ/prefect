@@ -25,7 +25,7 @@ def test_process_stream_output(capsys, stream_output):
 
     if not stream_output:
         assert err == ""
-        assert "hello world" not in out
+        assert "hello world" not in out.splitlines()
     else:
         assert "hello world" in out
 
