@@ -7,5 +7,5 @@ export function MODE(): string {
 }
 
 export function VITE_PREFECT_CANARY(): boolean {
-  return import.meta.env.VITE_PREFECT_CANARY ?? true
+  return import.meta.env.VITE_PREFECT_CANARY === 'true'
 }
