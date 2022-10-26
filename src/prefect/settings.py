@@ -428,7 +428,6 @@ PREFECT_LOGGING_COLORS = Setting(
     bool,
     default=True,
     description="""Whether to style console logs.""",
-    value_callback=debug_mode_log_level,
 )
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(

@@ -1,5 +1,7 @@
 from rich.highlighter import RegexHighlighter
 
+from prefect.states import StateType
+
 
 class LevelHighlighter(RegexHighlighter):
     """Apply style to log levels."""
@@ -43,10 +45,8 @@ class StateHighlighter(RegexHighlighter):
 
     base_style = "state."
     highlights = [
-        r"(?P<completed_state>Completed)",
-        r"(?P<cancelled_state>Cancelled)",
-        r"(?P<failed_state>Failed)",
-        r"(?P<crashed_state>Crashed)",
+        rf"(?P<{state.value.lower()}_state>{state.value.title()})"
+        for state in StateType
     ]
 
 
