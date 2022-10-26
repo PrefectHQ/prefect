@@ -126,10 +126,10 @@ loggers:
         level: "${PREFECT_LOGGING_SERVER_LEVEL}"
 
     prefect.client:
-        level: "${PREFECT_LOGGING_SERVER_LEVEL}"
+        level: "${PREFECT_LOGGING_LEVEL}"
 
     prefect.infrastructure:
-        level: "${PREFECT_LOGGING_SERVER_LEVEL}"
+        level: "${PREFECT_LOGGING_LEVEL}"
 
     uvicorn:
         level: "${PREFECT_LOGGING_SERVER_LEVEL}"

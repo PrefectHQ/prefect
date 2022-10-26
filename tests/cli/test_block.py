@@ -151,7 +151,7 @@ def test_listing_blocks_when_none_are_registered():
         ["block", "ls"],
         expected_code=0,
         expected_output_contains=expected_output,
-        expected_line_count=6,
+        expected_line_count=8,
     )
 
 
@@ -170,7 +170,7 @@ def test_listing_blocks_after_saving_a_block():
         ["block", "ls"],
         expected_code=0,
         expected_output_contains=expected_output,
-        expected_line_count=7,
+        expected_line_count=9,
     )
 
 

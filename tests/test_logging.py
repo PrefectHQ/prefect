@@ -1082,15 +1082,6 @@ class TestPrefectConsoleHandler:
             assert console._theme_stack._entries == [{}]
             assert handler.level == logging.NOTSET
 
-    def test_init_custom_console(self):
-        custom_console = Console(style={"info": "dim green"})
-        handler = PrefectConsoleHandler(console=custom_console)
-        console = handler.console
-        assert isinstance(console, Console)
-        assert isinstance(console.highlighter, ReprHighlighter)
-        assert console.style == {"info": "dim green"}
-        assert handler.level == logging.NOTSET
-
     def test_init_override_kwargs(self):
         handler = PrefectConsoleHandler(
             highlighter=ReprHighlighter, styles={"number": "red"}, level=logging.DEBUG

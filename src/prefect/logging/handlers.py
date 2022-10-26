@@ -6,7 +6,7 @@ import threading
 import time
 import traceback
 import warnings
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 
 import anyio
 import pendulum
@@ -367,18 +367,24 @@ class PrefectConsoleHandler(logging.Handler):
         highlighter: Highlighter = PrefectConsoleHighlighter,
         styles: Dict[str, str] = None,
         level: Union[int, str] = logging.NOTSET,
-        console: Optional[Console] = None,
     ):
-        if console is None:
-            styled_console = PREFECT_LOGGING_COLORS.value()
-            if styled_console:
-                highlighter = highlighter()
-                theme = Theme(styles, inherit=False)
-            else:
-                highlighter = NullHighlighter()
-                theme = Theme(inherit=False)
-            console = Console(highlighter=highlighter, theme=theme)
-        self.console = console
+        """
+        The default console handler for Prefect, which highlights log levels,
+        web and file URLs, flow and task (run) names, and state types in the
+        local console (terminal).
+
+        Highlighting can be toggled on/off with the PREFECT_LOGGING_COLORS setting.
+        For finer control, use logging.yml to add or remove styles, and/or
+        adjust colors.
+        """
+        styled_console = PREFECT_LOGGING_COLORS.value()
+        if styled_console:
+            highlighter = highlighter()
+            theme = Theme(styles, inherit=False)
+        else:
+            highlighter = NullHighlighter()
+            theme = Theme(inherit=False)
+        self.console = Console(highlighter=highlighter, theme=theme)
         super().__init__(level=level)
 
     def emit(self, record: logging.LogRecord):
