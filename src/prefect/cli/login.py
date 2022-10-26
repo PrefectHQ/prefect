@@ -60,7 +60,7 @@ async def serve_login_api(cancel_scope, task_status):
     task_status.started()
 
     config = uvicorn.Config(
-        "prefect.cli.login:login_api", port=5000, log_level="critical"
+        "prefect.cli.login:login_api", port=3001, log_level="critical"
     )
     server = uvicorn.Server(config)
 
