@@ -8,6 +8,7 @@ import pydantic
 import pytest
 
 from prefect.serializers import (
+    CompressedSerializer,
     JSONSerializer,
     PickleSerializer,
     Serializer,
@@ -298,3 +299,49 @@ class TestJSONSerializer:
     def test_does_not_allow_default_collision(self):
         with pytest.raises(pydantic.ValidationError):
             JSONSerializer(dumps_kwargs={"default": "foo"})
+
+
+class TestCompressedSerializer:
+    @pytest.mark.parametrize("data", SERIALIZER_TEST_CASES)
+    def test_simple_roundtrip(self, data):
+        serializer = CompressedSerializer(serializer="pickle")
+        serialized = serializer.dumps(data)
+        assert serializer.loads(serialized) == data
+
+    @pytest.mark.parametrize("lib", ["bz2", "lzma", "zlib"])
+    def test_allows_stdlib_compression_libraries(self, lib):
+        serializer = CompressedSerializer(compressionlib=lib, serializer="pickle")
+        serialized = serializer.dumps("test")
+        assert serializer.loads(serialized) == "test"
+
+    def test_uses_alternative_compression_library(self, monkeypatch):
+        compress_mock = MagicMock(return_value=b"test")
+        decompress_mock = MagicMock(return_value=PickleSerializer().dumps("test"))
+        monkeypatch.setattr("zlib.compress", compress_mock)
+        monkeypatch.setattr("zlib.decompress", decompress_mock)
+        serializer = CompressedSerializer(compressionlib="zlib", serializer="pickle")
+        serializer.dumps("test")
+        serializer.loads(b"test")
+        compress_mock.assert_called_once()
+        decompress_mock.assert_called_once()
+
+    def test_uses_given_serializer(self, monkeypatch):
+        compress_mock = MagicMock(return_value=b"test")
+        decompress_mock = MagicMock(return_value=JSONSerializer().dumps("test"))
+        monkeypatch.setattr("zlib.compress", compress_mock)
+        monkeypatch.setattr("zlib.decompress", decompress_mock)
+        serializer = CompressedSerializer(compressionlib="zlib", serializer="json")
+        serializer.dumps("test")
+        serializer.loads(b"test")
+        compress_mock.assert_called_once()
+        decompress_mock.assert_called_once()
+
+    def test_pickle_shorthand(self):
+        serializer = Serializer(type="compressed/pickle")
+        assert isinstance(serializer, CompressedSerializer)
+        assert isinstance(serializer.serializer, PickleSerializer)
+
+    def test_json_shorthand(self):
+        serializer = Serializer(type="compressed/json")
+        assert isinstance(serializer, CompressedSerializer)
+        assert isinstance(serializer.serializer, JSONSerializer)

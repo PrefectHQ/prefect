@@ -19,14 +19,20 @@ from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.deprecated.data_documents import DataDocument
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
-from prefect.orion.schemas.actions import LogCreate, WorkQueueCreate, WorkQueueUpdate
+from prefect.orion.schemas.actions import (
+    FlowRunNotificationPolicyCreate,
+    LogCreate,
+    WorkQueueCreate,
+    WorkQueueUpdate,
+)
 from prefect.orion.schemas.core import (
     BlockDocument,
     BlockSchema,
     BlockType,
+    FlowRunNotificationPolicy,
     QueueFilter,
 )
-from prefect.orion.schemas.filters import LogFilter
+from prefect.orion.schemas.filters import FlowRunNotificationPolicyFilter, LogFilter
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
@@ -794,13 +800,13 @@ class OrionClient:
 
     async def match_work_queues(
         self,
-        prefix: str,
+        prefixes: List[str],
     ) -> List[schemas.core.WorkQueue]:
         """
         Query Orion for work queues with names with a specific prefix.
 
         Args:
-            prefix: a string used to match work queue name prefixes
+            prefixes: a list of strings used to match work queue name prefixes
 
         Returns:
             a list of [WorkQueue model][prefect.orion.schemas.core.WorkQueue] representations
@@ -816,9 +822,10 @@ class OrionClient:
             )
             if not new_queues:
                 break
-            filtered_queues = list(
-                filter(lambda q: q.name.startswith(prefix), new_queues)
-            )
+            filtered_queues = []
+            for q in new_queues:
+                if any((q.name.startswith(p) for p in prefixes)):
+                    filtered_queues.append(q)
             work_queues += filtered_queues
             current_page += 1
 
@@ -1330,6 +1337,7 @@ class OrionClient:
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
         limit: int = None,
+        sort: schemas.sorting.DeploymentSort = None,
         offset: int = 0,
     ) -> schemas.core.Deployment:
         """
@@ -1363,6 +1371,7 @@ class OrionClient:
             ),
             "limit": limit,
             "offset": offset,
+            "sort": sort,
         }
         response = await self._client.post(f"/deployments/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.Deployment], response.json())
@@ -1681,6 +1690,80 @@ class OrionClient:
             for log in logs
         ]
         await self._client.post(f"/logs/", json=serialized_logs)
+
+    async def create_flow_run_notification_policy(
+        self,
+        block_document_id: UUID,
+        is_active: bool = True,
+        tags: List[str] = None,
+        state_names: List[str] = None,
+        message_template: Optional[str] = None,
+    ) -> UUID:
+        """
+        Create a notification policy for flow runs
+
+        Args:
+            block_document_id: The block document UUID
+            is_active: Whether the notification policy is active
+            tags: List of flow tags
+            state_names: List of state names
+            message_template: Notification message template
+        """
+        if tags is None:
+            tags = []
+        if state_names is None:
+            state_names = []
+
+        policy = FlowRunNotificationPolicyCreate(
+            block_document_id=block_document_id,
+            is_active=is_active,
+            tags=tags,
+            state_names=state_names,
+            message_template=message_template,
+        )
+        response = await self._client.post(
+            "/flow_run_notification_policies/",
+            json=policy.dict(json_compatible=True),
+        )
+
+        policy_id = response.json().get("id")
+        if not policy_id:
+            raise httpx.RequestError(f"Malformed response: {response}")
+
+        return UUID(policy_id)
+
+    async def read_flow_run_notification_policies(
+        self,
+        flow_run_notification_policy_filter: FlowRunNotificationPolicyFilter,
+        limit: Optional[int] = None,
+        offset: int = 0,
+    ) -> List[FlowRunNotificationPolicy]:
+        """
+        Query Orion for flow run notification policies. Only policies matching all criteria will
+        be returned.
+
+        Args:
+            flow_run_notification_policy_filter: filter criteria for notification policies
+            limit: a limit for the notification policies query
+            offset: an offset for the notification policies query
+
+        Returns:
+            a list of [FlowRunNotificationPolicy model][schemas.core.FlowRunNotificationPolicy] representation
+                of the notification policies
+        """
+        body = {
+            "flow_run_notification_policy_filter": flow_run_notification_policy_filter.dict(
+                json_compatible=True
+            )
+            if flow_run_notification_policy_filter
+            else None,
+            "limit": limit,
+            "offset": offset,
+        }
+        response = await self._client.post(
+            "/flow_run_notification_policies/filter", json=body
+        )
+        return pydantic.parse_obj_as(List[FlowRunNotificationPolicy], response.json())
 
     async def read_logs(
         self, log_filter: LogFilter = None, limit: int = None, offset: int = None
