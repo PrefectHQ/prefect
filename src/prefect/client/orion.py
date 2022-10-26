@@ -162,7 +162,7 @@ class OrionClient:
         )
 
         # See https://www.python-httpx.org/advanced/#custom-transports
-        # 
+        #
         # If we're using an HTTP/S client (not the ephemeral client), adjust the
         # transport to add retries _after_ it is instantiated. If we alter the transport
         # before instantiation, the transport will not be aware of proxies unless we
