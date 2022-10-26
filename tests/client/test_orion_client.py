@@ -87,6 +87,20 @@ class TestClientProxyAwareness:
         assert isinstance(pool, httpcore.AsyncConnectionPool)
         assert pool._retries == 3  # set in prefect.client.orion.get_client()
 
+    def test_users_can_still_provide_transport(self, remote_https_orion: httpx.URL):
+        """If users want to supply an alternative transport, they still can and
+        we will not alter it"""
+        httpx_settings = {"transport": httpx.AsyncHTTPTransport(retries=11)}
+        httpx_client = get_client(httpx_settings)._client
+        assert isinstance(httpx_client, httpx.AsyncClient)
+
+        transport_for_orion = httpx_client._transport_for_url(remote_https_orion)
+        assert isinstance(transport_for_orion, httpx.AsyncHTTPTransport)
+
+        pool = transport_for_orion._pool
+        assert isinstance(pool, httpcore.AsyncConnectionPool)
+        assert pool._retries == 11  # not overridden by get_client() in this case
+
     @pytest.fixture
     def https_proxy(self) -> Generator[httpcore.URL, None, None]:
         original = os.environ.get("HTTPS_PROXY")

@@ -166,7 +166,10 @@ class OrionClient:
         # transport to add retries _after_ it is instantiated. If we alter the transport
         # before instantiation, the transport will not be aware of proxies unless we
         # reproduce all of the logic to make it so.
-        if isinstance(api, str):
+        #
+        # Only alter the transport to set our default of 3 retries, don't modify any
+        # transport a user may have provided via httpx_settings
+        if isinstance(api, str) and not httpx_settings.get("transport"):
             orion_transport = self._client._transport_for_url(httpx.URL(api))
             if isinstance(orion_transport, httpx.AsyncHTTPTransport):
                 if isinstance(orion_transport._pool, httpcore.AsyncConnectionPool):
