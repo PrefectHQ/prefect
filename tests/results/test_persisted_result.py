@@ -24,12 +24,12 @@ async def test_result_reference_create_and_get(cache_object, storage_block):
         cache_object=cache_object,
     )
     if not cache_object:
-        assert not result._has_cached_object()
+        assert not result.has_cached_object()
 
     assert await result.get() == "test"
 
     # After retrieval, it should be cached again
-    assert result._has_cached_object()
+    assert result.has_cached_object()
 
 
 async def test_result_reference_create_uses_storage(storage_block):

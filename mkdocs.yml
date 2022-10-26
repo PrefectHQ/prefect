@@ -1,4 +1,4 @@
-site_name: Prefect 2
+site_name: Prefect 2 - Coordinating the world's dataflows
 site_url: https://docs.prefect.io/
 repo_url: https://github.com/PrefectHQ/prefect
 edit_uri: edit/main/docs
@@ -36,6 +36,7 @@ theme:
     custom_dir: docs/overrides
     favicon: img/favicon.png
     features:
+        - announce.dismiss
         - toc.integrate
         - navigation.tabs
         - navigation.tabs.sticky
@@ -72,8 +73,9 @@ plugins:
             - docs/collections/generate_catalog.py
             - docs/recipes/generate_catalog.py
 nav:
-    - Prefect 2: index.md
+    # - Prefect 2: index.md
     - Getting Started:
+        - Welcome to Prefect 2: index.md
         - Quick Start: getting-started/overview.md
         - Installation: getting-started/installation.md
         - Tutorials:
@@ -114,13 +116,16 @@ nav:
         - ui/flows.md
         - ui/deployments.md
         - ui/work-queues.md
-        - ui/notifications.md
         - ui/blocks.md
+        - ui/notifications.md
         - Prefect Cloud:
             - Prefect Cloud Overview: ui/cloud.md
             - Prefect Cloud Quickstart: ui/cloud-getting-started.md
+            - Workspaces: ui/workspaces.md
             - Organizations: ui/organizations.md
+            - Service Accounts: ui/service-accounts.md
             - Roles (RBAC): ui/roles.md
+            - Single Sign-on (SSO): ui/sso.md
     - Collections:
         - Overview: collections/overview.md
         - Collections Catalog: collections/catalog.md
@@ -218,7 +223,6 @@ nav:
         - Overview: contributing/overview.md
         - Style: contributing/style.md
         - Troubleshooting: contributing/common-mistakes.md
-        # - Testing Flow Runners: contributing/testing-flow-runners.md
 
 extra:
     analytics:

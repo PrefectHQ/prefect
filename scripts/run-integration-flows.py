@@ -17,16 +17,23 @@ import sys
 from pathlib import Path
 from typing import Union
 
-from prefect import __root_path__
+from prefect import __root_path__, __version__
 
 DEFAULT_PATH = __root_path__ / "flows"
 
 
 def run_flows(search_path: Union[str, Path]):
+    count = 0
+    print(f"Running integration tests with client version: {__version__}")
     for file in sorted(Path(search_path).glob("*.py")):
         print(f" {file.relative_to(search_path)} ".center(90, "-"), flush=True)
         runpy.run_path(file, run_name="__main__")
         print("".center(90, "-") + "\n", flush=True)
+        count += 1
+
+    if not count:
+        print(f"No Python files found at {search_path}")
+        exit(1)
 
 
 if __name__ == "__main__":
