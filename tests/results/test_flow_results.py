@@ -362,6 +362,7 @@ def test_flow_resultlike_result_is_retained(persist_result, resultlike):
     "return_state",
     [
         Completed(data="test"),
+        Completed(message="Hello!"),
         Cancelled(),
         Failed(),
     ],
@@ -370,14 +371,15 @@ def test_flow_resultlike_result_is_retained(persist_result, resultlike):
 def test_flow_state_result_is_respected(persist_result, return_state):
     @flow(persist_result=persist_result)
     def my_flow():
-        return return_state
+        return return_state.copy(reset_fields=False)
 
     state = my_flow(return_state=True)
     assert state.type == return_state.type
 
     # State details must be excluded as the flow state includes ids
-    assert state.dict(exclude={"state_details"}) == return_state.dict(
-        exclude={"state_details"}
+    # Data must be excluded as it will have been updated to a result
+    assert state.dict(exclude={"state_details", "data"}) == return_state.dict(
+        exclude={"state_details", "data"}
     )
 
     if return_state.data:
@@ -393,7 +395,7 @@ def test_flow_state_result_is_respected(persist_result, return_state):
     ],
 )
 @pytest.mark.parametrize("persist_result", [True, False])
-def test_flow_server_state_result_is_respected(persist_result, return_state):
+def test_flow_server_state_schema_result_is_respected(persist_result, return_state):
     # Tests for backwards compatibility with server-side state return values
     @flow(persist_result=persist_result)
     def my_flow():
@@ -405,8 +407,9 @@ def test_flow_server_state_result_is_respected(persist_result, return_state):
     assert state.type == return_state.type
 
     # State details must be excluded as the flow state includes ids
-    assert state.dict(exclude={"state_details"}) == return_state.dict(
-        exclude={"state_details"}
+    # Data must be excluded as it will have been updated to a result
+    assert state.dict(exclude={"state_details", "data"}) == return_state.dict(
+        exclude={"state_details", "data"}
     )
 
     if return_state.data:
