@@ -4,6 +4,7 @@ from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
+import httpcore
 import httpx
 import pendulum
 import pydantic
@@ -126,9 +127,7 @@ class OrionClient:
                     keepalive_expiry=25,
                 ),
             )
-            # See https://www.python-httpx.org/advanced/#custom-transports
-            # `retries` specifies the number of retries on connection errors
-            httpx_settings.setdefault("transport", httpx.AsyncHTTPTransport(retries=3))
+
             # See https://www.python-httpx.org/http2/
             # Enabling HTTP/2 support on the client does not necessarily mean that your requests
             # and responses will be transported over HTTP/2, since both the client and the server
@@ -161,6 +160,18 @@ class OrionClient:
         self._client = PrefectHttpxClient(
             **httpx_settings,
         )
+
+        # See https://www.python-httpx.org/advanced/#custom-transports
+        # If we're using an HTTP/S client (not the ephemeral client), adjust the
+        # transport to add retries _after_ it is instantiated. If we alter the transport
+        # before instantiation, the transport will not be aware of proxies unless we
+        # reproduce all of the logic to make it so.
+        if isinstance(api, str):
+            orion_transport = self._client._transport_for_url(httpx.URL(api))
+            if isinstance(orion_transport, httpx.AsyncHTTPTransport):
+                if isinstance(orion_transport._pool, httpcore.AsyncConnectionPool):
+                    orion_transport._pool._retries = 3
+
         self.logger = get_logger("client")
 
     @property
