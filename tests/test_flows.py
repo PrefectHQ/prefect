@@ -788,7 +788,7 @@ class TestFlowTimeouts:
         continue until the next instruction is reached. `time.sleep` will return then
         the thread will be interrupted.
         """
-        if sys.version_info[1] == "11":
+        if sys.version_info[1] == 11:
             pytest.xfail("The engine returns _after_ sleep finishes in Python 3.11")
 
         canary_file = tmp_path / "canary"
