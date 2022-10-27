@@ -14,6 +14,7 @@ from prefect.orion.api.server import (
 from prefect.settings import (
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
+    PREFECT_ORION_DATABASE_CONNECTION_URL,
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
@@ -322,3 +323,19 @@ class TestMemoizeBlockAutoRegistration:
             assert not PREFECT_MEMO_STORE_PATH.value().exists()
         finally:
             PREFECT_MEMO_STORE_PATH.value().parent.chmod(777)
+
+    async def test_changing_database_breaks_cache(self, enable_memoization):
+        test_func = AsyncMock()
+
+        await _memoize_block_auto_registration(test_func)()
+
+        assert test_func.call_count == 1
+
+        with temporary_settings(
+            {
+                PREFECT_ORION_DATABASE_CONNECTION_URL: "something else",
+            }
+        ):
+            await _memoize_block_auto_registration(test_func)()
+
+        assert test_func.call_count == 2
