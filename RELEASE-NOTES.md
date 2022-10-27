@@ -20,7 +20,7 @@
 - Fix proxy-awareness in the `OrionClient` — https://github.com/PrefectHQ/prefect/pull/7328
 - Fix block auto-registration when changing databases — https://github.com/PrefectHQ/prefect/pull/7350
 - Include hidden files when uploading directories to `RemoteFileSystem` storage — https://github.com/PrefectHQ/prefect/pull/7336
-- UI: Fix breaking color change — https://github.com/PrefectHQ/prefect/pull/7321
+- UI: added support for unsetting color-mode preference, `null` is now equivalent to "default" — https://github.com/PrefectHQ/prefect/pull/7321
 
 ### Documentation
 - Add documentation for Prefect Cloud SSO — https://github.com/PrefectHQ/prefect/pull/7302
