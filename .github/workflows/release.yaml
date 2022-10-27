@@ -1,5 +1,7 @@
 name: Release prefect
 
+# Note: Conda support for 3.11 is pending. See https://github.com/ContinuumIO/anaconda-issues/issues/13082
+
 on:
   push:
     tags:
@@ -123,7 +125,8 @@ jobs:
           - "3.8"
           - "3.9"
           - "3.10"
-          - "3.11"
+          # Not yet supported, see note at top
+          # - "3.11"
 
     steps:
       # Not needed until we want multiarchecture builds
@@ -302,11 +305,12 @@ jobs:
           name: release-image-${{ github.sha }}-3.10-conda
           path: /tmp/3.10/
 
-      - name: Download conda image artifacts for Python 3.11
-        uses: actions/download-artifact@v3
-        with:
-          name: release-image-${{ github.sha }}-3.11-conda
-          path: /tmp/3.11/
+      # Not yet available, see note at top
+      # - name: Download conda image artifacts for Python 3.11
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: release-image-${{ github.sha }}-3.11-conda
+      #     path: /tmp/3.11/
 
       - name: Load images
         run: |
@@ -319,7 +323,8 @@ jobs:
           docker load --input /tmp/3.8/image-conda.tar
           docker load --input /tmp/3.9/image-conda.tar
           docker load --input /tmp/3.10/image-conda.
-          docker load --input /tmp/3.11/image-conda.tar
+          # Not yet available, see note at top
+          # docker load --input /tmp/3.11/image-conda.tar
 
       - name: Login to DockerHub
         uses: docker/login-action@v2

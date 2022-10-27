@@ -305,20 +305,19 @@ Standard Python images are based on the official Python `slim` images, e.g. `pyt
 
 Conda flavored images are based on `continuumio/miniconda3`. Prefect is installed into a conda environment named `prefect`.
 
+Note, Conda support for Python 3.11 is not available so we cannot build an image yet.
+
 | Tag                         |       Prefect Version       | Python Version  |
 | --------------------------- | :-------------------------: | -------------:  |
 | 2-latest-conda              | most recent v2 PyPi version |            3.10 |
-| 2-python3.11-conda          | most recent v2 PyPi version |            3.11 |
 | 2-python3.10-conda          | most recent v2 PyPi version |            3.10 |
 | 2-python3.9-conda           | most recent v2 PyPi version |            3.9  |
 | 2-python3.8-conda           | most recent v2 PyPi version |            3.8  |
 | 2-python3.7-conda           | most recent v2 PyPi version |            3.7  |
-| 2.X-python3.11-conda        |             2.X             |            3.11 |
 | 2.X-python3.10-conda        |             2.X             |            3.10 |
 | 2.X-python3.9-conda         |             2.X             |            3.9  |
 | 2.X-python3.8-conda         |             2.X             |            3.8  |
 | 2.X-python3.7-conda         |             2.X             |            3.7  |
-| sha-&lt;hash&gt;-python3.11-conda |            &lt;hash&gt;           |            3.11 |
 | sha-&lt;hash&gt;-python3.10-conda |            &lt;hash&gt;           |            3.10 |
 | sha-&lt;hash&gt;-python3.9-conda  |            &lt;hash&gt;           |            3.9  |
 | sha-&lt;hash&gt;-python3.8-conda  |            &lt;hash&gt;           |            3.8  |
