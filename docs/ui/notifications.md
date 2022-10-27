@@ -19,6 +19,7 @@ Notifications enable you to set up alerts that are sent when a flow enters any s
 Currently Prefect 2 supports sending notifications via:
 
 - Slack message to a channel
+- Microsoft Teams message to a channel
 - Email (Prefect Cloud only)
 
 To configure a notification, go to the **Notifications** page and select **Create Notification** or the **+** button. 
@@ -29,7 +30,7 @@ Notifications are structured just as you would describe them to someone. You can
 
 - Which run states should trigger a notification.
 - Tags to filter which flow runs are covered by the notification.
-- Whether to send a Slack message or an email.
+- Whether to send a Slack message, Microsoft Teams message, or an email.
 
 For Slack notifications, the configuration requires webhook credentials for your Slack and the channel to which the message is sent.
 
