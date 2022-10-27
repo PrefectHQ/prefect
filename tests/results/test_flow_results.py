@@ -371,7 +371,7 @@ def test_flow_resultlike_result_is_retained(persist_result, resultlike):
 def test_flow_state_result_is_respected(persist_result, return_state):
     @flow(persist_result=persist_result)
     def my_flow():
-        return return_state.copy(reset_fields=False)
+        return return_state
 
     state = my_flow(return_state=True)
     assert state.type == return_state.type
