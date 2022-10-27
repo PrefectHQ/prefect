@@ -322,7 +322,7 @@ jobs:
           docker load --input /tmp/3.7/image-conda.tar
           docker load --input /tmp/3.8/image-conda.tar
           docker load --input /tmp/3.9/image-conda.tar
-          docker load --input /tmp/3.10/image-conda.
+          docker load --input /tmp/3.10/image-conda.tar
           # Not yet available, see note at top
           # docker load --input /tmp/3.11/image-conda.tar
 
