@@ -391,7 +391,7 @@ class KubernetesJob(Infrastructure):
                 {
                     "op": "add",
                     "path": "/metadata/generateName",
-                    "value": self._slugify_name(self.name),
+                    "value": self._slugify_name(self.name) + "-",
                 }
             )
         else:
@@ -406,7 +406,8 @@ class KubernetesJob(Infrastructure):
                         *self.command,
                         *self.env.keys(),
                         *[v for v in self.env.values() if v is not None],
-                    ),
+                    )
+                    + "-",
                 }
             )
 

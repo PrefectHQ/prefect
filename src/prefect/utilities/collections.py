@@ -228,6 +228,7 @@ def visit_collection(
     - Dict (note: keys are also visited recursively)
     - Dataclass
     - Pydantic model
+    - Prefect annotations
 
     Args:
         expr (Any): a Python object or expression
@@ -319,6 +320,7 @@ def visit_collection(
             result = model_instance
         else:
             result = None
+
     else:
         result = result if return_data else None
 
