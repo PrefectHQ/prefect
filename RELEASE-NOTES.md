@@ -16,7 +16,7 @@
 - Add `ignore_file` to `Deployment.build_from_flow()` — https://github.com/PrefectHQ/prefect/pull/7012
 
 ### Fixes
-- Fix with_options override with 0s — https://github.com/PrefectHQ/prefect/pull/7276
+- Allow `with_options` to reset retries and retry delays — https://github.com/PrefectHQ/prefect/pull/7276
 - Fix typo in Results documentation — https://github.com/PrefectHQ/prefect/pull/7324
 - Fix proxy-awareness in the `OrionClient` — https://github.com/PrefectHQ/prefect/pull/7328
 - Fix block auto-registration when changing databases — https://github.com/PrefectHQ/prefect/pull/7350
