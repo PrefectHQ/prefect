@@ -1,5 +1,6 @@
 import enum
 import inspect
+import sys
 import time
 from typing import List
 from unittest.mock import MagicMock
@@ -787,6 +788,9 @@ class TestFlowTimeouts:
         continue until the next instruction is reached. `time.sleep` will return then
         the thread will be interrupted.
         """
+        if sys.version_info[1] == "11":
+            pytest.xfail("The engine returns _after_ sleep finishes in Python 3.11")
+
         canary_file = tmp_path / "canary"
 
         @flow(timeout_seconds=0.1)
@@ -795,7 +799,7 @@ class TestFlowTimeouts:
             canary_file.touch()
 
         t0 = time.perf_counter()
-        state = my_flow._run()
+        state = my_flow(return_state=True)
         t1 = time.perf_counter()
 
         assert state.is_failed()
