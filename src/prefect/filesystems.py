@@ -1,13 +1,11 @@
 import abc
-import glob
 import io
 import json
-import os
 import shutil
 import sys
 import urllib.parse
 from distutils.dir_util import copy_tree
-from pathlib import Path, PurePath
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -342,8 +340,8 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             )
 
         counter = 0
-        for f in glob.glob(os.path.join(local_path, "**"), recursive=True):
-            relative_path = PurePath(f).relative_to(local_path)
+        for f in Path(local_path).rglob("*"):
+            relative_path = f.relative_to(local_path)
             if included_files and str(relative_path) not in included_files:
                 continue
 
@@ -352,9 +350,10 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             else:
                 fpath = to_path + "/" + relative_path.as_posix()
 
-            if Path(f).is_dir():
+            if f.is_dir():
                 pass
             else:
+                f = f.as_posix()
                 if overwrite:
                     self.filesystem.put_file(f, fpath, overwrite=True)
                 else:
