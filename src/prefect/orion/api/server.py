@@ -31,6 +31,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
+    PREFECT_ORION_DATABASE_CONNECTION_URL,
 )
 from prefect.utilities.hashing import hash_objects
 
@@ -263,7 +264,10 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
         blocks_registry = get_registry_for_type(Block)
         collection_blocks_data = await _load_collection_blocks_data()
         current_blocks_loading_hash = hash_objects(
-            blocks_registry, collection_blocks_data, hash_algo=sha256
+            blocks_registry,
+            collection_blocks_data,
+            PREFECT_ORION_DATABASE_CONNECTION_URL.value(),
+            hash_algo=sha256,
         )
 
         memo_store_path = PREFECT_MEMO_STORE_PATH.value()
