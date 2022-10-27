@@ -17,7 +17,6 @@
 
 ### Fixes
 - Allow `with_options` to reset retries and retry delays — https://github.com/PrefectHQ/prefect/pull/7276
-- Fix typo in Results documentation — https://github.com/PrefectHQ/prefect/pull/7324
 - Fix proxy-awareness in the `OrionClient` — https://github.com/PrefectHQ/prefect/pull/7328
 - Fix block auto-registration when changing databases — https://github.com/PrefectHQ/prefect/pull/7350
 - Include hidden files when uploading directories to `RemoteFileSystem` storage — https://github.com/PrefectHQ/prefect/pull/7336
