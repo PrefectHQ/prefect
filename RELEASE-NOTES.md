@@ -3,7 +3,7 @@
 ## Release 2.6.5
 
 ### Enhancements
-- Add suppport for flow run retries — https://github.com/PrefectHQ/prefect/pull/7152
+- Add support for manual flow run retries — https://github.com/PrefectHQ/prefect/pull/7152
 - Improve server performance when retrying flow runs with many tasks — https://github.com/PrefectHQ/prefect/pull/7152
 - Add status checks to work queues — https://github.com/PrefectHQ/prefect/pull/7262
 - Add timezone parameter to `prefect deployment build` — https://github.com/PrefectHQ/prefect/pull/7282
