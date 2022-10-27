@@ -45,7 +45,7 @@ async def start(
         "--work-queue",
         help="One or more work queue names for the agent to pull from.",
     ),
-    work_queue_prefix: str = typer.Option(
+    work_queue_prefix: List[str] = typer.Option(
         None,
         "-m",
         "--match",
