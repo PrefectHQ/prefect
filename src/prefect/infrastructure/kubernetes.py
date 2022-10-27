@@ -100,8 +100,7 @@ class KubernetesJob(Infrastructure):
 
     # connection to a cluster
     cluster_config: Optional[KubernetesClusterConfig] = Field(
-        default=None,
-        description="The Kubernetes cluster config to use for this job."
+        default=None, description="The Kubernetes cluster config to use for this job."
     )
 
     # settings allowing full customization of the Job
