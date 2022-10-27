@@ -524,6 +524,9 @@ class ORMTaskRun(ORMRun):
     cache_key = sa.Column(sa.String)
     cache_expiration = sa.Column(Timestamp())
     task_version = sa.Column(sa.String)
+    flow_run_run_count = sa.Column(
+        sa.Integer, server_default="0", default=0, nullable=False
+    )
     empirical_policy = sa.Column(
         Pydantic(schemas.core.TaskRunPolicy),
         server_default="{}",
@@ -653,6 +656,10 @@ class ORMTaskRun(ORMRun):
             sa.Index(
                 "ix_task_run__state_name",
                 "state_name",
+            ),
+            sa.Index(
+                "ix_task_run__state_timestamp",
+                "state_timestamp",
             ),
         )
 
@@ -967,6 +974,10 @@ class ORMWorkQueue:
     is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
     concurrency_limit = sa.Column(
         sa.Integer,
+        nullable=True,
+    )
+    last_polled = sa.Column(
+        Timestamp(),
         nullable=True,
     )
 
