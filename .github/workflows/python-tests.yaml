@@ -121,7 +121,7 @@ jobs:
 
       - name: Build Conda flavored test image
         # Not yet supported for 3.11, see note at top
-        if: ${{ matrix.build-docker-images && matrix.python-version != "3.11" }}
+        if: ${{ matrix.build-docker-images && matrix.python-version != '3.11' }}
         uses: docker/build-push-action@v3
         with:
           context: .
@@ -137,7 +137,7 @@ jobs:
 
       - name: Test Conda flavored Docker image
         # Not yet supported for 3.11, see note at top
-        if: ${{ matrix.build-docker-images && matrix.python-version != "3.11" }}
+        if: ${{ matrix.build-docker-images && matrix.python-version != '3.11' }}
         run: |
           docker load --input /tmp/image-conda.tar
           docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }}-conda prefect version
