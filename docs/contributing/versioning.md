@@ -20,11 +20,13 @@ Each release will increase one of the version numbers. If we increase a number o
 Prefect will increase the major version when significant and widespread changes are made to the core product. It is very unlikely that the major version will change without extensive warning.
 
 Prefect will increase the minor version when:
+
 - Introducing a new concept that changes how Prefect can be used
 - Changing an existing concept in a way that fundementally alters how it is used
 - Removing a deprecated feature
 
 Prefect will increase the patch version when:
+
 - Making enhancements to existing features
 - Fixing behavior in exusting features
 - Adding new functionality to existing concepts
