@@ -63,6 +63,12 @@ async def start(
         "--tag",
         help="DEPRECATED: One or more optional tags that will be used to create a work queue",
     ),
+    add_tags: List[str] = typer.Option(
+        None,
+        "-a",
+        "--add-tags",
+        help="Add tags to flow runs.",
+    ),
 ):
     """
     Start an agent process to poll one or more work queues for flow runs.
@@ -126,7 +132,7 @@ async def start(
             )
 
     async with OrionAgent(
-        work_queues=work_queues, work_queue_prefix=work_queue_prefix
+        work_queues=work_queues, work_queue_prefix=work_queue_prefix, add_tags=add_tags
     ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
