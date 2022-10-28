@@ -52,7 +52,7 @@ See how [Prefect's UI and cloud hosted functionality](/ui/overview/) can make co
 
 **Collections**
 
-Prefect integrates with the other tools of the modern data stack. In our [collections docs](/collections/overview/) learn about our pre-built integrations and see how to add your own.
+Prefect integrates with the other tools of the modern data stack. In our [collections docs](/collections/catalog/) learn about our pre-built integrations and see how to add your own.
 
 **Frequently asked questions**
 
@@ -86,7 +86,7 @@ Prefect 2 has been designed from the ground up to handle the dynamic, scalable w
 
 **Integrates with other modern data tools**
 
-Prefect has [integrations](/collections/overview/) for all the major cloud providers and modern data tools such as Snowflake, Databricks, dbt, and Airbyte. 
+Prefect has [integrations](/collections/catalog/) for all the major cloud providers and modern data tools such as Snowflake, Databricks, dbt, and Airbyte. 
 
 **Simple concurrency**
 
