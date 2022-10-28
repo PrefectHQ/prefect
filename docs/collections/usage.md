@@ -50,4 +50,4 @@ def connect_to_database():
     # Use secret_value to connect to a database
 ```
 
-**Note**, to use the load method on Blocks, you must already have a block document [saved](../../concepts/blocks/#saving-blocks) through code or saved through the UI.
+**Note**, to use the load method on Blocks, you must already have a block document [saved](/concepts/blocks/#saving-blocks) through code or saved through the UI.
