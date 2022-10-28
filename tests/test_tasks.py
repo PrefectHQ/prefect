@@ -1,6 +1,7 @@
 import datetime
 import inspect
 import warnings
+from asyncio import Event, gather, sleep
 from typing import Any, Dict, List
 from unittest.mock import MagicMock
 from uuid import UUID
@@ -1817,6 +1818,157 @@ class TestTaskInputs:
         assert task_2_run.task_inputs == dict(
             task_2_input=[],
         )
+
+
+class TestSubflowWaitForTasks:
+    def test_downstream_does_not_run_if_upstream_fails(self):
+        @task
+        def fails():
+            raise ValueError("Fail task!")
+
+        @flow
+        def bar(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = fails.submit()
+            b = bar._run(2, wait_for=[f])
+            return b
+
+        flow_state = test_flow._run()
+        subflow_state = flow_state.result(raise_on_failure=False)
+        assert subflow_state.is_pending()
+        assert subflow_state.name == "NotReady"
+
+    def test_downstream_runs_if_upstream_succeeds(self):
+        @flow
+        def foo(x):
+            return x
+
+        @flow
+        def bar(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = foo(1)
+            b = bar(2, wait_for=[f])
+            return b
+
+        assert test_flow() == 2
+
+    async def test_backend_task_inputs_includes_wait_for_tasks(self, orion_client):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        def flow_foo(x):
+            return x
+
+        @flow
+        def test_flow():
+            a, b = foo.submit(1), foo.submit(2)
+            c = foo.submit(3)
+            d = flow_foo(c, wait_for=[a, b], return_state=True)
+            return (a, b, c, d)
+
+        a, b, c, d = test_flow()
+        d_subflow_run = await orion_client.read_flow_run(d.state_details.flow_run_id)
+        d_virtual_task_run = await orion_client.read_task_run(
+            d_subflow_run.parent_task_run_id
+        )
+
+        assert d_virtual_task_run.task_inputs["x"] == [
+            TaskRunResult(id=c.state_details.task_run_id)
+        ], "Data passing inputs are preserved"
+
+        assert set(d_virtual_task_run.task_inputs["wait_for"]) == {
+            TaskRunResult(id=a.state_details.task_run_id),
+            TaskRunResult(id=b.state_details.task_run_id),
+        }, "'wait_for' included as a key with upstreams"
+
+        assert set(d_virtual_task_run.task_inputs.keys()) == {
+            "x",
+            "wait_for",
+        }, "No extra keys around"
+
+    async def test_subflows_run_concurrently_with_tasks(self):
+        @task
+        async def waiter_task(event, delay):
+            await sleep(delay)
+            if event.is_set():
+                pass
+            else:
+                raise RuntimeError("The event hasn't been set!")
+
+        @flow
+        async def setter_flow(event):
+            event.set()
+            return 42
+
+        @flow
+        async def test_flow():
+            e = Event()
+            f = await waiter_task.submit(e, 1)
+            b = await setter_flow(e)
+            return b
+
+        assert (await test_flow()) == 42
+
+    async def test_subflows_waiting_for_tasks_can_deadlock(self):
+        @task
+        async def waiter_task(event, delay):
+            await sleep(delay)
+            if event.is_set():
+                pass
+            else:
+                raise RuntimeError("The event hasn't been set!")
+
+        @flow
+        async def setter_flow(event):
+            event.set()
+            return 42
+
+        @flow
+        async def test_flow():
+            e = Event()
+            f = await waiter_task.submit(e, 1)
+            b = await setter_flow(e, wait_for=[f])
+            return b
+
+        flow_state = await test_flow._run()
+        assert flow_state.is_failed()
+        assert "MissingResult: State data is missing" in flow_state.message
+
+    def test_using_wait_for_in_task_definition_raises_reserved(self):
+        with pytest.raises(
+            ReservedArgumentError, match="'wait_for' is a reserved argument name"
+        ):
+
+            @flow
+            def foo(wait_for):
+                pass
+
+    def test_downstream_runs_if_upstream_fails_with_allow_failure_annotation(self):
+        @task
+        def fails():
+            raise ValueError("Fail task!")
+
+        @flow
+        def bar(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = fails.submit()
+            b = bar(2, wait_for=[allow_failure(f)], return_state=True)
+            return b
+
+        flow_state = test_flow(return_state=True)
+        subflow_state = flow_state.result(raise_on_failure=False)
+        assert subflow_state.result() == 2
 
 
 class TestTaskWaitFor:

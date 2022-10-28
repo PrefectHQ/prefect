@@ -407,8 +407,6 @@ async def create_and_begin_subflow_run(
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
 
-    # TODO: implement waiting for tasks in subflow runs
-
     if wait_for:
         task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
 
@@ -584,9 +582,7 @@ async def orchestrate_flow_run(
                     client=client,
                     timeout_scope=timeout_scope,
                 ) as flow_run_context:
-                    args, kwargs = parameters_to_args_kwargs(
-                        flow.fn, parameters
-                    )
+                    args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                     logger.debug(
                         f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
                     )
