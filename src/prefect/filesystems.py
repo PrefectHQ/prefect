@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import anyio
 import fsspec
-from pydantic import Field, SecretStr, validator
+from pydantic import Field, SecretStr, validator, root_validator
 
 from prefect.blocks.core import Block
 from prefect.exceptions import InvalidRepositoryURLError
@@ -807,6 +807,7 @@ class GitHub(ReadableDeploymentStorage):
     _block_type_name = "GitHub"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/187oCWsD18m5yooahq1vU0/ace41e99ab6dc40c53e5584365a33821/github.png?h=250"
 
+    # TODO: possibly deprecate this field in favor of branch/tag fields?
     repository: str = Field(
         default=...,
         description="The URL of a GitHub repository to read from, in either HTTPS or SSH format.",
@@ -820,6 +821,16 @@ class GitHub(ReadableDeploymentStorage):
         default=None,
         description="A GitHub Personal Access Token (PAT) with repo scope.",
     )
+    sha1: Optional[str] = Field(
+        default=None,
+        description="Git commit SHA to checkout",
+    )
+
+    @root_validator
+    def _ensure_one_git_reference(cls, values: dict) -> str:
+        if values.get("sha1") is not None and values.get("reference") is not None:
+            raise ValueError("Cannot specify both `sha1` and `reference`")
+        return values
 
     @validator("access_token")
     def _ensure_credentials_go_with_https(cls, v: str, values: dict) -> str:
@@ -879,6 +890,36 @@ class GitHub(ReadableDeploymentStorage):
 
         return str(content_source), str(content_destination)
 
+    async def __fetch_sha(self):
+        if self.sha1 is None:
+            raise ValueError("Cannot call __fetch_sha if sha1 is empty")
+        fetch_err_stream = io.StringIO()
+        fetch_out_stream = io.StringIO()
+        fetch_process = await run_process(
+            f"git fetch --depth 1 origin {self.sha1}",
+            stream_output=(fetch_out_stream, fetch_err_stream),
+        )
+        if fetch_process.returncode != 0:
+            fetch_err_stream.seek(0)
+            raise OSError(
+                f"Failed to fetch git commit from remote:\n {fetch_err_stream.read()}"
+            )
+
+    async def __checkout_sha(self):
+        if self.sha1 is None:
+            raise ValueError("Cannot call __checkout_sha if sha1 is empty")
+        err_stream = io.StringIO()
+        out_stream = io.StringIO()
+        process = await run_process(
+            f"git checkout {self.sha1}",
+            stream_output=(out_stream, err_stream),
+        )
+        if process.returncode != 0:
+            err_stream.seek(0)
+            raise OSError(
+                f"Failed to fetch git commit from remote:\n {err_stream.read()}"
+            )
+
     @sync_compatible
     async def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
@@ -911,6 +952,9 @@ class GitHub(ReadableDeploymentStorage):
             if process.returncode != 0:
                 err_stream.seek(0)
                 raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
+            if self.sha1:
+                await self.__fetch_sha()
+                await self.__checkout_sha()
 
             content_source, content_destination = self._get_paths(
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
