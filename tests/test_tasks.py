@@ -1,7 +1,7 @@
 import datetime
 import inspect
 import warnings
-from asyncio import Event, gather, sleep
+from asyncio import Event, sleep
 from typing import Any, Dict, List
 from unittest.mock import MagicMock
 from uuid import UUID
