@@ -10,7 +10,6 @@ import warnings
 from copy import copy
 from functools import partial, update_wrapper
 from typing import (
-    TYPE_CHECKING,
     Any,
     Awaitable,
     Callable,
@@ -29,8 +28,9 @@ from typing import (
 
 from typing_extensions import Literal, ParamSpec
 
-from prefect.context import PrefectObjectRegistry
+from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
 from prefect.futures import PrefectFuture
+from prefect.logging.loggers import disable_run_logger
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.states import State
 from prefect.utilities.annotations import NotSet
@@ -41,10 +41,6 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
-
-if TYPE_CHECKING:
-    from prefect.context import TaskRunContext
-
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -725,6 +721,20 @@ class Task(Generic[P, R]):
             task_runner=None,
             mapped=True,
         )
+
+
+class ContextAwareTask(Task):
+    def __call__(self, *args, **kwargs):
+        flow_run_context = FlowRunContext.get()
+        task_run_context = TaskRunContext.get()
+
+        if flow_run_context and not task_run_context:
+            super().__call__(*args, **kwargs)
+        elif not flow_run_context and not task_run_context:
+            with disable_run_logger():
+                self.fn(*args, **kwargs)
+        else:
+            self.fn(*args, **kwargs)
 
 
 @overload

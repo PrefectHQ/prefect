@@ -3,6 +3,7 @@ import inspect
 import sys
 import warnings
 from abc import ABC
+from functools import partial
 from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
@@ -172,7 +173,20 @@ class Block(BaseModel, ABC):
                                 ] = type_._to_block_schema_reference_dict()
 
     def __init__(self, *args, **kwargs):
+        from prefect.tasks import ContextAwareTask
+
         super().__init__(*args, **kwargs)
+        methods = inspect.getmembers(self, inspect.ismethod)
+        for name, method in methods:
+            if getattr(method, "_context_aware_task", False):
+                setattr(
+                    self,
+                    name,
+                    ContextAwareTask(
+                        method,
+                        **getattr(method, "_task_kwargs", dict()),
+                    ),
+                )
         self.block_initialization()
 
     def __str__(self) -> str:
@@ -213,6 +227,15 @@ class Block(BaseModel, ABC):
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
     _is_anonymous: Optional[bool] = None
+
+    @staticmethod
+    def context_aware_task(__fn=None, **kwargs):
+        if __fn:
+            __fn._context_aware_task = True
+            __fn._task_kwargs = kwargs
+            return __fn
+        else:
+            return partial(Block.context_aware_task, **kwargs)
 
     @classmethod
     def __dispatch_key__(cls):
