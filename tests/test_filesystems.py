@@ -143,6 +143,7 @@ class TestRemoteFileSystem:
             "/tree/shared_libs",
             "/tree/shared_libs/bar.py",
             "/tree/shared_libs/foo.py",
+            "/tree/.hidden",
         }
 
     async def test_put_directory_put_file_count(self):

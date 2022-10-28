@@ -1,15 +1,5 @@
-import { getAppPermissions, isFeatureFlagString } from '@prefecthq/orion-design'
-import { reactive } from 'vue'
-import { VITE_PREFECT_CANARY } from '@/utilities/meta'
+import { getAppPermissions } from '@prefecthq/orion-design'
 
-export const can = reactive(
-  getAppPermissions(
-    permissionString => {
-      if (isFeatureFlagString(permissionString)) {
-        return VITE_PREFECT_CANARY()
-      }
-
-      return true
-    },
-  ),
+export const can = getAppPermissions(
+  () => true,
 )
