@@ -7,6 +7,7 @@ Module containing the base workflow task class and decorator - for most use case
 import datetime
 import inspect
 import warnings
+from contextlib import nullcontext
 from copy import copy
 from functools import partial, update_wrapper
 from typing import (
@@ -34,7 +35,7 @@ from prefect.logging.loggers import disable_run_logger
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.states import State
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import Async, Sync
+from prefect.utilities.asyncutils import Async, Sync, sync_compatible
 from prefect.utilities.callables import (
     get_call_parameters,
     raise_for_reserved_arguments,
@@ -724,17 +725,24 @@ class Task(Generic[P, R]):
 
 
 class ContextAwareTask(Task):
+    """ """
+
     def __call__(self, *args, **kwargs):
         flow_run_context = FlowRunContext.get()
         task_run_context = TaskRunContext.get()
 
         if flow_run_context and not task_run_context:
-            super().__call__(*args, **kwargs)
-        elif not flow_run_context and not task_run_context:
-            with disable_run_logger():
-                self.fn(*args, **kwargs)
-        else:
-            self.fn(*args, **kwargs)
+            return super().__call__(*args, **kwargs)
+        context = (
+            disable_run_logger
+            if not flow_run_context and not task_run_context
+            else nullcontext
+        )
+        with context():
+            if self.isasync:
+                return sync_compatible(self.fn)(*args, **kwargs)
+            else:
+                return self.fn(*args, **kwargs)
 
 
 @overload
