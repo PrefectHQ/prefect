@@ -1159,6 +1159,7 @@ class TestCreateThenBeginFlowRun:
         state = await create_then_begin_flow_run(
             flow=parameterized_flow,
             parameters={"dog": [1, 2], "cat": "not an int"},
+            wait_for=None,
             return_type="state",
             client=orion_client,
         )
@@ -1176,6 +1177,7 @@ class TestCreateThenBeginFlowRun:
         state = await create_then_begin_flow_run(
             flow=parameterized_flow,
             parameters={"puppy": "a string", "kitty": 42},
+            wait_for=None,
             return_type="state",
             client=orion_client,
         )
@@ -1201,6 +1203,7 @@ class TestCreateThenBeginFlowRun:
         state = await create_then_begin_flow_run(
             flow=flow_use_and_return_defaults,
             parameters={},
+            wait_for=None,
             return_type="state",
             client=orion_client,
         )
@@ -1221,6 +1224,7 @@ class TestCreateThenBeginFlowRun:
         state = await create_then_begin_flow_run(
             flow=parameterized_flow,
             parameters={"puppy": "a string", "kitty": 42},
+            wait_for=None,
             return_type="state",
             client=orion_client,
         )
@@ -1260,6 +1264,7 @@ class TestRetrieveFlowThenBeginFlowRun:
         state = await create_then_begin_flow_run(
             flow=parameterized_flow,
             parameters={"puppy": "a string", "kitty": 42},
+            wait_for=None,
             return_type="state",
             client=orion_client,
         )
@@ -1286,6 +1291,7 @@ class TestRetrieveFlowThenBeginFlowRun:
         state = await create_then_begin_flow_run(
             flow=parameterized_flow,
             parameters={"puppy": "a string", "kitty": 42},
+            wait_for=None,
             return_type="state",
             client=orion_client,
         )
@@ -1307,6 +1313,7 @@ class TestCreateAndBeginSubflowRun:
             state = await create_and_begin_subflow_run(
                 flow=parameterized_flow,
                 parameters={"dog": [1, 2], "cat": "not an int"},
+                wait_for=None,
                 return_type="state",
                 client=orion_client,
             )
@@ -1331,6 +1338,7 @@ class TestCreateAndBeginSubflowRun:
             state = await create_and_begin_subflow_run(
                 flow=parameterized_flow,
                 parameters={"puppy": "a string", "kitty": 42},
+                wait_for=None,
                 return_type="state",
                 client=orion_client,
             )
@@ -1358,6 +1366,7 @@ class TestCreateAndBeginSubflowRun:
         state = await create_then_begin_flow_run(
             flow=parameterized_flow,
             parameters={"puppy": "a string", "kitty": 42},
+            wait_for=None,
             return_type="state",
             client=orion_client,
         )
