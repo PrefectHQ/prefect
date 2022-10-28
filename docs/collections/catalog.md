@@ -17,18 +17,24 @@ tags:
 Below you can find a list of all available Prefect Collections.
 
 <!-- The code below is a jinja2 template that will be rendered by generate_catalog.py -->
-<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));">
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(144px, 1fr));">
 {% for collection in collections %}
-    <div>
-        <a href="{{ collection['documentation'] }}">
-            <h4>{{collection['collectionName']}}</h4>
-        </a>
-        <a href="{{ collection['documentation'] }}">
-            <img src={{collection['iconUrl']}} style="max-height: 128px; max-width: 128px">
-        </a>
-        <p style="font-size: 0.6rem">
-            Maintained by <a href="{{ collection["authorUrl"] }}">{{ collection["author"] }}</a>
-        </p>
+    <div style="padding: 1rem; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); border-radius: 3px">
+        <center>
+            <div>
+                <a href="{{ collection['documentation'] }}">
+                    <p style="font-size: 0.7rem">
+                        {{collection['tag']}}
+                    </p>
+                </a>
+                <a href="{{ collection['documentation'] }}">
+                    <img src={{collection['iconUrl']}} style="max-height: 64px; max-width: 64px">
+                </a>
+                <p style="font-size: 0.5rem">
+                    Maintained by <a href="{{ collection["authorUrl"] }}"><br>{{ collection["author"] }}</a>
+                </p>
+            </div>
+        </center>
     </div>
 {% endfor %}
 </div >
