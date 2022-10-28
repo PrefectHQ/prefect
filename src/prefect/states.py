@@ -214,7 +214,14 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         and not retval.state_details.flow_run_id
         and not retval.state_details.task_run_id
     ):
-        return retval
+        state = retval
+
+        # Unless the user has already constructed a result explicitly, use the factory
+        # to update the data to the correct type
+        if not isinstance(state.data, BaseResult):
+            state.data = await result_factory.create_result(state.data)
+
+        return state
 
     # Determine a new state from the aggregate of contained states
     if is_state(retval) or is_state_iterable(retval):

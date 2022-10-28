@@ -1,33 +1,23 @@
-import { applyColorModeClass, ColorMode, defaultColorMode, isColorMode } from '@prefecthq/orion-design'
+import { applyColorModeClass, ColorMode, isColorMode } from '@prefecthq/orion-design'
+import { useLocalStorage } from '@prefecthq/vue-compositions'
+import { computed } from 'vue'
 
 const colorModeLocalStorageKey = 'orion-color-mode'
+const nonJsonVersion = localStorage.getItem(colorModeLocalStorageKey)
+const defaultValue = isColorMode(nonJsonVersion) ? nonJsonVersion : null
 
-export function getActiveColorMode(): ColorMode {
-  try {
-    const fromLocalStorage = localStorage.getItem(colorModeLocalStorageKey)
+const { value: colorMode, set: setColorMode } = useLocalStorage<ColorMode | null>(colorModeLocalStorageKey, defaultValue)
 
-    if (isColorMode(fromLocalStorage)) {
-      return fromLocalStorage
-    }
-  } catch (err) {
-    console.warn(err)
-  }
+export const activeColorMode = computed({
+  get() {
+    return colorMode.value
+  },
+  set(value: ColorMode | null) {
+    setColorMode(value)
+    applyColorModeClass(value)
+  },
+})
 
-  return defaultColorMode
-}
-
-export function setActiveColorMode(value: ColorMode): void {
-  try {
-    localStorage.setItem(colorModeLocalStorageKey, value)
-  } catch (err) {
-    console.warn(err)
-  }
-
-  applyActiveColorModeClass()
-}
-
-export function applyActiveColorModeClass(): void {
-  const active = getActiveColorMode()
-
-  applyColorModeClass(active)
+export function initColorMode(): void {
+  applyColorModeClass(activeColorMode.value)
 }
