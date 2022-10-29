@@ -1,3 +1,4 @@
+import json
 import logging
 import logging.config
 import logging.handlers
@@ -30,7 +31,7 @@ class JsonFormatter(logging.Formatter):
         self.fmt = fmt
 
     def format(self, record: logging.LogRecord):
-        format_fn = pformat if self.fmt == "pretty" else str
+        format_fn = pformat if self.fmt == "pretty" else json.dumps
         return format_fn(
             {key: safe_jsonable(val) for key, val in record.__dict__.items()}
         )
