@@ -4,56 +4,69 @@ from unittest import mock
 
 import pytest
 
-from prefect.utilities.processutils import kill_on_interrupt, run_process
+from prefect.utilities.processutils import kill_on_interrupt, open_process, run_process
 
 
-async def test_run_process_hides_output(capsys):
-    process = await run_process(["echo", "hello world"], stream_output=False)
-    assert process.returncode == 0
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert err == ""
+class TestRunProcess:
+    async def test_run_process_hides_output(self, capsys):
+        process = await run_process(["echo", "hello world"], stream_output=False)
+        assert process.returncode == 0
+        out, err = capsys.readouterr()
+        assert out == ""
+        assert err == ""
 
+    async def test_run_process_captures_stdout(self, capsys):
+        process = await run_process(["echo", "hello world"], stream_output=True)
+        assert process.returncode == 0
+        out, err = capsys.readouterr()
+        assert out.strip() == "hello world"
+        assert err == ""
 
-async def test_run_process_captures_stdout(capsys):
-    process = await run_process(["echo", "hello world"], stream_output=True)
-    assert process.returncode == 0
-    out, err = capsys.readouterr()
-    assert out.strip() == "hello world"
-    assert err == ""
-
-
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="stderr redirect does not work on Windows"
-)
-async def test_run_process_captures_stderr(capsys):
-    process = await run_process(
-        ["bash", "-c", ">&2 echo hello world"], stream_output=True
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="stderr redirect does not work on Windows"
     )
-    assert process.returncode == 0
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert err.strip() == "hello world"
-
-
-async def test_run_process_allows_stdout_fd(tmp_path):
-    with open(tmp_path / "output.txt", "wt") as fout:
-        process = await run_process(["echo", "hello world"], stream_output=(fout, None))
-
-    assert process.returncode == 0
-    assert (tmp_path / "output.txt").read_text().strip() == "hello world"
-
-
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="stderr redirect does not work on Windows"
-)
-async def test_run_process_allows_stderr_fd(tmp_path):
-    with open(tmp_path / "output.txt", "wt") as fout:
+    async def test_run_process_captures_stderr(self, capsys):
         process = await run_process(
-            ["bash", "-c", ">&2 echo hello world"], stream_output=(None, fout)
+            ["bash", "-c", ">&2 echo hello world"], stream_output=True
         )
-    assert process.returncode == 0
-    assert (tmp_path / "output.txt").read_text().strip() == "hello world"
+        assert process.returncode == 0
+        out, err = capsys.readouterr()
+        assert out == ""
+        assert err.strip() == "hello world"
+
+    async def test_run_process_allows_stdout_fd(self, tmp_path):
+        with open(tmp_path / "output.txt", "wt") as fout:
+            process = await run_process(
+                ["echo", "hello world"], stream_output=(fout, None)
+            )
+
+        assert process.returncode == 0
+        assert (tmp_path / "output.txt").read_text().strip() == "hello world"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="stderr redirect does not work on Windows"
+    )
+    async def test_run_process_allows_stderr_fd(self, tmp_path):
+        with open(tmp_path / "output.txt", "wt") as fout:
+            process = await run_process(
+                ["bash", "-c", ">&2 echo hello world"], stream_output=(None, fout)
+            )
+        assert process.returncode == 0
+        assert (tmp_path / "output.txt").read_text().strip() == "hello world"
+
+
+class TestOpenProcess:
+    str_cmd = "ls -a"
+    list_cmd = ["ls", "-a"]
+
+    async def test_errors_if_cmd_is_not_list(self):
+        with pytest.raises(TypeError):
+            async with open_process(command=self.str_cmd):
+                pass
+
+    async def test_runs_if_cmd_is_list(self):
+        async with open_process(self.list_cmd) as process:
+            assert process
 
 
 class TestKillOnInterrupt:
