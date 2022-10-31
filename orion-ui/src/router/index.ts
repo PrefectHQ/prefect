@@ -11,11 +11,6 @@ const routeRecords: AppRouteRecord[] = [
     redirect: routes.flowRuns(),
   },
   {
-    name: 'flow-runs-old',
-    path: '/runs',
-    redirect: routes.flowRuns(),
-  },
-  {
     path: '/flow-runs',
     children: [
       {
@@ -179,6 +174,21 @@ const routeRecords: AppRouteRecord[] = [
     name: 'settings',
     path: '/settings',
     component: (): RouteComponent => import('@/pages/Settings.vue'),
+  },
+  {
+    name: 'flow-runs-old',
+    path: '/runs',
+    redirect: routes.flowRuns(),
+  },
+  {
+    path: '/flow-run/:id',
+    name: 'flow-run-old',
+    redirect: to => routes.flowRun(to.params.id as string),
+  },
+  {
+    path: '/deployment/:id',
+    name: 'deployment-old',
+    redirect: to => routes.flowRun(to.params.id as string),
   },
   {
     path: '/:pathMatch(.*)*',
