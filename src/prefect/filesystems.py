@@ -896,12 +896,10 @@ class GitHub(ReadableDeploymentStorage):
         # CONSTRUCT COMMAND
         cmd = ["git", "clone", self._create_repo_url()]
         if self.reference:
-            cmd.append("-b")
-            cmd.append(self.reference)
+            cmd += ["-b", self.reference]
 
         # Limit git history
-        cmd.append("--depth")
-        cmd.append("1")
+        cmd += ["--depth", "1"]
 
         # Clone to a temporary directory and move the subdirectory over
         with TemporaryDirectory(suffix="prefect") as tmp_dir:
