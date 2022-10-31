@@ -90,15 +90,16 @@ async def read_work_queues(
     session: AsyncSession,
     offset: int = None,
     limit: int = None,
+    work_queue_filter: schemas.filters.WorkQueueFilter = None,
 ):
     """
     Read WorkQueues.
 
     Args:
-        session (AsyncSession): A database session
-        offset (int): Query offset
-        limit(int): Query limit
-
+        session: A database session
+        offset: Query offset
+        limit: Query limit
+        work_queue_filter: only select work queues matching these filters
     Returns:
         List[db.WorkQueue]: WorkQueues
     """
@@ -109,6 +110,8 @@ async def read_work_queues(
         query = query.offset(offset)
     if limit is not None:
         query = query.limit(limit)
+    if work_queue_filter:
+        query = query.where(work_queue_filter.as_sql_filter(db))
 
     result = await session.execute(query)
     return result.scalars().unique().all()

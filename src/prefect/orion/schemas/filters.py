@@ -1231,3 +1231,48 @@ class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
             filters.append(self.is_active.as_sql_filter(db))
 
         return filters
+
+
+class WorkQueueFilterName(PrefectFilterBaseModel):
+    """Filter by `WorkQueue.name`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None,
+        description="A list of work queue names to include",
+        example=["wq-1", "wq-2"],
+    )
+
+    startswith_: Optional[str] = Field(
+        default=None,
+        description=(
+            "A case-insensitive starts-with match. For example, "
+            " passing 'marvin' will match "
+            "'marvin', and 'Marvin-robot', but not 'sad-marvin'."
+        ),
+        example="marvin",
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.WorkQueue.name.in_(self.any_))
+        if self.startswith_ is not None:
+            filters.append(db.WorkQueue.name.ilike(f"{self.startswith_}%"))
+        return filters
+
+
+class WorkQueueFilter(PrefectOperatorFilterBaseModel):
+    """Filter work queues. Only work queues matching all criteria will be
+    returned"""
+
+    name: Optional[WorkQueueFilterName] = Field(
+        default=None, description="Filter criteria for `WorkQueue.name`"
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+
+        if self.name is not None:
+            filters.append(self.name.as_sql_filter(db))
+
+        return filters
