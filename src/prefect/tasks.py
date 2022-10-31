@@ -221,6 +221,7 @@ class Task(Generic[P, R]):
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
         cache_result_in_memory: Optional[bool] = None,
+        timeout_seconds: Union[int, float] = None,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -304,6 +305,9 @@ class Task(Generic[P, R]):
                 cache_result_in_memory
                 if cache_result_in_memory is not None
                 else self.cache_result_in_memory
+            ),
+            timeout_seconds=(
+                timeout_seconds if timeout_seconds is not None else self.timeout_seconds
             ),
         )
 
