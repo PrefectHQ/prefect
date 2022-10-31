@@ -7,6 +7,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 
+from prefect.exceptions import MissingFlowRunError
 from prefect.orion import schemas
 from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.core_policy import (
@@ -482,6 +483,47 @@ class TestUpdatingFlowRunTrackerOnTasks:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
 
         assert ctx.run.flow_run_run_count == flow_run_count
+
+    async def test_task_run_tracking_raises_informative_errors_on_missing_flow_runs(
+        self,
+        session,
+        initialize_orchestration,
+        monkeypatch,
+    ):
+        update_policy = [
+            UpdateFlowRunTrackerOnTasks,
+        ]
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            flow_run_count=42,
+        )
+
+        flow_run = await ctx.flow_run()
+        assert flow_run.run_count == 42
+        ctx.run.flow_run_run_count = 1
+
+        async def missing_flow_run(self):
+            return None
+
+        with pytest.raises(MissingFlowRunError, match="Unable to read flow run"):
+            async with contextlib.AsyncExitStack() as stack:
+                for rule in update_policy:
+                    ctx = await stack.enter_async_context(
+                        rule(ctx, *intended_transition)
+                    )
+                    monkeypatch.setattr(
+                        "prefect.orion.orchestration.rules.TaskOrchestrationContext.flow_run",
+                        missing_flow_run,
+                    )
+
+        assert (
+            ctx.run.flow_run_run_count == 1
+        ), "The run count should not be updated if the flow run is missing"
 
 
 class TestPermitRerunningFailedTaskRuns:
