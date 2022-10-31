@@ -24,7 +24,7 @@ async def open_process(command: List[str], **kwargs):
     # Passing a string to open_process is equivalent to shell=True which is
     # generally necessary for Unix-like commands on Windows but otherwise should
     # be avoided
-    if sys.platform == "win32":
+    if isinstance(command, list) and sys.platform == "win32":
         command = " ".join(command)
 
     process = await anyio.open_process(command, **kwargs)
