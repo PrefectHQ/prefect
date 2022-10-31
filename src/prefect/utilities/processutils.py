@@ -40,7 +40,7 @@ async def open_process(command: List[str], **kwargs):
             pass
 
         # Ensure the process resource is closed. If not shielded from cancellation,
-        # this resource an be left open and the subprocess output can be appear after
+        # this resource can be left open and the subprocess output can appear after
         # the parent process has exited.
         with anyio.CancelScope(shield=True):
             await process.aclose()

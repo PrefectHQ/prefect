@@ -13,7 +13,7 @@ tags:
 
 # Installation
 
-The first step to getting started with Prefect is installing the Prefect Python package. 
+The first step to getting started with Prefect is installing the Prefect Python package.
 
 <p align="left">
     <a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
@@ -43,7 +43,7 @@ We recommend installing Prefect 2 using a Python virtual environment manager suc
 !!! warning "Windows and Linux requirements"
     See [Windows installation notes](#windows-installation-notes) and [Linux installation notes](#linux-installation-notes) for details on additional installation requirements and considerations.
 
-## Install Prefect 
+## Install Prefect
 
 The following sections describe how to install Prefect in your development or execution environment.
 
@@ -122,12 +122,12 @@ Server:
 
 ## Windows installation notes
 
-Prefect 2 supports running Prefect flows on Windows. 
+Prefect 2 supports running Prefect flows on Windows.
 
 !!! note "Prefect on Windows requires Python 3.8 or later"
     Make sure to use Python 3.8 or higher when running a Prefect agent on Windows.
 
-You can install and run Prefect as described above via Windows PowerShell, the Windows Command Prompt, or [`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html). Note that, after installation, you may need to manually add the Python local packages `Scripts` folder to your `Path` environment variable. 
+You can install and run Prefect as described above via Windows PowerShell, the Windows Command Prompt, or [`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html). Note that, after installation, you may need to manually add the Python local packages `Scripts` folder to your `Path` environment variable.
 
 The `Scripts` folder path looks something like this (the username and Python version may be different on your system):
 
@@ -140,10 +140,10 @@ Watch the `pip install` installation output messages for the `Scripts` folder pa
 If using Windows Subsystem for Linux (WSL), see [Linux installation notes](#linux-installation-notes).
 
 !!! note "Windows support is under development"
-    Support for Prefect on Windows is a work in progress. 
-    
-    Right now, we're focused on your ability to develop and run flows and tasks on Windows, along with running the API server, orchestration engine, and UI. 
-    
+    Support for Prefect on Windows is a work in progress.
+
+    Right now, we're focused on your ability to develop and run flows and tasks on Windows, along with running the API server, orchestration engine, and UI.
+
     If you encounter unexpected issues, please let us know via a [GitHub issue](https://github.com/PrefectHQ/prefect/issues), [Prefect Discourse](https://discourse.prefect.io/) discussion groups, or the [Prefect Community Slack](https://www.prefect.io/slack/).
 
 ## Linux installation notes
@@ -156,7 +156,7 @@ Known compatible releases include:
 
 - Ubuntu 20.04 LTS
 
-You can also: 
+You can also:
 
 - Use [Prefect Cloud](/ui/cloud/) as your API server and orchestration engine.
 - Use the `conda` virtual environment manager, which enables configuring a compatible SQLite version.
@@ -253,6 +253,16 @@ pip3 install prefect
 ```
 </div>
 
+## Using Prefect in an environment with HTTP proxies
+
+If you are using Prefect Cloud or hosting your own Orion instance, the Prefect library
+will connect to the API via any proxies you have listed in the `HTTP_PROXY`,
+`HTTPS_PROXY`, or `ALL_PROXY` environment variables.  You may also use the `NO_PROXY`
+environment variable to specify which hosts should not be sent through the proxy.
+
+For more information about these environment variables, see the [cURL
+documentation](https://everything.curl.dev/usingcurl/proxies/env).
+
 ## Upgrading from Prefect beta
 
 The following sections provide important notes for users upgrading from Prefect 2 beta releases.
@@ -273,11 +283,11 @@ You don't need to recreate any deployments or pause your schedules &mdash; stopp
 
 ### Upgrading to 2.0a10
 
-Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect Orion database. 
+Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect Orion database.
 
 Prior to 2.0a10, Prefect did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be upgraded automatically with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier.
 
 Resetting the database with the CLI command `prefect orion database reset` is not compatible a database from 2.0a9 or earlier. Instead, delete the database file `~/.prefect/orion.db`. Prefect automatically creates a new database on the next write.
 
 !!! warning "Resetting the database deletes data"
-    Note that resetting the database causes the loss of any existing data. 
+    Note that resetting the database causes the loss of any existing data.

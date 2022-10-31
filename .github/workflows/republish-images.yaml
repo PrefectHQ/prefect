@@ -1,0 +1,103 @@
+name: Publish Docker images
+# Workflow for publishing images that failed to push during release
+# Images must have built.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Git SHA to publish images for. Images must be built already."
+        type: string
+        required: true
+
+jobs:
+  publish-docker-images:
+    name: Publish to DockerHub
+    environment: "prod"
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download image artifacts for Python 3.7
+        uses: actions/download-artifact@v3
+        with:
+          name: release-image-${{ inputs.sha }}-3.7
+          path: /tmp/3.7/
+
+      - name: Download image artifacts for Python 3.8
+        uses: actions/download-artifact@v3
+        with:
+          name: release-image-${{ inputs.sha }}-3.8
+          path: /tmp/3.8/
+
+      - name: Download image artifacts for Python 3.9
+        uses: actions/download-artifact@v3
+        with:
+          name: release-image-${{ inputs.sha }}-3.9
+          path: /tmp/3.9/
+
+      - name: Download image artifacts for Python 3.10
+        uses: actions/download-artifact@v3
+        with:
+          name: release-image-${{ inputs.sha }}-3.10
+          path: /tmp/3.10/
+
+      - name: Download image artifacts for Python 3.11
+        uses: actions/download-artifact@v3
+        with:
+          name: release-image-${{ inputs.sha }}-3.11
+          path: /tmp/3.11/
+
+      - name: Download conda image artifacts for Python 3.7
+        uses: actions/download-artifact@v3
+        with:
+          name: release-image-${{ inputs.sha }}-3.7-conda
+          path: /tmp/3.7/
+
+      - name: Download conda image artifacts for Python 3.8
+        uses: actions/download-artifact@v3
+        with:
+          name: release-image-${{ inputs.sha }}-3.8-conda
+          path: /tmp/3.8/
+
+      - name: Download conda image artifacts for Python 3.9
+        uses: actions/download-artifact@v3
+        with:
+          name: release-image-${{ inputs.sha }}-3.9-conda
+          path: /tmp/3.9/
+
+      - name: Download conda image artifacts for Python 3.10
+        uses: actions/download-artifact@v3
+        with:
+          name: release-image-${{ inputs.sha }}-3.10-conda
+          path: /tmp/3.10/
+
+      # Not yet available, see note at top
+      # - name: Download conda image artifacts for Python 3.11
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: release-image-${{ inputs.sha }}-3.11-conda
+      #     path: /tmp/3.11/
+
+      - name: Load images
+        run: |
+          docker load --input /tmp/3.7/image.tar
+          docker load --input /tmp/3.8/image.tar
+          docker load --input /tmp/3.9/image.tar
+          docker load --input /tmp/3.10/image.tar
+          docker load --input /tmp/3.11/image.tar
+          docker load --input /tmp/3.7/image-conda.tar
+          docker load --input /tmp/3.8/image-conda.tar
+          docker load --input /tmp/3.9/image-conda.tar
+          docker load --input /tmp/3.10/image-conda.tar
+          # Not yet available, see note at top
+          # docker load --input /tmp/3.11/image-conda.tar
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push images
+        run: |
+          docker image push --all-tags prefecthq/prefect

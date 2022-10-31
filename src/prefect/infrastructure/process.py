@@ -1,8 +1,10 @@
 import asyncio
+import contextlib
 import os
 import sys
 import tempfile
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Union
 
 import anyio.abc
 import sniffio
@@ -54,6 +56,11 @@ class Process(Infrastructure):
         default=True,
         description="If set, output will be streamed from the process to local standard output.",
     )
+    working_dir: Union[str, Path, None] = Field(
+        default=None,
+        description="If set, the process will open within the specified path as the working directory."
+        " Otherwise, a temporary directory will be created.",
+    )  # Underlying accepted types are str, bytes, PathLike[str], None
 
     @sync_compatible
     async def run(
@@ -68,9 +75,14 @@ class Process(Infrastructure):
 
         # Open a subprocess to execute the flow run
         self.logger.info(f"Opening process{display_name}...")
-        with tempfile.TemporaryDirectory(suffix="prefect") as tmp_dir:
+        working_dir_ctx = (
+            tempfile.TemporaryDirectory(suffix="prefect")
+            if not self.working_dir
+            else contextlib.nullcontext(self.working_dir)
+        )
+        with working_dir_ctx as working_dir:
             self.logger.debug(
-                f"Process{display_name} running command: {' '.join(self.command)} in {tmp_dir}"
+                f"Process{display_name} running command: {' '.join(self.command)} in {working_dir}"
             )
 
             process = await run_process(
@@ -78,7 +90,7 @@ class Process(Infrastructure):
                 stream_output=self.stream_output,
                 task_status=task_status,
                 env=self._get_environment_variables(),
-                cwd=tmp_dir,
+                cwd=working_dir,
             )
 
         # Use the pid for display if no name was given

@@ -8,6 +8,7 @@ export default defineConfig({
   base: process.env.ORION_UI_SERVE_BASE ?? '',
   resolve: {
     alias: [{ find: '@', replacement: resolve(__dirname, './src') }],
+    dedupe: ['vue'],
   },
   css: {
     devSourcemap: true,

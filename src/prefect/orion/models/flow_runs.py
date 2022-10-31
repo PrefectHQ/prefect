@@ -11,6 +11,7 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
+from packaging.version import Version
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
@@ -377,6 +378,7 @@ async def set_flow_run_state(
     state: schemas.states.State,
     force: bool = False,
     flow_policy: BaseOrchestrationPolicy = None,
+    api_version: Version = None,
 ) -> OrchestrationResult:
     """
     Creates a new orchestrated flow run state.
@@ -425,6 +427,9 @@ async def set_flow_run_state(
         initial_state=initial_state,
         proposed_state=state,
     )
+
+    # pass the request version to the orchestration engine to support compatibility code
+    context.parameters["api-version"] = api_version
 
     # apply orchestration rules and create the new flow run state
     async with contextlib.AsyncExitStack() as stack:

@@ -227,12 +227,9 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 | stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
 
 
-### ECSTask <span class="badge experimental"></span>
+### ECSTask
 
 [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) infrastructure runs your flow in an ECS Task.
-
-!!! note "Experimental block"
-    This infrastructure block is experimental. The interfaces of this block may change without notice.
 
 Requirements for `ECSTask`:
 
@@ -273,7 +270,7 @@ Additionally, we have "convenience" tags which are updated with each release to 
 
 For example, when release `2.1.1` is published:
 
-1. Images with the release packaged are built for each supported Python version (3.7, 3.8, 3.9, 3.10) with both standard Python and Conda.
+1. Images with the release packaged are built for each supported Python version (3.7, 3.8, 3.9, 3.10, 3.11) with both standard Python and Conda.
 2. These images are tagged with the full description, e.g. `prefect:2.1.1-python3.7` and `prefect:2.1.1-python3.7-conda`.
 3. For users that want more specific pins, these images are also tagged with the SHA of the git commit of the release, e.g. `sha-88a7ff17a3435ec33c95c0323b8f05d7b9f3f6d2-python3.7`
 4. For users that want to be on the latest `2.1.x` release, receiving patch updates, we update a tag without the patch version to this release, e.g. `prefect.2.1-python3.7`.
@@ -287,14 +284,17 @@ Standard Python images are based on the official Python `slim` images, e.g. `pyt
 | Tag                   |       Prefect Version       | Python Version  |
 | --------------------- | :-------------------------: | -------------:  |
 | 2-latest              | most recent v2 PyPi version |            3.10 |
+| 2-python3.11          | most recent v2 PyPi version |            3.11 |
 | 2-python3.10          | most recent v2 PyPi version |            3.10 |
 | 2-python3.9           | most recent v2 PyPi version |            3.9  |
 | 2-python3.8           | most recent v2 PyPi version |            3.8  |
 | 2-python3.7           | most recent v2 PyPi version |            3.7  |
+| 2.X-python3.11        |             2.X             |            3.11 |
 | 2.X-python3.10        |             2.X             |            3.10 |
 | 2.X-python3.9         |             2.X             |            3.9  |
 | 2.X-python3.8         |             2.X             |            3.8  |
 | 2.X-python3.7         |             2.X             |            3.7  |
+| sha-&lt;hash&gt;-python3.11 |            &lt;hash&gt;           |            3.11 |
 | sha-&lt;hash&gt;-python3.10 |            &lt;hash&gt;           |            3.10 |
 | sha-&lt;hash&gt;-python3.9  |            &lt;hash&gt;           |            3.9  |
 | sha-&lt;hash&gt;-python3.8  |            &lt;hash&gt;           |            3.8  |
@@ -304,6 +304,8 @@ Standard Python images are based on the official Python `slim` images, e.g. `pyt
 #### Conda-flavored Python
 
 Conda flavored images are based on `continuumio/miniconda3`. Prefect is installed into a conda environment named `prefect`.
+
+Note, Conda support for Python 3.11 is not available so we cannot build an image yet.
 
 | Tag                         |       Prefect Version       | Python Version  |
 | --------------------------- | :-------------------------: | -------------:  |
