@@ -185,27 +185,7 @@ const routeRecords: AppRouteRecord[] = [
     path: '/settings',
     component: (): RouteComponent => import('@/pages/Settings.vue'),
   },
-  // redirects
-  {
-    name: 'flow-runs-old',
-    path: '/runs',
-    redirect: routes.flowRuns(),
-  },
-  {
-    path: '/flow-run/:id',
-    name: 'flow-run-old',
-    redirect: to => routes.flowRun(to.params.id as string),
-  },
-  {
-    path: '/flow/:id',
-    name: 'flow-old',
-    redirect: to => routes.flow(to.params.id as string),
-  },
-  {
-    path: '/deployment/:id',
-    name: 'deployment-old',
-    redirect: to => routes.deployment(to.params.id as string),
-  },
+
   {
     path: '/:pathMatch(.*)*',
     name: '404',
