@@ -64,22 +64,3 @@ test('Can edit notification', async () => {
 
   await expect(tag).toBeVisible()
 })
-
-test('Can delete notification', async () => {
-  const { rows: notifications } = useTable()
-  const notification = notifications.first()
-  const existingNotifications = await notifications.count()
-
-  const { selectItem } = useIconButtonMenu(undefined, notification)
-  await selectItem('Delete')
-
-  const { footer, closed } = useModal()
-  const { button } = useButton('Delete', footer)
-
-  await button.click()
-  await closed()
-
-  const newNotifications = await notifications.count()
-
-  expect(newNotifications).toBe(existingNotifications - 1)
-})

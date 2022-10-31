@@ -3,7 +3,7 @@ import uuid
 import pytest
 
 from prefect.exceptions import CrashedRun, FailedRun
-from prefect.results import LiteralResult, ResultFactory
+from prefect.results import LiteralResult, PersistedResult, ResultFactory
 from prefect.states import (
     Completed,
     Crashed,
@@ -125,12 +125,29 @@ class TestReturnValueToState:
         state = Completed(data="hello!")
         assert await return_value_to_state(state, factory) is state
 
+    async def test_returns_single_state_with_null_data(self, factory):
+        state = Completed(data=None)
+        result_state = await return_value_to_state(state, factory)
+        assert result_state is state
+        assert result_state.data == LiteralResult(value=None)
+        assert await result_state.result() is None
+
+    async def test_returns_single_state_with_data_to_persist(self, factory):
+        factory.persist_result = True
+        state = Completed(data=1)
+        result_state = await return_value_to_state(state, factory)
+        assert result_state is state
+        assert isinstance(result_state.data, PersistedResult)
+        assert await result_state.result() == 1
+
     async def test_returns_single_state_unaltered_with_user_created_reference(
         self, factory
     ):
-        state = Completed(data=await factory.create_result("test"))
+        result = await factory.create_result("test")
+        state = Completed(data=result)
         result_state = await return_value_to_state(state, factory)
         assert result_state is state
+        assert result_state.data is result
         assert await result_state.result() == "test"
 
     async def test_all_completed_states(self, factory):

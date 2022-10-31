@@ -111,6 +111,16 @@ to force column width */
     content: "Prefect Cloud";
 }
 
+.orgs::before {
+    background-color: #5f79c2;
+    content: "Organizations";
+}
+
+.enterprise::before {
+    background-color: #115AF4;
+    content: "Enterprise";
+}
+
 .deprecated::before {
     background-color: #FA1C2F;
     content: "Deprecated";

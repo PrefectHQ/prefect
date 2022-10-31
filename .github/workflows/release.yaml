@@ -1,5 +1,7 @@
 name: Release prefect
 
+# Note: Conda support for 3.11 is pending. See https://github.com/ContinuumIO/anaconda-issues/issues/13082
+
 on:
   push:
     tags:
@@ -61,6 +63,7 @@ jobs:
           - "3.8"
           - "3.9"
           - "3.10"
+          - "3.11"
 
     steps:
       # Not needed until we want multiarchecture builds
@@ -122,6 +125,8 @@ jobs:
           - "3.8"
           - "3.9"
           - "3.10"
+          # Not yet supported, see note at top
+          # - "3.11"
 
     steps:
       # Not needed until we want multiarchecture builds
@@ -176,9 +181,29 @@ jobs:
           name: release-image-${{ github.sha }}-${{ matrix.python-version }}-conda
           path: /tmp/image-conda.tar
 
+  publish-release:
+    name: Publish to PyPI
+    environment: "prod"
+    needs: [build-release]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: built-package
+          path: "./dist"
+
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+          name: ci
+
   publish-docs:
     name: Publish documentation
-    needs: [build-release, publish-test-release]
+    needs: [build-release]
     environment: "prod"
     runs-on: ubuntu-latest
 
@@ -214,45 +239,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  publish-test-release:
-    name: Publish release to Test PyPI
-    needs: [build-release]
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: built-package
-          path: "./dist"
-
-      - name: Publish distribution 📦 to Test PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          skip_existing: true
-          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-          repository_url: https://test.pypi.org/legacy/
-
-  publish-release:
-    name: Publish to PyPI
-    environment: "prod"
-    needs: [build-release, publish-test-release]
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: built-package
-          path: "./dist"
-
-      - name: Publish distribution to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-
-          name: ci
-
   publish-docker-images:
     name: Publish to DockerHub
     needs:
@@ -260,7 +246,6 @@ jobs:
         build-docker-images,
         build-conda-docker-images,
         build-release,
-        publish-test-release,
       ]
     environment: "prod"
 
@@ -290,6 +275,12 @@ jobs:
           name: release-image-${{ github.sha }}-3.10
           path: /tmp/3.10/
 
+      - name: Download image artifacts for Python 3.11
+        uses: actions/download-artifact@v3
+        with:
+          name: release-image-${{ github.sha }}-3.11
+          path: /tmp/3.11/
+
       - name: Download conda image artifacts for Python 3.7
         uses: actions/download-artifact@v3
         with:
@@ -314,16 +305,26 @@ jobs:
           name: release-image-${{ github.sha }}-3.10-conda
           path: /tmp/3.10/
 
+      # Not yet available, see note at top
+      # - name: Download conda image artifacts for Python 3.11
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: release-image-${{ github.sha }}-3.11-conda
+      #     path: /tmp/3.11/
+
       - name: Load images
         run: |
           docker load --input /tmp/3.7/image.tar
           docker load --input /tmp/3.8/image.tar
           docker load --input /tmp/3.9/image.tar
           docker load --input /tmp/3.10/image.tar
+          docker load --input /tmp/3.11/image.tar
           docker load --input /tmp/3.7/image-conda.tar
           docker load --input /tmp/3.8/image-conda.tar
           docker load --input /tmp/3.9/image-conda.tar
           docker load --input /tmp/3.10/image-conda.tar
+          # Not yet available, see note at top
+          # docker load --input /tmp/3.11/image-conda.tar
 
       - name: Login to DockerHub
         uses: docker/login-action@v2
