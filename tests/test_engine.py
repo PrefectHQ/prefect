@@ -1,3 +1,4 @@
+import asyncio
 import time
 from contextlib import contextmanager
 from functools import partial
@@ -416,6 +417,51 @@ class TestOrchestrateTaskRun:
         await anyio.sleep(1)
 
         assert i <= 10, "`just_sleep` should not be running after timeout"
+
+    async def test_task_timeouts_are_not_task_crashes(self, flow_run, orion_client):
+        @task(timeout_seconds=1)
+        async def my_task():
+            await asyncio.sleep(2)
+            return 42
+
+        @flow
+        async def my_flow():
+            x = await my_task()
+
+        await begin_flow_run(
+            flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
+        )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        task_runs = await orion_client.read_task_runs()
+        assert len(task_runs) == 1
+        task_run = task_runs[0]
+        assert not task_run.state.is_crashed()
+        assert time.state.name == "TimedOut"
+        assert task_run.state.type == StateType.FAILED
+        assert "Task run exceeded timeout" in task_run.state.message
+
+    async def test_task_timeouts_do_not_crash_flow_runs(self, flow_run, orion_client):
+        @task(timeout_seconds=1)
+        async def my_task():
+            await asyncio.sleep(2)
+            return 42
+
+        @flow
+        async def my_flow():
+            x = await my_task()
+
+        await begin_flow_run(
+            flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
+        )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        task_runs = await orion_client.read_task_runs()
+        assert len(task_runs) == 1
+
+        assert not flow_run.state.is_crashed()
+        assert time.state.name == "Failed"
+        assert flow_run.state.type == StateType.FAILED
 
 
 class TestOrchestrateFlowRun:
