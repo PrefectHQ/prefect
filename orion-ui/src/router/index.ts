@@ -1,6 +1,5 @@
 import { RouteGuardExecutioner } from '@prefecthq/orion-design'
 import { RouteRecordRaw, createRouter, createWebHistory, RouteComponent } from 'vue-router'
-import FlowRunsPage from '@/pages/FlowRuns.vue'
 import { routes, NamedRoute, AppRouteLocation, AppRouteRecord } from '@/router/routes'
 import { BASE_URL } from '@/utilities/meta'
 
@@ -16,7 +15,7 @@ const routeRecords: AppRouteRecord[] = [
       {
         name: 'flow-runs',
         path: '',
-        component: FlowRunsPage,
+        component: (): RouteComponent => import('@/pages/FlowRuns.vue'),
       },
       {
         path: 'flow-run/:id',
@@ -33,50 +32,61 @@ const routeRecords: AppRouteRecord[] = [
           },
         ],
       },
-    ],
-  },
-  {
-    path: '/task-run/:id',
-    children: [
       {
-        name: 'task-run',
-        path: '',
-        component: (): RouteComponent => import('@/pages/TaskRun.vue'),
+        path: 'task-run/:id',
+        children: [
+          {
+            name: 'task-run',
+            path: '',
+            component: (): RouteComponent => import('@/pages/TaskRun.vue'),
+          },
+        ],
       },
     ],
   },
+
   {
-    name: 'flows',
     path: '/flows',
-    component: (): RouteComponent => import('@/pages/Flows.vue'),
-  },
-  {
-    name: 'flow',
-    path: '/flow/:id',
-    component: (): RouteComponent => import('@/pages/Flow.vue'),
-  },
-  {
-    name: 'deployments',
-    path: '/deployments',
-    component: (): RouteComponent => import('@/pages/Deployments.vue'),
-  },
-  {
-    path: '/deployment/:id',
     children: [
       {
-        name: 'edit-deployment',
-        path: 'edit',
-        component: (): RouteComponent => import('@/pages/DeploymentEdit.vue'),
-      },
-      {
-        name: 'deployment',
+        name: 'flows',
         path: '',
-        component: (): RouteComponent => import('@/pages/Deployment.vue'),
+        component: (): RouteComponent => import('@/pages/Flows.vue'),
       },
       {
-        name: 'flow-run.create',
-        path: 'run',
-        component: (): RouteComponent => import('@/pages/FlowRunCreate.vue'),
+        name: 'flow',
+        path: 'flow/:id',
+        component: (): RouteComponent => import('@/pages/Flow.vue'),
+      },
+    ],
+  },
+  {
+    path: '/deployments',
+    children: [
+      {
+        name: 'deployments',
+        path: '',
+        component: (): RouteComponent => import('@/pages/Deployments.vue'),
+      },
+      {
+        path: 'deployment/:id',
+        children: [
+          {
+            name: 'edit-deployment',
+            path: 'edit',
+            component: (): RouteComponent => import('@/pages/DeploymentEdit.vue'),
+          },
+          {
+            name: 'deployment',
+            path: '',
+            component: (): RouteComponent => import('@/pages/Deployment.vue'),
+          },
+          {
+            name: 'flow-run.create',
+            path: 'run',
+            component: (): RouteComponent => import('@/pages/FlowRunCreate.vue'),
+          },
+        ],
       },
     ],
   },
@@ -93,20 +103,20 @@ const routeRecords: AppRouteRecord[] = [
         path: 'new',
         component: (): RouteComponent => import('@/pages/WorkQueueCreate.vue'),
       },
-    ],
-  },
-  {
-    path: '/work-queue/:id',
-    children: [
       {
-        path: 'edit',
-        name: 'edit-work-queue',
-        component: (): RouteComponent => import('@/pages/WorkQueueEdit.vue'),
-      },
-      {
-        path: '',
-        name: 'work-queue',
-        component: (): RouteComponent => import('@/pages/WorkQueue.vue'),
+        path: 'work-queue/:id',
+        children: [
+          {
+            path: 'edit',
+            name: 'edit-work-queue',
+            component: (): RouteComponent => import('@/pages/WorkQueueEdit.vue'),
+          },
+          {
+            path: '',
+            name: 'work-queue',
+            component: (): RouteComponent => import('@/pages/WorkQueue.vue'),
+          },
+        ],
       },
     ],
   },
@@ -133,20 +143,20 @@ const routeRecords: AppRouteRecord[] = [
         path: 'catalog/:blockTypeSlug/create',
         component: (): RouteComponent => import('@/pages/BlocksCatalogCreate.vue'),
       },
-    ],
-  },
-  {
-    path: '/block/:blockDocumentId',
-    children: [
       {
-        name: 'block',
-        path: '',
-        component: (): RouteComponent => import('@/pages/BlockView.vue'),
-      },
-      {
-        name: 'block.edit',
-        path: 'edit',
-        component: (): RouteComponent => import('@/pages/BlockEdit.vue'),
+        path: 'block/:blockDocumentId',
+        children: [
+          {
+            name: 'block',
+            path: '',
+            component: (): RouteComponent => import('@/pages/BlockView.vue'),
+          },
+          {
+            name: 'block.edit',
+            path: 'edit',
+            component: (): RouteComponent => import('@/pages/BlockEdit.vue'),
+          },
+        ],
       },
     ],
   },
@@ -175,6 +185,7 @@ const routeRecords: AppRouteRecord[] = [
     path: '/settings',
     component: (): RouteComponent => import('@/pages/Settings.vue'),
   },
+  // redirects
   {
     name: 'flow-runs-old',
     path: '/runs',
@@ -186,9 +197,14 @@ const routeRecords: AppRouteRecord[] = [
     redirect: to => routes.flowRun(to.params.id as string),
   },
   {
+    path: '/flow/:id',
+    name: 'flow-old',
+    redirect: to => routes.flow(to.params.id as string),
+  },
+  {
     path: '/deployment/:id',
     name: 'deployment-old',
-    redirect: to => routes.flowRun(to.params.id as string),
+    redirect: to => routes.deployment(to.params.id as string),
   },
   {
     path: '/:pathMatch(.*)*',
