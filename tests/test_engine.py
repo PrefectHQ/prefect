@@ -437,7 +437,7 @@ class TestOrchestrateTaskRun:
         assert len(task_runs) == 1
         task_run = task_runs[0]
         assert not task_run.state.is_crashed()
-        assert time.state.name == "TimedOut"
+        assert task_run.state.name == "TimedOut"
         assert task_run.state.type == StateType.FAILED
         assert "Task run exceeded timeout" in task_run.state.message
 
@@ -460,7 +460,7 @@ class TestOrchestrateTaskRun:
         assert len(task_runs) == 1
 
         assert not flow_run.state.is_crashed()
-        assert time.state.name == "Failed"
+        assert flow_run.state.name == "Failed"
         assert flow_run.state.type == StateType.FAILED
 
 
