@@ -225,6 +225,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     def ui_settings():
         return {
             "api_url": prefect.settings.PREFECT_ORION_UI_API_URL.value(),
+            "late_runs_threshold": prefect.settings.PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS.value(),
         }
 
     if (
