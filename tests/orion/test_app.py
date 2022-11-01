@@ -2,8 +2,8 @@ from fastapi.testclient import TestClient
 
 from prefect.orion.api.server import create_app
 from prefect.settings import (
-    PREFECT_ORION_UI_API_URL,
     PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS,
+    PREFECT_ORION_UI_API_URL,
 )
 
 
