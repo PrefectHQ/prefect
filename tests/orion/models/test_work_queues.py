@@ -110,8 +110,14 @@ class TestReadWorkQueues:
                 name="wq-2 1",
             ),
         )
+        work_queue_4 = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.core.WorkQueue(
+                name="wq-3 1",
+            ),
+        )
         await session.commit()
-        return [work_queue_1, work_queue_2, work_queue_3]
+        return [work_queue_1, work_queue_2, work_queue_3, work_queue_4]
 
     async def test_read_work_queue(self, work_queues, session):
         read_work_queue = await models.work_queues.read_work_queues(session=session)
@@ -130,6 +136,7 @@ class TestReadWorkQueues:
         assert {queue.id for queue in read_work_queue} == {
             work_queues[1].id,
             work_queues[2].id,
+            work_queues[3].id,
         }
 
     async def test_read_work_queues_name_any(self, work_queues, session):
@@ -145,10 +152,14 @@ class TestReadWorkQueues:
         read_work_queue = await models.work_queues.read_work_queues(
             session=session,
             work_queue_filter=schemas.filters.WorkQueueFilter(
-                name=schemas.filters.WorkQueueFilterName(startswith_="wq-1")
+                name=schemas.filters.WorkQueueFilterName(startswith_=["wq-1", "wq-2"])
             ),
         )
-        assert {queue.name for queue in read_work_queue} == {"wq-1 1", "wq-1 2"}
+        assert {queue.name for queue in read_work_queue} == {
+            "wq-1 1",
+            "wq-1 2",
+            "wq-2 1",
+        }
 
     async def test_read_work_queue_returns_empty_list(self, session):
         read_work_queue = await models.work_queues.read_work_queues(session=session)

@@ -191,7 +191,7 @@ class TestReadWorkQueues:
     async def test_read_work_queues_by_name(self, work_queues, client, session):
         response = await client.post(
             "/work_queues/filter",
-            json=dict(work_queues={"name": {"startswith_": "wq-1"}}),
+            json=dict(work_queues={"name": {"startswith_": ["wq-1"]}}),
         )
         assert response.status_code == status.HTTP_200_OK
 

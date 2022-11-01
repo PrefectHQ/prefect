@@ -1242,14 +1242,14 @@ class WorkQueueFilterName(PrefectFilterBaseModel):
         example=["wq-1", "wq-2"],
     )
 
-    startswith_: Optional[str] = Field(
+    startswith_: Optional[List[str]] = Field(
         default=None,
         description=(
-            "A case-insensitive starts-with match. For example, "
+            "A list of case-insensitive starts-with matches. For example, "
             " passing 'marvin' will match "
             "'marvin', and 'Marvin-robot', but not 'sad-marvin'."
         ),
-        example="marvin",
+        example=["marvin", "Marvin-robot"],
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -1257,7 +1257,11 @@ class WorkQueueFilterName(PrefectFilterBaseModel):
         if self.any_ is not None:
             filters.append(db.WorkQueue.name.in_(self.any_))
         if self.startswith_ is not None:
-            filters.append(db.WorkQueue.name.ilike(f"{self.startswith_}%"))
+            filters.append(
+                sa.or_(
+                    *[db.WorkQueue.name.ilike(f"{item}%") for item in self.startswith_]
+                )
+            )
         return filters
 
 

@@ -828,13 +828,13 @@ class OrionClient:
 
     async def match_work_queues(
         self,
-        prefix: str,
+        prefixes: List[str],
     ) -> List[schemas.core.WorkQueue]:
         """
         Query Orion for work queues with names with a specific prefix.
 
         Args:
-            prefix: a string used to match work queue name prefixes
+            prefixes: a list of strings used to match work queue name prefixes
 
         Returns:
             a list of [WorkQueue model][prefect.orion.schemas.core.WorkQueue] representations
@@ -849,7 +849,7 @@ class OrionClient:
                 offset=current_page * page_length,
                 limit=page_length,
                 work_queue_filter=schemas.filters.WorkQueueFilter(
-                    name=schemas.filters.WorkQueueFilterName(startswith_=prefix)
+                    name=schemas.filters.WorkQueueFilterName(startswith_=prefixes)
                 ),
             )
             if not new_queues:
