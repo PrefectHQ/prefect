@@ -1220,6 +1220,7 @@ async def orchestrate_task_run(
             ):
                 name = "TimedOut"
                 message = f"Task run exceeded timeout of {task.timeout_seconds} seconds"
+                logger.exception(message)
             else:
                 message = "Task run encountered an exception:"
                 logger.exception("Encountered exception during execution:")
