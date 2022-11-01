@@ -418,8 +418,52 @@ class TestOrchestrateTaskRun:
 
         assert i <= 10, "`just_sleep` should not be running after timeout"
 
+    async def test_task_timeouts_actually_timeout(self, flow_run, orion_client):
+        @task(timeout_seconds=0.1)
+        async def my_task():
+            await asyncio.sleep(2)
+            return 42
+
+        @flow
+        async def my_flow():
+            x = await my_task()
+
+        await begin_flow_run(
+            flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
+        )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        task_runs = await orion_client.read_task_runs()
+        task_run = task_runs[0]
+
+        assert task_run.state.name == "TimedOut"
+        assert task_run.state.type == StateType.FAILED
+        assert "Task run exceeded timeout" in task_run.state.message
+
+    async def test_task_timeouts_do_not_timeout_prematurely(
+        self, flow_run, orion_client
+    ):
+        @task(timeout_seconds=5)
+        async def my_task():
+            return 42
+
+        @flow
+        async def my_flow():
+            x = await my_task()
+
+        await begin_flow_run(
+            flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
+        )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        task_runs = await orion_client.read_task_runs()
+        task_run = task_runs[0]
+
+        assert task_run.state.name == "Completed"
+        assert task_run.state.type == StateType.COMPLETED
+
     async def test_task_timeouts_are_not_task_crashes(self, flow_run, orion_client):
-        @task(timeout_seconds=1)
+        @task(timeout_seconds=0.1)
         async def my_task():
             await asyncio.sleep(2)
             return 42
@@ -442,7 +486,7 @@ class TestOrchestrateTaskRun:
         assert "Task run exceeded timeout" in task_run.state.message
 
     async def test_task_timeouts_do_not_crash_flow_runs(self, flow_run, orion_client):
-        @task(timeout_seconds=1)
+        @task(timeout_seconds=0.1)
         async def my_task():
             await asyncio.sleep(2)
             return 42
@@ -497,6 +541,7 @@ class TestOrchestrateFlowRun:
                 flow=foo,
                 flow_run=flow_run,
                 parameters={},
+                wait_for=None,
                 client=orion_client,
                 interruptible=False,
                 partial_flow_run_context=partial_flow_run_context,
@@ -528,6 +573,7 @@ class TestOrchestrateFlowRun:
                 flow=foo,
                 flow_run=flow_run,
                 parameters={},
+                wait_for=None,
                 client=orion_client,
                 interruptible=False,
                 partial_flow_run_context=partial_flow_run_context,
@@ -562,6 +608,7 @@ class TestOrchestrateFlowRun:
                 flow=flaky_function,
                 flow_run=flow_run,
                 parameters={},
+                wait_for=None,
                 client=orion_client,
                 interruptible=False,
                 partial_flow_run_context=partial_flow_run_context,
@@ -1202,6 +1249,7 @@ class TestCreateThenBeginFlowRun:
         state = await create_then_begin_flow_run(
             flow=parameterized_flow,
             parameters={"dog": [1, 2], "cat": "not an int"},
+            wait_for=None,
             return_type="state",
             client=orion_client,
         )
@@ -1219,6 +1267,7 @@ class TestCreateThenBeginFlowRun:
         state = await create_then_begin_flow_run(
             flow=parameterized_flow,
             parameters={"puppy": "a string", "kitty": 42},
+            wait_for=None,
             return_type="state",
             client=orion_client,
         )
@@ -1244,6 +1293,7 @@ class TestCreateThenBeginFlowRun:
         state = await create_then_begin_flow_run(
             flow=flow_use_and_return_defaults,
             parameters={},
+            wait_for=None,
             return_type="state",
             client=orion_client,
         )
@@ -1264,6 +1314,7 @@ class TestCreateThenBeginFlowRun:
         state = await create_then_begin_flow_run(
             flow=parameterized_flow,
             parameters={"puppy": "a string", "kitty": 42},
+            wait_for=None,
             return_type="state",
             client=orion_client,
         )
@@ -1303,6 +1354,7 @@ class TestRetrieveFlowThenBeginFlowRun:
         state = await create_then_begin_flow_run(
             flow=parameterized_flow,
             parameters={"puppy": "a string", "kitty": 42},
+            wait_for=None,
             return_type="state",
             client=orion_client,
         )
@@ -1329,6 +1381,7 @@ class TestRetrieveFlowThenBeginFlowRun:
         state = await create_then_begin_flow_run(
             flow=parameterized_flow,
             parameters={"puppy": "a string", "kitty": 42},
+            wait_for=None,
             return_type="state",
             client=orion_client,
         )
@@ -1350,6 +1403,7 @@ class TestCreateAndBeginSubflowRun:
             state = await create_and_begin_subflow_run(
                 flow=parameterized_flow,
                 parameters={"dog": [1, 2], "cat": "not an int"},
+                wait_for=None,
                 return_type="state",
                 client=orion_client,
             )
@@ -1374,6 +1428,7 @@ class TestCreateAndBeginSubflowRun:
             state = await create_and_begin_subflow_run(
                 flow=parameterized_flow,
                 parameters={"puppy": "a string", "kitty": 42},
+                wait_for=None,
                 return_type="state",
                 client=orion_client,
             )
@@ -1401,6 +1456,7 @@ class TestCreateAndBeginSubflowRun:
         state = await create_then_begin_flow_run(
             flow=parameterized_flow,
             parameters={"puppy": "a string", "kitty": 42},
+            wait_for=None,
             return_type="state",
             client=orion_client,
         )
