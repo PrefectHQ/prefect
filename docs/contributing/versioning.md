@@ -48,4 +48,4 @@ For example, a client on 2.1.0 can be used with a server on 2.5.0. A client on 2
 
 ## Client compatibility with Cloud
 
-When using a Prefect client with Prefect Cloud, you do not need to worry about the version you are using. Prefect Cloud targets compatibility with all versions of Prefect clients that are in use. If a version is not in use by any of our users for a significant time period, we may drop support for it.
+Prefect Cloud targets compatibility with all versions of Prefect clients. If you encounter a compatibility issue, please [file a bug report](https://github.com/prefectHQ/prefect/issues/new/choose).
