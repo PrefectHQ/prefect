@@ -258,12 +258,13 @@ The `.result()` method will wait for the task to complete before returning the r
 from prefect import flow, task
 
 @task
-def my_task(name):
+def my_task():
     return "I'm a task!"
+
 
 @flow
 def my_flow():
-    future = my_task()
+    future = my_task.submit()
     result = future.result(raise_on_failure=False)
     if future.get_state().is_failed():
         # `result` is an exception! handle accordingly
