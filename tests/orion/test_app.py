@@ -25,5 +25,5 @@ def test_app_exposes_ui_settings():
     response.raise_for_status()
     assert response.json() == {
         "api_url": PREFECT_ORION_UI_API_URL.value(),
-        "late_runs_threshold_seconds": PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS.value().total_seconds(),
+        "late_runs_after_seconds": PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS.value().total_seconds(),
     }
