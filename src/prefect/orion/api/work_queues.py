@@ -173,6 +173,7 @@ async def _record_work_queue_polls(
 async def read_work_queues(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
+    work_queues: schemas.filters.WorkQueueFilter = None,
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.WorkQueue]:
     """
@@ -180,9 +181,7 @@ async def read_work_queues(
     """
     async with db.session_context() as session:
         return await models.work_queues.read_work_queues(
-            session=session,
-            offset=offset,
-            limit=limit,
+            session=session, offset=offset, limit=limit, work_queue_filter=work_queues
         )
 
 
