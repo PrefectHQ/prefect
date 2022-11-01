@@ -14,11 +14,11 @@ tags:
 
 # Collections Catalog
 
-Prefect Collections are groupings of pre-built tasks and flows used to quickly build dataflows with Prefect. 
+Prefect integrations are organized into collections of pre-built [tasks](/concepts/tasks/), [flows](/concepts/flows/), [blocks](/concepts/blocks/) and more that are installable as PyPI packages.
 
-Collections are grouped around the services with which they interact. For example, to download data from an S3 bucket, you could use the `s3_download` task from the `prefect-aws` collection, or if you want to send a Slack message as part of your flow you could use the `send_message` task from the `prefect-slack` collection. 
+Collections are grouped around the services with which they interact and can be used to quickly build Prefect dataflows for your existing stack. For example, to move data around in S3 you can use the [`prefect-aws`](https://github.com/PrefectHQ/prefect-aws) collection, or if you want to be notified via Slack as your dataflow runs you can use the [`prefect-slack`](https://github.com/PrefectHQ/prefect-slack) collection. 
 
-By using Prefect Collections, you can reduce the amount of boilerplate code that you need to write for interacting with common services, and focus on outcome you're seeking to achieve.
+By using Prefect Collections, you can eliminate boilerplate code that you need to write to interact with common services, and focus on the outcomes that are important to you.
 
 Below you can find a list of all available Prefect Collections.
 
