@@ -130,11 +130,14 @@ def enter_flow_run_engine_from_flow_call(
     parent_flow_run_context = FlowRunContext.get()
     is_subflow_run = parent_flow_run_context is not None
 
+    if wait_for is not None and not is_subflow_run:
+        raise ValueError("Only flows run as subflows can wait for dependencies.")
+
     begin_run = partial(
         create_and_begin_subflow_run if is_subflow_run else create_then_begin_flow_run,
         flow=flow,
         parameters=parameters,
-        wait_for=wait_for if is_subflow_run else None,
+        wait_for=wait_for,
         return_type=return_type,
         client=parent_flow_run_context.client if is_subflow_run else None,
     )
