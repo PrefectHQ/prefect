@@ -1,7 +1,10 @@
 from fastapi.testclient import TestClient
 
 from prefect.orion.api.server import create_app
-from prefect.settings import PREFECT_ORION_UI_API_URL, PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS
+from prefect.settings import (
+    PREFECT_ORION_UI_API_URL,
+    PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS,
+)
 
 
 def test_app_generates_correct_api_openapi_schema():
@@ -20,4 +23,7 @@ def test_app_exposes_ui_settings():
     client = TestClient(app)
     response = client.get("/ui-settings")
     response.raise_for_status()
-    assert response.json() == {"api_url": PREFECT_ORION_UI_API_URL.value(), "late_runs_threshold_seconds": PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS.value()}
+    assert response.json() == {
+        "api_url": PREFECT_ORION_UI_API_URL.value(),
+        "late_runs_threshold_seconds": PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS.value(),
+    }
