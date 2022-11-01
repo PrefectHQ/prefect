@@ -77,7 +77,13 @@ from prefect.task_runners import (
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
-from prefect.utilities.annotations import allow_failure, revisit, unmapped
+from prefect.utilities.annotations import (
+    BaseAnnotation,
+    allow_failure,
+    quote,
+    revisit,
+    unmapped,
+)
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
@@ -1366,8 +1372,13 @@ async def resolve_inputs(
     def resolve_input(expr, context):
         state = None
 
-        if isinstance(expr, allow_failure):
-            context["allow_failure"] = True
+        # Quoted expressions should not be modified
+        if isinstance(context.get("annotation"), quote):
+            return expr
+
+        # If an expresion is an annotation, push the annotation to the context
+        if isinstance(expr, BaseAnnotation):
+            context["annotation"] = expr
             return revisit(expr.unwrap())
 
         if isinstance(expr, PrefectFuture):
@@ -1380,7 +1391,7 @@ async def resolve_inputs(
         # Do not allow uncompleted upstreams except failures when `allow_failure` has
         # been used
         if not state.is_completed() and not (
-            context["allow_failure"] and state.is_failed()
+            isinstance(context.get("annotation"), allow_failure) and state.is_failed()
         ):
             raise UpstreamTaskError(
                 f"Upstream task run '{state.state_details.task_run_id}' did not reach a 'COMPLETED' state."
