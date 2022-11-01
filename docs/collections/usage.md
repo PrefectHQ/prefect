@@ -1,5 +1,5 @@
 ---
-description: Prefect Collections provide pre-built tasks and flows that help you build workflows quickly.
+description: Prefect Collections provide Prefect integrations that help you build dataflows quickly.
 tags:
     - tasks
     - flows
@@ -11,7 +11,7 @@ tags:
 
 # Using Collections
 
-## Installing Collections
+## Installing a Collection
 
 To use a Prefect Collection, first install the collection via `pip`.
 
@@ -21,18 +21,22 @@ As an example, to use `prefect-aws`:
 pip install prefect-aws
 ```
 
-## Registering Blocks within Collections
+## Registering Blocks from a Collection
 
-Then, register to view the blocks on Prefect Cloud:
+Once the Prefect Collection is installed, [register the blocks](concepts/blocks/#registering-blocks-for-use-in-the-prefect-ui) within the collection to view them in the Prefect Cloud UI:
+
+As an example, to register the block in `prefect-aws`:
 
 ```bash
 prefect block register -m prefect_aws.credentials
 prefect block register -m prefect_aws.ecs
 ```
 
-## Running Tasks within Collections
+## Using Tasks and Flows from a Collection
 
-The AWS tasks and flows in that collection can then be imported and called within your flow:
+Collections also contain pre-built tasks and flows that can be imported and called within your code.
+
+As an example, to read a secret for AWS Secrets Manager with the `read_secret` task:
 
 ```python
 from prefect import flow

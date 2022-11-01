@@ -7,7 +7,7 @@ Anyone can create and share a Prefect Collection and we encourage anyone interes
 
 To help you get started with your collection, we've created a template that gives the tools you need to create and publish your collection.
 
-Click [here](https://github.com/PrefectHQ/prefect-collection-template#quickstart) to get started creating a collection from the template!
+Use the [Prefect Collection template](https://github.com/PrefectHQ/prefect-collection-template#quickstart) to get started creating a collection with a bootstrapped project!
 
 ## Listing in the Collections Catalog
 
