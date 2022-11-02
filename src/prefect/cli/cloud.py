@@ -137,7 +137,7 @@ def get_current_workspace(workspaces):
         workspace[
             "workspace_id"
         ]: f"{workspace['account_handle']}/{workspace['workspace_handle']}"
-        for workspace in workspaces
+        for workspace in workspaces.values()
     }
     current_workspace_id = re.match(
         r".*accounts/.{36}/workspaces/(.{36})\Z", PREFECT_API_URL.value()
@@ -335,12 +335,24 @@ async def login_with_browser() -> str:
         exit_with_success(f"Failed to login: {result.content.reason}")
 
 
+async def check_key_is_valid_for_login(key: str):
+    """
+    Attempt to use a key to see if it is valid
+    """
+    async with get_cloud_client(api_key=key) as client:
+        try:
+            await client.read_workspaces()
+            return True
+        except CloudUnauthorizedError:
+            return False
+
+
 @cloud_app.command()
 async def login(
     key: Optional[str] = typer.Option(
         None, "--key", "-k", help="API Key to authenticate with Prefect"
     ),
-    workspace_handle: Optional[str] = typer.Option(
+    workspace: Optional[str] = typer.Option(
         None,
         "--workspace",
         "-w",
@@ -361,7 +373,12 @@ async def login(
     already_logged_in_profiles = []
     for name, profile in profiles.items():
         profile_key = profile.settings.get(PREFECT_API_KEY)
-        if not key or (key and profile_key == key):
+        if (
+            not key
+            and profile_key is not None
+            or (key and profile_key == key)
+            and await check_key_is_valid_for_login(profile_key)
+        ):
             already_logged_in_profiles.append(name)
 
     current_profile_is_logged_in = current_profile.name in already_logged_in_profiles
@@ -378,30 +395,25 @@ async def login(
         app.console.print(
             "It looks like you're already authenticated on another profile."
         )
-        should_reauth = typer.confirm(
+        if not typer.confirm(
             "? Would you like to reauthenticate on this profile?", default=False
-        )
-
-        if not should_reauth:
-            should_switch = typer.confirm(
+        ):
+            if typer.confirm(
                 "? Would you like to switch to an authenticated profile?", default=True
-            )
-        else:
-            should_switch = False
-
-        if should_switch:
-            if len(already_logged_in_profiles) == 1:
-                profile_name = already_logged_in_profiles[0]
-            else:
+            ):
                 profile_name = prompt_select_from_list(
                     app.console,
                     "Which authenticated profile would you like to switch to?",
                     already_logged_in_profiles,
                 )
 
-            profiles.set_active(profile_name)
-            save_profiles(profiles)
-            exit_with_success("Switched to authenticated profile {profile_name!r}.")
+                profiles.set_active(profile_name)
+                save_profiles(profiles)
+                exit_with_success(
+                    f"Switched to authenticated profile {profile_name!r}."
+                )
+            else:
+                return
 
     if not key:
         choice = prompt_select_from_list(
@@ -420,10 +432,9 @@ async def login(
 
     async with get_cloud_client(api_key=key) as client:
         try:
-            workspaces = await client.read_workspaces()
-            workspace_handle_details = {
+            workspaces = {
                 f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
-                for workspace in workspaces
+                for workspace in await client.read_workspaces()
             }
         except CloudUnauthorizedError:
             if key.startswith("pcu"):
@@ -438,52 +449,33 @@ async def login(
         except httpx.HTTPStatusError as exc:
             exit_with_error(f"Error connecting to Prefect Cloud: {exc!r}")
 
-    for profile_name in profiles:
-        if key == profiles[profile_name].settings.get(PREFECT_API_KEY):
-            profiles.set_active(profile_name)
-            save_profiles(profiles)
-            with prefect.context.use_profile(profile_name):
-                current_workspace = get_current_workspace(workspaces)
+    current_workspace = get_current_workspace(workspaces) or workspaces[0]
+    if workspace or not current_workspace:
+        workspace = prompt_select_from_list(
+            app.console,
+            "Which workspace would you like to use?",
+            sorted(workspaces.keys()),
+        )
+    else:
+        workspace = current_workspace
 
-                if workspace_handle is not None:
-                    if workspace_handle not in workspace_handle_details:
-                        exit_with_error(f"Workspace {workspace_handle!r} not found.")
+    if workspace not in workspaces:
+        exit_with_error(f"Workspace {workspace!r} not found.")
 
-                    update_current_profile(
-                        {
-                            PREFECT_API_URL: build_url_from_workspace(
-                                workspace_handle_details[workspace_handle]
-                            )
-                        }
-                    )
-                    current_workspace = workspace_handle
-
-            exit_with_success(
-                f"Logged in to Prefect Cloud using profile {profile_name!r}.\n"
-                f"Workspace is currently set to {current_workspace!r}. "
-                f"The workspace can be changed using `prefect cloud workspace set`."
-            )
-
-    if not workspace_handle:
-        workspace_handle = select_workspace(workspace_handle_details.keys())
-
-    if workspace_handle not in workspace_handle_details:
-        exit_with_error(f"Workspace {workspace_handle!r} not found.")
-
-    current_profile = update_current_profile(
+    update_current_profile(
         {
-            PREFECT_API_URL: build_url_from_workspace(
-                workspace_handle_details[workspace_handle]
-            ),
             PREFECT_API_KEY: key,
-        },
+            PREFECT_API_URL: build_url_from_workspace(workspaces[workspace]),
+        }
     )
 
-    exit_with_success(
-        f"Logged in to Prefect Cloud using profile {current_profile.name!r}.\n"
-        f"Workspace is currently set to {workspace_handle!r}. "
-        f"The workspace can be changed using `prefect cloud workspace set`."
+    workspaces_hint = (
+        "Using workspace {current_workspace!r}.\nHint: Change workspaces with `prefect cloud workspace set`."
+        if len(workspaces) > 1
+        else ""
     )
+
+    exit_with_success(f"Logged in to Prefect Cloud!" + workspaces_hint)
 
 
 @cloud_app.command()
