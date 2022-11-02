@@ -39,6 +39,7 @@ from prefect.exceptions import (
     ParameterTypeError,
     UnspecifiedFlowError,
 )
+from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.results import ResultSerializer, ResultStorage
@@ -148,7 +149,7 @@ class Flow(Generic[P, R]):
         self.fn = fn
         self.isasync = is_async_fn(self.fn)
 
-        raise_for_reserved_arguments(self.fn, ["return_state"])
+        raise_for_reserved_arguments(self.fn, ["return_state", "wait_for"])
 
         # Version defaults to a hash of the function's file
         flow_file = inspect.getsourcefile(self.fn)
@@ -385,6 +386,7 @@ class Flow(Generic[P, R]):
         self,
         *args: "P.args",
         return_state: bool = False,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: "P.kwargs",
     ):
         """
@@ -401,6 +403,7 @@ class Flow(Generic[P, R]):
             *args: Arguments to run the flow with.
             return_state: Return a Prefect State containing the result of the
             flow run.
+            wait_for: Upstream task futures to wait for before starting the flow if called as a subflow
             **kwargs: Keyword arguments to run the flow with.
 
         Returns:
@@ -437,7 +440,10 @@ class Flow(Generic[P, R]):
         return_type = "state" if return_state else "result"
 
         return enter_flow_run_engine_from_flow_call(
-            self, parameters, return_type=return_type
+            self,
+            parameters,
+            wait_for=wait_for,
+            return_type=return_type,
         )
 
     @overload
@@ -459,6 +465,7 @@ class Flow(Generic[P, R]):
     def _run(
         self,
         *args: "P.args",
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: "P.kwargs",
     ):
         """
@@ -478,7 +485,10 @@ class Flow(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs)
 
         return enter_flow_run_engine_from_flow_call(
-            self, parameters, return_type="state"
+            self,
+            parameters,
+            wait_for=wait_for,
+            return_type="state",
         )
 
 
