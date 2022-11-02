@@ -232,6 +232,24 @@ def cached_task():
 !!! note "Task results, retries, and caching"
     Task results are cached in memory during a flow run and persisted to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. As a result, task caching between flow runs is currently limited to flow runs with access to that local storage path.
 
+## Timeouts
+
+Task timeouts are used to prevent unintentional long-running tasks. When the duration of execution for a task exceeds the duration specified in the timeout, a timeout exception will be raised and the task will be marked as failed. Inside of the UI the task will be visibly designated as `TimedOut`. From the perspective of the flow, the timed-out task will be treated like any other failed task. 
+
+Timeout durations are specified using the `timeout_seconds` keyword argument. 
+
+```python
+from prefect import task, get_run_logger
+import time
+
+@task(timeout_seconds=1)
+def show_timeouts():
+    logger = get_run_logger()
+    logger.info("I will execute")
+    time.sleep(2)
+    logger.info("I will not execute")
+```
+
 ## Task results
 
 Depending on how you call tasks, they can return different types of results and optionally engage the use of a [task runner](/concepts/task-runners/).
