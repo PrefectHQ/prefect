@@ -1,13 +1,11 @@
 import abc
-import glob
 import io
 import json
-import os
 import shutil
 import sys
 import urllib.parse
 from distutils.dir_util import copy_tree
-from pathlib import Path, PurePath
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -342,8 +340,8 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             )
 
         counter = 0
-        for f in glob.glob(os.path.join(local_path, "**"), recursive=True):
-            relative_path = PurePath(f).relative_to(local_path)
+        for f in Path(local_path).rglob("*"):
+            relative_path = f.relative_to(local_path)
             if included_files and str(relative_path) not in included_files:
                 continue
 
@@ -352,9 +350,10 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             else:
                 fpath = to_path + "/" + relative_path.as_posix()
 
-            if Path(f).is_dir():
+            if f.is_dir():
                 pass
             else:
+                f = f.as_posix()
                 if overwrite:
                     self.filesystem.put_file(f, fpath, overwrite=True)
                 else:
@@ -895,16 +894,16 @@ class GitHub(ReadableDeploymentStorage):
             local_path: A local path to clone to; defaults to present working directory.
         """
         # CONSTRUCT COMMAND
-        cmd = f"git clone {self._create_repo_url()}"
+        cmd = ["git", "clone", self._create_repo_url()]
         if self.reference:
-            cmd += f" -b {self.reference}"
+            cmd += ["-b", self.reference]
 
         # Limit git history
-        cmd += " --depth 1"
+        cmd += ["--depth", "1"]
 
         # Clone to a temporary directory and move the subdirectory over
         with TemporaryDirectory(suffix="prefect") as tmp_dir:
-            cmd += f" {tmp_dir}"
+            cmd.append(tmp_dir)
 
             err_stream = io.StringIO()
             out_stream = io.StringIO()

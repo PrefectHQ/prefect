@@ -164,13 +164,15 @@ async def test_task_group_start_returns_job_name(
 @pytest.mark.parametrize(
     "job_name,clean_name",
     [
-        ("_infra_run", "infra-run"),
-        ("...infra_run", "infra-run"),
-        ("._-infra_run", "infra-run"),
-        ("9infra-run", "9infra-run"),
-        ("-infra.run", "infra-run"),
-        ("infra*run", "infra-run"),
-        ("infra9.-foo_bar^x", "infra9-foo-bar-x"),
+        ("infra-run", "infra-run-"),
+        ("infra-run-", "infra-run-"),
+        ("_infra_run", "infra-run-"),
+        ("...infra_run", "infra-run-"),
+        ("._-infra_run", "infra-run-"),
+        ("9infra-run", "9infra-run-"),
+        ("-infra.run", "infra-run-"),
+        ("infra*run", "infra-run-"),
+        ("infra9.-foo_bar^x", "infra9-foo-bar-x-"),
     ],
 )
 def test_job_name_creates_valid_name(

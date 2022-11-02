@@ -1,5 +1,43 @@
 # Prefect Release Notes
 
+## Release 2.6.5
+
+### Enhancements
+- Add support for manual flow run retries — https://github.com/PrefectHQ/prefect/pull/7152
+- Improve server performance when retrying flow runs with many tasks — https://github.com/PrefectHQ/prefect/pull/7152
+- Add status checks to work queues — https://github.com/PrefectHQ/prefect/pull/7262
+- Add timezone parameter to `prefect deployment build` — https://github.com/PrefectHQ/prefect/pull/7282
+- UI: Add redirect to original block form after creating a nested block — https://github.com/PrefectHQ/prefect/pull/7284
+- Add support for multiple work queue prefixes — https://github.com/PrefectHQ/prefect/pull/7222
+- Include "-" before random suffix of Kubernetes job names — https://github.com/PrefectHQ/prefect/pull/7329
+- Allow a working directory to be specified for `Process` infrastructure — https://github.com/PrefectHQ/prefect/pull/7252
+- Add support for Python 3.11 — https://github.com/PrefectHQ/prefect/pull/7304
+- Add persistence of data when a state is returned from a task or flow — https://github.com/PrefectHQ/prefect/pull/7316
+- Add `ignore_file` to `Deployment.build_from_flow()` — https://github.com/PrefectHQ/prefect/pull/7012
+
+### Fixes
+- Allow `with_options` to reset retries and retry delays — https://github.com/PrefectHQ/prefect/pull/7276
+- Fix proxy-awareness in the `OrionClient` — https://github.com/PrefectHQ/prefect/pull/7328
+- Fix block auto-registration when changing databases — https://github.com/PrefectHQ/prefect/pull/7350
+- Include hidden files when uploading directories to `RemoteFileSystem` storage — https://github.com/PrefectHQ/prefect/pull/7336
+- UI: added support for unsetting color-mode preference, `null` is now equivalent to "default" — https://github.com/PrefectHQ/prefect/pull/7321
+
+### Documentation
+- Add documentation for Prefect Cloud SSO — https://github.com/PrefectHQ/prefect/pull/7302
+
+### Collections
+- New [`prefect-docker`](https://prefecthq.github.io/prefect-docker/) collection for [Docker](https://www.docker.com/)
+- New [`prefect-census`](https://prefecthq.github.io/prefect-census/) collection for [Census](https://docs.getcensus.com/)
+
+## Contributors
+- @BallisticPain made their first contribution in https://github.com/PrefectHQ/prefect/pull/7252
+- @deepyaman
+- @hateyouinfinity
+- @jmg-duarte
+- @taljaards
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.4...2.6.5
+
 ## Release 2.6.4
 
 ### Enhancements

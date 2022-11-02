@@ -228,7 +228,7 @@ async def ls(
 
     async with get_client() as client:
         if work_queue_prefix is not None:
-            queues = await client.match_work_queues(work_queue_prefix)
+            queues = await client.match_work_queues([work_queue_prefix])
         else:
             queues = await client.read_work_queues()
 
