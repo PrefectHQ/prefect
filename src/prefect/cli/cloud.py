@@ -32,6 +32,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    PREFECT_UI_URL,
     load_profiles,
     save_profiles,
     update_current_profile,
@@ -290,13 +291,9 @@ async def login_with_browser() -> str:
     On failure, this function will exit the process.
     On success, it will return an API key.
     """
-    cloud_api_url = PREFECT_CLOUD_URL.value()
-
+    # TODO: Search for a valid port
     target = urllib.parse.quote("http://localhost:3001")
-
-    # TODO: Create a separate setting for this?
-    cloud_ui_url = cloud_api_url.replace("https://api.", "https://")
-    ui_login_url = cloud_ui_url.replace("/api", f"/authorize?callback={target}")
+    ui_login_url = PREFECT_UI_URL.value() + f"/auth/client?callback={target}"
 
     # Set up an event that the login API will toggle on startup
     ready_event = login_api.extra["ready-event"] = anyio.Event()
