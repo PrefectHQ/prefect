@@ -143,7 +143,7 @@ class FlowRunNotifications(LoopService):
         """
         api_url = PREFECT_API_URL.value() or "http://ephemeral-orion/api"
         split_api_url = api_url.split("/")
-        if split_api_url[-1] == "api":
+        if split_api_url[-1].lower() == "api":
             split_api_url.pop()
         ui_url = "/".join(split_api_url)
         return f"{ui_url}/flow-runs/flow-run/{flow_run_id}"
