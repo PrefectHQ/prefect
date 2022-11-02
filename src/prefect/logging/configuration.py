@@ -31,7 +31,8 @@ def load_logging_config(path: Path) -> dict:
     Loads logging configuration from a path allowing override from the environment
     """
     template = string.Template(path.read_text())
-    with warnings.filterwarnings("ignore", DeprecationWarning):
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
         config = yaml.safe_load(
             # Substitute settings into the template in format $SETTING / ${SETTING}
             template.substitute(
