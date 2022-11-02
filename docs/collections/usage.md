@@ -23,9 +23,9 @@ pip install prefect-aws
 
 ## Registering Blocks from a Collection
 
-Once the Prefect Collection is installed, [register the blocks](concepts/blocks/#registering-blocks-for-use-in-the-prefect-ui) within the collection to view them in the Prefect Cloud UI:
+Once the Prefect Collection is installed, [register the blocks](/concepts/blocks/#registering-blocks-for-use-in-the-prefect-ui) within the collection to view them in the Prefect Cloud UI:
 
-As an example, to register the block in `prefect-aws`:
+As an example, to register the blocks available in `prefect-aws`:
 
 ```bash
 prefect block register -m prefect_aws.credentials
@@ -36,7 +36,7 @@ prefect block register -m prefect_aws.ecs
 
 Collections also contain pre-built tasks and flows that can be imported and called within your code.
 
-As an example, to read a secret for AWS Secrets Manager with the `read_secret` task:
+As an example, to read a secret from AWS Secrets Manager with the `read_secret` task:
 
 ```python
 from prefect import flow
