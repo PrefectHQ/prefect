@@ -126,9 +126,10 @@ nav:
             - Service Accounts: ui/service-accounts.md
             - Roles (RBAC): ui/roles.md
             - Single Sign-on (SSO): ui/sso.md
-    - Collections:
-        - Overview: collections/overview.md
+    - Integrations:
         - Collections Catalog: collections/catalog.md
+        - Using Collections: collections/usage.md
+        - Contributing Collections: collections/contribute.md
     - FAQ: faq.md
     - 'API Reference': 
         - Overview: api-ref/overview.md
