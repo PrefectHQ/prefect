@@ -342,8 +342,9 @@ def visit_collection(
         result = visit_nested(expr.unwrap())
 
     elif isinstance(expr, BaseAnnotation):
-        result = expr.rewrap(visit_nested(expr.unwrap()))
-        
+        value = visit_nested(expr.unwrap())
+        result = expr.rewrap(value) if return_data else None
+
     else:
         result = result if return_data else None
 
