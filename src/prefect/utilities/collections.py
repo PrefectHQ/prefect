@@ -343,7 +343,7 @@ def visit_collection(
 
     elif isinstance(expr, BaseAnnotation):
         result = expr.rewrap(visit_nested(expr.unwrap()))
-
+        
     else:
         result = result if return_data else None
 

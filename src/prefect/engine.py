@@ -105,7 +105,10 @@ engine_logger = get_logger("engine")
 
 
 def enter_flow_run_engine_from_flow_call(
-    flow: Flow, parameters: Dict[str, Any], return_type: EngineReturnType
+    flow: Flow,
+    parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
+    return_type: EngineReturnType,
 ) -> Union[State, Awaitable[State]]:
     """
     Sync entrypoint for flow calls.
@@ -133,10 +136,14 @@ def enter_flow_run_engine_from_flow_call(
     parent_flow_run_context = FlowRunContext.get()
     is_subflow_run = parent_flow_run_context is not None
 
+    if wait_for is not None and not is_subflow_run:
+        raise ValueError("Only flows run as subflows can wait for dependencies.")
+
     begin_run = partial(
         create_and_begin_subflow_run if is_subflow_run else create_then_begin_flow_run,
         flow=flow,
         parameters=parameters,
+        wait_for=wait_for,
         return_type=return_type,
         client=parent_flow_run_context.client if is_subflow_run else None,
     )
@@ -184,6 +191,7 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
 async def create_then_begin_flow_run(
     flow: Flow,
     parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     client: OrionClient,
 ) -> Any:
@@ -360,6 +368,7 @@ async def begin_flow_run(
             flow,
             flow_run=flow_run,
             parameters=parameters,
+            wait_for=None,
             client=client,
             partial_flow_run_context=flow_run_context,
             # Orchestration needs to be interruptible if it has a timeout
@@ -386,6 +395,7 @@ async def begin_flow_run(
 async def create_and_begin_subflow_run(
     flow: Flow,
     parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     client: OrionClient,
 ) -> Any:
@@ -406,6 +416,11 @@ async def create_and_begin_subflow_run(
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
 
+    if wait_for:
+        task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
+
+    rerunning = parent_flow_run_context.flow_run.run_count > 1
+
     # Generate a task in the parent flow run to represent the result of the subflow run
     dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
     parent_task_run = await client.create_task_run(
@@ -419,8 +434,9 @@ async def create_and_begin_subflow_run(
     # Resolve any task futures in the input
     parameters = await resolve_inputs(parameters)
 
-    if parent_task_run.state.is_final():
-
+    if parent_task_run.state.is_final() and not (
+        rerunning and not parent_task_run.state.is_completed()
+    ):
         # Retrieve the most recent flow run from the database
         flow_runs = await client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
@@ -439,7 +455,7 @@ async def create_and_begin_subflow_run(
             flow,
             parameters=flow.serialize_parameters(parameters),
             parent_task_run_id=parent_task_run.id,
-            state=parent_task_run.state,
+            state=parent_task_run.state if not rerunning else Pending(),
             tags=TagsContext.get().current_tags,
         )
 
@@ -475,11 +491,11 @@ async def create_and_begin_subflow_run(
                 report_flow_run_crashes(flow_run=flow_run, client=client)
             )
             task_runner = await stack.enter_async_context(flow.task_runner.start())
-
             terminal_state = await orchestrate_flow_run(
                 flow,
                 flow_run=flow_run,
                 parameters=parameters,
+                wait_for=wait_for,
                 # If the parent flow run has a timeout, then this one needs to be
                 # interruptible as well
                 interruptible=parent_flow_run_context.timeout_scope is not None,
@@ -516,6 +532,7 @@ async def orchestrate_flow_run(
     flow: Flow,
     flow_run: FlowRun,
     parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
     interruptible: bool,
     client: OrionClient,
     partial_flow_run_context: PartialModel[FlowRunContext],
@@ -543,6 +560,21 @@ async def orchestrate_flow_run(
         else nullcontext()
     )
     flow_run_context = None
+
+    try:
+        # Resolve futures in any non-data dependencies to ensure they are ready
+        if wait_for is not None:
+            await resolve_inputs(wait_for, return_data=False)
+    except UpstreamTaskError as upstream_exc:
+
+        return await propose_state(
+            client,
+            Pending(name="NotReady", message=str(upstream_exc)),
+            flow_run_id=flow_run.id,
+            # if orchestrating a run already in a pending state, force orchestration to
+            # update the state name
+            force=flow_run.state.is_pending(),
+        )
 
     state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 

@@ -1,5 +1,72 @@
 # Prefect Release Notes
 
+## Release 2.6.5
+
+### Enhancements
+- Add support for manual flow run retries — https://github.com/PrefectHQ/prefect/pull/7152
+- Improve server performance when retrying flow runs with many tasks — https://github.com/PrefectHQ/prefect/pull/7152
+- Add status checks to work queues — https://github.com/PrefectHQ/prefect/pull/7262
+- Add timezone parameter to `prefect deployment build` — https://github.com/PrefectHQ/prefect/pull/7282
+- UI: Add redirect to original block form after creating a nested block — https://github.com/PrefectHQ/prefect/pull/7284
+- Add support for multiple work queue prefixes — https://github.com/PrefectHQ/prefect/pull/7222
+- Include "-" before random suffix of Kubernetes job names — https://github.com/PrefectHQ/prefect/pull/7329
+- Allow a working directory to be specified for `Process` infrastructure — https://github.com/PrefectHQ/prefect/pull/7252
+- Add support for Python 3.11 — https://github.com/PrefectHQ/prefect/pull/7304
+- Add persistence of data when a state is returned from a task or flow — https://github.com/PrefectHQ/prefect/pull/7316
+- Add `ignore_file` to `Deployment.build_from_flow()` — https://github.com/PrefectHQ/prefect/pull/7012
+
+### Fixes
+- Allow `with_options` to reset retries and retry delays — https://github.com/PrefectHQ/prefect/pull/7276
+- Fix proxy-awareness in the `OrionClient` — https://github.com/PrefectHQ/prefect/pull/7328
+- Fix block auto-registration when changing databases — https://github.com/PrefectHQ/prefect/pull/7350
+- Include hidden files when uploading directories to `RemoteFileSystem` storage — https://github.com/PrefectHQ/prefect/pull/7336
+- UI: added support for unsetting color-mode preference, `null` is now equivalent to "default" — https://github.com/PrefectHQ/prefect/pull/7321
+
+### Documentation
+- Add documentation for Prefect Cloud SSO — https://github.com/PrefectHQ/prefect/pull/7302
+
+### Collections
+- New [`prefect-docker`](https://prefecthq.github.io/prefect-docker/) collection for [Docker](https://www.docker.com/)
+- New [`prefect-census`](https://prefecthq.github.io/prefect-census/) collection for [Census](https://docs.getcensus.com/)
+
+## Contributors
+- @BallisticPain made their first contribution in https://github.com/PrefectHQ/prefect/pull/7252
+- @deepyaman
+- @hateyouinfinity
+- @jmg-duarte
+- @taljaards
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.4...2.6.5
+
+## Release 2.6.4
+
+### Enhancements
+- UI: Rename deployment "Overview" tab to "Description" — https://github.com/PrefectHQ/prefect/pull/7234
+- Add `Deployment.build_from_flow` toggle to disable loading of existing values from the API — https://github.com/PrefectHQ/prefect/pull/7218
+- Add `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting to globally toggle the result persistence default — https://github.com/PrefectHQ/prefect/pull/7228
+- Add support for using callable objects as tasks — https://github.com/PrefectHQ/prefect/pull/7217
+- Add authentication as service principal to the `Azure` storage block — https://github.com/PrefectHQ/prefect/pull/6844
+- Update default database timeout from 1 to 5 seconds — https://github.com/PrefectHQ/prefect/pull/7246
+
+### Fixes
+- Allow image/namespace fields to be loaded from Kubernetes job manifest — https://github.com/PrefectHQ/prefect/pull/7244
+- UI: Update settings API call to respect `ORION_UI_SERVE_BASE` environment variable — https://github.com/PrefectHQ/prefect/pull/7068
+- Fix entrypoint path error when deployment is created on Windows then run on Unix — https://github.com/PrefectHQ/prefect/pull/7261
+
+### Collections
+- New [`prefect-kv`](https://github.com/madkinsz/prefect-kv) collection for persisting key-value data
+- `prefect-aws`: Update [`S3Bucket`](https://prefecthq.github.io/prefect-aws/s3/#prefect_aws.s3.S3Bucket) storage block to enable use with deployments — https://github.com/PrefectHQ/prefect-aws/pull/82
+- `prefect-aws`: Add support for arbitrary user customizations to [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) block — https://github.com/PrefectHQ/prefect-aws/pull/120
+- `prefect-aws`: Removed the experimental designation from the [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) block
+- `prefect-azure`: New [`AzureContainerInstanceJob`](https://prefecthq.github.io/prefect-azure/container_instance/) infrastructure block to run flows or commands as containers on Azure — https://github.com/PrefectHQ/prefect-azure/pull/45
+
+### Contributors
+- @Trymzet
+- @jmg-duarte
+- @mthanded made their first contribution in https://github.com/PrefectHQ/prefect/pull/7068
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.3...2.6.4
+
 ## Release 2.6.3
 
 ### Fixes

@@ -9,6 +9,7 @@ from uuid import UUID
 import sqlalchemy as sa
 from pydantic import parse_obj_as
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
@@ -20,7 +21,7 @@ from prefect.orion.schemas.states import StateType
 
 @inject_db
 async def create_work_queue(
-    session: sa.orm.Session,
+    session: AsyncSession,
     work_queue: schemas.core.WorkQueue,
     db: OrionDBInterface,
 ):
@@ -30,7 +31,7 @@ async def create_work_queue(
     If a WorkQueue with the same name exists, an error will be thrown.
 
     Args:
-        session (sa.orm.Session): a database session
+        session (AsyncSession): a database session
         work_queue (schemas.core.WorkQueue): a WorkQueue model
 
     Returns:
@@ -47,13 +48,13 @@ async def create_work_queue(
 
 @inject_db
 async def read_work_queue(
-    session: sa.orm.Session, work_queue_id: UUID, db: OrionDBInterface
+    session: AsyncSession, work_queue_id: UUID, db: OrionDBInterface
 ):
     """
     Reads a WorkQueue by id.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         work_queue_id (str): a WorkQueue id
 
     Returns:
@@ -65,13 +66,13 @@ async def read_work_queue(
 
 @inject_db
 async def read_work_queue_by_name(
-    session: sa.orm.Session, name: str, db: OrionDBInterface
+    session: AsyncSession, name: str, db: OrionDBInterface
 ):
     """
     Reads a WorkQueue by id.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         work_queue_id (str): a WorkQueue id
 
     Returns:
@@ -86,18 +87,19 @@ async def read_work_queue_by_name(
 @inject_db
 async def read_work_queues(
     db: OrionDBInterface,
-    session: sa.orm.Session,
+    session: AsyncSession,
     offset: int = None,
     limit: int = None,
+    work_queue_filter: schemas.filters.WorkQueueFilter = None,
 ):
     """
     Read WorkQueues.
 
     Args:
-        session (sa.orm.Session): A database session
-        offset (int): Query offset
-        limit(int): Query limit
-
+        session: A database session
+        offset: Query offset
+        limit: Query limit
+        work_queue_filter: only select work queues matching these filters
     Returns:
         List[db.WorkQueue]: WorkQueues
     """
@@ -108,6 +110,8 @@ async def read_work_queues(
         query = query.offset(offset)
     if limit is not None:
         query = query.limit(limit)
+    if work_queue_filter:
+        query = query.where(work_queue_filter.as_sql_filter(db))
 
     result = await session.execute(query)
     return result.scalars().unique().all()
@@ -115,7 +119,7 @@ async def read_work_queues(
 
 @inject_db
 async def update_work_queue(
-    session: sa.orm.Session,
+    session: AsyncSession,
     work_queue_id: UUID,
     work_queue: schemas.actions.WorkQueueUpdate,
     db: OrionDBInterface,
@@ -124,7 +128,7 @@ async def update_work_queue(
     Update a WorkQueue by id.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         work_queue: the work queue data
         work_queue_id (str): a WorkQueue id
 
@@ -146,13 +150,13 @@ async def update_work_queue(
 
 @inject_db
 async def delete_work_queue(
-    session: sa.orm.Session, work_queue_id: UUID, db: OrionDBInterface
+    session: AsyncSession, work_queue_id: UUID, db: OrionDBInterface
 ) -> bool:
     """
     Delete a WorkQueue by id.
 
     Args:
-        session (sa.orm.Session): A database session
+        session (AsyncSession): A database session
         work_queue_id (str): a WorkQueue id
 
     Returns:
@@ -167,7 +171,7 @@ async def delete_work_queue(
 
 @inject_db
 async def get_runs_in_work_queue(
-    session: sa.orm.Session,
+    session: AsyncSession,
     work_queue_id: UUID,
     db: OrionDBInterface,
     limit: int = None,
@@ -213,7 +217,7 @@ async def get_runs_in_work_queue(
 
 @inject_db
 async def _legacy_get_runs_in_work_queue(
-    session: sa.orm.Session,
+    session: AsyncSession,
     work_queue_id: UUID,
     db: OrionDBInterface,
     scheduled_before: datetime.datetime = None,
@@ -285,7 +289,7 @@ async def _legacy_get_runs_in_work_queue(
 
 @inject_db
 async def _ensure_work_queue_exists(
-    session: sa.orm.Session, name: str, db: OrionDBInterface
+    session: AsyncSession, name: str, db: OrionDBInterface
 ):
     """
     Checks if a work queue exists and creates it if it does not.
@@ -301,3 +305,50 @@ async def _ensure_work_queue_exists(
             session=session,
             work_queue=schemas.core.WorkQueue(name=name),
         )
+
+
+@inject_db
+async def read_work_queue_status(
+    session: AsyncSession, work_queue_id: UUID, db: OrionDBInterface
+) -> schemas.core.WorkQueueStatusDetail:
+    """
+    Get work queue status by id.
+
+    Args:
+        session (AsyncSession): A database session
+        work_queue_id (str): a WorkQueue id
+
+    Returns:
+        Information about the status of the work queue.
+    """
+
+    work_queue = await read_work_queue(session=session, work_queue_id=work_queue_id)
+    if not work_queue:
+        raise ObjectNotFoundError(f"Work queue with id {work_queue_id} not found")
+
+    work_queue_late_runs_count = await models.flow_runs.count_flow_runs(
+        session=session,
+        flow_run_filter=schemas.filters.FlowRunFilter(
+            state=schemas.filters.FlowRunFilterState(name={"any_": ["Late"]}),
+            work_queue_name=schemas.filters.FlowRunFilterWorkQueueName(
+                any_=[work_queue.name]
+            ),
+        ),
+    )
+
+    # All work queues use the default policy for now
+    health_check_policy = schemas.core.WorkQueueHealthPolicy(
+        maximum_late_runs=0, maximum_seconds_since_last_polled=60
+    )
+
+    healthy = health_check_policy.evaluate_health_status(
+        late_runs_count=work_queue_late_runs_count,
+        last_polled=work_queue.last_polled,
+    )
+
+    return schemas.core.WorkQueueStatusDetail(
+        healthy=healthy,
+        late_runs_count=work_queue_late_runs_count,
+        last_polled=work_queue.last_polled,
+        health_check_policy=health_check_policy,
+    )

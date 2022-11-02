@@ -1,6 +1,7 @@
 import json
 from datetime import timedelta
 
+import pendulum
 import pytest
 
 from prefect import flow
@@ -252,6 +253,73 @@ class TestInputValidation:
             temp_dir=tmp_path,
         )
 
+    def test_passing_cron_schedules_to_build(self, patch_import, tmp_path):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--cron",
+                "0 4 * * *",
+                "--timezone",
+                "Europe/Berlin",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.schedule.cron == "0 4 * * *"
+        assert deployment.schedule.timezone == "Europe/Berlin"
+
+    def test_passing_interval_schedules_to_build(self, patch_import, tmp_path):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--interval",
+                "42",
+                "--anchor-date",
+                "2018-02-02",
+                "--timezone",
+                "America/New_York",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.schedule.interval == timedelta(seconds=42)
+        assert deployment.schedule.anchor_date == pendulum.parse("2018-02-02")
+        assert deployment.schedule.timezone == "America/New_York"
+
+    def test_passing_anchor_without_interval_exits(self, patch_import, tmp_path):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--anchor-date",
+                "2018-02-02",
+            ],
+            expected_code=1,
+            temp_dir=tmp_path,
+            expected_output_contains="An anchor date can only be provided with an interval schedule",
+        )
+
     def test_parsing_rrule_schedule_string_literal(self, patch_import, tmp_path):
         invoke_and_assert(
             [
@@ -372,6 +440,35 @@ class TestInputValidation:
             deployment.schedule.rrule
             == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
         )
+        assert deployment.schedule.timezone == "America/New_York"
+
+    def test_parsing_rrule_timezone_overrides_if_passed_explicitly(
+        self, patch_import, tmp_path
+    ):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--rrule",
+                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17", "timezone": "America/New_York"}',
+                "--timezone",
+                "Europe/Berlin",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert (
+            deployment.schedule.rrule
+            == "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"
+        )
+        assert deployment.schedule.timezone == "Europe/Berlin"
 
 
 class TestOutputMessages:
@@ -427,6 +524,31 @@ class TestOutputMessages:
                 ),
                 f"$ prefect agent start -q {d.work_queue_name!r}",
             ],
+        )
+
+    def test_linking_to_deployment_in_ui(
+        self,
+        patch_import,
+        tmp_path,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "prefect.cli.deployment.ui_base_url", lambda status: "127.0.0.1:1234"
+        )
+        d = Deployment.build_from_flow(
+            flow=my_flow,
+            name="TEST",
+            flow_name="my_flow",
+            output=str(tmp_path / "test.yaml"),
+            work_queue_name="prod",
+        )
+        invoke_and_assert(
+            [
+                "deployment",
+                "apply",
+                str(tmp_path / "test.yaml"),
+            ],
+            expected_output_contains="/deployments/deployment/",
         )
 
     def test_updating_work_queue_concurrency_from_python_build(
@@ -494,6 +616,7 @@ class TestUpdatingDeployments:
             tags=["foo", "bar"],
             parameter_openapi_schema={},
         )
+        return deployment_id
 
     def test_updating_schedules(self, flojo):
         invoke_and_assert(
@@ -553,6 +676,41 @@ class TestUpdatingDeployments:
             ],
             expected_code=0,
             expected_output_contains="Updated deployment schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["America/New_York"],
+            expected_code=0,
+        )
+
+    def test_rrule_schedule_timezone_overrides_if_passed_explicitly(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--rrule",
+                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17", "timezone": "America/New_York"}',
+                "--timezone",
+                "Asia/Seoul",
+            ],
+            expected_code=0,
+            expected_output_contains="Updated deployment schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["Asia/Seoul"],
+            expected_code=0,
         )
 
     def test_pausing_and_resuming_schedules(self, flojo):

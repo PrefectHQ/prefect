@@ -9,8 +9,11 @@ from typing import Optional
 
 import pendulum
 import sqlalchemy as sa
+from packaging.version import Version
 from sqlalchemy import select
 
+from prefect.exceptions import MissingFlowRunError
+from prefect.orion import models
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.models import concurrency_limits
@@ -34,7 +37,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
-            PreventTransitionsFromTerminalStates,
+            HandleFlowTerminalStateTransitions,
             PreventRedundantTransitions,
             WaitForScheduledTime,
             RetryFailedFlows,
@@ -49,12 +52,13 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             CacheRetrieval,
-            SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
-            PreventTransitionsFromTerminalStates,
+            HandleTaskTerminalStateTransitions,
             PreventRedundantTransitions,
+            SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             WaitForScheduledTime,
             RetryFailedTasks,
             RenameReruns,
+            UpdateFlowRunTrackerOnTasks,
             CacheInsertion,
             ReleaseTaskConcurrencySlots,
         ]
@@ -270,10 +274,9 @@ class RetryFailedFlows(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ) -> None:
-        from prefect.orion.models import task_runs
-
         run_settings = context.run_settings
         run_count = context.run.run_count
+
         if run_settings.retries is None or run_count > run_settings.retries:
             return  # Retry count exceeded, allow transition to failed
 
@@ -281,20 +284,27 @@ class RetryFailedFlows(BaseOrchestrationRule):
             seconds=run_settings.retry_delay or 0
         )
 
-        failed_task_runs = await task_runs.read_task_runs(
-            context.session,
-            flow_run_filter=filters.FlowRunFilter(id={"any_": [context.run.id]}),
-            task_run_filter=filters.TaskRunFilter(state={"type": {"any_": ["FAILED"]}}),
-        )
-        for run in failed_task_runs:
-            await task_runs.set_task_run_state(
+        # support old-style flow run retries for older clients
+        # older flow retries require us to loop over failed tasks to update their state
+        # this is not required after API version 0.8.3
+        api_version = context.parameters.get("api-version", None)
+        if api_version and api_version < Version("0.8.3"):
+            failed_task_runs = await models.task_runs.read_task_runs(
                 context.session,
-                run.id,
-                state=states.AwaitingRetry(scheduled_time=scheduled_start_time),
-                force=True,
+                flow_run_filter=filters.FlowRunFilter(id={"any_": [context.run.id]}),
+                task_run_filter=filters.TaskRunFilter(
+                    state={"type": {"any_": ["FAILED"]}}
+                ),
             )
-            # Reset the run count so that the task run retries still work correctly
-            run.run_count = 0
+            for run in failed_task_runs:
+                await models.task_runs.set_task_run_state(
+                    context.session,
+                    run.id,
+                    state=states.AwaitingRetry(scheduled_time=scheduled_start_time),
+                    force=True,
+                )
+                # Reset the run count so that the task run retries still work correctly
+                run.run_count = 0
 
         # Generate a new state for the flow
         retry_state = states.AwaitingRetry(
@@ -394,13 +404,42 @@ class WaitForScheduledTime(BaseOrchestrationRule):
             )
 
 
-class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
+class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
+    """
+    Tracks the flow run attempt a task run state is associated with.
+    """
+
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [states.StateType.RUNNING]
+
+    async def after_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        self.flow_run = await context.flow_run()
+        if self.flow_run:
+            context.run.flow_run_run_count = self.flow_run.run_count
+        else:
+            raise MissingFlowRunError(
+                f"Unable to read flow run associated with task run: {context.run.id}, this flow run might have been deleted",
+            )
+
+
+class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
     """
     Prevents transitions from terminal states.
 
     Orchestration logic in Orion assumes that once runs enter a terminal state, no
     further action will be taken on them. This rule prevents unintended transitions out
     of terminal states and sents an instruction to the client to abort any execution.
+
+    While rerunning a flow, the client will attempt to re-orchestrate tasks that may
+    have previously failed. This rule will permit transitions back into a running state
+    if the parent flow run is either currently restarting or retrying. The task run's
+    run count will also be reset so task-level retries can still fire and tracking
+    metadata is updated.
     """
 
     FROM_STATES = TERMINAL_STATES
@@ -410,9 +449,70 @@ class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
         self,
         initial_state: Optional[states.State],
         proposed_state: Optional[states.State],
-        context: OrchestrationContext,
+        context: TaskOrchestrationContext,
     ) -> None:
+
+        # permit rerunning a task if the flow is retrying
+        if proposed_state.is_running() and (
+            initial_state.is_failed()
+            or initial_state.is_crashed()
+            or initial_state.is_cancelled()
+        ):
+            self.original_run_count = context.run.run_count
+            self.original_retry_attempt = context.run.flow_run_run_count
+
+            self.flow_run = await context.flow_run()
+            flow_retrying = context.run.flow_run_run_count < self.flow_run.run_count
+
+            if flow_retrying:
+                context.run.run_count = 0  # reset run count to preserve retry behavior
+                await self.rename_state("Retrying")
+                return
+
         await self.abort_transition(reason="This run has already terminated.")
+
+    async def cleanup(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: OrchestrationContext,
+    ):
+        # reset run count
+        context.run.run_count = self.original_run_count
+
+
+class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
+    """
+    Prevents transitions from terminal states.
+
+    Orchestration logic in Orion assumes that once runs enter a terminal state, no
+    further action will be taken on them. This rule prevents unintended transitions out
+    of terminal states and sents an instruction to the client to abort any execution.
+
+    If the orchestrated flow run has an associated deployment, this rule will permit a
+    transition back into a scheduled state as well as performing all necessary
+    bookkeeping such as: tracking the number of times a flow run has been restarted and
+    resetting the run count so flow-level retries can still fire.
+    """
+
+    FROM_STATES = TERMINAL_STATES
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: FlowOrchestrationContext,
+    ) -> None:
+
+        # permit transitions into back into a scheduled state for manual retries
+        if proposed_state.is_scheduled() and proposed_state.name == "AwaitingRetry":
+            if not context.run.deployment_id:
+                await self.abort_transition(
+                    "Cannot restart a run without an associated deployment."
+                )
+        else:
+            await self.abort_transition(reason="This run has already terminated.")
 
 
 class PreventRedundantTransitions(BaseOrchestrationRule):

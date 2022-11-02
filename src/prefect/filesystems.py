@@ -1,13 +1,11 @@
 import abc
-import glob
 import io
 import json
-import os
 import shutil
 import sys
 import urllib.parse
 from distutils.dir_util import copy_tree
-from pathlib import Path, PurePath
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -342,8 +340,8 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             )
 
         counter = 0
-        for f in glob.glob(os.path.join(local_path, "**"), recursive=True):
-            relative_path = PurePath(f).relative_to(local_path)
+        for f in Path(local_path).rglob("*"):
+            relative_path = f.relative_to(local_path)
             if included_files and str(relative_path) not in included_files:
                 continue
 
@@ -352,9 +350,10 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             else:
                 fpath = to_path + "/" + relative_path.as_posix()
 
-            if Path(f).is_dir():
+            if f.is_dir():
                 pass
             else:
+                f = f.as_posix()
                 if overwrite:
                     self.filesystem.put_file(f, fpath, overwrite=True)
                 else:
@@ -616,6 +615,21 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         title="Azure storage account key",
         description="Equivalent to the AZURE_STORAGE_ACCOUNT_KEY environment variable.",
     )
+    azure_storage_tenant_id: Optional[SecretStr] = Field(
+        None,
+        title="Azure storage tenant ID",
+        description="Equivalent to the AZURE_TENANT_ID environment variable.",
+    )
+    azure_storage_client_id: Optional[SecretStr] = Field(
+        None,
+        title="Azure storage client ID",
+        description="Equivalent to the AZURE_CLIENT_ID environment variable.",
+    )
+    azure_storage_client_secret: Optional[SecretStr] = Field(
+        None,
+        title="Azure storage client secret",
+        description="Equivalent to the AZURE_CLIENT_SECRET environment variable.",
+    )
     _remote_file_system: RemoteFileSystem = None
 
     @property
@@ -635,6 +649,14 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
             ] = self.azure_storage_account_name.get_secret_value()
         if self.azure_storage_account_key:
             settings["account_key"] = self.azure_storage_account_key.get_secret_value()
+        if self.azure_storage_tenant_id:
+            settings["tenant_id"] = self.azure_storage_tenant_id.get_secret_value()
+        if self.azure_storage_client_id:
+            settings["client_id"] = self.azure_storage_client_id.get_secret_value()
+        if self.azure_storage_client_secret:
+            settings[
+                "client_secret"
+            ] = self.azure_storage_client_secret.get_secret_value()
         self._remote_file_system = RemoteFileSystem(
             basepath=f"az://{self.bucket_path}", settings=settings
         )
@@ -872,16 +894,16 @@ class GitHub(ReadableDeploymentStorage):
             local_path: A local path to clone to; defaults to present working directory.
         """
         # CONSTRUCT COMMAND
-        cmd = f"git clone {self._create_repo_url()}"
+        cmd = ["git", "clone", self._create_repo_url()]
         if self.reference:
-            cmd += f" -b {self.reference}"
+            cmd += ["-b", self.reference]
 
         # Limit git history
-        cmd += " --depth 1"
+        cmd += ["--depth", "1"]
 
         # Clone to a temporary directory and move the subdirectory over
         with TemporaryDirectory(suffix="prefect") as tmp_dir:
-            cmd += f" {tmp_dir}"
+            cmd.append(tmp_dir)
 
             err_stream = io.StringIO()
             out_stream = io.StringIO()
