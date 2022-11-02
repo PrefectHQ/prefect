@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from prefect.orion import models, schemas
 from prefect.orion.schemas import filters
 from prefect.orion.schemas.states import StateType
+from prefect.settings import PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS
 
 
 class TestCreateDeployment:
@@ -584,7 +585,7 @@ class TestScheduledRuns:
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
-        assert len(scheduled_runs) == 100
+        assert len(scheduled_runs) == PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
         query_result = await session.execute(
             sa.select(db.FlowRun).where(
                 db.FlowRun.state.has(db.FlowRunState.type == StateType.SCHEDULED)
@@ -595,7 +596,8 @@ class TestScheduledRuns:
         assert {r.id for r in db_scheduled_runs} == set(scheduled_runs)
 
         expected_times = {
-            pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(100)
+            pendulum.now("UTC").start_of("day").add(days=i + 1)
+            for i in range(PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value())
         }
 
         actual_times = set()
@@ -610,7 +612,7 @@ class TestScheduledRuns:
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
-        assert len(scheduled_runs) == 100
+        assert len(scheduled_runs) == PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
 
         second_scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
@@ -618,7 +620,7 @@ class TestScheduledRuns:
 
         assert len(second_scheduled_runs) == 0
 
-        # only 100 runs were inserted
+        # only max runs runs were inserted
         query_result = await session.execute(
             sa.select(db.FlowRun).where(
                 db.FlowRun.flow_id == flow.id,
@@ -627,7 +629,9 @@ class TestScheduledRuns:
         )
 
         db_scheduled_runs = query_result.scalars().all()
-        assert len(db_scheduled_runs) == 100
+        assert (
+            len(db_scheduled_runs) == PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
+        )
 
     async def test_schedule_n_runs(self, flow, deployment, session):
         scheduled_runs = await models.deployments.schedule_runs(
@@ -791,12 +795,12 @@ class TestScheduledRuns:
             session,
             deployment_id=deployment.id,
             start_time=pendulum.now("UTC").add(days=100),
-            end_time=pendulum.now("UTC").add(days=150),
+            end_time=pendulum.now("UTC").add(days=110),
         )
-        assert len(scheduled_runs) == 50
+        assert len(scheduled_runs) == 10
 
         expected_times = {
-            pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(100, 150)
+            pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(100, 110)
         }
         actual_times = set()
         for run_id in scheduled_runs:
@@ -835,13 +839,13 @@ class TestScheduledRuns:
             session,
             deployment_id=deployment.id,
             start_time=pendulum.now("UTC").subtract(days=1000),
-            end_time=pendulum.now("UTC").subtract(days=950),
+            end_time=pendulum.now("UTC").subtract(days=990),
         )
-        assert len(scheduled_runs) == 50
+        assert len(scheduled_runs) == 10
 
         expected_times = {
             pendulum.now("UTC").start_of("day").subtract(days=i)
-            for i in range(950, 1000)
+            for i in range(990, 1000)
         }
 
         actual_times = set()
