@@ -93,7 +93,7 @@ class Setting(Generic[T]):
 
         self.__doc__ = self.field.description
 
-    def value(self) -> T:
+    def value(self, bypass_callback: bool = False) -> T:
         """
         Get the current value of a setting.
 
@@ -103,9 +103,9 @@ class Setting(Generic[T]):
         PREFECT_API_URL.value()
         ```
         """
-        return self.value_from(get_current_settings())
+        return self.value_from(get_current_settings(), bypass_callback=bypass_callback)
 
-    def value_from(self, settings: "Settings") -> T:
+    def value_from(self, settings: "Settings", bypass_callback: bool = False) -> T:
         """
         Get the value of a setting from a settings object
 
@@ -115,7 +115,7 @@ class Setting(Generic[T]):
         PREFECT_API_URL.value_from(get_default_settings())
         ```
         """
-        return settings.value_of(self)
+        return settings.value_of(self, bypass_callback=bypass_callback)
 
     def __repr__(self) -> str:
         return f"<{self.name}: {self.type.__name__}>"
@@ -234,6 +234,43 @@ def warn_on_database_password_value_without_usage(values):
     return values
 
 
+def get_deprecated_prefect_cloud_url(settings, value):
+    warnings.warn(
+        "`PREFECT_CLOUD_URL` is deprecated. Use `PREFECT_CLOUD_API_URL` instead.",
+        DeprecationWarning,
+    )
+    return value or PREFECT_CLOUD_API_URL.value_from(settings)
+
+
+def check_for_deprecated_cloud_url(settings, value):
+    deprecated_value = PREFECT_CLOUD_URL.value_from(settings, bypass_callback=True)
+    if deprecated_value is not None:
+        warnings.warn(
+            "`PREFECT_CLOUD_URL` is set and will be used instead of `PREFECT_CLOUD_API_URL` for backwards compatibility. `PREFECT_CLOUD_URL` is deprecated, set `PREFECT_CLOUD_API_URL` instead.",
+            DeprecationWarning,
+        )
+    return deprecated_value or value
+
+
+def default_ui_url(settings, value):
+    if value is not None:
+        return value
+
+    # Otherwise, infer a value from the API URL
+    ui_url = api_url = PREFECT_API_URL.value_from(settings)
+
+    if not api_url:
+        return "http://ephemeral-orion"
+
+    if api_url.endswith("/api"):
+        ui_url = ui_url[:-4]
+
+    if api_url.startswith("https://api."):
+        ui_url = ui_url.replace("https://api.", "https://app.")
+
+    return ui_url
+
+
 # Setting definitions
 
 
@@ -301,11 +338,28 @@ PREFECT_API_KEY = Setting(
 )
 """API key used to authenticate against Orion API. Defaults to `None`."""
 
-PREFECT_CLOUD_URL = Setting(
+PREFECT_CLOUD_API_URL = Setting(
     str,
     default="https://api.prefect.cloud/api",
+    value_callback=check_for_deprecated_cloud_url,
 )
-"""API URL for Prefect Cloud"""
+"""API URL for Prefect Cloud. Used for authentication."""
+
+
+PREFECT_CLOUD_URL = Setting(
+    str, default=None, value_callback=get_deprecated_prefect_cloud_url
+)
+"""
+DEPRECATED: Use `PREFECT_CLOUD_API_URL` instead.
+"""
+
+PREFECT_UI_URL = Setting(
+    str,
+    default=None,
+    value_callback=default_ui_url,
+)
+
+"""The URL for the UI. By default, this is inferred from the PREFECT_API_URL."""
 
 PREFECT_API_REQUEST_TIMEOUT = Setting(
     float,
@@ -723,12 +777,12 @@ class Settings(SettingsFieldsMixin):
     ```
     """
 
-    def value_of(self, setting: Setting[T]) -> T:
+    def value_of(self, setting: Setting[T], bypass_callback: bool = False) -> T:
         """
         Retrieve a setting's value.
         """
         value = getattr(self, setting.name)
-        if setting.value_callback:
+        if setting.value_callback and not bypass_callback:
             value = setting.value_callback(self, value)
         return value
 

@@ -12,6 +12,8 @@ from prefect.settings import (
     DEFAULT_PROFILES_PATH,
     PREFECT_API_KEY,
     PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_CLOUD_URL,
     PREFECT_DEBUG_MODE,
     PREFECT_HOME,
     PREFECT_LOGGING_EXTRA_LOGGERS,
@@ -25,6 +27,7 @@ from prefect.settings import (
     PREFECT_PROFILES_PATH,
     PREFECT_TEST_MODE,
     PREFECT_TEST_SETTING,
+    PREFECT_UI_URL,
     SETTING_VARIABLES,
     Profile,
     ProfilesCollection,
@@ -320,6 +323,37 @@ class TestSettingAccess:
     def test_prefect_home_expands_tilde_in_path(self):
         settings = Settings(PREFECT_HOME="~/test")
         assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
+
+    def test_prefect_cloud_url_deprecated_on_set(self):
+        with temporary_settings({PREFECT_CLOUD_URL: "test"}):
+            with pytest.raises(
+                DeprecationWarning,
+                match="`PREFECT_CLOUD_URL` is set and will be used instead of `PREFECT_CLOUD_API_URL`",
+            ):
+                PREFECT_CLOUD_API_URL.value()
+
+    def test_prefect_cloud_url_deprecated_on_access(self):
+        with pytest.raises(
+            DeprecationWarning,
+            match="`PREFECT_CLOUD_URL` is deprecated. Use `PREFECT_CLOUD_API_URL` instead.",
+        ):
+            PREFECT_CLOUD_URL.value()
+
+    @pytest.mark.parametrize(
+        "api_url,ui_url",
+        [
+            (None, "http://ephemeral-orion"),
+            ("https://api.prefect.cloud/api", "https://app.prefect.cloud"),
+            ("http://my-orion/api", "http://my-orion"),
+        ],
+    )
+    def test_ui_url_inferred_from_api_url(self, api_url, ui_url):
+        with temporary_settings({PREFECT_API_URL: api_url}):
+            assert PREFECT_UI_URL.value() == ui_url
+
+    def test_ui_url_set_directly(self):
+        with temporary_settings({PREFECT_UI_URL: "test"}):
+            assert PREFECT_UI_URL.value() == "test"
 
 
 class TestTemporarySettings:

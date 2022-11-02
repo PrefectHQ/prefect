@@ -82,7 +82,7 @@ async def version():
     from prefect.orion.utilities.database import get_dialect
     from prefect.settings import (
         PREFECT_API_URL,
-        PREFECT_CLOUD_URL,
+        PREFECT_CLOUD_API_URL,
         PREFECT_ORION_DATABASE_CONNECTION_URL,
     )
 
@@ -110,7 +110,7 @@ async def version():
             if is_ephemeral
             else (
                 "cloud"
-                if PREFECT_API_URL.value().startswith(PREFECT_CLOUD_URL.value())
+                if PREFECT_API_URL.value().startswith(PREFECT_CLOUD_API_URL.value())
                 else "hosted"
             )
         )
