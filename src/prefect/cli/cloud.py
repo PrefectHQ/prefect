@@ -7,7 +7,6 @@ import traceback
 import urllib.parse
 import webbrowser
 from typing import Dict, Iterable, List, Optional, Tuple, Union
-from uuid import UUID
 
 import anyio
 import httpx
@@ -69,8 +68,6 @@ login_api.add_middleware(
 
 class LoginSuccess(BaseModel):
     api_key: str
-    workspace_id: UUID
-    account_id: UUID
 
 
 class LoginFailed(BaseModel):
