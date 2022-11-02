@@ -366,7 +366,7 @@ async def login(
         )
 
         if choice == "key":
-            key = typer.prompt("Paste your authentication token")
+            key = typer.prompt("Paste your authentication key")
         elif choice == "browser":
             key = await login_with_browser()
 
