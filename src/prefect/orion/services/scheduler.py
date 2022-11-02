@@ -70,8 +70,6 @@ class Scheduler(LoopService):
         """
         total_inserted_runs = 0
 
-        # session = await db.session()
-        # async with session:
         last_id = None
         while True:
             async with db.session_context(begin_transaction=False) as session:
