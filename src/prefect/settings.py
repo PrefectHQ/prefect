@@ -271,6 +271,25 @@ def default_ui_url(settings, value):
     return ui_url
 
 
+def default_cloud_ui_url(settings, value):
+    if value is not None:
+        return value
+
+    # Otherwise, infer a value from the API URL
+    ui_url = api_url = PREFECT_CLOUD_API_URL.value_from(settings)
+
+    if not api_url:
+        return "http://ephemeral-orion"
+
+    if api_url.endswith("/api"):
+        ui_url = ui_url[:-4]
+
+    if api_url.startswith("https://api."):
+        ui_url = ui_url.replace("https://api.", "https://app.")
+
+    return ui_url
+
+
 # Setting definitions
 
 
@@ -358,8 +377,20 @@ PREFECT_UI_URL = Setting(
     default=None,
     value_callback=default_ui_url,
 )
-
 """The URL for the UI. By default, this is inferred from the PREFECT_API_URL."""
+
+
+PREFECT_CLOUD_UI_URL = Setting(
+    str,
+    default=None,
+    value_callback=default_cloud_ui_url,
+)
+"""
+The URL for the Cloud UI. By default, this is inferred from the PREFECT_CLOUD_API_URL.
+
+Note: PREFECT_UI_URL will be workspace specific and will be usable in the open source too.
+      In contrast, this value is only valid for Cloud and will not include the workspace.
+"""
 
 PREFECT_API_REQUEST_TIMEOUT = Setting(
     float,
