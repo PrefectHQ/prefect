@@ -559,12 +559,12 @@ deployment once. Defaults to `100`.
 
 PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS = Setting(
     int,
-    default=100,
+    default=20,
 )
 """The scheduler will attempt to schedule up to this many
 auto-scheduled runs in the future. Note that runs may have fewer than
 this many scheduled runs, depending on the value of
-`scheduler_max_scheduled_time`.  Defaults to `100`.
+`scheduler_max_scheduled_time`.  Defaults to `20`.
 """
 
 PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
