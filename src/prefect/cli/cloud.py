@@ -418,7 +418,7 @@ async def login(
     if not key:
         choice = prompt_select_from_list(
             app.console,
-            "How would you like to authenticate the Prefect CLI?",
+            "How would you like to authenticate?",
             [
                 ("browser", "Login with a web browser"),
                 ("key", "Paste an authentication key"),
