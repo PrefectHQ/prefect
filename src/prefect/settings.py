@@ -1266,6 +1266,9 @@ class ProfilesCollection:
     def __iter__(self):
         return self.profiles_by_name.__iter__()
 
+    def items(self):
+        return self.profiles_by_name.items()
+
     def __eq__(self, __o: object) -> bool:
         if not isinstance(__o, ProfilesCollection):
             return False

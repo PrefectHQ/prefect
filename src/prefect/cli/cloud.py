@@ -28,6 +28,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
+from prefect.context import get_settings_context
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
@@ -354,6 +355,56 @@ async def login(
     Creates a new profile configured to use the specified PREFECT_API_KEY.
     Uses a previously configured profile if it exists.
     """
+    profiles = load_profiles()
+    current_profile = get_settings_context().profile
+
+    if key and PREFECT_API_KEY.value() == key:
+        exit_with_success("This profile is already authenticated with that key.")
+
+    already_logged_in_profiles = []
+    for name, profile in profiles.items():
+        profile_key = profile.settings.get(PREFECT_API_KEY)
+        if not key or (key and profile_key == key):
+            already_logged_in_profiles.append(name)
+
+    current_profile_is_logged_in = current_profile.name in already_logged_in_profiles
+
+    if current_profile_is_logged_in:
+        app.console.print("It looks like you're already authenticated on this profile.")
+        should_reauth = typer.confirm(
+            "? Would you like to reauthenticate?", default=False
+        )
+        if not should_reauth:
+            exit_with_success("Using the existing authentication on this profile.")
+
+    elif already_logged_in_profiles:
+        app.console.print(
+            "It looks like you're already authenticated on another profile."
+        )
+        should_reauth = typer.confirm(
+            "? Would you like to reauthenticate on this profile?", default=False
+        )
+
+        if not should_reauth:
+            should_switch = typer.confirm(
+                "? Would you like to switch to an authenticated profile?", default=True
+            )
+        else:
+            should_switch = False
+
+        if should_switch:
+            if len(already_logged_in_profiles) == 1:
+                profile_name = already_logged_in_profiles[0]
+            else:
+                profile_name = prompt_select_from_list(
+                    app.console,
+                    "Which authenticated profile would you like to switch to?",
+                    already_logged_in_profiles,
+                )
+
+            profiles.set_active(profile_name)
+            save_profiles(profiles)
+            exit_with_success("Switched to authenticated profile {profile_name!r}.")
 
     if not key:
         choice = prompt_select_from_list(
@@ -389,8 +440,6 @@ async def login(
             )
         except httpx.HTTPStatusError as exc:
             exit_with_error(f"Error connecting to Prefect Cloud: {exc!r}")
-
-    profiles = load_profiles()
 
     for profile_name in profiles:
         if key == profiles[profile_name].settings.get(PREFECT_API_KEY):
