@@ -288,6 +288,11 @@ async def login(
     Creates a new profile configured to use the specified PREFECT_API_KEY.
     Uses a previously configured profile if it exists.
     """
+    if not app.console.is_interactive and (not key or not workspace_handle):
+        exit_with_error(
+            "When not using an interactive terminal, you must supply a `--key` and `--workspace`."
+        )
+
     profiles = load_profiles()
     current_profile = get_settings_context().profile
 
