@@ -234,7 +234,7 @@ def cached_task():
 
 ## Timeouts
 
-Task timeouts are used to prevent unintentional long-running tasks. When the duration of execution for a task exceeds the duration specified in the timeout, a timeout exception will be raised and the task will be marked as failed. Inside of the UI the task will be visibly designated as `TimedOut`. From the perspective of the flow, the timed-out task will be treated like any other failed task. 
+Task timeouts are used to prevent unintentional long-running tasks. When the duration of execution for a task exceeds the duration specified in the timeout, a timeout exception will be raised and the task will be marked as failed. In the UI, the task will be visibly designated as `TimedOut`. From the perspective of the flow, the timed-out task will be treated like any other failed task. 
 
 Timeout durations are specified using the `timeout_seconds` keyword argument. 
 
@@ -246,7 +246,7 @@ import time
 def show_timeouts():
     logger = get_run_logger()
     logger.info("I will execute")
-    time.sleep(2)
+    time.sleep(5)
     logger.info("I will not execute")
 ```
 
