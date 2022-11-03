@@ -34,7 +34,7 @@ Prefect currently provides the following built-in task runners:
 - [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner) can run tasks sequentially. 
 - [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) can run tasks concurrently, allowing tasks to switch when blocking on IO. Tasks will be submitted to a thread pool maintained by `anyio`.
 
-In addition, the following Prefect-developed task runners for parallel or distributed task execution may be installed as [Prefect Collections](/collections/overview/). 
+In addition, the following Prefect-developed task runners for parallel or distributed task execution may be installed as [Prefect Collections](/collections/catalog/). 
 
 - [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) can run tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
 - [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) can run tasks requiring parallel execution using [Ray](https://www.ray.io/).
@@ -258,12 +258,13 @@ The `.result()` method will wait for the task to complete before returning the r
 from prefect import flow, task
 
 @task
-def my_task(name):
+def my_task():
     return "I'm a task!"
+
 
 @flow
 def my_flow():
-    future = my_task()
+    future = my_task.submit()
     result = future.result(raise_on_failure=False)
     if future.get_state().is_failed():
         # `result` is an exception! handle accordingly
@@ -618,7 +619,7 @@ if __name__ == "main":
 
 ## Running tasks on Ray
 
-The [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) &mdash; installed separately as a [Prefect Collection](/collections/overview/) &mdash; is a parallel task runner that submits tasks to [Ray](https://www.ray.io/). By default, a temporary Ray instance is created for the duration of the flow run. If you already have a Ray instance running, you can provide the connection URL via an `address` argument.
+The [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) &mdash; installed separately as a [Prefect Collection](/collections/catalog/) &mdash; is a parallel task runner that submits tasks to [Ray](https://www.ray.io/). By default, a temporary Ray instance is created for the duration of the flow run. If you already have a Ray instance running, you can provide the connection URL via an `address` argument.
 
 !!! note "Remote storage and Ray tasks"
     We recommend configuring [remote storage](/concepts/storage/) for task execution with the `RayTaskRunner`. This ensures tasks executing in Ray have access to task result storage, particularly when accessing a Ray instance outside of your execution environment.

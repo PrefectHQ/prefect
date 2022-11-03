@@ -8,6 +8,11 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+
+# Add index for partial work queue name match
+SQLite: None
+Postgres: `41e5ed9e1034`
+
 # Add version to block schema
 SQLite: `e757138e954a`
 Postgres: `2d5e000696f1`
