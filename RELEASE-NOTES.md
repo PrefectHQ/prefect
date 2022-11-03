@@ -14,6 +14,7 @@
 - Fix link to UI deployment page in CLI — https://github.com/PrefectHQ/prefect/pull/7376
 - Fix UI URL routing to be consistent with CLI — https://github.com/PrefectHQ/prefect/pull/7391
 - Assert that command is a list when passed to `open_process` — https://github.com/PrefectHQ/prefect/pull/7389
+- Fix JSON error when serializing certain flow run parameters e.g. dataframes — https://github.com/PrefectHQ/prefect/pull/7385
 
 ### Documentation
 - Add versioning documentation — https://github.com/PrefectHQ/prefect/pull/7353
