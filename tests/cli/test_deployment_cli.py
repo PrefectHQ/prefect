@@ -532,9 +532,6 @@ class TestOutputMessages:
         tmp_path,
         monkeypatch,
     ):
-        monkeypatch.setattr(
-            "prefect.cli.deployment.ui_base_url", lambda status: "127.0.0.1:1234"
-        )
         d = Deployment.build_from_flow(
             flow=my_flow,
             name="TEST",

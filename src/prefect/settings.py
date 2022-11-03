@@ -260,13 +260,17 @@ def default_ui_url(settings, value):
     ui_url = api_url = PREFECT_API_URL.value_from(settings)
 
     if not api_url:
-        return "http://ephemeral-orion"
+        return None
 
-    if api_url.endswith("/api"):
-        ui_url = ui_url[:-4]
+    cloud_url = PREFECT_CLOUD_API_URL.value_from(settings)
+    cloud_ui_url = PREFECT_CLOUD_UI_URL.value_from(settings)
+    if api_url.startswith(cloud_url):
+        ui_url = ui_url.replace(cloud_url, cloud_ui_url)
 
-    if api_url.startswith("https://api."):
-        ui_url = ui_url.replace("https://api.", "https://app.")
+    # Update routing
+    ui_url = ui_url.replace("/api/", "/")
+    ui_url = ui_url.replace("/accounts/", "/account/")
+    ui_url = ui_url.replace("/workspaces/", "/workspace/")
 
     return ui_url
 
@@ -278,14 +282,10 @@ def default_cloud_ui_url(settings, value):
     # Otherwise, infer a value from the API URL
     ui_url = api_url = PREFECT_CLOUD_API_URL.value_from(settings)
 
-    if not api_url:
-        return "http://ephemeral-orion"
-
-    if api_url.endswith("/api"):
-        ui_url = ui_url[:-4]
-
-    if api_url.startswith("https://api."):
-        ui_url = ui_url.replace("https://api.", "https://app.")
+    if api_url.startswith("https://api.prefect.cloud"):
+        ui_url = ui_url.replace(
+            "https://api.prefect.cloud", "https://app.prefect.cloud"
+        )
 
     return ui_url
 
@@ -349,7 +349,11 @@ PREFECT_API_URL = Setting(
     str,
     default=None,
 )
-"""If provided, the url of an externally-hosted Orion API. Defaults to `None`."""
+"""
+If provided, the url of an externally-hosted Orion API. Defaults to `None`.
+
+When using Prefect Cloud, this will include an account and workspace.
+"""
 
 PREFECT_API_KEY = Setting(
     str,
@@ -373,11 +377,16 @@ DEPRECATED: Use `PREFECT_CLOUD_API_URL` instead.
 """
 
 PREFECT_UI_URL = Setting(
-    str,
+    Optional[str],
     default=None,
     value_callback=default_ui_url,
 )
-"""The URL for the UI. By default, this is inferred from the PREFECT_API_URL."""
+"""
+The URL for the UI. By default, this is inferred from the PREFECT_API_URL.
+
+When using Prefect Cloud, this will include the account and workspace.
+When using an ephemeral server, this will be `None`.
+"""
 
 
 PREFECT_CLOUD_UI_URL = Setting(
