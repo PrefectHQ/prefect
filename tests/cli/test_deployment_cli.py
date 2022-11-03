@@ -526,7 +526,7 @@ class TestOutputMessages:
             ],
         )
 
-    def test_linking_to_deployment_in_ui(
+    def test_linking_to_deployment_when_using_apply_in_build(
         self,
         patch_import,
         tmp_path,
@@ -535,43 +535,12 @@ class TestOutputMessages:
         monkeypatch.setattr(
             "prefect.cli.deployment.ui_base_url", lambda status: "127.0.0.1:1234"
         )
-        d = Deployment.build_from_flow(
-            flow=my_flow,
-            name="TEST",
-            flow_name="my_flow",
-            output=str(tmp_path / "test.yaml"),
-            work_queue_name="prod",
-        )
-        invoke_and_assert(
-            [
-                "deployment",
-                "apply",
-                str(tmp_path / "test.yaml"),
-            ],
-            expected_output_contains="/deployments/deployment/",
-        )
 
-    def test_updating_work_queue_concurrency_from_python_build(
-        self, patch_import, tmp_path
-    ):
-        d = Deployment.build_from_flow(
-            flow=my_flow,
-            name="TEST",
-            flow_name="my_flow",
-            output=str(tmp_path / "test.yaml"),
-            work_queue_name="prod",
-        )
         invoke_and_assert(
-            [
-                "deployment",
-                "apply",
-                str(tmp_path / "test.yaml"),
-                "-l",
-                "42",
-            ],
-            expected_output_contains=[
-                "Updated concurrency limit on work queue 'prod' to 42",
-            ],
+            ["deployment", "build", "fake-path.py:fn", "-n", "TEST", "-a"],
+            expected_code=0,
+            temp_dir=tmp_path,
+            expected_output_contains=["View Deployment in UI"],
         )
 
     def test_message_with_missing_work_queue_name(self, patch_import, tmp_path):
