@@ -24,6 +24,11 @@ async def open_process(command: List[str], **kwargs):
     # Passing a string to open_process is equivalent to shell=True which is
     # generally necessary for Unix-like commands on Windows but otherwise should
     # be avoided
+    if not isinstance(command, list):
+        raise TypeError(
+            "The command passed to open process must be a list. You passed the command"
+            f"'{command}', which is type '{type(command)}'."
+        )
     if sys.platform == "win32":
         command = " ".join(command)
 
