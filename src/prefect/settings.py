@@ -267,8 +267,14 @@ def default_ui_url(settings, value):
     if api_url.startswith(cloud_url):
         ui_url = ui_url.replace(cloud_url, cloud_ui_url)
 
-    # Update routing
+    if ui_url.endswith("/api"):
+        # Handles open-source APIs
+        ui_url = ui_url[:-4]
+
+    # Handles Cloud APIs with content after `/api`
     ui_url = ui_url.replace("/api/", "/")
+
+    # Update routing
     ui_url = ui_url.replace("/accounts/", "/account/")
     ui_url = ui_url.replace("/workspaces/", "/workspace/")
 
@@ -284,8 +290,11 @@ def default_cloud_ui_url(settings, value):
 
     if api_url.startswith("https://api.prefect.cloud"):
         ui_url = ui_url.replace(
-            "https://api.prefect.cloud", "https://app.prefect.cloud"
+            "https://api.prefect.cloud", "https://app.prefect.cloud", 1
         )
+
+    if ui_url.endswith("/api"):
+        ui_url = ui_url[:-4]
 
     return ui_url
 

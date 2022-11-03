@@ -13,6 +13,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    PREFECT_CLOUD_UI_URL,
     PREFECT_CLOUD_URL,
     PREFECT_DEBUG_MODE,
     PREFECT_HOME,
@@ -342,9 +343,13 @@ class TestSettingAccess:
     @pytest.mark.parametrize(
         "api_url,ui_url",
         [
-            (None, "http://ephemeral-orion"),
-            ("https://api.prefect.cloud/api", "https://app.prefect.cloud"),
+            (None, None),
+            (
+                "https://api.prefect.cloud/api/accounts/ACCOUNT/workspaces/WORKSPACE",
+                "https://app.prefect.cloud/account/ACCOUNT/workspace/WORKSPACE",
+            ),
             ("http://my-orion/api", "http://my-orion"),
+            ("https://api.foo.bar", "https://api.foo.bar"),
         ],
     )
     def test_ui_url_inferred_from_api_url(self, api_url, ui_url):
@@ -354,6 +359,25 @@ class TestSettingAccess:
     def test_ui_url_set_directly(self):
         with temporary_settings({PREFECT_UI_URL: "test"}):
             assert PREFECT_UI_URL.value() == "test"
+
+    @pytest.mark.parametrize(
+        "api_url,ui_url",
+        [
+            (
+                "https://api.prefect.cloud/api",
+                "https://app.prefect.cloud",
+            ),
+            ("http://my-cloud/api", "http://my-cloud"),
+            ("https://api.foo.bar", "https://api.foo.bar"),
+        ],
+    )
+    def test_cloud_ui_url_inferred_from_cloud_api_url(self, api_url, ui_url):
+        with temporary_settings({PREFECT_CLOUD_API_URL: api_url}):
+            assert PREFECT_CLOUD_UI_URL.value() == ui_url
+
+    def test_cloud_ui_url_set_directly(self):
+        with temporary_settings({PREFECT_CLOUD_UI_URL: "test"}):
+            assert PREFECT_CLOUD_UI_URL.value() == "test"
 
 
 class TestTemporarySettings:
