@@ -240,7 +240,7 @@ class TaskRunContext(RunContext):
     Attributes:
         task: The task instance associated with the task run
         task_run: The API metadata for this task run
-        timeout_scope: The cancellation scope for task level timeouts
+        timeout_scope: The cancellation scope for task-level timeouts
     """
 
     task: "Task"
