@@ -3,6 +3,7 @@
 ## Release 2.6.6
 
 ### Enhancements
+- Add work queue status and health display to UI — https://github.com/PrefectHQ/orion-design/pull/733, https://github.com/PrefectHQ/orion-design/pull/743, https://github.com/PrefectHQ/orion-design/pull/750
 - Add `wait_for` to flows; subflows can wait for upstream tasks — https://github.com/PrefectHQ/prefect/pull/7343
 - Add informative error if flow run is deleted while running — https://github.com/PrefectHQ/prefect/pull/7390
 - Add name filtering support to the `work_queues/filter` API route — https://github.com/PrefectHQ/prefect/pull/7394
