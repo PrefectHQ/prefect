@@ -347,12 +347,14 @@ class TestDeploymentBuild:
             tags=["A", "B"],
             description="foobar",
             version="12",
+            is_schedule_active=False,
         )
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
         assert d.description == "foobar"
         assert d.tags == ["A", "B"]
         assert d.version == "12"
+        assert d.is_schedule_active == False
 
     async def test_build_from_flow_doesnt_load_existing(self, flow_function):
         d = await Deployment.build_from_flow(
