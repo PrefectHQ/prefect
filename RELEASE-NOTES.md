@@ -14,13 +14,15 @@
 - Fix link to UI deployment page in CLI — https://github.com/PrefectHQ/prefect/pull/7376
 - Fix UI URL routing to be consistent with CLI — https://github.com/PrefectHQ/prefect/pull/7391
 - Assert that command is a list when passed to `open_process` — https://github.com/PrefectHQ/prefect/pull/7389
-- Fix JSON error when serializing certain flow run parameters e.g. dataframes — https://github.com/PrefectHQ/prefect/pull/7385
+- Fix JSON error when serializing certain flow run parameters such as dataframes — https://github.com/PrefectHQ/prefect/pull/7385
 
 ### Documentation
 - Add versioning documentation — https://github.com/PrefectHQ/prefect/pull/7353
 
 ### Collections
 - New [`prefect-alert`](https://github.com/khuyentran1401/prefect-alert) collection for sending alerts on flow run fail
+- New [Fivetran](https://fivetran.github.io/prefect-fivetran/) collection
+- New [GitLab](https://prefecthq.github.io/prefect-gitlab/) collection
 
 ## Contributors
 - @marwan116
