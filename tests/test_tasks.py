@@ -2161,6 +2161,7 @@ class TestTaskWithOptions:
             result_serializer="pickle",
             result_storage=LocalFileSystem(basepath="foo"),
             cache_result_in_memory=False,
+            timeout_seconds=None,
         )
         def initial_task():
             pass
@@ -2177,6 +2178,7 @@ class TestTaskWithOptions:
             result_serializer="json",
             result_storage=LocalFileSystem(basepath="bar"),
             cache_result_in_memory=True,
+            timeout_seconds=42,
         )
 
         assert task_with_options.name == "Copied task"
@@ -2190,6 +2192,7 @@ class TestTaskWithOptions:
         assert task_with_options.result_serializer == "json"
         assert task_with_options.result_storage == LocalFileSystem(basepath="bar")
         assert task_with_options.cache_result_in_memory is True
+        assert task_with_options.timeout_seconds == 42
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         def cache_key_fn(*_):
@@ -2207,6 +2210,7 @@ class TestTaskWithOptions:
             result_serializer="json",
             result_storage=LocalFileSystem(),
             cache_result_in_memory=False,
+            timeout_seconds=42,
         )
         def initial_task():
             pass
@@ -2228,6 +2232,7 @@ class TestTaskWithOptions:
         assert task_with_options.result_serializer == "json"
         assert task_with_options.result_storage == LocalFileSystem()
         assert task_with_options.cache_result_in_memory is False
+        assert task_with_options.timeout_seconds == 42
 
     def test_with_options_can_unset_result_options_with_none(self):
         @task(
