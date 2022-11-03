@@ -6,12 +6,6 @@
 
     <p-tabs :tabs="tabs">
       <template #details>
-        <router-link :to="routes.radar(flowRunId)" class="flow-run__small-radar-link">
-          <RadarSmall :flow-run-id="flowRunId" class="flow-run__small-radar" />
-        </router-link>
-
-        <p-divider />
-
         <FlowRunDetails v-if="flowRun" :flow-run="flowRun" />
       </template>
 
@@ -34,22 +28,6 @@
 
     <template #well>
       <template v-if="flowRun">
-        <div class="flow-run__meta">
-          <StateBadge :state="flowRun.state" />
-          <DurationIconText :duration="flowRun.duration" />
-          <FlowIconText :flow-id="flowRun.flowId" />
-          <DeploymentIconText v-if="flowRun.deploymentId" :deployment-id="flowRun.deploymentId" />
-          <FlowRunStartTime :flow-run="flowRun" />
-        </div>
-
-        <p-divider />
-
-        <router-link :to="routes.radar(flowRunId)" class="flow-run__small-radar-link">
-          <RadarSmall :flow-run-id="flowRunId" class="flow-run__small-radar" />
-        </router-link>
-
-        <p-divider />
-
         <FlowRunDetails :flow-run="flowRun" alternate />
       </template>
     </template>
@@ -60,19 +38,13 @@
   import {
     PageHeadingFlowRun,
     FlowRunDetails,
-    RadarSmall,
-    StateBadge,
-    FlowIconText,
-    DeploymentIconText,
-    DurationIconText,
     FlowRunLogs,
     FlowRunTaskRuns,
-    FlowRunStartTime,
     FlowRunSubFlows,
     JsonView,
     useFavicon
   } from '@prefecthq/orion-design'
-  import { PDivider, media } from '@prefecthq/prefect-design'
+  import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
@@ -131,22 +103,5 @@
   gap-2
   items-center
   xl:hidden
-}
-
-.flow-run__meta { @apply
-  flex
-  flex-col
-  gap-2
-  items-start
-}
-
-.flow-run__small-radar { @apply
-  h-[250px]
-  w-[250px]
-}
-
-.flow-run__small-radar-link { @apply
-  cursor-pointer
-  inline-block
 }
 </style>

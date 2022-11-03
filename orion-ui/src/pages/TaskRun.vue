@@ -18,21 +18,13 @@
       </template>
     </p-tabs>
     <template #well>
-      <div class="task-run__meta">
-        <StateBadge :state="taskRun.state" />
-        <DurationIconText :duration="taskRun.duration" />
-        <FlowRunIconText :flow-run-id="taskRun.flowRunId" />
-      </div>
-
-      <p-divider />
-
       <TaskRunDetails alternate :task-run="taskRun" />
     </template>
   </p-layout-well>
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, StateBadge, DurationIconText, FlowRunIconText, JsonView, useFavicon } from '@prefecthq/orion-design'
+  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, JsonView, useFavicon } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -54,7 +46,6 @@
 
     return values
   })
-
 
   const taskRunIdArgs = computed<[string] | null>(() => taskRunId.value ? [taskRunId.value] : null)
   const taskRunDetailsSubscription = useSubscriptionWithDependencies(taskRunsApi.getTaskRun, taskRunIdArgs)
@@ -84,12 +75,3 @@
   })
   usePageTitle(title)
 </script>
-
-<style>
-.task-run__meta { @apply
-  flex
-  flex-col
-  gap-2
-  items-start
-}
-</style>
