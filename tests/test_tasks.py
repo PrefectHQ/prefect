@@ -1,5 +1,6 @@
 import datetime
 import inspect
+import time
 import warnings
 from asyncio import Event, sleep
 from typing import Any, Dict, List
@@ -33,6 +34,31 @@ from prefect.utilities.collections import quote
 
 def comparable_inputs(d):
     return {k: set(v) for k, v in d.items()}
+
+
+@pytest.fixture
+def timeout_test_flow():
+    @task(timeout_seconds=0.1)
+    def times_out(x):
+        time.sleep(1)
+        return x
+
+    @task
+    def depends(x):
+        return x
+
+    @task
+    def independent():
+        return 42
+
+    @flow
+    def test_flow():
+        ax = times_out.submit(1)
+        bx = depends.submit(ax)
+        cx = independent.submit()
+        return ax, bx, cx
+
+    return test_flow
 
 
 class TestTaskName:
@@ -1156,6 +1182,45 @@ class TestCacheFunctionBuiltins:
         assert (
             first_state.result() == third_state.result() == fourth_state.result() == 1
         )
+
+
+class TestTaskTimeouts:
+    async def test_task_timeouts_actually_timeout(self, flow_run, orion_client):
+        flow_state = timeout_test_flow._run()
+        timed_out, _, _ = await flow_state.result(raise_on_failure=False)
+        assert timed_out.name == "TimedOut"
+        assert timed_out.is_failed()
+
+    async def test_task_timeouts_are_not_task_crashes(self, timeout_test_flow):
+        flow_state = timeout_test_flow._run()
+        timed_out, _, _ = await flow_state.result(raise_on_failure=False)
+        assert timed_out.is_crashed() is False
+
+    async def test_task_timeouts_do_not_crash_flow_runs(self, timeout_test_flow):
+        flow_state = timeout_test_flow._run()
+        timed_out, _, _ = await flow_state.result(raise_on_failure=False)
+
+        assert timed_out.name == "TimedOut"
+        assert timed_out.is_failed()
+        assert flow_state.is_failed()
+        assert flow_state.is_crashed() is False
+
+    async def test_task_timeouts_do_not_timeout_prematurely(self):
+        @task(timeout_seconds=100)
+        def my_task():
+            time.sleep(1)
+            return 42
+
+        @flow
+        def my_flow():
+            x = my_task.submit()
+            return x
+
+        flow_state = my_flow._run()
+        assert flow_state.type == StateType.COMPLETED
+
+        task_res = await flow_state.result()
+        assert task_res.type == StateType.COMPLETED
 
 
 class TestTaskRunTags:
