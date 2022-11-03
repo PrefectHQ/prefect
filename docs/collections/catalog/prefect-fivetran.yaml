@@ -1,6 +1,6 @@
 collectionName: prefect-fivetran
 author: Fivetran
 authorUrl: https://prefect.io
-documentation: https://prefecthq.github.io/prefect-fivetran/
+documentation: https://fivetran.github.io/prefect-fivetran/
 iconUrl: /img/collections/fivetran.png
 tag: Fivetran
