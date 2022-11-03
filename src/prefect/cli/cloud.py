@@ -1,12 +1,11 @@
 """
 Command line interface for interacting with Prefect Cloud
 """
-import re
 import signal
 import traceback
 import urllib.parse
 import webbrowser
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Dict, Hashable, Iterable, List, Optional, Tuple, Union
 
 import anyio
 import httpx
@@ -27,6 +26,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
+from prefect.client.schemas import Workspace
 from prefect.context import get_settings_context
 from prefect.settings import (
     PREFECT_API_KEY,
@@ -132,20 +132,17 @@ def confirm_logged_in():
         )
 
 
-def get_current_workspace(workspaces):
-    if not PREFECT_API_URL:
+def get_current_workspace(workspaces: Iterable[Workspace]) -> Optional[Workspace]:
+    current_api_url = PREFECT_API_URL.value()
+
+    if not current_api_url:
         return None
 
-    workspace_handles_by_id = {
-        workspace[
-            "workspace_id"
-        ]: f"{workspace['account_handle']}/{workspace['workspace_handle']}"
-        for workspace in workspaces.values()
-    }
-    current_workspace_id = re.match(
-        r".*accounts/.{36}/workspaces/(.{36})\Z", PREFECT_API_URL.value()
-    ).groups()[0]
-    return workspace_handles_by_id[current_workspace_id]
+    for workspace in workspaces:
+        if workspace.api_url() == current_api_url:
+            return workspace
+
+    return None
 
 
 def build_table(selected_idx: int, workspaces: Iterable[str]) -> Table:
@@ -217,7 +214,7 @@ def select_workspace(workspaces: Iterable[str]) -> str:
 
 
 def prompt_select_from_list(
-    console, prompt: str, options: Union[List[str], List[Tuple[str, str]]]
+    console, prompt: str, options: Union[List[str], List[Tuple[Hashable, str]]]
 ) -> str:
     """
     Given a list of options, display the values to user in a table and prompt them
@@ -355,7 +352,7 @@ async def login(
     key: Optional[str] = typer.Option(
         None, "--key", "-k", help="API Key to authenticate with Prefect"
     ),
-    workspace: Optional[str] = typer.Option(
+    workspace_handle: Optional[str] = typer.Option(
         None,
         "--workspace",
         "-w",
@@ -392,7 +389,8 @@ async def login(
             "? Would you like to reauthenticate?", default=False
         )
         if not should_reauth:
-            exit_with_success("Using the existing authentication on this profile.")
+            app.console.print("Using the existing authentication on this profile.")
+            key = PREFECT_API_KEY.value()
 
     elif already_logged_in_profiles:
         app.console.print(
@@ -435,10 +433,7 @@ async def login(
 
     async with get_cloud_client(api_key=key) as client:
         try:
-            workspaces = {
-                f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
-                for workspace in await client.read_workspaces()
-            }
+            workspaces = await client.read_workspaces()
         except CloudUnauthorizedError:
             if key.startswith("pcu"):
                 help_message = "It looks like you're using API key from Cloud 1 (https://cloud.prefect.io). Make sure that you generate API key using Cloud 2 (https://app.prefect.cloud)"
@@ -452,33 +447,49 @@ async def login(
         except httpx.HTTPStatusError as exc:
             exit_with_error(f"Error connecting to Prefect Cloud: {exc!r}")
 
-    current_workspace = get_current_workspace(workspaces) or workspaces[0]
-    if workspace or not current_workspace:
-        workspace = prompt_select_from_list(
-            app.console,
-            "Which workspace would you like to use?",
-            sorted(workspaces.keys()),
-        )
+    if workspace_handle:
+        # Search for the given workspace
+        for workspace in workspaces:
+            if workspace.handle == workspace_handle:
+                break
+        else:
+            exit_with_error(f"Workspace {workspace_handle!r} not found.")
     else:
-        workspace = current_workspace
+        # Prompt a switch if the number of workspaces is greater than one
+        prompt_switch_workspace = len(workspaces) > 1
 
-    if workspace not in workspaces:
-        exit_with_error(f"Workspace {workspace!r} not found.")
+        current_workspace = get_current_workspace(workspaces)
+
+        # Confirm that we want to switch if the current profile is already logged in
+        if (
+            current_profile_is_logged_in or current_workspace is not None
+        ) and prompt_switch_workspace:
+            app.console.print(
+                f"You are currently using workspace {current_workspace.handle!r}."
+            )
+            prompt_switch_workspace = typer.confirm(
+                "? Would you like to switch workspaces?", default=False
+            )
+
+        if prompt_switch_workspace:
+            workspace = prompt_select_from_list(
+                app.console,
+                "Which workspace would you like to use?",
+                [(workspace, workspace.handle) for workspace in workspaces],
+            )
+        else:
+            workspace = current_workspace
 
     update_current_profile(
         {
             PREFECT_API_KEY: key,
-            PREFECT_API_URL: build_url_from_workspace(workspaces[workspace]),
+            PREFECT_API_URL: workspace.api_url(),
         }
     )
 
-    workspaces_hint = (
-        "Using workspace {current_workspace!r}.\nHint: Change workspaces with `prefect cloud workspace set`."
-        if len(workspaces) > 1
-        else ""
+    exit_with_success(
+        f"Authenticated with Prefect Cloud! Using workspace {workspace.handle!r}."
     )
-
-    exit_with_success(f"Logged in to Prefect Cloud!" + workspaces_hint)
 
 
 @cloud_app.command()
