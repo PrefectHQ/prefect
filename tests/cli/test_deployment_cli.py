@@ -501,6 +501,77 @@ class TestOutputMessages:
             ],
         )
 
+    def test_linking_to_deployment_in_ui(
+        self,
+        patch_import,
+        tmp_path,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "prefect.cli.deployment.ui_base_url", lambda status: "127.0.0.1:1234"
+        )
+        d = Deployment.build_from_flow(
+            flow=my_flow,
+            name="TEST",
+            flow_name="my_flow",
+            output=str(tmp_path / "test.yaml"),
+            work_queue_name="prod",
+        )
+        invoke_and_assert(
+            [
+                "deployment",
+                "apply",
+                str(tmp_path / "test.yaml"),
+            ],
+            expected_output_contains="/deployments/deployment/",
+        )
+
+    def test_updating_work_queue_concurrency_from_python_build(
+        self, patch_import, tmp_path
+    ):
+        d = Deployment.build_from_flow(
+            flow=my_flow,
+            name="TEST",
+            flow_name="my_flow",
+            output=str(tmp_path / "test.yaml"),
+            work_queue_name="prod",
+        )
+        invoke_and_assert(
+            [
+                "deployment",
+                "apply",
+                str(tmp_path / "test.yaml"),
+                "-l",
+                "42",
+            ],
+            expected_output_contains=[
+                "Updated concurrency limit on work queue 'prod' to 42",
+            ],
+        )
+
+    def test_updating_work_queue_concurrency_from_python_build(
+        self, patch_import, tmp_path
+    ):
+        d = Deployment.build_from_flow(
+            flow=my_flow,
+            name="TEST",
+            flow_name="my_flow",
+            output=str(tmp_path / "test.yaml"),
+            work_queue_name="prod",
+        )
+        invoke_and_assert(
+            [
+                "deployment",
+                "apply",
+                str(tmp_path / "test.yaml"),
+                "-l",
+                "42",
+            ],
+            expected_output_contains=[
+                "Updated concurrency limit on work queue 'prod' to 42",
+            ],
+        )
+
     def test_message_with_work_queue_name_from_python_build(
         self, patch_import, tmp_path
     ):
