@@ -53,7 +53,8 @@
     workQueueCreateRouteKey,
     workQueueRouteKey,
     workQueuesApiKey,
-    workQueuesRouteKey
+    workQueuesRouteKey,
+    radarRouteKey
   } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
   import { computed, provide, ref, watchEffect } from 'vue'
@@ -87,31 +88,32 @@
 
   provide(canKey, can)
 
-  provide(blockCatalogViewRouteKey, routes.blocksCatalogView)
   provide(blockCatalogCreateRouteKey, routes.blocksCatalogCreate)
   provide(blockCatalogRouteKey, routes.blocksCatalog)
+  provide(blockCatalogViewRouteKey, routes.blocksCatalogView)
   provide(blockEditRouteKey, routes.blockEdit)
   provide(blockRouteKey, routes.block)
   provide(blocksRouteKey, routes.blocks)
   provide(deploymentRouteKey, routes.deployment)
-  provide(editDeploymentRouteKey, routes.deploymentEdit)
   provide(deploymentsRouteKey, routes.deployments)
+  provide(editDeploymentRouteKey, routes.deploymentEdit)
+  provide(editNotificationRouteKey, routes.notificationEdit)
+  provide(editQueueRouteKey, routes.workQueueEdit)
   provide(editQueueRouteKey, routes.workQueueEdit)
   provide(flowRouteKey, routes.flow)
   provide(flowRunCreateRouteKey, routes.flowRunCreate)
   provide(flowRunRouteKey, routes.flowRun)
   provide(flowRunsRouteKey, routes.flowRuns)
   provide(flowsRouteKey, routes.flows)
+  provide(notificationCreateRouteKey, routes.notificationCreate)
+  provide(notificationsApiKey, notificationsApi)
+  provide(notificationsRouteKey, routes.notifications)
+  provide(radarRouteKey, routes.radar)
   provide(settingsRouteKey, routes.settings)
+  provide(taskRunRouteKey, routes.taskRun)
+  provide(workQueueCreateRouteKey, routes.workQueueCreate)
   provide(workQueueCreateRouteKey, routes.workQueueCreate)
   provide(workQueueRouteKey, routes.workQueue)
-  provide(workQueueCreateRouteKey, routes.workQueueCreate)
-  provide(editQueueRouteKey, routes.workQueueEdit)
-  provide(notificationsApiKey, notificationsApi)
-  provide(notificationCreateRouteKey, routes.notificationCreate)
-  provide(editNotificationRouteKey, routes.notificationEdit)
-  provide(notificationsRouteKey, routes.notifications)
-  provide(taskRunRouteKey, routes.taskRun)
   provide(workQueuesRouteKey, routes.workQueues)
 
   const mobileMenuOpen = ref(false)
