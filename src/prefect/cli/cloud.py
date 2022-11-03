@@ -133,6 +133,9 @@ def confirm_logged_in():
 
 
 def get_current_workspace(workspaces):
+    if not PREFECT_API_URL:
+        return None
+
     workspace_handles_by_id = {
         workspace[
             "workspace_id"
@@ -332,7 +335,7 @@ async def login_with_browser() -> str:
     if result.type == "success":
         return result.content.api_key
     elif result.type == "failure":
-        exit_with_success(f"Failed to login: {result.content.reason}")
+        exit_with_error(f"Failed to login. {result.content.reason}")
 
 
 async def check_key_is_valid_for_login(key: str):
@@ -393,10 +396,10 @@ async def login(
 
     elif already_logged_in_profiles:
         app.console.print(
-            "It looks like you're already authenticated on another profile."
+            "It looks like you're already authenticated with another profile."
         )
         if not typer.confirm(
-            "? Would you like to reauthenticate on this profile?", default=False
+            "? Would you like to reauthenticate with this profile?", default=False
         ):
             if typer.confirm(
                 "? Would you like to switch to an authenticated profile?", default=True
@@ -426,7 +429,7 @@ async def login(
         )
 
         if choice == "key":
-            key = typer.prompt("Paste your authentication key")
+            key = typer.prompt("Paste your authentication key", hide_input=True)
         elif choice == "browser":
             key = await login_with_browser()
 
