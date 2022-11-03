@@ -800,6 +800,7 @@ class OrionClient:
         self,
         limit: int = None,
         offset: int = 0,
+        work_queue_filter: schemas.filters.WorkQueueFilter = None,
     ) -> List[schemas.core.WorkQueue]:
         """
         Query Orion for work queues.
@@ -807,6 +808,7 @@ class OrionClient:
         Args:
             limit: a limit for the query
             offset: an offset for the query
+            work_queue_filter: filter crieteria for work queues
 
         Returns:
             a list of [WorkQueue model][prefect.orion.schemas.core.WorkQueue] representations
@@ -815,6 +817,11 @@ class OrionClient:
         body = {
             "limit": limit,
             "offset": offset,
+            "work_queues": (
+                work_queue_filter.dict(json_compatible=True)
+                if work_queue_filter
+                else None
+            ),
         }
         response = await self._client.post(f"/work_queues/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.WorkQueue], response.json())
@@ -839,15 +846,15 @@ class OrionClient:
 
         while True:
             new_queues = await self.read_work_queues(
-                offset=current_page * page_length, limit=page_length
+                offset=current_page * page_length,
+                limit=page_length,
+                work_queue_filter=schemas.filters.WorkQueueFilter(
+                    name=schemas.filters.WorkQueueFilterName(startswith_=prefixes)
+                ),
             )
             if not new_queues:
                 break
-            filtered_queues = []
-            for q in new_queues:
-                if any((q.name.startswith(p) for p in prefixes)):
-                    filtered_queues.append(q)
-            work_queues += filtered_queues
+            work_queues += new_queues
             current_page += 1
 
         return work_queues

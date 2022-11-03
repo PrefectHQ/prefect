@@ -1,5 +1,7 @@
 name: Python tests
 
+# Note: Conda support for 3.11 is pending. See https://github.com/ContinuumIO/anaconda-issues/issues/13082
+
 env:
   # enable colored output
   # https://github.com/pytest-dev/pytest/issues/7443
@@ -47,6 +49,7 @@ jobs:
           - "3.8"
           - "3.9"
           - "3.10"
+          - "3.11"
         pytest-options:
           - "--exclude-services"
           - "--only-services"
@@ -117,7 +120,8 @@ jobs:
           docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
 
       - name: Build Conda flavored test image
-        if: ${{ matrix.build-docker-images }}
+        # Not yet supported for 3.11, see note at top
+        if: ${{ matrix.build-docker-images && matrix.python-version != '3.11' }}
         uses: docker/build-push-action@v3
         with:
           context: .
@@ -132,7 +136,8 @@ jobs:
           # cache-to: type=gha,mode=max
 
       - name: Test Conda flavored Docker image
-        if: ${{ matrix.build-docker-images }}
+        # Not yet supported for 3.11, see note at top
+        if: ${{ matrix.build-docker-images && matrix.python-version != '3.11' }}
         run: |
           docker load --input /tmp/image-conda.tar
           docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }}-conda prefect version
@@ -161,6 +166,7 @@ jobs:
           - "3.8"
           - "3.9"
           - "3.10"
+          - "3.11"
         pytest-options:
           - "--exclude-services"
 

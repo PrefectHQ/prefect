@@ -20,7 +20,7 @@ A filesystem block is an object that allows you to read and write data from path
 - [`S3`](#s3)
 - [`SMB`](#smb)
 
-Additional file system types are available in [Prefect Collections](/collections/overview/).
+Additional file system types are available in [Prefect Collections](/collections/catalog/).
 
 ## Local filesystem
 

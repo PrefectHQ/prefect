@@ -31,7 +31,7 @@ async def test_create_schedules_from_deployment(flow, session):
     service = Scheduler(handle_signals=False)
     await service.start(loops=1)
     runs = await models.flow_runs.read_flow_runs(session)
-    assert len(runs) == 100 == service.max_runs
+    assert len(runs) == service.max_runs
     expected_dates = await deployment.schedule.get_dates(service.max_runs)
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
@@ -114,7 +114,6 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
     service = Scheduler(handle_signals=False)
     await service.start(loops=1)
     runs = await models.flow_runs.read_flow_runs(session)
-    assert len(runs) == 130
 
     expected_dates = set()
     for deployment in [d1, d2, d3]:
