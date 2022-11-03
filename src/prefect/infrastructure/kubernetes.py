@@ -49,6 +49,7 @@ class KubernetesJob(Infrastructure):
     Runs a command as a Kubernetes Job.
 
     Attributes:
+        cluster_config: An optional Kubernetes cluster config to use for this job.
         command: A list of strings specifying the command to run in the container to
             start the flow run. In most cases you should not override this.
         customizations: A list of JSON 6902 patches to apply to the base Job manifest.
@@ -98,7 +99,9 @@ class KubernetesJob(Infrastructure):
     )
 
     # connection to a cluster
-    cluster_config: Optional[KubernetesClusterConfig] = None
+    cluster_config: Optional[KubernetesClusterConfig] = Field(
+        default=None, description="The Kubernetes cluster config to use for this job."
+    )
 
     # settings allowing full customization of the Job
     job: KubernetesManifest = Field(

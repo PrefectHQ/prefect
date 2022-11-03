@@ -170,7 +170,7 @@ class State(IDBaseModel, Generic[R]):
 
         display = dict(
             message=repr(self.message),
-            type=self.type,
+            type=str(self.type.value),
             result=repr(result),
         )
 
@@ -186,7 +186,7 @@ class State(IDBaseModel, Generic[R]):
         display_message = f"{self.message!r}" if self.message else ""
 
         display_type = (
-            f", type={self.type}"
+            f", type={self.type.value}"
             if self.type.value.lower() != self.name.lower()
             else ""
         )

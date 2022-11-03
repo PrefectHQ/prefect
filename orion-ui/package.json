@@ -10,8 +10,8 @@
     "test": "playwright test"
   },
   "dependencies": {
-    "@prefecthq/orion-design": "1.1.2",
-    "@prefecthq/prefect-design": "1.1.22",
+    "@prefecthq/orion-design": "1.1.4",
+    "@prefecthq/prefect-design": "1.1.26",
     "@prefecthq/vue-compositions": "0.2.4",
     "@types/lodash.debounce": "4.0.7",
     "axios": "0.27.2",
@@ -19,15 +19,14 @@
     "lodash.debounce": "4.0.8",
     "tailwindcss": "3.2.1",
     "vue": "3.2.41",
-    "vue-router": "4.1.5"
+    "vue-router": "4.1.6"
   },
   "devDependencies": {
     "@playwright/test": "1.27.1",
     "@prefecthq/eslint-config": "1.0.17",
     "@types/d3": "^7.4.0",
     "@vitejs/plugin-vue": "^2.3.3",
-    "autoprefixer": "10.4.12",
-    "date-fns": "^2.29.3",
+    "autoprefixer": "10.4.13",
     "dotenv": "16.0.3",
     "eslint": "^8.26.0",
     "ts-node": "10.9.1",
