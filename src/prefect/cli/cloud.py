@@ -5,7 +5,7 @@ import signal
 import traceback
 import urllib.parse
 import webbrowser
-from typing import Dict, Hashable, Iterable, List, Optional, Tuple, Union
+from typing import Hashable, Iterable, List, Optional, Tuple, Union
 
 import anyio
 import httpx
@@ -115,20 +115,12 @@ async def serve_login_api(cancel_scope):
         cancel_scope.cancel()
 
 
-def build_url_from_workspace(workspace: Dict) -> str:
-    return (
-        f"{PREFECT_CLOUD_API_URL.value()}"
-        f"/accounts/{workspace['account_id']}"
-        f"/workspaces/{workspace['workspace_id']}"
-    )
-
-
 def confirm_logged_in():
     if not PREFECT_API_KEY:
         profile = prefect.context.get_settings_context().profile
         exit_with_error(
             f"Currently not authenticated in profile {profile.name!r}. "
-            "Please login with `prefect cloud login --key <API_KEY>`."
+            "Please login with `prefect cloud login`."
         )
 
 
@@ -143,74 +135,6 @@ def get_current_workspace(workspaces: Iterable[Workspace]) -> Optional[Workspace
             return workspace
 
     return None
-
-
-def build_table(selected_idx: int, workspaces: Iterable[str]) -> Table:
-    """
-    Generate a table of workspaces. The `select_idx` of workspaces will be highlighted.
-
-    Args:
-        selected_idx: currently selected index
-        workspaces: Iterable of strings
-
-    Returns:
-        rich.table.Table
-    """
-
-    table = Table()
-    table.add_column(
-        "[#024dfd]Select a Workspace:", justify="right", style="#8ea0ae", no_wrap=True
-    )
-
-    for i, workspace in enumerate(sorted(workspaces)):
-        if i == selected_idx:
-            table.add_row("[#024dfd on #FFFFFF]> " + workspace)
-        else:
-            table.add_row("  " + workspace)
-    return table
-
-
-def select_workspace(workspaces: Iterable[str]) -> str:
-    """
-    Given a list of workspaces, display them to user in a Table
-    and allow them to select one.
-
-    Args:
-        workspaces: List of workspaces to choose from
-
-    Returns:
-        str: the selected workspace
-    """
-
-    workspaces = sorted(workspaces)
-    current_idx = 0
-    selected_workspace = None
-
-    with Live(
-        build_table(current_idx, workspaces), auto_refresh=False, console=app.console
-    ) as live:
-        while selected_workspace is None:
-            key = readchar.readkey()
-
-            if key == readchar.key.UP:
-                current_idx = current_idx - 1
-                # wrap to bottom if at the top
-                if current_idx < 0:
-                    current_idx = len(workspaces) - 1
-            elif key == readchar.key.DOWN:
-                current_idx = current_idx + 1
-                # wrap to top if at the bottom
-                if current_idx >= len(workspaces):
-                    current_idx = 0
-            elif key == readchar.key.CTRL_C:
-                # gracefully exit with no message
-                exit_with_error("")
-            elif key == readchar.key.ENTER:
-                selected_workspace = workspaces[current_idx]
-
-            live.update(build_table(current_idx, workspaces), refresh=True)
-
-        return selected_workspace
 
 
 def prompt_select_from_list(
@@ -529,23 +453,19 @@ async def ls():
                 "Unable to authenticate. Please ensure your credentials are correct."
             )
 
-    workspace_handle_details = {
-        f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
-        for workspace in workspaces
-    }
-
     current_workspace = get_current_workspace(workspaces)
 
     table = Table(caption="* active workspace")
     table.add_column(
-        "[#024dfd]Available Workspaces:", justify="right", style="#8ea0ae", no_wrap=True
+        "[#024dfd]Workspaces:", justify="left", style="#8ea0ae", no_wrap=True
     )
 
-    for i, workspace_handle in enumerate(sorted(workspace_handle_details)):
-        if workspace_handle == current_workspace:
-            table.add_row(f"[green]  * {workspace_handle}[/green]")
+    for workspace_handle in sorted(workspace.handle for workspace in workspaces):
+        if workspace_handle == current_workspace.handle:
+            table.add_row(f"[green]* {workspace_handle}[/green]")
         else:
             table.add_row(f"  {workspace_handle}")
+
     app.console.print(table)
 
 
@@ -568,24 +488,23 @@ async def set(
             exit_with_error(
                 "Unable to authenticate. Please ensure your credentials are correct."
             )
-    workspaces = {
-        f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
-        for workspace in workspaces
-    }
 
-    if not workspace_handle:
-        workspace_handle = select_workspace(workspaces)
-
-    if workspace_handle not in workspaces:
-        exit_with_error(
-            f"Workspace {workspace_handle!r} not found. "
-            "Leave `--workspace` blank to select a workspace."
+    if workspace_handle:
+        # Search for the given workspace
+        for workspace in workspaces:
+            if workspace.handle == workspace_handle:
+                break
+        else:
+            exit_with_error(f"Workspace {workspace_handle!r} not found.")
+    else:
+        workspace = prompt_select_from_list(
+            app.console,
+            "Which workspace would you like to use?",
+            [(workspace, workspace.handle) for workspace in workspaces],
         )
 
-    profile = update_current_profile(
-        {PREFECT_API_URL: build_url_from_workspace(workspaces[workspace_handle])}
-    )
+    profile = update_current_profile({PREFECT_API_URL: workspace.api_url()})
 
     exit_with_success(
-        f"Successfully set workspace to {workspace_handle!r} in profile {profile.name!r}."
+        f"Successfully set workspace to {workspace.handle!r} in profile {profile.name!r}."
     )
