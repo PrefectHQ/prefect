@@ -418,123 +418,6 @@ class TestOrchestrateTaskRun:
 
         assert i <= 10, "`just_sleep` should not be running after timeout"
 
-    async def test_task_timeouts_are_not_task_crashes(self, flow_run, orion_client):
-        @task(timeout_seconds=0.1)
-        async def my_task():
-            await asyncio.sleep(2)
-            return 42
-
-        @flow
-        async def my_flow():
-            x = await my_task()
-
-        await begin_flow_run(
-            flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
-        )
-
-        flow_run = await orion_client.read_flow_run(flow_run.id)
-        task_runs = await orion_client.read_task_runs()
-        assert len(task_runs) == 1
-        task_run = task_runs[0]
-        assert not task_run.state.is_crashed()
-        assert task_run.state.name == "TimedOut"
-        assert task_run.state.type == StateType.FAILED
-        assert "Task run exceeded timeout" in task_run.state.message
-
-    async def test_task_timeouts_do_not_crash_flow_runs(self, flow_run, orion_client):
-        @task(timeout_seconds=0.1)
-        async def my_task():
-            await asyncio.sleep(2)
-            return 42
-
-        @flow
-        async def my_flow():
-            x = await my_task()
-
-        await begin_flow_run(
-            flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
-        )
-
-        flow_run = await orion_client.read_flow_run(flow_run.id)
-        task_runs = await orion_client.read_task_runs()
-        assert len(task_runs) == 1
-
-        assert not flow_run.state.is_crashed()
-        assert flow_run.state.name == "Failed"
-        assert flow_run.state.type == StateType.FAILED
-
-    async def test_task_timeouts_actually_timeout(self, flow_run, orion_client):
-        @task(timeout_seconds=0.1)
-        async def my_task():
-            await asyncio.sleep(2)
-            return 42
-
-        @flow
-        async def my_flow():
-            x = await my_task()
-
-        await begin_flow_run(
-            flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
-        )
-
-        flow_run = await orion_client.read_flow_run(flow_run.id)
-        task_runs = await orion_client.read_task_runs()
-        task_run = task_runs[0]
-
-        assert task_run.state.name == "TimedOut"
-        assert task_run.state.type == StateType.FAILED
-        assert "Task run exceeded timeout" in task_run.state.message
-
-    async def test_task_timeouts_do_not_timeout_prematurely(
-        self, flow_run, orion_client
-    ):
-        @task(timeout_seconds=100)
-        async def my_task():
-            await asyncio.sleep(1)
-            return 42
-
-        @flow
-        async def my_flow():
-            x = await my_task()
-
-        await begin_flow_run(
-            flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
-        )
-
-        flow_run = await orion_client.read_flow_run(flow_run.id)
-        task_runs = await orion_client.read_task_runs()
-        task_run = task_runs[0]
-
-        assert task_run.state.name == "Completed"
-        assert task_run.state.type == StateType.COMPLETED
-
-    async def test_task_timeouts_retry_properly(self, flow_run, orion_client):
-        mock_func = MagicMock()
-
-        @task(timeout_seconds=1, retries=1)
-        async def my_task():
-            mock_func.should_call()
-            await asyncio.sleep(2)
-            mock_func.should_not_call()
-
-        @flow
-        async def my_flow():
-            x = await my_task()
-
-        await begin_flow_run(
-            flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
-        )
-
-        flow_run = await orion_client.read_flow_run(flow_run.id)
-        task_runs = await orion_client.read_task_runs()
-        task_run = task_runs[0]
-
-        assert task_run.state.type == StateType.FAILED
-        assert task_run.state.name == "TimedOut"
-
-        calls = [str(call) for call in mock_func.mock_calls]
-        assert calls == ["call.should_call()", "call.should_call()"]
-
 
 class TestOrchestrateFlowRun:
     @pytest.fixture
@@ -655,6 +538,33 @@ class TestOrchestrateFlowRun:
             StateType.RUNNING,
             StateType.COMPLETED,
         ]
+
+    async def test_task_timeouts_retry_properly(self, flow_run, orion_client):
+        mock_func = MagicMock()
+
+        @task(timeout_seconds=1, retries=1)
+        async def my_task():
+            mock_func.should_call()
+            await asyncio.sleep(2)
+            mock_func.should_not_call()
+
+        @flow
+        async def my_flow():
+            x = await my_task()
+
+        await begin_flow_run(
+            flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
+        )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        task_runs = await orion_client.read_task_runs()
+        task_run = task_runs[0]
+
+        assert task_run.state.type == StateType.FAILED
+        assert task_run.state.name == "TimedOut"
+
+        calls = [str(call) for call in mock_func.mock_calls]
+        assert calls == ["call.should_call()", "call.should_call()"]
 
 
 class TestFlowRunCrashes:
