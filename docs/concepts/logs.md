@@ -183,16 +183,19 @@ PREFECT_LOGGING_COLORS=False
 You can change what gets highlighted and also adjust the colors by updating the styles in a `logging.yml` file. Below lists the specific keys built-in to the `PrefectConsoleHighlighter`.
 
 URLs:
+
 - `log.web_url`
 - `log.local_url`
 
 Log levels:
+
 - `log.info_level`
 - `log.warning_level`
 - `log.error_level`
 - `log.critical_level`
 
 State types:
+
 - `log.pending_state`
 - `log.running_state`
 - `log.scheduled_state`
@@ -202,10 +205,12 @@ State types:
 - `log.crashed_state`
 
 Flow (run) names:
+
 - `log.flow_run_name`
 - `log.flow_name`
 
 Task (run) names:
+
 - `log.task_run_name`
 - `log.task_name`
 
