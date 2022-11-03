@@ -551,6 +551,23 @@ class TestOutputMessages:
             expected_output_contains="/deployments/deployment/",
         )
 
+    def test_linking_to_deployment_when_using_apply_in_build(
+        self,
+        patch_import,
+        tmp_path,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "prefect.cli.deployment.ui_base_url", lambda status: "127.0.0.1:1234"
+        )
+
+        invoke_and_assert(
+            ["deployment", "build", "fake-path.py:fn", "-n", "TEST", "-a"],
+            expected_code=0,
+            temp_dir=tmp_path,
+            expected_output_contains=["View Deployment in UI"],
+        )
+
     def test_updating_work_queue_concurrency_from_python_build(
         self, patch_import, tmp_path
     ):

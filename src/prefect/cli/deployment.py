@@ -920,6 +920,13 @@ async def build(
             f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
             style="green",
         )
+        connection_status = await check_orion_connection()
+        ui = ui_base_url(connection_status)
+
+        if ui:
+            app.console.print(
+                f"View Deployment in UI: {ui}/deployments/deployment/{deployment_id}"
+            )
         if deployment.work_queue_name is not None:
             app.console.print(
                 "\nTo execute flow runs from this deployment, start an agent "
