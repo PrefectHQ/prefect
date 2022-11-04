@@ -1185,7 +1185,7 @@ class TestCacheFunctionBuiltins:
 
 
 class TestTaskTimeouts:
-    async def test_task_timeouts_actually_timeout(self, flow_run, orion_client):
+    async def test_task_timeouts_actually_timeout(self, timeout_test_flow):
         flow_state = timeout_test_flow._run()
         timed_out, _, _ = await flow_state.result(raise_on_failure=False)
         assert timed_out.name == "TimedOut"
