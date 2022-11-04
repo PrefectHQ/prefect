@@ -559,12 +559,22 @@ deployment once. Defaults to `100`.
 
 PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS = Setting(
     int,
-    default=20,
+    default=100,
 )
 """The scheduler will attempt to schedule up to this many
 auto-scheduled runs in the future. Note that runs may have fewer than
 this many scheduled runs, depending on the value of
-`scheduler_max_scheduled_time`.  Defaults to `20`.
+`scheduler_max_scheduled_time`.  Defaults to `100`.
+"""
+
+PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS = Setting(
+    int,
+    default=3,
+)
+"""The scheduler will attempt to schedule at least this many
+auto-scheduled runs in the future. Note that runs may have more than
+this many scheduled runs, depending on the value of
+`scheduler_min_scheduled_time`.  Defaults to `3`.
 """
 
 PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
@@ -574,8 +584,19 @@ PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
 """The scheduler will create new runs up to this far in the
 future. Note that this setting will take precedence over
 `scheduler_max_runs`: if a flow runs once a month and
-`scheduled_max_scheduled_time` is three months, then only three runs will be
+`scheduler_max_scheduled_time` is three months, then only three runs will be
 scheduled. Defaults to 100 days (`8640000` seconds).
+"""
+
+PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME = Setting(
+    timedelta,
+    default=timedelta(hours=1),
+)
+"""The scheduler will create new runs at least this far in the
+future. Note that this setting will take precedence over `scheduler_min_runs`:
+if a flow runs every hour and `scheduler_min_scheduled_time` is three hours,
+then three runs will be scheduled even if `scheduler_min_runs` is 1. Defaults to
+1 hour (`3600` seconds).
 """
 
 PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE = Setting(

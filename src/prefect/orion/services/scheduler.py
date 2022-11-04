@@ -19,6 +19,8 @@ from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
+    PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
+    PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
 from prefect.utilities.collections import batched_iterable
 
@@ -49,8 +51,12 @@ class Scheduler(LoopService):
             PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE.value()
         )
         self.max_runs: int = PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
+        self.min_runs: int = PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
         self.max_scheduled_time: datetime.timedelta = (
             PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
+        )
+        self.min_scheduled_time: datetime.timedelta = (
+            PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
         )
         self.insert_batch_size = (
             PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
@@ -139,6 +145,8 @@ class Scheduler(LoopService):
                         deployment_id=deployment_id,
                         start_time=now,
                         end_time=now + self.max_scheduled_time,
+                        min_time=now + self.min_scheduled_time,
+                        min_runs=self.min_runs,
                         max_runs=self.max_runs,
                     )
                 )
@@ -175,6 +183,8 @@ class Scheduler(LoopService):
         deployment_id: UUID,
         start_time: datetime.datetime,
         end_time: datetime.datetime,
+        min_time: datetime.datetime,
+        min_runs: int,
         max_runs: int,
         db: OrionDBInterface,
     ) -> List[Dict]:
@@ -183,12 +193,34 @@ class Scheduler(LoopService):
         objects and associated scheduled states that represent scheduled flow runs.
 
         Pass-through method for overrides.
+
+
+        Args:
+            session: a database session
+            deployment_id: the id of the deployment to schedule
+            start_time: the time from which to start scheduling runs
+            end_time: runs will be scheduled until at most this time
+            min_time: runs will be scheduled until at least this time
+            min_runs: a minimum amount of runs to schedule
+            max_runs: a maximum amount of runs to schedule
+
+        This function will generate the minimum number of runs that satisfy the min
+        and max times, and the min and max counts. Specifically, the following order
+        will be respected:
+            - runs will be generated starting on or after the `start_time`
+            - no more than `max_runs` runs will be generated
+            - no runs will be generated after `end_time` is reached
+            - at least `min_runs` runs will be generated
+            - runs will be generated until at least `min_time` is reached
+
         """
         return await models.deployments._generate_scheduled_flow_runs(
             session=session,
             deployment_id=deployment_id,
             start_time=start_time,
             end_time=end_time,
+            min_time=min_time,
+            min_runs=min_runs,
             max_runs=max_runs,
         )
 
