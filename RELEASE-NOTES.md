@@ -1,5 +1,35 @@
 # Prefect Release Notes
 
+## Release 2.6.6
+
+### Enhancements
+- Add work queue status and health display to UI — [#733](https://github.com/PrefectHQ/orion-design/pull/733), [#743](https://github.com/PrefectHQ/orion-design/pull/743), [#750](https://github.com/PrefectHQ/orion-design/pull/750)
+- Add `wait_for` to flows; subflows can wait for upstream tasks — https://github.com/PrefectHQ/prefect/pull/7343
+- Add informative error if flow run is deleted while running — https://github.com/PrefectHQ/prefect/pull/7390
+- Add name filtering support to the `work_queues/filter` API route — https://github.com/PrefectHQ/prefect/pull/7394
+- Improve the stability of the scheduler service — https://github.com/PrefectHQ/prefect/pull/7412
+
+### Fixes
+- Fix GitHub storage error for Windows — https://github.com/PrefectHQ/prefect/pull/7372
+- Fix links to flow runs in notifications — https://github.com/PrefectHQ/prefect/pull/7249
+- Fix link to UI deployment page in CLI — https://github.com/PrefectHQ/prefect/pull/7376
+- Fix UI URL routing to be consistent with CLI — https://github.com/PrefectHQ/prefect/pull/7391
+- Assert that command is a list when passed to `open_process` — https://github.com/PrefectHQ/prefect/pull/7389
+- Fix JSON error when serializing certain flow run parameters such as dataframes — https://github.com/PrefectHQ/prefect/pull/7385
+
+### Documentation
+- Add versioning documentation — https://github.com/PrefectHQ/prefect/pull/7353
+
+### Collections
+- New [`prefect-alert`](https://github.com/khuyentran1401/prefect-alert) collection for sending alerts on flow run fail
+- New [Fivetran](https://fivetran.github.io/prefect-fivetran/) collection
+- New [GitLab](https://prefecthq.github.io/prefect-gitlab/) collection
+
+## Contributors
+- @marwan116
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.5...2.6.6
+
 ## Release 2.6.5
 
 ### Enhancements
