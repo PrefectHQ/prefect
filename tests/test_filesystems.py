@@ -96,7 +96,9 @@ class TestLocalFileSystem:
 
                 await f.get_directory(from_path=tmp_src, local_path=tmp_dst)
                 assert set(os.listdir(tmp_dst)) == set(parent_contents)
-                assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
+                assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(
+                    child_contents
+                )
 
     async def test_dir_contents_copied_correctly_with_put_directory(self):
 
@@ -117,7 +119,9 @@ class TestLocalFileSystem:
                 )
 
                 assert set(os.listdir(tmp_dst)) == set(parent_contents)
-                assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
+                assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(
+                    child_contents
+                )
 
     async def test_dir_contents_copied_correctly_with_put_directory_and_ignore_file(
         self,
@@ -155,7 +159,9 @@ class TestLocalFileSystem:
                     local_path=tmp_src, to_path=tmp_dst, ignore_file=ignore_fpath
                 )
                 assert set(os.listdir(tmp_dst)) == set(expected_contents)
-                assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
+                assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(
+                    child_contents
+                )
 
 
 class TestRemoteFileSystem:

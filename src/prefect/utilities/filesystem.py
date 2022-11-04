@@ -126,7 +126,7 @@ def relative_path_to_current_platform(path_str: str) -> Path:
     return Path(PureWindowsPath(path_str).as_posix())
 
 
-def copytree_37(src, dst, original_src, symlinks=False, ignore=None):
+def _copytree_37(src, dst, original_src, symlinks=False, ignore=None):
     """
     Replicates the behavior of `shutil.copytree(src=src, dst=dst, ignore=ignore, dirs_exist_ok=True)`
     in a python 3.7 compatible manner.
@@ -156,13 +156,13 @@ def copytree_37(src, dst, original_src, symlinks=False, ignore=None):
             except:
                 pass  # lchmod not available
         elif os.path.isdir(source_path):
-            copytree_37(source_path, destination_path, original_src, symlinks, ignore)
+            _copytree_37(source_path, destination_path, original_src, symlinks, ignore)
         else:
             shutil.copy2(source_path, destination_path)
 
 
 def prefect_copytree(src, dst, ignore=None):
     if sys.version_info < (3, 8):
-        copytree_37(src=src, dst=dst, original_src=src, ignore=ignore)
+        _copytree_37(src=src, dst=dst, original_src=src, ignore=ignore)
     else:
         shutil.copytree(src=src, dst=dst, ignore=ignore, dirs_exist_ok=True)
