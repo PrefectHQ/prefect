@@ -365,7 +365,7 @@ class Deployment(BaseModel):
     )
     schedule: schemas.schedules.SCHEDULE_TYPES = None
     is_schedule_active: Optional[bool] = Field(
-        default=True, description="Whether or not the schedule is active."
+        default=None, description="Whether or not the schedule is active."
     )
     flow_name: Optional[str] = Field(default=None, description="The name of the flow.")
     work_queue_name: Optional[str] = Field(
