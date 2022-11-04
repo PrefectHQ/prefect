@@ -9,14 +9,14 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocksCatalogView, BlockTypeCard } from '@prefecthq/orion-design'
+  import { PageHeadingBlocksCatalogView, BlockTypeCard, useWorkspaceApi } from '@prefecthq/orion-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
-  import { blockTypesApi } from '@/services/blockTypesApi'
 
+  const api = useWorkspaceApi()
   const blockTypeSlugParam = useRouteParam('blockTypeSlug')
-  const blockTypeSubscriptionArgs = computed<Parameters<typeof blockTypesApi.getBlockTypeBySlug> | null>(() => {
+  const blockTypeSubscriptionArgs = computed<Parameters<typeof api.blockTypes.getBlockTypeBySlug> | null>(() => {
     if (!blockTypeSlugParam.value) {
       return null
     }
@@ -24,7 +24,7 @@
     return [blockTypeSlugParam.value]
   })
 
-  const blockTypeSubscription = useSubscriptionWithDependencies(blockTypesApi.getBlockTypeBySlug, blockTypeSubscriptionArgs)
+  const blockTypeSubscription = useSubscriptionWithDependencies(api.blockTypes.getBlockTypeBySlug, blockTypeSubscriptionArgs)
   const blockType = computed(() => blockTypeSubscription.response)
 
   const blockTypeTitle = computed<string | null>(() => {
