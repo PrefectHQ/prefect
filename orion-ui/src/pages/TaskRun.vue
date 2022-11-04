@@ -24,18 +24,17 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, JsonView, useFavicon } from '@prefecthq/orion-design'
+  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, JsonView, useFavicon, useWorkspaceApi } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
-  import { flowRunsApi } from '@/services/flowRunsApi'
-  import { taskRunsApi } from '@/services/taskRunsApi'
 
   const router = useRouter()
   const taskRunId = useRouteParam('id')
+  const api = useWorkspaceApi()
 
   const tabs = computed(() => {
     const values = ['Logs', 'Task Inputs']
@@ -48,12 +47,12 @@
   })
 
   const taskRunIdArgs = computed<[string] | null>(() => taskRunId.value ? [taskRunId.value] : null)
-  const taskRunDetailsSubscription = useSubscriptionWithDependencies(taskRunsApi.getTaskRun, taskRunIdArgs)
+  const taskRunDetailsSubscription = useSubscriptionWithDependencies(api.taskRuns.getTaskRun, taskRunIdArgs)
   const taskRun = computed(() => taskRunDetailsSubscription.response)
 
   const flowRunId = computed(() => taskRun.value?.flowRunId)
   const flowRunIdArgs = computed<[string] | null>(() => flowRunId.value ? [flowRunId.value] : null)
-  const flowRunDetailsSubscription = useSubscriptionWithDependencies(flowRunsApi.getFlowRun, flowRunIdArgs)
+  const flowRunDetailsSubscription = useSubscriptionWithDependencies(api.flowRuns.getFlowRun, flowRunIdArgs)
 
   const parameters = computed(() => {
     return taskRun.value?.taskInputs ? JSON.stringify(taskRun.value.taskInputs, undefined, 2) : '{}'
