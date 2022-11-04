@@ -1398,9 +1398,13 @@ async def resolve_inputs(
     def resolve_input(expr, context):
         state = None
 
-        # Quoted expressions should not be modified
+        # Expressions inside quotes should not be modified
         if isinstance(context.get("annotation"), quote):
             return expr
+
+        # Quotes are automatically unwrapped
+        if isinstance(expr, quote):
+            return expr.unquote()
 
         if isinstance(expr, PrefectFuture):
             state = run_async_from_worker_thread(expr._wait)
