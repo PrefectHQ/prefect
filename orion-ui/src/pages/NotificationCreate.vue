@@ -8,15 +8,16 @@
 </template>
 
 <script lang="ts" setup>
-  import { NotificationForm, Notification, PageHeadingNotificationCreate, NotificationCreate } from '@prefecthq/orion-design'
+  import { NotificationForm, Notification, PageHeadingNotificationCreate, NotificationCreate, useWorkspaceApi } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import router, { routes } from '@/router'
-  import { notificationsApi } from '@/services/notificationsApi'
+
+  const api = useWorkspaceApi()
 
   async function submit(notification: Partial<Notification>): Promise<void> {
     try {
-      await notificationsApi.createNotification(notification as NotificationCreate)
+      await api.notifications.createNotification(notification as NotificationCreate)
       router.push(routes.notifications())
     } catch (error) {
       showToast('Error creating notification', 'error')
