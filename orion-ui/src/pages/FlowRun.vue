@@ -42,7 +42,8 @@
     FlowRunTaskRuns,
     FlowRunSubFlows,
     JsonView,
-    useFavicon
+    useFavicon,
+    useWorkspaceApi
   } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
@@ -50,7 +51,6 @@
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
-  import { flowRunsApi } from '@/services/flowRunsApi'
 
   const router = useRouter()
   const flowRunId = useRouteParam('id')
@@ -70,7 +70,8 @@
     return values
   })
 
-  const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId], { interval: 5000 })
+  const api = useWorkspaceApi()
+  const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId], { interval: 5000 })
   const flowRun = computed(() => flowRunDetailsSubscription.response)
 
   const parameters = computed(() => {

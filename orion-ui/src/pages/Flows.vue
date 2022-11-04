@@ -17,17 +17,17 @@
 </template>
 
 <script lang="ts" setup>
-  import { FlowsTable, FlowsPageEmptyState, PageHeadingFlows } from '@prefecthq/orion-design'
+  import { FlowsTable, FlowsPageEmptyState, PageHeadingFlows, useWorkspaceApi } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
-  import { flowsApi } from '@/services/flowsApi'
 
+  const api = useWorkspaceApi()
   const subscriptionOptions = {
     interval: 30000,
   }
 
-  const flowsCountSubscription = useSubscription(flowsApi.getFlowsCount, [{}], subscriptionOptions)
+  const flowsCountSubscription = useSubscription(api.flows.getFlowsCount, [{}], subscriptionOptions)
   const flowsCount = computed(() => flowsCountSubscription.response ?? 0)
   const empty = computed(() => flowsCountSubscription.executed && flowsCount.value === 0)
   const loaded = computed(() => flowsCountSubscription.executed)
