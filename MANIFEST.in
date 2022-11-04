@@ -17,7 +17,7 @@ include src/prefect/profiles.toml
 include src/prefect/.prefectignore
 include src/prefect/logging/logging.yml
 include src/prefect/cli/templates/*.yaml
-include src/prefect/collection_blocks_data.json
+include src/prefect/orion/collection_blocks_data.json
 
 # Migrations
 include src/prefect/orion/database/alembic.ini

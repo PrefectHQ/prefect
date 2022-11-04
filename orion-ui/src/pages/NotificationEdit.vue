@@ -8,20 +8,20 @@
 </template>
 
 <script lang="ts" setup>
-  import { NotificationForm, Notification, PageHeadingNotificationEdit } from '@prefecthq/orion-design'
+  import { NotificationForm, Notification, PageHeadingNotificationEdit, useWorkspaceApi } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import router, { routes } from '@/router'
-  import { notificationsApi } from '@/services/notificationsApi'
 
+  const api = useWorkspaceApi()
   const notificationId = useRouteParam('notificationId')
-  const notification = ref({ ...await notificationsApi.getNotification(notificationId.value) })
+  const notification = ref({ ...await api.notifications.getNotification(notificationId.value) })
 
   async function submit(notification: Partial<Notification>): Promise<void> {
     try {
-      await notificationsApi.updateNotification(notificationId.value, notification)
+      await api.notifications.updateNotification(notificationId.value, notification)
       router.push(routes.notifications())
     } catch (error) {
       showToast('Error updating notification', 'error')

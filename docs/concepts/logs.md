@@ -168,6 +168,106 @@ The resulting messages, using the flow run ID instead of name, would look like t
 ```
 </div>
 
+## Styles
+
+By default, Prefect highlights specific keywords in the console logs with a variety of colors.
+
+Highlighting can be toggled on/off with the `PREFECT_LOGGING_COLORS` setting, e.g.
+
+<div class='terminal'>
+```bash
+PREFECT_LOGGING_COLORS=False
+```
+</div>
+
+You can change what gets highlighted and also adjust the colors by updating the styles in a `logging.yml` file. Below lists the specific keys built-in to the `PrefectConsoleHighlighter`.
+
+URLs:
+
+- `log.web_url`
+- `log.local_url`
+
+Log levels:
+
+- `log.info_level`
+- `log.warning_level`
+- `log.error_level`
+- `log.critical_level`
+
+State types:
+
+- `log.pending_state`
+- `log.running_state`
+- `log.scheduled_state`
+- `log.completed_state`
+- `log.cancelled_state`
+- `log.failed_state`
+- `log.crashed_state`
+
+Flow (run) names:
+
+- `log.flow_run_name`
+- `log.flow_name`
+
+Task (run) names:
+
+- `log.task_run_name`
+- `log.task_name`
+
+You can also build your own handler with a [custom highlighter](https://rich.readthedocs.io/en/stable/highlighting.html#custom-highlighters). For example, to additionally highlight emails:
+
+1. Copy and paste the following into  `my_package_or_module.py` (rename as needed) in the same directory as the flow run script, or ideally part of a Python package so it's available in `site-packages` to be accessed anywhere within your environment.
+
+```python
+import logging
+from typing import Dict, Union
+
+from rich.highlighter import Highlighter
+
+from prefect.logging.handlers import PrefectConsoleHandler
+from prefect.logging.highlighters import PrefectConsoleHighlighter
+
+class CustomConsoleHighlighter(PrefectConsoleHighlighter):
+    base_style = "log."
+    highlights = PrefectConsoleHighlighter.highlights + [
+        # ?P<email> is naming this expression as `email`
+        r"(?P<email>[\w-]+@([\w-]+\.)+[\w-]+)",
+    ]
+
+class CustomConsoleHandler(PrefectConsoleHandler):
+    def __init__(
+        self,
+        highlighter: Highlighter = CustomConsoleHighlighter,
+        styles: Dict[str, str] = None,
+        level: Union[int, str] = logging.NOTSET,
+   ):
+        super().__init__(highlighter=highlighter, styles=styles, level=level)
+```
+
+2. Update `/.prefect/logging.yml` to use `my_package_or_module.CustomConsoleHandler` and additionally reference the base_style and named expression: `log.email`.
+```yaml
+    console_flow_runs:
+        level: 0
+        class: my_package_or_module.CustomConsoleHandler
+        formatter: flow_runs
+        styles:
+            log.email: magenta
+            # other styles can be appended here, e.g.
+            # log.completed_state: green
+```
+
+3. Then on your next flow run, text that looks like an email will be highlighted--e.g. `my@email.com` is colored in magenta here.
+```python
+from prefect import flow, get_run_logger
+
+@flow
+def log_email_flow():
+    logger = get_run_logger()
+    logger.info("my@email.com")
+
+log_email_flow()
+```
+
 ## Log database schema
 
 Logged events are also persisted to the Orion database. A log record includes the following data:
