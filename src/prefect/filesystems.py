@@ -1,10 +1,7 @@
 import abc
 import io
 import json
-import shutil
-import sys
 import urllib.parse
-from distutils.dir_util import copy_tree
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Optional, Tuple, Union
@@ -16,7 +13,7 @@ from pydantic import Field, SecretStr, validator
 from prefect.blocks.core import Block
 from prefect.exceptions import InvalidRepositoryURLError
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
-from prefect.utilities.filesystem import filter_files
+from prefect.utilities.filesystem import filter_files, prefect_copytree
 from prefect.utilities.processutils import run_process
 
 
@@ -138,18 +135,14 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             # and we avoid shutil.copytree raising an error
             return
 
-        if sys.version_info < (3, 8):
-            shutil.copytree(from_path, local_path)
-        else:
-            shutil.copytree(from_path, local_path, dirs_exist_ok=True)
+        prefect_copytree(from_path, local_path)
 
-    async def _get_ignore_func(self, local_path: str, ignore_file: str):
+    async def _get_ignore_func(self, ignore_file: str):
         with open(ignore_file, "r") as f:
             ignore_patterns = f.readlines()
 
-        included_files = filter_files(local_path, ignore_patterns)
-
         def ignore_func(directory, files):
+            included_files = filter_files(directory, ignore_patterns)
             return_val = [f for f in files if f not in included_files]
             return return_val
 
@@ -167,24 +160,24 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
         """
         if to_path is None:
-            to_path = Path(self.basepath).expanduser()
+            to_path = Path(self.basepath).expanduser().resolve()
+        else:
+            to_path = Path(to_path).expanduser().resolve()
 
         if local_path is None:
-            local_path = Path(".").absolute()
+            local_path = Path(".").resolve()
+        else:
+            local_path = Path(local_path).expanduser().resolve()
+
+        if local_path == to_path:
+            return
 
         if ignore_file:
-            ignore_func = await self._get_ignore_func(local_path, ignore_file)
+            ignore_func = await self._get_ignore_func(ignore_file)
         else:
             ignore_func = None
-        if local_path == to_path:
-            pass
-        else:
-            if sys.version_info < (3, 8):
-                shutil.copytree(local_path, to_path, ignore=ignore_func)
-            else:
-                shutil.copytree(
-                    local_path, to_path, dirs_exist_ok=True, ignore=ignore_func
-                )
+
+        prefect_copytree(src=local_path, dst=to_path, ignore=ignore_func)
 
     @sync_compatible
     async def read_path(self, path: str) -> bytes:
@@ -916,4 +909,4 @@ class GitHub(ReadableDeploymentStorage):
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
             )
 
-            copy_tree(src=content_source, dst=content_destination)
+            prefect_copytree(src=content_source, dst=content_destination)
