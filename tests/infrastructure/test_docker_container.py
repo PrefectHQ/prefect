@@ -739,7 +739,7 @@ def test_stream_container_logs(capsys, mock_docker_client):
     DockerContainer(command=["doesnt", "matter"]).run()
 
     captured = capsys.readouterr()
-    assert captured.out == "hello\nworld\n"
+    assert "hello\nworld\n" in captured.out
 
 
 def test_logs_warning_when_container_marked_for_removal(caplog, mock_docker_client):

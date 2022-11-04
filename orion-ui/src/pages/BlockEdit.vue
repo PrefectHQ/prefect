@@ -11,24 +11,24 @@
 </template>
 
 <script lang="ts" setup>
-  import { BlockTypeCardLayout, BlockSchemaEditForm, PageHeadingBlockEdit, BlockDocumentUpdate } from '@prefecthq/orion-design'
+  import { BlockTypeCardLayout, BlockSchemaEditForm, PageHeadingBlockEdit, BlockDocumentUpdate, useWorkspaceApi } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router/routes'
-  import { blockDocumentsApi } from '@/services/blockDocumentsApi'
 
+  const api = useWorkspaceApi()
   const router = useRouter()
   const blockDocumentId = useRouteParam('blockDocumentId')
-  const blockDocument = await blockDocumentsApi.getBlockDocument(blockDocumentId.value)
+  const blockDocument = await api.blockDocuments.getBlockDocument(blockDocumentId.value)
   const { blockType, blockSchema } = blockDocument
   const data = ref(blockDocument.data)
   const name = ref(blockDocument.name)
 
   function submit(request: BlockDocumentUpdate): void {
-    blockDocumentsApi
+    api.blockDocuments
       .updateBlockDocument(blockDocument.id, request)
       .then(() => {
         showToast('Block updated successfully', 'success')
