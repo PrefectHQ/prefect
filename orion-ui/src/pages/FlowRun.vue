@@ -4,7 +4,7 @@
       <PageHeadingFlowRun v-if="flowRun" :flow-run="flowRun" @delete="goToFlowRuns" />
     </template>
 
-    <p-tabs :tabs="tabs">
+    <p-tabs v-model:selected="selectedTab" :tabs="tabs">
       <template #details>
         <router-link :to="routes.radar(flowRunId)" class="flow-run__small-radar-link">
           <RadarSmall :flow-run-id="flowRunId" class="flow-run__small-radar" />
@@ -74,15 +74,17 @@
   } from '@prefecthq/orion-design'
   import { PDivider, media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { computed, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
   import { flowRunsApi } from '@/services/flowRunsApi'
 
   const router = useRouter()
-  const flowRunId = useRouteParam('id')
 
+
+  const selectedTab= ref('Logs')
+  const flowRunId = useRouteParam('id')
   const tabs = computed(() => {
     const values = [
       'Logs',
@@ -100,6 +102,12 @@
 
   const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId], { interval: 5000 })
   const flowRun = computed(() => flowRunDetailsSubscription.response)
+
+  watch(flowRunId, (oldFlowRunId, newFlowRunId) => {
+    if (oldFlowRunId !== newFlowRunId) {
+      selectedTab.value = 'Logs'
+    }
+  })
 
   const parameters = computed(() => {
     return flowRun.value?.parameters ? JSON.stringify(flowRun.value.parameters, undefined, 2) : '{}'
