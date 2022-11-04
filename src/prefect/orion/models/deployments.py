@@ -414,6 +414,7 @@ async def schedule_runs(
 
     start_time = pendulum.instance(start_time)
     end_time = pendulum.instance(end_time)
+    min_time = pendulum.instance(min_time)
 
     runs = await _generate_scheduled_flow_runs(
         session=session,
