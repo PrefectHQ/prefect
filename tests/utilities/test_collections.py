@@ -6,7 +6,7 @@ from typing import Any
 import pydantic
 import pytest
 
-from prefect.utilities.annotations import BaseAnnotation, revisit
+from prefect.utilities.annotations import BaseAnnotation, quote
 from prefect.utilities.collections import (
     AutoEnum,
     dict_to_flatdict,
@@ -219,7 +219,6 @@ class TestVisitCollection:
             (SimplePydantic(x=1, y=2), SimplePydantic(x=1, y=-2)),
             (ExtraPydantic(x=1, y=2, z=3), ExtraPydantic(x=1, y=-2, z=3)),
             (ExampleAnnotation(4), ExampleAnnotation(-4)),
-            (revisit(4), -4),
         ],
     )
     def test_visit_collection_and_transform_data(self, inp, expected):
@@ -396,53 +395,14 @@ class TestVisitCollection:
         result = visit_collection(foo, visit, context={"depth": 0}, return_data=True)
         assert result == [2, 3, [5, 6], [7, [9, 10]], 9, 10]
 
-    def test_visit_collection_revisit_no_return(self):
-        foo = [1, 2, [3, 4], [5, [6, 7]], 8, 9]
+    def test_visit_collection_context_from_annotation(self):
+        foo = quote([1, 2, [3]])
 
-        def without_revisit(expr):
-            if isinstance(expr, int) and expr % 2:
-                return expr * 2
-            else:
-                return visit_even_numbers(expr)
+        def visit(expr, context):
+            assert isinstance(context.get("annotation"), quote)
 
-        # Without revisit, we will not revisit the new data
-        visit_collection(foo, without_revisit, return_data=False)
-        assert EVEN == {2, 4, 6, 8}
-
-        def with_revisit(expr):
-            if isinstance(expr, int) and expr % 2:
-                return revisit(expr * 2)
-            else:
-                return visit_even_numbers(expr)
-
-        # With revisit, the returned expression will be visited again
-        visit_collection(foo, with_revisit, return_data=False)
-        assert EVEN == {2, 4, 6, 8, 10, 14, 18}
-
-    def test_visit_collection_revisit_with_return(self):
-        foo = [1, 2, [3, 4], [5, [6, 7]], 8, 9]
-
-        def without_revisit(expr):
-            if isinstance(expr, int) and expr < 5:
-                return expr * 2
-            else:
-                return negative_even_numbers(expr)
-
-        # Without revisit, we will only double each item once and will not mark all as
-        # negative
-        result = visit_collection(foo, without_revisit, return_data=True)
-        assert result == [2, 4, [6, 8], [5, [-6, 7]], -8, 9]
-
-        def with_revisit(expr):
-            if isinstance(expr, int) and expr < 5:
-                return revisit(expr * 2)
-            else:
-                return negative_even_numbers(expr)
-
-        # With revisit, the returned expression will be visited again and items will
-        # all be greater than 5
-        result = visit_collection(foo, with_revisit, return_data=True)
-        assert result == [-8, -8, [-6, -8], [5, [-6, 7]], -8, 9]
+        result = visit_collection(foo, visit, context={}, return_data=True)
+        assert result == quote([1, 2, [3]])
 
 
 class TestRemoveKeys:

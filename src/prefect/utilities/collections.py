@@ -29,7 +29,7 @@ from unittest.mock import Mock
 import pydantic
 
 # Quote moved to `prefect.utilities.annotations` but preserved here for compatibility
-from prefect.utilities.annotations import BaseAnnotation, Quote, quote, revisit  # noqa
+from prefect.utilities.annotations import BaseAnnotation, Quote, quote  # noqa
 
 
 class AutoEnum(str, Enum):
@@ -248,6 +248,10 @@ def visit_collection(
             call to the `visit_fn`. The context can be mutated by each visitor and will
             be available for later visits to expressions at the given depth. Values
             will not be available "up" a level from a given expression.
+
+            The context will be automatically populated with an 'annotation' key when
+            visiting collections within a `BaseAnnotation` type. This requires the
+            caller to pass `context={}` and will not be activated by default.
     """
 
     def visit_nested(expr):
@@ -270,9 +274,8 @@ def visit_collection(
     # Visit every expression
     result = visit_expression(expr)
 
-    if return_data or isinstance(result, revisit):
+    if return_data:
         # Only mutate the expression while returning data, otherwise it could be null
-        # An exception is made for the `revisit` annotation
         expr = result
 
     # Then, visit every child of the expression recursively
@@ -337,11 +340,9 @@ def visit_collection(
         else:
             result = None
 
-    elif isinstance(expr, revisit):
-        # `revisit` is not rewrapped since it is a signal to this function
-        result = visit_nested(expr.unwrap())
-
     elif isinstance(expr, BaseAnnotation):
+        if context is not None:
+            context["annotation"] = expr
         value = visit_nested(expr.unwrap())
         result = expr.rewrap(value) if return_data else None
 

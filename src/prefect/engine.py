@@ -77,13 +77,7 @@ from prefect.task_runners import (
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
-from prefect.utilities.annotations import (
-    BaseAnnotation,
-    allow_failure,
-    quote,
-    revisit,
-    unmapped,
-)
+from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
@@ -1408,11 +1402,6 @@ async def resolve_inputs(
         if isinstance(context.get("annotation"), quote):
             return expr
 
-        # If an expresion is an annotation, push the annotation to the context
-        if isinstance(expr, BaseAnnotation):
-            context["annotation"] = expr
-            return revisit(expr.unwrap())
-
         if isinstance(expr, PrefectFuture):
             state = run_async_from_worker_thread(expr._wait)
         elif isinstance(expr, State):
@@ -1438,7 +1427,7 @@ async def resolve_inputs(
         visit_fn=resolve_input,
         return_data=return_data,
         max_depth=max_depth,
-        context={"allow_failure": False},
+        context={},
     )
 
 

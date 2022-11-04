@@ -81,11 +81,3 @@ class NotSet:
     """
     Singleton to distinguish `None` from a value that is not provided by the user.
     """
-
-
-class revisit(BaseAnnotation[T]):
-    """
-    Wrapper for `visit_collection` return values.
-
-    Indicates that a returned item should be visited again.
-    """
