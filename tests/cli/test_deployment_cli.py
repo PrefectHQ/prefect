@@ -9,6 +9,7 @@ from prefect.client.orion import OrionClient
 from prefect.deployments import Deployment
 from prefect.orion.schemas.filters import DeploymentFilter, DeploymentFilterId
 from prefect.orion.schemas.schedules import IntervalSchedule
+from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
@@ -532,21 +533,22 @@ class TestOutputMessages:
         tmp_path,
         monkeypatch,
     ):
-        d = Deployment.build_from_flow(
-            flow=my_flow,
-            name="TEST",
-            flow_name="my_flow",
-            output=str(tmp_path / "test.yaml"),
-            work_queue_name="prod",
-        )
-        invoke_and_assert(
-            [
-                "deployment",
-                "apply",
-                str(tmp_path / "test.yaml"),
-            ],
-            expected_output_contains="/deployments/deployment/",
-        )
+        with temporary_settings({PREFECT_UI_URL: "http://foo/bar"}):
+            d = Deployment.build_from_flow(
+                flow=my_flow,
+                name="TEST",
+                flow_name="my_flow",
+                output=str(tmp_path / "test.yaml"),
+                work_queue_name="prod",
+            )
+            invoke_and_assert(
+                [
+                    "deployment",
+                    "apply",
+                    str(tmp_path / "test.yaml"),
+                ],
+                expected_output_contains="http://foo/bar/deployments/deployment/",
+            )
 
     def test_updating_work_queue_concurrency_from_python_build(
         self, patch_import, tmp_path
