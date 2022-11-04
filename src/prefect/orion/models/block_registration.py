@@ -10,7 +10,7 @@ from prefect.orion import models, schemas
 logger = get_logger("orion")
 
 COLLECTIONS_BLOCKS_DATA_PATH = (
-    Path(__file__).parent.parent.parent / "collection_blocks_data.json"
+    Path(__file__).parent.parent / "collection_blocks_data.json"
 )
 
 
@@ -118,9 +118,9 @@ async def register_block_type(
 
 async def _load_collection_blocks_data():
     """Loads blocks data for whitelisted collections."""
-    import aiofiles
+    import anyio
 
-    async with aiofiles.open(COLLECTIONS_BLOCKS_DATA_PATH, "r") as f:
+    async with await anyio.open_file(COLLECTIONS_BLOCKS_DATA_PATH, "r") as f:
         return json.loads(await f.read())
 
 
