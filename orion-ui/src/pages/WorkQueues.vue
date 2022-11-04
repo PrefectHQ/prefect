@@ -17,17 +17,17 @@
 </template>
 
 <script lang="ts" setup>
-  import { WorkQueuesTable, PageHeadingWorkQueues, WorkQueuesPageEmptyState } from '@prefecthq/orion-design'
+  import { WorkQueuesTable, PageHeadingWorkQueues, WorkQueuesPageEmptyState, useWorkspaceApi } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
-  import { workQueuesApi } from '@/services/workQueuesApi'
 
+  const api = useWorkspaceApi()
   const subscriptionOptions = {
     interval: 30000,
   }
 
-  const workQueuesSubscription = useSubscription(workQueuesApi.getWorkQueues, [{}], subscriptionOptions)
+  const workQueuesSubscription = useSubscription(api.workQueues.getWorkQueues, [{}], subscriptionOptions)
   const workQueues = computed(() => workQueuesSubscription.response ?? [])
   const empty = computed(() => workQueuesSubscription.executed && workQueues.value.length == 0)
   const loaded = computed(() => workQueuesSubscription.executed)
