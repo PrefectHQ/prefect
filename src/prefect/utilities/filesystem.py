@@ -15,10 +15,6 @@ import pathspec
 from fsspec.core import OpenFile
 from fsspec.implementations.local import LocalFileSystem
 
-# Needed for copytree functionality in 3.7
-if sys.version_info < (3, 8):
-    pass
-
 
 def set_default_ignore_file(path: str) -> bool:
     """
