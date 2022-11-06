@@ -9,20 +9,20 @@
 </template>
 
 <script lang="ts" setup>
-  import { RadarApp, PageHeadingFlowRunRadar } from '@prefecthq/orion-design'
+  import { RadarApp, PageHeadingFlowRunRadar, useWorkspaceApi } from '@prefecthq/orion-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
-  import { flowRunsApi } from '@/services/flowRunsApi'
 
   const router = useRouter()
   const flowRunId = useRouteParam('id')
 
   const options = { interval:  5000 }
 
-  const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId.value], options)
+  const api = useWorkspaceApi()
+  const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId.value], options)
   const flowRun = computed(() => flowRunDetailsSubscription.response)
 
   function goToFlowRuns(): void {
