@@ -126,6 +126,7 @@ nav:
             - Service Accounts: ui/service-accounts.md
             - Roles (RBAC): ui/roles.md
             - Single Sign-on (SSO): ui/sso.md
+            - Troubleshooting: ui/troubleshooting.md
     - Integrations:
         - Collections Catalog: collections/catalog.md
         - Using Collections: collections/usage.md
