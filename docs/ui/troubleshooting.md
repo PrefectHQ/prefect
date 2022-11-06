@@ -94,7 +94,7 @@ Once the developer console is open:
 1. Make sure **Unregister service workers** is selected.
 1. Select **Clear site data**, then hard refresh the page with CMD+Shift+R (CTRL+Shift+R on Windows).
 
-See the [Login to Prefect Cloud fails](https://discourse.prefect.io/t/login-to-prefect-cloud-fails-with-an-error-failed-to-load-module-script-expected-a-javascript-module-script-but-the-server-responded-with-a-mime-type-of-text-html-strict-mime-type-checking-is-enforced-for-module-scripts-per-html-spec/1722/1) topic in Prefect Discourse for a video demonstrating these steps.
+See the [Login to Prefect Cloud fails...](https://discourse.prefect.io/t/login-to-prefect-cloud-fails-with-an-error-failed-to-load-module-script-expected-a-javascript-module-script-but-the-server-responded-with-a-mime-type-of-text-html-strict-mime-type-checking-is-enforced-for-module-scripts-per-html-spec/1722/1) topic in Prefect Discourse for a video demonstrating these steps.
 
 None of this worked?
 
