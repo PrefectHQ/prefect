@@ -25,15 +25,15 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useRecentFlowRunFilter, UseDeploymentFilterArgs } from '@prefecthq/orion-design'
+  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useRecentFlowRunFilter, UseDeploymentFilterArgs, useWorkspaceApi } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router/routes'
-  import { flowsApi } from '@/services/flowsApi'
 
+  const api = useWorkspaceApi()
   const flowId = useRouteParam('id')
   const router = useRouter()
   const tabs = computed(() => {
@@ -50,7 +50,7 @@
     interval: 300000,
   }
 
-  const flowSubscription = useSubscription(flowsApi.getFlow, [flowId.value], subscriptionOptions)
+  const flowSubscription = useSubscription(api.flows.getFlow, [flowId.value], subscriptionOptions)
   const flow = computed(() => flowSubscription.response)
 
   const flowFilter = useRecentFlowRunFilter({ flows: [flowId.value] })
