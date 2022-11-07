@@ -16,7 +16,11 @@ import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import with_cli_exception_handling
 from prefect.logging.configuration import setup_logging
-from prefect.settings import PREFECT_CLI_COLORS, PREFECT_CLI_WRAP_LINES
+from prefect.settings import (
+    PREFECT_CLI_COLORS,
+    PREFECT_CLI_WRAP_LINES,
+    PREFECT_TEST_MODE,
+)
 
 app = PrefectTyper(add_completion=False, no_args_is_help=True)
 
@@ -70,7 +74,8 @@ def main(
         soft_wrap=not PREFECT_CLI_WRAP_LINES.value(),
     )
 
-    setup_logging()
+    if not PREFECT_TEST_MODE:
+        setup_logging()
 
 
 @app.command()

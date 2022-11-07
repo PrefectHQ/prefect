@@ -359,6 +359,8 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
         # windows display duplicates slashes
         if "\\" in value:
             continue
+        if SETTING_VARIABLES[key].is_secret:
+            continue
         assert (
             repr(str(expected[key])) == value
         ), "Displayed setting does not match set value."
@@ -496,7 +498,8 @@ def test_view_obfuscates_secrets(monkeypatch, command):
         prefect.settings.Profile(
             name="foo",
             settings={PREFECT_API_KEY: "secret-api-key"},
-        )
+        ),
+        include_current_context=False,
     ):
         res = invoke_and_assert(command)
 
@@ -524,7 +527,8 @@ def test_view_shows_secrets(monkeypatch, command):
         prefect.settings.Profile(
             name="foo",
             settings={PREFECT_API_KEY: "secret-api-key"},
-        )
+        ),
+        include_current_context=False,
     ):
         res = invoke_and_assert(command)
 
