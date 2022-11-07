@@ -124,8 +124,11 @@ class TestGetRunsInQueueQuery:
     async def test_get_runs_in_queue_limit_sorts_correctly(
         self, session, db, deployment_1
     ):
-        """Tests that the query sorts by scheduled time correctly; the unit tests with a small nubmer of runs
+        """
+        Tests that the query sorts by scheduled time correctly; the unit tests with a small nubmer of runs
         can return the correct order even though no sort is applied.
+
+        https://github.com/PrefectHQ/prefect/pull/7457
         """
 
         # clear all runs
