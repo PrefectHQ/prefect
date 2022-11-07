@@ -5,7 +5,8 @@
 /src/prefect/orion                   @zangell44 @madkinsz
 
 # deployments
-/src/prefect/*.py                    @cicdw
+/src/prefect/cli/deployment.py       @cicdw
+/src/prefect/deployments.py          @cicdw
 
 # ui
 /orion-ui                            @pleek91
