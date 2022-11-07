@@ -225,8 +225,11 @@ def warn_on_database_password_value_without_usage(values):
     """
     if (
         values["PREFECT_ORION_DATABASE_PASSWORD"]
-        and "PREFECT_ORION_DATABASE_PASSWORD"
-        not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+        and values["PREFECT_ORION_DATABASE_PASSWORD"] != "*" * 8
+        and (
+            "PREFECT_ORION_DATABASE_PASSWORD"
+            not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+        )
     ):
         warnings.warn(
             "PREFECT_ORION_DATABASE_PASSWORD is set but not included in the "
@@ -922,7 +925,7 @@ class Settings(SettingsFieldsMixin):
         """
         settings = self.copy(
             update={
-                setting.name: "*********"
+                setting.name: "*" * 8
                 for setting in SETTING_VARIABLES.values()
                 if setting.is_secret
             }

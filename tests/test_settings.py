@@ -214,6 +214,18 @@ class TestSettingsClass:
             settings.copy_with_update(updates={PREFECT_TEST_SETTING: "foo"}) != settings
         )
 
+    def test_with_obfuscated_secrets(self):
+        settings = get_current_settings()
+        original = settings.copy()
+        obfuscated = settings.with_obfuscated_secrets()
+        assert settings == original
+        assert original != obfuscated
+        for setting in SETTING_VARIABLES.values():
+            if setting.is_secret:
+                assert obfuscated.value_of(setting) == "*" * 8
+            else:
+                assert obfuscated.value_of(setting) == original.value_of(setting)
+
 
 class TestSettingAccess:
     def test_get_value_root_setting(self):
