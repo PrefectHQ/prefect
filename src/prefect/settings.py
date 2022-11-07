@@ -84,12 +84,14 @@ class Setting(Generic[T]):
         type: Type[T],
         *,
         value_callback: Callable[["Settings", T], T] = None,
+        is_secret: bool = False,
         **kwargs,
     ) -> None:
         self.field: pydantic.fields.FieldInfo = Field(**kwargs)
         self.type = type
         self.value_callback = value_callback
         self.name = None  # Will be populated after all settings are defined
+        self.is_secret = is_secret
 
         self.__doc__ = self.field.description
 
@@ -367,6 +369,7 @@ When using Prefect Cloud, this will include an account and workspace.
 PREFECT_API_KEY = Setting(
     str,
     default=None,
+    is_secret=True,
 )
 """API key used to authenticate against Orion API. Defaults to `None`."""
 
@@ -530,8 +533,8 @@ PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
 PREFECT_LOGGING_COLORS = Setting(
     bool,
     default=True,
-    description="""Whether to style console logs.""",
 )
+"""Whether to style console logs with color"""
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
@@ -580,6 +583,7 @@ registered.
 PREFECT_ORION_DATABASE_PASSWORD = Setting(
     str,
     default=None,
+    is_secret=True,
 )
 """
 Password to template into the `PREFECT_ORION_DATABASE_CONNECTION_URL`.
@@ -593,6 +597,7 @@ PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     value_callback=template_with_settings(
         PREFECT_HOME, PREFECT_ORION_DATABASE_PASSWORD
     ),
+    is_secret=True,
 )
 """
 A database connection URL in a SQLAlchemy-compatible
@@ -910,6 +915,22 @@ class Settings(SettingsFieldsMixin):
                 **{setting.name: value for setting, value in updates.items()},
             }
         )
+
+    def with_obfuscated_secrets(self):
+        """
+        Returns a copy of this settings object with secret setting values obfsucated.
+        """
+        settings = self.copy(
+            update={
+                setting.name: "*********"
+                for setting in SETTING_VARIABLES.values()
+                if setting.is_secret
+            }
+        )
+        # Ensure that settings that have not been marked as "set" before are still so
+        # after we have updated their value above
+        settings.__fields_set__.intersection_update(self.__fields_set__)
+        return settings
 
     def to_environment_variables(
         self, include: Iterable[Setting] = None, exclude_unset: bool = False
