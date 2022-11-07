@@ -1,6 +1,6 @@
 import json
 from datetime import timedelta
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 
 import pendulum
 import pytest
@@ -11,6 +11,7 @@ from prefect.deployments import Deployment
 from prefect.orion.schemas.filters import DeploymentFilter, DeploymentFilterId
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.testing.cli import invoke_and_assert
+from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
