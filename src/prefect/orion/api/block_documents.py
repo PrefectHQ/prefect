@@ -133,3 +133,27 @@ async def update_block_document_data(
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, detail="Block document not found"
         )
+
+
+@router.post("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
+async def replace_block_document_data(
+    block_document: schemas.actions.BlockDocumentUpdate,
+    block_document_id: UUID = Path(
+        ..., description="The block document id", alias="id"
+    ),
+    db: OrionDBInterface = Depends(provide_database_interface),
+):
+    try:
+        async with db.session_context(begin_transaction=True) as session:
+            result = await models.block_documents.update_block_document(
+                session=session,
+                block_document_id=block_document_id,
+                block_document=block_document,
+            )
+    except ValueError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST)
+
+    if not result:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail="Block document not found"
+        )
