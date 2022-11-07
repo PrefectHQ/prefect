@@ -239,6 +239,8 @@ class BaseQueryComponents(ABC):
                 scheduled_before_clause,
             )
             .with_for_update(skip_locked=True)
+            # priority given to runs with earlier next_scheduled_start_time
+            .order_by(db.FlowRun.next_scheduled_start_time)
             # if null, no limit will be applied
             .limit(sa.func.least(limit_per_queue, work_queue_query.c.available_slots))
             .lateral("scheduled_flow_runs")
