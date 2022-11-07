@@ -482,7 +482,7 @@ async def _generate_scheduled_flow_runs(
     dates = []
 
     # generate up to `n` dates satisfying the min of `max_runs` and `end_time`
-    async for dt in deployment.schedule._get_dates_generator(
+    for dt in deployment.schedule._get_dates_generator(
         n=max_runs, start=start_time, end=end_time
     ):
         dates.append(dt)

@@ -122,11 +122,9 @@ class IntervalSchedule(PrefectBaseModel):
         Returns:
             List[pendulum.DateTime]: a list of dates
         """
-        return sorted(
-            [i async for i in self._get_dates_generator(n=n, start=start, end=end)]
-        )
+        return sorted(self._get_dates_generator(n=n, start=start, end=end))
 
-    async def _get_dates_generator(
+    def _get_dates_generator(
         self,
         n: int = None,
         start: datetime.datetime = None,
@@ -278,11 +276,9 @@ class CronSchedule(PrefectBaseModel):
         Returns:
             List[pendulum.DateTime]: a list of dates
         """
-        return sorted(
-            [i async for i in self._get_dates_generator(n=n, start=start, end=end)]
-        )
+        return sorted(self._get_dates_generator(n=n, start=start, end=end))
 
-    async def _get_dates_generator(
+    def _get_dates_generator(
         self,
         n: int = None,
         start: datetime.datetime = None,
@@ -530,11 +526,9 @@ class RRuleSchedule(PrefectBaseModel):
         Returns:
             List[pendulum.DateTime]: a list of dates
         """
-        return sorted(
-            [i async for i in self._get_dates_generator(n=n, start=start, end=end)]
-        )
+        return sorted(self._get_dates_generator(n=n, start=start, end=end))
 
-    async def _get_dates_generator(
+    def _get_dates_generator(
         self,
         n: int = None,
         start: datetime.datetime = None,
