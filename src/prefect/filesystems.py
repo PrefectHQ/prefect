@@ -13,7 +13,8 @@ from pydantic import Field, SecretStr, validator
 from prefect.blocks.core import Block
 from prefect.exceptions import InvalidRepositoryURLError
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
-from prefect.utilities.filesystem import filter_files, prefect_copytree
+from prefect.utilities.compat import copytree
+from prefect.utilities.filesystem import filter_files
 from prefect.utilities.processutils import run_process
 
 
@@ -135,7 +136,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             # and we avoid shutil.copytree raising an error
             return
 
-        prefect_copytree(from_path, local_path)
+        copytree(from_path, local_path, dirs_exist_ok=True)
 
     async def _get_ignore_func(self, ignore_file: str):
         with open(ignore_file, "r") as f:
@@ -177,7 +178,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         else:
             ignore_func = None
 
-        prefect_copytree(src=local_path, dst=to_path, ignore=ignore_func)
+        copytree(src=local_path, dst=to_path, ignore=ignore_func, dirs_exist_ok=True)
 
     @sync_compatible
     async def read_path(self, path: str) -> bytes:
@@ -909,4 +910,4 @@ class GitHub(ReadableDeploymentStorage):
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
             )
 
-            prefect_copytree(src=content_source, dst=content_destination)
+            copytree(src=content_source, dst=content_destination, dirs_exist_ok=True)
