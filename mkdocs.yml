@@ -69,25 +69,25 @@ theme:
             icon: material/weather-night
             name: Switch to light mode
 plugins:
-    autorefs: {}
-    mkdocstrings:
+    - autorefs: {}
+    - mkdocstrings:
         custom_templates: docs/templates
         handlers:
-            python:
-                options:
-                    show_root_heading: True
-                    show_object_full_path: False
-                    show_category_heading: False
-                    show_bases: False
-                    heading_level: 1
+        python:
+          options:
+            show_root_heading: True
+            show_object_full_path: False
+            show_category_heading: False
+            show_bases: False
+            heading_level: 1
         watch:
             - src/prefect/
-    render_swagger: {}
-    search: {}
-    gen-files:
+    - render_swagger: {}
+    - search: {}
+    - gen-files:
         scripts:
-            - docs/collections/generate_catalog.py
-            - docs/recipes/generate_catalog.py
+          - docs/collections/generate_catalog.py
+          - docs/recipes/generate_catalog.py
 nav:
     # - Prefect 2: index.md
     - Getting Started:
