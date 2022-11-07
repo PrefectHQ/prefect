@@ -4,7 +4,7 @@
       <PageHeadingFlowRun v-if="flowRun" :flow-run="flowRun" @delete="goToFlowRuns" />
     </template>
 
-    <p-tabs :tabs="tabs">
+    <p-tabs v-model:selected="selectedTab" :tabs="tabs">
       <template #details>
         <FlowRunDetails v-if="flowRun" :flow-run="flowRun" />
       </template>
@@ -47,14 +47,16 @@
   } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { computed, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
 
   const router = useRouter()
-  const flowRunId = useRouteParam('id')
 
+
+  const selectedTab= ref('Logs')
+  const flowRunId = useRouteParam('id')
   const tabs = computed(() => {
     const values = [
       'Logs',
@@ -73,6 +75,12 @@
   const api = useWorkspaceApi()
   const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId], { interval: 5000 })
   const flowRun = computed(() => flowRunDetailsSubscription.response)
+
+  watch(flowRunId, (oldFlowRunId, newFlowRunId) => {
+    if (oldFlowRunId !== newFlowRunId) {
+      selectedTab.value = 'Logs'
+    }
+  })
 
   const parameters = computed(() => {
     return flowRun.value?.parameters ? JSON.stringify(flowRun.value.parameters, undefined, 2) : '{}'
