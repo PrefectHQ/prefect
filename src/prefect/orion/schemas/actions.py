@@ -315,13 +315,6 @@ class BlockDocumentUpdate(ActionBaseModel):
 
 
 @copy_model_fields
-class BlockDocumentReplace(ActionBaseModel):
-    """Data used by the Orion API to replace a block document."""
-
-    data: dict = FieldFrom(schemas.core.BlockDocument)
-
-
-@copy_model_fields
 class BlockDocumentReferenceCreate(ActionBaseModel):
     """Data used to create block document reference."""
 
