@@ -135,3 +135,36 @@ to force column width */
     background-color: #726576;
     content: "Advanced";
 }
+
+/* dark mode code overrides */
+[data-md-color-scheme="slate"] {
+    --md-code-bg-color: #252a33;
+    --md-code-fg-color: #eee;
+    --md-code-hl-color: #3b3d54;
+    --md-code-hl-name-color: #eee;
+}
+
+/* dark mode link overrides */
+[data-md-color-scheme="slate"] .md-typeset a {
+    color: var(--blue);
+}
+
+[data-md-color-scheme="slate"] .md-typeset a:hover {
+    font-weight: bold;
+}
+
+/* dark mode nav overrides */
+[data-md-color-scheme="slate"] .md-nav--primary .md-nav__item--active>.md-nav__link {
+    color: var(--blue);
+    font-weight: bold;
+}
+
+[data-md-color-scheme="slate"] .md-nav--primary .md-nav__link--active {
+    color: var(--blue);
+    font-weight: bold;
+}
+
+/* dark mode API doc overrides */
+[data-md-color-scheme="slate"] .prefect-table th {
+    background-color: #3b3d54;
+}
