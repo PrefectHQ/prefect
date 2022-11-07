@@ -15,7 +15,7 @@ This page provides tips that may be helpful if you run into problems using Prefe
 
 Proxies intermediate network requests between a server and a client. 
 
-To communicate with Prefect Cloud, the Prefect client library makes HTTPS requests. These requests are made using the [`httpx`](https://www.python-httpx.org/) and [`aiohttp`](https://docs.aiohttp.org/en/stable/) Python libraries. Both libraries respect accepted proxy environment variables, so the Prefect client is able to communicate through proxies. 
+To communicate with Prefect Cloud, the Prefect client library makes HTTPS requests. These requests are made using the [`httpx`](https://www.python-httpx.org/) Python library. `httpx` respects accepted proxy environment variables, so the Prefect client is able to communicate through proxies. 
 
 To enable communication via proxies, simply set the `HTTPS_PROXY` and `SSL_CERT_FILE` environment variables as appropriate in your execution environment and things should “just work.”
 
