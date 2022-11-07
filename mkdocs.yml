@@ -50,8 +50,20 @@ theme:
         repo: fontawesome/brands/github
     logo: img/logos/prefect-logo-mark-solid-white-500.png
     palette:
-        primary: blue
-        accent: blue
+        - media: "(prefers-color-scheme: light)"
+          accent: blue
+          primary: blue
+          scheme: default
+          toggle:
+              icon: material/weather-sunny
+              name: Switch to dark mode
+        - media: "(prefers-color-scheme: dark)"
+          accent: blue
+          primary: blue
+          scheme: slate
+          toggle:
+              icon: material/weather-night
+              name: Switch to light mode
 plugins:
     autorefs: {}
     mkdocstrings:
@@ -127,9 +139,10 @@ nav:
             - Roles (RBAC): ui/roles.md
             - Single Sign-on (SSO): ui/sso.md
             - Audit Log: ui/audit-log.md
-    - Collections:
-        - Overview: collections/overview.md
+    - Integrations:
         - Collections Catalog: collections/catalog.md
+        - Using Collections: collections/usage.md
+        - Contributing Collections: collections/contribute.md
     - FAQ: faq.md
     - 'API Reference': 
         - Overview: api-ref/overview.md
@@ -223,6 +236,7 @@ nav:
     - Contributing:
         - Overview: contributing/overview.md
         - Style: contributing/style.md
+        - Versioning: contributing/versioning.md
         - Troubleshooting: contributing/common-mistakes.md
 
 extra:

@@ -124,6 +124,17 @@ def orjson_dumps(v: Any, *, default: Any) -> str:
     return orjson.dumps(v, default=default).decode()
 
 
+def orjson_dumps_non_str_keys(v: Any, *, default: Any) -> str:
+    """
+    Utility for dumping a value to JSON using orjson, but allows for non-string keys.
+    This is helpful for situations like pandas dataframes, which can result in
+    non-string keys.
+
+    orjson.dumps returns bytes, to match standard json.dumps we need to decode.
+    """
+    return orjson.dumps(v, default=default, option=orjson.OPT_NON_STR_KEYS).decode()
+
+
 class PrefectBaseModel(BaseModel):
     """A base pydantic.BaseModel for all Prefect schemas and pydantic models.
 
@@ -224,7 +235,6 @@ class PrefectBaseModel(BaseModel):
                     SecretBytes: lambda v: v.get_secret_value() if v else None,
                 },
             )
-
         return super().json(*args, **kwargs)
 
     def dict(
