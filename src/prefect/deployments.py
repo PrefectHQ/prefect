@@ -19,7 +19,11 @@ from prefect.blocks.core import Block
 from prefect.client.orion import OrionClient, get_client
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry
-from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
+from prefect.exceptions import (
+    BlockMissingCapabilities,
+    ObjectAlreadyExists,
+    ObjectNotFound,
+)
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
 from prefect.infrastructure import Infrastructure, Process
