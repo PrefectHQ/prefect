@@ -12,6 +12,10 @@ from unittest.mock import ANY, MagicMock
 
 import pendulum
 import pytest
+from rich.color import Color, ColorType
+from rich.console import Console
+from rich.highlighter import NullHighlighter, ReprHighlighter
+from rich.style import Style
 
 import prefect
 import prefect.logging.configuration
@@ -26,7 +30,8 @@ from prefect.logging.configuration import (
     load_logging_config,
     setup_logging,
 )
-from prefect.logging.handlers import OrionHandler, OrionLogWorker
+from prefect.logging.handlers import OrionHandler, OrionLogWorker, PrefectConsoleHandler
+from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
     disable_logger,
     disable_run_logger,
@@ -37,6 +42,7 @@ from prefect.logging.loggers import (
 )
 from prefect.orion.schemas.actions import LogCreate
 from prefect.settings import (
+    PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_BATCH_INTERVAL,
     PREFECT_LOGGING_ORION_BATCH_SIZE,
@@ -1044,6 +1050,115 @@ async def test_run_logger_in_task(orion_client):
         "flow_run_id": str(flow_run.id),
         "flow_run_name": flow_run.name,
     }
+
+
+class TestPrefectConsoleHandler:
+    @pytest.fixture
+    def handler(self):
+        yield PrefectConsoleHandler()
+
+    @pytest.fixture
+    def logger(self, handler):
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(handler)
+        yield logger
+        logger.removeHandler(handler)
+
+    def test_init_defaults(self):
+        handler = PrefectConsoleHandler()
+        console = handler.console
+        assert isinstance(console, Console)
+        assert isinstance(console.highlighter, PrefectConsoleHighlighter)
+        assert console._theme_stack._entries == [{}]  # inherit=False
+        assert handler.level == logging.NOTSET
+
+    def test_init_styled_console_disabled(self):
+        with temporary_settings({PREFECT_LOGGING_COLORS: False}):
+            handler = PrefectConsoleHandler()
+            console = handler.console
+            assert isinstance(console, Console)
+            assert isinstance(console.highlighter, NullHighlighter)
+            assert console._theme_stack._entries == [{}]
+            assert handler.level == logging.NOTSET
+
+    def test_init_override_kwargs(self):
+        handler = PrefectConsoleHandler(
+            highlighter=ReprHighlighter, styles={"number": "red"}, level=logging.DEBUG
+        )
+        console = handler.console
+        assert isinstance(console, Console)
+        assert isinstance(console.highlighter, ReprHighlighter)
+        assert console._theme_stack._entries == [
+            {"number": Style(color=Color("red", ColorType.STANDARD, number=1))}
+        ]
+        assert handler.level == logging.DEBUG
+
+
+@pytest.fixture
+def flow_run_caplog(caplog):
+    """
+    Capture logging from flow runs to ensure messages are correct.
+    """
+    logger = logging.getLogger("prefect.flow_runs")
+    logger.propagate = True
+
+    try:
+        yield caplog
+    finally:
+        logger.propagate = False
+
+
+def test_log_in_flow(flow_run_caplog):
+    msg = "10:21:34.114 | INFO    | Flow run 'polite-jackal' - Finished in state Completed()"
+
+    @flow
+    def test_flow():
+        logger = get_run_logger()
+        logger.warning(msg)
+
+    test_flow()
+    for record in flow_run_caplog.records:
+        if record.msg == msg:
+            assert record.levelno == logging.WARNING
+            break
+    else:
+        raise AssertionError(f"{msg} was not found in records")
+
+
+@pytest.fixture
+def task_run_caplog(caplog):
+    """
+    Capture logging from task runs to ensure messages are correct.
+    """
+    logger = logging.getLogger("prefect.task_runs")
+    logger.propagate = True
+
+    try:
+        yield caplog
+    finally:
+        logger.propagate = False
+
+
+def test_log_in_task(task_run_caplog):
+    msg = "10:21:34.114 | INFO    | Flow run 'polite-jackal' - Finished in state Completed()"
+
+    @task
+    def test_task():
+        logger = get_run_logger()
+        logger.warning(msg)
+
+    @flow
+    def test_flow():
+        test_task()
+
+    test_flow()
+    for record in task_run_caplog.records:
+        if record.msg == msg:
+            assert record.levelno == logging.WARNING
+            break
+    else:
+        raise AssertionError(f"{msg} was not found in records")
 
 
 def test_without_disable_logger(caplog):

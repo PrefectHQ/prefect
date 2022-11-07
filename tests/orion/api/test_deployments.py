@@ -236,7 +236,7 @@ class TestCreateDeployment:
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 100
+        assert n_runs == PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
 
         # create a run manually to ensure it isn't deleted
         await models.flow_runs.create_flow_run(
@@ -278,7 +278,7 @@ class TestCreateDeployment:
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 100
+        assert n_runs == PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
 
         # create a run manually to ensure it isn't deleted
         await models.flow_runs.create_flow_run(
@@ -726,7 +726,7 @@ class TestSetScheduleActive:
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 100
+        assert n_runs == PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
 
         # create a run manually
         await models.flow_runs.create_flow_run(
