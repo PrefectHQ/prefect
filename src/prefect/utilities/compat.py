@@ -3,6 +3,7 @@ Utilities for Python version compatibility
 """
 # Please organize additions to this file by version
 
+import shutil
 import sys
 
 if sys.version_info < (3, 10):
@@ -25,7 +26,7 @@ else:
 
 if sys.version_info < (3, 8):
 
-    def copytree(src, dst, original_src, symlinks=False, ignore=None, *args, **kwargs):
+    def copytree(src, dst, symlinks=False, ignore=None, *args, **kwargs):
         """
         Replicates the behavior of `shutil.copytree(src=src, dst=dst, ignore=ignore, dirs_exist_ok=True)`
         in a python 3.7 compatible manner.
@@ -55,9 +56,7 @@ if sys.version_info < (3, 8):
                 except:
                     pass  # lchmod not available
             elif os.path.isdir(source_path):
-                _copytree_37(
-                    source_path, destination_path, original_src, symlinks, ignore
-                )
+                copytree(source_path, destination_path, symlinks, ignore)
             else:
                 shutil.copy2(source_path, destination_path)
 

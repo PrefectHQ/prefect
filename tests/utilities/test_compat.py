@@ -39,7 +39,6 @@ def setup_test_directory(tmp_src: str, sub_dir: str = "puppy") -> Tuple[str, str
 
 class TestPrefectCopyTree:
     def test_dir_contents_copied_correctly(self):
-
         sub_dir_name = "puppy"
 
         with TemporaryDirectory() as tmp_src:
@@ -49,7 +48,7 @@ class TestPrefectCopyTree:
             # move file contents to tmp_dst
             with TemporaryDirectory() as tmp_dst:
 
-                copytree(src=tmp_src, dst=tmp_dst)
+                copytree(src=tmp_src, dst=tmp_dst, dirs_exist_ok=True)
                 assert set(os.listdir(tmp_dst)) == set(parent_contents)
                 assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
 
@@ -88,7 +87,9 @@ class TestPrefectCopyTree:
 
             # move file contents to tmp_dst
             with TemporaryDirectory() as tmp_dst:
-                copytree(src=tmp_src, dst=tmp_dst, ignore=ignore_func)
+                copytree(
+                    src=tmp_src, dst=tmp_dst, ignore=ignore_func, dirs_exist_ok=True
+                )
 
                 assert set(os.listdir(tmp_dst)) == set(expected_contents)
                 assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
