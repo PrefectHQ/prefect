@@ -70,45 +70,42 @@ class Scheduler(LoopService):
         """
         total_inserted_runs = 0
 
-        session = await db.session()
-        async with session:
-            last_id = None
-            while True:
-                async with session.begin():
-                    query = self._get_select_deployments_to_schedule_query()
+        last_id = None
+        while True:
+            async with db.session_context(begin_transaction=False) as session:
+                query = self._get_select_deployments_to_schedule_query()
 
-                    # use cursor based pagination
-                    if last_id:
-                        query = query.where(db.Deployment.id > last_id)
+                # use cursor based pagination
+                if last_id:
+                    query = query.where(db.Deployment.id > last_id)
 
-                    result = await session.execute(query)
-                    deployment_ids = result.scalars().unique().all()
+                result = await session.execute(query)
+                deployment_ids = result.scalars().unique().all()
 
-                    # collect runs across all deployments
-                    try:
-                        runs_to_insert = await self._collect_flow_runs(
-                            session=session, deployment_ids=deployment_ids
-                        )
-                    except TryAgain:
-                        continue
+                # collect runs across all deployments
+                try:
+                    runs_to_insert = await self._collect_flow_runs(
+                        session=session, deployment_ids=deployment_ids
+                    )
+                except TryAgain:
+                    continue
 
-                    # bulk insert the runs based on batch size setting
-                    for batch in batched_iterable(
-                        runs_to_insert, self.insert_batch_size
-                    ):
-                        inserted_runs = await self._insert_scheduled_flow_runs(
-                            session=session, runs=batch
-                        )
-                        total_inserted_runs += len(inserted_runs)
+            # bulk insert the runs based on batch size setting
+            for batch in batched_iterable(runs_to_insert, self.insert_batch_size):
+                async with db.session_context(begin_transaction=True) as session:
+                    inserted_runs = await self._insert_scheduled_flow_runs(
+                        session=session, runs=batch
+                    )
+                    total_inserted_runs += len(inserted_runs)
 
-                # if this is the last page of deployments, exit the loop
-                if len(deployment_ids) < self.deployment_batch_size:
-                    break
-                else:
-                    # record the last deployment ID
-                    last_id = deployment_ids[-1]
+            # if this is the last page of deployments, exit the loop
+            if len(deployment_ids) < self.deployment_batch_size:
+                break
+            else:
+                # record the last deployment ID
+                last_id = deployment_ids[-1]
 
-            self.logger.info(f"Scheduled {total_inserted_runs} runs.")
+        self.logger.info(f"Scheduled {total_inserted_runs} runs.")
 
     @inject_db
     def _get_select_deployments_to_schedule_query(self, db: OrionDBInterface):
