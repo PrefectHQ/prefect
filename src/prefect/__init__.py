@@ -105,6 +105,7 @@ if not hasattr(sys, "frozen"):
 
 # Declare API for type-checkers
 __all__ = [
+    "allow_failure",
     "flow",
     "Flow",
     "get_client",

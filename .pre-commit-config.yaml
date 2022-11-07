@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/fsouza/autoflake8
-    rev: v0.3.2
+    rev: v0.4.0
     hooks:
       - id: autoflake8
         language_version: python3
@@ -14,7 +14,7 @@ repos:
       - id: isort
         language_version: python3
   - repo: https://github.com/psf/black
-    rev: 22.6.0
+    rev: 22.10.0
     hooks:
       - id: black
         language_version: python3
