@@ -981,6 +981,30 @@ class OrionClient:
             else:
                 raise
 
+    async def replace_block_document(
+        self,
+        block_document_id: UUID,
+        block_document: schemas.actions.BlockDocumentReplace,
+    ):
+        """
+        Replace a block document in Orion.
+        """
+        try:
+            await self._client.post(
+                f"/block_documents/{block_document_id}",
+                json=block_document.dict(
+                    json_compatible=True,
+                    exclude_unset=True,
+                    include={"data"},
+                    include_secrets=True,
+                ),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def delete_block_document(self, block_document_id: UUID):
         """
         Delete a block document.
