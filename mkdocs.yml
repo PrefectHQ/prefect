@@ -76,14 +76,17 @@ plugins:
                     show_category_heading: False
                     show_bases: False
                     heading_level: 1
-        watch:
-            - src/prefect/
+
     render_swagger: {}
     search: {}
     gen-files:
         scripts:
             - docs/collections/generate_catalog.py
             - docs/recipes/generate_catalog.py
+watch:
+    - mkdocs.yml
+    - mkdocs.insiders.yml
+    - src/prefect/
 nav:
     # - Prefect 2: index.md
     - Getting Started:
