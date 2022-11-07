@@ -125,6 +125,7 @@ async def update_block_document_data(
                 session=session,
                 block_document_id=block_document_id,
                 block_document=block_document,
+                merge_existing_data=True,
             )
     except ValueError:
         raise HTTPException(status.HTTP_400_BAD_REQUEST)
@@ -135,8 +136,8 @@ async def update_block_document_data(
         )
 
 
-@router.post("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
-async def replace_block_document_data(
+@router.put("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_block_document_data_without_merging_existing_data(
     block_document: schemas.actions.BlockDocumentUpdate,
     block_document_id: UUID = Path(
         ..., description="The block document id", alias="id"
@@ -149,6 +150,7 @@ async def replace_block_document_data(
                 session=session,
                 block_document_id=block_document_id,
                 block_document=block_document,
+                merge_existing_data=False,
             )
     except ValueError:
         raise HTTPException(status.HTTP_400_BAD_REQUEST)

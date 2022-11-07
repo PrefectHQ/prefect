@@ -961,36 +961,14 @@ class OrionClient:
         self,
         block_document_id: UUID,
         block_document: schemas.actions.BlockDocumentUpdate,
+        merge_existing_data: bool = True
     ):
         """
         Update a block document in Orion.
         """
         try:
-            await self._client.patch(
-                f"/block_documents/{block_document_id}",
-                json=block_document.dict(
-                    json_compatible=True,
-                    exclude_unset=True,
-                    include={"data"},
-                    include_secrets=True,
-                ),
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-
-    async def replace_block_document(
-        self,
-        block_document_id: UUID,
-        block_document: schemas.actions.BlockDocumentReplace,
-    ):
-        """
-        Replace a block document in Orion.
-        """
-        try:
-            await self._client.post(
+            client_request = self._client.patch if merge_existing_data else self._client.put
+            await client_request(
                 f"/block_documents/{block_document_id}",
                 json=block_document.dict(
                     json_compatible=True,
