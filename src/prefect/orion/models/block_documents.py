@@ -423,13 +423,101 @@ async def update_block_document(
     block_document_id: UUID,
     block_document: schemas.actions.BlockDocumentUpdate,
     db: OrionDBInterface,
+    merge_existing_data: bool = True
 ) -> bool:
 
     current_block_document = await session.get(db.BlockDocument, block_document_id)
     if not current_block_document:
         return False
 
-    update_values = block_document.dict(shallow=True, exclude_unset=True)
+    update_values = block_document.dict(shallow=True, exclude_unset=merge_existing_data)
+
+    if "data" in update_values and update_values["data"] is not None:
+        current_data = await current_block_document.decrypt_data(session=session)
+
+        # if a value for a secret field was provided that is identical to the
+        # obfuscated value of the current secret value, it means someone is
+        # probably trying to update all of the documents fields without
+        # realizing they are posting back obfuscated data, so we disregard the update
+        flat_update_data = dict_to_flatdict(update_values["data"])
+        flat_current_data = dict_to_flatdict(current_data)
+        for field in current_block_document.block_schema.fields.get(
+            "secret_fields", []
+        ):
+            key = tuple(field.split("."))
+            current_secret = flat_current_data.get(key)
+            if current_secret is not None:
+                if flat_update_data.get(key) == obfuscate_string(current_secret):
+                    del flat_update_data[key]
+        update_values["data"] = flatdict_to_dict(flat_update_data)
+
+        if merge_existing_data:
+            # merge the existing data and the new data for partial updates
+            current_data.update(update_values["data"])
+            update_values["data"] = current_data
+            
+        current_block_document_references = (
+            (
+                await session.execute(
+                    sa.select(db.BlockDocumentReference).filter_by(
+                        parent_block_document_id=block_document_id
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        (
+            block_document_data_without_refs,
+            new_block_document_references,
+        ) = _separate_block_references_from_data(update_values["data"])
+
+        # encrypt the data
+        await current_block_document.encrypt_data(
+            session=session, data=block_document_data_without_refs
+        )
+
+        unchanged_block_document_references = []
+        for key, reference_block_document_id in new_block_document_references:
+            matching_current_block_document_reference = _find_block_document_reference(
+                current_block_document_references, key, reference_block_document_id
+            )
+            if matching_current_block_document_reference is None:
+                await create_block_document_reference(
+                    session=session,
+                    block_document_reference=BlockDocumentReferenceCreate(
+                        parent_block_document_id=block_document_id,
+                        reference_block_document_id=reference_block_document_id,
+                        name=key,
+                    ),
+                )
+            else:
+                unchanged_block_document_references.append(
+                    matching_current_block_document_reference
+                )
+
+        for block_document_reference in current_block_document_references:
+            if block_document_reference not in unchanged_block_document_references:
+                await delete_block_document_reference(
+                    session, block_document_reference_id=block_document_reference.id
+                )
+
+    return True
+
+
+@inject_db
+async def replace_block_document(
+    session: AsyncSession,
+    block_document_id: UUID,
+    block_document: schemas.actions.BlockDocumentUpdate,
+    db: OrionDBInterface,
+) -> bool:
+
+    current_block_document = await session.get(db.BlockDocument, block_document_id)
+    if not current_block_document:
+        return False
+
+    update_values = block_document.dict(shallow=True)
 
     if "data" in update_values and update_values["data"] is not None:
         current_data = await current_block_document.decrypt_data(session=session)
@@ -501,7 +589,6 @@ async def update_block_document(
                 )
 
     return True
-
 
 def _find_block_document_reference(
     block_document_references: List[BlockDocumentReference],
