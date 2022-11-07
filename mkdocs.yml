@@ -50,6 +50,10 @@ theme:
         repo: fontawesome/brands/github
     logo: img/logos/prefect-logo-mark-solid-white-500.png
     palette:
+      - media: "(prefers-color-scheme)"
+        toggle:
+            icon: material/brightness-auto
+            name: Switch to light mode
       - media: "(prefers-color-scheme: light)"
         accent: blue
         primary: blue
