@@ -107,7 +107,8 @@ With Prefect 2, your functions *are* your flows and tasks. Prefect 2 automatic
 ### Incremental adoption
 The built-in SQLite database automatically tracks all your locally executed flow runs. As soon as you start Prefect Orion and open the Prefect UI in your browser (or [authenticate your CLI with your Prefect Cloud workspace](../ui/cloud-getting-started/)), you can see all your locally executed flow runs in the UI. You don't even need to start an agent.
 
-Then, when you want to move toward schedulable, repeatable workflows, you can build a deployment and send it to the server by running CLI command or one Python script. 
+Then, when you want to move toward scheduled, repeatable workflows, you can build a deployment and send it to the server by running a CLI command or a Python script. 
+
 - You can create a deployment to on remote infrastructure, where the run environment is defined by a reusalbe infrastructure block.
 
 ### Fewer ambiguities
