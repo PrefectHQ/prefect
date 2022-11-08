@@ -136,7 +136,7 @@ Also notice that `Starting 'SequentialTaskRunner'; submitted tasks will be run s
 
 ## Parallel execution
 
-You can also run tasks using parallel or distributed execution by using the Dask or Ray task runners available through [Prefect Collections](/collections/overview/). 
+You can also run tasks using parallel or distributed execution by using the Dask or Ray task runners available through [Prefect Collections](/collections/catalog/). 
 
 For example, you can achieve parallel task execution, even on in a local execution environment, but using the `DaskTaskRunner`.
 

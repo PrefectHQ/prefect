@@ -15,22 +15,20 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocksCatalogCreate, BlockTypeCardLayout, BlockSchemaCreateForm, BlockDocumentCreateNamed, asSingle } from '@prefecthq/orion-design'
+  import { PageHeadingBlocksCatalogCreate, BlockTypeCardLayout, BlockSchemaCreateForm, BlockDocumentCreateNamed, asSingle, useWorkspaceApi } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam, useRouteQueryParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
-  import { blockDocumentsApi } from '@/services/blockDocumentsApi'
-  import { blockSchemasApi } from '@/services/blockSchemasApi'
-  import { blockTypesApi } from '@/services/blockTypesApi'
 
+  const api = useWorkspaceApi()
   const router = useRouter()
   const redirect = useRouteQueryParam('redirect')
 
   const blockTypeSlugParam = useRouteParam('blockTypeSlug')
-  const blockTypeSubscriptionArgs = computed<Parameters<typeof blockTypesApi.getBlockTypeBySlug> | null>(() => {
+  const blockTypeSubscriptionArgs = computed<Parameters<typeof api.blockTypes.getBlockTypeBySlug> | null>(() => {
     if (!blockTypeSlugParam.value) {
       return null
     }
@@ -38,10 +36,10 @@
     return [blockTypeSlugParam.value]
   })
 
-  const blockTypeSubscription = useSubscriptionWithDependencies(blockTypesApi.getBlockTypeBySlug, blockTypeSubscriptionArgs)
+  const blockTypeSubscription = useSubscriptionWithDependencies(api.blockTypes.getBlockTypeBySlug, blockTypeSubscriptionArgs)
   const blockType = computed(() => blockTypeSubscription.response)
 
-  const blockSchemaSubscriptionArgs = computed<Parameters<typeof blockSchemasApi.getBlockSchemaForBlockType> | null>(() => {
+  const blockSchemaSubscriptionArgs = computed<Parameters<typeof api.blockSchemas.getBlockSchemaForBlockType> | null>(() => {
     if (!blockType.value) {
       return null
     }
@@ -49,11 +47,11 @@
     return [blockType.value.id]
   })
 
-  const blockSchemaSubscription = useSubscriptionWithDependencies(blockSchemasApi.getBlockSchemaForBlockType, blockSchemaSubscriptionArgs)
+  const blockSchemaSubscription = useSubscriptionWithDependencies(api.blockSchemas.getBlockSchemaForBlockType, blockSchemaSubscriptionArgs)
   const blockSchema = computed(() => blockSchemaSubscription.response)
 
   function submit(request: BlockDocumentCreateNamed): void {
-    blockDocumentsApi
+    api.blockDocuments
       .createBlockDocument(request)
       .then(({ id }) => onSuccess(id))
       .catch(err => {

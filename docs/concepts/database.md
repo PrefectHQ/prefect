@@ -36,7 +36,7 @@ If at any point in your testing you'd like to reset your database, run the CLI c
 
 <div class="terminal">
 ```bash
-$ prefect orion database reset -y
+prefect orion database reset -y
 ```
 </div>
 
@@ -48,7 +48,7 @@ To configure the database location, you can specify a connection URL with the `P
 
 <div class="terminal">
 ```bash
-$ export PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/a/location/orion.db"
+prefect config set PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/a/location/orion.db"
 ```
 </div>
 
@@ -58,7 +58,7 @@ To connect Orion to a PostgreSQL database, you can set the following environment
 
 <div class="terminal">
 ```bash
-$ export PREFECT_ORION_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/orion"
+prefect config set PREFECT_ORION_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/orion"
 ```
 </div>
 
@@ -74,7 +74,7 @@ If you want to quickly start a PostgreSQL instance that can be used as your Pref
 
 <div class="terminal">
 ```bash
-$ docker run -d --name orion_postgres -v oriondb:/var/lib/postgresql/data -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=yourTopSecretPassword -e POSTGRES_DB=orion postgres:latest
+docker run -d --name orion_postgres -v oriondb:/var/lib/postgresql/data -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=yourTopSecretPassword -e POSTGRES_DB=orion postgres:latest
 ```
 </div>
 
@@ -89,7 +89,7 @@ You can inspect your profile to be sure that the environment variable has been s
 
 <div class="terminal">
 ```bash
-$ prefect config view --show-sources
+prefect config view --show-sources
 ```
 </div>
 
@@ -97,7 +97,7 @@ Start the Prefect Orion server and it should from now on use your PostgreSQL dat
 
 <div class="terminal">
 ```bash
-$ prefect orion start
+prefect orion start
 ```
 </div>
 
@@ -109,7 +109,7 @@ To use an in-memory SQLite database, set the following environment variable:
 
 <div class="terminal">
 ```bash
-$ export PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false"
+prefect config set PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false"
 ```
 </div>
 
