@@ -31,15 +31,17 @@ def load_logging_config(path: Path) -> dict:
     Loads logging configuration from a path allowing override from the environment
     """
     template = string.Template(path.read_text())
-    config = yaml.safe_load(
-        # Substitute settings into the template in format $SETTING / ${SETTING}
-        template.substitute(
-            {
-                setting.name: str(setting.value())
-                for setting in SETTING_VARIABLES.values()
-            }
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        config = yaml.safe_load(
+            # Substitute settings into the template in format $SETTING / ${SETTING}
+            template.substitute(
+                {
+                    setting.name: str(setting.value())
+                    for setting in SETTING_VARIABLES.values()
+                }
+            )
         )
-    )
 
     # Load overrides from the environment
     flat_config = dict_to_flatdict(config)
