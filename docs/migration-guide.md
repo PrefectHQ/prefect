@@ -109,7 +109,7 @@ The built-in SQLite database automatically tracks all your locally executed flow
 
 Then, when you want to move toward scheduled, repeatable workflows, you can build a deployment and send it to the server by running a CLI command or a Python script. 
 
-- You can create a deployment to on remote infrastructure, where the run environment is defined by a reusalbe infrastructure block.
+- You can create a deployment to on remote infrastructure, where the run environment is defined by a reusable infrastructure block.
 
 ### Fewer ambiguities
 
