@@ -12,7 +12,8 @@ This guide is designed to help you migrate your workflows from Prefect 1 to Pref
 
 ## What stayed the same
 
-Prefect 2 still 
+Prefect 2 still:
+
 - has [tasks](../concepts/tasks/) and [flows](../concepts/flows/)
 - orchestrates your flow runs and provides observability into their execution [states](../concepts/states/)
 - [runs and inspect flow runs locally](https://discourse.prefect.io/t/how-can-i-inspect-the-flow-run-states-locally/81)
