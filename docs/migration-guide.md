@@ -68,7 +68,7 @@ Let’s look at the differences in how Prefect 2 transitions your flow and task 
 
 To deploy your Prefect 1 flows, you have to send flow metadata to the backend in a step called registration. Prefect 2 no longer requires flow pre-registration. Instead, you create a [Deployment](https://docs.prefect.io/concepts/deployments/) that specifies the entrypoiint to your flow code and optionally speciefies:
 
-- Where to run your flow (your *Infrastructure*, such as a `DockerContainer`, `KubernetesJob`, or `ECSTask)
+- Where to run your flow (your *Infrastructure*, such as a `DockerContainer`, `KubernetesJob`, or `ECSTask).
 - When to run your flow (an `Interval`, `Cron`, or `RRule` schedule)
 - How to run your flow (execution details such as `parameters`,  used by work queues, flow deployment `name`, and [more](https://discourse.prefect.io/tag/deployment))
 - The work queue for your 
