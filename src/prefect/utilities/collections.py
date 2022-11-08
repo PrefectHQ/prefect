@@ -334,11 +334,11 @@ def remove_nested_keys(keys_to_remove: List[Hashable], obj):
 
     Args:
         keys_to_remove: A list of keys to remove from obj obj: The object to remove keys
-        from.
+            from.
 
     Returns:
         `obj` without keys matching an entry in `keys_to_remove` if `obj` is a
-        dictionary. `obj` if `obj` is not a dictionary.
+            dictionary. `obj` if `obj` is not a dictionary.
     """
     if not isinstance(obj, dict):
         return obj

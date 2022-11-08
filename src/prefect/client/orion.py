@@ -1433,7 +1433,7 @@ class OrionClient:
             flow_run_id: the flow run ID of interest
 
         Returns:
-            a [Flow Run model][prefect.orion.FlowRun] representation of the flow run
+            a [Flow Run model][prefect.orion.schemas.core.FlowRun] representation of the flow run
         """
         try:
             response = await self._client.get(f"/flow_runs/{flow_run_id}")
@@ -1469,7 +1469,7 @@ class OrionClient:
             offset: offset for the flow run query
 
         Returns:
-            a list of [Flow Run model][prefect.orion.FlowRun] representation
+            a list of [Flow Run model][prefect.orion.schemas.core.FlowRun] representation
                 of the flow runs
         """
         body = {
@@ -1509,7 +1509,7 @@ class OrionClient:
                 forcing the Orion API to accept the state
 
         Returns:
-            a [OrchestrationResult model][prefect.orion.orchestration.rules.OrchestrationResult]
+            a [OrchestrationResult model][prefect.orion.schemas.responses.OrchestrationResult]
                 representation of state orchestration output
         """
         state_create = state.to_state_create()
@@ -1608,7 +1608,7 @@ class OrionClient:
             task_run_id: the task run ID of interest
 
         Returns:
-            a [Task Run model][prefect.client.schemas.TaskRun] representation of the task run
+            a [Task Run model][prefect.orion.schemas.core.TaskRun] representation of the task run
         """
         response = await self._client.get(f"/task_runs/{task_run_id}")
         return TaskRun.parse_obj(response.json())
@@ -1638,7 +1638,7 @@ class OrionClient:
             offset: an offset for the task run query
 
         Returns:
-            a list of [Task Run model][prefect.client.schemas.TaskRun] representation
+            a list of [Task Run model][prefect.orion.schemas.core.TaskRun] representation
                 of the task runs
         """
         body = {
@@ -1677,7 +1677,7 @@ class OrionClient:
                 forcing the Orion API to accept the state
 
         Returns:
-            a [OrchestrationResult model][prefect.orion.orchestration.rules.OrchestrationResult]
+            a [OrchestrationResult model][prefect.orion.schemas.responses.OrchestrationResult]
                 representation of state orchestration output
         """
         state_create = state.to_state_create()
@@ -1776,7 +1776,7 @@ class OrionClient:
             offset: an offset for the notification policies query
 
         Returns:
-            a list of [FlowRunNotificationPolicy model][schemas.core.FlowRunNotificationPolicy] representation
+            a list of [FlowRunNotificationPolicy model][prefect.orion.schemas.core.FlowRunNotificationPolicy] representation
                 of the notification policies
         """
         body = {
