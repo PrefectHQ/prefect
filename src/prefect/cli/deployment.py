@@ -883,7 +883,7 @@ async def build(
         flow=flow,
         name=name,
         output=deployment_loc,
-        skip_upload=False,
+        skip_upload=skip_upload,
         apply=False,
         **init_kwargs,
     )
