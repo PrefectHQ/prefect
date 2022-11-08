@@ -122,7 +122,7 @@ In Prefect 1, there are several confusing ways you could implement `caching`. Pr
 
  For more details on how to configure caching, check out the following resources:
  
-- [Caching docs](https://docs.prefect.io/concepts/tasks/?h=caching#caching)
+- [Caching docs](/concepts/tasks/#caching)
 - [Time-based caching](https://discourse.prefect.io/t/how-can-i-cache-a-task-result-for-two-hours-to-prevent-re-computation/67)
 - [Input-based caching](https://discourse.prefect.io/t/how-can-i-cache-a-task-result-based-on-task-input-arguments/68)
 
