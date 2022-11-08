@@ -961,13 +961,15 @@ class OrionClient:
         self,
         block_document_id: UUID,
         block_document: schemas.actions.BlockDocumentUpdate,
-        merge_existing_data: bool = True
+        merge_existing_data: bool = True,
     ):
         """
         Update a block document in Orion.
         """
         try:
-            client_request = self._client.patch if merge_existing_data else self._client.put
+            client_request = (
+                self._client.patch if merge_existing_data else self._client.put
+            )
             await client_request(
                 f"/block_documents/{block_document_id}",
                 json=block_document.dict(

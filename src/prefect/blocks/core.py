@@ -765,6 +765,7 @@ class Block(BaseModel, ABC):
                 await client.update_block_document(
                     block_document_id=block_document_id,
                     block_document=self._to_block_document(name=name),
+                    merge_existing_data=True,
                 )
                 block_document = await client.read_block_document(
                     block_document_id=block_document_id
