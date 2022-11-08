@@ -70,7 +70,7 @@ To deploy your Prefect 1 flows, you have to send flow metadata to the backend in
 
 - Where to run your flow (your *Infrastructure*, such as a `DockerContainer`, `KubernetesJob`, or `ECSTask).
 - When to run your flow (an `Interval`, `Cron`, or `RRule` schedule).
-- How to run your flow (execution details such as `parameters`,  used by work queues, flow deployment `name`, and [more](https://discourse.prefect.io/tag/deployment))
+- How to run your flow (execution details such as `parameters`, flow deployment `name`, and [more](https://discourse.prefect.io/tag/deployment)).
 - The work queue for your 
 
 The API is now implemented as a REST API rather than GraphQL. [This page](https://discourse.prefect.io/t/how-can-i-interact-with-the-backend-api-using-a-python-client/80) illustrates how you can interact with the API.
