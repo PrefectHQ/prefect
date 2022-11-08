@@ -135,7 +135,7 @@ We know migrations can be tough. We encourage you to take it step-by-step and ex
 
 To make the migration process easier for you:
 
-- we provided [a detailed FAQ section](https://discourse.prefect.io/tag/migration-guide) allowing you to find the right information you need to move your workflows to Prefect 2. If you still have some open questions, feel free to create a new topic describing your migration issue.
+- We provided [a detailed FAQ section](https://discourse.prefect.io/tag/migration-guide) allowing you to find the right information you need to move your workflows to Prefect 2. If you still have some open questions, feel free to create a new topic describing your migration issue.
 - We have dedicated resources in the Customer Success team to help you along your migration journey. Reach out to [cs@prefect.io](mailto:cs@prefect.io) to discuss how we can help.  
 - You can ask questions in our 20,000+ member [Community Slack](https://prefect.io/slack).
 
