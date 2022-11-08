@@ -18,7 +18,7 @@ Prefect 2 still:
 - Orchestrates your flow runs and provides observability into their execution [states](/concepts/states/).
 - [runs and inspect flow runs locally](https://discourse.prefect.io/t/how-can-i-inspect-the-flow-run-states-locally/81)
 - Provides a coordination plane for your dataflows based on the same [principles](https://medium.com/the-prefect-blog/your-code-will-fail-but-thats-ok-f0327a208dbe). 
-- the [hybrid execution model](https://medium.com/the-prefect-blog/the-prefect-hybrid-model-1b70c7fd296) where Prefect doesn't store your flow code or data. 
+- Employs the same [hybrid execution model](https://medium.com/the-prefect-blog/the-prefect-hybrid-model-1b70c7fd296), where Prefect doesn't store your flow code or data. 
 
 ## What changed
 
