@@ -22,7 +22,8 @@ Prefect 2 still:
 
 ## What changed
 
-Prefect 2 requirse modifications to your existing tasks, flows, and deployment patterns. We've organized this section into the following categories:
+Prefect 2 requires modifications to your existing tasks, flows, and deployment patterns. We've organized this section into the following categories:
+
 
 - **Simplified patterns** &mdash; abstractions from Prefect 1 that are no longer necessary in the dynamic, DAG-free Prefect Orion workflows that support running native Python code in your flows.
 - **Conceptual and syntax changes** that often clarify names and simplify familiar abstractions such as retries and caching.
