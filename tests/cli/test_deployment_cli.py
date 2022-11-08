@@ -1,5 +1,6 @@
 import json
 from datetime import timedelta
+from unittest.mock import Mock
 
 import pendulum
 import pytest
@@ -10,6 +11,7 @@ from prefect.deployments import Deployment
 from prefect.orion.schemas.filters import DeploymentFilter, DeploymentFilterId
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.testing.cli import invoke_and_assert
+from prefect.testing.utilities import AsyncMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
@@ -881,3 +883,60 @@ class TestDeploymentRun:
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         assert flow_run.parameters == {"name": "foo"}
+
+
+class TestDeploymentBuild:
+    def patch_deployment_build_cli(self, monkeypatch):
+        mock_build_from_flow = AsyncMock()
+
+        # needed to handle `if deployment.storage` check
+        ret = Mock()
+        ret.storage = None
+        mock_build_from_flow.return_value = ret
+
+        monkeypatch.setattr(
+            "prefect.cli.deployment.Deployment.build_from_flow", mock_build_from_flow
+        )
+
+        # not needed for test
+        monkeypatch.setattr(
+            "prefect.cli.deployment.create_work_queue_and_set_concurrency_limit",
+            AsyncMock(),
+        )
+
+        return mock_build_from_flow
+
+    @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
+    @pytest.mark.parametrize("skip_upload", ["--skip-upload", None])
+    def test_skip_upload_called_correctly(
+        self, monkeypatch, patch_import, tmp_path, skip_upload
+    ):
+        mock_build_from_flow = self.patch_deployment_build_cli(monkeypatch)
+
+        name = "TEST"
+        output_path = str(tmp_path / "test.yaml")
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-n",
+            name,
+            "-o",
+            output_path,
+        ]
+
+        if skip_upload:
+            cmd.append(skip_upload)
+
+        invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
+
+        build_kwargs = mock_build_from_flow.call_args.kwargs
+
+        if skip_upload:
+            assert build_kwargs["skip_upload"] == True
+        else:
+            assert build_kwargs["skip_upload"] == False
