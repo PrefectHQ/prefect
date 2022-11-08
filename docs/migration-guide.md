@@ -33,7 +33,7 @@ Prefect 2 requires modifications to your existing tasks, flows, and deployment p
 
 Since Prefect 2 allows running native Python code within the flow function, some abstractions are no longer necessary:
 
-- `Parameter` tasks: in Prefect 2, inputs to your flow function are automatically treated as [parameters](../concepts/flows/#parameters) of your flow. You can define the default parameter values in your flow code, when you create your `Deployment`, or when you schedule an ad-hoc flow run. One benefitofo Orion’s parametrization is built-in type validation with [pydantic](https://pydantic-docs.helpmanual.io/).
+- `Parameter` tasks: in Prefect 2, inputs to your flow function are automatically treated as [parameters](../concepts/flows/#parameters) of your flow. You can define the parameter values in your flow code when you create your `Deployment`, or when you schedule an ad-hoc flow run. One benefit of Prefect Orion’s parametrization is built-in type validation with [pydantic](https://pydantic-docs.helpmanual.io/).
 - Task-level `state_handlers`: in Prefect 2, you can build custom logic that reacts to task-run states within your flow function without the need for `state_handlers`. [The page "
   How to take action on a state change of a task run"](https://discourse.prefect.io/t/how-to-take-action-on-a-state-change-of-a-task-run-task-level-state-handler/82) provides a further explanation and code examples.
 - Instead of using `signals`, Prefect 2 allows you to raise an arbitrary exception in your task or flow and return a custom state. For more details and examples, see [How can I stop the task run based on a custom logic](https://discourse.prefect.io/t/how-can-i-end-the-task-run-based-on-a-custom-logic/83).
