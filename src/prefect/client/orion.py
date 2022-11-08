@@ -1075,7 +1075,7 @@ class OrionClient:
         """
         Read all block types
         Raises:
-            httpx.RequestError
+            httpx.RequestError: if the block types were not found
 
         Returns:
             List of BlockTypes.
@@ -1087,7 +1087,7 @@ class OrionClient:
         """
         Read all block schemas
         Raises:
-            httpx.RequestError
+            httpx.RequestError: if a valid block schema was not found
 
         Returns:
             A BlockSchema.

@@ -619,9 +619,9 @@ class Task(Generic[P, R]):
         Args:
             *args: Iterable and static arguments to run the tasks with
             return_state: Return a list of Prefect States that wrap the results
-              of each task run.
+                of each task run.
             wait_for: Upstream task futures to wait for before starting the
-              task
+                task
             **kwargs: Keyword iterable arguments to run the task with
 
         Returns:
