@@ -10,7 +10,7 @@ import anyio
 import httpx
 from typing_extensions import TypeGuard
 
-from prefect.client.schemas import State
+from prefect.client.schemas import State as State
 from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,

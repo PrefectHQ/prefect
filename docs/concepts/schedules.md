@@ -212,4 +212,4 @@ These settings mean that if a deployment has an hourly schedule, the default set
 
 If you change a schedule, previously scheduled flow runs that have not started are removed, and new scheduled flow runs are created to reflect the new schedule.
 
-To remove all scheduled runs for a flow deployment, update the deployment YAML with no `schedule` value. Alternatively, remote the schedule via the UI.
+To remove all scheduled runs for a flow deployment, update the deployment YAML with no `schedule` value. Alternatively, remove the schedule via the UI.
