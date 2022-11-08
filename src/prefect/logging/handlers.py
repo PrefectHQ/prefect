@@ -1,22 +1,26 @@
 import atexit
 import logging
-import logging.handlers
 import queue
 import sys
 import threading
 import time
 import traceback
 import warnings
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import anyio
 import pendulum
+from rich.console import Console
+from rich.highlighter import Highlighter, NullHighlighter
+from rich.theme import Theme
 
 import prefect.context
 from prefect.client import get_client
 from prefect.exceptions import MissingContextError
+from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.orion.schemas.actions import LogCreate
 from prefect.settings import (
+    PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_ORION_BATCH_INTERVAL,
     PREFECT_LOGGING_ORION_BATCH_SIZE,
     PREFECT_LOGGING_ORION_ENABLED,
@@ -355,3 +359,48 @@ class OrionHandler(logging.Handler):
             worker.flush()
 
         return super().close()
+
+
+class PrefectConsoleHandler(logging.Handler):
+    def __init__(
+        self,
+        highlighter: Highlighter = PrefectConsoleHighlighter,
+        styles: Dict[str, str] = None,
+        level: Union[int, str] = logging.NOTSET,
+    ):
+        """
+        The default console handler for Prefect, which highlights log levels,
+        web and file URLs, flow and task (run) names, and state types in the
+        local console (terminal).
+
+        Highlighting can be toggled on/off with the PREFECT_LOGGING_COLORS setting.
+        For finer control, use logging.yml to add or remove styles, and/or
+        adjust colors.
+        """
+        styled_console = PREFECT_LOGGING_COLORS.value()
+        if styled_console:
+            highlighter = highlighter()
+            theme = Theme(styles, inherit=False)
+        else:
+            highlighter = NullHighlighter()
+            theme = Theme(inherit=False)
+        self.console = Console(highlighter=highlighter, theme=theme)
+        super().__init__(level=level)
+
+    def emit(self, record: logging.LogRecord):
+        try:
+            record.message = record.getMessage()
+            if self.formatter:
+                formatter = self.formatter
+                if hasattr(formatter, "usesTime") and formatter.usesTime():
+                    record.asctime = formatter.formatTime(record, formatter.datefmt)
+                message = formatter.formatMessage(record)
+            else:
+                message = record.message
+            self.console.print(message)
+        except RecursionError:
+            # This was copied over from logging.StreamHandler().emit()
+            # https://bugs.python.org/issue36272
+            raise
+        except Exception:
+            self.handleError(record)

@@ -9,24 +9,24 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlock, BlockDocumentCard } from '@prefecthq/orion-design'
+  import { PageHeadingBlock, BlockDocumentCard, useWorkspaceApi } from '@prefecthq/orion-design'
   import { useSubscriptionWithDependencies, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
-  import { blockDocumentsApi } from '@/services/blockDocumentsApi'
 
+  const api = useWorkspaceApi()
   const router = useRouter()
   const blockDocumentId = useRouteParam('blockDocumentId')
-  const blockDocumentSubscriptionsArgs = computed<Parameters<typeof blockDocumentsApi.getBlockDocument> | null >(() => {
+  const blockDocumentSubscriptionsArgs = computed<Parameters<typeof api.blockDocuments.getBlockDocument> | null >(() => {
     if (!blockDocumentId.value) {
       return null
     }
 
     return [blockDocumentId.value]
   })
-  const blockDocumentSubscription = useSubscriptionWithDependencies(blockDocumentsApi.getBlockDocument, blockDocumentSubscriptionsArgs)
+  const blockDocumentSubscription = useSubscriptionWithDependencies(api.blockDocuments.getBlockDocument, blockDocumentSubscriptionsArgs)
   const blockDocument = computed(() => blockDocumentSubscription.response)
 
   const routeToBlocks = (): void => {
