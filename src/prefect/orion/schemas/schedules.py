@@ -2,9 +2,8 @@
 Schedule schemas
 """
 
-import asyncio
 import datetime
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Generator, List, Optional, Tuple, Union
 
 import dateutil
 import dateutil.rrule
@@ -15,7 +14,7 @@ from pydantic import Field, validator
 
 from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
 
-MAX_ITERATIONS = 10000
+MAX_ITERATIONS = 1000
 
 
 def _prepare_scheduling_start_and_end(
@@ -108,7 +107,30 @@ class IntervalSchedule(PrefectBaseModel):
         start: datetime.datetime = None,
         end: datetime.datetime = None,
     ) -> List[pendulum.DateTime]:
-        """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
+        """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
+        following the start date.
+
+        Args:
+            n (int): The number of dates to generate
+            start (datetime.datetime, optional): The first returned date will be on or
+                after this date. Defaults to None.  If a timezone-naive datetime is
+                provided, it is assumed to be in the schedule's timezone.
+            end (datetime.datetime, optional): The maximum scheduled date to return. If
+                a timezone-naive datetime is provided, it is assumed to be in the
+                schedule's timezone.
+
+        Returns:
+            List[pendulum.DateTime]: A list of dates
+        """
+        return sorted(self._get_dates_generator(n=n, start=start, end=end))
+
+    def _get_dates_generator(
+        self,
+        n: int = None,
+        start: datetime.datetime = None,
+        end: datetime.datetime = None,
+    ) -> Generator[pendulum.DateTime, None, None]:
+        """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
         Args:
@@ -166,7 +188,9 @@ class IntervalSchedule(PrefectBaseModel):
                 break
 
             # ensure no duplicates; weird things can happen with DST
-            dates.add(next_date)
+            if next_date not in dates:
+                dates.add(next_date)
+                yield next_date
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
@@ -175,11 +199,6 @@ class IntervalSchedule(PrefectBaseModel):
             counter += 1
 
             next_date = next_date.add(days=interval_days, seconds=interval_seconds)
-
-            # yield event loop control
-            await asyncio.sleep(0)
-
-        return sorted(dates)
 
 
 class CronSchedule(PrefectBaseModel):
@@ -242,7 +261,30 @@ class CronSchedule(PrefectBaseModel):
         start: datetime.datetime = None,
         end: datetime.datetime = None,
     ) -> List[pendulum.DateTime]:
-        """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
+        """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
+        following the start date.
+
+        Args:
+            n (int): The number of dates to generate
+            start (datetime.datetime, optional): The first returned date will be on or
+                after this date. Defaults to None.  If a timezone-naive datetime is
+                provided, it is assumed to be in the schedule's timezone.
+            end (datetime.datetime, optional): The maximum scheduled date to return. If
+                a timezone-naive datetime is provided, it is assumed to be in the
+                schedule's timezone.
+
+        Returns:
+            List[pendulum.DateTime]: A list of dates
+        """
+        return sorted(self._get_dates_generator(n=n, start=start, end=end))
+
+    def _get_dates_generator(
+        self,
+        n: int = None,
+        start: datetime.datetime = None,
+        end: datetime.datetime = None,
+    ) -> Generator[pendulum.DateTime, None, None]:
+        """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
         Args:
@@ -305,18 +347,15 @@ class CronSchedule(PrefectBaseModel):
             if end and next_date > end:
                 break
             # ensure no duplicates; weird things can happen with DST
-            dates.add(next_date)
+            if next_date not in dates:
+                dates.add(next_date)
+                yield next_date
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
                 break
 
             counter += 1
-
-            # yield event loop control
-            await asyncio.sleep(0)
-
-        return sorted(dates)
 
 
 class RRuleSchedule(PrefectBaseModel):
@@ -472,7 +511,30 @@ class RRuleSchedule(PrefectBaseModel):
         start: datetime.datetime = None,
         end: datetime.datetime = None,
     ) -> List[pendulum.DateTime]:
-        """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
+        """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
+        following the start date.
+
+        Args:
+            n (int): The number of dates to generate
+            start (datetime.datetime, optional): The first returned date will be on or
+                after this date. Defaults to None.  If a timezone-naive datetime is
+                provided, it is assumed to be in the schedule's timezone.
+            end (datetime.datetime, optional): The maximum scheduled date to return. If
+                a timezone-naive datetime is provided, it is assumed to be in the
+                schedule's timezone.
+
+        Returns:
+            List[pendulum.DateTime]: A list of dates
+        """
+        return sorted(self._get_dates_generator(n=n, start=start, end=end))
+
+    def _get_dates_generator(
+        self,
+        n: int = None,
+        start: datetime.datetime = None,
+        end: datetime.datetime = None,
+    ) -> Generator[pendulum.DateTime, None, None]:
+        """Retrieves dates from the schedule. Up to 1,000 candidate dates are checked
         following the start date.
 
         Args:
@@ -514,18 +576,15 @@ class RRuleSchedule(PrefectBaseModel):
                 break
 
             # ensure no duplicates; weird things can happen with DST
-            dates.add(next_date)
+            if next_date not in dates:
+                dates.add(next_date)
+                yield next_date
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
                 break
 
             counter += 1
-
-            # yield event loop control
-            await asyncio.sleep(0)
-
-        return sorted(dates)
 
 
 SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule, RRuleSchedule]
