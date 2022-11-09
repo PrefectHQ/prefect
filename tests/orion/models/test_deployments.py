@@ -808,7 +808,7 @@ class TestScheduledRuns:
         scheduled_runs = await models.deployments.schedule_runs(
             session,
             deployment_id=deployment.id,
-            min_time=pendulum.now("UTC").add(days=17),
+            min_time=datetime.timedelta(days=17),
         )
         assert len(scheduled_runs) == 18
 

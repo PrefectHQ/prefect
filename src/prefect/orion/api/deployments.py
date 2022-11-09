@@ -2,6 +2,7 @@
 Routes for interacting with Deployment objects.
 """
 
+import datetime
 from typing import List
 from uuid import UUID
 
@@ -201,8 +202,9 @@ async def schedule_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     start_time: DateTimeTZ = Body(None, description="The earliest date to schedule"),
     end_time: DateTimeTZ = Body(None, description="The latest date to schedule"),
-    min_time: DateTimeTZ = Body(
-        None, description="Runs will be scheduled until at least this date"
+    min_time: datetime.timedelta = Body(
+        None,
+        description="Runs will be scheduled until at least this long after the `start_time`",
     ),
     min_runs: int = Body(None, description="The minimum number of runs to schedule"),
     max_runs: int = Body(None, description="The maximum number of runs to schedule"),
@@ -219,7 +221,7 @@ async def schedule_deployment(
         - No more than `max_runs` runs will be generated
         - No runs will be generated after `end_time` is reached
         - At least `min_runs` runs will be generated
-        - Runs will be generated until at least `min_time` is reached
+        - Runs will be generated until at least `start_time + min_time` is reached
     """
     async with db.session_context(begin_transaction=True) as session:
         await models.deployments.schedule_runs(

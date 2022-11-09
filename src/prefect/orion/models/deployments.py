@@ -369,7 +369,7 @@ async def schedule_runs(
     deployment_id: UUID,
     start_time: datetime.datetime = None,
     end_time: datetime.datetime = None,
-    min_time: datetime.datetime = None,
+    min_time: datetime.timedelta = None,
     min_runs: int = None,
     max_runs: int = None,
     auto_scheduled: bool = True,
@@ -382,19 +382,19 @@ async def schedule_runs(
         deployment_id: the id of the deployment to schedule
         start_time: the time from which to start scheduling runs
         end_time: runs will be scheduled until at most this time
-        min_time: runs will be scheduled until at least this time
+        min_time: runs will be scheduled until at least this far in the future
         min_runs: a minimum amount of runs to schedule
         max_runs: a maximum amount of runs to schedule
 
     This function will generate the minimum number of runs that satisfy the min
     and max times, and the min and max counts. Specifically, the following order
     will be respected:
-   
+
         - Runs will be generated starting on or after the `start_time`
         - No more than `max_runs` runs will be generated
         - No runs will be generated after `end_time` is reached
         - At least `min_runs` runs will be generated
-        - Runs will be generated until at least `min_time` is reached
+        - Runs will be generated until at least `start_time` + `min_time` is reached
 
     Returns:
         a list of flow run ids scheduled for the deployment
@@ -410,12 +410,10 @@ async def schedule_runs(
             PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
         )
     if min_time is None:
-        min_time = start_time + (
-            PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
-        )
+        min_time = PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
+
     start_time = pendulum.instance(start_time)
     end_time = pendulum.instance(end_time)
-    min_time = pendulum.instance(min_time)
 
     runs = await _generate_scheduled_flow_runs(
         session=session,
@@ -436,7 +434,7 @@ async def _generate_scheduled_flow_runs(
     deployment_id: UUID,
     start_time: datetime.datetime,
     end_time: datetime.datetime,
-    min_time: datetime.datetime,
+    min_time: datetime.timedelta,
     min_runs: int,
     max_runs: int,
     db: OrionDBInterface,
@@ -456,19 +454,19 @@ async def _generate_scheduled_flow_runs(
         deployment_id: the id of the deployment to schedule
         start_time: the time from which to start scheduling runs
         end_time: runs will be scheduled until at most this time
-        min_time: runs will be scheduled until at least this time
+        min_time: runs will be scheduled until at least this far in the future
         min_runs: a minimum amount of runs to schedule
         max_runs: a maximum amount of runs to schedule
 
     This function will generate the minimum number of runs that satisfy the min
     and max times, and the min and max counts. Specifically, the following order
     will be respected:
-    
+
         - Runs will be generated starting on or after the `start_time`
         - No more than `max_runs` runs will be generated
         - No runs will be generated after `end_time` is reached
         - At least `min_runs` runs will be generated
-        - Runs will be generated until at least `min_time` is reached
+        - Runs will be generated until at least `start_time + min_time` is reached
 
     Returns:
         a list of dictionary representations of the `FlowRun` objects to schedule
@@ -490,7 +488,7 @@ async def _generate_scheduled_flow_runs(
         dates.append(dt)
 
         # at any point, if we satisfy both of the minimums, we can stop
-        if len(dates) >= min_runs and dt >= min_time:
+        if len(dates) >= min_runs and dt >= (start_time + min_time):
             break
 
     tags = deployment.tags

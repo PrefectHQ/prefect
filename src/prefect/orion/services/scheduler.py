@@ -145,7 +145,7 @@ class Scheduler(LoopService):
                         deployment_id=deployment_id,
                         start_time=now,
                         end_time=now + self.max_scheduled_time,
-                        min_time=now + self.min_scheduled_time,
+                        min_time=self.min_scheduled_time,
                         min_runs=self.min_runs,
                         max_runs=self.max_runs,
                     )
@@ -183,7 +183,7 @@ class Scheduler(LoopService):
         deployment_id: UUID,
         start_time: datetime.datetime,
         end_time: datetime.datetime,
-        min_time: datetime.datetime,
+        min_time: datetime.timedelta,
         min_runs: int,
         max_runs: int,
         db: OrionDBInterface,
@@ -200,19 +200,19 @@ class Scheduler(LoopService):
             deployment_id: the id of the deployment to schedule
             start_time: the time from which to start scheduling runs
             end_time: runs will be scheduled until at most this time
-            min_time: runs will be scheduled until at least this time
+            min_time: runs will be scheduled until at least this far in the future
             min_runs: a minimum amount of runs to schedule
             max_runs: a maximum amount of runs to schedule
 
         This function will generate the minimum number of runs that satisfy the min
         and max times, and the min and max counts. Specifically, the following order
         will be respected:
-        
+
             - Runs will be generated starting on or after the `start_time`
             - No more than `max_runs` runs will be generated
             - No runs will be generated after `end_time` is reached
             - At least `min_runs` runs will be generated
-            - Runs will be generated until at least `min_time` is reached
+            - Runs will be generated until at least `start_time + min_time` is reached
 
         """
         return await models.deployments._generate_scheduled_flow_runs(
