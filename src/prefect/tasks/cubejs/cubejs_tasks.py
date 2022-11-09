@@ -344,7 +344,7 @@ class CubePreAggregationsBuildTask(Task):
         if len(tokens) == 0:
             return True
 
-        raise LOOP(message=f"looping...", result=tokens)
+        raise LOOP(message=f'{"looping..."}', result=tokens)
 
     def _post_pre_aggregations_jobs(self, selector: Dict = None):
         """
@@ -404,7 +404,7 @@ class CubePreAggregationsBuildTask(Task):
 
         if missing_only:
             raise FAIL(
-                message=f"Cube pre-aggregations build failed: missing partitions."
+                message=f'{"Cube pre-aggregations build failed: missing partitions."}'
             )
 
         time.sleep(self.wait_time_between_api_calls)
