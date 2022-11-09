@@ -33,7 +33,7 @@ Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud pr
     - [Service accounts](/ui/service-accounts/) &mdash; configure API access for running agents or executing flow runs on remote infrastructure.
     - [Custom role-based access controls (RBAC)](/ui/roles/) &mdash; assign users granular permissions to perform certain activities within an organization or a workspace.
     - [Single Sign-on (SSO)](/ui/sso/) authentication using your identity provider.
-    - [Audit Log](/ui/audit-log/) record of user activities for for security and compliance.
+    - [Audit Log](/ui/audit-log/) record of user activities to monitor security and compliance.
     - Collaborators &mdash; invite others to work in your workspace or organization.
     - [Email notifications](/ui/notifications/) &mdash; configure email alerts based on flow run states and tags.
 
@@ -101,7 +101,7 @@ Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/prici
 
 ## Audit Log <span class="badge orgs"></span> <span class="badge enterprise"></span>
 
-Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer [Audit Log](/ui/audit-log/) compliance and transparency functionality. Audit logs provide a chronological record of activities performed by users in your organization, allowing you to monitor detailed actions for security and compliance purposes. 
+Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer [Audit Log](/ui/audit-log/) compliance and transparency tools. Audit logs provide a chronological record of activities performed by users in your organization, allowing you to monitor detailed actions for security and compliance purposes. 
 
 ## Start using Prefect Cloud
 

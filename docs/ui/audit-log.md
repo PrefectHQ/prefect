@@ -14,7 +14,7 @@ tags:
 
 # Audit Log <span class="badge cloud"></span> <span class="badge orgs"></span> <span class="badge enterprise"></span>
 
-Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer enhanced compliance and transparency with Audit Log. Audit logs provide a chronological record of activities performed by Prefect Cloud users in your organization, allowing you to monitor detailed Prefect Cloud actions for security and compliance purposes. 
+Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer enhanced compliance and transparency tools with Audit Log. Audit logs provide a chronological record of activities performed by Prefect Cloud users in your organization, allowing you to monitor detailed Prefect Cloud actions for security and compliance purposes. 
 
 Audit logs enable you to identify who took what action, when, and using what resources within your Prefect Cloud organization. In conjunction with appropriate tools and procedures, audit logs can assist in detecting potential security violations and investigating application errors.  
 
@@ -22,7 +22,11 @@ Audit logs can be used to identify changes in:
 
 - Access to workspaces
 - User login activity
-- API key creation 
+- User API key creation and removal
+- Workspace creation and removal
+- Organization member invitations and removal
+- Service account creation, API key rotation, and removal
+- Billing payment method for self-serve pricing tiers
 
 See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more about options for supporting audit logs.
 
@@ -39,7 +43,7 @@ Organization admins can view audit logs for:
 
 Admins can filter audit logs on multiple dimensions to restrict the results they see by workspace, user, or event type.
 
-Audit logs may also be filtered by date range. Audit log retention policy varies by [Prefect Cloud plan](https://www.prefect.io/pricing). See your [organization profile page](/ui/organizations/) for the current audit log retention period.
+Audit logs may also be filtered by date range. Audit log retention period varies by [Prefect Cloud plan](https://www.prefect.io/pricing). See your [organization profile page](/ui/organizations/) for the current audit log retention period.
 
 ## Audit events
 
