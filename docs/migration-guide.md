@@ -61,14 +61,14 @@ Let’s look at the differences in how Prefect 2 transitions your flow and task 
 
 - In Prefect 2, the final state of a flow run that finished without errors is `Completed`, while in Prefect 1, this flow run has a `Success` state. You can find more about that topic [here](https://discourse.prefect.io/t/what-is-the-final-state-of-a-successful-flow-run/59).
 - The decision about whether a flow run should be considered successful or not is no longer based on special reference tasks. Instead, your flow’s return value determines the final state of a flow run. This [link](https://discourse.prefect.io/t/how-can-i-control-the-final-state-of-a-flow-run/56) provides a more detailed explanation with code examples.
-- In Prefect 1, concurrency limits were only available to Prefect Cloud users. Prefect 2 provides customizable concurrency limits with the open-source and Prefect Cloud. In Prefect 2, flow run [concurrency limits](https://docs.prefect.io/concepts/work-queues/#work-queue-concurrency) are set on work queues.
+- In Prefect 1, concurrency limits were only available to Prefect Cloud users. Prefect 2 provides customizable concurrency limits with the open-source Prefect Orion server and Prefect Cloud. In Prefect 2, flow run [concurrency limits](https://docs.prefect.io/concepts/work-queues/#work-queue-concurrency) are set on work queues.
 
 
 ### What changed in flow deployment patterns?
 
 To deploy your Prefect 1 flows, you have to send flow metadata to the backend in a step called registration. Prefect 2 no longer requires flow pre-registration. Instead, you create a [Deployment](/concepts/deployments/) that specifies the entry point to your flow code and optionally specifies:
 
-- Where to run your flow (your *Infrastructure*, such as a `DockerContainer`, `KubernetesJob`, or `ECSTask).
+- Where to run your flow (your *Infrastructure*, such as a `DockerContainer`, `KubernetesJob`, or `ECSTask`).
 - When to run your flow (an `Interval`, `Cron`, or `RRule` schedule).
 - How to run your flow (execution details such as `parameters`, flow deployment `name`, and [more](https://discourse.prefect.io/tag/deployment)).
 - The work queue for your deployment. If no work queue is specified, a default work queue named `default` is used.
