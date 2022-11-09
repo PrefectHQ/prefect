@@ -980,7 +980,7 @@ class TestUpdateBlockDocument:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-class TestUpdateBlockDocument_without_merging_existing_data:
+class TestUpdateBlockDocumentWithoutMergingExistingData:
     async def test_update_block_document_data(self, session, client, block_schemas):
         block_document = await models.block_documents.create_block_document(
             session,
