@@ -539,7 +539,7 @@ PREFECT_LOGGING_COLORS = Setting(
     bool,
     default=True,
 )
-"""Whether to style console logs with color"""
+"""Whether to style console logs with color."""
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
@@ -923,7 +923,7 @@ class Settings(SettingsFieldsMixin):
 
     def with_obfuscated_secrets(self):
         """
-        Returns a copy of this settings object with secret setting values obfsucated.
+        Returns a copy of this settings object with secret setting values obfuscated.
         """
         settings = self.copy(
             update={

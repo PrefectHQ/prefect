@@ -75,6 +75,9 @@ def main(
     )
 
     if not PREFECT_TEST_MODE:
+        # When testing, this entrypoint can be called multiple times per process which
+        # can cause logging configuration conflicts. Logging is set up in conftest
+        # during tests.
         setup_logging()
 
 
