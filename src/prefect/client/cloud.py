@@ -8,7 +8,7 @@ from fastapi import status
 import prefect.context
 import prefect.settings
 from prefect.exceptions import PrefectException
-from prefect.settings import PREFECT_API_KEY, PREFECT_CLOUD_URL
+from prefect.settings import PREFECT_API_KEY, PREFECT_CLOUD_API_URL
 
 
 def get_cloud_client(
@@ -21,7 +21,7 @@ def get_cloud_client(
         httpx_settings = httpx_settings.copy()
 
     if infer_cloud_url is False:
-        host = host or PREFECT_CLOUD_URL.value()
+        host = host or PREFECT_CLOUD_API_URL.value()
     else:
         configured_url = prefect.settings.PREFECT_API_URL.value()
         host = re.sub(r"accounts/.{36}/workspaces/.{36}\Z", "", configured_url)
