@@ -120,6 +120,7 @@ class Scheduler(LoopService):
         Returns a sqlalchemy query for selecting deployments to schedule.
 
         The query gets the IDs of any deployments with:
+        
             - an active schedule
             - EITHER:
                 - fewer than `min_runs` auto-scheduled runs
