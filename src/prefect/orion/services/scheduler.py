@@ -138,7 +138,7 @@ class Scheduler(LoopService):
                 db.FlowRun,
                 # join on matching deployments, only picking up future scheduled runs
                 sa.and_(
-                    db.Deployment.id == db.FlowRun.id,
+                    db.Deployment.id == db.FlowRun.deployment_id,
                     db.FlowRun.state_type == StateType.SCHEDULED,
                     db.FlowRun.next_scheduled_start_time >= now,
                     db.FlowRun.auto_scheduled.is_(True),
