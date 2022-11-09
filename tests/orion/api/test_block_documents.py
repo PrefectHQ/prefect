@@ -1335,6 +1335,107 @@ class TestUpdateBlockDocumentWithoutMergingExistingData:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    async def test_update_block_document_data_without_merging_empty(
+        self, session, client, block_schemas
+    ):
+        block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-data",
+                data=dict(x=1, y=2, z=3),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+
+        await session.commit()
+
+        response = await client.put(
+            f"/block_documents/{block_document.id}",
+            json=BlockDocumentUpdate(
+                data=dict(),
+            ).dict(json_compatible=True, exclude_unset=True),
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        updated_block_document = await models.block_documents.read_block_document_by_id(
+            session, block_document_id=block_document.id
+        )
+        assert updated_block_document.data == dict()
+
+    async def test_update_nested_block_document_reference_through_removing(
+        self, session, client, block_schemas
+    ):
+        inner_block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-nested-block",
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+
+        outer_block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-nested-block",
+                data={
+                    "b": {"$ref": {"block_document_id": inner_block_document.id}},
+                    "z": "zzzzz",
+                },
+                block_schema_id=block_schemas[3].id,
+                block_type_id=block_schemas[3].block_type_id,
+            ),
+        )
+
+        await session.commit()
+
+        block_document_before_update = (
+            await models.block_documents.read_block_document_by_id(
+                session, block_document_id=outer_block_document.id
+            )
+        )
+        assert block_document_before_update.data == {
+            "b": {"x": 1},
+            "z": "zzzzz",
+        }
+        assert block_document_before_update.block_document_references == {
+            "b": {
+                "block_document": {
+                    "id": inner_block_document.id,
+                    "name": inner_block_document.name,
+                    "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
+                    "block_document_references": {},
+                }
+            }
+        }
+
+        response = await client.put(
+            f"/block_documents/{outer_block_document.id}",
+            json=BlockDocumentUpdate(
+                data={
+                    "b": {},  # removes block document refs
+                    "z": "zzzzz",
+                },
+            ).dict(json_compatible=True, exclude_unset=True),
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        block_document_after_update = (
+            await models.block_documents.read_block_document_by_id(
+                session, block_document_id=outer_block_document.id
+            )
+        )
+        assert block_document_after_update.data == {
+            "b": {},
+            "z": "zzzzz",
+        }
+        assert block_document_after_update.block_document_references == {}
+
 
 class TestSecretBlockDocuments:
     @pytest.fixture()
