@@ -555,6 +555,12 @@ async def orchestrate_flow_run(
     )
     flow_run_context = None
 
+    import builtins
+
+    from prefect.logging.loggers import print_as_log
+
+    builtins.print = print_as_log
+
     try:
         # Resolve futures in any non-data dependencies to ensure they are ready
         if wait_for is not None:

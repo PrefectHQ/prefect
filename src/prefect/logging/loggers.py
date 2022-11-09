@@ -1,4 +1,6 @@
+import io
 import logging
+from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
 from typing import TYPE_CHECKING
@@ -194,3 +196,18 @@ def disable_run_logger():
     """
     with disable_logger("prefect.flow_run"), disable_logger("prefect.task_run"):
         yield
+
+
+def print_as_log(*args, **kwargs):
+
+    from prefect.context import FlowRunContext
+
+    context = FlowRunContext.get()
+    if not context or not context.log_print:
+        return print(*args, **kwargs)
+
+    logger = get_run_logger()
+    buffer = io.StringIO()
+    kwargs["file"] = buffer
+    print(*args, **kwargs)
+    logger.info(buffer.getvalue().rstrip())
