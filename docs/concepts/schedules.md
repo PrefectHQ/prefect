@@ -196,7 +196,7 @@ More specifically, the `Scheduler` tries to create the smallest number of runs t
 
 - No more than 100 runs will be scheduled.
 - Runs will not be scheduled more than 100 days in the future.
-- at least 3 runs will be scheduled
+- At least 3 runs will be scheduled.
 - runs will be scheduled until at least one hour in the future
 These behaviors can all be adjusted through the relevant settings that can be viewed with the terminal command `prefect config view --show-defaults`:
 
