@@ -39,6 +39,7 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+from prefect.utilities.names import obfuscate
 
 
 class TestSettingClass:
@@ -222,7 +223,9 @@ class TestSettingsClass:
         assert original != obfuscated
         for setting in SETTING_VARIABLES.values():
             if setting.is_secret:
-                assert obfuscated.value_of(setting) == "*" * 8
+                assert obfuscated.value_of(setting) == obfuscate(
+                    original.value_of(setting)
+                )
             else:
                 assert obfuscated.value_of(setting) == original.value_of(setting)
 

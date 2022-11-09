@@ -66,6 +66,7 @@ import toml
 from pydantic import BaseSettings, Field, create_model, root_validator, validator
 
 from prefect.exceptions import MissingProfileError
+from prefect.utilities.names import obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
 
 T = TypeVar("T")
@@ -223,9 +224,10 @@ def warn_on_database_password_value_without_usage(values):
     """
     Validator for settings warning if the database password is set but not used.
     """
+    value = values["PREFECT_ORION_DATABASE_PASSWORD"]
     if (
-        values["PREFECT_ORION_DATABASE_PASSWORD"]
-        and values["PREFECT_ORION_DATABASE_PASSWORD"] != "*" * 8
+        value
+        and value != obfuscate(value)
         and (
             "PREFECT_ORION_DATABASE_PASSWORD"
             not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
@@ -925,7 +927,7 @@ class Settings(SettingsFieldsMixin):
         """
         settings = self.copy(
             update={
-                setting.name: "*" * 8
+                setting.name: obfuscate(self.value_of(setting))
                 for setting in SETTING_VARIABLES.values()
                 if setting.is_secret
             }
