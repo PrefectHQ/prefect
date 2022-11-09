@@ -123,12 +123,12 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         Defaults to copying the entire contents of the block's basepath to the current working directory.
         """
-        if from_path is None:
+        if from_path is None or from_path == '':
             from_path = Path(self.basepath).expanduser().resolve()
         else:
             from_path = Path(from_path).resolve()
 
-        if local_path is None:
+        if local_path is None or local_path == '':
             local_path = Path(".").resolve()
         else:
             local_path = Path(local_path).resolve()
@@ -166,10 +166,10 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
         """
-        if to_path is None:
+        if to_path is None or to_path == '':
             to_path = Path(self.basepath).expanduser()
 
-        if local_path is None:
+        if local_path is None or local_path == '':
             local_path = Path(".").absolute()
 
         if ignore_file:
