@@ -389,11 +389,12 @@ async def schedule_runs(
     This function will generate the minimum number of runs that satisfy the min
     and max times, and the min and max counts. Specifically, the following order
     will be respected:
-        - runs will be generated starting on or after the `start_time`
-        - no more than `max_runs` runs will be generated
-        - no runs will be generated after `end_time` is reached
-        - at least `min_runs` runs will be generated
-        - runs will be generated until at least `min_time` is reached
+   
+        - Runs will be generated starting on or after the `start_time`
+        - No more than `max_runs` runs will be generated
+        - No runs will be generated after `end_time` is reached
+        - At least `min_runs` runs will be generated
+        - Runs will be generated until at least `min_time` is reached
 
     Returns:
         a list of flow run ids scheduled for the deployment
@@ -462,11 +463,12 @@ async def _generate_scheduled_flow_runs(
     This function will generate the minimum number of runs that satisfy the min
     and max times, and the min and max counts. Specifically, the following order
     will be respected:
-        - runs will be generated starting on or after the `start_time`
-        - no more than `max_runs` runs will be generated
-        - no runs will be generated after `end_time` is reached
-        - at least `min_runs` runs will be generated
-        - runs will be generated until at least `min_time` is reached
+    
+        - Runs will be generated starting on or after the `start_time`
+        - No more than `max_runs` runs will be generated
+        - No runs will be generated after `end_time` is reached
+        - At least `min_runs` runs will be generated
+        - Runs will be generated until at least `min_time` is reached
 
     Returns:
         a list of dictionary representations of the `FlowRun` objects to schedule

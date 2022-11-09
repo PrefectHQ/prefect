@@ -120,7 +120,7 @@ class IntervalSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: a list of dates
+            List[pendulum.DateTime]: A list of dates
         """
         return sorted(self._get_dates_generator(n=n, start=start, end=end))
 
@@ -274,7 +274,7 @@ class CronSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: a list of dates
+            List[pendulum.DateTime]: A list of dates
         """
         return sorted(self._get_dates_generator(n=n, start=start, end=end))
 
@@ -524,7 +524,7 @@ class RRuleSchedule(PrefectBaseModel):
                 schedule's timezone.
 
         Returns:
-            List[pendulum.DateTime]: a list of dates
+            List[pendulum.DateTime]: A list of dates
         """
         return sorted(self._get_dates_generator(n=n, start=start, end=end))
 
