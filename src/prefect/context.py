@@ -209,6 +209,8 @@ class FlowRunContext(RunContext):
     flow_run: FlowRun
     task_runner: BaseTaskRunner
 
+    log_print: bool = True
+
     # Result handling
     result_factory: ResultFactory
 
