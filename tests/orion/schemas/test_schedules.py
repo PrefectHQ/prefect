@@ -10,6 +10,7 @@ from pendulum import datetime, now
 from pydantic import ValidationError
 
 from prefect.orion.schemas.schedules import (
+    MAX_ITERATIONS,
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
@@ -125,7 +126,10 @@ class TestIntervalSchedule:
         )
 
         dates = await clock.get_dates(start=datetime(2018, 1, 1), end=end_date)
-        assert len(dates) == (end_date - datetime(2018, 1, 1)).days + 1
+        assert len(dates) == min(
+            MAX_ITERATIONS,
+            (end_date - datetime(2018, 1, 1)).days + 1,
+        )
 
     async def test_default_n_is_one_without_end_date(self):
         clock = IntervalSchedule(
@@ -306,7 +310,9 @@ class TestCronSchedule:
     async def test_get_dates_until_end_date(self, end_date):
         clock = CronSchedule(cron=self.every_day)
         dates = await clock.get_dates(start=datetime(2018, 1, 1), end=end_date)
-        assert len(dates) == (end_date - datetime(2018, 1, 1)).days + 1
+        assert len(dates) == min(
+            MAX_ITERATIONS, (end_date - datetime(2018, 1, 1)).days + 1
+        )
 
     async def test_default_n_is_one_without_end_date(self):
         clock = CronSchedule(cron=self.every_day)
