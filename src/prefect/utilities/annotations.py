@@ -1,17 +1,20 @@
 import warnings
 from abc import ABC
+from collections import namedtuple
 from typing import Generic, TypeVar
 
 T = TypeVar("T")
 
 
-class BaseAnnotation(ABC, Generic[T]):
+class BaseAnnotation(
+    namedtuple("BaseAnnotation", field_names="value"), ABC, Generic[T]
+):
     """
-    Base class for Prefect annotation types
-    """
+    Base class for Prefect annotation types.
 
-    def __init__(self, value: T):
-        self.value = value
+
+    Inherits from `namedtuple` for unpacking support in another tools.
+    """
 
     def unwrap(self) -> T:
         return self.value
