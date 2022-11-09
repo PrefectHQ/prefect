@@ -188,6 +188,7 @@ class CubeJSQueryTask(Task):
 
         return data
 
+
 class CubePreAggregationsBuildTask(Task):
     """
     This task uses Cube `pre-aggregations/jobs` API to build pre-aggregations
@@ -212,6 +213,12 @@ class CubePreAggregationsBuildTask(Task):
             More info at: https://cube.dev/docs/security/context.
         - selector (dict): `dict` representing valid Cube `pre-aggregations/jobs`
             API selector object.
+        - wait_for_job_run_completion (boolean, optional):
+            Whether the task should wait for the job run completion or not.
+            Default to False.
+        - wait_time_between_api_calls (int, optional): The number of seconds to
+            wait between API calls.
+            Default to 10.
         - **kwargs (optional): Additional keyword arguments to pass to the
             standard Task initalization.
     """
@@ -224,6 +231,8 @@ class CubePreAggregationsBuildTask(Task):
         api_secret_env_var: str = "CUBEJS_API_SECRET",
         security_context: Union[str, Dict] = None,
         selector: Dict = None,
+        wait_for_job_run_completion: bool = False,
+        wait_time_between_api_calls: int = 10,
         **kwargs,
     ):
         if not subdomain and not url:
@@ -239,6 +248,8 @@ class CubePreAggregationsBuildTask(Task):
         self.selector = selector
         self.security_context = security_context
         self.secret = api_secret if api_secret else os.environ[api_secret_env_var]
+        self.wait_for_job_run_completion = wait_for_job_run_completion
+        self.wait_time_between_api_calls = wait_time_between_api_calls
         self.cubejs_client = CubeJSClient(
             subdomain=subdomain,
             url=url,
@@ -256,8 +267,9 @@ class CubePreAggregationsBuildTask(Task):
         "api_secret_env_var",
         "security_context",
         "selector",
+        "wait_for_job_run_completion",
+        "wait_time_between_api_calls",
     )
-
     def run(
         self,
         subdomain: str = None,
@@ -266,6 +278,8 @@ class CubePreAggregationsBuildTask(Task):
         api_secret_env_var: str = "CUBEJS_API_SECRET",
         security_context: Union[str, Dict] = None,
         selector: Dict = None,
+        wait_for_job_run_completion: bool = False,
+        wait_time_between_api_calls: int = 10,
     ):
         """
         Task run method to perform pre-aggregations build.
@@ -292,6 +306,12 @@ class CubePreAggregationsBuildTask(Task):
                 More info at https://cube.dev/docs/security/context.
             - selector (dict): `dict` representing valid Cube `pre-aggregations/jobs`
                 API `selector` object.
+            - wait_for_job_run_completion (boolean, optional):
+                Whether the task should wait for the job run completion or not.
+                Default to False.
+            - wait_time_between_api_calls (int, optional): The number of seconds to
+                wait between API calls.
+                Default to 10.
 
         Raises:
             - ValueError if both `subdomain` and `url` are missing.
@@ -301,7 +321,10 @@ class CubePreAggregationsBuildTask(Task):
             - `prefect.engine.signals.FAIL` if any pre-aggregations were not built.
 
         Returns:
-            - `True` if pre-aggregations were successfully built.
+            - If `wait_for_job_run_completion = False`, then returns the Cube
+                `pre-aggregations/jobs` API trigger run result.
+            - If `wait_for_job_run_completion = True`, then returns `True`
+                if pre-aggregations were successfully built. Raise otherwise.
         """
 
         if not selector:
@@ -312,6 +335,8 @@ class CubePreAggregationsBuildTask(Task):
 
         if count == 1:
             tokens = self._post_pre_aggregations_jobs(selector=selector)
+            if not wait_for_job_run_completion:
+                return tokens
 
         statuses = self._get_pre_aggregations_jobs_statuses(tokens=tokens)
         tokens = self._in_process(statuses=statuses)
@@ -325,25 +350,32 @@ class CubePreAggregationsBuildTask(Task):
         """
         Initializes the build process by using the appropriate API call.
         """
-        
-        query = json.dumps({
-            "action": "post",
-            "selector": selector,
-        })
+
+        query = json.dumps(
+            {
+                "action": "post",
+                "selector": selector,
+            }
+        )
 
         tokens = self.cubejs_client.pre_aggregations_jobs(query=query)
         return tokens
-        
-    def _get_pre_aggregations_jobs_statuses(self, tokens: List[str] = None,):
+
+    def _get_pre_aggregations_jobs_statuses(
+        self,
+        tokens: List[str] = None,
+    ):
         """
         Gets posted job's statuses by using the appropriate API call.
         """
-        
-        query = json.dumps({
-            "action": "get",
-            "resType": "object",
-            "tokens": tokens,
-        })
+
+        query = json.dumps(
+            {
+                "action": "get",
+                "resType": "object",
+                "tokens": tokens,
+            }
+        )
 
         statuses = self.cubejs_client.pre_aggregations_jobs(query=query)
         return statuses
@@ -369,11 +401,11 @@ class CubePreAggregationsBuildTask(Task):
                 missing_only = False
             if status != "done":
                 in_process.append(token)
-        
+
         if missing_only:
             raise FAIL(
                 message=f"Cube pre-aggregations build failed: missing partitions."
             )
 
-        time.sleep(5)
+        time.sleep(self.wait_time_between_api_calls)
         return in_process

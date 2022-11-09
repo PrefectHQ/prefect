@@ -224,7 +224,9 @@ class CubeJSClient:
             "Authorization": self.api_token,
         }
 
-        with session.post(url=self.pre_aggregations_jobs_api_url, data=query) as response:
+        with session.post(
+            url=self.pre_aggregations_jobs_api_url, data=query
+        ) as response:
             if response.status_code == 200:
                 res = response.json()
                 return res
