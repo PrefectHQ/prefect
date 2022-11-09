@@ -66,7 +66,7 @@ import toml
 from pydantic import BaseSettings, Field, create_model, root_validator, validator
 
 from prefect.exceptions import MissingProfileError
-from prefect.utilities.names import obfuscate
+from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
 
 T = TypeVar("T")
@@ -227,7 +227,7 @@ def warn_on_database_password_value_without_usage(values):
     value = values["PREFECT_ORION_DATABASE_PASSWORD"]
     if (
         value
-        and value != obfuscate(value)
+        and not value.startswith(OBFUSCATED_PREFIX)
         and (
             "PREFECT_ORION_DATABASE_PASSWORD"
             not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
