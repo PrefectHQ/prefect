@@ -1,5 +1,6 @@
 import json
 from datetime import timedelta
+from pathlib import Path
 from unittest.mock import Mock
 
 import pendulum
@@ -8,6 +9,8 @@ import pytest
 from prefect import flow
 from prefect.client.orion import OrionClient
 from prefect.deployments import Deployment
+from prefect.filesystems import LocalFileSystem
+from prefect.infrastructure import Process
 from prefect.orion.schemas.filters import DeploymentFilter, DeploymentFilterId
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.settings import PREFECT_UI_URL, temporary_settings
@@ -33,6 +36,7 @@ def patch_import(monkeypatch):
         pass
 
     monkeypatch.setattr("prefect.utilities.importtools.import_object", lambda path: fn)
+    return fn
 
 
 class TestInputValidation:
@@ -884,6 +888,20 @@ class TestDeploymentRun:
         assert flow_run.parameters == {"name": "foo"}
 
 
+@pytest.fixture
+def storage_block(tmp_path):
+    storage = LocalFileSystem(basepath=tmp_path / "storage")
+    storage.save(name="test-storage-block")
+    return storage
+
+
+@pytest.fixture
+def infra_block(tmp_path):
+    infra = Process()
+    infra.save(name="test-infra-block")
+    return infra
+
+
 class TestDeploymentBuild:
     def patch_deployment_build_cli(self, monkeypatch):
         mock_build_from_flow = AsyncMock()
@@ -939,3 +957,356 @@ class TestDeploymentBuild:
             assert build_kwargs["skip_upload"] == True
         else:
             assert build_kwargs["skip_upload"] == False
+
+    @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
+    def test_name_called_correctly(self, monkeypatch, patch_import, tmp_path):
+        mock_build_from_flow = self.patch_deployment_build_cli(monkeypatch)
+
+        name = "TEST"
+        output_path = str(tmp_path / "test.yaml")
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-n",
+            name,
+            "-o",
+            output_path,
+        ]
+
+        invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
+
+        build_kwargs = mock_build_from_flow.call_args.kwargs
+        assert build_kwargs["name"] == name
+
+    def test_not_providing_name_exits_with_error(self, patch_import, tmp_path):
+
+        output_path = str(tmp_path / "test.yaml")
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-o",
+            output_path,
+        ]
+
+        res = invoke_and_assert(
+            cmd,
+            expected_code=1,
+            expected_output="A name for this deployment must be provided with the '--name' flag.\n",
+        )
+
+    @pytest.mark.parametrize(
+        "schedules",
+        [
+            ["--cron", "cron-str", "--interval", 42],
+            ["--rrule", "rrule-str", "--interval", 42],
+            ["--rrule", "rrule-str", "--cron", "cron-str"],
+            ["--rrule", "rrule-str", "--cron", "cron-str", "--interval", 42],
+        ],
+    )
+    def test_providing_multiple_schedules_exits_with_error(
+        self, patch_import, tmp_path, schedules
+    ):
+
+        name = "TEST"
+        output_path = str(tmp_path / "test.yaml")
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-n",
+            name,
+            "-o",
+            output_path,
+        ]
+        cmd += schedules
+
+        res = invoke_and_assert(
+            cmd,
+            expected_code=1,
+            expected_output="Only one schedule type can be provided.",
+        )
+
+    def test_providing_infra_block_and_infra_type_exits_with_error(
+        self, patch_import, tmp_path
+    ):
+
+        name = "TEST"
+        output_path = str(tmp_path / "test.yaml")
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-n",
+            name,
+            "-o",
+            output_path,
+        ]
+        cmd += ["-i", "process", "-ib", "my-block"]
+
+        res = invoke_and_assert(
+            cmd,
+            expected_code=1,
+            expected_output="Only one of `infra` or `infra_block` can be provided, please choose one.",
+        )
+
+    def test_output_file_with_wrong_suffix_exits_with_error(
+        self, patch_import, tmp_path
+    ):
+
+        name = "TEST"
+        file_name = "test.not_yaml"
+        output_path = str(tmp_path / file_name)
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-n",
+            name,
+        ]
+        cmd += ["-o", output_path]
+
+        res = invoke_and_assert(
+            cmd, expected_code=1, expected_output="Output file must be a '.yaml' file."
+        )
+
+    @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
+    def test_yaml_appended_to_out_file_without_suffix(
+        self, monkeypatch, patch_import, tmp_path
+    ):
+        mock_build_from_flow = self.patch_deployment_build_cli(monkeypatch)
+
+        name = "TEST"
+        file_name = "test_no_suffix"
+        output_path = str(tmp_path / file_name)
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-n",
+            name,
+        ]
+        cmd += ["-o", output_path]
+
+        invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
+
+        build_kwargs = mock_build_from_flow.call_args.kwargs
+        assert build_kwargs["output"] == Path(output_path + ".yaml")
+
+    def test_poorly_formed_entrypoint_raises_correct_error(
+        self, patch_import, tmp_path
+    ):
+
+        name = "TEST"
+        file_name = "test_no_suffix"
+        output_path = str(tmp_path / file_name)
+        entrypoint = "fake-path.py"
+        cmd = [
+            "deployment",
+            "build",
+            "-n",
+            name,
+        ]
+        cmd += [entrypoint]
+
+        invoke_and_assert(
+            cmd,
+            expected_code=1,
+            expected_output_contains=f"Your flow entrypoint must include the name of the function that is the entrypoint to your flow.\nTry {entrypoint}:<flow_name>",
+        )
+
+    def test_entrypoint_that_does_not_point_to_flow_raises_error(
+        self, monkeypatch, tmp_path
+    ):
+        def fn():
+            pass
+
+        monkeypatch.setattr(
+            "prefect.utilities.importtools.import_object", lambda path: fn
+        )
+
+        name = "TEST"
+        file_name = "test_no_suffix"
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            "-n",
+            name,
+        ]
+        cmd += [entrypoint]
+
+        res = invoke_and_assert(
+            cmd,
+            expected_code=1,
+            expected_output_contains=f"Found object of unexpected type 'function'. Expected 'Flow'.",
+        )
+
+    @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
+    def test_correct_flow_passed_to_deployment_object(
+        self, monkeypatch, patch_import, tmp_path
+    ):
+        mock_build_from_flow = self.patch_deployment_build_cli(monkeypatch)
+
+        name = "TEST"
+        file_name = "test_no_suffix"
+        output_path = str(tmp_path / file_name)
+        entrypoint = "fake-path.py:fn"
+        cmd = ["deployment", "build", entrypoint, "-n", name, "-o", output_path]
+
+        invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
+
+        build_kwargs = mock_build_from_flow.call_args.kwargs
+        assert build_kwargs["flow"] == patch_import
+
+    @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
+    def test_overrides_called_correctly(self, monkeypatch, patch_import, tmp_path):
+        mock_build_from_flow = self.patch_deployment_build_cli(monkeypatch)
+
+        name = "TEST"
+        output_path = str(tmp_path / "test.yaml")
+        entrypoint = "fake-path.py:fn"
+        overrides = ["my.dog=1", "your.cat=test"]
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-n",
+            name,
+            "-o",
+            output_path,
+        ]
+        for override in overrides:
+            cmd += ["--override", override]
+        res = invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
+
+        build_kwargs = mock_build_from_flow.call_args.kwargs
+        assert build_kwargs["infra_overrides"] == {"my.dog": "1", "your.cat": "test"}
+
+    @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
+    def test_overrides_default_is_empty(self, monkeypatch, patch_import, tmp_path):
+        mock_build_from_flow = self.patch_deployment_build_cli(monkeypatch)
+
+        name = "TEST"
+        output_path = str(tmp_path / "test.yaml")
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-n",
+            name,
+            "-o",
+            output_path,
+        ]
+        res = invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
+
+        build_kwargs = mock_build_from_flow.call_args.kwargs
+        assert build_kwargs["infra_overrides"] == {}
+
+    @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
+    def test_infra_block_called_correctly(
+        self, monkeypatch, patch_import, tmp_path, infra_block
+    ):
+        mock_build_from_flow = self.patch_deployment_build_cli(monkeypatch)
+
+        name = "TEST"
+        output_path = str(tmp_path / "test.yaml")
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-n",
+            name,
+            "-o",
+            output_path,
+        ]
+        cmd += ["-ib", "process/test-infra-block"]
+
+        res = invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
+
+        build_kwargs = mock_build_from_flow.call_args.kwargs
+        assert build_kwargs["infrastructure"] == infra_block
+
+    @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
+    def test_infra_type_specifies_infra_block_on_deployment(
+        self, monkeypatch, patch_import, tmp_path
+    ):
+        mock_build_from_flow = self.patch_deployment_build_cli(monkeypatch)
+
+        name = "TEST"
+        output_path = str(tmp_path / "test.yaml")
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-n",
+            name,
+            "-o",
+            output_path,
+        ]
+        cmd += ["-i", "docker-container"]
+
+        res = invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
+
+        build_kwargs = mock_build_from_flow.call_args.kwargs
+        infra = build_kwargs["infrastructure"]
+        assert infra.type == "docker-container"
+
+    @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
+    def test_storage_block_called_correctly(
+        self, monkeypatch, patch_import, tmp_path, storage_block
+    ):
+        mock_build_from_flow = self.patch_deployment_build_cli(monkeypatch)
+
+        name = "TEST"
+        output_path = str(tmp_path / "test.yaml")
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-n",
+            name,
+            "-o",
+            output_path,
+        ]
+        cmd += ["-sb", "local-file-system/test-storage-block"]
+
+        res = invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
+
+        build_kwargs = mock_build_from_flow.call_args.kwargs
+        assert build_kwargs["storage"] == storage_block
