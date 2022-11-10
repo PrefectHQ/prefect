@@ -14,7 +14,8 @@ MIN_COMPAT_PREFECT_VERSION = "2.0b12"
 
 
 if TYPE_CHECKING:
-    from prefect.orion.schemas.core import FlowRun
+    from prefect.client.schemas import FlowRun
+    from prefect.orion.schemas.core import Deployment, Flow
 
 
 class InfrastructureResult(pydantic.BaseModel, abc.ABC):
@@ -88,14 +89,31 @@ class Infrastructure(Block, abc.ABC):
     def prepare_for_flow_run(
         self: Self,
         flow_run: "FlowRun",
+        deployment: Optional["Deployment"] = None,
+        flow: Optional["Flow"] = None,
     ) -> Self:
         """
         Return an infrastructure block that is prepared to execute a flow run.
         """
+        if deployment is not None:
+            deployment_labels = self._base_deployment_labels(deployment)
+        else:
+            deployment_labels = {}
+
+        if flow is not None:
+            flow_labels = self._base_flow_labels(flow)
+        else:
+            flow_labels = {}
+
         return self.copy(
             update={
                 "env": {**self._base_flow_run_environment(flow_run), **self.env},
-                "labels": {**self._base_flow_run_labels(flow_run), **self.labels},
+                "labels": {
+                    **self._base_flow_run_labels(flow_run),
+                    **deployment_labels,
+                    **flow_labels,
+                    **self.labels,
+                },
                 "name": self.name or flow_run.name,
                 "command": self.command or self._base_flow_run_command(),
             }
@@ -127,3 +145,20 @@ class Infrastructure(Block, abc.ABC):
         environment = {}
         environment["PREFECT__FLOW_RUN_ID"] = flow_run.id.hex
         return environment
+
+    @staticmethod
+    def _base_deployment_labels(deployment: "Deployment") -> Dict[str, str]:
+        labels = {
+            "prefect.io/deployment-name": deployment.name,
+        }
+        if deployment.updated is not None:
+            labels["prefect.io/deployment-updated"] = deployment.updated.in_timezone(
+                "utc"
+            ).to_iso8601_string()
+        return labels
+
+    @staticmethod
+    def _base_flow_labels(flow: "Flow") -> Dict[str, str]:
+        return {
+            "prefect.io/flow-name": flow.name,
+        }
