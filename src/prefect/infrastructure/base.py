@@ -148,12 +148,14 @@ class Infrastructure(Block, abc.ABC):
 
     @staticmethod
     def _base_deployment_labels(deployment: "Deployment") -> Dict[str, str]:
-        return {
+        labels = {
             "prefect.io/deployment-name": deployment.name,
-            "prefect.io/deployment-updated": deployment.updated.in_timezone(
-                "utc"
-            ).to_iso8601_string(),
         }
+        if deployment.updated is not None:
+            labels["prefect.io/deployment-updated"] = deployment.updated.in_timezone(
+                "utc"
+            ).to_iso8601_string()
+        return labels
 
     @staticmethod
     def _base_flow_labels(flow: "Flow") -> Dict[str, str]:
