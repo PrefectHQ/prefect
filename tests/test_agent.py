@@ -398,6 +398,7 @@ class TestInfrastructureIntegration:
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
+        flow = await orion_client.read_flow(deployment.flow_id)
 
         infra_document = await orion_client.read_block_document(infra_doc_id)
         infrastructure = Block._from_block_document(infra_document)
@@ -407,7 +408,9 @@ class TestInfrastructureIntegration:
             await agent.get_and_submit_flow_runs()
 
         mock_infrastructure_run.assert_called_once_with(
-            infrastructure.prepare_for_flow_run(flow_run).dict()
+            infrastructure.prepare_for_flow_run(
+                flow_run, deployment=deployment, flow=flow
+            ).dict()
         )
 
     async def test_agent_submit_run_sets_pending_state(
@@ -575,6 +578,7 @@ class TestInfrastructureIntegration:
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
+        flow = await orion_client.read_flow(deployment.flow_id)
 
         def raise_value_error():
             raise ValueError("Hello!")
@@ -588,7 +592,9 @@ class TestInfrastructureIntegration:
             await agent.get_and_submit_flow_runs()
 
         mock_infrastructure_run.assert_called_once_with(
-            infrastructure.prepare_for_flow_run(flow_run)
+            infrastructure.prepare_for_flow_run(
+                flow_run, deployment=deployment, flow=flow
+            ).dict()
         )
         agent.logger.exception.assert_called_once_with(
             f"Failed to submit flow run '{flow_run.id}' to infrastructure."
@@ -610,6 +616,7 @@ class TestInfrastructureIntegration:
             deployment.id,
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
+        flow = await orion_client.read_flow(deployment.flow_id)
 
         def raise_value_error():
             raise ValueError("Hello!")
@@ -623,7 +630,9 @@ class TestInfrastructureIntegration:
             await agent.get_and_submit_flow_runs()
 
         mock_infrastructure_run.assert_called_once_with(
-            infrastructure.prepare_for_flow_run(flow_run)
+            infrastructure.prepare_for_flow_run(
+                flow_run, deployment=deployment, flow=flow
+            ).dict()
         )
         agent.logger.exception.assert_called_once_with(
             f"An error occured while monitoring flow run '{flow_run.id}'. "
