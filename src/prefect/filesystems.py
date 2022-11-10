@@ -161,24 +161,22 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
         """
         if to_path is None:
-            to_path = Path(self.basepath).expanduser().resolve()
-        else:
-            to_path = Path(to_path).expanduser().resolve()
+            to_path = Path(self.basepath).expanduser()
 
         if local_path is None:
-            local_path = Path(".").resolve()
-        else:
-            local_path = Path(local_path).expanduser().resolve()
-
-        if local_path == to_path:
-            return
+            local_path = Path(".").absolute()
 
         if ignore_file:
             ignore_func = await self._get_ignore_func(ignore_file)
         else:
             ignore_func = None
 
-        copytree(src=local_path, dst=to_path, ignore=ignore_func, dirs_exist_ok=True)
+        if local_path == to_path:
+            pass
+        else:
+            copytree(
+                src=local_path, dst=to_path, ignore=ignore_func, dirs_exist_ok=True
+            )
 
     @sync_compatible
     async def read_path(self, path: str) -> bytes:
