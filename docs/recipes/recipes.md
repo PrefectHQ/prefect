@@ -21,25 +21,29 @@ We're always looking for new recipe contributions! See the [Prefect Recipes](htt
 <div class="recipe-grid">
 {% for collection in collections %}
     <div class="recipe-item">
-        <a href="{{ collection['recipeUrl'] }}">
-            <h3 style="margin: 0">{{collection['recipeName']}}</h3>
-        </a>
-        <div style="height: 110px;">
-            <p style="font-size: 0.8rem">
+        <div class="recipe-title">
+            <a href="{{ collection['recipeUrl'] }}">
+                <h3 style="margin: 0">{{collection['recipeName']}}</h3>
+            </a>
+        </div>
+        <div class="recipe-desc">
+            <p>
                 {{ collection["description"] }}
             </p>
         </div>
-        <p style="font-size: 0.6rem">
-            Maintained by <a href="{{ collection["authorUrl"] }}">{{ collection["author"] }}</a>
-        </p>
-        <p style="font-size: 0.6rem">
-            This recipe uses:
-        </p>
-        <p>
-            {% for icon in collection['iconUrl'] %}
-                <img src="{{ icon }}" >
-            {% endfor %}
-        </p>
+        <div class="recipe-details">
+            <p>
+                Maintained by <a href="{{ collection["authorUrl"] }}">{{ collection["author"] }}</a>
+            </p>
+            <p>
+                This recipe uses:
+            </p>
+            <p>
+                {% for icon in collection['iconUrl'] %}
+                    <img src="{{ icon }}" >
+                {% endfor %}
+            </p>
+        </div>
     </div>
 {% endfor %}
 </div >

@@ -78,7 +78,7 @@ to force column width */
     white-space: nowrap;
 }
 
-/* collections catalog */
+/* collections and recipes catalogs */
 .collection-grid {
     display: grid; 
     grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
@@ -95,14 +95,12 @@ to force column width */
 .collection-item img {
     max-height: 100px; 
     max-width: 100px;
-    /* max-height: 82px; 
-    max-width: 82px; */
 }
 
 .recipe-grid {
     display:grid; 
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
-    gap: 1rem; 
+    gap: .5rem; 
     margin: 1rem 0 3rem;
 }
 
@@ -110,13 +108,27 @@ to force column width */
     padding: 1rem; 
     margin: .2rem;
     box-shadow: 0 6px 16px rgba(0, 0, 0, .3); 
-    border-radius: 5px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 .recipe-item img {
     max-height: 48px; 
     max-width: 48px; 
     margin: 0 0.5em 0 auto;
+}
+
+.recipe-desc p {
+    vertical-align: text-top;
+    vertical-align: top;
+    font-size: 0.8rem;
+}
+
+.recipe-details {
+    margin-top: 1rem;
+    font-size: 0.6rem;
 }
 
 /* badge formatting */
