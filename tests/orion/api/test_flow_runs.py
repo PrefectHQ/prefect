@@ -395,9 +395,28 @@ class TestReadFlowRuns:
                     type="SCHEDULED",
                     timestamp=now.add(minutes=1),
                 ),
+                start_time=now.subtract(minutes=2),
             ),
         )
         await session.commit()
+
+        response = await client.post(
+            "/flow_runs/filter",
+            json=dict(
+                limit=1, sort=schemas.sorting.FlowRunSort.START_TIME_ASC.value
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["id"] == str(flow_run_2.id)
+
+        response = await client.post(
+            "/flow_runs/filter",
+            json=dict(
+                limit=1, sort=schemas.sorting.FlowRunSort.START_TIME_DESC.value
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["id"] == str(flow_run_1.id)
 
         response = await client.post(
             "/flow_runs/filter",
