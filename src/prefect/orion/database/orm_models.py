@@ -25,7 +25,7 @@ from prefect.orion.utilities.database import (
     now,
 )
 from prefect.orion.utilities.encryption import decrypt_fernet, encrypt_fernet
-from prefect.orion.utilities.names import generate_slug
+from prefect.utilities.names import generate_slug
 
 
 class ORMBase:
