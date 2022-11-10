@@ -3,7 +3,6 @@ from fastapi import status
 
 from prefect.cli.cloud import CloudUnauthorizedError, get_cloud_client
 from prefect.client import get_client
-from prefect.settings import PREFECT_API_URL
 from prefect.utilities.collections import AutoEnum
 
 
@@ -67,18 +66,3 @@ async def check_orion_connection():
         return ConnectionStatus.INVALID_API
 
     return exit_method, msg
-
-
-def ui_base_url(connection_status):
-    if connection_status == ConnectionStatus.CLOUD_CONNECTED:
-        ui_url = PREFECT_API_URL.value()
-        ui_url = ui_url.replace("https://api.", "https://app.")
-        ui_url = ui_url.replace("/api/accounts/", "/account/")
-        ui_url = ui_url.replace("/workspaces/", "/workspace/")
-        return ui_url
-    if connection_status == ConnectionStatus.ORION_CONNECTED:
-        ui_url = PREFECT_API_URL.value()
-        ui_url = ui_url.strip("/api")
-        return ui_url
-    else:
-        return None

@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect.settings import PREFECT_API_URL, PREFECT_CLOUD_URL, temporary_settings
+from prefect.settings import PREFECT_API_URL, PREFECT_CLOUD_API_URL, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
 
@@ -22,7 +22,7 @@ def test_version_hosted_server_type():
 def test_version_cloud_server_type():
     with temporary_settings(
         {
-            PREFECT_API_URL: PREFECT_CLOUD_URL.value()
+            PREFECT_API_URL: PREFECT_CLOUD_API_URL.value()
             + "/accounts/<test>/workspaces/<test>"
         }
     ):
