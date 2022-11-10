@@ -33,25 +33,10 @@
 ### Collections
 - Adds auto-registration of blocks from AWS, Azure, GCP, and Databricks collections — https://github.com/PrefectHQ/prefect/pull/7415
 
-## New Contributors
-* @bcbernardo made their first contribution in https://github.com/PrefectHQ/prefect/pull/7360
-* @br3ndonland made their first contribution in https://github.com/PrefectHQ/prefect/pull/7432
-* 
 ### Contributors
-- @ahuang11
-- @anna-geller
-- @bcbernardo
-- @br3ndonland
-- @desertaxle
-- @discdiver
-- @jlowin
-- @madkinsz
-- @peytonrunyan
-- @rpeden
-- @space-age-pete
 - @tekumara
-- @tpdorsey
-- @zhen0
+- @bcbernardo made their first contribution in https://github.com/PrefectHQ/prefect/pull/7360
+- @br3ndonland made their first contribution in https://github.com/PrefectHQ/prefect/pull/7432
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.6...2.6.7
 
