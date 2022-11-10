@@ -2,9 +2,10 @@ import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
-from prefect.events.clients import AssertingEventsClient, EventsClient
+from prefect.events.clients import EventsClient
 from prefect.events.dependencies import events_client
 from prefect.events.schemas import Event
+from prefect.testing.events import AssertingEventsClient
 
 
 @pytest.fixture
