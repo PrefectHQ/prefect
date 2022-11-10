@@ -9,25 +9,25 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingDeploymentEdit, DeploymentForm, DeploymentUpdate } from '@prefecthq/orion-design'
+  import { PageHeadingDeploymentEdit, DeploymentForm, DeploymentUpdate, useWorkspaceApi } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import router from '@/router'
-  import { deploymentsApi } from '@/services/deploymentsApi'
 
+  const api = useWorkspaceApi()
   const deploymentId = useRouteParam('id')
   const subscriptionOptions = {
     interval: 300000,
   }
 
-  const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
+  const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId.value], subscriptionOptions)
   const deployment = computed(() => deploymentSubscription.response)
 
   async function submit(deployment: DeploymentUpdate): Promise<void> {
     try {
-      await deploymentsApi.updateDeployment(deploymentId.value, deployment)
+      await api.deployments.updateDeployment(deploymentId.value, deployment)
       showToast('Deployment updated', 'success')
       router.back()
     } catch (error) {

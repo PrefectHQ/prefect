@@ -12,6 +12,9 @@ from prefect.settings import (
     DEFAULT_PROFILES_PATH,
     PREFECT_API_KEY,
     PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
+    PREFECT_CLOUD_UI_URL,
+    PREFECT_CLOUD_URL,
     PREFECT_DEBUG_MODE,
     PREFECT_HOME,
     PREFECT_LOGGING_EXTRA_LOGGERS,
@@ -25,6 +28,7 @@ from prefect.settings import (
     PREFECT_PROFILES_PATH,
     PREFECT_TEST_MODE,
     PREFECT_TEST_SETTING,
+    PREFECT_UI_URL,
     SETTING_VARIABLES,
     Profile,
     ProfilesCollection,
@@ -35,6 +39,7 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+from prefect.utilities.names import obfuscate
 
 
 class TestSettingClass:
@@ -210,6 +215,24 @@ class TestSettingsClass:
             settings.copy_with_update(updates={PREFECT_TEST_SETTING: "foo"}) != settings
         )
 
+    def test_with_obfuscated_secrets(self):
+        settings = get_current_settings()
+        original = settings.copy()
+        obfuscated = settings.with_obfuscated_secrets()
+        assert settings == original
+        assert original != obfuscated
+        for setting in SETTING_VARIABLES.values():
+            if setting.is_secret:
+                assert obfuscated.value_of(setting) == obfuscate(
+                    original.value_of(setting)
+                )
+            else:
+                # Bypass callbacks to avoid warnings on deprecated settings
+                # TODO: Add a deprecated flag to settings so we can handle this better
+                assert obfuscated.value_of(
+                    setting, bypass_callback=True
+                ) == original.value_of(setting, bypass_callback=True)
+
 
 class TestSettingAccess:
     def test_get_value_root_setting(self):
@@ -320,6 +343,60 @@ class TestSettingAccess:
     def test_prefect_home_expands_tilde_in_path(self):
         settings = Settings(PREFECT_HOME="~/test")
         assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
+
+    def test_prefect_cloud_url_deprecated_on_set(self):
+        with temporary_settings({PREFECT_CLOUD_URL: "test"}):
+            with pytest.raises(
+                DeprecationWarning,
+                match="`PREFECT_CLOUD_URL` is set and will be used instead of `PREFECT_CLOUD_API_URL`",
+            ):
+                PREFECT_CLOUD_API_URL.value()
+
+    def test_prefect_cloud_url_deprecated_on_access(self):
+        with pytest.raises(
+            DeprecationWarning,
+            match="`PREFECT_CLOUD_URL` is deprecated. Use `PREFECT_CLOUD_API_URL` instead.",
+        ):
+            PREFECT_CLOUD_URL.value()
+
+    @pytest.mark.parametrize(
+        "api_url,ui_url",
+        [
+            (None, None),
+            (
+                "https://api.prefect.cloud/api/accounts/ACCOUNT/workspaces/WORKSPACE",
+                "https://app.prefect.cloud/account/ACCOUNT/workspace/WORKSPACE",
+            ),
+            ("http://my-orion/api", "http://my-orion"),
+            ("https://api.foo.bar", "https://api.foo.bar"),
+        ],
+    )
+    def test_ui_url_inferred_from_api_url(self, api_url, ui_url):
+        with temporary_settings({PREFECT_API_URL: api_url}):
+            assert PREFECT_UI_URL.value() == ui_url
+
+    def test_ui_url_set_directly(self):
+        with temporary_settings({PREFECT_UI_URL: "test"}):
+            assert PREFECT_UI_URL.value() == "test"
+
+    @pytest.mark.parametrize(
+        "api_url,ui_url",
+        [
+            (
+                "https://api.prefect.cloud/api",
+                "https://app.prefect.cloud",
+            ),
+            ("http://my-cloud/api", "http://my-cloud"),
+            ("https://api.foo.bar", "https://api.foo.bar"),
+        ],
+    )
+    def test_cloud_ui_url_inferred_from_cloud_api_url(self, api_url, ui_url):
+        with temporary_settings({PREFECT_CLOUD_API_URL: api_url}):
+            assert PREFECT_CLOUD_UI_URL.value() == ui_url
+
+    def test_cloud_ui_url_set_directly(self):
+        with temporary_settings({PREFECT_CLOUD_UI_URL: "test"}):
+            assert PREFECT_CLOUD_UI_URL.value() == "test"
 
 
 class TestTemporarySettings:

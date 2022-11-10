@@ -9,13 +9,13 @@
 </template>
 
 <script lang="ts" setup>
-  import { WorkQueueCreateForm, PageHeadingWorkQueueCreate, WorkQueueCreate } from '@prefecthq/orion-design'
+  import { WorkQueueCreateForm, PageHeadingWorkQueueCreate, WorkQueueCreate, useWorkspaceApi } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
-  import { workQueuesApi } from '@/services/workQueuesApi'
 
+  const api = useWorkspaceApi()
   const router = useRouter()
 
   const goToQueues = (): void => {
@@ -24,7 +24,7 @@
 
   const createQueue = async (workQueue: WorkQueueCreate): Promise<void> => {
     try {
-      const { id } = await workQueuesApi.createWorkQueue(workQueue)
+      const { id } = await api.workQueues.createWorkQueue(workQueue)
       showToast('Work queue has been created', 'success')
       router.push(routes.workQueue(id))
     } catch (error) {
