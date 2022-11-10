@@ -349,10 +349,14 @@ async def blocktype_delete(
         try:
             block_type = await client.read_block_type_by_slug(slug)
             await client.delete_block_type(block_type.id)
-            exit_with_success(f"Deleted Block Type '{slug}'.")
+            exit_with_success(f"Deleted block type '{slug}'.")
         except ObjectNotFound:
-            exit_with_error(f"Block Type {slug!r} not found!")
+            exit_with_error(f"Block type {slug!r} not found!")
         except ProtectedBlockError:
-            exit_with_error(f"Block Type {slug!r} is a protected block!")
-        except PrefectHTTPStatusError:
-            exit_with_error(f"Cannot delete Block Type {slug!r}!")
+            exit_with_error(f"Block type {slug!r} is a protected block!")
+        except PrefectHTTPStatusError as exc:
+            response = exc.response.json()
+            app.console.print(f"Received error from the the API: {response}")
+            exit_with_error(
+                f"Cannot delete block type {slug!r}! Status code {exc.response.status_code}."
+            )
