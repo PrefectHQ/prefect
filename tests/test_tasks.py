@@ -1,5 +1,6 @@
 import datetime
 import inspect
+import time
 import warnings
 from asyncio import Event, sleep
 from typing import Any, Dict, List
@@ -33,6 +34,31 @@ from prefect.utilities.collections import quote
 
 def comparable_inputs(d):
     return {k: set(v) for k, v in d.items()}
+
+
+@pytest.fixture
+def timeout_test_flow():
+    @task(timeout_seconds=0.1)
+    def times_out(x):
+        time.sleep(1)
+        return x
+
+    @task
+    def depends(x):
+        return x
+
+    @task
+    def independent():
+        return 42
+
+    @flow
+    def test_flow():
+        ax = times_out.submit(1)
+        bx = depends.submit(ax)
+        cx = independent.submit()
+        return ax, bx, cx
+
+    return test_flow
 
 
 class TestTaskName:
@@ -1158,6 +1184,45 @@ class TestCacheFunctionBuiltins:
         )
 
 
+class TestTaskTimeouts:
+    async def test_task_timeouts_actually_timeout(self, timeout_test_flow):
+        flow_state = timeout_test_flow._run()
+        timed_out, _, _ = await flow_state.result(raise_on_failure=False)
+        assert timed_out.name == "TimedOut"
+        assert timed_out.is_failed()
+
+    async def test_task_timeouts_are_not_task_crashes(self, timeout_test_flow):
+        flow_state = timeout_test_flow._run()
+        timed_out, _, _ = await flow_state.result(raise_on_failure=False)
+        assert timed_out.is_crashed() is False
+
+    async def test_task_timeouts_do_not_crash_flow_runs(self, timeout_test_flow):
+        flow_state = timeout_test_flow._run()
+        timed_out, _, _ = await flow_state.result(raise_on_failure=False)
+
+        assert timed_out.name == "TimedOut"
+        assert timed_out.is_failed()
+        assert flow_state.is_failed()
+        assert flow_state.is_crashed() is False
+
+    async def test_task_timeouts_do_not_timeout_prematurely(self):
+        @task(timeout_seconds=100)
+        def my_task():
+            time.sleep(1)
+            return 42
+
+        @flow
+        def my_flow():
+            x = my_task.submit()
+            return x
+
+        flow_state = my_flow._run()
+        assert flow_state.type == StateType.COMPLETED
+
+        task_res = await flow_state.result()
+        assert task_res.type == StateType.COMPLETED
+
+
 class TestTaskRunTags:
     async def test_task_run_tags_added_at_submission(self, orion_client):
         @flow
@@ -2161,6 +2226,7 @@ class TestTaskWithOptions:
             result_serializer="pickle",
             result_storage=LocalFileSystem(basepath="foo"),
             cache_result_in_memory=False,
+            timeout_seconds=None,
         )
         def initial_task():
             pass
@@ -2177,6 +2243,7 @@ class TestTaskWithOptions:
             result_serializer="json",
             result_storage=LocalFileSystem(basepath="bar"),
             cache_result_in_memory=True,
+            timeout_seconds=42,
         )
 
         assert task_with_options.name == "Copied task"
@@ -2190,6 +2257,7 @@ class TestTaskWithOptions:
         assert task_with_options.result_serializer == "json"
         assert task_with_options.result_storage == LocalFileSystem(basepath="bar")
         assert task_with_options.cache_result_in_memory is True
+        assert task_with_options.timeout_seconds == 42
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         def cache_key_fn(*_):
@@ -2207,6 +2275,7 @@ class TestTaskWithOptions:
             result_serializer="json",
             result_storage=LocalFileSystem(),
             cache_result_in_memory=False,
+            timeout_seconds=42,
         )
         def initial_task():
             pass
@@ -2228,6 +2297,7 @@ class TestTaskWithOptions:
         assert task_with_options.result_serializer == "json"
         assert task_with_options.result_storage == LocalFileSystem()
         assert task_with_options.cache_result_in_memory is False
+        assert task_with_options.timeout_seconds == 42
 
     def test_with_options_can_unset_result_options_with_none(self):
         @task(

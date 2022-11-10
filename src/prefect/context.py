@@ -240,10 +240,12 @@ class TaskRunContext(RunContext):
     Attributes:
         task: The task instance associated with the task run
         task_run: The API metadata for this task run
+        timeout_scope: The cancellation scope for task-level timeouts
     """
 
     task: "Task"
     task_run: TaskRun
+    timeout_scope: Optional[anyio.abc.CancelScope] = None
 
     # Result handling
     result_factory: ResultFactory
