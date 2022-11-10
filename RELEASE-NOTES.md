@@ -1,5 +1,58 @@
 # Prefect Release Notes
 
+## Release 2.6.7
+
+### Enhancements
+- Add colored log levels — https://github.com/PrefectHQ/prefect/pull/6101
+- Update flow and task run page wells and remove deprecated ui apis — https://github.com/PrefectHQ/prefect/pull/7426
+- Redirect to the logs tab when the flowRunId changes  — https://github.com/PrefectHQ/prefect/pull/7439
+- Create setting for UI URL and clarify Cloud API URL — https://github.com/PrefectHQ/prefect/pull/7411
+- Adjust the scheduler to create the smallest number of runs  — https://github.com/PrefectHQ/prefect/pull/7433
+- Improve scheduler selectivity for performance — https://github.com/PrefectHQ/prefect/pull/7450
+- Add task-level timeouts — https://github.com/PrefectHQ/prefect/pull/7409
+
+### Fixes
+- Add import for ObjectAlreadyExists exception in deployments module — https://github.com/PrefectHQ/prefect/pull/7360
+- Fixed typo in schedules.md — https://github.com/PrefectHQ/prefect/pull/7444
+- fix: State & allow_failure is not exported  — https://github.com/PrefectHQ/prefect/pull/7447
+- Fix the `--skip-upload` flag in the Deployment build CLI — https://github.com/PrefectHQ/prefect/pull/7437
+- Update Migration Guide to reflect Prefect 2.6 feature set — https://github.com/PrefectHQ/prefect/pull/7474
+- Fix `visit_collection` handling of IO objects — https://github.com/PrefectHQ/prefect/pull/7482
+- Ensure that queries are sorted correctly when limits are used — https://github.com/PrefectHQ/prefect/pull/7457
+
+### Documentation
+- Add hightouch to catalog — https://github.com/PrefectHQ/prefect/pull/7443
+- Add dark mode to docs — https://github.com/PrefectHQ/prefect/pull/7432
+- Add Audit Log documentation for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/7404
+- Add troubleshooting topics for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/7446
+- Update hightouch logo — https://github.com/PrefectHQ/prefect/pull/7485
+
+### Collections
+- Adds auto-registration of blocks from AWS, Azure, GCP, and Databricks collections — https://github.com/PrefectHQ/prefect/pull/7415
+
+## New Contributors
+* @bcbernardo made their first contribution in https://github.com/PrefectHQ/prefect/pull/7360
+* @br3ndonland made their first contribution in https://github.com/PrefectHQ/prefect/pull/7432
+* 
+### Contributors
+- @ahuang11
+- @anna-geller
+- @bcbernardo
+- @br3ndonland
+- @desertaxle
+- @discdiver
+- @jlowin
+- @madkinsz
+- @peytonrunyan
+- @rpeden
+- @space-age-pete
+- @tekumara
+- @tpdorsey
+- @zhen0
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.6...2.6.7
+
+
 ## Release 2.6.6
 
 ### Enhancements
