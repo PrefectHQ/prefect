@@ -250,6 +250,8 @@ class TaskRunContext(RunContext):
     # Result handling
     result_factory: ResultFactory
 
+    log_print: bool = True
+
     __var__ = ContextVar("task_run")
 
 
