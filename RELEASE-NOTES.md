@@ -24,7 +24,6 @@
 - `PREFECT_CLOUD_URL` has been deprecated in favor of `PREFECT_CLOUD_API_URL`
 
 ### Documentation
-- Add new [`prefect-hightouch`](https://prefecthq.github.io/prefect-hightouch/) collection for [Hightouch](https://hightouch.com/) — https://github.com/PrefectHQ/prefect/pull/7443
 - Add dark mode — https://github.com/PrefectHQ/prefect/pull/7432
 - Add [audit log documentation](https://docs.prefect.io/ui/audit-log/) for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/7404
 - Add [troubleshooting topics](https://docs.prefect.io/ui/troubleshooting/) for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/7446
@@ -32,6 +31,7 @@
 
 ### Collections
 - Adds auto-registration of blocks from AWS, Azure, GCP, and Databricks collections — https://github.com/PrefectHQ/prefect/pull/7415
+- Add new [`prefect-hightouch`](https://prefecthq.github.io/prefect-hightouch/) collection for [Hightouch](https://hightouch.com/) — https://github.com/PrefectHQ/prefect/pull/7443
 
 ### Contributors
 - @tekumara
