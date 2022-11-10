@@ -1,6 +1,7 @@
 """
 Command line interface for working with Orion
 """
+import json
 import os
 import textwrap
 from functools import partial
@@ -14,6 +15,10 @@ from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.logging import get_logger
+from prefect.logging.configuration import (
+    DEFAULT_LOGGING_SETTINGS_PATH,
+    load_logging_config,
+)
 from prefect.orion.database.alembic_commands import (
     alembic_downgrade,
     alembic_revision,
@@ -22,7 +27,9 @@ from prefect.orion.database.alembic_commands import (
 )
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.settings import (
+    PREFECT_HOME,
     PREFECT_LOGGING_SERVER_LEVEL,
+    PREFECT_LOGGING_SETTINGS_PATH,
     PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_API_HOST,
     PREFECT_ORION_API_PORT,
@@ -112,6 +119,15 @@ async def start(
     server_env["PREFECT_ORION_SERVICES_UI"] = str(ui)
     server_env["PREFECT_LOGGING_SERVER_LEVEL"] = log_level
 
+    logging_config = load_logging_config(
+        PREFECT_LOGGING_SETTINGS_PATH.value()
+        if PREFECT_LOGGING_SETTINGS_PATH.value().exists()
+        else DEFAULT_LOGGING_SETTINGS_PATH
+    )
+    logging_config_path = PREFECT_HOME.value() / "uvicorn-log-config.json"
+    with open(logging_config_path, "wt") as f:
+        json.dump(logging_config, f)
+
     base_url = f"http://{host}:{port}"
 
     async with anyio.create_task_group() as tg:
@@ -132,6 +148,8 @@ async def start(
                     str(host),
                     "--port",
                     str(port),
+                    "--log-config",
+                    str(logging_config_path),
                 ],
                 env=server_env,
                 stream_output=True,
