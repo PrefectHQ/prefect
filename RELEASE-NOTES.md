@@ -12,6 +12,7 @@
 - Add link to parent flow from subflow details page — https://github.com/PrefectHQ/prefect/pull/7491
 - Improve visibility of deployment tags in the deployments page — https://github.com/PrefectHQ/prefect/pull/7491
 - Add deployment and flow metadata to infrastructure labels — https://github.com/PrefectHQ/prefect/pull/7479
+- Add obfuscation of secret settings — https://github.com/PrefectHQ/prefect/pull/7465
 
 ### Fixes
 - Fix missing import for `ObjectAlreadyExists` exception in deployments module — https://github.com/PrefectHQ/prefect/pull/7360
@@ -21,7 +22,8 @@
 - Ensure that queries are sorted correctly when limits are used — https://github.com/PrefectHQ/prefect/pull/7457
 
 ### Deprecations
-- `PREFECT_CLOUD_URL` has been deprecated in favor of `PREFECT_CLOUD_API_URL`
+- `PREFECT_CLOUD_URL` has been deprecated in favor of `PREFECT_CLOUD_API_URL` — https://github.com/PrefectHQ/prefect/pull/7411
+- `prefect.orion.utilities.names` has been deprecated in favor of `prefect.utilities.names` — https://github.com/PrefectHQ/prefect/pull/7465
 
 ### Documentation
 - Add dark mode — https://github.com/PrefectHQ/prefect/pull/7432
