@@ -107,6 +107,5 @@ For example, to query for flows with the tag `"database"` and failed flow runs, 
 
 ## Prefect REST API Reference
 
-The following REST API reference was automatically generated using [Swagger UI](https://swagger.io/tools/swagger-ui/).
-
-!!swagger schema.json!!
+<redoc spec-url='schema.json'></redoc>
+<script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"> </script>

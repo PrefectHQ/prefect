@@ -66,7 +66,7 @@ def build_docs(
 
     if not schema_path:
         schema_path = (
-            prefect.__root_path__ / "docs" / "api-ref" / "schema.json"
+            prefect.__root_path__ / "docs" / "api-ref" / "rest-api" / "schema.json"
         ).absolute()
     # overwrite info for display purposes
     schema["info"] = {}
