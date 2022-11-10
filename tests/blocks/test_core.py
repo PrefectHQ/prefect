@@ -17,8 +17,8 @@ from prefect.exceptions import PrefectHTTPStatusError
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
-from prefect.orion.utilities.names import obfuscate_string
 from prefect.utilities.dispatch import lookup_type, register_type
+from prefect.utilities.names import obfuscate_string
 
 
 class CoolBlock(Block):

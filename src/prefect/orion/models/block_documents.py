@@ -18,8 +18,8 @@ from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
 from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
 from prefect.orion.schemas.filters import BlockSchemaFilter
 from prefect.orion.utilities.database import UUID as UUIDTypeDecorator
-from prefect.orion.utilities.names import obfuscate_string
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
+from prefect.utilities.names import obfuscate_string
 
 
 @inject_db
