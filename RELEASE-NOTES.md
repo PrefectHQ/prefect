@@ -3,30 +3,32 @@
 ## Release 2.6.7
 
 ### Enhancements
+- Add timeout support to tasks — https://github.com/PrefectHQ/prefect/pull/7409
 - Add colored log levels — https://github.com/PrefectHQ/prefect/pull/6101
-- Update flow and task run page wells and remove deprecated ui apis — https://github.com/PrefectHQ/prefect/pull/7426
-- Redirect to the logs tab when the flowRunId changes  — https://github.com/PrefectHQ/prefect/pull/7439
-- Create setting for UI URL and clarify Cloud API URL — https://github.com/PrefectHQ/prefect/pull/7411
-- Adjust the scheduler to create the smallest number of runs  — https://github.com/PrefectHQ/prefect/pull/7433
-- Improve scheduler selectivity for performance — https://github.com/PrefectHQ/prefect/pull/7450
-- Add task-level timeouts — https://github.com/PrefectHQ/prefect/pull/7409
-- Add link to parent flow and make deployment tags more visible — https://github.com/PrefectHQ/prefect/pull/7491
+- Update flow and task run page sidebar styling — https://github.com/PrefectHQ/prefect/pull/7426
+- Add redirect to logs tab when navigating to parent or child flow runs — https://github.com/PrefectHQ/prefect/pull/7439
+- Add `PREFECT_UI_URL` and `PREFECT_CLOUD_UI_URL` settings — https://github.com/PrefectHQ/prefect/pull/7411
+- Improve scheduler performance — https://github.com/PrefectHQ/prefect/pull/7450 https://github.com/PrefectHQ/prefect/pull/7433
+- Add link to parent flow from subflow details page — https://github.com/PrefectHQ/prefect/pull/7491
+- Improve visibility of deployment tags in the deployments page — https://github.com/PrefectHQ/prefect/pull/7491
+- Add deployment and flow metadata to infrastructure labels — https://github.com/PrefectHQ/prefect/pull/7479
 
 ### Fixes
-- Add import for ObjectAlreadyExists exception in deployments module — https://github.com/PrefectHQ/prefect/pull/7360
-- Fixed typo in schedules.md — https://github.com/PrefectHQ/prefect/pull/7444
-- fix: State & allow_failure is not exported  — https://github.com/PrefectHQ/prefect/pull/7447
-- Fix the `--skip-upload` flag in the Deployment build CLI — https://github.com/PrefectHQ/prefect/pull/7437
-- Update Migration Guide to reflect Prefect 2.6 feature set — https://github.com/PrefectHQ/prefect/pull/7474
+- Fix missing import for `ObjectAlreadyExists` exception in deployments module — https://github.com/PrefectHQ/prefect/pull/7360
+- Fix export of `State` and `allow_failure` for type-checkers  — https://github.com/PrefectHQ/prefect/pull/7447
+- Fix `--skip-upload` flag in `prefect deployment build` — https://github.com/PrefectHQ/prefect/pull/7437
 - Fix `visit_collection` handling of IO objects — https://github.com/PrefectHQ/prefect/pull/7482
 - Ensure that queries are sorted correctly when limits are used — https://github.com/PrefectHQ/prefect/pull/7457
 
+### Deprecations
+- `PREFECT_CLOUD_URL` has been deprecated in favor of `PREFECT_CLOUD_API_URL`
+
 ### Documentation
-- Add hightouch to catalog — https://github.com/PrefectHQ/prefect/pull/7443
-- Add dark mode to docs — https://github.com/PrefectHQ/prefect/pull/7432
-- Add Audit Log documentation for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/7404
+- Add new [`prefect-hightouch`](https://prefecthq.github.io/prefect-hightouch/) collection for [Hightouch](https://hightouch.com/) — https://github.com/PrefectHQ/prefect/pull/7443
+- Add dark mode — https://github.com/PrefectHQ/prefect/pull/7432
+- Add audit log documentation for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/7404
 - Add troubleshooting topics for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/7446
-- Update hightouch logo — https://github.com/PrefectHQ/prefect/pull/7485
+- Improve styling for dark mode — https://github.com/PrefectHQ/prefect/pull/7462
 
 ### Collections
 - Adds auto-registration of blocks from AWS, Azure, GCP, and Databricks collections — https://github.com/PrefectHQ/prefect/pull/7415
