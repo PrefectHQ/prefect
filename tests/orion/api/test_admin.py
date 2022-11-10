@@ -16,7 +16,9 @@ class TestSettings:
         response = await client.get("/admin/settings")
         assert response.status_code == status.HTTP_200_OK
         parsed_settings = prefect.settings.Settings.parse_obj(response.json())
-        prefect_settings = prefect.settings.get_current_settings()
+        prefect_settings = (
+            prefect.settings.get_current_settings().with_obfuscated_secrets()
+        )
 
         assert parsed_settings == prefect_settings
 

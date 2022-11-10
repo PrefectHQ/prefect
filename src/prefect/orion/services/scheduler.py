@@ -12,6 +12,7 @@ import sqlalchemy as sa
 import prefect.orion.models as models
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.schemas.states import StateType
 from prefect.orion.services.loop_service import LoopService, run_multiple_services
 from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE,
@@ -116,13 +117,47 @@ class Scheduler(LoopService):
     @inject_db
     def _get_select_deployments_to_schedule_query(self, db: OrionDBInterface):
         """
-        Returns a sqlalchemy query for selecting deployments to schedule
+        Returns a sqlalchemy query for selecting deployments to schedule.
+
+        The query gets the IDs of any deployments with:
+
+            - an active schedule
+            - EITHER:
+                - fewer than `min_runs` auto-scheduled runs
+                - OR the max scheduled time is less than `max_scheduled_time` in the future
         """
+        now = pendulum.now("UTC")
         query = (
             sa.select(db.Deployment.id)
+            .select_from(db.Deployment)
+            # TODO: on Postgres, this could be replaced with a lateral join that
+            # sorts by `next_scheduled_start_time desc` and limits by
+            # `self.min_runs` for a ~ 50% speedup. At the time of writing,
+            # performance of this universal query appears to be fast enough that
+            # this optimization is not worth maintaining db-specific queries
+            .join(
+                db.FlowRun,
+                # join on matching deployments, only picking up future scheduled runs
+                sa.and_(
+                    db.Deployment.id == db.FlowRun.deployment_id,
+                    db.FlowRun.state_type == StateType.SCHEDULED,
+                    db.FlowRun.next_scheduled_start_time >= now,
+                    db.FlowRun.auto_scheduled.is_(True),
+                ),
+                isouter=True,
+            )
             .where(
                 db.Deployment.is_schedule_active.is_(True),
                 db.Deployment.schedule.is_not(None),
+            )
+            .group_by(db.Deployment.id)
+            # having EITHER fewer than three runs OR runs not scheduled far enough out
+            .having(
+                sa.or_(
+                    sa.func.count(db.FlowRun.next_scheduled_start_time) < self.min_runs,
+                    sa.func.max(db.FlowRun.next_scheduled_start_time)
+                    < now + self.min_scheduled_time,
+                )
             )
             .order_by(db.Deployment.id)
             .limit(self.deployment_batch_size)

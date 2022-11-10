@@ -11,7 +11,7 @@ from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockDocumentCreate, BlockDocumentUpdate
 from prefect.orion.schemas.core import BlockDocument
-from prefect.orion.utilities.names import obfuscate_string
+from prefect.utilities.names import obfuscate_string
 
 
 def long_string(s: str):

@@ -23,9 +23,9 @@ By using Prefect Collections, you can eliminate boilerplate code that you need t
 Below you can find a list of all available Prefect Collections.
 
 <!-- The code below is a jinja2 template that will be rendered by generate_catalog.py -->
-<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));">
+<div class="collection-grid">
 {% for collection in collections %}
-    <div style="padding: 1rem; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); border-radius: 3px">
+    <div class="collection-item">
         <center>
             <div>
                 <a href="{{ collection['documentation'] }}">
@@ -34,7 +34,7 @@ Below you can find a list of all available Prefect Collections.
                     </p>
                 </a>
                 <a href="{{ collection['documentation'] }}">
-                    <img src={{collection['iconUrl']}} style="max-height: 82px; max-width: 82px">
+                    <img src={{collection['iconUrl']}} >
                 </a>
                 <p style="font-size: 0.5rem">
                     Maintained by <a href="{{ collection["authorUrl"] }}"><br>{{ collection["author"] }}</a>
