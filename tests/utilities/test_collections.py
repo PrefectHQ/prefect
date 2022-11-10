@@ -1,3 +1,4 @@
+import io
 import json
 import uuid
 from dataclasses import dataclass
@@ -251,6 +252,30 @@ class TestVisitCollection:
         result = visit_collection(inp, visit_fn=add_to_visited_list, return_data=False)
         assert result is None
         assert VISITED == expected
+
+    @pytest.mark.parametrize(
+        "inp,expected",
+        [
+            (sorted([1, 2, 3]), [1, -2, 3]),
+            # Not treated as iterators:
+            ("test", "test"),
+            (b"test", b"test"),
+        ],
+    )
+    def test_visit_collection_iterators(self, inp, expected):
+        result = visit_collection(inp, visit_fn=negative_even_numbers, return_data=True)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "inp",
+        [
+            io.StringIO("test"),
+            io.BytesIO(b"test"),
+        ],
+    )
+    def test_visit_collection_io_iterators(self, inp):
+        result = visit_collection(inp, visit_fn=lambda x: x, return_data=True)
+        assert result is inp
 
     def test_visit_collection_allows_mutation_of_nodes(self):
         def collect_and_drop_x_from_dicts(node):
