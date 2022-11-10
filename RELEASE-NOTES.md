@@ -10,6 +10,7 @@
 - Adjust the scheduler to create the smallest number of runs  — https://github.com/PrefectHQ/prefect/pull/7433
 - Improve scheduler selectivity for performance — https://github.com/PrefectHQ/prefect/pull/7450
 - Add task-level timeouts — https://github.com/PrefectHQ/prefect/pull/7409
+- Add link to parent flow and make deployment tags more visible — https://github.com/PrefectHQ/prefect/pull/7491
 
 ### Fixes
 - Add import for ObjectAlreadyExists exception in deployments module — https://github.com/PrefectHQ/prefect/pull/7360
