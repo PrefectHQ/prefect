@@ -968,7 +968,7 @@ class OrionClient:
         """
         try:
             client_request = (
-                self._client.patch if merge_existing_data else self._client.put
+                self._client.patch if merge_existing_data else self._client.post
             )
             await client_request(
                 f"/block_documents/{block_document_id}",
