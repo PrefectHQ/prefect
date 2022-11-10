@@ -27,7 +27,7 @@
 - Add new [`prefect-hightouch`](https://prefecthq.github.io/prefect-hightouch/) collection for [Hightouch](https://hightouch.com/) — https://github.com/PrefectHQ/prefect/pull/7443
 - Add dark mode — https://github.com/PrefectHQ/prefect/pull/7432
 - Add [audit log documentation](https://docs.prefect.io/ui/audit-log/) for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/7404
-- Add troubleshooting topics for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/7446
+- Add [troubleshooting topics](https://docs.prefect.io/ui/troubleshooting/) for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/7446
 - Improve styling for dark mode — https://github.com/PrefectHQ/prefect/pull/7462
 
 ### Collections
