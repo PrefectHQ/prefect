@@ -53,6 +53,7 @@ from prefect.logging.loggers import (
     flow_run_logger,
     get_logger,
     get_run_logger,
+    patch_print,
     task_run_logger,
 )
 from prefect.orion.schemas.core import TaskRunInput, TaskRunResult
@@ -555,12 +556,6 @@ async def orchestrate_flow_run(
     )
     flow_run_context = None
 
-    import builtins
-
-    from prefect.logging.loggers import print_as_log
-
-    builtins.print = print_as_log
-
     try:
         # Resolve futures in any non-data dependencies to ensure they are ready
         if wait_for is not None:
@@ -591,6 +586,10 @@ async def orchestrate_flow_run(
                     client=client,
                     timeout_scope=timeout_scope,
                 ) as flow_run_context:
+
+                    if flow_run_context.log_print:
+                        patch_print()
+
                     args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                     logger.debug(
                         f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
@@ -1234,6 +1233,9 @@ async def orchestrate_task_run(
                 with task_run_context.copy(
                     update={"task_run": task_run, "start_time": pendulum.now("UTC")}
                 ):
+                    if task_run_context.log_print:
+                        patch_print()
+
                     if task.isasync:
                         result = await task.fn(*args, **kwargs)
                     else:

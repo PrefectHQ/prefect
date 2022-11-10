@@ -200,9 +200,9 @@ def disable_run_logger():
 
 def print_as_log(*args, **kwargs):
 
-    from prefect.context import FlowRunContext
+    from prefect.context import FlowRunContext, TaskRunContext
 
-    context = FlowRunContext.get()
+    context = TaskRunContext.get() or FlowRunContext.get()
     if not context or not context.log_print:
         return print(*args, **kwargs)
 
@@ -211,3 +211,9 @@ def print_as_log(*args, **kwargs):
     kwargs["file"] = buffer
     print(*args, **kwargs)
     logger.info(buffer.getvalue().rstrip())
+
+
+def patch_print():
+    import builtins
+
+    builtins.print = print_as_log
