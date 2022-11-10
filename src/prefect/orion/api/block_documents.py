@@ -136,8 +136,8 @@ async def update_block_document_data(
         )
 
 
-@router.put("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
-async def update_block_document_data_without_merging_existing_data(
+@router.post("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
+async def replace_block_document_data(
     block_document: schemas.actions.BlockDocumentUpdate,
     block_document_id: UUID = Path(
         ..., description="The block document id", alias="id"

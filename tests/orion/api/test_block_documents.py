@@ -994,7 +994,7 @@ class TestUpdateBlockDocumentWithoutMergingExistingData:
 
         await session.commit()
 
-        response = await client.put(
+        response = await client.post(
             f"/block_documents/{block_document.id}",
             json=BlockDocumentUpdate(
                 data=dict(x=2),
@@ -1023,7 +1023,7 @@ class TestUpdateBlockDocumentWithoutMergingExistingData:
 
         await session.commit()
 
-        response = await client.put(
+        response = await client.post(
             f"/block_documents/{block_document.id}",
             json=BlockDocumentUpdate(
                 data=dict(y=99),
@@ -1052,7 +1052,7 @@ class TestUpdateBlockDocumentWithoutMergingExistingData:
 
         await session.commit()
 
-        response = await client.put(
+        response = await client.post(
             f"/block_documents/{block_document.id}",
             json=BlockDocumentUpdate(
                 data=dict(x=2),
@@ -1115,7 +1115,7 @@ class TestUpdateBlockDocumentWithoutMergingExistingData:
             }
         }
 
-        response = await client.put(
+        response = await client.post(
             f"/block_documents/{inner_block_document.id}",
             json=BlockDocumentUpdate(
                 data=dict(x=4),
@@ -1206,7 +1206,7 @@ class TestUpdateBlockDocumentWithoutMergingExistingData:
 
         await session.commit()
 
-        response = await client.put(
+        response = await client.post(
             f"/block_documents/{outer_block_document.id}",
             json=BlockDocumentUpdate(
                 data={
@@ -1269,7 +1269,7 @@ class TestUpdateBlockDocumentWithoutMergingExistingData:
 
         await session.commit()
 
-        response = await client.put(
+        response = await client.post(
             f"/block_documents/{outer_block_document.id}",
             json=BlockDocumentUpdate(
                 data={
@@ -1309,7 +1309,7 @@ class TestUpdateBlockDocumentWithoutMergingExistingData:
 
         await session.commit()
 
-        response = await client.put(
+        response = await client.post(
             f"/block_documents/{outer_block_document.id}",
             json=BlockDocumentUpdate(
                 data={
@@ -1324,7 +1324,7 @@ class TestUpdateBlockDocumentWithoutMergingExistingData:
     async def test_update_nonsense_block_document(self, client):
         """Regression test for an issue we observed in Cloud where a client made
         requests for /block_documents/null"""
-        response = await client.put(
+        response = await client.post(
             "/block_documents/not-even",
             json=BlockDocumentUpdate(
                 data={
@@ -1350,7 +1350,7 @@ class TestUpdateBlockDocumentWithoutMergingExistingData:
 
         await session.commit()
 
-        response = await client.put(
+        response = await client.post(
             f"/block_documents/{block_document.id}",
             json=BlockDocumentUpdate(
                 data=dict(),
@@ -1413,7 +1413,7 @@ class TestUpdateBlockDocumentWithoutMergingExistingData:
             }
         }
 
-        response = await client.put(
+        response = await client.post(
             f"/block_documents/{outer_block_document.id}",
             json=BlockDocumentUpdate(
                 data={
