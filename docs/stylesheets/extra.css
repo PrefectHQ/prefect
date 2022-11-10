@@ -78,6 +78,47 @@ to force column width */
     white-space: nowrap;
 }
 
+/* collections catalog */
+.collection-grid {
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+    gap: .5rem; 
+}
+
+.collection-item {
+    padding: 1rem; 
+    margin: .2rem;
+    box-shadow: .1rem .1rem .3rem rgba(0, 0, 0, .3); 
+    border-radius: 5px;
+}
+
+.collection-item img {
+    max-height: 100px; 
+    max-width: 100px;
+    /* max-height: 82px; 
+    max-width: 82px; */
+}
+
+.recipe-grid {
+    display:grid; 
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+    gap: 1rem; 
+    margin: 1rem 0 3rem;
+}
+
+.recipe-item {
+    padding: 1rem; 
+    margin: .2rem;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .3); 
+    border-radius: 5px;
+}
+
+.recipe-item img {
+    max-height: 48px; 
+    max-width: 48px; 
+    margin: 0 0.5em 0 auto;
+}
+
 /* badge formatting */
 .badge::before {
     background-color: #1860F2;
@@ -136,6 +177,7 @@ to force column width */
     content: "Advanced";
 }
 
+/* dark mode slate theme */
 /* dark mode code overrides */
 [data-md-color-scheme="slate"] {
     --md-code-bg-color: #252a33;
@@ -162,6 +204,16 @@ to force column width */
 [data-md-color-scheme="slate"] .md-nav--primary .md-nav__link--active {
     color: var(--blue);
     font-weight: bold;
+}
+
+/* dark mode collection catalog overrides */
+[data-md-color-scheme="slate"] .collection-item {
+    background-color: #3b3d54;
+}
+
+/* dark mode recipe collection overrides */
+[data-md-color-scheme="slate"] .recipe-item {
+    background-color: #3b3d54;
 }
 
 /* dark mode API doc overrides */
