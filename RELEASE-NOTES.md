@@ -26,10 +26,9 @@
 - `prefect.orion.utilities.names` has been deprecated in favor of `prefect.utilities.names` — https://github.com/PrefectHQ/prefect/pull/7465
 
 ### Documentation
-- Add dark mode — https://github.com/PrefectHQ/prefect/pull/7432
+- Add support for dark mode — https://github.com/PrefectHQ/prefect/pull/7432 and https://github.com/PrefectHQ/prefect/pull/7462
 - Add [audit log documentation](https://docs.prefect.io/ui/audit-log/) for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/7404
 - Add [troubleshooting topics](https://docs.prefect.io/ui/troubleshooting/) for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/7446
-- Improve styling for dark mode — https://github.com/PrefectHQ/prefect/pull/7462
 
 ### Collections
 - Adds auto-registration of blocks from AWS, Azure, GCP, and Databricks collections — https://github.com/PrefectHQ/prefect/pull/7415
