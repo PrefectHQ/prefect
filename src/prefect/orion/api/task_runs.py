@@ -30,7 +30,7 @@ async def create_task_run(
     response: Response,
     db: OrionDBInterface = Depends(provide_database_interface),
     orchestration_parameters: dict = Depends(
-        dependencies.provide_task_orchestration_parameters
+        orchestration_dependencies.provide_task_orchestration_parameters
     ),
 ) -> schemas.core.TaskRun:
     """
@@ -196,7 +196,7 @@ async def set_task_run_state(
         orchestration_dependencies.provide_task_policy
     ),
     orchestration_parameters: dict = Depends(
-        dependencies.provide_task_orchestration_parameters
+        orchestration_dependencies.provide_task_orchestration_parameters
     ),
 ) -> OrchestrationResult:
     """Set a task run state, invoking any orchestration rules."""
