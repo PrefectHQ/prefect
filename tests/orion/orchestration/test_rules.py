@@ -1016,7 +1016,7 @@ class TestBaseUniversalTransform:
             proposed_state=proposed_state,
         )
 
-        xform_as_context_manager = IllustrativeUniversalTransform(ctx)
+        xform_as_context_manager = IllustrativeUniversalTransform(ctx, *intended_transition)
         context_call = MagicMock()
 
         async with xform_as_context_manager as ctx:
@@ -1062,7 +1062,7 @@ class TestBaseUniversalTransform:
             proposed_state=proposed_state,
         )
 
-        universal_transform = IllustrativeUniversalTransform(ctx)
+        universal_transform = IllustrativeUniversalTransform(ctx, *intended_transition)
 
         async with universal_transform as ctx:
             mutated_state_type = random.choice(
@@ -1117,7 +1117,7 @@ class TestBaseUniversalTransform:
             proposed_state=proposed_state,
         )
 
-        universal_transform = IllustrativeUniversalTransform(ctx)
+        universal_transform = IllustrativeUniversalTransform(ctx, *intended_transition)
 
         async with universal_transform as ctx:
             mutated_state_type = random.choice(
@@ -1172,7 +1172,7 @@ class TestBaseUniversalTransform:
             proposed_state=proposed_state,
         )
 
-        universal_transform = IllustrativeUniversalTransform(ctx)
+        universal_transform = IllustrativeUniversalTransform(ctx, *intended_transition)
 
         async with universal_transform as ctx:
             ctx.orchestration_error = Exception

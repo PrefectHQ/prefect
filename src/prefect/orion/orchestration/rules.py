@@ -519,7 +519,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         TO_STATES: list of valid proposed state types this rule governs
         context: the orchestration context
         from_state_type: the state type a run is currently in
-        to_state_type: the proposed state type a run is transitioning into
+        to_state_type: the intended proposed state type prior to any orchestration
 
     Args:
         context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
@@ -859,6 +859,8 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         FROM_STATES: for compatibility with `BaseOrchestrationPolicy`
         TO_STATES: for compatibility with `BaseOrchestrationPolicy`
         context: the orchestration context
+        from_state_type: the state type a run is currently in
+        to_state_type: the intended proposed state type prior to any orchestration
 
     Args:
         context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
@@ -872,8 +874,12 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
     def __init__(
         self,
         context: OrchestrationContext,
+        from_state_type: Optional[states.StateType],
+        to_state_type: Optional[states.StateType],
     ):
         self.context = context
+        self.from_state_type = from_state_type
+        self.to_state_type = to_state_type
 
     async def __aenter__(self):
         """
