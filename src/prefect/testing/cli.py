@@ -77,6 +77,7 @@ def invoke_and_assert(
         ctx = runner.isolated_filesystem(temp_dir=temp_dir)
     else:
         ctx = contextlib.nullcontext()
+
     with ctx:
         result = runner.invoke(app, command, catch_exceptions=False, input=user_input)
 
