@@ -56,7 +56,7 @@ else:
 
 # MagicMock supports async magic methods in Python 3.8+
 
-if True or sys.version_info < (3, 8):
+if sys.version_info < (3, 8):
     from unittest.mock import MagicMock as _MagicMock
     from unittest.mock import MagicProxy as _MagicProxy
 
