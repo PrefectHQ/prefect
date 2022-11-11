@@ -35,7 +35,7 @@ async def create_flow_run(
     db: OrionDBInterface = Depends(provide_database_interface),
     response: Response = None,
     orchestration_parameters: dict = Depends(
-        dependencies.provide_flow_orchestration_parameters
+        orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),
 ) -> schemas.core.FlowRun:
@@ -247,7 +247,7 @@ async def set_flow_run_state(
         orchestration_dependencies.provide_flow_policy
     ),
     orchestration_parameters: dict = Depends(
-        dependencies.provide_flow_orchestration_parameters
+        orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),
 ) -> OrchestrationResult:
