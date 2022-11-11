@@ -7,9 +7,6 @@ Create Date: 2022-11-10 16:59:21.884051
 """
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import sqlite
-
-import prefect
 
 # revision identifiers, used by Alembic.
 revision = "4f90ad6349bd"
