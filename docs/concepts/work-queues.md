@@ -46,8 +46,8 @@ Configuration parameters you can specify when starting an agent include:
 | --- | --- |
 | -q, --work-queue | One or more work queues that the agent will poll for work. |
 | --api TEXT       | The API URL for the Prefect Orion server. Default is the value of `PREFECT_API_URL`. |
-| --run-oce        | Only run agent polling once. By default, the agent runs forever |
-| --prefetch-secods | The amount of time before a flow runs scheduled start time to begin submission. Default is the value of `PREFECT_AGENT_PREFETCH_SECONDS`. |
+| --run-once        | Only run agent polling once. By default, the agent runs forever. |
+| --prefetch-seconds | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_AGENT_PREFETCH_SECONDS`. |
 | --hide-welcome   | Do not display the startup ASCII art for the agent process.                          |
 
 You must start an agent within an environment that can access or create the infrastructure needed to execute flow runs. Your agent will deploy flow runs to the infrastructure specified by the deployment.
