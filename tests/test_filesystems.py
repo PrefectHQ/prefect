@@ -123,7 +123,7 @@ class TestLocalFileSystem:
                     child_contents
                 )
 
-    async def test_dir_contents_copied_correctly_with_put_directory_and_ignore_file(
+    async def test_dir_contents_copied_correctly_with_put_directory_and_file_pattern(
         self,
     ):
         """Make sure that ignore file behaves properly."""
@@ -159,6 +159,47 @@ class TestLocalFileSystem:
                     local_path=tmp_src, to_path=tmp_dst, ignore_file=ignore_fpath
                 )
                 assert set(os.listdir(tmp_dst)) == set(expected_contents)
+                assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(
+                    child_contents
+                )
+
+    async def test_dir_contents_copied_correctly_with_put_directory_and_directory_pattern(
+        self,
+    ):
+        """Make sure that ignore file behaves properly."""
+
+        sub_dir_name = "puppy"
+        skip_sub_dir = "kitty"
+
+        with TemporaryDirectory() as tmp_src:
+            parent_contents, child_contents = setup_test_directory(
+                tmp_src, sub_dir_name
+            )
+
+            # ignore .py files
+            ignore_fpath = Path(tmp_src) / ".ignore"
+            with open(ignore_fpath, "w") as f:
+                f.write(f"**/{skip_sub_dir}/*")
+
+            skip_sub_dir_path = Path(tmp_src) / skip_sub_dir
+            os.mkdir(skip_sub_dir_path)
+
+            # add file to sub-directory
+            f2_name = "kitty-cat.txt"
+            f2_path = skip_sub_dir_path / f2_name
+            f2 = open(f2_path, "w")
+            f2.close()
+
+            expected_parent_contents = os.listdir(tmp_src)
+            # move file contents to tmp_dst
+            with TemporaryDirectory() as tmp_dst:
+
+                f = LocalFileSystem()
+
+                await f.put_directory(
+                    local_path=tmp_src, to_path=tmp_dst, ignore_file=ignore_fpath
+                )
+                assert set(os.listdir(tmp_dst)) == set(expected_parent_contents)
                 assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(
                     child_contents
                 )
