@@ -1,9 +1,10 @@
-from unittest.mock import ANY, MagicMock
+from unittest.mock import ANY
 
 import prefect.cli.agent
 from prefect import OrionClient
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS, temporary_settings
 from prefect.testing.cli import invoke_and_assert
+from prefect.testing.utilities import MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
