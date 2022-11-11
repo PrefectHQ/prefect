@@ -952,8 +952,9 @@ class TestUpdateBlockDocument:
         )
         assert updated_block_document.data == dict(x=2)
 
+    @pytest.mark.parametrize("new_data", [{"x": 4}, {}])
     async def test_update_block_document_data_without_merging_existing_data(
-        self, session, block_schemas
+        self, session, block_schemas, new_data
     ):
         block_document = await models.block_documents.create_block_document(
             session,
@@ -968,14 +969,15 @@ class TestUpdateBlockDocument:
         await models.block_documents.update_block_document(
             session,
             block_document_id=block_document.id,
-            block_document=schemas.actions.BlockDocumentUpdate(data=dict(x=2)),
-            merge_existing_data=False,
+            block_document=schemas.actions.BlockDocumentUpdate(
+                data=new_data, merge_existing_data=False
+            ),
         )
 
         updated_block_document = await models.block_documents.read_block_document_by_id(
             session, block_document_id=block_document.id
         )
-        assert updated_block_document.data == dict(x=2)
+        assert updated_block_document.data == new_data
 
     async def test_update_block_document_data_partial(self, session, block_schemas):
         block_document = await models.block_documents.create_block_document(

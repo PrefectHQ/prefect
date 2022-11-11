@@ -423,9 +423,9 @@ async def update_block_document(
     block_document_id: UUID,
     block_document: schemas.actions.BlockDocumentUpdate,
     db: OrionDBInterface,
-    merge_existing_data: bool = True,
 ) -> bool:
 
+    merge_existing_data = block_document.merge_existing_data
     current_block_document = await session.get(db.BlockDocument, block_document_id)
     if not current_block_document:
         return False
