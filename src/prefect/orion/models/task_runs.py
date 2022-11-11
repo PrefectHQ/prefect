@@ -311,7 +311,9 @@ async def set_task_run_state(
             )
 
         for rule in global_rules:
-            context = await stack.enter_async_context(rule(context))
+            context = await stack.enter_async_context(
+                rule(context, *intended_transition)
+            )
 
         await context.validate_proposed_state()
 
