@@ -46,6 +46,21 @@ def test_start_agent_with_work_queue_and_tags():
     )
 
 
+def test_start_agent_with_prefetch_seconds():
+    invoke_and_assert(
+        command=[
+            "agent",
+            "start",
+            "--prefetch-seconds",
+            "30",
+            "-q",
+            "default",
+            "--run-once",
+        ],
+        expected_code=0,
+    )
+
+
 def test_start_agent_with_regex_and_work_queue():
     invoke_and_assert(
         command=["agent", "start", "hello", "-m", "blue"],
