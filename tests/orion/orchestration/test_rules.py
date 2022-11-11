@@ -1084,7 +1084,7 @@ class TestBaseUniversalTransform:
         list(product([*states.StateType, None], [None])),
         ids=transition_names,
     )
-    async def test_universal_transforms_never_fire_on_nullified_transitions(
+    async def test_universal_transforms_always_fire_on_nullified_transitions(
         self, session, task_run, intended_transition
     ):
         # nullified transitions occur when the proposed state becomes None
@@ -1130,9 +1130,9 @@ class TestBaseUniversalTransform:
             )
             ctx.initial_state = mutated_state
 
-        assert side_effect == 0
-        assert before_hook.call_count == 0
-        assert after_hook.call_count == 0
+        assert side_effect == 2
+        assert before_hook.call_count == 1
+        assert after_hook.call_count == 1
 
     @pytest.mark.parametrize(
         "intended_transition",
