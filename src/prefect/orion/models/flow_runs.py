@@ -11,7 +11,6 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from packaging.version import Version
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
