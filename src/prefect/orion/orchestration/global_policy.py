@@ -246,9 +246,7 @@ class UpdateSubflowParentTask(BaseUniversalTransform):
             )
 
             # set the task's "child flow run id" to be the subflow run id
-            subflow_parent_task_state.state_details.child_flow_run_id = (
-                context.run.id
-            )
+            subflow_parent_task_state.state_details.child_flow_run_id = context.run.id
 
             await models.task_runs.set_task_run_state(
                 session=context.session,

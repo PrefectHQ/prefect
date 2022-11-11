@@ -16,9 +16,10 @@ async def provide_task_policy():
 
     if policy_provider is None:
         from prefect.orion.orchestration.core_policy import CoreTaskPolicy
+
         return CoreTaskPolicy
 
-    return (await policy_provider())
+    return await policy_provider()
 
 
 async def provide_flow_policy():
@@ -26,9 +27,10 @@ async def provide_flow_policy():
 
     if policy_provider is None:
         from prefect.orion.orchestration.core_policy import CoreFlowPolicy
+
         return CoreFlowPolicy
 
-    return (await policy_provider())
+    return await policy_provider()
 
 
 async def provide_task_orchestration_parameters():
@@ -39,7 +41,7 @@ async def provide_task_orchestration_parameters():
     if parameter_provider is None:
         return dict()
 
-    return (await parameter_provider())
+    return await parameter_provider()
 
 
 async def provide_flow_orchestration_parameters():
@@ -50,7 +52,7 @@ async def provide_flow_orchestration_parameters():
     if parameter_provider is None:
         return dict()
 
-    return (await parameter_provider())
+    return await parameter_provider()
 
 
 @contextmanager
