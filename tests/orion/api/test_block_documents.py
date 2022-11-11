@@ -701,7 +701,7 @@ class TestUpdateBlockDocument:
         response = await client.patch(
             f"/block_documents/{block_document.id}",
             json=BlockDocumentUpdate(
-                data=dict(x=None, y=99),
+                data=dict(y=99),
             ).dict(json_compatible=True, exclude_unset=True),
         )
 
