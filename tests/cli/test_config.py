@@ -359,6 +359,8 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
         # windows display duplicates slashes
         if "\\" in value:
             continue
+        if SETTING_VARIABLES[key].is_secret:
+            continue
         assert (
             repr(str(expected[key])) == value
         ), "Displayed setting does not match set value."
@@ -369,7 +371,9 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
 
 
 def test_view_includes_unset_settings_with_show_defaults():
-    expected_settings = prefect.settings.get_current_settings().dict()
+    expected_settings = (
+        prefect.settings.get_current_settings().with_obfuscated_secrets().dict()
+    )
 
     res = invoke_and_assert(["config", "view", "--show-defaults", "--hide-sources"])
 
@@ -477,3 +481,64 @@ def test_view_with_hide_sources_excludes_sources(monkeypatch, command):
     if "--show-defaults" in command:
         # Check that defaults are included correctly by checking an unset setting
         assert f"PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS='60.0'" in lines
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["config", "view"],  # --hide-secrets is default behavior
+        ["config", "view", "--hide-secrets"],
+        ["config", "view", "--show-defaults"],
+    ],
+)
+def test_view_obfuscates_secrets(monkeypatch, command):
+    monkeypatch.setenv("PREFECT_ORION_DATABASE_CONNECTION_URL", "secret-connection-url")
+
+    with prefect.context.use_profile(
+        prefect.settings.Profile(
+            name="foo",
+            settings={PREFECT_API_KEY: "secret-api-key"},
+        ),
+        include_current_context=False,
+    ):
+        res = invoke_and_assert(command)
+
+    lines = res.stdout.splitlines()
+    assert f"PREFECT_ORION_DATABASE_CONNECTION_URL='********' {FROM_ENV}" in lines
+    assert f"PREFECT_API_KEY='********' {FROM_PROFILE}" in lines
+
+    if "--show-defaults" in command:
+        assert f"PREFECT_ORION_DATABASE_PASSWORD='********' {FROM_DEFAULT}" in lines
+
+    assert "secret-" not in res.stdout
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["config", "view", "--show-secrets"],
+        ["config", "view", "--show-secrets", "--show-defaults"],
+    ],
+)
+def test_view_shows_secrets(monkeypatch, command):
+    monkeypatch.setenv("PREFECT_ORION_DATABASE_CONNECTION_URL", "secret-connection-url")
+
+    with prefect.context.use_profile(
+        prefect.settings.Profile(
+            name="foo",
+            settings={PREFECT_API_KEY: "secret-api-key"},
+        ),
+        include_current_context=False,
+    ):
+        res = invoke_and_assert(command)
+
+    lines = res.stdout.splitlines()
+
+    assert (
+        f"PREFECT_ORION_DATABASE_CONNECTION_URL='secret-connection-url' {FROM_ENV}"
+        in lines
+    )
+    assert f"PREFECT_API_KEY='secret-api-key' {FROM_PROFILE}" in lines
+
+    if "--show-defaults" in command:
+        assert f"PREFECT_ORION_DATABASE_PASSWORD='None' {FROM_DEFAULT}" in lines
