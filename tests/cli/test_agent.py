@@ -1,4 +1,8 @@
+from unittest.mock import ANY, MagicMock
+
+import prefect.cli.agent
 from prefect import OrionClient
+from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
@@ -46,7 +50,9 @@ def test_start_agent_with_work_queue_and_tags():
     )
 
 
-def test_start_agent_with_prefetch_seconds():
+def test_start_agent_with_prefetch_seconds(monkeypatch):
+    mock_agent = MagicMock()
+    monkeypatch.setattr(prefect.cli.agent, "OrionAgent", mock_agent)
     invoke_and_assert(
         command=[
             "agent",
@@ -54,14 +60,64 @@ def test_start_agent_with_prefetch_seconds():
             "--prefetch-seconds",
             "30",
             "-q",
-            "default",
+            "test",
             "--run-once",
         ],
         expected_code=0,
     )
+    mock_agent.assert_called_once_with(
+        work_queues=["test"], work_queue_prefix=ANY, prefetch_seconds=30
+    )
 
 
-def test_start_agent_with_regex_and_work_queue():
+def test_start_agent_with_prefetch_seconds_from_setting_by_default(monkeypatch):
+    mock_agent = MagicMock()
+    monkeypatch.setattr(prefect.cli.agent, "OrionAgent", mock_agent)
+    with temporary_settings({PREFECT_AGENT_PREFETCH_SECONDS: 100}):
+        invoke_and_assert(
+            command=[
+                "agent",
+                "start",
+                "-q",
+                "test",
+                "--run-once",
+            ],
+            expected_code=0,
+        )
+    mock_agent.assert_called_once_with(
+        work_queues=ANY, work_queue_prefix=ANY, prefetch_seconds=100
+    )
+
+
+def test_start_agent_respects_work_queue_names(monkeypatch):
+    mock_agent = MagicMock()
+    monkeypatch.setattr(prefect.cli.agent, "OrionAgent", mock_agent)
+    invoke_and_assert(
+        command=["agent", "start", "-q", "a", "-q", "b", "--run-once"],
+        expected_code=0,
+    )
+    mock_agent.assert_called_once_with(
+        work_queues=["a", "b"],
+        work_queue_prefix=[],
+        prefetch_seconds=ANY,
+    )
+
+
+def test_start_agent_respects_work_queue_prefixes(monkeypatch):
+    mock_agent = MagicMock()
+    monkeypatch.setattr(prefect.cli.agent, "OrionAgent", mock_agent)
+    invoke_and_assert(
+        command=["agent", "start", "-m", "a", "-m", "b", "--run-once"],
+        expected_code=0,
+    )
+    mock_agent.assert_called_once_with(
+        work_queues=[],
+        work_queue_prefix=["a", "b"],
+        prefetch_seconds=ANY,
+    )
+
+
+def test_start_agent_with_work_queue_match_and_work_queue():
     invoke_and_assert(
         command=["agent", "start", "hello", "-m", "blue"],
         expected_output_contains="Only one of `work_queues`, `match`, or `tags` can be provided.",
