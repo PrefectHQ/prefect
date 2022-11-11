@@ -65,10 +65,11 @@ class SetRunStateType(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
 
         # record the new state's type
-        if not self.nullified_transition():
-            context.run.state_type = context.proposed_state.type
+        context.run.state_type = context.proposed_state.type
 
 
 class SetRunStateName(BaseUniversalTransform):
@@ -77,10 +78,11 @@ class SetRunStateName(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
 
         # record the new state's name
-        if not self.nullified_transition():
-            context.run.state_name = context.proposed_state.name
+        context.run.state_name = context.proposed_state.name
 
 
 class SetStartTime(BaseUniversalTransform):
@@ -89,11 +91,13 @@ class SetStartTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
         # if entering a running state and no start time is set...
-        if not self.nullified_transition():
-            if context.proposed_state.is_running() and context.run.start_time is None:
-                # set the start time
-                context.run.start_time = context.proposed_state.timestamp
+        if context.proposed_state.is_running() and context.run.start_time is None:
+            # set the start time
+            context.run.start_time = context.proposed_state.timestamp
 
 
 class SetRunStateTimestamp(BaseUniversalTransform):
@@ -102,9 +106,11 @@ class SetRunStateTimestamp(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
         # record the new state's timestamp
-        if not self.nullified_transition():
-            context.run.state_timestamp = context.proposed_state.timestamp
+        context.run.state_timestamp = context.proposed_state.timestamp
 
 
 class SetEndTime(BaseUniversalTransform):
@@ -117,21 +123,23 @@ class SetEndTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
-        if not self.nullified_transition():
-            # if exiting a final state for a non-final state...
-            if (
-                context.initial_state
-                and context.initial_state.is_final()
-                and not context.proposed_state.is_final()
-            ):
-                # clear the end time
-                context.run.end_time = None
+        if self.nullified_transition():
+            return
 
-            # if entering a final state...
-            if context.proposed_state.is_final():
-                # if the run has a start time and no end time, give it one
-                if context.run.start_time and not context.run.end_time:
-                    context.run.end_time = context.proposed_state.timestamp
+        # if exiting a final state for a non-final state...
+        if (
+            context.initial_state
+            and context.initial_state.is_final()
+            and not context.proposed_state.is_final()
+        ):
+            # clear the end time
+            context.run.end_time = None
+
+        # if entering a final state...
+        if context.proposed_state.is_final():
+            # if the run has a start time and no end time, give it one
+            if context.run.start_time and not context.run.end_time:
+                context.run.end_time = context.proposed_state.timestamp
 
 
 class IncrementRunTime(BaseUniversalTransform):
@@ -140,13 +148,15 @@ class IncrementRunTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
-        if not self.nullified_transition():
-            # if exiting a running state...
-            if context.initial_state and context.initial_state.is_running():
-                # increment the run time by the time spent in the previous state
-                context.run.total_run_time += (
-                    context.proposed_state.timestamp - context.initial_state.timestamp
-                )
+        if self.nullified_transition():
+            return
+
+        # if exiting a running state...
+        if context.initial_state and context.initial_state.is_running():
+            # increment the run time by the time spent in the previous state
+            context.run.total_run_time += (
+                context.proposed_state.timestamp - context.initial_state.timestamp
+            )
 
 
 class IncrementRunCount(BaseUniversalTransform):
@@ -155,11 +165,13 @@ class IncrementRunCount(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
-        if not self.nullified_transition():
-            # if entering a running state...
-            if context.proposed_state.is_running():
-                # increment the run count
-                context.run.run_count += 1
+        if self.nullified_transition():
+            return
+
+        # if entering a running state...
+        if context.proposed_state.is_running():
+            # increment the run count
+            context.run.run_count += 1
 
 
 class SetExpectedStartTime(BaseUniversalTransform):
@@ -171,15 +183,17 @@ class SetExpectedStartTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
-        if not self.nullified_transition():
-            # set expected start time if this is the first state
-            if not context.run.expected_start_time:
-                if context.proposed_state.is_scheduled():
-                    context.run.expected_start_time = (
-                        context.proposed_state.state_details.scheduled_time
-                    )
-                else:
-                    context.run.expected_start_time = context.proposed_state.timestamp
+        if self.nullified_transition():
+            return
+
+        # set expected start time if this is the first state
+        if not context.run.expected_start_time:
+            if context.proposed_state.is_scheduled():
+                context.run.expected_start_time = (
+                    context.proposed_state.state_details.scheduled_time
+                )
+            else:
+                context.run.expected_start_time = context.proposed_state.timestamp
 
 
 class SetNextScheduledStartTime(BaseUniversalTransform):
@@ -192,16 +206,18 @@ class SetNextScheduledStartTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
-        if not self.nullified_transition():
-            # remove the next scheduled start time if exiting a scheduled state
-            if context.initial_state and context.initial_state.is_scheduled():
-                context.run.next_scheduled_start_time = None
+        if self.nullified_transition():
+            return
 
-            # set next scheduled start time if entering a scheduled state
-            if context.proposed_state.is_scheduled():
-                context.run.next_scheduled_start_time = (
-                    context.proposed_state.state_details.scheduled_time
-                )
+        # remove the next scheduled start time if exiting a scheduled state
+        if context.initial_state and context.initial_state.is_scheduled():
+            context.run.next_scheduled_start_time = None
+
+        # set next scheduled start time if entering a scheduled state
+        if context.proposed_state.is_scheduled():
+            context.run.next_scheduled_start_time = (
+                context.proposed_state.state_details.scheduled_time
+            )
 
 
 class UpdateSubflowParentTask(BaseUniversalTransform):
@@ -210,34 +226,36 @@ class UpdateSubflowParentTask(BaseUniversalTransform):
     """
 
     async def after_transition(self, context: OrchestrationContext) -> None:
-        if not self.nullified_transition():
-            # only applies to flow runs with a parent task run id
-            if context.run.parent_task_run_id is not None:
+        if self.nullified_transition():
+            return
 
-                # avoid mutation of the flow run state
-                subflow_parent_task_state = context.validated_state.copy(
-                    reset_fields=True,
-                    include={
-                        "type",
-                        "timestamp",
-                        "name",
-                        "message",
-                        "state_details",
-                        "data",
-                    },
-                )
+        # only applies to flow runs with a parent task run id
+        if context.run.parent_task_run_id is not None:
 
-                # set the task's "child flow run id" to be the subflow run id
-                subflow_parent_task_state.state_details.child_flow_run_id = (
-                    context.run.id
-                )
+            # avoid mutation of the flow run state
+            subflow_parent_task_state = context.validated_state.copy(
+                reset_fields=True,
+                include={
+                    "type",
+                    "timestamp",
+                    "name",
+                    "message",
+                    "state_details",
+                    "data",
+                },
+            )
 
-                await models.task_runs.set_task_run_state(
-                    session=context.session,
-                    task_run_id=context.run.parent_task_run_id,
-                    state=subflow_parent_task_state,
-                    force=True,
-                )
+            # set the task's "child flow run id" to be the subflow run id
+            subflow_parent_task_state.state_details.child_flow_run_id = (
+                context.run.id
+            )
+
+            await models.task_runs.set_task_run_state(
+                session=context.session,
+                task_run_id=context.run.parent_task_run_id,
+                state=subflow_parent_task_state,
+                force=True,
+            )
 
 
 class UpdateSubflowStateDetails(BaseUniversalTransform):
@@ -247,12 +265,14 @@ class UpdateSubflowStateDetails(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
-        if not self.nullified_transition():
-            # only applies to flow runs with a parent task run id
-            if context.run.parent_task_run_id is not None:
-                context.proposed_state.state_details.task_run_id = (
-                    context.run.parent_task_run_id
-                )
+        if self.nullified_transition():
+            return
+
+        # only applies to flow runs with a parent task run id
+        if context.run.parent_task_run_id is not None:
+            context.proposed_state.state_details.task_run_id = (
+                context.run.parent_task_run_id
+            )
 
 
 class UpdateStateDetails(BaseUniversalTransform):
@@ -264,12 +284,14 @@ class UpdateStateDetails(BaseUniversalTransform):
         self,
         context: OrchestrationContext,
     ) -> None:
-        if not self.nullified_transition():
-            if isinstance(context, FlowOrchestrationContext):
-                flow_run = await context.flow_run()
-                context.proposed_state.state_details.flow_run_id = flow_run.id
+        if self.nullified_transition():
+            return
 
-            elif isinstance(context, TaskOrchestrationContext):
-                task_run = await context.task_run()
-                context.proposed_state.state_details.flow_run_id = task_run.flow_run_id
-                context.proposed_state.state_details.task_run_id = task_run.id
+        if isinstance(context, FlowOrchestrationContext):
+            flow_run = await context.flow_run()
+            context.proposed_state.state_details.flow_run_id = flow_run.id
+
+        elif isinstance(context, TaskOrchestrationContext):
+            task_run = await context.task_run()
+            context.proposed_state.state_details.flow_run_id = task_run.flow_run_id
+            context.proposed_state.state_details.task_run_id = task_run.id
