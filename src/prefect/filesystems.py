@@ -138,14 +138,18 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         copytree(from_path, local_path, dirs_exist_ok=True)
 
-    async def _get_ignore_func(self, ignore_file: str):
+    async def _get_ignore_func(self, local_path: str, ignore_file: str):
         with open(ignore_file, "r") as f:
             ignore_patterns = f.readlines()
+        included_files = filter_files(root=local_path, ignore_patterns=ignore_patterns)
 
         def ignore_func(directory, files):
-            included_files = filter_files(directory, ignore_patterns)
-            return_val = [f for f in files if f not in included_files]
-            return return_val
+            relative_path = Path(directory).relative_to(local_path)
+
+            files_to_ignore = [
+                f for f in files if str(relative_path / f) not in included_files
+            ]
+            return files_to_ignore
 
         return ignore_func
 
@@ -167,7 +171,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             local_path = Path(".").absolute()
 
         if ignore_file:
-            ignore_func = await self._get_ignore_func(ignore_file)
+            ignore_func = await self._get_ignore_func(
+                local_path=local_path, ignore_file=ignore_file
+            )
         else:
             ignore_func = None
 
