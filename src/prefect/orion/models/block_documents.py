@@ -18,8 +18,8 @@ from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
 from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
 from prefect.orion.schemas.filters import BlockSchemaFilter
 from prefect.orion.utilities.database import UUID as UUIDTypeDecorator
+from prefect.orion.utilities.names import obfuscate_string
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
-from prefect.utilities.names import obfuscate_string
 
 
 @inject_db
@@ -430,7 +430,11 @@ async def update_block_document(
     if not current_block_document:
         return False
 
-    update_values = block_document.dict(shallow=True, exclude_unset=merge_existing_data)
+    update_values = block_document.dict(
+        shallow=True,
+        exclude_unset=merge_existing_data,
+        exclude={"merge_existing_data"},
+    )
 
     if "data" in update_values and update_values["data"] is not None:
         current_data = await current_block_document.decrypt_data(session=session)
