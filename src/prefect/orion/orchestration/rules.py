@@ -892,9 +892,8 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         `self.before_transition` will fire.
         """
 
-        if not self.nullified_transition():
-            await self.before_transition(self.context)
-            self.context.rule_signature.append(str(self.__class__))
+        await self.before_transition(self.context)
+        self.context.rule_signature.append(str(self.__class__))
         return self.context
 
     async def __aexit__(
@@ -911,7 +910,7 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         proposed state.
         """
 
-        if not self.nullified_transition() and not self.exception_in_transition():
+        if not self.exception_in_transition():
             await self.after_transition(self.context)
             self.context.finalization_signature.append(str(self.__class__))
 
