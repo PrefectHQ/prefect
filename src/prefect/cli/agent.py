@@ -56,6 +56,9 @@ async def start(
     ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     api: str = SettingsOption(PREFECT_API_URL),
+    run_once: bool = typer.Option(
+        False, help="Run the agent loop once, instead of forever."
+    ),
     # deprecated tags
     tags: List[str] = typer.Option(
         None,
@@ -145,6 +148,7 @@ async def start(
             agent.get_and_submit_flow_runs,
             PREFECT_AGENT_QUERY_INTERVAL.value(),
             printer=app.console.print,
+            run_once=run_once,
         )
 
     app.console.print("Agent stopped!")

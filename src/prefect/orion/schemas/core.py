@@ -12,9 +12,9 @@ from typing_extensions import Literal
 import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
-from prefect.orion.utilities.names import generate_slug, obfuscate_string
 from prefect.orion.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
+from prefect.utilities.names import generate_slug, obfuscate_string
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
