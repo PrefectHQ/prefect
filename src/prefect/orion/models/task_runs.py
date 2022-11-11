@@ -24,7 +24,10 @@ from prefect.orion.schemas.responses import OrchestrationResult
 
 @inject_db
 async def create_task_run(
-    session: sa.orm.Session, task_run: schemas.core.TaskRun, db: OrionDBInterface
+    session: sa.orm.Session,
+    task_run: schemas.core.TaskRun,
+    db: OrionDBInterface,
+    orchestration_parameters: dict = None,
 ):
     """
     Creates a new task run.
@@ -79,6 +82,7 @@ async def create_task_run(
             task_run_id=model.id,
             state=task_run.state,
             force=True,
+            orchestration_parameters=orchestration_parameters,
         )
     return model
 
@@ -257,6 +261,7 @@ async def set_task_run_state(
     state: schemas.states.State,
     force: bool = False,
     task_policy: BaseOrchestrationPolicy = None,
+    orchestration_parameters: dict = None,
 ) -> OrchestrationResult:
     """
     Creates a new orchestrated task run state.
@@ -302,6 +307,9 @@ async def set_task_run_state(
         initial_state=initial_state,
         proposed_state=state,
     )
+
+    if orchestration_parameters is not None:
+        context.parameters = orchestration_parameters
 
     # apply orchestration rules and create the new task run state
     async with contextlib.AsyncExitStack() as stack:

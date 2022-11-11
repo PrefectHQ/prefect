@@ -1016,7 +1016,9 @@ class TestBaseUniversalTransform:
             proposed_state=proposed_state,
         )
 
-        xform_as_context_manager = IllustrativeUniversalTransform(ctx, *intended_transition)
+        xform_as_context_manager = IllustrativeUniversalTransform(
+            ctx, *intended_transition
+        )
         context_call = MagicMock()
 
         async with xform_as_context_manager as ctx:
