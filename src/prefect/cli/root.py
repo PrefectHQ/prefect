@@ -16,7 +16,11 @@ import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import with_cli_exception_handling
 from prefect.logging.configuration import setup_logging
-from prefect.settings import PREFECT_CLI_COLORS, PREFECT_CLI_WRAP_LINES
+from prefect.settings import (
+    PREFECT_CLI_COLORS,
+    PREFECT_CLI_WRAP_LINES,
+    PREFECT_TEST_MODE,
+)
 
 app = PrefectTyper(add_completion=False, no_args_is_help=True)
 
@@ -70,7 +74,11 @@ def main(
         soft_wrap=not PREFECT_CLI_WRAP_LINES.value(),
     )
 
-    setup_logging()
+    if not PREFECT_TEST_MODE:
+        # When testing, this entrypoint can be called multiple times per process which
+        # can cause logging configuration conflicts. Logging is set up in conftest
+        # during tests.
+        setup_logging()
 
 
 @app.command()
