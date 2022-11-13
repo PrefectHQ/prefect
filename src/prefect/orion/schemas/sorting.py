@@ -5,6 +5,7 @@ Schemas for sorting Orion API objects.
 from typing import TYPE_CHECKING
 
 from sqlalchemy.sql.expression import ColumnElement
+from sqlalchemy.sql.functions import coalesce
 
 from prefect.utilities.collections import AutoEnum
 
@@ -20,6 +21,8 @@ class FlowRunSort(AutoEnum):
     """Defines flow run sorting options."""
 
     ID_DESC = AutoEnum.auto()
+    START_TIME_ASC = AutoEnum.auto()
+    START_TIME_DESC = AutoEnum.auto()
     EXPECTED_START_TIME_ASC = AutoEnum.auto()
     EXPECTED_START_TIME_DESC = AutoEnum.auto()
     NAME_ASC = AutoEnum.auto()
@@ -31,6 +34,12 @@ class FlowRunSort(AutoEnum):
         """Return an expression used to sort flow runs"""
         sort_mapping = {
             "ID_DESC": db.FlowRun.id.desc(),
+            "START_TIME_ASC": coalesce(
+                db.FlowRun.start_time, db.FlowRun.expected_start_time
+            ).asc(),
+            "START_TIME_DESC": coalesce(
+                db.FlowRun.start_time, db.FlowRun.expected_start_time
+            ).desc(),
             "EXPECTED_START_TIME_ASC": db.FlowRun.expected_start_time.asc(),
             "EXPECTED_START_TIME_DESC": db.FlowRun.expected_start_time.desc(),
             "NAME_ASC": db.FlowRun.name.asc(),
