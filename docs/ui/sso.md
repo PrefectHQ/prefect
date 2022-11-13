@@ -43,3 +43,11 @@ Using the provided link navigate to the Identity Provider Configuration dashboar
 ![Opening the Identity Provider Configuration dashboard.](/img/ui/cloud-sso-dashboard.png)
 
 Once you complete SSO configuration your users will be required to authenticate via your identity provider when accessing organization resources, giving you full control over application access.
+
+## Directory sync
+
+**Directory sync** automatically provisions and de-provisions users for your organization. 
+
+Provisioned users are given basic “Member” roles and will have access to any resources that role entails. 
+
+When a user is unassigned from the Prefect Cloud application in your identity provider, they will automatically lose access to Prefect Cloud resources, allowing your IT team to control access to Prefect Cloud without ever signing into the app. 

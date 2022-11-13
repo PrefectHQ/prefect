@@ -15,8 +15,12 @@ router = OrionRouter(prefix="/admin", tags=["Admin"])
 
 @router.get("/settings")
 async def read_settings() -> prefect.settings.Settings:
-    """Get the current Orion settings"""
-    return prefect.settings.get_current_settings()
+    """
+    Get the current Orion settings.
+
+    Secret setting values will be obfuscated.
+    """
+    return prefect.settings.get_current_settings().with_obfuscated_secrets()
 
 
 @router.get("/version")

@@ -16,6 +16,7 @@ async def critical_service_loop(
     memory: int = 10,
     consecutive: int = 3,
     printer: Callable[..., None] = print,
+    run_once: bool = False,
 ):
     """
     Runs the given `workload` function on the specified `interval`, while being
@@ -24,11 +25,12 @@ async def critical_service_loop(
     exceptions to `printer`, then exit.
 
     Args:
-        `workload`: the function to call
-        `interval`: how frequently to call it
-        `memory`: how many recent errors to remember
-        `consecutive`: how many consecutive errors must we see before we exit
-        `printer`: a `print`-like function where errors will be reported
+        workload: the function to call
+        interval: how frequently to call it
+        memory: how many recent errors to remember
+        consecutive: how many consecutive errors must we see before we exit
+        printer: a `print`-like function where errors will be reported
+        run_once: if set, the loop will only run once then return
     """
 
     track_record: Deque[bool] = deque([True] * consecutive, maxlen=consecutive)
@@ -95,6 +97,9 @@ async def critical_service_loop(
             for exception, traceback in failures_by_type:
                 printer("".join(format_exception(None, exception, traceback)))
                 printer()
+            return
+
+        if run_once:
             return
 
         await anyio.sleep(interval)
