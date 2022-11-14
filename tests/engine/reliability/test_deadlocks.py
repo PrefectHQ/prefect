@@ -5,17 +5,17 @@ import pytest
 from prefect import flow, task
 
 
-@task
+@task(name=f"{__name__}-add_one")
 def add_one(x: int) -> int:
     return x + 1
 
 
-@task
+@task(name=f"{__name__}-subtract_ten")
 def subtract_ten(x: int) -> int:
     return x - 10
 
 
-@task
+@task(name=f"{__name__}-sleep")
 def sleep(x: float):
     time.sleep(x)
 
