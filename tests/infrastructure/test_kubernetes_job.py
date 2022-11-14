@@ -299,6 +299,17 @@ async def test_allows_unsetting_environment_variables(
         ),
         ("/a-name-that-starts-with-slash", "a-name-that-starts-with-slash"),
         ("a-prefix/and-a-name/-with-a-slash", "a-prefix/and-a-name-with-a-slash"),
+        ("_a-name-that-starts-with-underscore", "a-name-that-starts-with-underscore"),
+        ("-a-name-that-starts-with-dash", "a-name-that-starts-with-dash"),
+        (".a-name-that-starts-with-period", "a-name-that-starts-with-period"),
+        ("a-name-that-ends-with-underscore_", "a-name-that-ends-with-underscore"),
+        ("a-name-that-ends-with-dash-", "a-name-that-ends-with-dash"),
+        ("a-name-that-ends-with-period.", "a-name-that-ends-with-period"),
+        (
+            "._.-a-name-with-trailing-leading-chars-__-.",
+            "a-name-with-trailing-leading-chars",
+        ),
+        ("a-prefix/and-a-name/-with-a-slash", "a-prefix/and-a-name-with-a-slash"),
         # Truncation of the prefix
         ("a" * 300 + "/and-a-name", "a" * 253 + "/and-a-name"),
         # Truncation of the name
@@ -337,6 +348,16 @@ def test_sanitizes_user_label_keys(
         (
             "text-with-invalid$@*^$@-characters",
             "text-with-invalid-characters",
+        ),
+        ("_value-that-starts-with-underscore", "value-that-starts-with-underscore"),
+        ("-value-that-starts-with-dash", "value-that-starts-with-dash"),
+        (".value-that-starts-with-period", "value-that-starts-with-period"),
+        ("value-that-ends-with-underscore_", "value-that-ends-with-underscore"),
+        ("value-that-ends-with-dash-", "value-that-ends-with-dash"),
+        ("value-that-ends-with-period.", "value-that-ends-with-period"),
+        (
+            "._.-value-with-trailing-leading-chars-__-.",
+            "value-with-trailing-leading-chars",
         ),
         # Truncation
         ("a" * 100, "a" * 63),
