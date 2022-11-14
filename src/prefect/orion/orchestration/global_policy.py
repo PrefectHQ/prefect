@@ -65,6 +65,8 @@ class SetRunStateType(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
 
         # record the new state's type
         context.run.state_type = context.proposed_state.type
@@ -76,6 +78,8 @@ class SetRunStateName(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
 
         # record the new state's name
         context.run.state_name = context.proposed_state.name
@@ -87,6 +91,9 @@ class SetStartTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
         # if entering a running state and no start time is set...
         if context.proposed_state.is_running() and context.run.start_time is None:
             # set the start time
@@ -99,6 +106,9 @@ class SetRunStateTimestamp(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
         # record the new state's timestamp
         context.run.state_timestamp = context.proposed_state.timestamp
 
@@ -113,6 +123,9 @@ class SetEndTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
         # if exiting a final state for a non-final state...
         if (
             context.initial_state
@@ -135,6 +148,9 @@ class IncrementRunTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
         # if exiting a running state...
         if context.initial_state and context.initial_state.is_running():
             # increment the run time by the time spent in the previous state
@@ -149,6 +165,9 @@ class IncrementRunCount(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
         # if entering a running state...
         if context.proposed_state.is_running():
             # increment the run count
@@ -164,6 +183,8 @@ class SetExpectedStartTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
 
         # set expected start time if this is the first state
         if not context.run.expected_start_time:
@@ -185,6 +206,8 @@ class SetNextScheduledStartTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
 
         # remove the next scheduled start time if exiting a scheduled state
         if context.initial_state and context.initial_state.is_scheduled():
@@ -203,6 +226,8 @@ class UpdateSubflowParentTask(BaseUniversalTransform):
     """
 
     async def after_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
 
         # only applies to flow runs with a parent task run id
         if context.run.parent_task_run_id is not None:
@@ -238,6 +263,8 @@ class UpdateSubflowStateDetails(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
 
         # only applies to flow runs with a parent task run id
         if context.run.parent_task_run_id is not None:
@@ -255,6 +282,8 @@ class UpdateStateDetails(BaseUniversalTransform):
         self,
         context: OrchestrationContext,
     ) -> None:
+        if self.nullified_transition():
+            return
 
         if isinstance(context, FlowOrchestrationContext):
             flow_run = await context.flow_run()
