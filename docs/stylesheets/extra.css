@@ -95,6 +95,7 @@ to force column width */
 .collection-item img {
     max-height: 100px; 
     max-width: 100px;
+    filter: drop-shadow(1px 1px 12px rgba(0, 0, 0, 0.15));
 }
 
 .recipe-grid {
@@ -221,6 +222,12 @@ to force column width */
 /* dark mode collection catalog overrides */
 [data-md-color-scheme="slate"] .collection-item {
     background-color: #3b3d54;
+}
+
+[data-md-color-scheme="slate"] .collection-item img {
+    max-height: 100px; 
+    max-width: 100px;
+    filter: drop-shadow(1px 1px 8px rgba(172, 182, 255, 0.35));
 }
 
 /* dark mode recipe collection overrides */
