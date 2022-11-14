@@ -24,19 +24,19 @@ import prefect.settings
 from prefect.cli import app
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.client.cloud import CloudUnauthorizedError, get_cloud_client
 from prefect.client.schemas import Workspace
 from prefect.context import get_settings_context
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
-    PREFECT_CLOUD_API_URL,
-    PREFECT_UI_URL,
+    PREFECT_CLOUD_UI_URL,
     load_profiles,
     save_profiles,
     update_current_profile,
 )
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 # Set up the `prefect cloud` and `prefect cloud workspaces` CLI applications
 cloud_app = PrefectTyper(
@@ -47,7 +47,6 @@ workspace_app = PrefectTyper(
 )
 cloud_app.add_typer(workspace_app, aliases=["workspaces"])
 app.add_typer(cloud_app)
-
 
 # Set up a little API server for browser based `prefect cloud login`
 
@@ -215,7 +214,7 @@ async def login_with_browser() -> str:
     """
     # TODO: Search for a valid port
     target = urllib.parse.quote("http://localhost:3001")
-    ui_login_url = PREFECT_UI_URL.value() + f"/auth/client?callback={target}"
+    ui_login_url = PREFECT_CLOUD_UI_URL.value() + f"/auth/client?callback={target}"
 
     # Set up an event that the login API will toggle on startup
     ready_event = login_api.extra["ready-event"] = anyio.Event()
@@ -230,15 +229,15 @@ async def login_with_browser() -> str:
         tg.start_soon(serve_login_api, tg.cancel_scope)
 
         # Wait for the login server to be ready
-        async with anyio.fail_after(10):
+        with anyio.fail_after(10):
             await ready_event.wait()
 
         # Then open the authorization page in a new browser tab
         app.console.print("Opening browser...")
-        webbrowser.open_new_tab(ui_login_url)
+        await run_sync_in_worker_thread(webbrowser.open_new_tab, ui_login_url)
 
         # Wait for the response from the browser,
-        async with anyio.move_on_after(120) as timeout_scope:
+        with anyio.move_on_after(120) as timeout_scope:
             app.console.print("Waiting for response...")
             await result_event.wait()
 
@@ -288,7 +287,7 @@ async def login(
     Creates a new profile configured to use the specified PREFECT_API_KEY.
     Uses a previously configured profile if it exists.
     """
-    if not app.console.is_interactive and (not key or not workspace_handle):
+    if not is_interactive() and (not key or not workspace_handle):
         exit_with_error(
             "When not using an interactive terminal, you must supply a `--key` and `--workspace`."
         )

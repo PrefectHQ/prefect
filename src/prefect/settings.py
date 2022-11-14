@@ -1339,6 +1339,24 @@ def load_profiles() -> ProfilesCollection:
     return profiles
 
 
+def load_current_profile():
+    """
+    Load the current profile from the default and current profile paths.
+
+    This will _not_ include settings from the current settings context. Only settings
+    that have been persisted to the profiles file will be saved.
+    """
+    from prefect.context import SettingsContext
+
+    profiles = load_profiles()
+    context = SettingsContext.get()
+
+    if context:
+        profiles.set_active(context.profile.name)
+
+    return profiles.active_profile
+
+
 def save_profiles(profiles: ProfilesCollection) -> None:
     """
     Writes all non-default profiles to the current profiles path.
