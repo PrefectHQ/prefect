@@ -2,7 +2,6 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from typing import Iterable
 
 import readchar
 import typer
@@ -36,78 +35,203 @@ AVAILABLE_PROVIDERS = [
 ]
 
 
+class TableWindow:
+    def __init__(self, header_offset=5):
+        total_terminal_rows = os.get_terminal_size()[1]
+
+        self.header_offset = header_offset
+        self.size = total_terminal_rows - self.header_offset
+        self.additional_rows = self.size - 1
+        self.top = 0
+        self.bottom = self.additional_rows
+
+    def update_size(self):
+        total_terminal_rows = os.get_terminal_size()[1]
+        self.size = total_terminal_rows - self.header_offset
+
+    def reset(self):
+        self.bottom = None
+        self.top = 0
+
+    def page_up(self):
+        self.bottom = self.top + 1
+        self.top = max(0, self.top - self.additional_rows)
+
+    def page_down(self):
+        self.top = self.bottom - 1
+        self.bottom = self.top + self.additional_rows
+
+    def render(self, elements):
+        pass
+
+
 class CliTable:
-    window = []
-    window_size = 0
-    window_top = 0
-    window_bottom = None
-    key_press = None
-    idx = 0
+    def __init__(self, elements, title):
+        self.elements: dict = {el: i for i, el in enumerate(elements)}
+        self.title = title
+        self.active_elements: list = elements
+        self.window = TableWindow()
+        self.key_press = None
+        self.idx = 0
+        self.selected_element = None
+        self.search_chars = ""
+
+    def _refine_search(self):
+        self.active_elements = [
+            el for el in self.active_elements if self.search_chars in el.lower()
+        ]
+
+    def _search_all_elements(self):
+        all_elements = list(self.elements.keys())
+        self.active_elements = [
+            el for el in all_elements if self.search_chars in el.lower()
+        ]
+
+    def _reset(self):
+        self.idx = 0
+        self.window.reset()
+
+    def _process_up_key(self):
+        # start of the list
+        if self.idx <= 0:
+            return
+
+        # page up if at beginning of page
+        elif self.idx < self.window.top + 1:
+            self.window.page_up()
+
+        else:
+            self.idx -= 1
+
+    def _process_down_key(self):
+        # end of the list
+        if self.idx >= len(self.active_elements) - 1:
+            return
+
+        # page down if at the end of the window
+        elif self.idx >= self.window.bottom - 1:
+            self.window.page_down()
+
+        else:
+            self.idx += 1
+
+    def _process_ctrl_c(self):
+        # gracefully exit with no message
+        exit_with_error("")
+
+    def _process_enter_key(self):
+        self.selected_element = self.active_elements[self.idx]
+
+    def _process_backspace_key(self):
+        self.search_chars = self.search_chars[:-1]
+        self._reset()
+        self._search_all_elements()
+
+    def _process_allowed_character_key(self, key):
+        self.search_chars += key.lower()
+        self._reset()
+        self._refine_search()
+
+    def process_keypress(self, key):
+        self.key_press = key
+
+        if key.isalnum() or key in ["/", "\\", ".", "-"]:
+            self._process_allowed_character_key(key)
+
+        elif key == readchar.key.BACKSPACE:
+            self._process_backspace_key()
+
+        elif key == readchar.key.UP:
+            self._process_up_key()
+
+        elif key == readchar.key.DOWN:
+            self._process_down_key()
+
+        elif key == readchar.key.CTRL_C:
+            self._process_ctrl_c()
+
+        elif key == readchar.key.ENTER:
+            self._process_enter_key()
+
+    def get_table_position_and_rows(self):
+        start = max(0, self.window.top)
+        end = min(self.window.bottom, len(self.elements))
+
+        items = [
+            (i + self.window.top, row)
+            for i, row in enumerate(self.active_elements[start:end])
+        ]
+        # print(f"start: {start}, end: {end}, idx: {self.idx}, wdwsz: {self.window.size}, btm: {self.window.bottom} top: {self.window.top} ae: {len(self.active_elements)}")
+        # print(items)
+        return items
+
+    def render_table(self):
+        """
+        Generate a table of providers. The `select_idx` of workspaces will be highlighted.
+
+        Args:
+            selected_idx: currently selected index
+            workspaces: Iterable of strings
+
+        Returns:
+            rich.table.Table
+        """
+        self.window.update_size()
+
+        layout = Layout()
+        table = Table()
+        table.add_column(
+            header=f"[#024dfd]{self.title}",
+            justify="right",
+            style="#8ea0ae",
+            no_wrap=True,
+        )
+
+        table.add_row(f"[green]Search: '{self.search_chars}'[/green]")
+
+        for position, row in self.get_table_position_and_rows():
+            if position == self.idx:
+                table.add_row("[#024dfd on #FFFFFF]> " + row)
+            else:
+                table.add_row("  " + row)
+        layout.update(table)
+        return table
 
 
-def build_table(
-    rows: Iterable[str],
-    search_chars,
-    console,
-    cli_table: CliTable,
-) -> Table:
+def select_provider() -> str:
     """
-    Generate a table of providers. The `select_idx` of workspaces will be highlighted.
+    Given a list of workspaces, display them to user in a Table
+    and allow them to select one.
 
     Args:
-        selected_idx: currently selected index
-        workspaces: Iterable of strings
+        workspaces: List of workspaces to choose from
 
     Returns:
-        rich.table.Table
+        str: the selected workspace
     """
-    layout = Layout()
-    n_rows = os.get_terminal_size()[1]
-    if n_rows != cli_table.window_size:
-        cli_table.window_size = n_rows - 5
+    providers = sorted(AVAILABLE_PROVIDERS)
 
-    if cli_table.window_bottom is None:
-        cli_table.window_bottom = cli_table.window_size
+    cli_table = CliTable(title="Select a Cloud Provider:", elements=providers)
 
-    # page down
-    if (
-        cli_table.key_press == readchar.key.DOWN
-        and cli_table.idx >= cli_table.window_bottom
-    ):
-        cli_table.window_top = cli_table.window_bottom - 1
-        cli_table.window_bottom = cli_table.window_top + cli_table.window_size - 1
-        cli_table.idx = cli_table.idx - 1
+    with Live(
+        cli_table.render_table(),
+        vertical_overflow="visble",
+        auto_refresh=False,
+    ) as live:
+        while cli_table.selected_element is None:
+            key = readchar.readkey()
+            cli_table.process_keypress(key=key)
 
-    # page up
-    if cli_table.key_press == readchar.key.UP and cli_table.idx < cli_table.window_top:
-        cli_table.window_top = cli_table.window_top - (cli_table.window_size - 1)
-        cli_table.window_bottom = cli_table.window_top + cli_table.window_size
-        cli_table.idx = cli_table.idx + 1
+            live.update(
+                cli_table.render_table(),
+                refresh=True,
+            )
+        return cli_table.selected_element
 
-    # while n_rows >= 0:
-    table = Table()
-    table.add_column(
-        "[#024dfd]Select a Cloud Provider:",
-        justify="right",
-        style="#8ea0ae",
-        no_wrap=True,
-    )
-    table.add_row(f"[green]Search: '{search_chars}'[/green]")
-    # table.add_row(f"idx: {cli_table.idx}, t: {cli_table.window_top}, b: {cli_table.window_bottom}, s: {cli_table.window_size}")
 
-    start = max(0, cli_table.window_top)
-    end = min(cli_table.window_bottom, len(rows))
-    # print(f"start: {start}, end: {end}")
-    for i, row in enumerate(rows[start:end]):
-        position = i + cli_table.window_top
-        # print(f"pos: {position} idx: {cli_table.idx}")
-        if position == cli_table.idx:
-            # print("HIT")
-            table.add_row("[#024dfd on #FFFFFF]> " + row)
-        else:
-            table.add_row("  " + row)
-    layout.update(table)
-    return table
+def authenticate_gcp():
+
+    subprocess.run(["gcloud", "auth", "login"])
 
 
 @app.command()
@@ -191,80 +315,3 @@ async def easy_deploy(path: str):
         app.console.print(
             f"[green]Your deployment prefect-quick-deployment/{name} is now being created![/green]"
         )
-
-
-def select_provider() -> str:
-    """
-    Given a list of workspaces, display them to user in a Table
-    and allow them to select one.
-
-    Args:
-        workspaces: List of workspaces to choose from
-
-    Returns:
-        str: the selected workspace
-    """
-    providers = sorted(AVAILABLE_PROVIDERS)
-    selectable_providers = providers
-    selected_provider = None
-    search_chars = ""
-
-    cli_table = CliTable()
-
-    with Live(
-        build_table(providers, search_chars, app.console, cli_table),
-        vertical_overflow="visble",
-        auto_refresh=False,
-        # console=app.console
-    ) as live:
-        while selected_provider is None:
-            key = readchar.readkey()
-            typed = False
-            if key.isalnum() or key in ["/", "\\", ".", "-"]:
-                search_chars += key
-                cli_table.idx = 0
-                typed = True
-            elif key == readchar.key.BACKSPACE:
-                search_chars = search_chars[:-1]
-                cli_table.idx = 0
-            elif key == readchar.key.UP:
-                cli_table.idx = max(0, cli_table.idx - 1)
-                # wrap to bottom if at the top
-                if cli_table.idx < 0:
-                    cli_table.idx = len(providers) - 1
-            elif key == readchar.key.DOWN:
-                cli_table.idx = cli_table.idx + 1
-                # wrap to top if at the bottom
-                if cli_table.idx >= len(providers):
-                    cli_table.idx = 0
-            elif key == readchar.key.CTRL_C:
-                # gracefully exit with no message
-                exit_with_error("")
-            elif key == readchar.key.ENTER:
-                selected_provider = selectable_providers[cli_table.idx]
-
-            if typed:
-                # cli_table.window_bottom = 0
-                # cli_table.window_top = cli_table.window_size
-                selectable_providers = [
-                    p for p in selectable_providers if search_chars.lower() in p.lower()
-                ]
-                cli_table.window_bottom = None
-                cli_table.window_top = 0
-            else:
-                selectable_providers = [
-                    p for p in providers if search_chars.lower() in p.lower()
-                ]
-
-            cli_table.key_press = key
-            live.update(
-                build_table(selectable_providers, search_chars, app.console, cli_table),
-                refresh=True,
-            )
-
-        return selected_provider
-
-
-def authenticate_gcp():
-
-    subprocess.run(["gcloud", "auth", "login"])
