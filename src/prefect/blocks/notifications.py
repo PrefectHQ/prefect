@@ -128,3 +128,31 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
         description="The Teams incoming webhook URL used to send notifications.",
         example="https://your-org.webhook.office.com/webhookb2/XXX/IncomingWebhook/YYY/ZZZ",
     )
+
+
+class PagerDutyWebHook(AppriseNotificationBlock):
+    """
+    Enables sending notifications via a provided PagerDuty webhook.
+
+    Attributes:
+        url: PagerDuty webhook URL which can be used to send messages.
+
+    Examples:
+        Load a saved PagerDuty webhook and send a message:
+        ```python
+        from prefect.blocks.notifications import PagerDutyWebHook
+        pagerduty_webhook_block = PagerDutyWebHook.load("BLOCK_NAME")
+        pagerduty_webhook_block.notify("Hello from Prefect!")
+        ```
+    """
+
+    _block_type_name = "Pager Duty Webhook"
+    _block_type_slug = "pager-duty-webhook"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6FHJ4Lcozjfl1yDPxCvQDT/c2f6bdf47327271c068284897527f3da/PagerDuty-Logo.wine.png?h=250"
+
+    url: SecretStr = Field(
+        ...,
+        title="Webhook URL",
+        description="The PagerDuty incoming webhook URL used to send notifications.",
+        example="pagerduty://{integration_key}@{api_key}/{source}",
+    )
