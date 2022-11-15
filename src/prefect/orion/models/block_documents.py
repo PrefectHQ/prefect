@@ -18,8 +18,8 @@ from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
 from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
 from prefect.orion.schemas.filters import BlockSchemaFilter
 from prefect.orion.utilities.database import UUID as UUIDTypeDecorator
+from prefect.orion.utilities.names import obfuscate_string
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
-from prefect.utilities.names import obfuscate_string
 
 
 @inject_db
@@ -425,11 +425,16 @@ async def update_block_document(
     db: OrionDBInterface,
 ) -> bool:
 
+    merge_existing_data = block_document.merge_existing_data
     current_block_document = await session.get(db.BlockDocument, block_document_id)
     if not current_block_document:
         return False
 
-    update_values = block_document.dict(shallow=True, exclude_unset=True)
+    update_values = block_document.dict(
+        shallow=True,
+        exclude_unset=merge_existing_data,
+        exclude={"merge_existing_data"},
+    )
 
     if "data" in update_values and update_values["data"] is not None:
         current_data = await current_block_document.decrypt_data(session=session)
@@ -450,9 +455,10 @@ async def update_block_document(
                     del flat_update_data[key]
         update_values["data"] = flatdict_to_dict(flat_update_data)
 
-        # merge the existing data and the new data for partial updates
-        current_data.update(update_values["data"])
-        update_values["data"] = current_data
+        if merge_existing_data:
+            # merge the existing data and the new data for partial updates
+            current_data.update(update_values["data"])
+            update_values["data"] = current_data
 
         current_block_document_references = (
             (
