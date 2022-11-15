@@ -63,7 +63,7 @@ class TableWindow:
         total_terminal_rows = os.get_terminal_size()[1]
 
         self.header_offset = header_offset
-        self.size = total_terminal_rows - self.header_offset
+        self.size = max(3, total_terminal_rows - self.header_offset)
         self.top = 0
         self.bottom = self.size - 1
 
@@ -73,7 +73,7 @@ class TableWindow:
 
     def update_size(self):
         total_terminal_rows = os.get_terminal_size()[1]
-        self.size = total_terminal_rows - self.header_offset
+        self.size = max(3, total_terminal_rows - self.header_offset)
 
     def reset(self):
         self.top = 0
