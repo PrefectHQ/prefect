@@ -48,14 +48,15 @@ workspace_app = PrefectTyper(
 cloud_app.add_typer(workspace_app, aliases=["workspaces"])
 app.add_typer(cloud_app)
 
-# Set up a little API server for browser based `prefect cloud login`
-
 
 def set_login_api_ready_event():
     login_api.extra["ready-event"].set()
 
 
 login_api = FastAPI(on_startup=[set_login_api_ready_event])
+"""
+This small API server is used for data transmission for browser-based log in.
+"""
 
 login_api.add_middleware(
     CORSMiddleware,
