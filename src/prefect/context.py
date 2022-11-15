@@ -99,8 +99,8 @@ class ContextModel(BaseModel):
             update: Values to change/add in the new model. Note: the data is not validated before creating
                 the new model - you should trust this data.
             deep: Set to `True` to make a deep copy of the model.
-        
-        Returns: 
+
+        Returns:
             A new model instance.
         """
         # Remove the token on copy to avoid re-entrance errors
