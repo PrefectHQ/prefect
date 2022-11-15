@@ -1016,7 +1016,9 @@ class TestBaseUniversalTransform:
             proposed_state=proposed_state,
         )
 
-        xform_as_context_manager = IllustrativeUniversalTransform(ctx)
+        xform_as_context_manager = IllustrativeUniversalTransform(
+            ctx, *intended_transition
+        )
         context_call = MagicMock()
 
         async with xform_as_context_manager as ctx:
@@ -1062,7 +1064,7 @@ class TestBaseUniversalTransform:
             proposed_state=proposed_state,
         )
 
-        universal_transform = IllustrativeUniversalTransform(ctx)
+        universal_transform = IllustrativeUniversalTransform(ctx, *intended_transition)
 
         async with universal_transform as ctx:
             mutated_state_type = random.choice(
@@ -1082,7 +1084,7 @@ class TestBaseUniversalTransform:
         list(product([*states.StateType, None], [None])),
         ids=transition_names,
     )
-    async def test_universal_transforms_never_fire_on_nullified_transitions(
+    async def test_universal_transforms_always_fire_on_nullified_transitions(
         self, session, task_run, intended_transition
     ):
         # nullified transitions occur when the proposed state becomes None
@@ -1117,7 +1119,7 @@ class TestBaseUniversalTransform:
             proposed_state=proposed_state,
         )
 
-        universal_transform = IllustrativeUniversalTransform(ctx)
+        universal_transform = IllustrativeUniversalTransform(ctx, *intended_transition)
 
         async with universal_transform as ctx:
             mutated_state_type = random.choice(
@@ -1128,9 +1130,9 @@ class TestBaseUniversalTransform:
             )
             ctx.initial_state = mutated_state
 
-        assert side_effect == 0
-        assert before_hook.call_count == 0
-        assert after_hook.call_count == 0
+        assert side_effect == 2
+        assert before_hook.call_count == 1
+        assert after_hook.call_count == 1
 
     @pytest.mark.parametrize(
         "intended_transition",
@@ -1172,7 +1174,7 @@ class TestBaseUniversalTransform:
             proposed_state=proposed_state,
         )
 
-        universal_transform = IllustrativeUniversalTransform(ctx)
+        universal_transform = IllustrativeUniversalTransform(ctx, *intended_transition)
 
         async with universal_transform as ctx:
             ctx.orchestration_error = Exception
