@@ -37,6 +37,7 @@ from prefect.settings import (
     update_current_profile,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.collections import listrepr
 
 # Set up the `prefect cloud` and `prefect cloud workspaces` CLI applications
 cloud_app = PrefectTyper(
@@ -392,7 +393,10 @@ async def login(
             if workspace.handle == workspace_handle:
                 break
         else:
-            exit_with_error(f"Workspace {workspace_handle!r} not found.")
+            exit_with_error(
+                f"Workspace {workspace_handle!r} not found. "
+                f"Availablle workspaces: {listrepr((w.handle for w in workspaces), ', ')}"
+            )
     else:
         # Prompt a switch if the number of workspaces is greater than one
         prompt_switch_workspace = len(workspaces) > 1
