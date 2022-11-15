@@ -94,11 +94,13 @@ def receive_failure(payload: LoginFailed):
     login_api.extra["result-event"].set()
 
 
-async def serve_login_api(cancel_scope):
-    config = uvicorn.Config(login_api, port=3001, log_level="critical")
+async def serve_login_api(cancel_scope, task_status):
+    config = uvicorn.Config(login_api, port=0, log_level="critical")
     server = uvicorn.Server(config)
 
     try:
+        # Yield the server object
+        task_status.started(server)
         await server.serve()
     except anyio.get_cancelled_exc_class():
         pass  # Already cancelled, do not cancel again
@@ -212,9 +214,6 @@ async def login_with_browser() -> str:
     On failure, this function will exit the process.
     On success, it will return an API key.
     """
-    # TODO: Search for a valid port
-    target = urllib.parse.quote("http://localhost:3001")
-    ui_login_url = PREFECT_CLOUD_UI_URL.value() + f"/auth/client?callback={target}"
 
     # Set up an event that the login API will toggle on startup
     ready_event = login_api.extra["ready-event"] = anyio.Event()
@@ -226,11 +225,22 @@ async def login_with_browser() -> str:
     async with anyio.create_task_group() as tg:
 
         # Run a server in the background to get payload from the browser
-        tg.start_soon(serve_login_api, tg.cancel_scope)
+        server = await tg.start(serve_login_api, tg.cancel_scope)
 
         # Wait for the login server to be ready
         with anyio.fail_after(10):
             await ready_event.wait()
+
+            # The server may not actually be serving as the lifespan is started first
+            while not server.started:
+                await anyio.sleep(0)
+
+        # Get the port the server is using
+        server_port = server.servers[0].sockets[0].getsockname()[1]
+        callback = urllib.parse.quote(f"http://localhost:{server_port}")
+        ui_login_url = (
+            PREFECT_CLOUD_UI_URL.value() + f"/auth/client?callback={callback}"
+        )
 
         # Then open the authorization page in a new browser tab
         app.console.print("Opening browser...")
