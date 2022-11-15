@@ -121,7 +121,7 @@ def confirm_logged_in():
         profile = prefect.context.get_settings_context().profile
         exit_with_error(
             f"Currently not authenticated in profile {profile.name!r}. "
-            "Please login with `prefect cloud login`."
+            "Please log in with `prefect cloud login`."
         )
 
 
@@ -265,7 +265,7 @@ async def login_with_browser() -> str:
     if result.type == "success":
         return result.content.api_key
     elif result.type == "failure":
-        exit_with_error(f"Failed to login. {result.content.reason}")
+        exit_with_error(f"Failed to log in. {result.content.reason}")
 
 
 async def check_key_is_valid_for_login(key: str):
@@ -359,7 +359,7 @@ async def login(
             app.console,
             "How would you like to authenticate?",
             [
-                ("browser", "Login with a web browser"),
+                ("browser", "Log in with a web browser"),
                 ("key", "Paste an authentication key"),
             ],
         )

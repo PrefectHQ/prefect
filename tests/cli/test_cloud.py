@@ -239,7 +239,7 @@ def test_login_with_interactive_key_single_workspace(respx_mock):
         user_input=readchar.key.DOWN + readchar.key.ENTER + "foo" + readchar.key.ENTER,
         expected_output_contains=[
             "? How would you like to authenticate? [Use arrows to move; enter to select]",
-            "Login with a web browser",
+            "Log in with a web browser",
             "Paste an authentication key",
             "Paste your authentication key:",
             "Authenticated with Prefect Cloud! Using workspace 'test/foo'.",
@@ -282,7 +282,7 @@ def test_login_with_interactive_key_multiple_workspaces(respx_mock):
         ),
         expected_output_contains=[
             "? How would you like to authenticate? [Use arrows to move; enter to select]",
-            "Login with a web browser",
+            "Log in with a web browser",
             "Paste an authentication key",
             "Paste your authentication key:",
         ],
@@ -324,7 +324,7 @@ def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
         ),
         expected_output_contains=[
             "? How would you like to authenticate? [Use arrows to move; enter to select]",
-            "Login with a web browser",
+            "Log in with a web browser",
             "Paste an authentication key",
             "Authenticated with Prefect Cloud! Using workspace 'test/foo'.",
         ],
@@ -366,9 +366,9 @@ def test_login_with_browser_failure_in_browser(respx_mock, mock_webbrowser):
         ),
         expected_output_contains=[
             "? How would you like to authenticate? [Use arrows to move; enter to select]",
-            "Login with a web browser",
+            "Log in with a web browser",
             "Paste an authentication key",
-            "Failed to login. Oh no!",
+            "Failed to log in. Oh no!",
         ],
     )
 
@@ -430,7 +430,7 @@ def test_cannot_set_workspace_if_you_are_not_logged_in():
             expected_code=1,
             expected_output=(
                 f"Currently not authenticated in profile {cloud_profile!r}. "
-                "Please login with `prefect cloud login`."
+                "Please log in with `prefect cloud login`."
             ),
         )
 
