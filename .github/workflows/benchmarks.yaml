@@ -53,14 +53,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e ".[dev]"
 
-
-      - name: Retrieve existing benchmarks for comparison
+      - name: Prepare benchmark comparisons
         # Note: We use a "cache" instead of artifacts because artifacts are not available
         #       across workflow runs.
         id: bench-cache
         uses: actions/cache@v3
         with:
-          path: ./benchmarks
+          path: ./.benchmarks
           # Pushes benchmark results for this branch and sha, this will always be a cache miss
           # and `restore-keys` will be used to get the benchmarks for comparison
           key: ${{ runner.os }}-${{ github.head_ref }}-${{ github.sha }}
@@ -71,14 +70,14 @@ jobs:
             ${{ runner.os }}-
 
       - name: Run benchmarks
-        # Include comparison to previous benchmarks if available
+        # Includes comparison to previous benchmarks if available
         run: >
-          savename=${{ github.head_ref }}-${{ github.sha }}
+          uniquename=${{ github.head_ref }}-${{ github.sha }}
 
           pytest benches
           --timeout=120
           --benchmark-group-by func
           --benchmark-columns mean,stddev,rounds
-          --benchmark-save="${savename//\//_}"
+          --benchmark-save="${uniquename//\//_}.json"
           ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
 
