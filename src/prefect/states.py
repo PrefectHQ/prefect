@@ -531,12 +531,12 @@ async def pause():
         force=True,
     )
 
-    for poll in range(5):
+    for poll in range(10):
         time.sleep(2)
         flowrun = await client.read_flow_run(frc.flow_run.id)
         print(f"Flow is {flowrun.state.name}...")
-        if frc.flow_run.state.is_resuming():
-            print("Flow is resuming!")
+        if flowrun.state.is_resuming():
+            print("Resuming execution!")
             return
 
     raise RuntimeError("Run was not resumed in time!")
@@ -544,9 +544,12 @@ async def pause():
 
 @sync_compatible
 async def resume(flow_run_id):
+    from prefect.client.orion import get_client
+    from prefect.orion.schemas.states import Resuming
+
     client = get_client()
     response = await client.set_flow_run_state(
-        frc.flow_run.id,
+        flow_run_id,
         Resuming(),
         force=True,
     )
