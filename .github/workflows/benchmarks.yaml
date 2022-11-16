@@ -78,7 +78,7 @@ jobs:
           --no-cov
           --timeout=120
           --benchmark-group-by=func
-          --benchmark-columns=mean,min,max,stddev,rounds
+          --benchmark-columns=mean,stddev,min,max,rounds
           --benchmark-sort=mean
           --benchmark-min-rounds=2
           --benchmark-save="${uniquename//\//_}.json"
