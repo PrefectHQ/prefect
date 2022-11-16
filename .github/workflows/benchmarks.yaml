@@ -75,10 +75,11 @@ jobs:
           uniquename=${{ github.head_ref }}-${{ github.sha }}
 
           pytest benches
+          --no-cov
           --timeout=120
           --benchmark-group-by=func
           --benchmark-columns=mean,min,max,stddev,rounds
-          --benchmark-sort=name
+          --benchmark-sort=mean
           --benchmark-min-rounds=2
           --benchmark-save="${uniquename//\//_}.json"
           ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
