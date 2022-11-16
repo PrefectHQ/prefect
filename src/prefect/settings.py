@@ -66,6 +66,7 @@ import toml
 from pydantic import BaseSettings, Field, create_model, root_validator, validator
 
 from prefect.exceptions import MissingProfileError
+from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
 
 T = TypeVar("T")
@@ -84,16 +85,18 @@ class Setting(Generic[T]):
         type: Type[T],
         *,
         value_callback: Callable[["Settings", T], T] = None,
+        is_secret: bool = False,
         **kwargs,
     ) -> None:
         self.field: pydantic.fields.FieldInfo = Field(**kwargs)
         self.type = type
         self.value_callback = value_callback
         self.name = None  # Will be populated after all settings are defined
+        self.is_secret = is_secret
 
         self.__doc__ = self.field.description
 
-    def value(self) -> T:
+    def value(self, bypass_callback: bool = False) -> T:
         """
         Get the current value of a setting.
 
@@ -103,9 +106,9 @@ class Setting(Generic[T]):
         PREFECT_API_URL.value()
         ```
         """
-        return self.value_from(get_current_settings())
+        return self.value_from(get_current_settings(), bypass_callback=bypass_callback)
 
-    def value_from(self, settings: "Settings") -> T:
+    def value_from(self, settings: "Settings", bypass_callback: bool = False) -> T:
         """
         Get the value of a setting from a settings object
 
@@ -115,7 +118,7 @@ class Setting(Generic[T]):
         PREFECT_API_URL.value_from(get_default_settings())
         ```
         """
-        return settings.value_of(self)
+        return settings.value_of(self, bypass_callback=bypass_callback)
 
     def __repr__(self) -> str:
         return f"<{self.name}: {self.type.__name__}>"
@@ -221,10 +224,14 @@ def warn_on_database_password_value_without_usage(values):
     """
     Validator for settings warning if the database password is set but not used.
     """
+    value = values["PREFECT_ORION_DATABASE_PASSWORD"]
     if (
-        values["PREFECT_ORION_DATABASE_PASSWORD"]
-        and "PREFECT_ORION_DATABASE_PASSWORD"
-        not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+        value
+        and not value.startswith(OBFUSCATED_PREFIX)
+        and (
+            "PREFECT_ORION_DATABASE_PASSWORD"
+            not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+        )
     ):
         warnings.warn(
             "PREFECT_ORION_DATABASE_PASSWORD is set but not included in the "
@@ -232,6 +239,71 @@ def warn_on_database_password_value_without_usage(values):
             "The provided password will be ignored."
         )
     return values
+
+
+def get_deprecated_prefect_cloud_url(settings, value):
+    warnings.warn(
+        "`PREFECT_CLOUD_URL` is deprecated. Use `PREFECT_CLOUD_API_URL` instead.",
+        DeprecationWarning,
+    )
+    return value or PREFECT_CLOUD_API_URL.value_from(settings)
+
+
+def check_for_deprecated_cloud_url(settings, value):
+    deprecated_value = PREFECT_CLOUD_URL.value_from(settings, bypass_callback=True)
+    if deprecated_value is not None:
+        warnings.warn(
+            "`PREFECT_CLOUD_URL` is set and will be used instead of `PREFECT_CLOUD_API_URL` for backwards compatibility. `PREFECT_CLOUD_URL` is deprecated, set `PREFECT_CLOUD_API_URL` instead.",
+            DeprecationWarning,
+        )
+    return deprecated_value or value
+
+
+def default_ui_url(settings, value):
+    if value is not None:
+        return value
+
+    # Otherwise, infer a value from the API URL
+    ui_url = api_url = PREFECT_API_URL.value_from(settings)
+
+    if not api_url:
+        return None
+
+    cloud_url = PREFECT_CLOUD_API_URL.value_from(settings)
+    cloud_ui_url = PREFECT_CLOUD_UI_URL.value_from(settings)
+    if api_url.startswith(cloud_url):
+        ui_url = ui_url.replace(cloud_url, cloud_ui_url)
+
+    if ui_url.endswith("/api"):
+        # Handles open-source APIs
+        ui_url = ui_url[:-4]
+
+    # Handles Cloud APIs with content after `/api`
+    ui_url = ui_url.replace("/api/", "/")
+
+    # Update routing
+    ui_url = ui_url.replace("/accounts/", "/account/")
+    ui_url = ui_url.replace("/workspaces/", "/workspace/")
+
+    return ui_url
+
+
+def default_cloud_ui_url(settings, value):
+    if value is not None:
+        return value
+
+    # Otherwise, infer a value from the API URL
+    ui_url = api_url = PREFECT_CLOUD_API_URL.value_from(settings)
+
+    if api_url.startswith("https://api.prefect.cloud"):
+        ui_url = ui_url.replace(
+            "https://api.prefect.cloud", "https://app.prefect.cloud", 1
+        )
+
+    if ui_url.endswith("/api"):
+        ui_url = ui_url[:-4]
+
+    return ui_url
 
 
 # Setting definitions
@@ -293,19 +365,58 @@ PREFECT_API_URL = Setting(
     str,
     default=None,
 )
-"""If provided, the url of an externally-hosted Orion API. Defaults to `None`."""
+"""
+If provided, the url of an externally-hosted Orion API. Defaults to `None`.
+
+When using Prefect Cloud, this will include an account and workspace.
+"""
 
 PREFECT_API_KEY = Setting(
     str,
     default=None,
+    is_secret=True,
 )
 """API key used to authenticate against Orion API. Defaults to `None`."""
 
-PREFECT_CLOUD_URL = Setting(
+PREFECT_CLOUD_API_URL = Setting(
     str,
     default="https://api.prefect.cloud/api",
+    value_callback=check_for_deprecated_cloud_url,
 )
-"""API URL for Prefect Cloud"""
+"""API URL for Prefect Cloud. Used for authentication."""
+
+
+PREFECT_CLOUD_URL = Setting(
+    str, default=None, value_callback=get_deprecated_prefect_cloud_url
+)
+"""
+DEPRECATED: Use `PREFECT_CLOUD_API_URL` instead.
+"""
+
+PREFECT_UI_URL = Setting(
+    Optional[str],
+    default=None,
+    value_callback=default_ui_url,
+)
+"""
+The URL for the UI. By default, this is inferred from the PREFECT_API_URL.
+
+When using Prefect Cloud, this will include the account and workspace.
+When using an ephemeral server, this will be `None`.
+"""
+
+
+PREFECT_CLOUD_UI_URL = Setting(
+    str,
+    default=None,
+    value_callback=default_cloud_ui_url,
+)
+"""
+The URL for the Cloud UI. By default, this is inferred from the PREFECT_CLOUD_API_URL.
+
+Note: PREFECT_UI_URL will be workspace specific and will be usable in the open source too.
+      In contrast, this value is only valid for Cloud and will not include the workspace.
+"""
 
 PREFECT_API_REQUEST_TIMEOUT = Setting(
     float,
@@ -427,8 +538,8 @@ PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
 PREFECT_LOGGING_COLORS = Setting(
     bool,
     default=True,
-    description="""Whether to style console logs.""",
 )
+"""Whether to style console logs with color."""
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
@@ -477,6 +588,7 @@ registered.
 PREFECT_ORION_DATABASE_PASSWORD = Setting(
     str,
     default=None,
+    is_secret=True,
 )
 """
 Password to template into the `PREFECT_ORION_DATABASE_CONNECTION_URL`.
@@ -490,6 +602,7 @@ PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     value_callback=template_with_settings(
         PREFECT_HOME, PREFECT_ORION_DATABASE_PASSWORD
     ),
+    is_secret=True,
 )
 """
 A database connection URL in a SQLAlchemy-compatible
@@ -565,12 +678,22 @@ deployment once. Defaults to `100`.
 
 PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS = Setting(
     int,
-    default=20,
+    default=100,
 )
 """The scheduler will attempt to schedule up to this many
 auto-scheduled runs in the future. Note that runs may have fewer than
 this many scheduled runs, depending on the value of
-`scheduler_max_scheduled_time`.  Defaults to `20`.
+`scheduler_max_scheduled_time`.  Defaults to `100`.
+"""
+
+PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS = Setting(
+    int,
+    default=3,
+)
+"""The scheduler will attempt to schedule at least this many
+auto-scheduled runs in the future. Note that runs may have more than
+this many scheduled runs, depending on the value of
+`scheduler_min_scheduled_time`.  Defaults to `3`.
 """
 
 PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
@@ -580,8 +703,19 @@ PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
 """The scheduler will create new runs up to this far in the
 future. Note that this setting will take precedence over
 `scheduler_max_runs`: if a flow runs once a month and
-`scheduled_max_scheduled_time` is three months, then only three runs will be
+`scheduler_max_scheduled_time` is three months, then only three runs will be
 scheduled. Defaults to 100 days (`8640000` seconds).
+"""
+
+PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME = Setting(
+    timedelta,
+    default=timedelta(hours=1),
+)
+"""The scheduler will create new runs at least this far in the
+future. Note that this setting will take precedence over `scheduler_min_runs`:
+if a flow runs every hour and `scheduler_min_scheduled_time` is three hours,
+then three runs will be scheduled even if `scheduler_min_runs` is 1. Defaults to
+1 hour (`3600` seconds).
 """
 
 PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE = Setting(
@@ -729,12 +863,12 @@ class Settings(SettingsFieldsMixin):
     ```
     """
 
-    def value_of(self, setting: Setting[T]) -> T:
+    def value_of(self, setting: Setting[T], bypass_callback: bool = False) -> T:
         """
         Retrieve a setting's value.
         """
         value = getattr(self, setting.name)
-        if setting.value_callback:
+        if setting.value_callback and not bypass_callback:
             value = setting.value_callback(self, value)
         return value
 
@@ -786,6 +920,22 @@ class Settings(SettingsFieldsMixin):
                 **{setting.name: value for setting, value in updates.items()},
             }
         )
+
+    def with_obfuscated_secrets(self):
+        """
+        Returns a copy of this settings object with secret setting values obfuscated.
+        """
+        settings = self.copy(
+            update={
+                setting.name: obfuscate(self.value_of(setting))
+                for setting in SETTING_VARIABLES.values()
+                if setting.is_secret
+            }
+        )
+        # Ensure that settings that have not been marked as "set" before are still so
+        # after we have updated their value above
+        settings.__fields_set__.intersection_update(self.__fields_set__)
+        return settings
 
     def to_environment_variables(
         self, include: Iterable[Setting] = None, exclude_unset: bool = False
