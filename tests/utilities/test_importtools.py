@@ -1,10 +1,12 @@
 import importlib.util
 import runpy
 import sys
+import tempfile
 from pathlib import Path
 from types import ModuleType
 from uuid import uuid4
 
+import cloudpickle
 import pytest
 
 import prefect
@@ -234,3 +236,16 @@ def test_import_object_from_module_with_relative_imports_expected_failures(
         # Python would raise the same error
         with pytest.raises((ValueError, ImportError)):
             runpy.run_module(import_path)
+
+
+def test_load_pickled_object():
+    with tempfile.TemporaryDirectory() as working_directory:
+        f = Foo()
+        f.a = 123
+
+        with open(f"{working_directory}/foo.pickle", "wb+") as fd:
+            fd.write(cloudpickle.dumps(f))
+
+        foobar = import_object(f"{working_directory}/foo.pickle")
+        assert foobar.__class__.__name__ == f.__class__.__name__
+        assert foobar.a == f.a

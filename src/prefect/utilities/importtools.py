@@ -9,6 +9,7 @@ from tempfile import NamedTemporaryFile
 from types import ModuleType
 from typing import Any, Dict, Union
 
+import cloudpickle
 import fsspec
 
 from prefect.exceptions import ScriptError
@@ -177,6 +178,17 @@ def load_module(module_name: str) -> ModuleType:
         sys.path.remove(working_directory)
 
 
+def load_object_from_pickle(pickle_path: str) -> Any:
+    """
+    Import an object from a pickle-file
+    """
+
+    with open(pickle_path, "rb") as fd:
+        obj = cloudpickle.load(fd)
+
+    return obj
+
+
 def import_object(import_path: str):
     """
     Load an object from an import path.
@@ -185,12 +197,15 @@ def import_object(import_path: str):
     - module.object
     - module:object
     - /path/to/script.py:object
+    - /path/to/object.pickle
 
     This function is not thread safe as it modifies the 'sys' module during execution.
     """
     if ".py:" in import_path:
         script_path, object_name = import_path.rsplit(":", 1)
         module = load_script_as_module(script_path)
+    elif import_path.endswith(".pickle"):
+        return load_object_from_pickle(import_path)
     else:
         if ":" in import_path:
             module_name, object_name = import_path.rsplit(":", 1)
