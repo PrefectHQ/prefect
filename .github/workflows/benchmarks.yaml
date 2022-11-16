@@ -55,4 +55,4 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest benches --benchmark-group-by fullfunc --benchmark-columns mean,stddev,rounds
+          pytest benches --benchmark-group-by func --benchmark-columns mean,stddev,rounds
