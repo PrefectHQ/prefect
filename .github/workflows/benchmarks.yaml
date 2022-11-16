@@ -78,6 +78,7 @@ jobs:
           --timeout=120
           --benchmark-group-by=func
           --benchmark-columns=mean,min,max,stddev,rounds
+          --benchmark-sort=name
           --benchmark-max-time=20
           --benchmark-min-rounds=2
           --benchmark-save="${uniquename//\//_}.json"
