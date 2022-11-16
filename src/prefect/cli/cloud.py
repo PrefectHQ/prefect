@@ -38,6 +38,7 @@ from prefect.settings import (
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
+from prefect.utilities.compat import raise_signal
 
 # Set up the `prefect cloud` and `prefect cloud workspaces` CLI applications
 cloud_app = PrefectTyper(
@@ -255,7 +256,7 @@ async def login_with_browser() -> str:
 
         # Uvicorn installs signal handlers, this is the cleanest way to shutdown the
         # login API
-        signal.raise_signal(signal.SIGINT)
+        raise_signal(signal.SIGINT)
 
     result = login_api.extra.get("result")
     if not result:
