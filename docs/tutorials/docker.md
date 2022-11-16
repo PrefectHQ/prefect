@@ -86,7 +86,7 @@ The `prefect deployment build` command also supports specifying a built-in infra
 To demonstrate using an infrastructure block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorials/deployments/). For this deployment, we'll include the following options to the `prefect deployment build` command:
 
 - Use the storage block created in the [Storage and Infrastructure](/tutorials/storage/) tutorial by passing `-sb s3/log-test` or `--storage-block s3/log-test`.
-- Use the infrastructure block created earlier by passing `-ib docker-container/log-tutorial` or `--storage-block s3/log-tutorial`.
+- Use the infrastructure block created earlier by passing `-ib docker-container/log-tutorial` or `--infra-block docker-container/log-tutorial`.
 
 <div class="terminal">
 ```bash

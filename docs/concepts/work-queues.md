@@ -36,7 +36,7 @@ Agent processes are lightweight polling services that get scheduled work from a 
 
 It is possible for multiple agent processes to be started for a single work queue, or for one agent to pull work from multiple work queues. Each agent process sends a unique ID to the server to help disambiguate themselves and let users know how many agents are active.
 
-### Agent configuration
+### Agent options
 
 Agents are configured to pull work from one or more work queues. If the agent references a work queue that doesn't exist, it will be created automatically.
 
@@ -46,6 +46,8 @@ Configuration parameters you can specify when starting an agent include:
 | --- | --- |
 | -q, --work-queue | One or more work queues that the agent will poll for work. |
 | --api TEXT       | The API URL for the Prefect Orion server. Default is the value of `PREFECT_API_URL`. |
+| --run-once        | Only run agent polling once. By default, the agent runs forever. |
+| --prefetch-seconds | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_AGENT_PREFETCH_SECONDS`. |
 | --hide-welcome   | Do not display the startup ASCII art for the agent process.                          |
 
 You must start an agent within an environment that can access or create the infrastructure needed to execute flow runs. Your agent will deploy flow runs to the infrastructure specified by the deployment.
@@ -57,6 +59,8 @@ You must start an agent within an environment that can access or create the infr
     `PREFECT_API_URL` must be set for the environment in which your agent is running or specified when starting the agent with the `--api` flag. 
 
     If you want an agent to communicate with Prefect Cloud or a Prefect Orion API server from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
+
+### Starting an agent
 
 Use the `prefect agent start` CLI command to start an agent. You must pass at least one work queue name that the agent will poll for work. If the work queue does not exist, it will be created.
 
@@ -89,6 +93,10 @@ Agent started! Looking for work from queue(s): my-queue...
 In this case, Prefect automatically created a new `my-queue` work queue.
 
 By default, the agent polls the API specified by the `PREFECT_API_URL` environment variable. To configure the agent to poll from a different server location, use the `--api` flag, specifying the URL of the server.
+
+### Configuring prefetch
+
+By default, the agent begins submission of flow runs a short time (10 seconds) before they are scheduled to run. This allows time for the infrastructure to be created, so the flow run can start on time. In some cases, infrastructure will take longer than this to actually start the flow run. In these cases, the prefetch can be increased using the `--prefetch-seconds` option or the `PREFECT_AGENT_PREFETCH_SECONDS` setting. Submission can begin an arbitrary amount of time before the flow run is scheduled to start. If this value is _larger_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its scheduled start time. This allows flow runs to start exactly on time.
 
 ## Work queue overview
 

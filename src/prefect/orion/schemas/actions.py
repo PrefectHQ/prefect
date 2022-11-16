@@ -312,6 +312,7 @@ class BlockDocumentUpdate(ActionBaseModel):
     """Data used by the Orion API to update a block document."""
 
     data: dict = FieldFrom(schemas.core.BlockDocument)
+    merge_existing_data: bool = True
 
 
 @copy_model_fields
