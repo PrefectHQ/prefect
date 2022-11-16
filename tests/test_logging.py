@@ -1094,6 +1094,50 @@ class TestPrefectConsoleHandler:
         ]
         assert handler.level == logging.DEBUG
 
+    def test_uses_stderr_by_default(self, capsys):
+        logger = get_logger()
+        logger.handlers = [PrefectConsoleHandler()]
+        logger.info("Test!")
+        stdout, stderr = capsys.readouterr()
+        assert stdout == ""
+        assert "Test!" in stderr
+
+    def test_respects_given_stream(self, capsys):
+        logger = get_logger()
+        logger.handlers = [PrefectConsoleHandler(stream=sys.stdout)]
+        logger.info("Test!")
+        stdout, stderr = capsys.readouterr()
+        assert stderr == ""
+        assert "Test!" in stdout
+
+    def test_includes_tracebacks_during_exceptions(self, capsys):
+        logger = get_logger()
+        logger.handlers = [PrefectConsoleHandler()]
+
+        try:
+            raise ValueError("oh my")
+        except:
+            logger.exception("Helpful context!")
+
+        _, stderr = capsys.readouterr()
+        assert "Helpful context!" in stderr
+        assert "Traceback" in stderr
+        assert 'raise ValueError("oh my")' in stderr
+        assert "ValueError: oh my" in stderr
+
+    def test_does_not_word_wrap_or_crop_messages(self, capsys):
+        logger = get_logger()
+        handler = PrefectConsoleHandler()
+        # Pretend we have a narrow little console
+        handler.console._width = 10
+        logger.handlers = [handler]
+
+        logger.info("x" * 1000)
+
+        _, stderr = capsys.readouterr()
+        # There will be newlines in the middle if cropped
+        assert "x" * 1000 in stderr
+
 
 @pytest.fixture
 def flow_run_caplog(caplog):
