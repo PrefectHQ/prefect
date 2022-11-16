@@ -506,3 +506,47 @@ def Late(
         State: a Late state
     """
     return schemas.states.Late(cls=cls, scheduled_time=scheduled_time, **kwargs)
+
+
+@sync_compatible
+async def pause():
+    import time
+
+    from prefect.client.orion import get_client
+    from prefect.context import (
+        FlowRunContext,
+        TaskRunContext,
+    )
+    from prefect.orion.schemas.states import Paused
+
+    if TaskRunContext.get():
+        raise RuntimeError("Can't pause task runs!")
+
+    frc = FlowRunContext.get()
+
+    client = get_client()
+    response = await client.set_flow_run_state(
+        frc.flow_run.id,
+        Paused(),
+        force=True,
+    )
+
+    for poll in range(5):
+        time.sleep(2)
+        flowrun = await client.read_flow_run(frc.flow_run.id)
+        print(f"Flow is {flowrun.state.name}...")
+        if frc.flow_run.state.is_resuming():
+            print("Flow is resuming!")
+            return
+
+    raise RuntimeError("Run was not resumed in time!")
+
+
+@sync_compatible
+async def resume(flow_run_id):
+    client = get_client()
+    response = await client.set_flow_run_state(
+        frc.flow_run.id,
+        Resuming(),
+        force=True,
+    )
