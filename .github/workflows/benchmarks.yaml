@@ -76,8 +76,10 @@ jobs:
 
           pytest benches
           --timeout=120
-          --benchmark-group-by func
-          --benchmark-columns mean,stddev,rounds
+          --benchmark-group-by=func
+          --benchmark-columns=mean,stddev,rounds
+          --benchmark-max-time=20
+          --benchmark-min-rounds=2
           --benchmark-save="${uniquename//\//_}.json"
           ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
 
