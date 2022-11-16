@@ -7,10 +7,16 @@ import pytest
 from prefect.orion import models, schemas
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.orchestration.dependencies import (
+    provide_flow_orchestration_parameters,
     provide_flow_policy,
+    temporary_flow_orchestration_parameters,
     temporary_flow_policy,
 )
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
+from prefect.orion.orchestration.rules import (
+    ALL_ORCHESTRATION_STATES,
+    BaseOrchestrationRule,
+)
 from prefect.orion.schemas.states import Running, Scheduled, StateType
 
 
@@ -129,6 +135,32 @@ class TestCreateFlowRunState:
             # the original state remains in place
             await session.refresh(flow_run)
             assert flow_run.state.id != frs.state.id
+
+    async def test_orchestration_with_injected_parameters(self, flow_run, session):
+        class AbortingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                # this rule mutates the proposed state type, but won't fizzle itself upon exiting
+                if context.parameters.get("special-signal") == "abort":
+                    await self.abort_transition("wow, aborting this transition")
+
+        class AbortingPolicy(BaseOrchestrationPolicy):
+            def priority():
+                return [AbortingRule]
+
+        with temporary_flow_orchestration_parameters({"special-signal": "abort"}):
+            with temporary_flow_policy(AbortingPolicy):
+                frs = await models.flow_runs.set_flow_run_state(
+                    session=session,
+                    flow_run_id=flow_run.id,
+                    state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+                    flow_policy=await provide_flow_policy(),
+                    orchestration_parameters=await provide_flow_orchestration_parameters(),
+                )
+
+                assert frs.status == schemas.responses.SetStateStatus.ABORT
 
 
 class TestReadFlowRunState:

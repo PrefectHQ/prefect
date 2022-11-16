@@ -13,8 +13,6 @@ A workspace is a discrete environment within Prefect Cloud for your flows and de
 
 Workspaces could be used in any way you like to organize or compartmentalize your workflows. For example, you could use separate workspaces to isolate dev, staging, and prod environments, or to provide separation between different teams.
 
-The number of available workspaces varies by [Prefect Cloud plan](https://www.prefect.io/pricing/). See [Pricing](https://www.prefect.io/pricing/) if you need additional workspaces or users.  
-
 ### Workspaces overview
 
 When you first log into Prefect Cloud, you will be prompted to create your own initial workspace. After creating your workspace, you'll be able to view flow runs, flows, deployments, and other workspace-specific features in the Prefect Cloud UI.
@@ -70,7 +68,7 @@ The options menu enables you to edit workspace details or delete the workspace.
 
 ## Workspace collaborators
 
-Personal account users may invite _workspace collaborators_, users who can join, view, and run flows in your workspace.
+Personal account users may invite _workspace collaborators_, users who can join, view, and run flows in your workspaces.
 
 In your workspace, select **Workspace Collaborators**. If you've previously invited collaborators, you'll see them listed.
 
@@ -84,7 +82,7 @@ To delete a workspace collaborator, select **Remove** from the menu on the left 
 
 ## Workspace sharing <span class="badge orgs"></span>
 
-Within a Prefect Cloud [organization](/ui/organizations/) organization, Admins and workspace Owners may invite users and [service accounts](/ui/service-accounts/) to work in an organization workspace. In addition to giving the user access to the workspace, the Admin or Owner assigns a [workspace role](/ui/roles/) to the user. The role specifies the scope of permissions for the user within the workspace.
+Within a Prefect Cloud [organization](/ui/organizations/), Admins and workspace Owners may invite users and [service accounts](/ui/service-accounts/) to work in an organization workspace. In addition to giving the user access to the workspace, the Admin or Owner assigns a [workspace role](/ui/roles/) to the user. The role specifies the scope of permissions for the user within the workspace.
 
 In an organization workspace, select **Workspace Sharing** to manage users and service accounts for the workspace. If you've previously invited users and service accounts, you'll see them listed.
 
