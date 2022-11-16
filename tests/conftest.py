@@ -297,7 +297,7 @@ def pytest_sessionstart(session):
             # Disable auto-registration of block types as they can conflict
             PREFECT_ORION_BLOCKS_REGISTER_ON_START: False,
             # Use more aggressive database timeouts during testing
-            PREFECT_ORION_DATABASE_TIMEOUT: 1,
+            PREFECT_ORION_DATABASE_TIMEOUT: 2,
         },
         source=__file__,
     )
