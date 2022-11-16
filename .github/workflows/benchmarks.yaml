@@ -76,6 +76,7 @@ jobs:
           savename=${{ github.head_ref }}-${{ github.sha }}
 
           pytest benches
+          --timeout=120
           --benchmark-group-by func
           --benchmark-columns mean,stddev,rounds
           --benchmark-save="${savename//\//_}"
