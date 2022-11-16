@@ -393,10 +393,12 @@ async def login(
             if workspace.handle == workspace_handle:
                 break
         else:
-            exit_with_error(
-                f"Workspace {workspace_handle!r} not found. "
-                f"Availablle workspaces: {listrepr((w.handle for w in workspaces), ', ')}"
-            )
+            if workspaces:
+                hint = f" Available workspaces: {listrepr((w.handle for w in workspaces), ', ')}"
+            else:
+                hint = ""
+
+            exit_with_error(f"Workspace {workspace_handle!r} not found." + hint)
     else:
         # Prompt a switch if the number of workspaces is greater than one
         prompt_switch_workspace = len(workspaces) > 1

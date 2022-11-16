@@ -104,17 +104,23 @@ def test_login_with_invalid_key(key, expected_output, respx_mock):
 
 
 def test_login_with_key_and_missing_workspace(respx_mock):
-    workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(
-            status.HTTP_200_OK, json=[workspace.dict(json_compatible=True)]
+            status.HTTP_200_OK,
+            json=[
+                foo_workspace.dict(json_compatible=True),
+                bar_workspace.dict(json_compatible=True),
+            ],
         )
     )
+
     invoke_and_assert(
-        ["cloud", "login", "--key", "foo", "--workspace", "bar"],
+        ["cloud", "login", "--key", "foo", "--workspace", "apple/berry"],
         expected_code=1,
-        expected_output="Workspace 'bar' not found.",
+        expected_output="Workspace 'apple/berry' not found. Available workspaces: 'test/foo', 'test/bar'",
     )
 
 
@@ -142,6 +148,7 @@ def test_login_with_key_and_workspace(respx_mock):
             ],
         )
     )
+
     invoke_and_assert(
         ["cloud", "login", "--key", "foo", "--workspace", "test/foo"],
         expected_code=0,
