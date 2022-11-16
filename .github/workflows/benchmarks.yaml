@@ -73,9 +73,11 @@ jobs:
       - name: Run benchmarks
         # Include comparison to previous benchmarks if available
         run: >
+          savename=${{ github.head_ref }}-${{ github.sha }}
+
           pytest benches
           --benchmark-group-by func
           --benchmark-columns mean,stddev,rounds
-          --benchmark-save="${{ github.head_ref }}-${{ github.sha }}"
+          --benchmark-save="${savename//\//_}"
           ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
 
