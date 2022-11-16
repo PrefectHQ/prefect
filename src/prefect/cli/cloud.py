@@ -314,9 +314,11 @@ async def login(
     for name, profile in profiles.items():
         profile_key = profile.settings.get(PREFECT_API_KEY)
         if (
-            not key
-            and profile_key is not None
-            or (key and profile_key == key)
+            # If a key is provided, only show profiles with the same key
+            (key and profile_key == key)
+            # Otherwise, show all profiles with a key set
+            or (not key and profile_key is not None)
+            # Check that the key is usable to avoid suggesting unauthenticated profiles
             and await check_key_is_valid_for_login(profile_key)
         ):
             already_logged_in_profiles.append(name)
