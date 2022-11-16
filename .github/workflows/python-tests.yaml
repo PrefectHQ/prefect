@@ -173,32 +173,34 @@ jobs:
       fail-fast: false
 
     runs-on: ubuntu-latest
-
-    # TODO: Consider moving this from a service into a normal docker command
-    #       so we can include it in the sqlite python test matrix instead of
-    #       maintaining a separate workflow
-    services:
-      postgres:
-        image: postgres:13
-        env:
-          POSTGRES_USER: prefect
-          POSTGRES_PASSWORD: prefect
-          POSTGRES_DB: orion
-          LANG: 'C.UTF-8'
-          LANGUAGE: 'C.UTF-8'
-          LC_ALL: 'C.UTF-8'
-          LC_COLLATE: 'C.UTF-8'
-          LC_CTYPE: 'C.UTF-8'
-        ports:
-          - 5432:5432
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-
     timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v3
         with:
           persist-credentials: false
+
+      - name: Start PostgreSQL ${{ matrix.postgres-version }}
+        run: >
+          docker run
+          --name "postgres"
+          --detach
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --publish 5432:5432
+          --env POSTGRES_USER="prefect"
+          --env POSTGRES_PASSWORD="prefect"
+          --env POSTGRES_DB="orion"
+          --env LANG="C.UTF-8"
+          --env LANGUAGE="C.UTF-8"
+          --env LC_ALL="C.UTF-8"
+          --env LC_COLLATE="C.UTF-8"
+          --env LC_CTYPE="C.UTF-8"
+          postgres:${{ matrix.postgres-version }}
+
+          ./scripts/wait-for-healthy-container postgres 30
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
