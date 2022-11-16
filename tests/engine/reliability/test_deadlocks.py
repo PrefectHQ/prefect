@@ -1,7 +1,13 @@
 import pytest
 
 from prefect import flow
-from tests.generic_tasks import add_one, async_multiply_by_two, sleep, subtract_ten
+from tests.generic_tasks import (
+    add_one,
+    async_multiply_by_two,
+    noop,
+    sleep,
+    subtract_ten,
+)
 
 
 @pytest.mark.skip(reason="Causes a deadlock.")
@@ -42,5 +48,15 @@ async def test_async_task_as_dependency():
     async def run():
         multiplied = await async_multiply_by_two.submit(42)
         add_one(multiplied)
+
+    await run()
+
+
+@pytest.mark.skip(reason="Causes a deadlock.")
+async def test_sync_task_after_async_in_async_flow(use_hosted_orion):
+    @flow
+    async def run():
+        await async_multiply_by_two(42)
+        noop.submit()
 
     await run()
