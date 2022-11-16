@@ -971,7 +971,7 @@ class OrionClient:
                 json=block_document.dict(
                     json_compatible=True,
                     exclude_unset=True,
-                    include={"data"},
+                    include={"data", "merge_existing_data"},
                     include_secrets=True,
                 ),
             )
