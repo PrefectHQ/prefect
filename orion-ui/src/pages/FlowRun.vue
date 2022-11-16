@@ -1,7 +1,7 @@
 <template>
   <p-layout-well class="flow-run">
     <template #header>
-      <PageHeadingFlowRun v-if="flowRun" :flow-run="flowRun" @delete="goToFlowRuns" />
+      <PageHeadingFlowRun v-if="flowRun" :flow-run-id="flowRun.id" @delete="goToFlowRuns" />
     </template>
 
     <p-tabs v-model:selected="selectedTab" :tabs="tabs">

@@ -1,7 +1,7 @@
 <template>
   <p-layout-well v-if="taskRun" class="task-run">
     <template #header>
-      <PageHeadingTaskRun :task-run="taskRun" @delete="goToFlowRun" />
+      <PageHeadingTaskRun :task-run-id="taskRun.id" @delete="goToFlowRun" />
     </template>
 
     <p-tabs :tabs="tabs">
