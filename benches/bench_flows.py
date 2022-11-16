@@ -1,3 +1,6 @@
+"""
+TODO: Add benches for higher number of tasks; blocked by engine deadlocks.
+"""
 import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 
@@ -18,7 +21,7 @@ def bench_flow_call(benchmark: BenchmarkFixture, options):
     benchmark(noop_flow)
 
 
-@pytest.mark.parametrize("num_tasks", [10, 50, 100, 200])
+@pytest.mark.parametrize("num_tasks", [10, 50, 100])
 def bench_flow_with_submitted_tasks(benchmark: BenchmarkFixture, num_tasks: int):
     test_task = task(noop_function)
 
@@ -30,7 +33,7 @@ def bench_flow_with_submitted_tasks(benchmark: BenchmarkFixture, num_tasks: int)
     benchmark(test_flow)
 
 
-@pytest.mark.parametrize("num_tasks", [10, 50, 100, 200])
+@pytest.mark.parametrize("num_tasks", [10, 50, 100])
 def bench_flow_with_called_tasks(benchmark: BenchmarkFixture, num_tasks: int):
     test_task = task(noop_function)
 
