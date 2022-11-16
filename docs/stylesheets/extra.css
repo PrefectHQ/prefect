@@ -95,7 +95,6 @@ to force column width */
 .collection-item img {
     max-height: 100px; 
     max-width: 100px;
-    filter: drop-shadow(1px 1px 12px rgba(0, 0, 0, 0.15));
 }
 
 .recipe-grid {
