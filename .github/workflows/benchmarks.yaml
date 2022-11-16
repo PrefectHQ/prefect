@@ -76,6 +76,6 @@ jobs:
           pytest benches
           --benchmark-group-by func
           --benchmark-columns mean,stddev,rounds
-          --benchmark-autosave=${{ github.head_ref }}-${{ github.sha }}
+          --benchmark-autosave="${{ github.head_ref }}-${{ github.sha }}"
           ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
 
