@@ -30,7 +30,6 @@ def bench_flow_with_submitted_tasks(benchmark: BenchmarkFixture, num_tasks: int)
     benchmark(test_flow)
 
 
-@pytest.mark.skip(reason="Runs longer than the 60s timeout")
 @pytest.mark.parametrize("num_tasks", [10, 50, 100, 200])
 def bench_flow_with_called_tasks(benchmark: BenchmarkFixture, num_tasks: int):
     test_task = task(noop_function)
