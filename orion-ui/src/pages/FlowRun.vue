@@ -73,7 +73,7 @@
   })
 
   const api = useWorkspaceApi()
-  const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId], { interval: 5000 })
+  const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId], { interval: 30000 })
   const flowRun = computed(() => flowRunDetailsSubscription.response)
 
   watch(flowRunId, (oldFlowRunId, newFlowRunId) => {

@@ -47,7 +47,7 @@
   })
 
   const taskRunIdArgs = computed<[string] | null>(() => taskRunId.value ? [taskRunId.value] : null)
-  const taskRunDetailsSubscription = useSubscriptionWithDependencies(api.taskRuns.getTaskRun, taskRunIdArgs)
+  const taskRunDetailsSubscription = useSubscriptionWithDependencies(api.taskRuns.getTaskRun, taskRunIdArgs, { interval: 30000 })
   const taskRun = computed(() => taskRunDetailsSubscription.response)
 
   const flowRunId = computed(() => taskRun.value?.flowRunId)
