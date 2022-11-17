@@ -84,11 +84,7 @@ jobs:
           uniquename=${{ github.head_ref }}-${{ github.sha }}
 
           PREFECT_API_URL="http://127.0.0.1:4200/api"
-          pytest benches
-          --no-cov
-          --benchmark-group-by=func
-          --benchmark-columns=mean,stddev,min,max,rounds
-          --benchmark-sort=mean
+          python benches
           --benchmark-save="${uniquename//\//_}.json"
           ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
 

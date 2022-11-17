@@ -19,6 +19,7 @@ subprocess.run(
     [
         "pytest",
         "--no-cov",
+        # TODO: These should be overridable
         "--benchmark-group-by=func",
         "--benchmark-columns=mean,stddev,min,max,rounds",
         "--benchmark-sort=mean",
