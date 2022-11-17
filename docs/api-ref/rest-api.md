@@ -105,7 +105,5 @@ For example, to query for flows with the tag `"database"` and failed flow runs, 
 }
 ```
 
-## Prefect REST API Reference
 
-<redoc spec-url='schema.json'></redoc>
-<script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"> </script>
+
