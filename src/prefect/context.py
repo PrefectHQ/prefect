@@ -221,8 +221,7 @@ class FlowRunContext(RunContext):
     flow: "Flow"
     flow_run: FlowRun
     task_runner: BaseTaskRunner
-
-    log_print: bool = True
+    log_prints: bool = False
 
     # Result handling
     result_factory: ResultFactory
@@ -261,11 +260,10 @@ class TaskRunContext(RunContext):
     task: "Task"
     task_run: TaskRun
     timeout_scope: Optional[anyio.abc.CancelScope] = None
+    log_prints: bool = False
 
     # Result handling
     result_factory: ResultFactory
-
-    log_print: bool = True
 
     __var__ = ContextVar("task_run")
 

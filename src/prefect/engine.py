@@ -62,7 +62,7 @@ from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, ResultFactory
-from prefect.settings import PREFECT_DEBUG_MODE
+from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_LOGGING_LOG_PRINTS
 from prefect.states import (
     Pending,
     Running,
@@ -329,7 +329,7 @@ async def begin_flow_run(
     """
     logger = flow_run_logger(flow_run, flow)
 
-    flow_run_context = PartialModel(FlowRunContext)
+    flow_run_context = PartialModel(FlowRunContext, log_prints=should_log_prints(flow))
 
     async with AsyncExitStack() as stack:
 
@@ -358,6 +358,9 @@ async def begin_flow_run(
         flow_run_context.result_factory = await ResultFactory.from_flow(
             flow, client=client
         )
+
+        if flow.log_prints:
+            stack.enter_context(patch_print())
 
         terminal_state = await orchestrate_flow_run(
             flow,
@@ -586,9 +589,6 @@ async def orchestrate_flow_run(
                     client=client,
                     timeout_scope=timeout_scope,
                 ) as flow_run_context:
-
-                    if flow_run_context.log_print:
-                        patch_print()
 
                     args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                     logger.debug(
@@ -1027,6 +1027,7 @@ async def submit_task_run(
             result_factory=await ResultFactory.from_task(
                 task, client=flow_run_context.client
             ),
+            log_prints=should_log_prints(task),
             settings=prefect.context.SettingsContext.get().copy(),
         ),
     )
@@ -1043,6 +1044,7 @@ async def begin_task_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     result_factory: ResultFactory,
+    log_prints: bool,
     settings: prefect.context.SettingsContext,
 ):
     """
@@ -1102,6 +1104,9 @@ async def begin_task_run(
 
         # TODO: Use the background tasks group to manage logging for this task
 
+        if log_prints:
+            stack.enter_context(patch_print())
+
         connect_error = await client.api_healthcheck()
         if connect_error:
             raise RuntimeError(
@@ -1116,6 +1121,7 @@ async def begin_task_run(
                 parameters=parameters,
                 wait_for=wait_for,
                 result_factory=result_factory,
+                log_prints=log_prints,
                 interruptible=interruptible,
                 client=client,
             )
@@ -1134,6 +1140,7 @@ async def orchestrate_task_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     result_factory: ResultFactory,
+    log_prints: bool,
     interruptible: bool,
     client: OrionClient,
 ) -> State:
@@ -1170,6 +1177,7 @@ async def orchestrate_task_run(
         task=task,
         client=client,
         result_factory=result_factory,
+        log_prints=log_prints,
     )
 
     try:
@@ -1233,9 +1241,6 @@ async def orchestrate_task_run(
                 with task_run_context.copy(
                     update={"task_run": task_run, "start_time": pendulum.now("UTC")}
                 ):
-                    if task_run_context.log_print:
-                        patch_print()
-
                     if task.isasync:
                         result = await task.fn(*args, **kwargs)
                     else:
@@ -1655,6 +1660,18 @@ def link_state_to_result(state: State, result: Any) -> None:
 
     if flow_run_context:
         visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
+
+
+def should_log_prints(flow_or_task: Union[Flow, Task]) -> bool:
+    flow_run_context = FlowRunContext.get()
+
+    if flow_or_task.log_prints is None:
+        if flow_run_context:
+            return flow_run_context.log_prints
+        else:
+            return PREFECT_LOGGING_LOG_PRINTS.value()
+
+    return flow_or_task.log_prints
 
 
 if __name__ == "__main__":

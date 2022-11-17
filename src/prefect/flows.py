@@ -130,6 +130,7 @@ class Flow(Generic[P, R]):
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
+        log_prints: Optional[bool] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -143,6 +144,8 @@ class Flow(Generic[P, R]):
         self.task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner
         )
+
+        self.log_prints = log_prints
 
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
@@ -512,6 +515,7 @@ def flow(
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
+    log_prints: Optional[bool] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -531,6 +535,7 @@ def flow(
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
+    log_prints: Optional[bool] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -574,6 +579,10 @@ def flow(
             in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
             will be used unless called as a subflow, at which point the default will be
             loaded from the parent flow.
+        log_prints: If set, `print` statements in the flow will be redirected to the
+            Prefect logger for the flow run. Defaults to `None` which indicates that
+            the value from the parent flow should be used. If this is a parent flow,
+            the default is pulled from the `PREFECT_LOGGING_LOG_PRINTS` setting.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -630,6 +639,7 @@ def flow(
                 result_storage=result_storage,
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
+                log_prints=log_prints,
             ),
         )
     else:
@@ -649,6 +659,7 @@ def flow(
                 result_storage=result_storage,
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
+                log_prints=log_prints,
             ),
         )
 
