@@ -92,13 +92,17 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             return str(value)
         return value
 
-    def _resolve_path(self, path: str) -> Path:
-        # Only resolve the base path at runtime, default to the current directory
-        basepath = (
+    def _get_basepath(self):
+        """Get the resolved basepath if provided, otherwise use the current directory."""
+        return (
             Path(self.basepath).expanduser().resolve()
             if self.basepath
             else Path(".").resolve()
         )
+
+    def _resolve_path(self, path: str) -> Path:
+        # Only resolve the base path at runtime, default to the current directory
+        basepath = self._get_basepath()
 
         # Determine the path to access relative to the base path, ensuring that paths
         # outside of the base path are off limits
@@ -124,7 +128,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Defaults to copying the entire contents of the block's basepath to the current working directory.
         """
         if not from_path:
-            from_path = Path(self.basepath).expanduser().resolve()
+            from_path = self._get_basepath()
         else:
             from_path = Path(from_path).resolve()
 
@@ -167,7 +171,7 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
         """
         if not to_path:
-            to_path = Path(self.basepath).expanduser()
+            to_path = self._get_basepath()
 
         if not local_path:
             local_path = Path(".").absolute()
