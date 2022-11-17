@@ -52,7 +52,8 @@ class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         record_dict = record.__dict__.copy()
 
-        # replace any unformatted exc_info tuples with a JSON-safe dict
+        # replace any exception tuples returned by `sys.exc_info()`
+        # with a JSON-serializable `dict`.
         if record.exc_info:
             record_dict["exc_info"] = format_exception_info(record.exc_info)
 
