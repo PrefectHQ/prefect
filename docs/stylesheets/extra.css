@@ -228,6 +228,10 @@ to force column width */
     background-color: #3b3d54;
 }
 
+[data-md-color-scheme="slate"] .collection-item img {
+    filter: drop-shadow(1px 1px 8px rgba(172, 182, 255, 0.35));
+}
+
 /* dark mode recipe collection overrides */
 [data-md-color-scheme="slate"] .recipe-item {
     background-color: #3b3d54;
