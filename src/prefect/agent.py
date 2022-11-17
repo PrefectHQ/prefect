@@ -142,7 +142,7 @@ class OrionAgent:
             seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
         )
 
-        submittable_runs = []
+        submittable_runs: List[FlowRun] = []
 
         # load runs from each work queue
         async for work_queue in self.get_work_queues():
@@ -165,6 +165,8 @@ class OrionAgent:
                     )
                 except Exception as exc:
                     self.logger.exception(exc)
+
+        submittable_runs.sort(key=lambda run: run.next_scheduled_start_time)
 
         for flow_run in submittable_runs:
 
