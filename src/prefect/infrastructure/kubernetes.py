@@ -562,14 +562,9 @@ class KubernetesJob(Infrastructure):
             prefix = None
             name = key
 
-        # TODO: Note that the name must start and end with an alphanumeric character
-        #       but that is not enforced here
-
         name_slug = (
-            slugify(
-                name,
-                max_length=63,
-                regex_pattern=r"[^a-zA-Z0-9-_.]+",
+            slugify(name, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_.]+",).strip(
+                "_-."  # Must start or end with alphanumeric characters
             )
             or name
         )
@@ -582,7 +577,9 @@ class KubernetesJob(Infrastructure):
                     prefix,
                     max_length=253,
                     regex_pattern=r"[^a-zA-Z0-9-\.]+",
-                )
+                ).strip(
+                    "_-."
+                )  # Must start or end with alphanumeric characters
                 or prefix
             )
 
@@ -605,13 +602,9 @@ class KubernetesJob(Infrastructure):
         Returns:
             The slugified value
         """
-        # TODO: Note that the text must start and end with an alphanumeric character
-        #       but that is not enforced here
         slug = (
-            slugify(
-                value,
-                max_length=63,
-                regex_pattern=r"[^a-zA-Z0-9-_\.]+",
+            slugify(value, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_\.]+",).strip(
+                "_-."  # Must start or end with alphanumeric characters
             )
             or value
         )

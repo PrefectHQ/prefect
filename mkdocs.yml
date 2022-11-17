@@ -80,14 +80,17 @@ plugins:
                     show_category_heading: False
                     show_bases: False
                     heading_level: 1
-        watch:
-            - src/prefect/
+
     render_swagger: {}
     search: {}
     gen-files:
         scripts:
             - docs/collections/generate_catalog.py
             - docs/recipes/generate_catalog.py
+watch:
+    - mkdocs.yml
+    - mkdocs.insiders.yml
+    - src/prefect/
 nav:
     # - Prefect 2: index.md
     - Getting Started:
@@ -223,7 +226,6 @@ nav:
             - 'Schemas':
                 - 'orion.schemas.actions': api-ref/orion/schemas/actions.md
                 - 'orion.schemas.core': api-ref/orion/schemas/core.md
-                - 'orion.schemas.data': api-ref/orion/schemas/data.md
                 - 'orion.schemas.filters': api-ref/orion/schemas/filters.md
                 - 'orion.schemas.responses': api-ref/orion/schemas/responses.md
                 - 'orion.schemas.schedules': api-ref/orion/schemas/schedules.md
