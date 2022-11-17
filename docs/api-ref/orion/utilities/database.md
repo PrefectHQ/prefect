@@ -1,3 +1,3 @@
 ::: prefect.orion.utilities.database
-    selection:
+    options:
         filters: ["!^_", "!cache_ok", "!impl", "!process_bind_param", "!process_result_value", "!type"]
