@@ -188,7 +188,7 @@ class OrionAgent:
                     flow_run,
                 )
 
-        return submittable_runs
+        return list(filter(lambda run: run.id in self.submitting_flow_run_ids, submittable_runs))
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
         deployment = await self.client.read_deployment(flow_run.deployment_id)
