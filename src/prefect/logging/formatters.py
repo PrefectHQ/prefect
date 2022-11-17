@@ -1,7 +1,7 @@
 import logging.handlers
 import traceback
 from types import TracebackType
-from typing import Any, List, Optional, Tuple, Type, Union
+from typing import Optional, Tuple, Type, Union
 
 import orjson
 
