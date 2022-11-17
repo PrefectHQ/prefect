@@ -184,7 +184,6 @@ class OrionAgent:
                 self.task_group.start_soon(
                     self.submit_run,
                     flow_run,
-                    self.limiter,
                 )
 
         return submittable_runs
@@ -236,7 +235,7 @@ class OrionAgent:
 
         return prepared_infrastructure
 
-    async def submit_run(self, flow_run: FlowRun, limiter: Optional[anyio.CapacityLimiter]) -> None:
+    async def submit_run(self, flow_run: FlowRun) -> None:
         """
         Submit a flow run to the infrastructure
         """
@@ -250,13 +249,13 @@ class OrionAgent:
                     f"Failed to get infrastructure for flow run '{flow_run.id}'."
                 )
                 await self._propose_failed_state(flow_run, exc)
-                if limiter:
-                    limiter.release_on_behalf_of(flow_run.id)
+                if self.limiter:
+                    self.limiter.release_on_behalf_of(flow_run.id)
             else:
                 # Wait for submission to be completed. Note that the submission function
                 # may continue to run in the background after this exits.
                 await self.task_group.start(
-                    self._submit_run_and_capture_errors, flow_run, infrastructure, limiter
+                    self._submit_run_and_capture_errors, flow_run, infrastructure
                 )
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
 
@@ -266,7 +265,6 @@ class OrionAgent:
         self,
         flow_run: FlowRun,
         infrastructure: Infrastructure,
-        limiter: Optional[anyio.CapacityLimiter],
         task_status: anyio.abc.TaskStatus = None,
     ) -> Union[InfrastructureResult, Exception]:
 
@@ -295,8 +293,8 @@ class OrionAgent:
                 )
             return exc
         finally:
-            if limiter:
-                limiter.release_on_behalf_of(flow_run.id)
+            if self.limiter:
+                self.limiter.release_on_behalf_of(flow_run.id)
 
         if not task_status._future.done():
             self.logger.error(
