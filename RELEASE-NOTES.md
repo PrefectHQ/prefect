@@ -5,7 +5,7 @@
 ### Enhancements
 - Add `--run-once` to `prefect agent start` CLI — https://github.com/PrefectHQ/prefect/pull/7505
 - Expose `prefetch-seconds` in `prefect agent start` CLI — https://github.com/PrefectHQ/prefect/pull/7498
-- Add start time sort for flow runs — https://github.com/PrefectHQ/prefect/pull/7496
+- Add start time sort for flow runs to the REST API — https://github.com/PrefectHQ/prefect/pull/7496
 - Add `merge_existing_data` flag to `update_block_document` — https://github.com/PrefectHQ/prefect/pull/7470
 - Add sanitization to enforce leading/trailing alphanumeric characters for Kubernetes job labels — https://github.com/PrefectHQ/prefect/pull/7528
 
