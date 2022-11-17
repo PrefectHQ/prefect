@@ -1,3 +1,4 @@
+import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 
 from prefect import flow, task
@@ -15,17 +16,21 @@ def bench_task_call(benchmark: BenchmarkFixture):
     noop_task = task(noop_function)
 
     @flow
-    def test_flow():
+    def benchmark_flow():
         benchmark(noop_task)
 
-    test_flow()
+    benchmark_flow()
 
 
-def bench_task_submit(benchmark: BenchmarkFixture):
+@pytest.mark.parametrize("num_task_runs", [100, 250, 500])
+def bench_task_submit(benchmark: BenchmarkFixture, num_task_runs: int):
     noop_task = task(noop_function)
 
-    @flow
-    def test_flow():
-        benchmark(noop_task.submit)
+    # The benchmark occurs within the flow to measure _submission_ time without
+    # measuring any other part of orchestration / collection of results
 
-    test_flow()
+    @flow
+    def benchmark_flow():
+        benchmark.pedantic(noop_task.submit, rounds=num_task_runs)
+
+    benchmark_flow()

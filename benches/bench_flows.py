@@ -26,21 +26,20 @@ def bench_flow_with_submitted_tasks(benchmark: BenchmarkFixture, num_tasks: int)
     test_task = task(noop_function)
 
     @flow
-    def test_flow():
+    def benchmark_flow():
         for _ in range(num_tasks):
             test_task.submit()
 
-    benchmark(test_flow)
+    benchmark(benchmark_flow)
 
 
-@pytest.mark.skip(reason="Benchmarks are deadlocking")
 @pytest.mark.parametrize("num_tasks", [10, 50, 100])
 def bench_flow_with_called_tasks(benchmark: BenchmarkFixture, num_tasks: int):
     test_task = task(noop_function)
 
     @flow
-    def test_flow():
+    def benchmark_flow():
         for _ in range(num_tasks):
             test_task()
 
-    benchmark(test_flow)
+    benchmark(benchmark_flow)
