@@ -1096,7 +1096,7 @@ class TestPrefectConsoleHandler:
         assert handler.level == logging.DEBUG
 
     def test_uses_stderr_by_default(self, capsys):
-        logger = get_logger()
+        logger = get_logger(uuid.uuid4().hex)
         logger.handlers = [PrefectConsoleHandler()]
         logger.info("Test!")
         stdout, stderr = capsys.readouterr()
@@ -1104,7 +1104,7 @@ class TestPrefectConsoleHandler:
         assert "Test!" in stderr
 
     def test_respects_given_stream(self, capsys):
-        logger = get_logger()
+        logger = get_logger(uuid.uuid4().hex)
         logger.handlers = [PrefectConsoleHandler(stream=sys.stdout)]
         logger.info("Test!")
         stdout, stderr = capsys.readouterr()
@@ -1112,7 +1112,7 @@ class TestPrefectConsoleHandler:
         assert "Test!" in stdout
 
     def test_includes_tracebacks_during_exceptions(self, capsys):
-        logger = get_logger()
+        logger = get_logger(uuid.uuid4().hex)
         logger.handlers = [PrefectConsoleHandler()]
 
         try:
@@ -1127,7 +1127,7 @@ class TestPrefectConsoleHandler:
         assert "ValueError: oh my" in stderr
 
     def test_does_not_word_wrap_or_crop_messages(self, capsys):
-        logger = get_logger()
+        logger = get_logger(uuid.uuid4().hex)
         handler = PrefectConsoleHandler()
         logger.handlers = [handler]
 
