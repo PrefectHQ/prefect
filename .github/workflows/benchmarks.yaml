@@ -81,5 +81,5 @@ jobs:
           --benchmark-sort=mean
           --benchmark-min-rounds=2
           --benchmark-save="${uniquename//\//_}.json"
-          ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
+          # ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
 
