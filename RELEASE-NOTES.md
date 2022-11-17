@@ -1,5 +1,28 @@
 # Prefect Release Notes
 
+## Release 2.6.8
+
+### Enhancements
+- Add `--run-once` to `prefect agent start` CLI — https://github.com/PrefectHQ/prefect/pull/7505
+- Expose `prefetch-seconds` in `prefect agent start` CLI — https://github.com/PrefectHQ/prefect/pull/7498
+- Add start time sort for flow runs — https://github.com/PrefectHQ/prefect/pull/7496
+- Adds `merge_existing_data` flag to `update_block_document` — https://github.com/PrefectHQ/prefect/pull/7470
+- Add sanitization to enforce leading/trailing alphanumeric characters for Kubernetes job labels — https://github.com/PrefectHQ/prefect/pull/7528
+
+### Fixes
+- Fix type checking for flow name and version arguments — https://github.com/PrefectHQ/prefect/pull/7549
+- Fix check for empty paths in `LocalFileSystem` — https://github.com/PrefectHQ/prefect/pull/7477
+- Fix `PrefectConsoleHandler` bug where log tracebacks were excluded — https://github.com/PrefectHQ/prefect/pull/7558
+
+### Documentation
+- Add glow to Collection Catalog images in dark mode — https://github.com/PrefectHQ/prefect/pull/7535
+- New [`prefect-vault`](https://github.com/pbchekin/prefect-vault) collection for integration with Hashicorp Vault
+
+## Contributors
+* @kielnino made their first contribution in https://github.com/PrefectHQ/prefect/pull/7517
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.7...2.6.8
+
 ## Release 2.6.7
 
 ### Enhancements
