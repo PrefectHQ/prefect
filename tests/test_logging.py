@@ -1115,8 +1115,8 @@ class TestJsonFormatter:
         # we should be able to load the formatted JSON successfully
         deserialized = json.loads(formatted)
 
-        # we can't check the whole object because some attributes vary at runtime,
-        # so check some known attributes instead
+        # we can't check for an exact JSON string because some attributes vary at
+        # runtime, so check some known attributes instead
         assert deserialized["name"] == "Test Log"
         assert deserialized["levelname"] == "Level 1"
         assert deserialized["filename"] == "file.py"
@@ -1146,8 +1146,8 @@ class TestJsonFormatter:
         # we should be able to load the formatted JSON successfully
         deserialized = json.loads(formatted)
 
-        # we can't check the whole object because some attributes vary at runtime,
-        # so check some known attributes instead
+        # we can't check for an exact JSON string because some attributes vary at
+        # runtime, so check some known attributes instead
         assert deserialized["name"] == "Test Log"
         assert deserialized["levelname"] == "Level 1"
         assert deserialized["filename"] == "file.py"
