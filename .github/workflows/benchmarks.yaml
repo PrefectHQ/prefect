@@ -69,16 +69,26 @@ jobs:
             ${{ runner.os }}-${{ github.head_ref }}-
             ${{ runner.os }}-
 
+
+      - name: Start server
+        run: |
+          prefect orion start&
+          PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
+
+          # TODO: Replace `wait-for-server` with dedicated command
+          #       https://github.com/PrefectHQ/prefect/issues/6990
+
       - name: Run benchmarks
         # Includes comparison to previous benchmarks if available
         run: >
           uniquename=${{ github.head_ref }}-${{ github.sha }}
 
+          PREFECT_API_URL="http://127.0.0.1:4200/api"
           pytest benches
           --no-cov
           --benchmark-group-by=func
           --benchmark-columns=mean,stddev,min,max,rounds
           --benchmark-sort=mean
           --benchmark-save="${uniquename//\//_}.json"
-          # ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
+          ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
 
