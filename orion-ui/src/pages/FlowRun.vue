@@ -1,7 +1,7 @@
 <template>
   <p-layout-well class="flow-run">
     <template #header>
-      <PageHeadingFlowRun v-if="flowRun" :flow-run="flowRun" @delete="goToFlowRuns" />
+      <PageHeadingFlowRun v-if="flowRun" :flow-run-id="flowRun.id" @delete="goToFlowRuns" />
     </template>
 
     <p-tabs v-model:selected="selectedTab" :tabs="tabs">
@@ -73,7 +73,7 @@
   })
 
   const api = useWorkspaceApi()
-  const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId], { interval: 5000 })
+  const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId], { interval: 30000 })
   const flowRun = computed(() => flowRunDetailsSubscription.response)
 
   watch(flowRunId, (oldFlowRunId, newFlowRunId) => {

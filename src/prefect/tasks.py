@@ -473,7 +473,7 @@ class Task(Generic[P, R]):
         Args:
             *args: Arguments to run the task with
             return_state: Return the result of the flow run wrapped in a
-            Prefect State.
+                Prefect State.
             wait_for: Upstream task futures to wait for before starting the task
             **kwargs: Keyword arguments to run the task with
 
@@ -626,9 +626,9 @@ class Task(Generic[P, R]):
         Args:
             *args: Iterable and static arguments to run the tasks with
             return_state: Return a list of Prefect States that wrap the results
-              of each task run.
+                of each task run.
             wait_for: Upstream task futures to wait for before starting the
-              task
+                task
             **kwargs: Keyword iterable arguments to run the task with
 
         Returns:
