@@ -20,6 +20,7 @@ __ui_static_path__ = __module_path__ / "orion" / "ui"
 
 del _version, pathlib
 
+
 # Import user-facing API
 from prefect.states import State
 from prefect.logging import get_run_logger
@@ -61,6 +62,12 @@ prefect.client.schemas.State.update_forward_refs(
 import prefect.plugins
 
 prefect.plugins.load_prefect_collections()
+
+
+# Configure logging
+import prefect.logging.configuration
+
+prefect.logging.configuration.setup_logging()
 
 
 # Ensure moved names are accessible at old locations
