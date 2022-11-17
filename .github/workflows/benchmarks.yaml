@@ -79,7 +79,6 @@ jobs:
           --benchmark-group-by=func
           --benchmark-columns=mean,stddev,min,max,rounds
           --benchmark-sort=mean
-          --benchmark-min-rounds=2
           --benchmark-save="${uniquename//\//_}.json"
           # ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
 
