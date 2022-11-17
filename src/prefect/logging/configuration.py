@@ -60,7 +60,12 @@ def load_logging_config(path: Path) -> dict:
     return flatdict_to_dict(flat_config)
 
 
-def setup_logging() -> None:
+def setup_logging() -> dict:
+    """
+    Sets up logging.
+
+    Returns the config used.
+    """
     global PROCESS_LOGGING_CONFIG
 
     # If the user has specified a logging path and it exists we will ignore the
@@ -73,15 +78,8 @@ def setup_logging() -> None:
         )
     )
 
-    if PROCESS_LOGGING_CONFIG:
-        # Do not allow repeated configuration calls, only warn if the config differs
-        if PROCESS_LOGGING_CONFIG != config:
-            warnings.warn(
-                "Logging can only be setup once per process, the new logging config "
-                f"will be ignored.",
-                stacklevel=2,
-            )
-        return
+    # Perform an incremental update if setup has already been run
+    config.setdefault("incremental", bool(PROCESS_LOGGING_CONFIG))
 
     logging.config.dictConfig(config)
 
@@ -91,9 +89,12 @@ def setup_logging() -> None:
     for logger_name in PREFECT_LOGGING_EXTRA_LOGGERS.value():
         logger = logging.getLogger(logger_name)
         for handler in extra_config.handlers:
-            logger.addHandler(handler)
+            if not config["incremental"]:
+                logger.addHandler(handler)
             if logger.level == logging.NOTSET:
                 logger.setLevel(extra_config.level)
             logger.propagate = extra_config.propagate
 
     PROCESS_LOGGING_CONFIG = config
+
+    return config
