@@ -36,7 +36,7 @@ env/
 venv/
 
 # Documentation artifacts
-docs/api-ref/schema.json
+docs/api-ref/rest-api/schema.json
 site/
 .cache/
 
