@@ -51,6 +51,7 @@ from prefect.settings import (
     PREFECT_LOGGING_SETTINGS_PATH,
     temporary_settings,
 )
+from prefect.testing.cli import temporary_console_width
 from prefect.testing.utilities import AsyncMock
 
 
@@ -1128,11 +1129,11 @@ class TestPrefectConsoleHandler:
     def test_does_not_word_wrap_or_crop_messages(self, capsys):
         logger = get_logger()
         handler = PrefectConsoleHandler()
-        # Pretend we have a narrow little console
-        handler.console._width = 10
         logger.handlers = [handler]
 
-        logger.info("x" * 1000)
+        # Pretend we have a narrow little console
+        with temporary_console_width(handler.console, 10):
+            logger.info("x" * 1000)
 
         _, stderr = capsys.readouterr()
         # There will be newlines in the middle if cropped
