@@ -61,8 +61,8 @@ img {
 }
 
 /* push "go to prefect cloud" */
-.cloud-filler {
-    flex-grow: 1;
+.cloud-link {
+    margin-left: auto;
 }
 
 /* Table formatting */
