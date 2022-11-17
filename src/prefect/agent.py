@@ -27,6 +27,7 @@ class OrionAgent:
         work_queues: List[str] = None,
         work_queue_prefix: Union[str, List[str]] = None,
         prefetch_seconds: int = None,
+        agent_id: UUID = None,
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
     ) -> None:
@@ -43,6 +44,7 @@ class OrionAgent:
         self.logger = get_logger("agent")
         self.task_group: Optional[anyio.abc.TaskGroup] = None
         self.client: Optional[OrionClient] = None
+        self.agent_id = agent_id
 
         if isinstance(work_queue_prefix, str):
             work_queue_prefix = [work_queue_prefix]
@@ -152,7 +154,10 @@ class OrionAgent:
             else:
                 try:
                     queue_runs = await self.client.get_runs_in_work_queue(
-                        id=work_queue.id, limit=10, scheduled_before=before
+                        id=work_queue.id,
+                        limit=10,
+                        scheduled_before=before,
+                        agent_id=self.agent_id,
                     )
                     submittable_runs.extend(queue_runs)
                 except ObjectNotFound:

@@ -14,6 +14,7 @@ import pendulum
 import pytest
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBearer
+from httpx import Response
 
 import prefect.context
 import prefect.exceptions
@@ -1385,6 +1386,22 @@ class TestClientWorkQueues:
         output = await orion_client.get_runs_in_work_queue(queue.id, limit=20)
         assert len(output) == 10
         assert {o.id for o in output} == {r.id for r in runs}
+
+    async def test_get_runs_in_work_queue_transmits_agent_id(self, orion_client, deployment, monkeypatch):
+        agent_id = uuid4()
+
+        def side_effect(*args, **kwargs):
+            assert kwargs["json"]["agent_id"] == agent_id
+            return Response(status.HTTP_200_OK, json=[])
+
+        queue = await orion_client.read_work_queue_by_name(name="wq")
+
+        mock = AsyncMock(side_effect=side_effect)
+        monkeypatch.setattr(orion_client._client, "post", mock)
+
+        await orion_client.get_runs_in_work_queue(queue.id, limit=1, agent_id=agent_id)
+
+        mock.assert_called_once()
 
 
 async def test_delete_flow_run(orion_client, flow_run):

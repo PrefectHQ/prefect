@@ -2,7 +2,7 @@
 Command line interface for working with agent services
 """
 from typing import List
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import typer
 
@@ -59,6 +59,13 @@ async def start(
         ),
     ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
+    agent_id: UUID = typer.Option(
+        uuid4(),
+        "--uuid",
+        help=(
+            "Unique identifier (UUID) for the agent, instead of using automatically generated."
+        ),
+    ),
     api: str = SettingsOption(PREFECT_API_URL),
     run_once: bool = typer.Option(
         False, help="Run the agent loop once, instead of forever."
@@ -137,17 +144,18 @@ async def start(
         work_queues=work_queues,
         work_queue_prefix=work_queue_prefix,
         prefetch_seconds=prefetch_seconds,
+        agent_id=agent_id,
     ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
             if work_queue_prefix:
                 app.console.print(
-                    "Agent started! Looking for work from "
+                    f"Agent started with UUID {agent_id}! Looking for work from "
                     f"queue(s) that start with the prefix: {work_queue_prefix}..."
                 )
             else:
                 app.console.print(
-                    "Agent started! Looking for work from "
+                    f"Agent started with UUID {agent_id}! Looking for work from "
                     f"queue(s): {', '.join(work_queues)}..."
                 )
 

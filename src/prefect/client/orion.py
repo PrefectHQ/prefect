@@ -735,6 +735,7 @@ class OrionClient:
         id: UUID,
         limit: int = 10,
         scheduled_before: datetime.datetime = None,
+        agent_id: UUID = None,
     ) -> List[FlowRun]:
         """
         Read flow runs off a work queue.
@@ -744,6 +745,7 @@ class OrionClient:
             limit: a limit on the number of runs to return
             scheduled_before: a timestamp; only runs scheduled before this time will be returned.
                 Defaults to now.
+            agent_id: An optional unique identifier for the agent making this query.
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
@@ -761,6 +763,7 @@ class OrionClient:
                 json={
                     "limit": limit,
                     "scheduled_before": scheduled_before.isoformat(),
+                    "agent_id": agent_id,
                 },
             )
         except httpx.HTTPStatusError as e:

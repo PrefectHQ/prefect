@@ -1,4 +1,6 @@
+from unittest.mock import ANY
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pendulum
 import pytest
@@ -334,6 +336,23 @@ async def test_agent_runs_multiple_work_queues(orion_client, session, flow):
         agent.submit_run.call_args_list[0][0][0].id,
         agent.submit_run.call_args_list[1][0][0].id,
     }
+
+
+async def test_agent_transmits_agent_id_to_orion_client(orion_client, deployment, monkeypatch):
+    work_queue = await orion_client.read_work_queue_by_name(deployment.work_queue_name)
+    mock = AsyncMock()
+    monkeypatch.setattr("prefect.client.OrionClient.get_runs_in_work_queue", mock)
+    agent_id = uuid4()
+
+    async with OrionAgent(work_queues=[work_queue.name], agent_id=agent_id) as agent:
+        agent.submit_run = AsyncMock()  # do not actually run
+        await agent.get_and_submit_flow_runs()
+        mock.assert_called_once_with(
+            id=work_queue.id,
+            limit=ANY,
+            scheduled_before=ANY,
+            agent_id=agent_id,
+        )
 
 
 class TestInfrastructureIntegration:
