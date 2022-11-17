@@ -238,7 +238,7 @@ nav:
                 - 'orion.utilities.schemas': api-ref/orion/utilities/schemas.md
                 - 'orion.utilities.server': api-ref/orion/utilities/server.md
         - Prefect REST API: 
-            - Prefece REST API Overview: api-ref/rest-api.md
+            - Prefect REST API Overview: api-ref/rest-api.md
             - Prefect REST API Reference: api-ref/rest-api-reference.md
     - Contributing:
         - Overview: contributing/overview.md
