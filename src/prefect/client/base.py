@@ -172,7 +172,6 @@ class PrefectHttpxClient(httpx.AsyncClient):
             try:
                 response = await request()
             except retry_exceptions as exc:
-                breakpoint()
                 if try_count >= self.RETRY_MAX:
                     raise exc
                 continue
