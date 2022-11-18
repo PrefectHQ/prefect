@@ -127,7 +127,29 @@ The underlying log model for task runs captures the task name, task run ID, and 
 
 ### Logging print statements
 
-For prototyping or local debugging, Prefect provides a utility to log print statements at the task, flow, or settings level. Tasks and subflows will inherit the print logging behavior from their parent flow.
+For prototyping or local debugging, Prefect provides a decorator kwarg to log print statements at the task, flow, or settings level. Tasks and subflows will inherit the print logging behavior from their parent flow.
+
+```python
+from prefect import task, flow
+
+@task
+def my_task():
+    print("we're logging print statements from a task")
+
+@flow
+def my_flow(log_prints=True):
+    print("we're logging print statements from a flow")
+    my_task()
+```
+
+output
+
+
+
+setting level
+
+
+to toggle this setting at the system level, 
 
 todo: code examples
 
