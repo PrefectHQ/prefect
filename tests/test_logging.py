@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import queue
 import sys
@@ -30,6 +31,7 @@ from prefect.logging.configuration import (
     load_logging_config,
     setup_logging,
 )
+from prefect.logging.formatters import JsonFormatter
 from prefect.logging.handlers import OrionHandler, OrionLogWorker, PrefectConsoleHandler
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
@@ -1134,6 +1136,68 @@ class TestPrefectConsoleHandler:
         _, stderr = capsys.readouterr()
         # There will be newlines in the middle if cropped
         assert "x" * 1000 in stderr
+
+
+class TestJsonFormatter:
+    def test_json_log_formatter(self):
+        formatter = JsonFormatter("default", None, "%")
+        record = logging.LogRecord(
+            name="Test Log",
+            level=1,
+            pathname="/path/file.py",
+            lineno=1,
+            msg="log message",
+            args=None,
+            exc_info=None,
+        )
+
+        formatted = formatter.format(record)
+
+        # we should be able to load the formatted JSON successfully
+        deserialized = json.loads(formatted)
+
+        # we can't check for an exact JSON string because some attributes vary at
+        # runtime, so check some known attributes instead
+        assert deserialized["name"] == "Test Log"
+        assert deserialized["levelname"] == "Level 1"
+        assert deserialized["filename"] == "file.py"
+        assert deserialized["lineno"] == 1
+
+    def test_json_log_formatter_with_exception(self):
+
+        exc_info = None
+        try:
+            raise Exception("test exception")  # noqa
+        except Exception as exc:  # noqa
+            exc_info = sys.exc_info()
+
+        formatter = JsonFormatter("default", None, "%")
+        record = logging.LogRecord(
+            name="Test Log",
+            level=1,
+            pathname="/path/file.py",
+            lineno=1,
+            msg="log message",
+            args=None,
+            exc_info=exc_info,
+        )
+
+        formatted = formatter.format(record)
+
+        # we should be able to load the formatted JSON successfully
+        deserialized = json.loads(formatted)
+
+        # we can't check for an exact JSON string because some attributes vary at
+        # runtime, so check some known attributes instead
+        assert deserialized["name"] == "Test Log"
+        assert deserialized["levelname"] == "Level 1"
+        assert deserialized["filename"] == "file.py"
+        assert deserialized["lineno"] == 1
+        assert deserialized["exc_info"] is not None
+        assert deserialized["exc_info"]["type"] == "Exception"
+        assert deserialized["exc_info"]["message"] == "test exception"
+        assert deserialized["exc_info"]["traceback"] is not None
+        assert len(deserialized["exc_info"]["traceback"]) > 0
 
 
 def test_log_in_flow(caplog):
