@@ -152,13 +152,14 @@ Will output:
 14:18:58.150 | INFO    | Flow run 'singing-malkoha' - Executing 'my_task-20c6ece6-0' immediately...
 14:18:58.392 | INFO    | Task run 'my_task-20c6ece6-0' - we're logging print statements from a task
 ```
-</div>
 
-You can also set this at the system level for all prefect flows, tasks, and subflows.
+You can also set this at the system level for all Prefect flows, tasks, and subflows.
 
+<div class='terminal'>
 ```bash
 PREFECT_LOGGING_LOG_PRINTS=True
 ```
+</div>
 
 ## Formatters
 
