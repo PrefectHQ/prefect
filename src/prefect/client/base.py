@@ -3,6 +3,7 @@ import sys
 import threading
 from collections import defaultdict
 from contextlib import asynccontextmanager
+from functools import partial
 from typing import ContextManager, Dict, Tuple, Type
 
 import anyio
@@ -154,27 +155,47 @@ class PrefectHttpxClient(httpx.AsyncClient):
 
     RETRY_MAX = 5
 
-    async def send(self, *args, **kwargs) -> Response:
-        retry_count = 0
-        response = PrefectResponse.from_httpx_response(
-            await super().send(*args, **kwargs)
+    async def _send_with_retry(self, request, retry_codes, retry_exceptions):
+        try_count = 0
+        response = None
+        should_try_request = (
+            not response
+            or (response.status in retry_codes)
+            and try_count <= self.RETRY_MAX
         )
-        while (
-            response.status_code
-            in {status.HTTP_429_TOO_MANY_REQUESTS, status.HTTP_503_SERVICE_UNAVAILABLE}
-            and retry_count < self.RETRY_MAX
-        ):
-            retry_count += 1
+        while should_try_request:
+            try:
+                response = await request()
+            except retry_exceptions as exc:
+                if try_count >= self.RETRY_MAX:
+                    raise exc
+                continue
+            finally:
+                try_count += 1
+                if response:
+                    # response was successful
+                    if response.status_code not in retry_codes:
+                        return response
+                    # begin retry logic
+                    retry_after = response.headers.get("Retry-After")
+                    if retry_after:
+                        retry_seconds = float(retry_after)
+                    else:
+                        retry_seconds = 2**try_count
+                    await anyio.sleep(retry_seconds)
 
-            # Respect the "Retry-After" header, falling back to an exponential back-off
-            retry_after = response.headers.get("Retry-After")
-            if retry_after:
-                retry_seconds = float(retry_after)
-            else:
-                retry_seconds = 2**retry_count
+        return response
 
-            await anyio.sleep(retry_seconds)
-            response = await super().send(*args, **kwargs)
+    async def send(self, *args, **kwargs) -> Response:
+        api_request = partial(super().send, *args, **kwargs)
+        response = await self._send_with_retry(
+            request=api_request,
+            retry_codes={
+                status.HTTP_429_TOO_MANY_REQUESTS,
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+            },
+            retry_exceptions=(httpx.RemoteProtocolError, httpx.ReadError),
+        )
 
         # Always raise bad responses
         # NOTE: We may want to remove this and handle responses per route in the
