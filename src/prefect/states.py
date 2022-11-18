@@ -506,3 +506,38 @@ def Late(
         State: a Late state
     """
     return schemas.states.Late(cls=cls, scheduled_time=scheduled_time, **kwargs)
+
+
+@sync_compatible
+async def pause():
+    import time
+
+    from prefect.client.orion import get_client
+    from prefect.context import FlowRunContext, TaskRunContext
+    from prefect.orion.schemas.states import Paused
+
+    if TaskRunContext.get():
+        raise RuntimeError("Can't pause task runs!")
+
+    frc = FlowRunContext.get()
+
+    client = get_client()
+    return await client.set_flow_run_state(
+        frc.flow_run.id,
+        Paused(),
+        force=True,
+    )
+
+
+@sync_compatible
+async def resume(flow_run_id):
+    import pendulum
+
+    from prefect.client.orion import get_client
+    from prefect.orion.schemas.states import Resuming, Scheduled
+
+    client = get_client()
+    return await client.set_flow_run_state(
+        flow_run_id,
+        Scheduled(scheduled_time=pendulum.now("UTC")),
+    )

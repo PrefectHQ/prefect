@@ -213,8 +213,11 @@ class SetNextScheduledStartTime(BaseUniversalTransform):
         if context.initial_state and context.initial_state.is_scheduled():
             context.run.next_scheduled_start_time = None
 
-        # set next scheduled start time if entering a scheduled state
-        if context.proposed_state.is_scheduled():
+        # set next scheduled start time if entering a scheduled or resuming state
+        if (
+            context.proposed_state.is_scheduled()
+            or context.proposed_state.is_resuming()
+        ):
             context.run.next_scheduled_start_time = (
                 context.proposed_state.state_details.scheduled_time
             )

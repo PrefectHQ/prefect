@@ -295,13 +295,23 @@ def Paused(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.PAUSED, **kwargs)
 
 
-def Resuming(cls: Type[State] = State, **kwargs) -> State:
+def Resuming(
+    scheduled_time: datetime.datetime = None, cls: Type[State] = State, **kwargs
+) -> State:
     """Convenience function for creating `Resuming` states.
 
     Returns:
         State: a Resuming state
     """
-    return cls(type=StateType.RESUMING, **kwargs)
+
+    state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
+    if scheduled_time is None:
+        scheduled_time = pendulum.now("UTC")
+    elif state_details.scheduled_time:
+        raise ValueError("An extra scheduled_time was provided in state_details")
+    state_details.scheduled_time = scheduled_time
+
+    return cls(type=StateType.RESUMING, state_details=state_details, **kwargs)
 
 
 def AwaitingRetry(
