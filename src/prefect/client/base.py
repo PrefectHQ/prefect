@@ -171,24 +171,24 @@ class PrefectHttpxClient(httpx.AsyncClient):
         ):
             try:
                 response = await request()
-            except retry_exceptions as exc:
+            except retry_exceptions:
                 if try_count >= self.RETRY_MAX:
-                    raise exc
+                    raise
                 continue
-            finally:
-                try_count += 1
-                retry_after = None
-                if response:
-                    # response was successful
-                    if response.status_code not in retry_codes:
-                        return response
-                    # begin retry logic
-                    retry_after = response.headers.get("Retry-After")
+
+            else:
+                if response.status_code not in retry_codes:
+                    return response
+                retry_after = response.headers.get("Retry-After")
                 if retry_after:
                     retry_seconds = float(retry_after)
-                else:
+
+            finally:
+                try_count += 1
+                if retry_seconds is None:
                     retry_seconds = 2**try_count
                 await anyio.sleep(retry_seconds)
+                retry_seconds = None
 
         return response
 
