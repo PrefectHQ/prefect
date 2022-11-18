@@ -85,6 +85,6 @@ jobs:
 
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           python benches
-          --benchmark-save="${uniquename//\//_}.json"
+          --benchmark-save="${uniquename//\//_}"
           ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
 
