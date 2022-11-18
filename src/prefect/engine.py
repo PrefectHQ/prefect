@@ -17,6 +17,7 @@ Engine process overview
 """
 import logging
 import sys
+from collections import defaultdict
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
@@ -43,6 +44,7 @@ from prefect.exceptions import (
     Abort,
     MappingLengthMismatch,
     MappingMissingIterable,
+    MissingResult,
     UpstreamTaskError,
 )
 from prefect.flows import Flow
@@ -234,7 +236,13 @@ async def create_then_begin_flow_run(
     if return_type == "state":
         return state
     elif return_type == "result":
-        return await state.result(fetch=True)
+        try:
+            return await state.result(fetch=True)
+        except MissingResult as exc:
+            if state.is_paused():
+                return
+            else:
+                raise exc
     else:
         raise ValueError(f"Invalid return type for flow engine {return_type!r}.")
 
@@ -372,9 +380,24 @@ async def begin_flow_run(
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
 
+    logging_levels = defaultdict(lambda: logging.ERROR)
+    logging_levels.update(
+        {
+            StateType.COMPLETED: logging.INFO,
+            StateType.PAUSED: logging.INFO,
+        }
+    )
+
+    def logger_message(ts, ds):
+        if ts.is_paused():
+            msg = f"Currently paused. If resumed, an agent will finish execution."
+        else:
+            msg = f"Finished in state {ds}"
+        return msg
+
     logger.log(
-        level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
-        msg=f"Finished in state {display_state}",
+        level=logging_levels.get(terminal_state.type) or logging.ERROR,
+        msg=logger_message(terminal_state, display_state),
         extra={"send_to_orion": False},
     )
 
@@ -645,6 +668,10 @@ async def orchestrate_flow_run(
                     + flow_run_context.flow_run_states
                 ) or None
 
+            orion_flow_run_state = (await client.read_flow_run(flow_run.id)).state
+            if orion_flow_run_state.is_paused():
+                return orion_flow_run_state
+
             terminal_state = await return_value_to_state(
                 await resolve_futures_to_states(result),
                 result_factory=flow_run_context.result_factory,
@@ -866,12 +893,20 @@ async def get_task_call_return_value(
         task_runner=task_runner,
         extra_task_inputs=extra_task_inputs,
     )
+
+    state = await future._wait()
+
     if return_type == "future":
         return future
     elif return_type == "state":
-        return await future._wait()
+        return state
     elif return_type == "result":
-        return await future._result()
+        try:
+            return await future._result()
+        except MissingResult as exc:
+            if state.name == "NotReady":
+                return
+            raise exc
     else:
         raise ValueError(f"Invalid return type for task engine {return_type!r}.")
 
@@ -1008,6 +1043,9 @@ async def submit_task_run(
 ) -> PrefectFuture:
     logger = get_run_logger(flow_run_context)
 
+    client = flow_run_context.client
+    flow_run = await client.read_flow_run(flow_run_context.flow_run.id)
+
     if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
         logger.info(f"Executing {task_run.name!r} immediately...")
 
@@ -1023,6 +1061,7 @@ async def submit_task_run(
                 task, client=flow_run_context.client
             ),
             settings=prefect.context.SettingsContext.get().copy(),
+            flow_run_paused=flow_run.state.is_paused(),
         ),
     )
 
@@ -1039,6 +1078,7 @@ async def begin_task_run(
     wait_for: Optional[Iterable[PrefectFuture]],
     result_factory: ResultFactory,
     settings: prefect.context.SettingsContext,
+    flow_run_paused: bool,
 ):
     """
     Entrypoint for task run execution.
@@ -1112,6 +1152,7 @@ async def begin_task_run(
                 wait_for=wait_for,
                 result_factory=result_factory,
                 interruptible=interruptible,
+                flow_run_paused=flow_run_paused,
                 client=client,
             )
         except Abort:
@@ -1130,6 +1171,7 @@ async def orchestrate_task_run(
     wait_for: Optional[Iterable[PrefectFuture]],
     result_factory: ResultFactory,
     interruptible: bool,
+    flow_run_paused: bool,
     client: OrionClient,
 ) -> State:
     """
@@ -1166,6 +1208,16 @@ async def orchestrate_task_run(
         client=client,
         result_factory=result_factory,
     )
+
+    if flow_run_paused:
+        return await propose_state(
+            client,
+            Pending(name="NotReady", message="This task's flow run is paused."),
+            task_run_id=task_run.id,
+            # if orchestrating a run already in a pending state, force orchestration to
+            # update the state name
+            force=task_run.state.is_pending(),
+        )
 
     try:
         # Resolve futures in parameters into data
