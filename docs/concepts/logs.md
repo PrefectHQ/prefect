@@ -125,6 +125,15 @@ Prefect automatically uses the task run logger based on the task context. The de
 
 The underlying log model for task runs captures the task name, task run ID, and parent flow run ID, which are persisted to the database for reporting and may also be used in custom message formatting.
 
+### Logging print statements
+
+For prototyping or local debugging, Prefect provides a utility to log print statements at the task, flow, or settings level. Tasks and subflows will inherit the print logging behavior from their parent flow.
+
+todo: code examples
+
+
+
+
 ## Formatters
 
 Prefect log formatters specify the format of log messages. You can see details of message formatting for different loggers in [`logging.yml`](https://github.com/PrefectHQ/prefect/blob/orion/src/prefect/logging/logging.yml). For example, the default formatting for task run log records is:
