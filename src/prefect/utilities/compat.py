@@ -24,6 +24,14 @@ else:
     from asyncio import to_thread as asyncio_to_thread
 
 
+if sys.version_info < (3, 8):
+
+    def raise_signal(signal: int):
+        os.kill(os.getpid(), signal)
+
+else:
+    from signal import raise_signal
+
 if sys.version_info < (3, 8) and sys.platform != "win32":
     # https://docs.python.org/3/library/asyncio-policy.html#asyncio.ThreadedChildWatcher
     # `ThreadedChildWatcher` is the default child process watcher for Python 3.8+ but it
