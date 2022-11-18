@@ -1268,6 +1268,9 @@ class ProfilesCollection:
     def __iter__(self):
         return self.profiles_by_name.__iter__()
 
+    def items(self):
+        return self.profiles_by_name.items()
+
     def __eq__(self, __o: object) -> bool:
         if not isinstance(__o, ProfilesCollection):
             return False
@@ -1336,6 +1339,24 @@ def load_profiles() -> ProfilesCollection:
             profiles.set_active(user_profiles.active_name, check=False)
 
     return profiles
+
+
+def load_current_profile():
+    """
+    Load the current profile from the default and current profile paths.
+
+    This will _not_ include settings from the current settings context. Only settings
+    that have been persisted to the profiles file will be saved.
+    """
+    from prefect.context import SettingsContext
+
+    profiles = load_profiles()
+    context = SettingsContext.get()
+
+    if context:
+        profiles.set_active(context.profile.name)
+
+    return profiles.active_profile
 
 
 def save_profiles(profiles: ProfilesCollection) -> None:
