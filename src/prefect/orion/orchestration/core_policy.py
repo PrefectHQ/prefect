@@ -382,8 +382,8 @@ class WaitForScheduledTime(BaseOrchestrationRule):
     before attempting the transition again.
     """
 
-    FROM_STATES = [states.StateType.SCHEDULED]
-    TO_STATES = ALL_ORCHESTRATION_STATES
+    FROM_STATES = [states.StateType.SCHEDULED, states.StateType.PENDING]
+    TO_STATES = [states.StateType.RUNNING]
 
     async def before_transition(
         self,
@@ -393,7 +393,7 @@ class WaitForScheduledTime(BaseOrchestrationRule):
     ) -> None:
         scheduled_time = initial_state.state_details.scheduled_time
         if not scheduled_time:
-            raise ValueError("Received state without a scheduled time")
+            return
 
         # At this moment, we take the floor of the actual delay as the API schema
         # specifies an integer return value.
