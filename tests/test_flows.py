@@ -173,7 +173,6 @@ class TestFlowWithOptions:
             result_serializer="json",
             result_storage=LocalFileSystem(basepath="bar"),
             cache_result_in_memory=True,
-            log_prints=True,
         )
 
         assert flow_with_options.name == "Copied flow"
