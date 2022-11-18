@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import List, Optional
 
 import apprise
 from apprise import Apprise, AppriseAsset, NotifyType
+from httpx import AsyncClient
 from pydantic import Field, SecretStr
 
 from prefect.blocks.core import Block
@@ -86,7 +87,7 @@ class SlackWebhook(AppriseNotificationBlock):
         ```python
         from prefect.blocks.notifications import SlackWebhook
 
-        slack_webhook_block = SlackWebhook.load("BLOCK_NAME")
+        slack_webhook_block = SlackWebhook.load("block-name")
         slack_webhook_block.notify("Hello from Prefect!")
         ```
     """
@@ -113,7 +114,7 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
         Load a saved Teams webhook and send a message:
         ```python
         from prefect.blocks.notifications import MicrosoftTeamsWebhook
-        teams_webhook_block = MicrosoftTeamsWebhook.load("BLOCK_NAME")
+        teams_webhook_block = MicrosoftTeamsWebhook.load("block-name")
         teams_webhook_block.notify("Hello from Prefect!")
         ```
     """
@@ -128,3 +129,60 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
         description="The Teams incoming webhook URL used to send notifications.",
         example="https://your-org.webhook.office.com/webhookb2/XXX/IncomingWebhook/YYY/ZZZ",
     )
+
+
+class TwilioWebHook(NotificationBlock):
+    """Enables sending notifications via a provided Twilio webhook.
+
+    Attributes:
+        url: Twilio webhook URL which can be used to send messages.
+
+    Examples:
+        Load a saved Twilio webhook and send a message:
+        ```python
+        from prefect.blocks.notifications import TwilioWebHook
+        twilio_webhook_block = TwilioWebHook.load("block-name")
+        twilio_webhook_block.notify("Hello from Prefect!")
+        ```
+    """
+
+    _block_type_name = "Twilio Webhook"
+    _block_type_slug = "twilio-webhook"
+    _logo_url = "https://images.ctfassets.net/zscdif0zqppk/YTCgPL6bnK3BczP2gV9md/609283105a7006c57dbfe44ee1a8f313/58482bb9cef1014c0b5e4a31.png?h=250"  # noqa
+
+    account_sid: str = Field(
+        ...,
+        description="The Twilio account SID.",
+    )
+
+    auth_token: SecretStr = Field(
+        ...,
+        description="The Twilio auth token.",
+    )
+
+    from_phone_number: str = Field(
+        ...,
+        description="The phone number to send the message from. Must be a valid Twilio phone number.",
+    )
+
+    to_phone_number: List[str] = Field(
+        ...,
+        description="The phone number(s) to send the message to. Must be a valid Twilio phone number.",
+    )
+
+    def block_initialization(self) -> None:
+        self._twilio_client = AsyncClient(
+            auth=(self.account_sid, self.auth_token.get_secret_value())
+        )
+
+    @sync_compatible
+    async def notify(self, body: str):
+        async with self._twilio_client as client:
+            await client.post(
+                f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Messages.json",
+                data={
+                    "From": self.from_phone_number,
+                    "To": "/".join(self.to_phone_number),
+                    "Body": body,
+                },
+            )
