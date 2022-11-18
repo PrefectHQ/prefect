@@ -127,7 +127,7 @@ The underlying log model for task runs captures the task name, task run ID, and 
 
 ### Logging print statements
 
-For prototyping or local debugging, Prefect provides a decorator kwarg to log print statements at the task, flow, or settings level. Tasks and subflows will inherit the print logging behavior from their parent flow.
+For prototyping or local debugging, Prefect provides a decorator kwarg `log_print=True` to log print statements at the task or flow level. Tasks and subflows will inherit the print logging behavior from their parent flow.
 
 ```python
 from prefect import task, flow
@@ -136,25 +136,29 @@ from prefect import task, flow
 def my_task():
     print("we're logging print statements from a task")
 
-@flow
-def my_flow(log_prints=True):
+@flow(log_prints=True)
+def my_flow():
     print("we're logging print statements from a flow")
     my_task()
 ```
 
-output
+Will output:
 
+<div class='terminal'>
+```bash
+14:18:57.401 | INFO    | prefect.engine - Created flow run 'singing-malkoha' for flow 'my-flow'
+14:18:58.026 | INFO    | Flow run 'singing-malkoha' - we're logging print statements from a flow
+14:18:58.148 | INFO    | Flow run 'singing-malkoha' - Created task run 'my_task-20c6ece6-0' for task 'my_task'
+14:18:58.150 | INFO    | Flow run 'singing-malkoha' - Executing 'my_task-20c6ece6-0' immediately...
+14:18:58.392 | INFO    | Task run 'my_task-20c6ece6-0' - we're logging print statements from a task
+```
+</div>
 
+You can also set this at the system level for all prefect flows, tasks, and subflows.
 
-setting level
-
-
-to toggle this setting at the system level, 
-
-todo: code examples
-
-
-
+```bash
+PREFECT_LOGGING_LOG_PRINTS=True
+```
 
 ## Formatters
 
