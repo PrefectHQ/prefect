@@ -2,6 +2,7 @@ autoflake8
 cairosvg
 flake8
 flaky
+httpx != 0.23.1
 ipython
 jinja2
 mkdocs
