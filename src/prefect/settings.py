@@ -42,7 +42,6 @@ dependent on the value of other settings or perform other dynamic effects.
 import logging
 import os
 import string
-import textwrap
 import warnings
 from contextlib import contextmanager
 from datetime import timedelta
@@ -67,6 +66,7 @@ import toml
 from pydantic import BaseSettings, Field, create_model, root_validator, validator
 
 from prefect.exceptions import MissingProfileError
+from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
 
 T = TypeVar("T")
@@ -85,16 +85,18 @@ class Setting(Generic[T]):
         type: Type[T],
         *,
         value_callback: Callable[["Settings", T], T] = None,
+        is_secret: bool = False,
         **kwargs,
     ) -> None:
         self.field: pydantic.fields.FieldInfo = Field(**kwargs)
         self.type = type
         self.value_callback = value_callback
         self.name = None  # Will be populated after all settings are defined
+        self.is_secret = is_secret
 
         self.__doc__ = self.field.description
 
-    def value(self) -> T:
+    def value(self, bypass_callback: bool = False) -> T:
         """
         Get the current value of a setting.
 
@@ -104,9 +106,9 @@ class Setting(Generic[T]):
         PREFECT_API_URL.value()
         ```
         """
-        return self.value_from(get_current_settings())
+        return self.value_from(get_current_settings(), bypass_callback=bypass_callback)
 
-    def value_from(self, settings: "Settings") -> T:
+    def value_from(self, settings: "Settings", bypass_callback: bool = False) -> T:
         """
         Get the value of a setting from a settings object
 
@@ -116,7 +118,7 @@ class Setting(Generic[T]):
         PREFECT_API_URL.value_from(get_default_settings())
         ```
         """
-        return settings.value_of(self)
+        return settings.value_of(self, bypass_callback=bypass_callback)
 
     def __repr__(self) -> str:
         return f"<{self.name}: {self.type.__name__}>"
@@ -222,10 +224,14 @@ def warn_on_database_password_value_without_usage(values):
     """
     Validator for settings warning if the database password is set but not used.
     """
+    value = values["PREFECT_ORION_DATABASE_PASSWORD"]
     if (
-        values["PREFECT_ORION_DATABASE_PASSWORD"]
-        and "PREFECT_ORION_DATABASE_PASSWORD"
-        not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+        value
+        and not value.startswith(OBFUSCATED_PREFIX)
+        and (
+            "PREFECT_ORION_DATABASE_PASSWORD"
+            not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+        )
     ):
         warnings.warn(
             "PREFECT_ORION_DATABASE_PASSWORD is set but not included in the "
@@ -235,380 +241,578 @@ def warn_on_database_password_value_without_usage(values):
     return values
 
 
+def get_deprecated_prefect_cloud_url(settings, value):
+    warnings.warn(
+        "`PREFECT_CLOUD_URL` is deprecated. Use `PREFECT_CLOUD_API_URL` instead.",
+        DeprecationWarning,
+    )
+    return value or PREFECT_CLOUD_API_URL.value_from(settings)
+
+
+def check_for_deprecated_cloud_url(settings, value):
+    deprecated_value = PREFECT_CLOUD_URL.value_from(settings, bypass_callback=True)
+    if deprecated_value is not None:
+        warnings.warn(
+            "`PREFECT_CLOUD_URL` is set and will be used instead of `PREFECT_CLOUD_API_URL` for backwards compatibility. `PREFECT_CLOUD_URL` is deprecated, set `PREFECT_CLOUD_API_URL` instead.",
+            DeprecationWarning,
+        )
+    return deprecated_value or value
+
+
+def default_ui_url(settings, value):
+    if value is not None:
+        return value
+
+    # Otherwise, infer a value from the API URL
+    ui_url = api_url = PREFECT_API_URL.value_from(settings)
+
+    if not api_url:
+        return None
+
+    cloud_url = PREFECT_CLOUD_API_URL.value_from(settings)
+    cloud_ui_url = PREFECT_CLOUD_UI_URL.value_from(settings)
+    if api_url.startswith(cloud_url):
+        ui_url = ui_url.replace(cloud_url, cloud_ui_url)
+
+    if ui_url.endswith("/api"):
+        # Handles open-source APIs
+        ui_url = ui_url[:-4]
+
+    # Handles Cloud APIs with content after `/api`
+    ui_url = ui_url.replace("/api/", "/")
+
+    # Update routing
+    ui_url = ui_url.replace("/accounts/", "/account/")
+    ui_url = ui_url.replace("/workspaces/", "/workspace/")
+
+    return ui_url
+
+
+def default_cloud_ui_url(settings, value):
+    if value is not None:
+        return value
+
+    # Otherwise, infer a value from the API URL
+    ui_url = api_url = PREFECT_CLOUD_API_URL.value_from(settings)
+
+    if api_url.startswith("https://api.prefect.cloud"):
+        ui_url = ui_url.replace(
+            "https://api.prefect.cloud", "https://app.prefect.cloud", 1
+        )
+
+    if ui_url.endswith("/api"):
+        ui_url = ui_url[:-4]
+
+    return ui_url
+
+
 # Setting definitions
 
 
 PREFECT_HOME = Setting(
     Path,
     default=Path("~") / ".prefect",
-    description="""Prefect's home directory. Defaults to `~/.prefect`. This
-        directory may be created automatically when required.""",
     value_callback=expanduser_in_path,
 )
+"""Prefect's home directory. Defaults to `~/.prefect`. This
+directory may be created automatically when required.
+"""
 
 PREFECT_DEBUG_MODE = Setting(
     bool,
     default=False,
-    description="""If `True`, places the API in debug mode. This may modify
-        behavior to facilitate debugging, including extra logs and other verbose
-        assistance. Defaults to `False`.""",
 )
+"""If `True`, places the API in debug mode. This may modify
+behavior to facilitate debugging, including extra logs and other verbose
+assistance. Defaults to `False`.
+"""
 
 PREFECT_CLI_COLORS = Setting(
     bool,
     default=True,
-    description="""If `True`, use colors in CLI output. If `False`,
-        output will not include colors codes. Defaults to `True`.""",
 )
+"""If `True`, use colors in CLI output. If `False`,
+output will not include colors codes. Defaults to `True`.
+"""
 
 PREFECT_CLI_WRAP_LINES = Setting(
     bool,
     default=True,
-    description="""If `True`, wrap text by inserting new lines in long lines
-        in CLI output. If `False`, output will not be wrapped. Defaults to `True`.""",
 )
+"""If `True`, wrap text by inserting new lines in long lines
+in CLI output. If `False`, output will not be wrapped. Defaults to `True`.
+"""
 
 PREFECT_TEST_MODE = Setting(
     bool,
     default=False,
-    description="""If `True`, places the API in test mode. This may modify
-        behavior to faciliate testing. Defaults to `False`.""",
 )
+"""If `True`, places the API in test mode. This may modify
+behavior to faciliate testing. Defaults to `False`.
+"""
 
 PREFECT_TEST_SETTING = Setting(
     Any,
     default=None,
-    description="""This variable only exists to faciliate testing of settings.
-    If accessed when `PREFECT_TEST_MODE` is not set, `None` is returned.""",
     value_callback=only_return_value_in_test_mode,
 )
+"""
+This variable only exists to faciliate testing of settings.
+If accessed when `PREFECT_TEST_MODE` is not set, `None` is returned.
+"""
 
 PREFECT_API_URL = Setting(
     str,
     default=None,
-    description="""If provided, the url of an externally-hosted Orion API.
-    Defaults to `None`.""",
 )
+"""
+If provided, the url of an externally-hosted Orion API. Defaults to `None`.
+
+When using Prefect Cloud, this will include an account and workspace.
+"""
 
 PREFECT_API_KEY = Setting(
     str,
     default=None,
-    description="""API key used to authenticate against Orion API.
-    Defaults to `None`.""",
+    is_secret=True,
 )
+"""API key used to authenticate against Orion API. Defaults to `None`."""
 
-PREFECT_CLOUD_URL = Setting(
+PREFECT_CLOUD_API_URL = Setting(
     str,
     default="https://api.prefect.cloud/api",
-    description="""API URL for Prefect Cloud""",
+    value_callback=check_for_deprecated_cloud_url,
 )
+"""API URL for Prefect Cloud. Used for authentication."""
+
+
+PREFECT_CLOUD_URL = Setting(
+    str, default=None, value_callback=get_deprecated_prefect_cloud_url
+)
+"""
+DEPRECATED: Use `PREFECT_CLOUD_API_URL` instead.
+"""
+
+PREFECT_UI_URL = Setting(
+    Optional[str],
+    default=None,
+    value_callback=default_ui_url,
+)
+"""
+The URL for the UI. By default, this is inferred from the PREFECT_API_URL.
+
+When using Prefect Cloud, this will include the account and workspace.
+When using an ephemeral server, this will be `None`.
+"""
+
+
+PREFECT_CLOUD_UI_URL = Setting(
+    str,
+    default=None,
+    value_callback=default_cloud_ui_url,
+)
+"""
+The URL for the Cloud UI. By default, this is inferred from the PREFECT_CLOUD_API_URL.
+
+Note: PREFECT_UI_URL will be workspace specific and will be usable in the open source too.
+      In contrast, this value is only valid for Cloud and will not include the workspace.
+"""
 
 PREFECT_API_REQUEST_TIMEOUT = Setting(
-    float, default=30.0, description="""The default timeout for requests to the API"""
+    float,
+    default=30.0,
 )
+"""The default timeout for requests to the API"""
 
 PREFECT_PROFILES_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "profiles.toml",
-    description="""The path to a profiles configuration files.""",
     value_callback=template_with_settings(PREFECT_HOME),
 )
+"""The path to a profiles configuration files."""
+
+PREFECT_RESULTS_DEFAULT_SERIALIZER = Setting(
+    str,
+    default="pickle",
+)
+"""The default serializer to use when not otherwise specified."""
+
+
+PREFECT_RESULTS_PERSIST_BY_DEFAULT = Setting(
+    bool,
+    default=False,
+)
+"""
+The default setting for persisting results when not otherwise specified. If enabled,
+flow and task results will be persisted unless they opt out.
+"""
+
 
 PREFECT_LOCAL_STORAGE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "storage",
-    description="""The path to a directory to store things in.""",
     value_callback=template_with_settings(PREFECT_HOME),
 )
+"""The path to a directory to store things in."""
 
 PREFECT_MEMO_STORE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "memo_store.toml",
-    description="""The path to the memo store file.""",
     value_callback=template_with_settings(PREFECT_HOME),
 )
+"""The path to the memo store file."""
 
 PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION = Setting(
     bool,
     default=True,
-    description="""Controls whether or not block auto-registration on start 
-    up should be memoized. Setting to False may result in slower server start
-    up times.""",
 )
+"""
+Controls whether or not block auto-registration on start 
+up should be memoized. Setting to False may result in slower server start
+up times.
+"""
 
 PREFECT_LOGGING_LEVEL = Setting(
     str,
     default="INFO",
-    description="""The default logging level for Prefect loggers. Defaults to
-    "INFO" during normal operation. Is forced to "DEBUG" during debug mode.""",
     value_callback=debug_mode_log_level,
 )
+"""
+The default logging level for Prefect loggers. Defaults to
+"INFO" during normal operation. Is forced to "DEBUG" during debug mode.
+"""
 
 PREFECT_LOGGING_SERVER_LEVEL = Setting(
     str,
     default="WARNING",
-    description="""The default logging level for the Orion API.""",
 )
+"""The default logging level for the Orion API."""
 
 PREFECT_LOGGING_SETTINGS_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "logging.yml",
-    description=f"""The path to a custom YAML logging configuration file. If
-    no file is found, the default `logging.yml` is used. Defaults to a logging.yml in the Prefect home directory.""",
     value_callback=template_with_settings(PREFECT_HOME),
 )
+"""
+The path to a custom YAML logging configuration file. If
+no file is found, the default `logging.yml` is used. 
+Defaults to a logging.yml in the Prefect home directory.
+"""
 
 PREFECT_LOGGING_EXTRA_LOGGERS = Setting(
     str,
     default="",
-    description="""Additional loggers to attach to Prefect logging at runtime.
-    Values should be comma separated. The handlers attached to the 'prefect' logger
-    will be added to these loggers. Additionally, if the level is not set, it will
-    be set to the same level as the 'prefect' logger.
-    """,
     value_callback=get_extra_loggers,
 )
+"""
+Additional loggers to attach to Prefect logging at runtime.
+Values should be comma separated. The handlers attached to the 'prefect' logger
+will be added to these loggers. Additionally, if the level is not set, it will
+be set to the same level as the 'prefect' logger.
+"""
 
 PREFECT_LOGGING_ORION_ENABLED = Setting(
     bool,
     default=True,
-    description="""Should logs be sent to Orion? If False, logs sent to the
-    OrionHandler will not be sent to the API.""",
 )
+"""Should logs be sent to Orion? If False, logs sent to the `OrionHandler` will not be sent to the API."""
 
 PREFECT_LOGGING_ORION_BATCH_INTERVAL = Setting(
     float,
     default=2.0,
-    description="""The number of seconds between batched writes of logs to Orion.""",
 )
+"""The number of seconds between batched writes of logs to Orion."""
 
 PREFECT_LOGGING_ORION_BATCH_SIZE = Setting(
     int,
     default=4_000_000,
-    description="""The maximum size in bytes for a batch of logs.""",
 )
+"""The maximum size in bytes for a batch of logs."""
 
 PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
     int,
     default=1_000_000,
-    description="""The maximum size in bytes for a single log.""",
 )
+"""The maximum size in bytes for a single log."""
+
+PREFECT_LOGGING_COLORS = Setting(
+    bool,
+    default=True,
+)
+"""Whether to style console logs with color."""
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
     default=5,
-    description="""The agent loop interval, in seconds. Agents will check
-    for new runs this often. Defaults to `5`.""",
 )
+"""
+The agent loop interval, in seconds. Agents will check
+for new runs this often. Defaults to `5`.
+"""
 
 PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     int,
     default=10,
-    description="""Agents will look for scheduled runs this many seconds in
-    the future and attempt to run them. This accounts for any additional
-    infrastructure spin-up time or latency in preparing a flow run. Note
-    flow runs will not start before their scheduled time, even if they are
-    prefetched. Defaults to `10`.""",
 )
+"""
+Agents will look for scheduled runs this many seconds in
+the future and attempt to run them. This accounts for any additional
+infrastructure spin-up time or latency in preparing a flow run. Note
+flow runs will not start before their scheduled time, even if they are
+prefetched. Defaults to `10`.
+"""
+
+PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(bool, default=False)
+"""
+Determines whether `State.result()` fetches results automatically or not.
+In Prefect 2.6.0, the `State.result()` method was updated to be async
+to faciliate automatic retrieval of results from storage which means when 
+writing async code you must `await` the call. For backwards compatibility, 
+the result is not retrieved by default for async users. You may opt into this
+per call by passing  `fetch=True` or toggle this setting to change the behavior
+globally.
+This setting does not affect users writing synchronous tasks and flows.
+This setting does not affect retrieval of results when using `Future.result()`.
+"""
 
 PREFECT_ORION_BLOCKS_REGISTER_ON_START = Setting(
     bool,
     default=True,
-    description=textwrap.dedent(
-        """
-        If set, any block types that have been imported will be registered with the 
-        backend on application startup. If not set, block types must be manually 
-        registered.
-        """
-    ),
 )
+"""
+If set, any block types that have been imported will be registered with the 
+backend on application startup. If not set, block types must be manually 
+registered.
+"""
 
 PREFECT_ORION_DATABASE_PASSWORD = Setting(
     str,
     default=None,
-    description="""Password to template into the `PREFECT_ORION_DATABASE_CONNECTION_URL`.
-    This is useful if the password must be provided separately from the connection URL.
-    To use this setting, you must include it in your connection URL.""",
+    is_secret=True,
 )
+"""
+Password to template into the `PREFECT_ORION_DATABASE_CONNECTION_URL`.
+This is useful if the password must be provided separately from the connection URL.
+To use this setting, you must include it in your connection URL.
+"""
 
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     str,
     default="sqlite+aiosqlite:///" + str(Path("${PREFECT_HOME}") / "orion.db"),
-    description=textwrap.dedent(
-        """
-        A database connection URL in a SQLAlchemy-compatible
-        format. Orion currently supports SQLite and Postgres. Note that all
-        Orion engines must use an async driver - for SQLite, use
-        `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
-
-        SQLite in-memory databases can be used by providing the url
-        `sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
-        which will allow the database to be accessed by multiple threads. Note
-        that in-memory databases can not be accessed from multiple processes and
-        should only be used for simple tests.
-
-        Defaults to a sqlite database stored in the Prefect home directory.
-
-        If you need to provide password via a different environment variable, you use
-        the `PREFECT_ORION_DATABASE_PASSWORD` setting. For example:
-
-        PREFECT_ORION_DATABASE_PASSWORD='mypassword'
-        PREFECT_ORION_DATABASE_CONNECTION_URL='postgresql+asyncpg://postgres:${PREFECT_ORION_DATABASE_PASSWORD}@localhost/orion'
-        """
-    ),
     value_callback=template_with_settings(
         PREFECT_HOME, PREFECT_ORION_DATABASE_PASSWORD
     ),
+    is_secret=True,
 )
+"""
+A database connection URL in a SQLAlchemy-compatible
+format. Orion currently supports SQLite and Postgres. Note that all
+Orion engines must use an async driver - for SQLite, use
+`sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
+
+SQLite in-memory databases can be used by providing the url
+`sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
+which will allow the database to be accessed by multiple threads. Note
+that in-memory databases can not be accessed from multiple processes and
+should only be used for simple tests.
+
+Defaults to a sqlite database stored in the Prefect home directory.
+
+If you need to provide password via a different environment variable, you use
+the `PREFECT_ORION_DATABASE_PASSWORD` setting. For example:
+
+```
+PREFECT_ORION_DATABASE_PASSWORD='mypassword'
+PREFECT_ORION_DATABASE_CONNECTION_URL='postgresql+asyncpg://postgres:${PREFECT_ORION_DATABASE_PASSWORD}@localhost/orion'
+```
+"""
 
 PREFECT_ORION_DATABASE_ECHO = Setting(
     bool,
     default=False,
-    description="If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.",
 )
+"""If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`."""
 
 PREFECT_ORION_DATABASE_MIGRATE_ON_START = Setting(
     bool,
     default=True,
-    description="If `True`, the database will be upgraded on application creation. If `False`, the database will need to be upgraded manually.",
 )
+"""If `True`, the database will be upgraded on application creation. If `False`, the database will need to be upgraded manually."""
 
 PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     Optional[float],
-    default=1,
-    description="""A statement timeout, in seconds, applied to all database
-    interactions made by the API. Defaults to `1`.""",
+    default=5.0,
 )
+"""A statement timeout, in seconds, applied to all database
+interactions made by the API. Defaults to `1`.
+"""
 
 PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT = Setting(
     Optional[float],
     default=5,
-    description="""A connection timeout, in seconds, applied to database
-    connections. Defaults to `5`.""",
 )
+"""A connection timeout, in seconds, applied to database
+connections. Defaults to `5`.
+"""
 
 PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS = Setting(
     float,
     default=60,
-    description="""The scheduler loop interval, in seconds. This determines
-    how often the scheduler will attempt to schedule new flow runs, but has no
-    impact on how quickly either flow runs or task runs are actually executed.
-    Defaults to `60`.""",
 )
+"""The scheduler loop interval, in seconds. This determines
+how often the scheduler will attempt to schedule new flow runs, but has no
+impact on how quickly either flow runs or task runs are actually executed.
+Defaults to `60`.
+"""
 
 PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE = Setting(
     int,
     default=100,
-    description="""The number of deployments the scheduler will attempt to
-    schedule in a single batch. If there are more deployments than the batch
-    size, the scheduler immediately attempts to schedule the next batch; it
-    does not sleep for `scheduler_loop_seconds` until it has visited every
-    deployment once. Defaults to `100`.""",
 )
+"""The number of deployments the scheduler will attempt to
+schedule in a single batch. If there are more deployments than the batch
+size, the scheduler immediately attempts to schedule the next batch; it
+does not sleep for `scheduler_loop_seconds` until it has visited every
+deployment once. Defaults to `100`.
+"""
 
 PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS = Setting(
     int,
     default=100,
-    description="""The scheduler will attempt to schedule up to this many
-    auto-scheduled runs in the future. Note that runs may have fewer than
-    this many scheduled runs, depending on the value of
-    `scheduler_max_scheduled_time`.  Defaults to `100`.
-    """,
 )
+"""The scheduler will attempt to schedule up to this many
+auto-scheduled runs in the future. Note that runs may have fewer than
+this many scheduled runs, depending on the value of
+`scheduler_max_scheduled_time`.  Defaults to `100`.
+"""
+
+PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS = Setting(
+    int,
+    default=3,
+)
+"""The scheduler will attempt to schedule at least this many
+auto-scheduled runs in the future. Note that runs may have more than
+this many scheduled runs, depending on the value of
+`scheduler_min_scheduled_time`.  Defaults to `3`.
+"""
 
 PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
     timedelta,
     default=timedelta(days=100),
-    description="""The scheduler will create new runs up to this far in the
-    future. Note that this setting will take precedence over
-    `scheduler_max_runs`: if a flow runs once a month and
-    `scheduled_max_scheduled_time` is three months, then only three runs will be
-    scheduled. Defaults to 100 days (`8640000` seconds).
-    """,
 )
+"""The scheduler will create new runs up to this far in the
+future. Note that this setting will take precedence over
+`scheduler_max_runs`: if a flow runs once a month and
+`scheduler_max_scheduled_time` is three months, then only three runs will be
+scheduled. Defaults to 100 days (`8640000` seconds).
+"""
+
+PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME = Setting(
+    timedelta,
+    default=timedelta(hours=1),
+)
+"""The scheduler will create new runs at least this far in the
+future. Note that this setting will take precedence over `scheduler_min_runs`:
+if a flow runs every hour and `scheduler_min_scheduled_time` is three hours,
+then three runs will be scheduled even if `scheduler_min_runs` is 1. Defaults to
+1 hour (`3600` seconds).
+"""
 
 PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE = Setting(
     int,
     default=500,
-    description="""The number of flow runs the scheduler will attempt to insert
-    in one batch across all deployments. If the number of flow runs to
-    schedule exceeds this amount, the runs will be inserted in batches of this size. Defaults to `500`.
-    """,
 )
+"""The number of flow runs the scheduler will attempt to insert
+in one batch across all deployments. If the number of flow runs to
+schedule exceeds this amount, the runs will be inserted in batches of this size. 
+Defaults to `500`.
+"""
 
 PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS = Setting(
     float,
     default=5,
-    description="""The late runs service will look for runs to mark as late
-    this often. Defaults to `5`.""",
 )
+"""The late runs service will look for runs to mark as late
+this often. Defaults to `5`.
+"""
 
 PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
     timedelta,
     default=timedelta(seconds=5),
-    description="""The late runs service will mark runs as late after they
-    have exceeded their scheduled start time by this many seconds. Defaults
-    to `5` seconds.""",
 )
+"""The late runs service will mark runs as late after they
+have exceeded their scheduled start time by this many seconds. Defaults
+to `5` seconds.
+"""
 
 PREFECT_ORION_API_DEFAULT_LIMIT = Setting(
     int,
     default=200,
-    description="""The default limit applied to queries that can return
-    multiple objects, such as `POST /flow_runs/filter`.""",
 )
+"""The default limit applied to queries that can return
+multiple objects, such as `POST /flow_runs/filter`.
+"""
 
 PREFECT_ORION_API_HOST = Setting(
     str,
     default="127.0.0.1",
-    description="""The API's host address (defaults to `127.0.0.1`).""",
 )
+"""The API's host address (defaults to `127.0.0.1`)."""
 
 PREFECT_ORION_API_PORT = Setting(
     int,
     default=4200,
-    description="""The API's port address (defaults to `4200`).""",
 )
+"""The API's port address (defaults to `4200`)."""
 
 PREFECT_ORION_UI_ENABLED = Setting(
     bool,
     default=True,
-    description="""Whether or not to serve the Orion UI.""",
 )
+"""Whether or not to serve the Orion UI."""
 
 PREFECT_ORION_UI_API_URL = Setting(
     str,
     default=None,
-    description="""The connection url for communication from the UI to the API.
-    Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from
-    `PREFECT_ORION_API_HOST` and `PREFECT_ORION_API_PORT`. If providing a custom value,
-    the aforementioned settings may be templated into the given string.""",
     value_callback=default_ui_api_url,
 )
+"""The connection url for communication from the UI to the API.
+Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from
+`PREFECT_ORION_API_HOST` and `PREFECT_ORION_API_PORT`. If providing a custom value,
+the aforementioned settings may be templated into the given string.
+"""
 
 PREFECT_ORION_ANALYTICS_ENABLED = Setting(
     bool,
     default=True,
-    description="""If True, Orion sends anonymous data (e.g. count of flow runs, package version) to Prefect to help us improve.""",
 )
+"""If True, Orion sends anonymous data (e.g. count of flow runs, package version) to Prefect to help us improve."""
 
 PREFECT_ORION_SERVICES_SCHEDULER_ENABLED = Setting(
     bool,
     default=True,
-    description="Whether or not to start the scheduling service in the Orion application. If disabled, you will need to run this service separately to schedule runs for deployments.",
 )
+"""Whether or not to start the scheduling service in the Orion application. 
+If disabled, you will need to run this service separately to schedule runs for deployments.
+"""
 
 PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED = Setting(
     bool,
     default=True,
-    description="Whether or not to start the late runs service in the Orion application. If disabled, you will need to run this service separately to have runs past their scheduled start time marked as late.",
 )
+"""Whether or not to start the late runs service in the Orion application. 
+If disabled, you will need to run this service separately to have runs past their 
+scheduled start time marked as late.
+"""
 
 PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
     bool,
     default=True,
-    description="Whether or not to start the flow run notifications service in the Orion application. If disabled, you will need to run this service separately to send flow run notifications.",
 )
+"""Whether or not to start the flow run notifications service in the Orion application. 
+If disabled, you will need to run this service separately to send flow run notifications.
+"""
+
 # Collect all defined settings
 
 SETTING_VARIABLES = {
@@ -659,12 +863,12 @@ class Settings(SettingsFieldsMixin):
     ```
     """
 
-    def value_of(self, setting: Setting[T]) -> T:
+    def value_of(self, setting: Setting[T], bypass_callback: bool = False) -> T:
         """
         Retrieve a setting's value.
         """
         value = getattr(self, setting.name)
-        if setting.value_callback:
+        if setting.value_callback and not bypass_callback:
             value = setting.value_callback(self, value)
         return value
 
@@ -716,6 +920,22 @@ class Settings(SettingsFieldsMixin):
                 **{setting.name: value for setting, value in updates.items()},
             }
         )
+
+    def with_obfuscated_secrets(self):
+        """
+        Returns a copy of this settings object with secret setting values obfuscated.
+        """
+        settings = self.copy(
+            update={
+                setting.name: obfuscate(self.value_of(setting))
+                for setting in SETTING_VARIABLES.values()
+                if setting.is_secret
+            }
+        )
+        # Ensure that settings that have not been marked as "set" before are still so
+        # after we have updated their value above
+        settings.__fields_set__.intersection_update(self.__fields_set__)
+        return settings
 
     def to_environment_variables(
         self, include: Iterable[Setting] = None, exclude_unset: bool = False

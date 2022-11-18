@@ -4,7 +4,7 @@ import pytest
 
 import prefect.exceptions
 from prefect import flow
-from prefect.orion.schemas import states
+from prefect.states import Completed, Late, Running, Scheduled
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import sync_compatible
 
@@ -48,28 +48,28 @@ def assert_flow_runs_in_result(result, expected, unexpected=None):
 @pytest.fixture
 async def scheduled_flow_run(orion_client):
     return await orion_client.create_flow_run(
-        name="scheduled_flow_run", flow=hello_flow, state=states.Scheduled()
+        name="scheduled_flow_run", flow=hello_flow, state=Scheduled()
     )
 
 
 @pytest.fixture
 async def completed_flow_run(orion_client):
     return await orion_client.create_flow_run(
-        name="completed_flow_run", flow=hello_flow, state=states.Completed()
+        name="completed_flow_run", flow=hello_flow, state=Completed()
     )
 
 
 @pytest.fixture
 async def running_flow_run(orion_client):
     return await orion_client.create_flow_run(
-        name="running_flow_run", flow=goodbye_flow, state=states.Running()
+        name="running_flow_run", flow=goodbye_flow, state=Running()
     )
 
 
 @pytest.fixture
 async def late_flow_run(orion_client):
     return await orion_client.create_flow_run(
-        name="late_flow_run", flow=goodbye_flow, state=states.Late()
+        name="late_flow_run", flow=goodbye_flow, state=Late()
     )
 
 
@@ -77,7 +77,7 @@ def test_delete_flow_run_fails_correctly():
     missing_flow_run_id = "ccb86ed0-e824-4d8b-b825-880401320e41"
     invoke_and_assert(
         command=["flow-run", "delete", missing_flow_run_id],
-        expected_output=f"Flow run '{missing_flow_run_id}' not found!",
+        expected_output_contains=f"Flow run '{missing_flow_run_id}' not found!",
         expected_code=1,
     )
 
@@ -85,7 +85,7 @@ def test_delete_flow_run_fails_correctly():
 def test_delete_flow_run_succeeds(orion_client, flow_run):
     invoke_and_assert(
         command=["flow-run", "delete", str(flow_run.id)],
-        expected_output=f"Successfully deleted flow run '{str(flow_run.id)}'.",
+        expected_output_contains=f"Successfully deleted flow run '{str(flow_run.id)}'.",
         expected_code=0,
     )
 

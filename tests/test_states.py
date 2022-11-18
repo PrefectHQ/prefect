@@ -1,19 +1,18 @@
+import uuid
+
 import pytest
 
-from prefect.futures import PrefectFuture
-from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.states import (
+from prefect.exceptions import CrashedRun, FailedRun
+from prefect.results import LiteralResult, PersistedResult, ResultFactory
+from prefect.states import (
     Completed,
+    Crashed,
     Failed,
     Pending,
     Running,
-    State,
-    StateType,
-)
-from prefect.states import (
     is_state,
     is_state_iterable,
-    raise_failed_state,
+    raise_state_exception,
     return_value_to_state,
 )
 
@@ -45,129 +44,160 @@ def test_is_not_state_iterable_if_empty(iterable_type):
     assert not is_state_iterable(iterable_type())
 
 
-class TestRaiseFailedState:
-    failed_state = State(
-        type=StateType.FAILED,
-        data=DataDocument.encode("cloudpickle", ValueError("Test")),
-    )
-
-    def test_works_in_sync_context(self):
+@pytest.mark.parametrize("state_cls", [Failed, Crashed])
+class TestRaiseStateException:
+    def test_works_in_sync_context(self, state_cls):
         with pytest.raises(ValueError, match="Test"):
-            raise_failed_state(self.failed_state)
+            raise_state_exception(state_cls(data=ValueError("Test")))
 
-    async def test_raises_state_exception(self):
+    async def test_raises_state_exception(self, state_cls):
         with pytest.raises(ValueError, match="Test"):
-            await raise_failed_state(self.failed_state)
+            await raise_state_exception(state_cls(data=ValueError("Test")))
 
-    async def test_returns_without_error_for_completed_states(self):
-        assert await raise_failed_state(Completed()) is None
+    async def test_returns_without_error_for_completed_states(self, state_cls):
+        assert await raise_state_exception(Completed()) is None
 
-    async def test_raises_nested_state_exception(self):
+    async def test_raises_nested_state_exception(self, state_cls):
         with pytest.raises(ValueError, match="Test"):
-            await raise_failed_state(
-                State(
-                    type=StateType.FAILED,
-                    data=DataDocument.encode("cloudpickle", self.failed_state),
-                )
-            )
+            await raise_state_exception(state_cls(data=Failed(data=ValueError("Test"))))
 
-    async def test_raises_first_nested_multistate_exception(self):
+    async def test_raises_value_error_if_nested_state_is_not_failed(self, state_cls):
+        with pytest.raises(
+            ValueError, match="Expected failed or crashed state got Completed"
+        ):
+            await raise_state_exception(state_cls(data=Completed(data="test")))
+
+    async def test_raises_first_nested_multistate_exception(self, state_cls):
         # TODO: We may actually want to raise a "multi-error" here where we have several
         #       exceptions displayed at once
         inner_states = [
-            Completed(),
-            self.failed_state,
-            State(
-                type=StateType.FAILED,
-                data=DataDocument.encode(
-                    "cloudpickle", ValueError("Should not be raised")
-                ),
-            ),
+            Completed(data="test"),
+            Failed(data=ValueError("Test")),
+            Failed(data=ValueError("Should not be raised")),
         ]
         with pytest.raises(ValueError, match="Test"):
-            await raise_failed_state(
-                State(
-                    type=StateType.FAILED,
-                    data=DataDocument.encode("cloudpickle", inner_states),
-                )
-            )
+            await raise_state_exception(state_cls(data=inner_states))
 
-    async def test_raises_error_if_failed_state_does_not_contain_exception(self):
-        with pytest.raises(TypeError, match="str cannot be resolved into an exception"):
-            await raise_failed_state(
-                State(
-                    type=StateType.FAILED,
-                    data=DataDocument.encode("cloudpickle", "foo"),
-                )
-            )
+    async def test_value_error_if_all_multistates_are_not_failed(self, state_cls):
+        inner_states = [
+            Completed(),
+            Completed(),
+            Completed(data=ValueError("Should not be raised")),
+        ]
+        with pytest.raises(
+            ValueError,
+            match="Failed state result was an iterable of states but none were failed",
+        ):
+            await raise_state_exception(state_cls(data=inner_states))
+
+    @pytest.mark.parametrize("value", ["foo", LiteralResult(value="foo")])
+    async def test_raises_wrapper_with_message_if_result_is_string(
+        self, state_cls, value
+    ):
+        with pytest.raises(
+            FailedRun if state_cls == Failed else CrashedRun, match="foo"
+        ):
+            await raise_state_exception(state_cls(data=value))
+
+    async def test_raises_base_exception(self, state_cls):
+        with pytest.raises(BaseException):
+            await raise_state_exception(state_cls(data=BaseException("foo")))
+
+    async def test_raises_wrapper_with_state_message_if_result_is_null(self, state_cls):
+        with pytest.raises(
+            FailedRun if state_cls == Failed else CrashedRun, match="foo"
+        ):
+            await raise_state_exception(state_cls(data=None, message="foo"))
+
+    async def test_raises_error_if_failed_state_does_not_contain_exception(
+        self, state_cls
+    ):
+        with pytest.raises(TypeError, match="int cannot be resolved into an exception"):
+            await raise_state_exception(state_cls(data=2))
 
 
 class TestReturnValueToState:
-    async def test_returns_single_state_unaltered(self):
-        state = Completed(data=DataDocument.encode("json", "hello"))
-        assert await return_value_to_state(state) is state
+    @pytest.fixture
+    async def factory(orion_client):
+        return await ResultFactory.default_factory(client=orion_client)
 
-    async def test_all_completed_states(self):
+    async def test_returns_single_state_unaltered(self, factory):
+        state = Completed(data="hello!")
+        assert await return_value_to_state(state, factory) is state
+
+    async def test_returns_single_state_with_null_data(self, factory):
+        state = Completed(data=None)
+        result_state = await return_value_to_state(state, factory)
+        assert result_state is state
+        assert result_state.data == LiteralResult(value=None)
+        assert await result_state.result() is None
+
+    async def test_returns_single_state_with_data_to_persist(self, factory):
+        factory.persist_result = True
+        state = Completed(data=1)
+        result_state = await return_value_to_state(state, factory)
+        assert result_state is state
+        assert isinstance(result_state.data, PersistedResult)
+        assert await result_state.result() == 1
+
+    async def test_returns_single_state_unaltered_with_user_created_reference(
+        self, factory
+    ):
+        result = await factory.create_result("test")
+        state = Completed(data=result)
+        result_state = await return_value_to_state(state, factory)
+        assert result_state is state
+        assert result_state.data is result
+        assert await result_state.result() == "test"
+
+    async def test_all_completed_states(self, factory):
         states = [Completed(message="hi"), Completed(message="bye")]
-        result_state = await return_value_to_state(states)
+        result_state = await return_value_to_state(states, factory)
         # States have been stored as data
-        assert result_state.data.decode() == states
+        assert await result_state.result() == states
         # Message explains aggregate
         assert result_state.message == "All states completed."
         # Aggregate type is completed
         assert result_state.is_completed()
 
-    async def test_some_failed_states(self):
+    async def test_some_failed_states(self, factory):
         states = [
             Completed(message="hi"),
             Failed(message="bye"),
             Failed(message="err"),
         ]
-        result_state = await return_value_to_state(states)
+        result_state = await return_value_to_state(states, factory)
         # States have been stored as data
-        assert result_state.data.decode() == states
+        assert await result_state.result(raise_on_failure=False) == states
         # Message explains aggregate
         assert result_state.message == "2/3 states failed."
         # Aggregate type is failed
         assert result_state.is_failed()
 
-    async def test_some_unfinal_states(self):
+    async def test_some_unfinal_states(self, factory):
         states = [
             Completed(message="hi"),
             Running(message="bye"),
             Pending(message="err"),
         ]
-        result_state = await return_value_to_state(states)
+        result_state = await return_value_to_state(states, factory)
         # States have been stored as data
-        assert result_state.data.decode() == states
+        assert await result_state.result(raise_on_failure=False) == states
         # Message explains aggregate
         assert result_state.message == "2/3 states are not final."
         # Aggregate type is failed
         assert result_state.is_failed()
 
-    async def test_single_state_in_future_is_processed(self, task_run):
-        # Unlike a single state without a future, which represents an override of the
-        # return state, this is a child task run that is being used to determine the
-        # flow state
-        state = Completed(data=DataDocument.encode("json", "hello"))
-        future = PrefectFuture(
-            key=str(task_run.id),
-            name="hello",
-            task_runner=None,
-            _final_state=state,
-        )
-        future.task_run = task_run
-        future._submitted.set()
-        result_state = await return_value_to_state(future)
-        assert result_state.data.decode() == state
+    @pytest.mark.parametrize("run_identifier", ["task_run_id", "flow_run_id"])
+    async def test_single_state_in_future_is_processed(self, run_identifier, factory):
+        state = Completed(data="test", state_details={run_identifier: uuid.uuid4()})
+        # The engine is responsible for resolving the futures
+        result_state = await return_value_to_state(state, factory)
+        assert await result_state.result() == state
         assert result_state.is_completed()
         assert result_state.message == "All states completed."
 
-    async def test_non_prefect_types_return_completed_state(self):
-        result_state = await return_value_to_state("foo")
+    async def test_non_prefect_types_return_completed_state(self, factory):
+        result_state = await return_value_to_state("foo", factory)
         assert result_state.is_completed()
-        assert result_state.data.decode() == "foo"
-
-    async def test_uses_passed_serializer(self):
-        result_state = await return_value_to_state("foo", serializer="json")
-        assert result_state.data.encoding == "json"
+        assert await result_state.result() == "foo"

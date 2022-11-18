@@ -1,6 +1,7 @@
 from functools import partial
 from unittest.mock import MagicMock
 
+import pendulum
 import pytest
 from packaging.version import Version
 
@@ -14,6 +15,7 @@ from prefect.infrastructure import (
     Process,
 )
 from prefect.infrastructure.base import MIN_COMPAT_PREFECT_VERSION
+from prefect.orion.schemas.core import Deployment
 
 
 @pytest.fixture
@@ -108,6 +110,73 @@ async def test_submission_adds_flow_run_metadata(
                 "prefect.io/flow-run-id": str(flow_run.id),
                 "prefect.io/flow-run-name": flow_run.name,
                 "prefect.io/version": prefect.__version__,
+            },
+            "name": flow_run.name,
+            "command": ["python", "-m", "prefect.engine"],
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    "deployment_fields,expected_labels",
+    [
+        (
+            {"name": "test", "updated": pendulum.from_timestamp(1668099059.5)},
+            {
+                "prefect.io/deployment-name": "test",
+                "prefect.io/deployment-updated": "2022-11-10T16:50:59.500000Z",
+            },
+        ),
+        ({"name": "test", "updated": None}, {"prefect.io/deployment-name": "test"}),
+    ],
+)
+async def test_submission_adds_deployment_metadata(
+    deployment,
+    orion_client,
+    deployment_fields,
+    expected_labels,
+):
+    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
+    infrastructure = MockInfrastructure().prepare_for_flow_run(
+        flow_run, deployment=Deployment(flow_id=deployment.flow_id, **deployment_fields)
+    )
+    await infrastructure.run()
+
+    MockInfrastructure._run.assert_called_once_with(
+        {
+            "type": "mock",
+            "env": {"PREFECT__FLOW_RUN_ID": flow_run.id.hex},
+            "labels": {
+                **{
+                    "prefect.io/flow-run-id": str(flow_run.id),
+                    "prefect.io/flow-run-name": flow_run.name,
+                    "prefect.io/version": prefect.__version__,
+                },
+                **expected_labels,
+            },
+            "name": flow_run.name,
+            "command": ["python", "-m", "prefect.engine"],
+        }
+    )
+
+
+async def test_submission_adds_flow_metadata(
+    deployment,
+    orion_client,
+):
+    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
+    flow = await orion_client.read_flow(deployment.flow_id)
+    infrastructure = MockInfrastructure().prepare_for_flow_run(flow_run, flow=flow)
+    await infrastructure.run()
+    MockInfrastructure._run.assert_called_once_with(
+        {
+            "type": "mock",
+            "env": {"PREFECT__FLOW_RUN_ID": flow_run.id.hex},
+            "labels": {
+                "prefect.io/flow-run-id": str(flow_run.id),
+                "prefect.io/flow-run-name": flow_run.name,
+                "prefect.io/version": prefect.__version__,
+                "prefect.io/flow-name": flow.name,
             },
             "name": flow_run.name,
             "command": ["python", "-m", "prefect.engine"],

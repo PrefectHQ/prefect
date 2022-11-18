@@ -1,4 +1,4 @@
-site_name: Prefect 2
+site_name: Prefect 2 - Coordinating the world's dataflows
 site_url: https://docs.prefect.io/
 repo_url: https://github.com/PrefectHQ/prefect
 edit_uri: edit/main/docs
@@ -36,6 +36,7 @@ theme:
     custom_dir: docs/overrides
     favicon: img/favicon.png
     features:
+        - announce.dismiss
         - toc.integrate
         - navigation.tabs
         - navigation.tabs.sticky
@@ -49,8 +50,24 @@ theme:
         repo: fontawesome/brands/github
     logo: img/logos/prefect-logo-mark-solid-white-500.png
     palette:
-        primary: blue
+      - media: "(prefers-color-scheme)"
+        toggle:
+            icon: material/brightness-auto
+            name: Switch to light mode
+      - media: "(prefers-color-scheme: light)"
         accent: blue
+        primary: blue
+        scheme: default
+        toggle:
+            icon: material/weather-sunny
+            name: Switch to dark mode
+      - media: "(prefers-color-scheme: dark)"
+        accent: blue
+        primary: blue
+        scheme: slate
+        toggle:
+            icon: material/weather-night
+            name: Switch to light mode
 plugins:
     autorefs: {}
     mkdocstrings:
@@ -67,15 +84,21 @@ plugins:
                     show_if_no_docstring: False
                     heading_level: 1
                     filters: ["!^_"]
+
     render_swagger: {}
     search: {}
     gen-files:
         scripts:
             - docs/collections/generate_catalog.py
             - docs/recipes/generate_catalog.py
+watch:
+    - mkdocs.yml
+    - mkdocs.insiders.yml
+    - src/prefect/
 nav:
-    - Prefect 2: index.md
+    # - Prefect 2: index.md
     - Getting Started:
+        - Welcome to Prefect 2: index.md
         - Quick Start: getting-started/overview.md
         - Installation: getting-started/installation.md
         - Tutorials:
@@ -116,16 +139,22 @@ nav:
         - ui/flows.md
         - ui/deployments.md
         - ui/work-queues.md
-        - ui/notifications.md
         - ui/blocks.md
+        - ui/notifications.md
         - Prefect Cloud:
             - Prefect Cloud Overview: ui/cloud.md
             - Prefect Cloud Quickstart: ui/cloud-getting-started.md
+            - Workspaces: ui/workspaces.md
             - Organizations: ui/organizations.md
+            - Service Accounts: ui/service-accounts.md
             - Roles (RBAC): ui/roles.md
-    - Collections:
-        - Overview: collections/overview.md
+            - Single Sign-on (SSO): ui/sso.md
+            - Audit Log: ui/audit-log.md
+            - Troubleshooting: ui/troubleshooting.md
+    - Integrations:
         - Collections Catalog: collections/catalog.md
+        - Using Collections: collections/usage.md
+        - Contributing Collections: collections/contribute.md
     - FAQ: faq.md
     - 'API Reference': 
         - Overview: api-ref/overview.md
@@ -205,7 +234,6 @@ nav:
             - 'Schemas':
                 - 'orion.schemas.actions': api-ref/orion/schemas/actions.md
                 - 'orion.schemas.core': api-ref/orion/schemas/core.md
-                - 'orion.schemas.data': api-ref/orion/schemas/data.md
                 - 'orion.schemas.filters': api-ref/orion/schemas/filters.md
                 - 'orion.schemas.responses': api-ref/orion/schemas/responses.md
                 - 'orion.schemas.schedules': api-ref/orion/schemas/schedules.md
@@ -223,8 +251,9 @@ nav:
     - Contributing:
         - Overview: contributing/overview.md
         - Style: contributing/style.md
+        - Versioning: contributing/versioning.md
         - Troubleshooting: contributing/common-mistakes.md
-        # - Testing Flow Runners: contributing/testing-flow-runners.md
+
 extra:
     analytics:
         provider: google

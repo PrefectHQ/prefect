@@ -37,7 +37,7 @@ Prefect 2 was designed for incremental adoption into your workflows. The documen
 
 **Getting started**
 
-Begin by [installing Prefect 2](/getting-started/installation/) on your machine, then follow one of our [friendly tutorials](/tutorials/first-steps/) to learn by example. See the [Getting Started overview](/getting-started/overview/) for more.
+Begin by [installing Prefect 2](/getting-started/installation/) on your machine, then follow one of our [friendly tutorials](/tutorials/first-steps/) to learn by example. See our [Quick Start](/getting-started/overview/) guide for details if you're ready to jump right in.
 
 Even if you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps. Prefect 2 offers significant new functionality.
 
@@ -52,7 +52,7 @@ See how [Prefect's UI and cloud hosted functionality](/ui/overview/) can make co
 
 **Collections**
 
-Prefect integrates with the other tools of the modern data stack. In our [collections docs](/collections/overview/) learn about our pre-built integrations and see how to add your own.
+Prefect integrates with the other tools of the modern data stack. In our [collections docs](/collections/catalog/) learn about our pre-built integrations and see how to add your own.
 
 **Frequently asked questions**
 
@@ -86,7 +86,7 @@ Prefect 2 has been designed from the ground up to handle the dynamic, scalable w
 
 **Integrates with other modern data tools**
 
-Prefect has [integrations](/collections/overview/) for all the major cloud providers and modern data tools such as Snowflake, Databricks, dbt, and Airbyte. 
+Prefect has [integrations](/collections/catalog/) for all the major cloud providers and modern data tools such as Snowflake, Databricks, dbt, and Airbyte. 
 
 **Simple concurrency**
 
@@ -153,12 +153,15 @@ github_stars(["PrefectHQ/Prefect", "PrefectHQ/prefect-aws",  "PrefectHQ/prefect-
 
 Run the code:
 
+<div class="terminal">
 ```bash
 python github_stars_example.py
 ```
+</div>
 
 And see the logger's output in your terminal:
 
+<div class="terminal">
 ```bash
 10:56:06.988 | INFO    | prefect.engine - Created flow run 'grinning-crab' for flow 'github-stars'
 10:56:06.988 | INFO    | Flow run 'grinning-crab' - Using task runner 'ConcurrentTaskRunner'
@@ -174,6 +177,7 @@ PrefectHQ/prefect-dbt has 12 stars!
 10:56:07.464 | INFO    | Task run 'get_stars-2ca9fbe1-2' - Finished in state Completed()
 10:56:07.477 | INFO    | Flow run 'grinning-crab' - Finished in state Completed('All states completed.')
 ```
+</div>
 
 By adding `retries=3 ` to the `@task` decorator, the `get_stars` function automatically reruns up to three times on failure!
 
@@ -181,9 +185,11 @@ By adding `retries=3 ` to the `@task` decorator, the `get_stars` function automa
 
 Fire up the Prefect UI locally by entering this command in your terminal:
 
+<div class="terminal">
 ```bash
 prefect orion start
 ```
+</div>
 
 Follow the link in your terminal to see the dashboard.
 

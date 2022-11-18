@@ -1,12 +1,12 @@
 """
 Routes for interacting with work queue objects.
 """
-
 from typing import List, Optional
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import BackgroundTasks, Body, Depends, Header, HTTPException, Path, status
 
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
@@ -104,6 +104,7 @@ async def read_work_queue(
 
 @router.post("/{id}/get_runs")
 async def read_work_queue_runs(
+    background_tasks: BackgroundTasks,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     limit: int = dependencies.LimitBody(),
     scheduled_before: DateTimeTZ = Body(
@@ -113,6 +114,10 @@ async def read_work_queue_runs(
     agent_id: Optional[UUID] = Body(
         None,
         description="An optional unique identifier for the agent making this query. If provided, the Orion API will track the last time this agent polled the work queue.",
+    ),
+    x_prefect_ui: Optional[bool] = Header(
+        default=False,
+        description="A header to indicate this request came from the Prefect UI.",
     ),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.FlowRun]:
@@ -127,18 +132,48 @@ async def read_work_queue_runs(
             limit=limit,
         )
 
+    # The Prefect UI often calls this route to see which runs are enqueued.
+    # We do not want to record this as an actual poll event.
+    if not x_prefect_ui:
+        background_tasks.add_task(
+            _record_work_queue_polls,
+            db=db,
+            work_queue_id=work_queue_id,
+            agent_id=agent_id,
+        )
+
+    return flow_runs
+
+
+async def _record_work_queue_polls(
+    db: OrionDBInterface,
+    work_queue_id: UUID,
+    agent_id: Optional[UUID] = None,
+):
+    """
+    Records that a work queue has been polled.
+
+    If an agent_id is provided, we update this agent id's last poll time.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+
+        await models.work_queues.update_work_queue(
+            session=session,
+            work_queue_id=work_queue_id,
+            work_queue=schemas.actions.WorkQueueUpdate(last_polled=pendulum.now("UTC")),
+        )
+
         if agent_id:
             await models.agents.record_agent_poll(
                 session=session, agent_id=agent_id, work_queue_id=work_queue_id
             )
-
-    return flow_runs
 
 
 @router.post("/filter")
 async def read_work_queues(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
+    work_queues: schemas.filters.WorkQueueFilter = None,
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.WorkQueue]:
     """
@@ -146,9 +181,7 @@ async def read_work_queues(
     """
     async with db.session_context() as session:
         return await models.work_queues.read_work_queues(
-            session=session,
-            offset=offset,
-            limit=limit,
+            session=session, offset=offset, limit=limit, work_queue_filter=work_queues
         )
 
 
@@ -168,3 +201,18 @@ async def delete_work_queue(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
         )
+
+
+@router.get("/{id}/status")
+async def read_work_queue_status(
+    work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
+    db: OrionDBInterface = Depends(provide_database_interface),
+) -> schemas.core.WorkQueueStatusDetail:
+    """
+    Get the status of a work queue.
+    """
+    async with db.session_context() as session:
+        work_queue_status = await models.work_queues.read_work_queue_status(
+            session=session, work_queue_id=work_queue_id
+        )
+    return work_queue_status

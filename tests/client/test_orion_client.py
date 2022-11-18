@@ -1,11 +1,14 @@
 import datetime
+import os
 import random
 import threading
 from datetime import datetime, timedelta, timezone
+from typing import Generator, List
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 import anyio
+import httpcore
 import httpx
 import pendulum
 import pytest
@@ -15,20 +18,28 @@ from fastapi.security import HTTPBearer
 import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
-from prefect.client.orion import OrionClient, get_client, inject_client
+from prefect.client.orion import OrionClient, get_client
+from prefect.client.schemas import OrchestrationResult
+from prefect.client.utilities import inject_client
+from prefect.deprecated.data_documents import DataDocument
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
-from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.actions import LogCreate
-from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.filters import LogFilter, LogFilterFlowRunId
+from prefect.orion.schemas.core import FlowRunNotificationPolicy
+from prefect.orion.schemas.filters import (
+    FlowRunNotificationPolicyFilter,
+    LogFilter,
+    LogFilterFlowRunId,
+)
 from prefect.orion.schemas.schedules import IntervalSchedule
-from prefect.orion.schemas.states import Pending, Running, Scheduled, StateType
+from prefect.orion.schemas.states import StateType
 from prefect.settings import (
     PREFECT_API_KEY,
+    PREFECT_API_URL,
     PREFECT_ORION_DATABASE_MIGRATE_ON_START,
     temporary_settings,
 )
+from prefect.states import Completed, Pending, Running, Scheduled, State
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
 
@@ -46,6 +57,107 @@ class TestGetClient:
             new_client = get_client()
             assert isinstance(new_client, OrionClient)
             assert new_client is not client
+
+
+class TestClientProxyAwareness:
+    """Regression test for https://github.com/PrefectHQ/nebula/issues/2356, where
+    a customer reported that the Cloud client supported proxies, but the Orion client
+    did not.  This test suite is implementation-specific to httpx/httpcore, as there are
+    no other inexpensive ways to confirm both the proxy-awareness and preserving the
+    retry behavior without probing into the implementation details of the libraries."""
+
+    @pytest.fixture()
+    def remote_https_orion(self) -> Generator[httpx.URL, None, None]:
+        orion_url = "https://127.0.0.1:4242/"
+        with temporary_settings(updates={PREFECT_API_URL: orion_url}):
+            yield httpx.URL(orion_url)
+
+    def test_unproxied_remote_client_will_retry(self, remote_https_orion: httpx.URL):
+        """The original issue here was that we were overriding the `transport` in
+        order to set the retries to 3; this is what circumvented the proxy support.
+        This test (and those below) should confirm that we are setting the retries on
+        the transport's pool in all cases."""
+        httpx_client = get_client()._client
+        assert isinstance(httpx_client, httpx.AsyncClient)
+
+        transport_for_orion = httpx_client._transport_for_url(remote_https_orion)
+        assert isinstance(transport_for_orion, httpx.AsyncHTTPTransport)
+
+        pool = transport_for_orion._pool
+        assert isinstance(pool, httpcore.AsyncConnectionPool)
+        assert pool._retries == 3  # set in prefect.client.orion.get_client()
+
+    def test_users_can_still_provide_transport(self, remote_https_orion: httpx.URL):
+        """If users want to supply an alternative transport, they still can and
+        we will not alter it"""
+        httpx_settings = {"transport": httpx.AsyncHTTPTransport(retries=11)}
+        httpx_client = get_client(httpx_settings)._client
+        assert isinstance(httpx_client, httpx.AsyncClient)
+
+        transport_for_orion = httpx_client._transport_for_url(remote_https_orion)
+        assert isinstance(transport_for_orion, httpx.AsyncHTTPTransport)
+
+        pool = transport_for_orion._pool
+        assert isinstance(pool, httpcore.AsyncConnectionPool)
+        assert pool._retries == 11  # not overridden by get_client() in this case
+
+    @pytest.fixture
+    def https_proxy(self) -> Generator[httpcore.URL, None, None]:
+        original = os.environ.get("HTTPS_PROXY")
+        try:
+            os.environ["HTTPS_PROXY"] = "https://127.0.0.1:6666"
+            yield httpcore.URL(os.environ["HTTPS_PROXY"])
+        finally:
+            if original is None:
+                del os.environ["HTTPS_PROXY"]
+            else:
+                os.environ["HTTPS_PROXY"] = original
+
+    async def test_client_is_aware_of_https_proxy(
+        self, remote_https_orion: httpx.URL, https_proxy: httpcore.URL
+    ):
+        httpx_client = get_client()._client
+        assert isinstance(httpx_client, httpx.AsyncClient)
+
+        transport_for_orion = httpx_client._transport_for_url(remote_https_orion)
+        assert isinstance(transport_for_orion, httpx.AsyncHTTPTransport)
+
+        pool = transport_for_orion._pool
+        assert isinstance(pool, httpcore.AsyncHTTPProxy)
+        assert pool._proxy_url == https_proxy
+        assert pool._retries == 3  # set in prefect.client.orion.get_client()
+
+    @pytest.fixture()
+    def remote_http_orion(self) -> Generator[httpx.URL, None, None]:
+        orion_url = "http://127.0.0.1:4242/"
+        with temporary_settings(updates={PREFECT_API_URL: orion_url}):
+            yield httpx.URL(orion_url)
+
+    @pytest.fixture
+    def http_proxy(self) -> Generator[httpcore.URL, None, None]:
+        original = os.environ.get("HTTP_PROXY")
+        try:
+            os.environ["HTTP_PROXY"] = "http://127.0.0.1:6666"
+            yield httpcore.URL(os.environ["HTTP_PROXY"])
+        finally:
+            if original is None:
+                del os.environ["HTTP_PROXY"]
+            else:
+                os.environ["HTTP_PROXY"] = original
+
+    async def test_client_is_aware_of_http_proxy(
+        self, remote_http_orion: httpx.URL, http_proxy: httpcore.URL
+    ):
+        httpx_client = get_client()._client
+        assert isinstance(httpx_client, httpx.AsyncClient)
+
+        transport_for_orion = httpx_client._transport_for_url(remote_http_orion)
+        assert isinstance(transport_for_orion, httpx.AsyncHTTPTransport)
+
+        pool = transport_for_orion._pool
+        assert isinstance(pool, httpcore.AsyncHTTPProxy)
+        assert pool._proxy_url == http_proxy
+        assert pool._retries == 3  # set in prefect.client.orion.get_client()
 
 
 class TestInjectClient:
@@ -666,7 +778,7 @@ async def test_create_flow_run_with_state(orion_client):
     def foo():
         pass
 
-    flow_run = await orion_client.create_flow_run(foo, state=schemas.states.Running())
+    flow_run = await orion_client.create_flow_run(foo, state=Running())
     assert flow_run.state.is_running()
 
 
@@ -678,7 +790,7 @@ async def test_set_then_read_flow_run_state(orion_client):
     flow_run_id = (await orion_client.create_flow_run(foo)).id
     response = await orion_client.set_flow_run_state(
         flow_run_id,
-        state=schemas.states.Completed(message="Test!"),
+        state=Completed(message="Test!"),
     )
     assert isinstance(response, OrchestrationResult)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
@@ -803,7 +915,7 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
     # Flow version is not populated yet
     assert flow_run.flow_version is None
     # State is scheduled for now
-    assert flow_run.state.type == schemas.states.StateType.SCHEDULED
+    assert flow_run.state.type == StateType.SCHEDULED
     assert (
         pendulum.now("utc")
         .diff(flow_run.state.state_details.scheduled_time)
@@ -821,6 +933,11 @@ async def test_create_flow_run_from_deployment_idempotency(orion_client, deploym
     )
 
     assert flow_run_2.id == flow_run_1.id
+
+    flow_run_3 = await orion_client.create_flow_run_from_deployment(
+        deployment.id, idempotency_key="bar"
+    )
+    assert flow_run_3.id != flow_run_1.id
 
 
 async def test_create_flow_run_from_deployment_with_options(orion_client, deployment):
@@ -926,7 +1043,7 @@ async def test_create_then_read_task_run_with_state(orion_client):
 
     flow_run = await orion_client.create_flow_run(foo)
     task_run = await orion_client.create_task_run(
-        bar, flow_run_id=flow_run.id, state=schemas.states.Running(), dynamic_key="0"
+        bar, flow_run_id=flow_run.id, state=Running(), dynamic_key="0"
     )
     assert task_run.state.is_running()
 
@@ -947,16 +1064,45 @@ async def test_set_then_read_task_run_state(orion_client):
 
     response = await orion_client.set_task_run_state(
         task_run.id,
-        schemas.states.Completed(message="Test!"),
+        Completed(message="Test!"),
     )
 
     assert isinstance(response, OrchestrationResult)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
 
     run = await orion_client.read_task_run(task_run.id)
-    assert isinstance(run.state, schemas.states.State)
-    assert run.state.type == schemas.states.StateType.COMPLETED
+    assert isinstance(run.state, State)
+    assert run.state.type == StateType.COMPLETED
     assert run.state.message == "Test!"
+
+
+async def test_create_then_read_flow_run_notification_policy(
+    orion_client, block_document
+):
+    message_template = "Test message template!"
+    state_names = ["COMPLETED"]
+
+    notification_policy_id = await orion_client.create_flow_run_notification_policy(
+        block_document_id=block_document.id,
+        is_active=True,
+        tags=[],
+        state_names=state_names,
+        message_template=message_template,
+    )
+
+    response: List[
+        FlowRunNotificationPolicy
+    ] = await orion_client.read_flow_run_notification_policies(
+        FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
+    )
+
+    assert len(response) == 1
+    assert response[0].id == notification_policy_id
+    assert response[0].block_document_id == block_document.id
+    assert response[0].message_template == message_template
+    assert response[0].is_active
+    assert response[0].tags == []
+    assert response[0].state_names == state_names
 
 
 async def test_read_filtered_logs(session, orion_client, deployment):
@@ -1057,6 +1203,9 @@ class TestClientAPIVersionRequests:
             ):
                 await client.hello()
 
+    @pytest.mark.skip(
+        reason="This test is no longer compatible with the current API version checking logic"
+    )
     async def test_minor_version(
         self, app, major_version, minor_version, patch_version
     ):
@@ -1180,6 +1329,19 @@ class TestClientWorkQueues:
         assert isinstance(lookup, schemas.core.WorkQueue)
         assert lookup.name == "foo"
         assert lookup.id == queue.id
+
+    async def test_create_then_match_work_queues(self, orion_client):
+        await orion_client.create_work_queue(
+            name="one of these things is not like the other"
+        )
+        await orion_client.create_work_queue(
+            name="one of these things just doesn't belong"
+        )
+        await orion_client.create_work_queue(
+            name="can you tell which thing is not like the others"
+        )
+        matched_queues = await orion_client.match_work_queues(["one of these things"])
+        assert len(matched_queues) == 2
 
     async def test_read_nonexistant_work_queue(self, orion_client):
         with pytest.raises(prefect.exceptions.ObjectNotFound):

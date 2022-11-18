@@ -354,6 +354,32 @@ class TestDeploymentBuild:
         assert d.tags == ["A", "B"]
         assert d.version == "12"
 
+    async def test_build_from_flow_doesnt_load_existing(self, flow_function):
+        d = await Deployment.build_from_flow(
+            flow_function,
+            name="foo",
+            tags=["A", "B"],
+            description="foobar",
+            version="12",
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.description == "foobar"
+        assert d.tags == ["A", "B"]
+        assert d.version == "12"
+
+        d = await Deployment.build_from_flow(
+            flow_function,
+            name="foo",
+            version="12",
+            load_existing=False,
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.description != "foobar"
+        assert d.tags != ["A", "B"]
+        assert d.version == "12"
+
 
 class TestYAML:
     def test_deployment_yaml_roundtrip(self, tmp_path):
@@ -447,6 +473,16 @@ async def test_deployment(patch_import, tmp_path):
     d = Deployment(name="TEST", flow_name="fn")
     deployment_id = await d.apply()
     return d, deployment_id
+
+
+async def test_deployment_apply_updates_concurrency_limit(
+    patch_import, tmp_path, orion_client
+):
+    d = Deployment(name="TEST", flow_name="fn")
+    deployment_id = await d.apply(work_queue_concurrency=424242)
+    queue_name = d.work_queue_name
+    work_queue = await orion_client.read_work_queue_by_name(queue_name)
+    assert work_queue.concurrency_limit == 424242
 
 
 class TestRunDeployment:
@@ -716,7 +752,7 @@ class TestRunDeployment:
             )
 
         parent_state = foo(return_state=True)
-        child_flow_run = parent_state.result()
+        child_flow_run = await parent_state.result()
         assert child_flow_run.parent_task_run_id is not None
         task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)
         assert task_run.flow_run_id == parent_state.state_details.flow_run_id
@@ -744,7 +780,7 @@ class TestRunDeployment:
             return upstream_task_state, child_flow_run
 
         parent_state = foo(return_state=True)
-        upstream_task_state, child_flow_run = parent_state.result()
+        upstream_task_state, child_flow_run = await parent_state.result()
         assert child_flow_run.parent_task_run_id is not None
         task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)
         assert task_run.task_inputs == {

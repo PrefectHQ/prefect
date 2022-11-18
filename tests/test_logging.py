@@ -12,12 +12,17 @@ from unittest.mock import ANY, MagicMock
 
 import pendulum
 import pytest
+from rich.color import Color, ColorType
+from rich.console import Console
+from rich.highlighter import NullHighlighter, ReprHighlighter
+from rich.style import Style
 
 import prefect
 import prefect.logging.configuration
 import prefect.settings
 from prefect import flow, task
 from prefect.context import FlowRunContext, TaskRunContext
+from prefect.deprecated.data_documents import _retrieve_result
 from prefect.exceptions import MissingContextError
 from prefect.infrastructure import Process
 from prefect.logging.configuration import (
@@ -25,7 +30,8 @@ from prefect.logging.configuration import (
     load_logging_config,
     setup_logging,
 )
-from prefect.logging.handlers import OrionHandler, OrionLogWorker
+from prefect.logging.handlers import OrionHandler, OrionLogWorker, PrefectConsoleHandler
+from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
     disable_logger,
     disable_run_logger,
@@ -35,8 +41,8 @@ from prefect.logging.loggers import (
     task_run_logger,
 )
 from prefect.orion.schemas.actions import LogCreate
-from prefect.results import _retrieve_result
 from prefect.settings import (
+    PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_BATCH_INTERVAL,
     PREFECT_LOGGING_ORION_BATCH_SIZE,
@@ -45,6 +51,7 @@ from prefect.settings import (
     PREFECT_LOGGING_SETTINGS_PATH,
     temporary_settings,
 )
+from prefect.testing.cli import temporary_console_width
 from prefect.testing.utilities import AsyncMock
 
 
@@ -97,27 +104,19 @@ def test_setup_logging_uses_default_path(tmp_path, dictConfigMock):
         {PREFECT_LOGGING_SETTINGS_PATH: tmp_path.joinpath("does-not-exist.yaml")}
     ):
         expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
+        expected_config["incremental"] = False
         setup_logging()
 
     dictConfigMock.assert_called_once_with(expected_config)
 
 
-def test_setup_logging_allows_repeated_calls(dictConfigMock):
+def test_setup_logging_sets_incremental_on_repeated_calls(dictConfigMock):
     setup_logging()
-    dictConfigMock.assert_called_once()
+    assert dictConfigMock.call_count == 1
     setup_logging()
-    dictConfigMock.assert_called_once()
-
-
-def test_setup_logging_warns_on_repeated_calls_with_new_settings(dictConfigMock):
-    setup_logging()
-    dictConfigMock.assert_called_once()
-    with pytest.warns(
-        UserWarning, match="only be setup once per process.* will be ignored"
-    ):
-        with temporary_settings({PREFECT_LOGGING_LEVEL: "ERROR"}):
-            setup_logging()
-    dictConfigMock.assert_called_once()
+    assert dictConfigMock.call_count == 2
+    assert dictConfigMock.mock_calls[0][1][0]["incremental"] == False
+    assert dictConfigMock.mock_calls[1][1][0]["incremental"] == True
 
 
 def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
@@ -128,6 +127,7 @@ def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
 
         setup_logging()
         expected_config = load_logging_config(tmp_path.joinpath("exists.yaml"))
+        expected_config["incremental"] = False
 
     dictConfigMock.assert_called_once_with(expected_config)
 
@@ -139,6 +139,8 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
     ):
         expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
     env = {}
+
+    expected_config["incremental"] = False
 
     # Test setting a value for a simple key
     env["PREFECT_LOGGING_HANDLERS_ORION_LEVEL"] = "ORION_LEVEL_VAL"
@@ -191,7 +193,7 @@ async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deploym
     )
 
     state = (await orion_client.read_flow_run(flow_run.id)).state
-    settings = await _retrieve_result(state)
+    settings = await _retrieve_result(state, orion_client)
     api_logs = await orion_client.read_logs()
     api_log_messages = [log.message for log in api_logs]
 
@@ -233,6 +235,7 @@ def test_get_logger_does_not_duplicate_prefect_prefix():
 def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
     with temporary_settings({PREFECT_LOGGING_LEVEL: "WARNING"}):
         expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
+        expected_config["incremental"] = False
 
         assert expected_config["loggers"]["prefect"]["level"] == "WARNING"
         assert expected_config["loggers"]["prefect.extra"]["level"] == "WARNING"
@@ -926,11 +929,10 @@ async def test_run_logger_with_explicit_context(
         pass
 
     task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
-    context = TaskRunContext(
+    context = TaskRunContext.construct(
         task=foo,
         task_run=task_run,
         client=orion_client,
-        result_filesystem=local_filesystem,
     )
 
     logger = get_run_logger(context)
@@ -959,11 +961,10 @@ async def test_run_logger_with_explicit_context_overrides_existing(
 
     task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
     # Use `bar` instead of `foo` in context
-    context = TaskRunContext(
+    context = TaskRunContext.construct(
         task=bar,
         task_run=task_run,
         client=orion_client,
-        result_filesystem=local_filesystem,
     )
 
     logger = get_run_logger(context)
@@ -977,7 +978,7 @@ async def test_run_logger_in_flow(orion_client):
 
     state = test_flow._run()
     flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
-    logger = state.result()
+    logger = await state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
         "flow_name": test_flow.name,
@@ -993,7 +994,7 @@ async def test_run_logger_extra_data(orion_client):
 
     state = test_flow._run()
     flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
-    logger = state.result()
+    logger = await state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
         "flow_name": "bar",
@@ -1012,9 +1013,9 @@ async def test_run_logger_in_nested_flow(orion_client):
     def test_flow():
         return child_flow._run()
 
-    child_state = test_flow._run().result()
+    child_state = await test_flow._run().result()
     flow_run = await orion_client.read_flow_run(child_state.state_details.flow_run_id)
-    logger = child_state.result()
+    logger = await child_state.result()
     assert logger.name == "prefect.flow_runs"
     assert logger.extra == {
         "flow_name": child_flow.name,
@@ -1034,9 +1035,9 @@ async def test_run_logger_in_task(orion_client):
 
     flow_state = test_flow._run()
     flow_run = await orion_client.read_flow_run(flow_state.state_details.flow_run_id)
-    task_state = flow_state.result()
+    task_state = await flow_state.result()
     task_run = await orion_client.read_task_run(task_state.state_details.task_run_id)
-    logger = task_state.result()
+    logger = await task_state.result()
     assert logger.name == "prefect.task_runs"
     assert logger.extra == {
         "task_name": test_task.name,
@@ -1046,6 +1047,132 @@ async def test_run_logger_in_task(orion_client):
         "flow_run_id": str(flow_run.id),
         "flow_run_name": flow_run.name,
     }
+
+
+class TestPrefectConsoleHandler:
+    @pytest.fixture
+    def handler(self):
+        yield PrefectConsoleHandler()
+
+    @pytest.fixture
+    def logger(self, handler):
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(handler)
+        yield logger
+        logger.removeHandler(handler)
+
+    def test_init_defaults(self):
+        handler = PrefectConsoleHandler()
+        console = handler.console
+        assert isinstance(console, Console)
+        assert isinstance(console.highlighter, PrefectConsoleHighlighter)
+        assert console._theme_stack._entries == [{}]  # inherit=False
+        assert handler.level == logging.NOTSET
+
+    def test_init_styled_console_disabled(self):
+        with temporary_settings({PREFECT_LOGGING_COLORS: False}):
+            handler = PrefectConsoleHandler()
+            console = handler.console
+            assert isinstance(console, Console)
+            assert isinstance(console.highlighter, NullHighlighter)
+            assert console._theme_stack._entries == [{}]
+            assert handler.level == logging.NOTSET
+
+    def test_init_override_kwargs(self):
+        handler = PrefectConsoleHandler(
+            highlighter=ReprHighlighter, styles={"number": "red"}, level=logging.DEBUG
+        )
+        console = handler.console
+        assert isinstance(console, Console)
+        assert isinstance(console.highlighter, ReprHighlighter)
+        assert console._theme_stack._entries == [
+            {"number": Style(color=Color("red", ColorType.STANDARD, number=1))}
+        ]
+        assert handler.level == logging.DEBUG
+
+    def test_uses_stderr_by_default(self, capsys):
+        logger = get_logger(uuid.uuid4().hex)
+        logger.handlers = [PrefectConsoleHandler()]
+        logger.info("Test!")
+        stdout, stderr = capsys.readouterr()
+        assert stdout == ""
+        assert "Test!" in stderr
+
+    def test_respects_given_stream(self, capsys):
+        logger = get_logger(uuid.uuid4().hex)
+        logger.handlers = [PrefectConsoleHandler(stream=sys.stdout)]
+        logger.info("Test!")
+        stdout, stderr = capsys.readouterr()
+        assert stderr == ""
+        assert "Test!" in stdout
+
+    def test_includes_tracebacks_during_exceptions(self, capsys):
+        logger = get_logger(uuid.uuid4().hex)
+        logger.handlers = [PrefectConsoleHandler()]
+
+        try:
+            raise ValueError("oh my")
+        except:
+            logger.exception("Helpful context!")
+
+        _, stderr = capsys.readouterr()
+        assert "Helpful context!" in stderr
+        assert "Traceback" in stderr
+        assert 'raise ValueError("oh my")' in stderr
+        assert "ValueError: oh my" in stderr
+
+    def test_does_not_word_wrap_or_crop_messages(self, capsys):
+        logger = get_logger(uuid.uuid4().hex)
+        handler = PrefectConsoleHandler()
+        logger.handlers = [handler]
+
+        # Pretend we have a narrow little console
+        with temporary_console_width(handler.console, 10):
+            logger.info("x" * 1000)
+
+        _, stderr = capsys.readouterr()
+        # There will be newlines in the middle if cropped
+        assert "x" * 1000 in stderr
+
+
+def test_log_in_flow(caplog):
+    msg = "Hello world!"
+
+    @flow
+    def test_flow():
+        logger = get_run_logger()
+        logger.warning(msg)
+
+    test_flow()
+
+    for record in caplog.records:
+        if record.msg == msg:
+            assert record.levelno == logging.WARNING
+            break
+    else:
+        raise AssertionError(f"{msg} was not found in records: {caplog.records}")
+
+
+def test_log_in_task(caplog):
+    msg = "Hello world!"
+
+    @task
+    def test_task():
+        logger = get_run_logger()
+        logger.warning(msg)
+
+    @flow
+    def test_flow():
+        test_task()
+
+    test_flow()
+    for record in caplog.records:
+        if record.msg == msg:
+            assert record.levelno == logging.WARNING
+            break
+    else:
+        raise AssertionError(f"{msg} was not found in records")
 
 
 def test_without_disable_logger(caplog):

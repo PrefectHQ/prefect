@@ -1,7 +1,7 @@
 <template>
   <p-layout-well v-if="taskRun" class="task-run">
     <template #header>
-      <PageHeadingTaskRun :task-run="taskRun" @delete="goToFlowRun" />
+      <PageHeadingTaskRun :task-run-id="taskRun.id" @delete="goToFlowRun" />
     </template>
 
     <p-tabs :tabs="tabs">
@@ -18,32 +18,23 @@
       </template>
     </p-tabs>
     <template #well>
-      <div class="task-run__meta">
-        <StateBadge :state="taskRun.state" />
-        <DurationIconText :duration="taskRun.duration" />
-        <FlowRunIconText :flow-run-id="taskRun.flowRunId" />
-      </div>
-
-      <p-divider />
-
       <TaskRunDetails alternate :task-run="taskRun" />
     </template>
   </p-layout-well>
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, StateBadge, DurationIconText, FlowRunIconText, JsonView, useFavicon } from '@prefecthq/orion-design'
+  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, JsonView, useFavicon, useWorkspaceApi } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
-  import { flowRunsApi } from '@/services/flowRunsApi'
-  import { taskRunsApi } from '@/services/taskRunsApi'
 
   const router = useRouter()
   const taskRunId = useRouteParam('id')
+  const api = useWorkspaceApi()
 
   const tabs = computed(() => {
     const values = ['Logs', 'Task Inputs']
@@ -55,14 +46,13 @@
     return values
   })
 
-
   const taskRunIdArgs = computed<[string] | null>(() => taskRunId.value ? [taskRunId.value] : null)
-  const taskRunDetailsSubscription = useSubscriptionWithDependencies(taskRunsApi.getTaskRun, taskRunIdArgs)
+  const taskRunDetailsSubscription = useSubscriptionWithDependencies(api.taskRuns.getTaskRun, taskRunIdArgs, { interval: 30000 })
   const taskRun = computed(() => taskRunDetailsSubscription.response)
 
   const flowRunId = computed(() => taskRun.value?.flowRunId)
   const flowRunIdArgs = computed<[string] | null>(() => flowRunId.value ? [flowRunId.value] : null)
-  const flowRunDetailsSubscription = useSubscriptionWithDependencies(flowRunsApi.getFlowRun, flowRunIdArgs)
+  const flowRunDetailsSubscription = useSubscriptionWithDependencies(api.flowRuns.getFlowRun, flowRunIdArgs)
 
   const parameters = computed(() => {
     return taskRun.value?.taskInputs ? JSON.stringify(taskRun.value.taskInputs, undefined, 2) : '{}'
@@ -84,12 +74,3 @@
   })
   usePageTitle(title)
 </script>
-
-<style>
-.task-run__meta { @apply
-  flex
-  flex-col
-  gap-2
-  items-start
-}
-</style>

@@ -206,7 +206,13 @@ async def inspect(
 async def ls(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Display more information."
-    )
+    ),
+    work_queue_prefix: str = typer.Option(
+        None,
+        "--match",
+        "-m",
+        help="Will match work queues with names that start with the specified prefix string",
+    ),
 ):
     """
     View all work queues.
@@ -221,7 +227,10 @@ async def ls(
         table.add_column("Filter (Deprecated)", style="magenta", no_wrap=True)
 
     async with get_client() as client:
-        queues = await client.read_work_queues()
+        if work_queue_prefix is not None:
+            queues = await client.match_work_queues([work_queue_prefix])
+        else:
+            queues = await client.read_work_queues()
 
     sort_by_created_key = lambda q: pendulum.now("utc") - q.created
 

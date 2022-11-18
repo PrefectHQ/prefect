@@ -19,19 +19,14 @@
 
 <script lang="ts" setup>
   import {
-    blockCapabilitiesApiKey,
     blockCatalogViewRouteKey,
     blockCatalogCreateRouteKey,
     blockCatalogRouteKey,
-    blockDocumentsApiKey,
     blockEditRouteKey,
     blockRouteKey,
-    blockSchemasApiKey,
     blocksRouteKey,
-    blockTypesApiKey,
     canKey,
     deploymentRouteKey,
-    deploymentsApiKey,
     deploymentsRouteKey,
     editDeploymentRouteKey,
     editNotificationRouteKey,
@@ -39,79 +34,52 @@
     flowRouteKey,
     flowRunCreateRouteKey,
     flowRunRouteKey,
-    flowRunsApiKey,
     flowRunsRouteKey,
-    flowsApiKey,
     flowsRouteKey,
-    logsApiKey,
     notificationCreateRouteKey,
-    notificationsApiKey,
     notificationsRouteKey,
     taskRunRouteKey,
     settingsRouteKey,
-    taskRunsApiKey,
     workQueueCreateRouteKey,
     workQueueRouteKey,
-    workQueuesApiKey,
-    workQueuesRouteKey
+    workQueuesRouteKey,
+    radarRouteKey
   } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
   import { computed, provide, ref, watchEffect } from 'vue'
-  import { blockDocumentsApi } from './services/blockDocumentsApi'
-  import { blockSchemasApi } from './services/blockSchemasApi'
-  import { blockTypesApi } from './services/blockTypesApi'
-  import { notificationsApi } from './services/notificationsApi'
   import ContextSidebar from '@/components/ContextSidebar.vue'
   import AppRouterView from '@/pages/AppRouterView.vue'
   import { routes } from '@/router/routes'
-  import { blockCapabilitiesApi } from '@/services/blockCapabilitiesApi'
-  import { deploymentsApi } from '@/services/deploymentsApi'
-  import { flowRunsApi } from '@/services/flowRunsApi'
-  import { flowsApi } from '@/services/flowsApi'
-  import { logsApi } from '@/services/logsApi'
-  import { taskRunsApi } from '@/services/taskRunsApi'
-  import { workQueuesApi } from '@/services/workQueuesApi'
   import { healthCheck } from '@/utilities/api'
   import { can } from '@/utilities/permissions'
 
-  provide(blockCapabilitiesApiKey, blockCapabilitiesApi)
-  provide(blockDocumentsApiKey, blockDocumentsApi)
-  provide(blockSchemasApiKey, blockSchemasApi)
-  provide(blockTypesApiKey, blockTypesApi)
-  provide(deploymentsApiKey, deploymentsApi)
-  provide(flowRunsApiKey, flowRunsApi)
-  provide(flowsApiKey, flowsApi)
-  provide(logsApiKey, logsApi)
-  provide(taskRunsApiKey, taskRunsApi)
-  provide(workQueuesApiKey, workQueuesApi)
-
   provide(canKey, can)
 
-  provide(blockCatalogViewRouteKey, routes.blocksCatalogView)
   provide(blockCatalogCreateRouteKey, routes.blocksCatalogCreate)
   provide(blockCatalogRouteKey, routes.blocksCatalog)
+  provide(blockCatalogViewRouteKey, routes.blocksCatalogView)
   provide(blockEditRouteKey, routes.blockEdit)
   provide(blockRouteKey, routes.block)
   provide(blocksRouteKey, routes.blocks)
   provide(deploymentRouteKey, routes.deployment)
-  provide(editDeploymentRouteKey, routes.deploymentEdit)
   provide(deploymentsRouteKey, routes.deployments)
+  provide(editDeploymentRouteKey, routes.deploymentEdit)
+  provide(editNotificationRouteKey, routes.notificationEdit)
+  provide(editQueueRouteKey, routes.workQueueEdit)
   provide(editQueueRouteKey, routes.workQueueEdit)
   provide(flowRouteKey, routes.flow)
   provide(flowRunCreateRouteKey, routes.flowRunCreate)
   provide(flowRunRouteKey, routes.flowRun)
   provide(flowRunsRouteKey, routes.flowRuns)
   provide(flowsRouteKey, routes.flows)
+  provide(notificationCreateRouteKey, routes.notificationCreate)
+  provide(notificationsRouteKey, routes.notifications)
+  provide(radarRouteKey, routes.radar)
   provide(settingsRouteKey, routes.settings)
+  provide(taskRunRouteKey, routes.taskRun)
+  provide(workQueueCreateRouteKey, routes.workQueueCreate)
   provide(workQueueCreateRouteKey, routes.workQueueCreate)
   provide(workQueueRouteKey, routes.workQueue)
-  provide(workQueueCreateRouteKey, routes.workQueueCreate)
-  provide(editQueueRouteKey, routes.workQueueEdit)
-  provide(notificationsApiKey, notificationsApi)
-  provide(notificationCreateRouteKey, routes.notificationCreate)
-  provide(editNotificationRouteKey, routes.notificationEdit)
-  provide(notificationsRouteKey, routes.notifications)
-  provide(taskRunRouteKey, routes.taskRun)
   provide(workQueuesRouteKey, routes.workQueues)
 
   const mobileMenuOpen = ref(false)
@@ -136,7 +104,11 @@
 }
 
 .app { @apply
-  text-slate-900;
+  text-slate-900
+}
+
+.app {
+  --prefect-scroll-margin: theme('spacing.20');
 }
 
 .app__prefect-icon { @apply
@@ -153,6 +125,8 @@
 
 @screen lg {
   .app {
+    --prefect-scroll-margin: theme('spacing.2');
+
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
   }

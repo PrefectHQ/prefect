@@ -9,8 +9,8 @@ from fastapi import status
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import DeploymentCreate
 from prefect.settings import (
-    PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
+    PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
 )
 
 
@@ -236,7 +236,7 @@ class TestCreateDeployment:
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 100
+        assert n_runs == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
 
         # create a run manually to ensure it isn't deleted
         await models.flow_runs.create_flow_run(
@@ -278,7 +278,7 @@ class TestCreateDeployment:
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 100
+        assert n_runs == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
 
         # create a run manually to ensure it isn't deleted
         await models.flow_runs.create_flow_run(
@@ -547,6 +547,21 @@ class TestReadDeployments:
         # sorted by name by default
         assert response.json()[0]["name"] == "My Deployment Y"
 
+    async def test_read_deployments_sort(self, deployments, client):
+        response = await client.post(
+            "/deployments/filter",
+            json=dict(sort=schemas.sorting.DeploymentSort.NAME_ASC),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["name"] == "My Deployment X"
+
+        response_desc = await client.post(
+            "/deployments/filter",
+            json=dict(sort=schemas.sorting.DeploymentSort.NAME_DESC),
+        )
+        assert response_desc.status_code == status.HTTP_200_OK
+        assert response_desc.json()[0]["name"] == "My Deployment Y"
+
     async def test_read_deployments_returns_empty_list(self, client):
         response = await client.post("/deployments/filter")
         assert response.status_code == status.HTTP_200_OK
@@ -711,7 +726,7 @@ class TestSetScheduleActive:
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 100
+        assert n_runs == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
 
         # create a run manually
         await models.flow_runs.create_flow_run(
@@ -743,7 +758,7 @@ class TestScheduleDeployment:
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
-            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value(),
+            n=PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value(),
             start=pendulum.now(),
             end=pendulum.now()
             + PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
@@ -751,12 +766,12 @@ class TestScheduleDeployment:
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
 
-    async def test_schedule_deployment_max_runs(self, client, session, deployment):
+    async def test_schedule_deployment_provide_runs(self, client, session, deployment):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
 
         await client.post(
-            f"/deployments/{deployment.id}/schedule", json=dict(max_runs=5)
+            f"/deployments/{deployment.id}/schedule", json=dict(min_runs=5)
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
@@ -780,7 +795,7 @@ class TestScheduleDeployment:
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
-            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value(),
+            n=PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value(),
             start=pendulum.now().add(days=120),
             end=pendulum.now().add(days=120)
             + PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
@@ -794,12 +809,16 @@ class TestScheduleDeployment:
 
         await client.post(
             f"/deployments/{deployment.id}/schedule",
-            json=dict(end_time=str(pendulum.now("UTC").add(days=7))),
+            json=dict(
+                end_time=str(pendulum.now("UTC").add(days=7)),
+                # schedule a large number of min runs to see the effect of end_time
+                min_runs=100,
+            ),
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
-            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value(),
+            n=100,
             start=pendulum.now("UTC"),
             end=pendulum.now("UTC").add(days=7),
         )
@@ -816,12 +835,13 @@ class TestScheduleDeployment:
             json=dict(
                 start_time=str(pendulum.now("UTC").subtract(days=20)),
                 end_time=str(pendulum.now("UTC")),
+                min_runs=100,
             ),
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
-            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value(),
+            n=100,
             start=pendulum.now("UTC").subtract(days=20),
             end=pendulum.now("UTC"),
         )

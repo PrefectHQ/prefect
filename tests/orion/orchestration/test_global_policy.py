@@ -11,6 +11,7 @@ from prefect.orion.orchestration.global_policy import (
     SetExpectedStartTime,
     SetNextScheduledStartTime,
     SetRunStateName,
+    SetRunStateTimestamp,
     SetRunStateType,
     SetStartTime,
     UpdateSubflowParentTask,
@@ -37,7 +38,7 @@ class TestGlobalPolicyRules:
             *intended_transition,
         )
 
-        async with SetRunStateType(ctx) as ctx:
+        async with SetRunStateType(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         run = ctx.run
@@ -58,11 +59,29 @@ class TestGlobalPolicyRules:
             *intended_transition,
         )
 
-        async with SetRunStateName(ctx) as ctx:
+        async with SetRunStateName(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         run = ctx.run
         assert run.state_name == ctx.proposed_state.name
+
+    @pytest.mark.parametrize("proposed_state_type", list(states.StateType))
+    async def test_rule_updates_run_state_timestamp(
+        self, session, run_type, initialize_orchestration, proposed_state_type
+    ):
+        initial_state_type = None
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+        )
+
+        async with SetRunStateTimestamp(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        run = ctx.run
+        assert run.state_timestamp == ctx.proposed_state.timestamp
 
     async def test_rule_sets_scheduled_time(
         self,
@@ -84,7 +103,7 @@ class TestGlobalPolicyRules:
         run = ctx.run
         assert run.start_time is None
 
-        async with SetNextScheduledStartTime(ctx) as ctx:
+        async with SetNextScheduledStartTime(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.next_scheduled_start_time == scheduled_time
@@ -111,7 +130,7 @@ class TestGlobalPolicyRules:
         assert run.start_time is None
         assert run.next_scheduled_start_time is not None
 
-        async with SetNextScheduledStartTime(ctx) as ctx:
+        async with SetNextScheduledStartTime(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.next_scheduled_start_time is None
@@ -140,7 +159,7 @@ class TestGlobalPolicyRules:
         run = ctx.run
         assert run.expected_start_time is None
 
-        async with SetExpectedStartTime(ctx) as ctx:
+        async with SetExpectedStartTime(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.expected_start_time == ctx.proposed_state.timestamp
@@ -167,7 +186,7 @@ class TestGlobalPolicyRules:
         run = ctx.run
         assert run.expected_start_time is None
 
-        async with SetExpectedStartTime(ctx) as ctx:
+        async with SetExpectedStartTime(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.expected_start_time == dt
@@ -191,7 +210,7 @@ class TestGlobalPolicyRules:
         run = ctx.run
         assert run.start_time is None
 
-        async with SetStartTime(ctx) as ctx:
+        async with SetStartTime(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.start_time is not None
@@ -214,7 +233,7 @@ class TestGlobalPolicyRules:
         run = ctx.run
         assert run.run_count == 0
 
-        async with IncrementRunCount(ctx) as ctx:
+        async with IncrementRunCount(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.run_count == 1
@@ -237,7 +256,7 @@ class TestGlobalPolicyRules:
         run = ctx.run
         run.run_count = 41
 
-        async with IncrementRunCount(ctx) as ctx:
+        async with IncrementRunCount(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.run_count == 42
@@ -265,7 +284,7 @@ class TestGlobalPolicyRules:
         await session.commit()
         assert run.total_run_time == datetime.timedelta(0)
 
-        async with IncrementRunTime(ctx) as ctx:
+        async with IncrementRunTime(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.total_run_time == datetime.timedelta(seconds=42)
@@ -294,7 +313,7 @@ class TestGlobalPolicyRules:
         await session.refresh(run)
         assert run.total_run_time == datetime.timedelta(0)
 
-        async with IncrementRunTime(ctx) as ctx:
+        async with IncrementRunTime(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.total_run_time == datetime.timedelta(0)
@@ -315,7 +334,7 @@ class TestGlobalPolicyRules:
         run.start_time = pendulum.now().subtract(seconds=42)
         assert run.end_time is None
 
-        async with SetEndTime(ctx) as ctx:
+        async with SetEndTime(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.end_time is not None
@@ -337,7 +356,7 @@ class TestGlobalPolicyRules:
         run.end_time = pendulum.now()
         assert run.end_time is not None
 
-        async with SetEndTime(ctx) as ctx:
+        async with SetEndTime(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.end_time is None
@@ -365,7 +384,7 @@ class TestGlobalPolicyRules:
 
         assert run.end_time is not None
 
-        async with SetEndTime(ctx) as ctx:
+        async with SetEndTime(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.end_time == dt
@@ -414,7 +433,7 @@ async def test_update_subflow_parent_task(
     # the parent task run now has the proposed state
     assert parent_task_run.state.type == initial_state_type
 
-    async with UpdateSubflowParentTask(ctx) as ctx:
+    async with UpdateSubflowParentTask(ctx, *intended_transition) as ctx:
         await ctx.validate_proposed_state()
 
     # the parent task run now has the proposed state
@@ -466,7 +485,7 @@ async def test_child_flow_run_states_include_parent_task_run_id(
     # the parent task run now has the proposed state
     assert parent_task_run.state.type == initial_state_type
 
-    async with UpdateSubflowStateDetails(ctx) as ctx:
+    async with UpdateSubflowStateDetails(ctx, *intended_transition) as ctx:
         await ctx.validate_proposed_state()
 
     # the child flow run now has the proposed state

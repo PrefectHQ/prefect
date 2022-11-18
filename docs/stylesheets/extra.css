@@ -60,6 +60,11 @@ img {
     margin-bottom: 0;
 }
 
+/* push "go to prefect cloud" */
+.cloud-link {
+    margin-left: auto;
+}
+
 /* Table formatting */
 .md-typeset table:not([class]) {
     font-size: .8rem;
@@ -76,6 +81,59 @@ useful for wrapping table cell text in a span
 to force column width */
 .no-wrap {
     white-space: nowrap;
+}
+
+/* collections and recipes catalogs */
+.collection-grid {
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+    gap: .5rem; 
+}
+
+.collection-item {
+    padding: 1rem; 
+    margin: .2rem;
+    box-shadow: .1rem .1rem .3rem rgba(0, 0, 0, .3); 
+    border-radius: 5px;
+}
+
+.collection-item img {
+    max-height: 100px; 
+    max-width: 100px;
+}
+
+.recipe-grid {
+    display:grid; 
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+    gap: .5rem; 
+    margin: 1rem 0 3rem;
+}
+
+.recipe-item {
+    padding: 1rem; 
+    margin: .2rem;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .3); 
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.recipe-item img {
+    max-height: 48px; 
+    max-width: 48px; 
+    margin: 0 0.5em 0 auto;
+}
+
+.recipe-desc p {
+    vertical-align: text-top;
+    vertical-align: top;
+    font-size: 0.8rem;
+}
+
+.recipe-details {
+    margin-top: 1rem;
+    font-size: 0.6rem;
 }
 
 /* badge formatting */
@@ -111,6 +169,16 @@ to force column width */
     content: "Prefect Cloud";
 }
 
+.orgs::before {
+    background-color: #5f79c2;
+    content: "Organizations";
+}
+
+.enterprise::before {
+    background-color: #115AF4;
+    content: "Enterprise";
+}
+
 .deprecated::before {
     background-color: #FA1C2F;
     content: "Deprecated";
@@ -124,4 +192,52 @@ to force column width */
 .expert::before {
     background-color: #726576;
     content: "Advanced";
+}
+
+/* dark mode slate theme */
+/* dark mode code overrides */
+[data-md-color-scheme="slate"] {
+    --md-code-bg-color: #252a33;
+    --md-code-fg-color: #eee;
+    --md-code-hl-color: #3b3d54;
+    --md-code-hl-name-color: #eee;
+}
+
+/* dark mode link overrides */
+[data-md-color-scheme="slate"] .md-typeset a {
+    color: var(--blue);
+}
+
+[data-md-color-scheme="slate"] .md-typeset a:hover {
+    font-weight: bold;
+}
+
+/* dark mode nav overrides */
+[data-md-color-scheme="slate"] .md-nav--primary .md-nav__item--active>.md-nav__link {
+    color: var(--blue);
+    font-weight: bold;
+}
+
+[data-md-color-scheme="slate"] .md-nav--primary .md-nav__link--active {
+    color: var(--blue);
+    font-weight: bold;
+}
+
+/* dark mode collection catalog overrides */
+[data-md-color-scheme="slate"] .collection-item {
+    background-color: #3b3d54;
+}
+
+[data-md-color-scheme="slate"] .collection-item img {
+    filter: drop-shadow(1px 1px 8px rgba(172, 182, 255, 0.35));
+}
+
+/* dark mode recipe collection overrides */
+[data-md-color-scheme="slate"] .recipe-item {
+    background-color: #3b3d54;
+}
+
+/* dark mode API doc overrides */
+[data-md-color-scheme="slate"] .prefect-table th {
+    background-color: #3b3d54;
 }

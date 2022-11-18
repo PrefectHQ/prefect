@@ -16,20 +16,25 @@ import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from prefect.blocks.core import Block
-from prefect.client import OrionClient, get_client
-from prefect.client.orion import inject_client
+from prefect.client.orion import OrionClient, get_client
+from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry
-from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
+from prefect.exceptions import (
+    BlockMissingCapabilities,
+    ObjectAlreadyExists,
+    ObjectNotFound,
+)
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
+from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
-from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
 from prefect.utilities.importtools import import_object
 from prefect.utilities.slugify import slugify
 
@@ -110,7 +115,7 @@ async def run_deployment(
 
     flow_run = await client.create_flow_run_from_deployment(
         deployment.id,
-        state=schemas.states.Scheduled(scheduled_time=scheduled_time),
+        state=Scheduled(scheduled_time=scheduled_time),
         parameters=parameters,
         name=flow_run_name,
         parent_task_run_id=parent_task_run_id,
@@ -161,7 +166,7 @@ async def load_flow_from_flow_run(
         f"Loading flow for deployment {deployment.name!r}..."
     )
 
-    import_path = deployment.entrypoint
+    import_path = relative_path_to_current_platform(deployment.entrypoint)
 
     # for backwards compat
     if deployment.manifest_path:
@@ -579,12 +584,15 @@ class Deployment(BaseModel):
         return file_count
 
     @sync_compatible
-    async def apply(self, upload: bool = False) -> UUID:
+    async def apply(
+        self, upload: bool = False, work_queue_concurrency: int = None
+    ) -> UUID:
         """
         Registers this deployment with the API and returns the deployment's ID.
 
         Args:
             upload: if True, deployment files are automatically uploaded to remote storage
+            work_queue_concurrency: If provided, sets the concurrency limit on the deployment's work queue
         """
         if not self.name or not self.flow_name:
             raise ValueError("Both a deployment name and flow name must be set.")
@@ -602,6 +610,17 @@ class Deployment(BaseModel):
 
             if upload:
                 await self.upload_to_storage()
+
+            if self.work_queue_name and work_queue_concurrency is not None:
+                try:
+                    res = await client.create_work_queue(name=self.work_queue_name)
+                except ObjectAlreadyExists:
+                    res = await client.read_work_queue_by_name(
+                        name=self.work_queue_name
+                    )
+                await client.update_work_queue(
+                    res.id, concurrency_limit=work_queue_concurrency
+                )
 
             # we assume storage was already saved
             storage_document_id = getattr(self.storage, "_block_document_id", None)
@@ -634,14 +653,13 @@ class Deployment(BaseModel):
         name: str,
         output: str = None,
         skip_upload: bool = False,
+        ignore_file: str = ".prefectignore",
         apply: bool = False,
+        load_existing: bool = True,
         **kwargs,
     ) -> "Deployment":
         """
         Configure a deployment for a given flow.
-
-        Note that this method loads any settings that may already be configured for the named deployment
-        server-side (e.g., schedules, default parameter values, etc.).
 
         Args:
             flow: A flow function to deploy
@@ -649,7 +667,12 @@ class Deployment(BaseModel):
             output (optional): if provided, the full deployment specification will be written as a YAML
                 file in the location specified by `output`
             skip_upload: if True, deployment files are not automatically uploaded to remote storage
+            ignore_file: an optional path to a `.prefectignore` file that specifies filename patterns
+                to ignore when uploading to remote storage; if not provided, looks for `.prefectignore`
+                in the current working directory
             apply: if True, the deployment is automatically registered with the API
+            load_existing: if True, load any settings that may already be configured for the named deployment
+                server-side (e.g., schedules, default parameter values, etc.)
             **kwargs: other keyword arguments to pass to the constructor for the `Deployment` class
         """
         if not name:
@@ -676,7 +699,8 @@ class Deployment(BaseModel):
             entry_path = Path(flow_file).absolute().relative_to(Path(".").absolute())
             deployment.entrypoint = f"{entry_path}:{flow.fn.__name__}"
 
-        await deployment.load()
+        if load_existing:
+            await deployment.load()
 
         # set a few attributes for this flow object
         deployment.parameter_openapi_schema = parameter_schema(flow)
@@ -701,7 +725,7 @@ class Deployment(BaseModel):
                 deployment.storage
                 and "put-directory" in deployment.storage.get_block_capabilities()
             ):
-                await deployment.upload_to_storage()
+                await deployment.upload_to_storage(ignore_file=ignore_file)
 
         if output:
             await deployment.to_yaml(output)

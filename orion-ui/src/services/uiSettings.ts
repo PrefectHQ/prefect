@@ -1,6 +1,6 @@
 
 import axios, { AxiosResponse } from 'axios'
-import { MODE } from '@/utilities/meta'
+import { MODE, BASE_URL } from '@/utilities/meta'
 
 type SettingsResponse = {
   api_url: string,
@@ -14,8 +14,7 @@ export class UiSettings {
   public static settings: Settings | null = null
 
   private static promise: Promise<Settings> | null = null
-  private static readonly baseUrl = MODE() === 'development' ? 'http://127.0.0.1:4200' : window.location.origin
-
+  private static readonly baseUrl = MODE() === 'development' ? 'http://127.0.0.1:4200' : BASE_URL() ?? window.location.origin
   public static async load(): Promise<Settings> {
     if (this.settings !== null) {
       return this.settings

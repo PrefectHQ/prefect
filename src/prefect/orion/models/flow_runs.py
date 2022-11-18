@@ -23,19 +23,19 @@ from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.orchestration.core_policy import MinimalFlowPolicy
 from prefect.orion.orchestration.global_policy import GlobalFlowPolicy
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
-from prefect.orion.orchestration.rules import (
-    FlowOrchestrationContext,
-    OrchestrationResult,
-)
+from prefect.orion.orchestration.rules import FlowOrchestrationContext
 from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.responses import SetStateStatus
+from prefect.orion.schemas.responses import OrchestrationResult, SetStateStatus
 from prefect.orion.schemas.states import State
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
 
 @inject_db
 async def create_flow_run(
-    session: AsyncSession, flow_run: schemas.core.FlowRun, db: OrionDBInterface
+    session: AsyncSession,
+    flow_run: schemas.core.FlowRun,
+    db: OrionDBInterface,
+    orchestration_parameters: dict = None,
 ):
     """Creates a new flow run.
 
@@ -104,6 +104,7 @@ async def create_flow_run(
             flow_run_id=model.id,
             state=flow_run.state,
             force=True,
+            orchestration_parameters=orchestration_parameters,
         )
     return model
 
@@ -380,6 +381,7 @@ async def set_flow_run_state(
     state: schemas.states.State,
     force: bool = False,
     flow_policy: BaseOrchestrationPolicy = None,
+    orchestration_parameters: dict = None,
 ) -> OrchestrationResult:
     """
     Creates a new orchestrated flow run state.
@@ -429,6 +431,9 @@ async def set_flow_run_state(
         proposed_state=state,
     )
 
+    if orchestration_parameters is not None:
+        context.parameters = orchestration_parameters
+
     # apply orchestration rules and create the new flow run state
     async with contextlib.AsyncExitStack() as stack:
         for rule in orchestration_rules:
@@ -437,7 +442,9 @@ async def set_flow_run_state(
             )
 
         for rule in global_rules:
-            context = await stack.enter_async_context(rule(context))
+            context = await stack.enter_async_context(
+                rule(context, *intended_transition)
+            )
 
         await context.validate_proposed_state()
 

@@ -5,15 +5,16 @@ import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
+import pendulum
 from pydantic import Field, HttpUrl, root_validator, validator
 from typing_extensions import Literal
 
 import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
-from prefect.orion.utilities.names import generate_slug, obfuscate_string
 from prefect.orion.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
+from prefect.utilities.names import generate_slug, obfuscate_string
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
@@ -44,6 +45,30 @@ def raise_on_invalid_name(name: str) -> None:
             f"Name {name!r} contains an invalid character. "
             f"Must not contain any of: {INVALID_CHARACTERS}."
         )
+
+
+class CreatedBy(PrefectBaseModel):
+    id: Optional[UUID] = Field(
+        default=None, description="The id of the creator of the object."
+    )
+    type: Optional[str] = Field(
+        default=None, description="The type of the creator of the object."
+    )
+    display_value: Optional[str] = Field(
+        default=None, description="The display value for the creator."
+    )
+
+
+class UpdatedBy(PrefectBaseModel):
+    id: Optional[UUID] = Field(
+        default=None, description="The id of the updater of the object."
+    )
+    type: Optional[str] = Field(
+        default=None, description="The type of the updater of the object."
+    )
+    display_value: Optional[str] = Field(
+        default=None, description="The display value for the updater."
+    )
 
 
 class Flow(ORMBaseModel):
@@ -105,7 +130,6 @@ class FlowRunPolicy(PrefectBaseModel):
         description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
         deprecated=True,
     )
-
     retries: Optional[int] = Field(default=None, description="The number of retries.")
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
@@ -182,16 +206,13 @@ class FlowRun(ORMBaseModel):
     state_name: Optional[str] = Field(
         default=None, description="The name of the current flow run state."
     )
-
     run_count: int = Field(
         default=0, description="The number of times the flow run was executed."
     )
-
     expected_start_time: Optional[DateTimeTZ] = Field(
         default=None,
         description="The flow run's expected start time.",
     )
-
     next_scheduled_start_time: Optional[DateTimeTZ] = Field(
         default=None,
         description="The next time the flow run is scheduled to start.",
@@ -221,6 +242,10 @@ class FlowRun(ORMBaseModel):
     infrastructure_document_id: Optional[UUID] = Field(
         default=None,
         description="The block document defining infrastructure to use this flow run.",
+    )
+    created_by: Optional[CreatedBy] = Field(
+        default=None,
+        description="Optional information about the creator of this flow run.",
     )
 
     # relationships
@@ -263,7 +288,6 @@ class TaskRunPolicy(PrefectBaseModel):
         description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
         deprecated=True,
     )
-
     retries: Optional[int] = Field(default=None, description="The number of retries.")
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
@@ -358,7 +382,6 @@ class TaskRun(ORMBaseModel):
         default_factory=dict,
         description="Tracks the source of inputs to a task run. Used for internal bookkeeping.",
     )
-
     state_type: Optional[schemas.states.StateType] = Field(
         default=None, description="The type of the current task run state."
     )
@@ -368,7 +391,10 @@ class TaskRun(ORMBaseModel):
     run_count: int = Field(
         default=0, description="The number of times the task run has been executed."
     )
-
+    flow_run_run_count: int = Field(
+        default=0,
+        description="If the parent flow has retried, this indicates the flow retry this run is associated with.",
+    )
     expected_start_time: Optional[DateTimeTZ] = Field(
         default=None,
         description="The task run's expected start time.",
@@ -470,6 +496,14 @@ class Deployment(ORMBaseModel):
     infrastructure_document_id: Optional[UUID] = Field(
         default=None,
         description="The block document defining infrastructure to use for flow runs.",
+    )
+    created_by: Optional[CreatedBy] = Field(
+        default=None,
+        description="Optional information about the creator of this deployment.",
+    )
+    updated_by: Optional[UpdatedBy] = Field(
+        default=None,
+        description="Optional information about the updater of this deployment.",
     )
 
     @validator("name", check_fields=False)
@@ -740,11 +774,69 @@ class WorkQueue(ORMBaseModel):
         description="DEPRECATED: Filter criteria for the work queue.",
         deprecated=True,
     )
+    last_polled: Optional[DateTimeTZ] = Field(
+        default=None, description="The last time an agent polled this queue for work."
+    )
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
         raise_on_invalid_name(v)
         return v
+
+
+class WorkQueueHealthPolicy(PrefectBaseModel):
+    maximum_late_runs: Optional[int] = Field(
+        default=0,
+        description="The maximum number of late runs in the work queue before it is deemed unhealthy. Defaults to `0`.",
+    )
+    maximum_seconds_since_last_polled: Optional[int] = Field(
+        default=60,
+        description="The maximum number of time in seconds elapsed since work queue has been polled before it is deemed unhealthy. Defaults to `60`.",
+    )
+
+    def evaluate_health_status(
+        self, late_runs_count: int, last_polled: Optional[DateTimeTZ] = None
+    ) -> bool:
+        """
+        Given empirical information about the state of the work queue, evaulate its health status.
+
+        Args:
+            late_runs: the count of late runs for the work queue.
+            last_polled: the last time the work queue was polled, if available.
+
+        Returns:
+            bool: whether or not the work queue is healthy.
+        """
+        healthy = True
+        if (
+            self.maximum_late_runs is not None
+            and late_runs_count > self.maximum_late_runs
+        ):
+            healthy = False
+
+        if self.maximum_seconds_since_last_polled is not None:
+            if (
+                last_polled is None
+                or pendulum.now("UTC").diff(last_polled).in_seconds()
+                > self.maximum_seconds_since_last_polled
+            ):
+                healthy = False
+
+        return healthy
+
+
+class WorkQueueStatusDetail(PrefectBaseModel):
+    healthy: bool = Field(..., description="Whether or not the work queue is healthy.")
+    late_runs_count: int = Field(
+        default=0, description="The number of late flow runs in the work queue."
+    )
+    last_polled: Optional[DateTimeTZ] = Field(
+        default=None, description="The last time an agent polled this queue for work."
+    )
+    health_check_policy: WorkQueueHealthPolicy = Field(
+        ...,
+        description="The policy used to determine whether or not the work queue is healthy.",
+    )
 
 
 class FlowRunNotificationPolicy(ORMBaseModel):

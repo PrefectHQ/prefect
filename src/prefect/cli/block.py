@@ -13,15 +13,16 @@ from rich.table import Table
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.orion_utils import check_orion_connection, ui_base_url
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
+    ProtectedBlockError,
     ScriptError,
     exception_traceback,
 )
+from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.importtools import load_script_as_module
 
@@ -245,16 +246,13 @@ async def block_create(
             app.console.print(f"Available block types: {', '.join(slugs)}")
             raise typer.Exit(1)
 
-        connection_status = await check_orion_connection()
-        ui = ui_base_url(connection_status)
-
-        if not ui:
+        if not PREFECT_UI_URL:
             exit_with_error(
                 "Prefect must be configured to use a hosted Orion server or "
                 "Prefect Cloud to display the Prefect UI"
             )
 
-        block_link = f"{ui}/blocks/catalog/{block_type.slug}/create"
+        block_link = f"{PREFECT_UI_URL.value()}/blocks/catalog/{block_type.slug}/create"
         app.console.print(
             f"Create a {block_type_slug} block: {block_link}",
         )
@@ -354,7 +352,7 @@ async def blocktype_delete(
             exit_with_success(f"Deleted Block Type '{slug}'.")
         except ObjectNotFound:
             exit_with_error(f"Block Type {slug!r} not found!")
-        except PrefectHTTPStatusError as exc:
-            if exc.response.status_code == 403:
-                exit_with_error(f"Block Type {slug!r} is a protected block!")
-        exit_with_error(f"Cannot delete Block Type {slug!r}!")
+        except ProtectedBlockError:
+            exit_with_error(f"Block Type {slug!r} is a protected block!")
+        except PrefectHTTPStatusError:
+            exit_with_error(f"Cannot delete Block Type {slug!r}!")

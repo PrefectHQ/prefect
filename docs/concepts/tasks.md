@@ -102,17 +102,6 @@ def my_task():
     print("Hello, I'm a task")
 ```
 
-## Task results
-
-Task results are cached in memory during execution of your flow run.
-
-Currently, task results are persisted to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. 
-
-!!! note "Task results, retries, and caching"
-    Since task results are both cached in memory and persisted to `PREFECT_LOCAL_STORAGE_PATH`, results are available within the context of of flow run and task retries use these results.
-    
-    However, [task caching](#caching) between flow runs is currently limited to flow runs with access to that local storage path.
-
 ## Tags
 
 Tags are optional string labels that enable you to identify and group tasks other than by name or flow. Tags are useful for:
@@ -242,6 +231,24 @@ def cached_task():
 
 !!! note "Task results, retries, and caching"
     Task results are cached in memory during a flow run and persisted to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. As a result, task caching between flow runs is currently limited to flow runs with access to that local storage path.
+
+## Timeouts
+
+Task timeouts are used to prevent unintentional long-running tasks. When the duration of execution for a task exceeds the duration specified in the timeout, a timeout exception will be raised and the task will be marked as failed. In the UI, the task will be visibly designated as `TimedOut`. From the perspective of the flow, the timed-out task will be treated like any other failed task. 
+
+Timeout durations are specified using the `timeout_seconds` keyword argument. 
+
+```python
+from prefect import task, get_run_logger
+import time
+
+@task(timeout_seconds=1)
+def show_timeouts():
+    logger = get_run_logger()
+    logger.info("I will execute")
+    time.sleep(5)
+    logger.info("I will not execute")
+```
 
 ## Task results
 
@@ -389,8 +396,8 @@ $ prefect concurrency-limit [command] [arguments]
 | --- | --- |
 | create | Create a concurrency limit by specifying a tag and limit. |
 | delete | Delete the concurrency limit set on the specified tag. |
+| inspect | View details about a concurrency limit set on the specified tag. |
 | ls     | View all defined concurrency limits. |
-| read   | View details about a concurrency limit. `active_slots` shows a list of IDs for task runs that are currently using a concurrency slot. |
 
 For example, to set a concurrency limit of 10 on the 'small_instance' tag:
 
@@ -402,6 +409,12 @@ To delete the concurrency limit on the 'small_instance' tag:
 
 ```bash
 $ prefect concurrency-limit delete small_instance
+```
+
+To view details about the concurrency limit on the 'small_instance' tag:
+
+```bash
+$ prefect concurrency-limit inspect small_instance
 ```
 
 #### Python client

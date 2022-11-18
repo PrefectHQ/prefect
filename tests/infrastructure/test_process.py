@@ -25,7 +25,7 @@ def test_process_stream_output(capsys, stream_output):
 
     if not stream_output:
         assert err == ""
-        assert out == ""
+        assert "hello world" not in out.splitlines()
     else:
         assert "hello world" in out
 
@@ -38,8 +38,7 @@ def test_process_streams_stderr(capsys):
         command=["bash", "-c", ">&2 echo hello world"], stream_output=True
     ).run()
 
-    out, err = capsys.readouterr()
-    assert out == ""
+    _, err = capsys.readouterr()
     assert err.strip() == "hello world"
 
 
@@ -57,6 +56,22 @@ def test_process_runs_command(tmp_path):
     # Perform a side-effect to demonstrate the command is run
     assert Process(command=["touch", str(tmp_path / "canary")]).run()
     assert (tmp_path / "canary").exists()
+
+
+def test_process_runs_command_in_working_dir_str(tmpdir, capsys):
+    assert Process(
+        command=["bash", "-c", "pwd"], stream_output=True, working_dir=str(tmpdir)
+    ).run()
+    out, _ = capsys.readouterr()
+    assert str(tmpdir) in out
+
+
+def test_process_runs_command_in_working_dir_path(tmp_path, capsys):
+    assert Process(
+        command=["bash", "-c", "pwd"], stream_output=True, working_dir=tmp_path
+    ).run()
+    out, _ = capsys.readouterr()
+    assert str(tmp_path) in out
 
 
 def test_process_environment_variables(monkeypatch, mock_open_process):

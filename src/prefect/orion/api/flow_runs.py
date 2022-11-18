@@ -20,7 +20,7 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.models.flow_runs import DependencyResult
 from prefect.orion.orchestration import dependencies as orchestration_dependencies
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
-from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.schemas.responses import OrchestrationResult
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 
@@ -34,6 +34,10 @@ async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
     db: OrionDBInterface = Depends(provide_database_interface),
     response: Response = None,
+    orchestration_parameters: dict = Depends(
+        orchestration_dependencies.provide_flow_orchestration_parameters
+    ),
+    api_version=Depends(dependencies.provide_request_api_version),
 ) -> schemas.core.FlowRun:
     """
     Create a flow run. If a flow run with the same flow_id and
@@ -44,6 +48,9 @@ async def create_flow_run(
     # hydrate the input model into a full flow run / state model
     flow_run = schemas.core.FlowRun(**flow_run.dict())
 
+    # pass the request version to the orchestration engine to support compatibility code
+    orchestration_parameters.update({"api-version": api_version})
+
     if not flow_run.state:
         flow_run.state = schemas.states.Pending()
 
@@ -51,7 +58,9 @@ async def create_flow_run(
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.flow_runs.create_flow_run(
-            session=session, flow_run=flow_run
+            session=session,
+            flow_run=flow_run,
+            orchestration_parameters=orchestration_parameters,
         )
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
@@ -237,8 +246,15 @@ async def set_flow_run_state(
     flow_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_flow_policy
     ),
+    orchestration_parameters: dict = Depends(
+        orchestration_dependencies.provide_flow_orchestration_parameters
+    ),
+    api_version=Depends(dependencies.provide_request_api_version),
 ) -> OrchestrationResult:
     """Set a flow run state, invoking any orchestration rules."""
+
+    # pass the request version to the orchestration engine to support compatibility code
+    orchestration_parameters.update({"api-version": api_version})
 
     # create the state
     async with db.session_context(begin_transaction=True) as session:
@@ -249,6 +265,7 @@ async def set_flow_run_state(
             state=schemas.states.State.parse_obj(state),
             force=force,
             flow_policy=flow_policy,
+            orchestration_parameters=orchestration_parameters,
         )
 
     # set the 201 because a new state was created

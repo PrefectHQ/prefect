@@ -21,6 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
@@ -50,7 +51,7 @@ jobs:
       - name: Retrieve Playwright version
         id: playwright-cache-key
         run: |
-          echo "::set-output name=version::$(npx playwright -V)"
+          echo "version=$(npx playwright -V)" >> $GITHUB_OUTPUT
 
       - name: Retrieve cached Playwright browsers
         id: cache-playwright-browsers
@@ -87,11 +88,10 @@ jobs:
           - "2.1"
           - "2.2"
           - "2.3"
-          - "2.4.2"
-          - "2.4.4"
           - "2.4"
           - "2.5"
-          
+          - "2.6"
+
           # We can include the following to always test against the last release
           # but the value is not particularly clear and we can just append the
           # last minor version at each release time
@@ -101,20 +101,29 @@ jobs:
           # While old clients should always be supported by new servers, a new
           # client may send data that an old server does not support. These
           # incompatibilities are allowed.
+
+          # All servers prior to 2.6.0 will not accept 2.6.0+ result types
           - prefect-version: "2.0"
             server-incompatible: true
           - prefect-version: "2.1"
             server-incompatible: true
-          - prefect-version: "2.4.4"
-            # This server release had a bug that made it incompatible
+          - prefect-version: "2.2"
             server-incompatible: true
-
+          - prefect-version: "2.3"
+            server-incompatible: true
+          - prefect-version: "2.4"
+            server-incompatible: true
+          - prefect-version: "2.5"
+            server-incompatible: true
 
       fail-fast: false
 
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4

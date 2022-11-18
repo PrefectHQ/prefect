@@ -30,14 +30,14 @@ from pydantic import BaseModel, Field, PrivateAttr
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
-from prefect.client import OrionClient
+from prefect.client.orion import OrionClient
+from prefect.client.schemas import FlowRun, TaskRun
 from prefect.exceptions import MissingContextError
-from prefect.filesystems import WritableFileSystem
 from prefect.futures import PrefectFuture
-from prefect.orion.schemas.core import FlowRun, TaskRun
-from prefect.orion.schemas.states import State
 from prefect.orion.utilities.schemas import DateTimeTZ
+from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
+from prefect.states import State
 from prefect.task_runners import BaseTaskRunner
 from prefect.utilities.importtools import load_script_as_module
 
@@ -90,6 +90,19 @@ class ContextModel(BaseModel):
         return cls.__var__.get(None)
 
     def copy(self, **kwargs):
+        """
+        Duplicate the context model, optionally choosing which fields to include, exclude, or change.
+
+        Attributes:
+            include: Fields to include in new model.
+            exclude: Fields to exclude from new model, as with values this takes precedence over include.
+            update: Values to change/add in the new model. Note: the data is not validated before creating
+                the new model - you should trust this data.
+            deep: Set to `True` to make a deep copy of the model.
+
+        Returns:
+            A new model instance.
+        """
         # Remove the token on copy to avoid re-entrance errors
         new = super().copy(**kwargs)
         new._token = None
@@ -197,7 +210,6 @@ class FlowRunContext(RunContext):
         flow: The flow instance associated with the run
         flow_run: The API metadata for the flow run
         task_runner: The task runner instance being used for the flow run
-        result_filesystem: A block to used to persist run state data
         task_run_futures: A list of futures for task runs submitted within this flow run
         task_run_states: A list of states for task runs created within this flow run
         task_run_results: A mapping of result ids to task run states for this flow run
@@ -209,7 +221,9 @@ class FlowRunContext(RunContext):
     flow: "Flow"
     flow_run: FlowRun
     task_runner: BaseTaskRunner
-    result_filesystem: WritableFileSystem
+
+    # Result handling
+    result_factory: ResultFactory
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
@@ -239,12 +253,15 @@ class TaskRunContext(RunContext):
     Attributes:
         task: The task instance associated with the task run
         task_run: The API metadata for this task run
-        result_filesystem: A block to used to persist run state data
+        timeout_scope: The cancellation scope for task-level timeouts
     """
 
     task: "Task"
     task_run: TaskRun
-    result_filesystem: WritableFileSystem
+    timeout_scope: Optional[anyio.abc.CancelScope] = None
+
+    # Result handling
+    result_factory: ResultFactory
 
     __var__ = ContextVar("task_run")
 

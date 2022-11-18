@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Union
 
 import anyio.abc
 import yaml
-from pydantic import Field, validator
+from pydantic import Field, root_validator, validator
 from typing_extensions import Literal
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
@@ -49,6 +49,7 @@ class KubernetesJob(Infrastructure):
     Runs a command as a Kubernetes Job.
 
     Attributes:
+        cluster_config: An optional Kubernetes cluster config to use for this job.
         command: A list of strings specifying the command to run in the container to
             start the flow run. In most cases you should not override this.
         customizations: A list of JSON 6902 patches to apply to the base Job manifest.
@@ -75,12 +76,19 @@ class KubernetesJob(Infrastructure):
         default="kubernetes-job", description="The type of infrastructure."
     )
     # shortcuts for the most common user-serviceable settings
-    image: str = Field(
-        default_factory=get_prefect_image_name,
-        description="The tag of a Docker image to use for the job. Defaults to the Prefect image.",
+    image: Optional[str] = Field(
+        default=None,
+        description=(
+            "The tag of a Docker image to use for the job. Defaults to the Prefect "
+            "image unless an image is already present in a provided job manifest."
+        ),
     )
-    namespace: str = Field(
-        default="default", description="The Kubernetes namespace to use for this job."
+    namespace: Optional[str] = Field(
+        default=None,
+        description=(
+            "The Kubernetes namespace to use for this job. Defaults to 'default' "
+            "unless a namespace is already present in a provided job manifest."
+        ),
     )
     service_account_name: Optional[str] = Field(
         default=None, description="The Kubernetes service account to use for this job."
@@ -91,7 +99,9 @@ class KubernetesJob(Infrastructure):
     )
 
     # connection to a cluster
-    cluster_config: Optional[KubernetesClusterConfig] = None
+    cluster_config: Optional[KubernetesClusterConfig] = Field(
+        default=None, description="The Kubernetes cluster config to use for this job."
+    )
 
     # settings allowing full customization of the Job
     job: KubernetesManifest = Field(
@@ -162,6 +172,33 @@ class KubernetesJob(Infrastructure):
         if isinstance(value, list):
             return JsonPatch(value)
         return value
+
+    @root_validator
+    def default_namespace(cls, values):
+        job = values.get("job")
+
+        namespace = values.get("namespace")
+        job_namespace = job["metadata"].get("namespace") if job else None
+
+        if not namespace and not job_namespace:
+            values["namespace"] = "default"
+
+        return values
+
+    @root_validator
+    def default_image(cls, values):
+        job = values.get("job")
+        image = values.get("image")
+        job_image = (
+            job["spec"]["template"]["spec"]["containers"][0].get("image")
+            if job
+            else None
+        )
+
+        if not image and not job_image:
+            values["image"] = get_prefect_image_name()
+
+        return values
 
     # Support serialization of the 'JsonPatch' type
     class Config:
@@ -278,18 +315,25 @@ class KubernetesJob(Infrastructure):
         """Produces the JSON 6902 patch for the most commonly used customizations, like
         image and namespace, which we offer as top-level parameters (with sensible
         default values)"""
-        shortcuts = [
-            {
-                "op": "add",
-                "path": "/metadata/namespace",
-                "value": self.namespace,
-            },
-            {
-                "op": "add",
-                "path": "/spec/template/spec/containers/0/image",
-                "value": self.image,
-            },
-        ]
+        shortcuts = []
+
+        if self.namespace:
+            shortcuts.append(
+                {
+                    "op": "add",
+                    "path": "/metadata/namespace",
+                    "value": self.namespace,
+                }
+            )
+
+        if self.image:
+            shortcuts.append(
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/containers/0/image",
+                    "value": self.image,
+                }
+            )
 
         shortcuts += [
             {
@@ -350,7 +394,7 @@ class KubernetesJob(Infrastructure):
                 {
                     "op": "add",
                     "path": "/metadata/generateName",
-                    "value": self._slugify_name(self.name),
+                    "value": self._slugify_name(self.name) + "-",
                 }
             )
         else:
@@ -365,7 +409,8 @@ class KubernetesJob(Infrastructure):
                         *self.command,
                         *self.env.keys(),
                         *[v for v in self.env.values() if v is not None],
-                    ),
+                    )
+                    + "-",
                 }
             )
 
@@ -517,14 +562,9 @@ class KubernetesJob(Infrastructure):
             prefix = None
             name = key
 
-        # TODO: Note that the name must start and end with an alphanumeric character
-        #       but that is not enforced here
-
         name_slug = (
-            slugify(
-                name,
-                max_length=63,
-                regex_pattern=r"[^a-zA-Z0-9-_.]+",
+            slugify(name, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_.]+",).strip(
+                "_-."  # Must start or end with alphanumeric characters
             )
             or name
         )
@@ -537,7 +577,9 @@ class KubernetesJob(Infrastructure):
                     prefix,
                     max_length=253,
                     regex_pattern=r"[^a-zA-Z0-9-\.]+",
-                )
+                ).strip(
+                    "_-."
+                )  # Must start or end with alphanumeric characters
                 or prefix
             )
 
@@ -560,13 +602,9 @@ class KubernetesJob(Infrastructure):
         Returns:
             The slugified value
         """
-        # TODO: Note that the text must start and end with an alphanumeric character
-        #       but that is not enforced here
         slug = (
-            slugify(
-                value,
-                max_length=63,
-                regex_pattern=r"[^a-zA-Z0-9-_\.]+",
+            slugify(value, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_\.]+",).strip(
+                "_-."  # Must start or end with alphanumeric characters
             )
             or value
         )

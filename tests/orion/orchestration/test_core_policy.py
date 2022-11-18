@@ -2,22 +2,26 @@ import contextlib
 import random
 from itertools import combinations_with_replacement, product
 from unittest import mock
+from uuid import uuid4
 
 import pendulum
 import pytest
 
+from prefect.exceptions import MissingFlowRunError
 from prefect.orion import schemas
 from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
+    HandleFlowTerminalStateTransitions,
+    HandleTaskTerminalStateTransitions,
     PreventRedundantTransitions,
-    PreventTransitionsFromTerminalStates,
     ReleaseTaskConcurrencySlots,
     RenameReruns,
     RetryFailedFlows,
     RetryFailedTasks,
     SecureTaskConcurrencySlots,
+    UpdateFlowRunTrackerOnTasks,
     WaitForScheduledTime,
 )
 from prefect.orion.orchestration.rules import (
@@ -25,7 +29,7 @@ from prefect.orion.orchestration.rules import (
     TERMINAL_STATES,
     BaseOrchestrationRule,
 )
-from prefect.orion.schemas import actions, filters, states
+from prefect.orion.schemas import actions, states
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.testing.utilities import AsyncMock
 
@@ -41,6 +45,23 @@ def transition_names(transition):
     initial = f"{transition[0].name if transition[0] else None}"
     proposed = f" => {transition[1].name if transition[1] else None}"
     return initial + proposed
+
+
+@pytest.fixture
+def fizzling_rule():
+    class FizzlingRule(BaseOrchestrationRule):
+        FROM_STATES = ALL_ORCHESTRATION_STATES
+        TO_STATES = ALL_ORCHESTRATION_STATES
+
+        async def before_transition(self, initial_state, proposed_state, context):
+            # this rule mutates the proposed state type, but won't fizzle itself upon exiting
+            mutated_state = proposed_state.copy()
+            mutated_state.type = random.choice(
+                list(set(states.StateType) - {initial_state.type, proposed_state.type})
+            )
+            await self.reject_transition(mutated_state, reason="for testing, of course")
+
+    return FizzlingRule
 
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
@@ -295,28 +316,6 @@ class TestFlowRetryingRule:
             await ctx.validate_proposed_state()
 
         # When retrying a flow any failed tasks should be set to AwaitingRetry
-        read_task_runs.assert_awaited_once_with(
-            session,
-            flow_run_filter=filters.FlowRunFilter(id={"any_": [ctx.run.id]}),
-            task_run_filter=filters.TaskRunFilter(state={"type": {"any_": ["FAILED"]}}),
-        )
-        set_task_run_state.assert_has_awaits(
-            [
-                mock.call(
-                    session,
-                    "task_run_001",
-                    state=states.AwaitingRetry(scheduled_time=now),
-                    force=True,
-                ),
-                mock.call(
-                    session,
-                    "task_run_002",
-                    state=states.AwaitingRetry(scheduled_time=now),
-                    force=True,
-                ),
-            ]
-        )
-
         assert ctx.response_status == SetStateStatus.REJECT
         assert ctx.validated_state_type == states.StateType.SCHEDULED
 
@@ -344,6 +343,326 @@ class TestFlowRetryingRule:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.FAILED
+
+
+class TestManualFlowRetries:
+    async def test_cannot_manual_retry_without_awaitingretry_state_name(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        manual_retry_policy = [HandleFlowTerminalStateTransitions]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state.name = "NotAwaitingRetry"
+        ctx.run.run_count = 2
+        ctx.run.deployment_id = uuid4()
+        ctx.run_settings.retries = 1
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in manual_retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ABORT
+        assert ctx.run.run_count == 2
+
+    async def test_cannot_manual_retry_without_deployment(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        manual_retry_policy = [HandleFlowTerminalStateTransitions]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            flow_retries=1,
+        )
+        ctx.proposed_state.name = "AwaitingRetry"
+        ctx.run.run_count = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in manual_retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ABORT
+        assert ctx.run.run_count == 2
+
+    async def test_manual_retrying_works_even_when_exceeding_max_retries(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        manual_retry_policy = [HandleFlowTerminalStateTransitions]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            flow_retries=1,
+        )
+        ctx.proposed_state.name = "AwaitingRetry"
+        ctx.run.deployment_id = uuid4()
+        ctx.run.run_count = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in manual_retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.run_count == 2
+
+    async def test_manual_retrying_bypasses_terminal_state_protection(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        manual_retry_policy = [HandleFlowTerminalStateTransitions]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            flow_retries=10,
+        )
+        ctx.proposed_state.name = "AwaitingRetry"
+        ctx.run.deployment_id = uuid4()
+        ctx.run.run_count = 3
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in manual_retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.run_count == 3
+
+
+class TestUpdatingFlowRunTrackerOnTasks:
+    @pytest.mark.parametrize(
+        "flow_run_count,initial_state_type",
+        list(product((5, 42), ALL_ORCHESTRATION_STATES)),
+    )
+    async def test_task_runs_track_corresponding_flow_runs(
+        self,
+        session,
+        initialize_orchestration,
+        flow_run_count,
+        initial_state_type,
+    ):
+        update_policy = [
+            UpdateFlowRunTrackerOnTasks,
+        ]
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            flow_run_count=flow_run_count,
+        )
+
+        flow_run = await ctx.flow_run()
+        assert flow_run.run_count == flow_run_count
+        ctx.run.flow_run_run_count = 1
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in update_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.run.flow_run_run_count == flow_run_count
+
+    async def test_task_run_tracking_raises_informative_errors_on_missing_flow_runs(
+        self,
+        session,
+        initialize_orchestration,
+        monkeypatch,
+    ):
+        update_policy = [
+            UpdateFlowRunTrackerOnTasks,
+        ]
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            flow_run_count=42,
+        )
+
+        flow_run = await ctx.flow_run()
+        assert flow_run.run_count == 42
+        ctx.run.flow_run_run_count = 1
+
+        async def missing_flow_run(self):
+            return None
+
+        with pytest.raises(MissingFlowRunError, match="Unable to read flow run"):
+            async with contextlib.AsyncExitStack() as stack:
+                for rule in update_policy:
+                    ctx = await stack.enter_async_context(
+                        rule(ctx, *intended_transition)
+                    )
+                    monkeypatch.setattr(
+                        "prefect.orion.orchestration.rules.TaskOrchestrationContext.flow_run",
+                        missing_flow_run,
+                    )
+
+        assert (
+            ctx.run.flow_run_run_count == 1
+        ), "The run count should not be updated if the flow run is missing"
+
+
+class TestPermitRerunningFailedTaskRuns:
+    async def test_bypasses_terminal_state_rule_if_flow_is_retrying(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        rerun_policy = [
+            HandleTaskTerminalStateTransitions,
+            UpdateFlowRunTrackerOnTasks,
+        ]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            flow_retries=10,
+        )
+        flow_run = await ctx.flow_run()
+        flow_run.run_count = 4
+        ctx.run.flow_run_run_count = 2
+        ctx.run.run_count = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in rerun_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.run_count == 0
+        assert ctx.proposed_state.name == "Retrying"
+        assert (
+            ctx.run.flow_run_run_count == 4
+        ), "Orchestration should update the flow run run count tracker"
+
+    async def test_cannot_bypass_terminal_state_rule_if_exceeding_flow_runs(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        rerun_policy = [
+            HandleTaskTerminalStateTransitions,
+            UpdateFlowRunTrackerOnTasks,
+        ]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            flow_retries=10,
+        )
+        flow_run = await ctx.flow_run()
+        flow_run.run_count = 3
+        ctx.run.flow_run_run_count = 3
+        ctx.run.run_count = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in rerun_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ABORT
+        assert ctx.run.run_count == 2
+        assert ctx.proposed_state is None
+        assert ctx.run.flow_run_run_count == 3
+
+    async def test_bypasses_terminal_state_rule_if_configured_automatic_retries_is_exceeded(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        # this functionality enables manual retries to occur even if all automatic
+        # retries have been consumed
+
+        rerun_policy = [
+            HandleTaskTerminalStateTransitions,
+            UpdateFlowRunTrackerOnTasks,
+        ]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            flow_retries=1,
+        )
+        flow_run = await ctx.flow_run()
+        flow_run.run_count = 4
+        ctx.run.flow_run_run_count = 2
+        ctx.run.run_count = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in rerun_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.run_count == 0
+        assert ctx.proposed_state.name == "Retrying"
+        assert (
+            ctx.run.flow_run_run_count == 4
+        ), "Orchestration should update the flow run run count tracker"
+
+    async def test_cleans_up_after_invalid_transition(
+        self,
+        session,
+        initialize_orchestration,
+        fizzling_rule,
+    ):
+        rerun_policy = [
+            HandleTaskTerminalStateTransitions,
+            UpdateFlowRunTrackerOnTasks,
+            fizzling_rule,
+        ]
+        initial_state_type = states.StateType.FAILED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            flow_retries=10,
+        )
+        flow_run = await ctx.flow_run()
+        flow_run.run_count = 4
+        ctx.run.flow_run_run_count = 2
+        ctx.run.run_count = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in rerun_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.run.run_count == 2
+        assert ctx.proposed_state.name == "Retrying"
+        assert ctx.run.flow_run_run_count == 2
 
 
 class TestTaskRetryingRule:
@@ -526,9 +845,12 @@ class TestTransitionsFromTerminalStatesRule:
             *intended_transition,
         )
 
-        state_protection = PreventTransitionsFromTerminalStates(
-            ctx, *intended_transition
-        )
+        if run_type == "task":
+            protection_rule = HandleTaskTerminalStateTransitions
+        elif run_type == "flow":
+            protection_rule = HandleFlowTerminalStateTransitions
+
+        state_protection = protection_rule(ctx, *intended_transition)
 
         async with state_protection as ctx:
             await ctx.validate_proposed_state()
@@ -551,9 +873,12 @@ class TestTransitionsFromTerminalStatesRule:
             *intended_transition,
         )
 
-        state_protection = PreventTransitionsFromTerminalStates(
-            ctx, *intended_transition
-        )
+        if run_type == "task":
+            protection_rule = HandleTaskTerminalStateTransitions
+        elif run_type == "flow":
+            protection_rule = HandleFlowTerminalStateTransitions
+
+        state_protection = protection_rule(ctx, *intended_transition)
 
         async with state_protection as ctx:
             await ctx.validate_proposed_state()

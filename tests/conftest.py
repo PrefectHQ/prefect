@@ -29,11 +29,17 @@ import asyncpg
 import pytest
 from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
 
+# Improve diff display for assertions in utilities
+# Note: This must occur before import of the module
+pytest.register_assert_rewrite("prefect.testing.utilities")
+
 import prefect
 import prefect.settings
+from prefect.logging import get_logger
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_ASYNC_FETCH_STATE_RESULT,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
     PREFECT_HOME,
@@ -44,6 +50,7 @@ from prefect.settings import (
     PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_BLOCKS_REGISTER_ON_START,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
+    PREFECT_ORION_DATABASE_TIMEOUT,
     PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
     PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
@@ -274,6 +281,8 @@ def pytest_sessionstart(session):
             # Disable pretty CLI output for easier assertions
             PREFECT_CLI_COLORS: False,
             PREFECT_CLI_WRAP_LINES: False,
+            # Enable future change
+            PREFECT_ASYNC_FETCH_STATE_RESULT: True,
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
             # Disable shipping logs to the API;
@@ -288,6 +297,8 @@ def pytest_sessionstart(session):
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
             # Disable auto-registration of block types as they can conflict
             PREFECT_ORION_BLOCKS_REGISTER_ON_START: False,
+            # Use more aggressive database timeouts during testing
+            PREFECT_ORION_DATABASE_TIMEOUT: 1,
         },
         source=__file__,
     )
@@ -441,3 +452,20 @@ def reset_registered_blocks():
 
     registry.clear()
     registry.update(before)
+
+
+@pytest.fixture
+def caplog(caplog):
+    """
+    Overrides caplog to apply to all of our loggers that do not propagate and
+    consequently would not be captured by caplog.
+    """
+
+    config = setup_logging()
+
+    for name, logger_config in config["loggers"].items():
+        if not logger_config.get("propagate", True):
+            logger = get_logger(name)
+            logger.handlers.append(caplog.handler)
+
+    yield caplog

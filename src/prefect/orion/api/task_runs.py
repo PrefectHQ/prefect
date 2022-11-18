@@ -17,7 +17,7 @@ from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.orchestration import dependencies as orchestration_dependencies
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
-from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.schemas.responses import OrchestrationResult
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 
@@ -29,6 +29,9 @@ async def create_task_run(
     task_run: schemas.actions.TaskRunCreate,
     response: Response,
     db: OrionDBInterface = Depends(provide_database_interface),
+    orchestration_parameters: dict = Depends(
+        orchestration_dependencies.provide_task_orchestration_parameters
+    ),
 ) -> schemas.core.TaskRun:
     """
     Create a task run. If a task run with the same flow_run_id,
@@ -47,7 +50,9 @@ async def create_task_run(
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.task_runs.create_task_run(
-            session=session, task_run=task_run
+            session=session,
+            task_run=task_run,
+            orchestration_parameters=orchestration_parameters,
         )
 
     if model.created >= now:
@@ -190,6 +195,9 @@ async def set_task_run_state(
     task_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_task_policy
     ),
+    orchestration_parameters: dict = Depends(
+        orchestration_dependencies.provide_task_orchestration_parameters
+    ),
 ) -> OrchestrationResult:
     """Set a task run state, invoking any orchestration rules."""
 
@@ -203,6 +211,7 @@ async def set_task_run_state(
             ),  # convert to a full State object
             force=force,
             task_policy=task_policy,
+            orchestration_parameters=orchestration_parameters,
         )
 
     if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:

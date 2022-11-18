@@ -11,21 +11,21 @@ import anyio.to_process
 import pendulum
 
 from prefect.blocks.core import Block
-from prefect.client import OrionClient, get_client
+from prefect.client.orion import OrionClient, get_client
 from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
-from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.states import Failed, Pending
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
+from prefect.states import Pending, exception_to_failed_state
 
 
 class OrionAgent:
     def __init__(
         self,
-        work_queues: List[str],
+        work_queues: List[str] = None,
+        work_queue_prefix: Union[str, List[str]] = None,
         prefetch_seconds: int = None,
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
@@ -36,13 +36,17 @@ class OrionAgent:
                 "Provide only one of 'default_infrastructure' and 'default_infrastructure_document_id'."
             )
 
-        self.work_queues: Set[str] = set(work_queues)
+        self.work_queues: Set[str] = set(work_queues) if work_queues else set()
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
         self.started = False
         self.logger = get_logger("agent")
         self.task_group: Optional[anyio.abc.TaskGroup] = None
         self.client: Optional[OrionClient] = None
+
+        if isinstance(work_queue_prefix, str):
+            work_queue_prefix = [work_queue_prefix]
+        self.work_queue_prefix = work_queue_prefix
 
         self._work_queue_cache_expiration: pendulum.DateTime = None
         self._work_queue_cache: List[WorkQueue] = []
@@ -58,6 +62,23 @@ class OrionAgent:
         else:
             self.default_infrastructure = Process()
             self.default_infrastructure_document_id = None
+
+    async def update_matched_agent_work_queues(self):
+        if self.work_queue_prefix:
+            matched_queues = await self.client.match_work_queues(self.work_queue_prefix)
+            matched_queues = set(q.name for q in matched_queues)
+            if matched_queues != self.work_queues:
+                new_queues = matched_queues - self.work_queues
+                removed_queues = self.work_queues - matched_queues
+                if new_queues:
+                    self.logger.info(
+                        f"Matched new work queues: {', '.join(new_queues)}"
+                    )
+                if removed_queues:
+                    self.logger.info(
+                        f"Work queues no longer matched: {', '.join(removed_queues)}"
+                    )
+            self.work_queues = matched_queues
 
     async def get_work_queues(self) -> Iterator[WorkQueue]:
         """
@@ -77,23 +98,28 @@ class OrionAgent:
         self._work_queue_cache.clear()
         self._work_queue_cache_expiration = now.add(seconds=30)
 
+        await self.update_matched_agent_work_queues()
+
         for name in self.work_queues:
             try:
                 work_queue = await self.client.read_work_queue_by_name(name)
             except ObjectNotFound:
 
                 # if the work queue wasn't found, create it
-                try:
-                    work_queue = await self.client.create_work_queue(name=name)
-                    self.logger.info(f"Created work queue '{name}'.")
+                if not self.work_queue_prefix:
+                    # do not attempt to create work queues if the agent is polling for
+                    # queues using a regex
+                    try:
+                        work_queue = await self.client.create_work_queue(name=name)
+                        self.logger.info(f"Created work queue '{name}'.")
 
-                # if creating it raises an exception, it was probably just
-                # created by some other agent; rather than entering a re-read
-                # loop with new error handling, we log the exception and
-                # continue.
-                except Exception as exc:
-                    self.logger.exception(f"Failed to create work queue {name!r}.")
-                    continue
+                    # if creating it raises an exception, it was probably just
+                    # created by some other agent; rather than entering a re-read
+                    # loop with new error handling, we log the exception and
+                    # continue.
+                    except Exception as exc:
+                        self.logger.exception(f"Failed to create work queue {name!r}.")
+                        continue
 
             self._work_queue_cache.append(work_queue)
             yield work_queue
@@ -153,6 +179,7 @@ class OrionAgent:
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
         deployment = await self.client.read_deployment(flow_run.deployment_id)
+        flow = await self.client.read_flow(deployment.flow_id)
 
         # overrides only apply when configuring known infra blocks
         if not deployment.infrastructure_document_id:
@@ -187,9 +214,14 @@ class OrionAgent:
         doc_dict["data"] = infra_dict
         infra_document = BlockDocument(**doc_dict)
         infrastructure_block = Block._from_block_document(infra_document)
+
         # TODO: Here the agent may update the infrastructure with agent-level settings
 
-        prepared_infrastructure = infrastructure_block.prepare_for_flow_run(flow_run)
+        # Add flow run metadata to the infrastructure
+        prepared_infrastructure = infrastructure_block.prepare_for_flow_run(
+            flow_run, deployment=deployment, flow=flow
+        )
+
         return prepared_infrastructure
 
     async def submit_run(self, flow_run: FlowRun) -> None:
@@ -292,10 +324,7 @@ class OrionAgent:
         try:
             await propose_state(
                 self.client,
-                Failed(
-                    message="Submission failed.",
-                    data=DataDocument.encode("cloudpickle", exc),
-                ),
+                await exception_to_failed_state(message="Submission failed.", exc=exc),
                 flow_run_id=flow_run.id,
             )
         except Abort:

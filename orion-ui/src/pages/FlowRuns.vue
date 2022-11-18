@@ -9,7 +9,7 @@
         <FlowRunsPageEmptyState />
       </template>
       <template v-else>
-        <FlowRunsFilter />
+        <FlowRunsFilterGroup />
 
         <template v-if="media.md">
           <FlowRunsScatterPlot :history="flowRunHistory" v-bind="{ startDate, endDate }" class="flow-runs__chart" />
@@ -43,20 +43,19 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute, DeleteFlowRunsButton } from '@prefecthq/orion-design'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute, DeleteFlowRunsButton, FlowRunsFilterGroup, useWorkspaceApi } from '@prefecthq/orion-design'
   import { PEmptyResults, media } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
-  import FlowRunsFilter from '@/components/FlowRunsFilter.vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
-  import { flowRunsApi } from '@/services/flowRunsApi'
   import { uiApi } from '@/services/uiApi'
 
   const router = useRouter()
+  const api = useWorkspaceApi()
 
-  const flowRunsCountAllSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [{}])
+  const flowRunsCountAllSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [{}])
   const loaded = computed(() => flowRunsCountAllSubscription.executed)
   const empty = computed(() => flowRunsCountAllSubscription.response === 0)
 
@@ -66,13 +65,13 @@
     interval: 30000,
   }
 
-  const flowRunCountSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [filter], subscriptionOptions)
+  const flowRunCountSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [filter], subscriptionOptions)
   const flowRunCount = computed(() => flowRunCountSubscription.response)
 
   const flowRunHistorySubscription = useSubscription(uiApi.getFlowRunHistory, [filter], subscriptionOptions)
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
-  const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [filter], subscriptionOptions)
+  const flowRunsSubscription = useSubscription(api.flowRuns.getFlowRuns, [filter], subscriptionOptions)
   const flowRuns = computed(() => flowRunsSubscription.response ?? [])
   const selectedFlowRuns = ref([])
 

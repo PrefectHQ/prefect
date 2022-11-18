@@ -257,7 +257,7 @@ Blocks can be registered from a Python module available in the current virtual e
 $ prefect block register --module prefect_aws.credentials
 ```
 
-This command is useful for registering all blocks found in the credentials module within [Prefect Collections](/collections/overview).
+This command is useful for registering all blocks found in the credentials module within [Prefect Collections](/collections/catalog/).
 
 Or, if a block has been created in a `.py` file, the block can also be registered with the CLI command:
 

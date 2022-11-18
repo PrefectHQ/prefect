@@ -19,26 +19,37 @@ from prefect.orion.utilities.database import json_contains
 from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
+    PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
+    PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
 
 
 @inject_db
-async def _delete_auto_scheduled_runs(
+async def _delete_scheduled_runs(
     session: sa.orm.Session,
     deployment_id: UUID,
     db: OrionDBInterface,
+    auto_scheduled_only: bool = False,
 ):
     """
     This utility function deletes all of a deployment's scheduled runs that are
-    still in a Scheduled state and that were  auto-scheduled runs. It should be
-    run any time a deployment is created or modified in order to ensure that
-    future runs comply with the deployment's latest values.
+    still in a Scheduled state It should be run any time a deployment is created or
+    modified in order to ensure that future runs comply with the deployment's latest values.
+
+    Args:
+        deployment_id: the deplyment for which we should delete runs.
+        auto_scheduled_only: if True, only delete auto scheduled runs. Defaults to `False`.
     """
     delete_query = sa.delete(db.FlowRun).where(
         db.FlowRun.deployment_id == deployment_id,
         db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
-        db.FlowRun.auto_scheduled.is_(True),
     )
+
+    if auto_scheduled_only:
+        delete_query = delete_query.where(
+            db.FlowRun.auto_scheduled.is_(True),
+        )
+
     await session.execute(delete_query)
 
 
@@ -73,10 +84,7 @@ async def create_deployment(
                 **deployment.dict(
                     shallow=True,
                     exclude_unset=True,
-                    exclude={
-                        "id",
-                        "created",
-                    },
+                    exclude={"id", "created", "created_by"},
                 ),
             },
         )
@@ -104,7 +112,9 @@ async def create_deployment(
 
     # because this could upsert a different schedule, delete any runs from the old
     # deployment
-    await _delete_auto_scheduled_runs(session=session, deployment_id=model.id, db=db)
+    await _delete_scheduled_runs(
+        session=session, deployment_id=model.id, db=db, auto_scheduled_only=True
+    )
 
     return model
 
@@ -140,8 +150,8 @@ async def update_deployment(
     result = await session.execute(update_stmt)
 
     # delete any auto scheduled runs that would have reflected the old deployment config
-    await _delete_auto_scheduled_runs(
-        session=session, deployment_id=deployment_id, db=db
+    await _delete_scheduled_runs(
+        session=session, deployment_id=deployment_id, db=db, auto_scheduled_only=True
     )
 
     # create work queue if it doesn't exist
@@ -251,6 +261,7 @@ async def read_deployments(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    sort: schemas.sorting.DeploymentSort = schemas.sorting.DeploymentSort.NAME_ASC,
 ):
     """
     Read deployments.
@@ -263,13 +274,13 @@ async def read_deployments(
         flow_run_filter: only select deployments whose flow runs match these criteria
         task_run_filter: only select deployments whose task runs match these criteria
         deployment_filter: only select deployment that match these filters
-
+        sort: the sort criteria for selected deployments. Defaults to `name` ASC.
 
     Returns:
         List[db.Deployment]: deployments
     """
 
-    query = select(db.Deployment).order_by(db.Deployment.name)
+    query = select(db.Deployment).order_by(sort.as_sql_sort(db=db))
 
     query = await _apply_deployment_filters(
         query=query,
@@ -343,11 +354,9 @@ async def delete_deployment(
     """
 
     # delete scheduled runs, both auto- and user- created.
-    delete_query = sa.delete(db.FlowRun).where(
-        db.FlowRun.deployment_id == deployment_id,
-        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+    await _delete_scheduled_runs(
+        session=session, deployment_id=deployment_id, auto_scheduled_only=False
     )
-    await session.execute(delete_query)
 
     result = await session.execute(
         delete(db.Deployment).where(db.Deployment.id == deployment_id)
@@ -360,6 +369,8 @@ async def schedule_runs(
     deployment_id: UUID,
     start_time: datetime.datetime = None,
     end_time: datetime.datetime = None,
+    min_time: datetime.timedelta = None,
+    min_runs: int = None,
     max_runs: int = None,
     auto_scheduled: bool = True,
 ) -> List[UUID]:
@@ -370,21 +381,38 @@ async def schedule_runs(
         session: a database session
         deployment_id: the id of the deployment to schedule
         start_time: the time from which to start scheduling runs
-        end_time: a limit on how far in the future runs will be scheduled
+        end_time: runs will be scheduled until at most this time
+        min_time: runs will be scheduled until at least this far in the future
+        min_runs: a minimum amount of runs to schedule
         max_runs: a maximum amount of runs to schedule
+
+    This function will generate the minimum number of runs that satisfy the min
+    and max times, and the min and max counts. Specifically, the following order
+    will be respected:
+
+        - Runs will be generated starting on or after the `start_time`
+        - No more than `max_runs` runs will be generated
+        - No runs will be generated after `end_time` is reached
+        - At least `min_runs` runs will be generated
+        - Runs will be generated until at least `start_time` + `min_time` is reached
 
     Returns:
         a list of flow run ids scheduled for the deployment
     """
+    if min_runs is None:
+        min_runs = PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
     if max_runs is None:
         max_runs = PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
     if start_time is None:
         start_time = pendulum.now("UTC")
-    start_time = pendulum.instance(start_time)
     if end_time is None:
         end_time = start_time + (
             PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
         )
+    if min_time is None:
+        min_time = PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
+
+    start_time = pendulum.instance(start_time)
     end_time = pendulum.instance(end_time)
 
     runs = await _generate_scheduled_flow_runs(
@@ -392,6 +420,8 @@ async def schedule_runs(
         deployment_id=deployment_id,
         start_time=start_time,
         end_time=end_time,
+        min_time=min_time,
+        min_runs=min_runs,
         max_runs=max_runs,
         auto_scheduled=auto_scheduled,
     )
@@ -404,6 +434,8 @@ async def _generate_scheduled_flow_runs(
     deployment_id: UUID,
     start_time: datetime.datetime,
     end_time: datetime.datetime,
+    min_time: datetime.timedelta,
+    min_runs: int,
     max_runs: int,
     db: OrionDBInterface,
     auto_scheduled: bool = True,
@@ -421,8 +453,20 @@ async def _generate_scheduled_flow_runs(
         session: a database session
         deployment_id: the id of the deployment to schedule
         start_time: the time from which to start scheduling runs
-        end_time: a limit on how far in the future runs will be scheduled
+        end_time: runs will be scheduled until at most this time
+        min_time: runs will be scheduled until at least this far in the future
+        min_runs: a minimum amount of runs to schedule
         max_runs: a maximum amount of runs to schedule
+
+    This function will generate the minimum number of runs that satisfy the min
+    and max times, and the min and max counts. Specifically, the following order
+    will be respected:
+
+        - Runs will be generated starting on or after the `start_time`
+        - No more than `max_runs` runs will be generated
+        - No runs will be generated after `end_time` is reached
+        - At least `min_runs` runs will be generated
+        - Runs will be generated until at least `start_time + min_time` is reached
 
     Returns:
         a list of dictionary representations of the `FlowRun` objects to schedule
@@ -435,9 +479,17 @@ async def _generate_scheduled_flow_runs(
     if not deployment or not deployment.schedule or not deployment.is_schedule_active:
         return []
 
-    dates = await deployment.schedule.get_dates(
+    dates = []
+
+    # generate up to `n` dates satisfying the min of `max_runs` and `end_time`
+    for dt in deployment.schedule._get_dates_generator(
         n=max_runs, start=start_time, end=end_time
-    )
+    ):
+        dates.append(dt)
+
+        # at any point, if we satisfy both of the minimums, we can stop
+        if len(dates) >= min_runs and dt >= (start_time + min_time):
+            break
 
     tags = deployment.tags
     if auto_scheduled:

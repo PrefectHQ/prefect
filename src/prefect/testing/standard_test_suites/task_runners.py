@@ -1,3 +1,4 @@
+import asyncio
 import sys
 import time
 from abc import ABC, abstractmethod
@@ -9,9 +10,10 @@ import cloudpickle
 import pytest
 
 from prefect import flow, task
-from prefect.orion.schemas.core import TaskRun
-from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.states import State, StateType
+from prefect.client.schemas import TaskRun
+from prefect.deprecated.data_documents import DataDocument
+from prefect.orion.schemas.states import StateType
+from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, TaskConcurrencyType
 from prefect.testing.utilities import exceptions_equal
 
@@ -341,7 +343,7 @@ class TaskRunnerStandardTestSuite(ABC):
             state = await task_runner.wait(task_run.id, 5)
             assert state is not None, "wait timed out"
             assert isinstance(state, State), "wait should return a state"
-            assert state.result() == 1
+            assert await state.result() == 1
 
     @pytest.mark.parametrize("exception", [KeyboardInterrupt(), ValueError("test")])
     async def test_wait_captures_exceptions_as_crashed_state(
@@ -367,9 +369,69 @@ class TaskRunnerStandardTestSuite(ABC):
             assert state is not None, "wait timed out"
             assert isinstance(state, State), "wait should return a state"
             assert state.type == StateType.CRASHED
-            result = state.result(raise_on_failure=False)
+            result = await state.result(raise_on_failure=False)
 
         assert exceptions_equal(result, exception)
+
+    async def test_async_task_timeout(self, task_runner):
+        @task(timeout_seconds=0.1)
+        async def my_timeout_task():
+            await asyncio.sleep(2)
+            return 42
+
+        @task
+        async def my_dependent_task(task_res):
+            return 1764
+
+        @task
+        async def my_independent_task():
+            return 74088
+
+        @flow(version="test", task_runner=task_runner)
+        async def test_flow():
+            a = await my_timeout_task.submit()
+            b = await my_dependent_task.submit(a)
+            c = await my_independent_task.submit()
+
+            return a, b, c
+
+        state = await test_flow._run()
+
+        assert state.is_failed()
+        ax, bx, cx = await state.result(raise_on_failure=False)
+        assert ax.type == StateType.FAILED
+        assert bx.type == StateType.PENDING
+        assert cx.type == StateType.COMPLETED
+
+    def test_sync_task_timeout(self, task_runner):
+        @task(timeout_seconds=0.1)
+        def my_timeout_task():
+            time.sleep(2)
+            return 42
+
+        @task
+        def my_dependent_task(task_res):
+            return 1764
+
+        @task
+        def my_independent_task():
+            return 74088
+
+        @flow(version="test", task_runner=task_runner)
+        def test_flow():
+            a = my_timeout_task.submit()
+            b = my_dependent_task.submit(a)
+            c = my_independent_task.submit()
+
+            return a, b, c
+
+        state = test_flow._run()
+
+        assert state.is_failed()
+        ax, bx, cx = state.result(raise_on_failure=False)
+        assert ax.type == StateType.FAILED
+        assert bx.type == StateType.PENDING
+        assert cx.type == StateType.COMPLETED
 
     # These tests use a simple canary file to indicate if a items in a flow have run
     # sequentially or concurrently.

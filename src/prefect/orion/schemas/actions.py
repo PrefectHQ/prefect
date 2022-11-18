@@ -9,9 +9,11 @@ from pydantic import Field, root_validator, validator
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import (
+    DateTimeTZ,
     FieldFrom,
     PrefectBaseModel,
     copy_model_fields,
+    orjson_dumps_non_str_keys,
 )
 
 LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
@@ -137,7 +139,7 @@ class StateCreate(ActionBaseModel):
     type: schemas.states.StateType = FieldFrom(schemas.states.State)
     name: Optional[str] = FieldFrom(schemas.states.State)
     message: Optional[str] = FieldFrom(schemas.states.State)
-    data: Optional[schemas.data.DataDocument] = FieldFrom(schemas.states.State)
+    data: Optional[Any] = FieldFrom(schemas.states.State)
     state_details: schemas.states.StateDetails = FieldFrom(schemas.states.State)
 
     # DEPRECATED
@@ -202,6 +204,9 @@ class FlowRunCreate(ActionBaseModel):
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
+
+    class Config(ActionBaseModel.Config):
+        json_dumps = orjson_dumps_non_str_keys
 
 
 @copy_model_fields
@@ -307,6 +312,7 @@ class BlockDocumentUpdate(ActionBaseModel):
     """Data used by the Orion API to update a block document."""
 
     data: dict = FieldFrom(schemas.core.BlockDocument)
+    merge_existing_data: bool = True
 
 
 @copy_model_fields
@@ -356,6 +362,7 @@ class WorkQueueUpdate(ActionBaseModel):
     description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
     is_paused: bool = FieldFrom(schemas.core.WorkQueue)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
+    last_polled: Optional[DateTimeTZ] = FieldFrom(schemas.core.WorkQueue)
 
     # DEPRECATED
 

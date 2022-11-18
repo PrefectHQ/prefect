@@ -164,13 +164,15 @@ async def test_task_group_start_returns_job_name(
 @pytest.mark.parametrize(
     "job_name,clean_name",
     [
-        ("_infra_run", "infra-run"),
-        ("...infra_run", "infra-run"),
-        ("._-infra_run", "infra-run"),
-        ("9infra-run", "9infra-run"),
-        ("-infra.run", "infra-run"),
-        ("infra*run", "infra-run"),
-        ("infra9.-foo_bar^x", "infra9-foo-bar-x"),
+        ("infra-run", "infra-run-"),
+        ("infra-run-", "infra-run-"),
+        ("_infra_run", "infra-run-"),
+        ("...infra_run", "infra-run-"),
+        ("._-infra_run", "infra-run-"),
+        ("9infra-run", "9infra-run-"),
+        ("-infra.run", "infra-run-"),
+        ("infra*run", "infra-run-"),
+        ("infra9.-foo_bar^x", "infra9-foo-bar-x-"),
     ],
 )
 def test_job_name_creates_valid_name(
@@ -203,6 +205,25 @@ def test_uses_image_setting(
         "template"
     ]["spec"]["containers"][0]["image"]
     assert image == "foo"
+
+
+def test_allows_image_setting_from_manifest(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+):
+    mock_watch.stream = _mock_pods_stream_that_returns_running_pod
+
+    manifest = KubernetesJob.base_job_manifest()
+    manifest["spec"]["template"]["spec"]["containers"][0]["image"] = "test"
+    job = KubernetesJob(command=["echo", "hello"], job=manifest)
+    assert job.image is None
+    job.run(MagicMock())
+    mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+    image = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
+        "template"
+    ]["spec"]["containers"][0]["image"]
+    assert image == "test"
 
 
 def test_uses_labels_setting(
@@ -278,6 +299,17 @@ async def test_allows_unsetting_environment_variables(
         ),
         ("/a-name-that-starts-with-slash", "a-name-that-starts-with-slash"),
         ("a-prefix/and-a-name/-with-a-slash", "a-prefix/and-a-name-with-a-slash"),
+        ("_a-name-that-starts-with-underscore", "a-name-that-starts-with-underscore"),
+        ("-a-name-that-starts-with-dash", "a-name-that-starts-with-dash"),
+        (".a-name-that-starts-with-period", "a-name-that-starts-with-period"),
+        ("a-name-that-ends-with-underscore_", "a-name-that-ends-with-underscore"),
+        ("a-name-that-ends-with-dash-", "a-name-that-ends-with-dash"),
+        ("a-name-that-ends-with-period.", "a-name-that-ends-with-period"),
+        (
+            "._.-a-name-with-trailing-leading-chars-__-.",
+            "a-name-with-trailing-leading-chars",
+        ),
+        ("a-prefix/and-a-name/-with-a-slash", "a-prefix/and-a-name-with-a-slash"),
         # Truncation of the prefix
         ("a" * 300 + "/and-a-name", "a" * 253 + "/and-a-name"),
         # Truncation of the name
@@ -317,6 +349,16 @@ def test_sanitizes_user_label_keys(
             "text-with-invalid$@*^$@-characters",
             "text-with-invalid-characters",
         ),
+        ("_value-that-starts-with-underscore", "value-that-starts-with-underscore"),
+        ("-value-that-starts-with-dash", "value-that-starts-with-dash"),
+        (".value-that-starts-with-period", "value-that-starts-with-period"),
+        ("value-that-ends-with-underscore_", "value-that-ends-with-underscore"),
+        ("value-that-ends-with-dash-", "value-that-ends-with-dash"),
+        ("value-that-ends-with-period.", "value-that-ends-with-period"),
+        (
+            "._.-value-with-trailing-leading-chars-__-.",
+            "value-with-trailing-leading-chars",
+        ),
         # Truncation
         ("a" * 100, "a" * 63),
         # All invalid passes through
@@ -353,6 +395,24 @@ def test_uses_namespace_setting(
         "namespace"
     ]
     assert namespace == "foo"
+
+
+def test_allows_namespace_setting_from_manifest(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+):
+    mock_watch.stream = _mock_pods_stream_that_returns_running_pod
+    manifest = KubernetesJob.base_job_manifest()
+    manifest["metadata"]["namespace"] = "test"
+    job = KubernetesJob(command=["echo", "hello"], job=manifest)
+    assert job.namespace is None
+    job.run(MagicMock())
+    mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+    namespace = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["metadata"][
+        "namespace"
+    ]
+    assert namespace == "test"
 
 
 def test_uses_service_account_name_setting(

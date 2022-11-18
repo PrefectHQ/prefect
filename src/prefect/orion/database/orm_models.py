@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import as_declarative, declarative_mixin, declared_attr
+from sqlalchemy.sql.functions import coalesce
 
 import prefect
 import prefect.orion.schemas as schemas
@@ -24,7 +25,7 @@ from prefect.orion.utilities.database import (
     now,
 )
 from prefect.orion.utilities.encryption import decrypt_fernet, encrypt_fernet
-from prefect.orion.utilities.names import generate_slug
+from prefect.utilities.names import generate_slug
 
 
 class ORMBase:
@@ -132,7 +133,7 @@ class ORMFlowRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(Pydantic(schemas.data.DataDocument), nullable=True)
+    data = sa.Column(sa.JSON, nullable=True)
 
     @declared_attr
     def flow_run(cls):
@@ -186,7 +187,7 @@ class ORMTaskRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(Pydantic(schemas.data.DataDocument), nullable=True)
+    data = sa.Column(sa.JSON, nullable=True)
 
     @declared_attr
     def task_run(cls):
@@ -248,6 +249,7 @@ class ORMRun:
     )
     state_type = sa.Column(sa.Enum(schemas.states.StateType, name="state_type"))
     state_name = sa.Column(sa.String, nullable=True)
+    state_timestamp = sa.Column(Timestamp(), nullable=True)
     run_count = sa.Column(sa.Integer, server_default="0", default=0, nullable=False)
     expected_start_time = sa.Column(Timestamp())
     next_scheduled_start_time = sa.Column(Timestamp())
@@ -265,15 +267,13 @@ class ORMRun:
         """Total run time is incremented in the database whenever a RUNNING
         state is exited. To give up-to-date estimates, we estimate incremental
         run time for any runs currently in a RUNNING state."""
-        if self.state and self.state_type == schemas.states.StateType.RUNNING:
-            return self.total_run_time + (pendulum.now() - self.state.timestamp)
+        if self.state_type and self.state_type == schemas.states.StateType.RUNNING:
+            return self.total_run_time + (pendulum.now() - self.state_timestamp)
         else:
             return self.total_run_time
 
     @estimated_run_time.expression
     def estimated_run_time(cls):
-        # use a correlated subquery to retrieve details from the state table
-        state_table = cls.state.property.target
         return (
             sa.select(
                 sa.case(
@@ -281,18 +281,15 @@ class ORMRun:
                         cls.state_type == schemas.states.StateType.RUNNING,
                         interval_add(
                             cls.total_run_time,
-                            date_diff(now(), state_table.c.timestamp),
+                            date_diff(now(), cls.state_timestamp),
                         ),
                     ),
                     else_=cls.total_run_time,
                 )
             )
-            .select_from(state_table)
-            .where(cls.state_id == state_table.c.id)
             # add a correlate statement so this can reuse the `FROM` clause
             # of any parent query
-            .correlate(cls, state_table)
-            .label("estimated_run_time")
+            .correlate(cls).label("estimated_run_time")
         )
 
     @hybrid_property
@@ -364,6 +361,12 @@ class ORMFlowRun(ORMRun):
         nullable=False,
     )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    created_by = sa.Column(
+        Pydantic(schemas.core.CreatedBy),
+        server_default=None,
+        default=None,
+        nullable=True,
+    )
 
     @declared_attr
     def infrastructure_document_id(cls):
@@ -474,6 +477,14 @@ class ORMFlowRun(ORMRun):
                 unique=True,
             ),
             sa.Index(
+                "ix_flow_run__coalesce_start_time_expected_start_time_desc",
+                sa.desc(coalesce("start_time", "expected_start_time")),
+            ),
+            sa.Index(
+                "ix_flow_run__coalesce_start_time_expected_start_time_asc",
+                sa.asc(coalesce("start_time", "expected_start_time")),
+            ),
+            sa.Index(
                 "ix_flow_run__expected_start_time_desc",
                 sa.desc("expected_start_time"),
             ),
@@ -497,6 +508,10 @@ class ORMFlowRun(ORMRun):
                 "ix_flow_run__state_name",
                 "state_name",
             ),
+            sa.Index(
+                "ix_flow_run__state_timestamp",
+                "state_timestamp",
+            ),
         )
 
 
@@ -518,6 +533,9 @@ class ORMTaskRun(ORMRun):
     cache_key = sa.Column(sa.String)
     cache_expiration = sa.Column(Timestamp())
     task_version = sa.Column(sa.String)
+    flow_run_run_count = sa.Column(
+        sa.Integer, server_default="0", default=0, nullable=False
+    )
     empirical_policy = sa.Column(
         Pydantic(schemas.core.TaskRunPolicy),
         server_default="{}",
@@ -648,6 +666,10 @@ class ORMTaskRun(ORMRun):
                 "ix_task_run__state_name",
                 "state_name",
             ),
+            sa.Index(
+                "ix_task_run__state_timestamp",
+                "state_timestamp",
+            ),
         )
 
 
@@ -680,6 +702,18 @@ class ORMDeployment:
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     parameter_openapi_schema = sa.Column(JSON, default=dict, nullable=True)
+    created_by = sa.Column(
+        Pydantic(schemas.core.CreatedBy),
+        server_default=None,
+        default=None,
+        nullable=True,
+    )
+    updated_by = sa.Column(
+        Pydantic(schemas.core.UpdatedBy),
+        server_default=None,
+        default=None,
+        nullable=True,
+    )
 
     @declared_attr
     def infrastructure_document_id(cls):
@@ -711,6 +745,10 @@ class ORMDeployment:
                 "flow_id",
                 "name",
                 unique=True,
+            ),
+            sa.Index(
+                "ix_deployment__created",
+                "created",
             ),
         )
 
@@ -945,6 +983,10 @@ class ORMWorkQueue:
     is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
     concurrency_limit = sa.Column(
         sa.Integer,
+        nullable=True,
+    )
+    last_polled = sa.Column(
+        Timestamp(),
         nullable=True,
     )
 

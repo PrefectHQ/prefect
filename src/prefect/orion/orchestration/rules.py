@@ -35,6 +35,7 @@ from prefect.orion.schemas.responses import (
     StateAbortDetails,
     StateAcceptDetails,
     StateRejectDetails,
+    StateResponseDetails,
     StateWaitDetails,
 )
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -46,20 +47,6 @@ ALL_ORCHESTRATION_STATES = {*states.StateType, None}
 TERMINAL_STATES = states.TERMINAL_STATES
 
 logger = get_logger("orion")
-
-StateResponseDetails = Union[
-    StateAcceptDetails, StateWaitDetails, StateRejectDetails, StateAbortDetails
-]
-
-
-class OrchestrationResult(PrefectBaseModel):
-    """
-    A container for the output of state orchestration.
-    """
-
-    state: Optional[states.State]
-    status: SetStateStatus
-    details: StateResponseDetails
 
 
 class OrchestrationContext(PrefectBaseModel):
@@ -113,6 +100,7 @@ class OrchestrationContext(PrefectBaseModel):
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
     response_details: StateResponseDetails = Field(default_factory=StateAcceptDetails)
     orchestration_error: Optional[Exception] = Field(default=None)
+    parameters: Dict[Any, Any] = Field(default_factory=dict)
 
     @property
     def initial_state_type(self) -> Optional[states.StateType]:
@@ -156,6 +144,7 @@ class OrchestrationContext(PrefectBaseModel):
         safe_copy.validated_state = (
             self.validated_state.copy() if self.validated_state else None
         )
+        safe_copy.parameters = self.parameters.copy()
         return safe_copy
 
     def entry_context(self):
@@ -530,7 +519,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         TO_STATES: list of valid proposed state types this rule governs
         context: the orchestration context
         from_state_type: the state type a run is currently in
-        to_state_type: the proposed state type a run is transitioning into
+        to_state_type: the intended proposed state type prior to any orchestration
 
     Args:
         context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
@@ -834,8 +823,22 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         the canonical state TYPE, and will not fizzle or invalidate any other rules
         that might govern this state transition.
         """
+        if self.context.proposed_state is not None:
+            self.context.proposed_state.name = state_name
 
-        self.context.proposed_state.name = state_name
+    async def update_context_parameters(self, key, value):
+        """
+        Updates the "parameters" dictionary attribute with the specified key-value pair.
+
+        This mechanism streamlines the process of passing messages and information
+        between orchestration rules if necessary and is simpler and more ephemeral than
+        message-passing via the database or some other side-effect. This mechanism can
+        be used to break up large rules for ease of testing or comprehension, but note
+        that any rules coupled this way (or any other way) are no longer independent and
+        the order in which they appear in the orchestration policy priority will matter.
+        """
+
+        self.context.parameters.update({key: value})
 
 
 class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
@@ -856,6 +859,8 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         FROM_STATES: for compatibility with `BaseOrchestrationPolicy`
         TO_STATES: for compatibility with `BaseOrchestrationPolicy`
         context: the orchestration context
+        from_state_type: the state type a run is currently in
+        to_state_type: the intended proposed state type prior to any orchestration
 
     Args:
         context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
@@ -869,8 +874,12 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
     def __init__(
         self,
         context: OrchestrationContext,
+        from_state_type: Optional[states.StateType],
+        to_state_type: Optional[states.StateType],
     ):
         self.context = context
+        self.from_state_type = from_state_type
+        self.to_state_type = to_state_type
 
     async def __aenter__(self):
         """
@@ -883,9 +892,8 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         `self.before_transition` will fire.
         """
 
-        if not self.nullified_transition():
-            await self.before_transition(self.context)
-            self.context.rule_signature.append(str(self.__class__))
+        await self.before_transition(self.context)
+        self.context.rule_signature.append(str(self.__class__))
         return self.context
 
     async def __aexit__(
@@ -897,12 +905,12 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         """
         Exit the async runtime context governed by this transform.
 
-        If the transition has been nullified upon exiting this transforms's context,
+        If the transition has been nullified or errorred upon exiting this transforms's context,
         nothing happens. Otherwise, `self.after_transition` will fire on every non-null
         proposed state.
         """
 
-        if not self.nullified_transition():
+        if not self.exception_in_transition():
             await self.after_transition(self.context)
             self.context.finalization_signature.append(str(self.__class__))
 
@@ -940,3 +948,13 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         """
 
         return self.context.proposed_state is None
+
+    def exception_in_transition(self) -> bool:
+        """
+        Determines if the transition has encountered an exception.
+
+        Returns:
+            True if the transition is encountered an exception, False otherwise.
+        """
+
+        return self.context.orchestration_error is not None

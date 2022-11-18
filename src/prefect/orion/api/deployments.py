@@ -2,6 +2,7 @@
 Routes for interacting with Deployment objects.
 """
 
+import datetime
 from typing import List
 from uuid import UUID
 
@@ -136,6 +137,9 @@ async def read_deployments(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
+    sort: schemas.sorting.DeploymentSort = Body(
+        schemas.sorting.DeploymentSort.NAME_ASC
+    ),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.Deployment]:
     """
@@ -145,6 +149,7 @@ async def read_deployments(
         return await models.deployments.read_deployments(
             session=session,
             offset=offset,
+            sort=sort,
             limit=limit,
             flow_filter=flows,
             flow_run_filter=flow_runs,
@@ -197,18 +202,35 @@ async def schedule_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     start_time: DateTimeTZ = Body(None, description="The earliest date to schedule"),
     end_time: DateTimeTZ = Body(None, description="The latest date to schedule"),
+    min_time: datetime.timedelta = Body(
+        None,
+        description="Runs will be scheduled until at least this long after the `start_time`",
+    ),
+    min_runs: int = Body(None, description="The minimum number of runs to schedule"),
     max_runs: int = Body(None, description="The maximum number of runs to schedule"),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> None:
     """
     Schedule runs for a deployment. For backfills, provide start/end times in the past.
+
+    This function will generate the minimum number of runs that satisfy the min
+    and max times, and the min and max counts. Specifically, the following order
+    will be respected:
+
+        - Runs will be generated starting on or after the `start_time`
+        - No more than `max_runs` runs will be generated
+        - No runs will be generated after `end_time` is reached
+        - At least `min_runs` runs will be generated
+        - Runs will be generated until at least `start_time + min_time` is reached
     """
     async with db.session_context(begin_transaction=True) as session:
         await models.deployments.schedule_runs(
             session=session,
             deployment_id=deployment_id,
             start_time=start_time,
+            min_time=min_time,
             end_time=end_time,
+            min_runs=min_runs,
             max_runs=max_runs,
         )
 
@@ -254,8 +276,11 @@ async def set_schedule_inactive(
         await session.commit()
 
         # delete any auto scheduled runs
-        await models.deployments._delete_auto_scheduled_runs(
-            session=session, deployment_id=deployment_id, db=db
+        await models.deployments._delete_scheduled_runs(
+            session=session,
+            deployment_id=deployment_id,
+            db=db,
+            auto_scheduled_only=True,
         )
 
         await session.commit()

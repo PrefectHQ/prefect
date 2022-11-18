@@ -121,6 +121,46 @@ class TestGetRunsInQueueQuery:
 
         assert [r[0].id for r in runs] == [fr_1.id, fr_3.id]
 
+    async def test_get_runs_in_queue_limit_sorts_correctly(
+        self, session, db, deployment_1
+    ):
+        """
+        Tests that the query sorts by scheduled time correctly; the unit tests with a small nubmer of runs
+        can return the correct order even though no sort is applied.
+
+        https://github.com/PrefectHQ/prefect/pull/7457
+        """
+
+        # clear all runs
+        await session.execute(sa.delete(db.FlowRun))
+
+        now = pendulum.now("UTC")
+
+        # add a bunch of runs whose physical order is the opposite of the order they should be returned in
+        # in order to make it more likely (but not guaranteed!) that unsorted queries return the wrong value
+        for i in range(10, -10, -1):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    name="fr1",
+                    flow_id=deployment_1.flow_id,
+                    deployment_id=deployment_1.id,
+                    work_queue_name=deployment_1.work_queue_name,
+                    state=schemas.states.Scheduled(now.add(minutes=i)),
+                ),
+            )
+
+        await session.commit()
+
+        query = db.queries.get_scheduled_flow_runs_from_work_queues(
+            db=db, limit_per_queue=1
+        )
+        result = await session.execute(query)
+        runs = result.all()
+
+        assert len(runs) == 1
+        assert runs[0][0].next_scheduled_start_time == now.subtract(minutes=9)
+
     async def test_get_runs_in_queue_scheduled_before(
         self, session, db, fr_1, fr_2, fr_3
     ):
@@ -165,7 +205,7 @@ class TestGetRunsInQueueQuery:
     async def test_query_skips_locked(self, db):
         """Concurrent queries should not both receive runs"""
         if db.database_config.connection_url.startswith("sqlite"):
-            pytest.skip(reason="FOR UDPATE SKIP LOCKED is not supported on SQLite")
+            pytest.skip("FOR UDPATE SKIP LOCKED is not supported on SQLite")
 
         query = db.queries.get_scheduled_flow_runs_from_work_queues(db=db)
 
