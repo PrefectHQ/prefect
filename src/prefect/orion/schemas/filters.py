@@ -10,6 +10,7 @@ from uuid import UUID
 import sqlalchemy as sa
 from pydantic import Field
 from sqlalchemy.sql.elements import BooleanClauseList
+from sqlalchemy.sql.functions import coalesce
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
@@ -481,7 +482,9 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
         if self.state is not None:
             filters.append(self.state.as_sql_filter(db))
         if self.start_time is not None:
-            filters.append(self.start_time.as_sql_filter(db))
+            filters.append(
+                coalesce(self.start_time, self.expected_start_time).as_sql_filter(db)
+            )
         if self.expected_start_time is not None:
             filters.append(self.expected_start_time.as_sql_filter(db))
         if self.next_scheduled_start_time is not None:
