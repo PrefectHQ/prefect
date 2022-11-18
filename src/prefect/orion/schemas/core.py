@@ -134,6 +134,9 @@ class FlowRunPolicy(PrefectBaseModel):
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
     )
+    pausable: bool = Field(
+        default=True, description="Determines if the flow can be paused."
+    )
 
     @root_validator
     def populate_deprecated_fields(cls, values):

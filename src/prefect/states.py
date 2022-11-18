@@ -522,11 +522,14 @@ async def pause():
     frc = FlowRunContext.get()
 
     client = get_client()
-    return await client.set_flow_run_state(
-        frc.flow_run.id,
-        Paused(),
-        force=True,
-    )
+    flow_run = await client.read_flow_run(frc.flow_run.id)
+
+    if flow_run.empirical_policy.pausable:
+        return await client.set_flow_run_state(
+            frc.flow_run.id,
+            Paused(),
+            force=True,
+        )
 
 
 @sync_compatible
