@@ -157,7 +157,6 @@ class TestFlowWithOptions:
             result_serializer="pickle",
             result_storage=LocalFileSystem(basepath="foo"),
             cache_result_in_memory=False,
-            log_prints=False,
         )
         def initial_flow():
             pass
@@ -188,7 +187,6 @@ class TestFlowWithOptions:
         assert flow_with_options.result_serializer == "json"
         assert flow_with_options.result_storage == LocalFileSystem(basepath="bar")
         assert flow_with_options.cache_result_in_memory is True
-        assert flow_with_options.log_prints is True
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         @flow(
