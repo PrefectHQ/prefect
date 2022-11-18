@@ -106,27 +106,19 @@ def test_setup_logging_uses_default_path(tmp_path, dictConfigMock):
         {PREFECT_LOGGING_SETTINGS_PATH: tmp_path.joinpath("does-not-exist.yaml")}
     ):
         expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
+        expected_config["incremental"] = False
         setup_logging()
 
     dictConfigMock.assert_called_once_with(expected_config)
 
 
-def test_setup_logging_allows_repeated_calls(dictConfigMock):
+def test_setup_logging_sets_incremental_on_repeated_calls(dictConfigMock):
     setup_logging()
-    dictConfigMock.assert_called_once()
+    assert dictConfigMock.call_count == 1
     setup_logging()
-    dictConfigMock.assert_called_once()
-
-
-def test_setup_logging_warns_on_repeated_calls_with_new_settings(dictConfigMock):
-    setup_logging()
-    dictConfigMock.assert_called_once()
-    with pytest.warns(
-        UserWarning, match="only be setup once per process.* will be ignored"
-    ):
-        with temporary_settings({PREFECT_LOGGING_LEVEL: "ERROR"}):
-            setup_logging()
-    dictConfigMock.assert_called_once()
+    assert dictConfigMock.call_count == 2
+    assert dictConfigMock.mock_calls[0][1][0]["incremental"] == False
+    assert dictConfigMock.mock_calls[1][1][0]["incremental"] == True
 
 
 def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
@@ -137,6 +129,7 @@ def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
 
         setup_logging()
         expected_config = load_logging_config(tmp_path.joinpath("exists.yaml"))
+        expected_config["incremental"] = False
 
     dictConfigMock.assert_called_once_with(expected_config)
 
@@ -148,6 +141,8 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
     ):
         expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
     env = {}
+
+    expected_config["incremental"] = False
 
     # Test setting a value for a simple key
     env["PREFECT_LOGGING_HANDLERS_ORION_LEVEL"] = "ORION_LEVEL_VAL"
@@ -242,6 +237,7 @@ def test_get_logger_does_not_duplicate_prefect_prefix():
 def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
     with temporary_settings({PREFECT_LOGGING_LEVEL: "WARNING"}):
         expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
+        expected_config["incremental"] = False
 
         assert expected_config["loggers"]["prefect"]["level"] == "WARNING"
         assert expected_config["loggers"]["prefect.extra"]["level"] == "WARNING"
@@ -1204,22 +1200,8 @@ class TestJsonFormatter:
         assert len(deserialized["exc_info"]["traceback"]) > 0
 
 
-@pytest.fixture
-def flow_run_caplog(caplog):
-    """
-    Capture logging from flow runs to ensure messages are correct.
-    """
-    logger = logging.getLogger("prefect.flow_runs")
-    logger.propagate = True
-
-    try:
-        yield caplog
-    finally:
-        logger.propagate = False
-
-
-def test_log_in_flow(flow_run_caplog):
-    msg = "10:21:34.114 | INFO    | Flow run 'polite-jackal' - Finished in state Completed()"
+def test_log_in_flow(caplog):
+    msg = "Hello world!"
 
     @flow
     def test_flow():
@@ -1227,30 +1209,17 @@ def test_log_in_flow(flow_run_caplog):
         logger.warning(msg)
 
     test_flow()
-    for record in flow_run_caplog.records:
+
+    for record in caplog.records:
         if record.msg == msg:
             assert record.levelno == logging.WARNING
             break
     else:
-        raise AssertionError(f"{msg} was not found in records")
+        raise AssertionError(f"{msg} was not found in records: {caplog.records}")
 
 
-@pytest.fixture
-def task_run_caplog(caplog):
-    """
-    Capture logging from task runs to ensure messages are correct.
-    """
-    logger = logging.getLogger("prefect.task_runs")
-    logger.propagate = True
-
-    try:
-        yield caplog
-    finally:
-        logger.propagate = False
-
-
-def test_log_in_task(task_run_caplog):
-    msg = "10:21:34.114 | INFO    | Flow run 'polite-jackal' - Finished in state Completed()"
+def test_log_in_task(caplog):
+    msg = "Hello world!"
 
     @task
     def test_task():
@@ -1262,7 +1231,7 @@ def test_log_in_task(task_run_caplog):
         test_task()
 
     test_flow()
-    for record in task_run_caplog.records:
+    for record in caplog.records:
         if record.msg == msg:
             assert record.levelno == logging.WARNING
             break
