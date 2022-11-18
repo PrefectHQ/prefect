@@ -224,6 +224,7 @@ class Flow(Generic[P, R]):
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
         cache_result_in_memory: bool = None,
+        log_prints: Optional[bool] = NotSet,
     ):
         """
         Create a new flow from the current object, updating provided options.
@@ -304,6 +305,7 @@ class Flow(Generic[P, R]):
                 if cache_result_in_memory is not None
                 else self.cache_result_in_memory
             ),
+            log_prints=log_prints if log_prints is not NotSet else self.log_prints,
         )
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
