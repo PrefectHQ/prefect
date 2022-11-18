@@ -1,0 +1,90 @@
+name: Benchmarks
+
+env:
+  PY_COLORS: 1
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/python-tests.yaml
+      - "**/*.py"
+      - requirements.txt
+      - requirements-dev.txt
+      - setup.cfg
+      - Dockerfile
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  run-benchmarks:
+    name: Benchmark
+    # Runs with ephemeral API and SQLite database right now
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        if: ${{ matrix.build-docker-images }}
+        uses: docker/setup-buildx-action@v2
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
+
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade --upgrade-strategy eager -e ".[dev]"
+
+      - name: Prepare benchmark comparisons
+        # Note: We use a "cache" instead of artifacts because artifacts are not available
+        #       across workflow runs.
+        id: bench-cache
+        uses: actions/cache@v3
+        with:
+          path: ./.benchmarks
+          # Pushes benchmark results for this branch and sha, this will always be a cache miss
+          # and `restore-keys` will be used to get the benchmarks for comparison
+          key: ${{ runner.os }}-${{ github.head_ref }}-${{ github.sha }}
+          # Pulls benchmark results for the base branch
+          restore-keys: |
+            ${{ runner.os }}-${{ github.base_ref }}-
+            ${{ runner.os }}-${{ github.head_ref }}-
+            ${{ runner.os }}-
+
+
+      - name: Start server
+        run: |
+          prefect orion start&
+          PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
+
+          # TODO: Replace `wait-for-server` with dedicated command
+          #       https://github.com/PrefectHQ/prefect/issues/6990
+
+      - name: Run benchmarks
+        # Includes comparison to previous benchmarks if available
+        run: >
+          uniquename=${{ github.head_ref }}-${{ github.sha }}
+
+          PREFECT_API_URL="http://127.0.0.1:4200/api"
+          python benches
+          --benchmark-save="${uniquename//\//_}"
+          ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || ''}}
+
