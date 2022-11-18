@@ -329,7 +329,8 @@ async def begin_flow_run(
     """
     logger = flow_run_logger(flow_run, flow)
 
-    flow_run_context = PartialModel(FlowRunContext, log_prints=should_log_prints(flow))
+    log_prints = should_log_prints(flow)
+    flow_run_context = PartialModel(FlowRunContext, log_prints=log_prints)
 
     async with AsyncExitStack() as stack:
 
@@ -359,7 +360,7 @@ async def begin_flow_run(
             flow, client=client
         )
 
-        if flow.log_prints:
+        if log_prints:
             stack.enter_context(patch_print())
 
         terminal_state = await orchestrate_flow_run(
