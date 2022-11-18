@@ -4,7 +4,7 @@ import threading
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from functools import partial
-from typing import ContextManager, Dict, Tuple, Type
+from typing import Callable, ContextManager, Dict, Set, Tuple, Type
 
 import anyio
 import httpx
@@ -155,7 +155,12 @@ class PrefectHttpxClient(httpx.AsyncClient):
 
     RETRY_MAX = 5
 
-    async def _send_with_retry(self, request, retry_codes, retry_exceptions):
+    async def _send_with_retry(
+        self,
+        request: Callable,
+        retry_codes: Set[int] = {},
+        retry_exceptions: Tuple[Exception, ...] = (),
+    ):
         try_count = 0
         response = None
         should_try_request = (
@@ -167,6 +172,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
             try:
                 response = await request()
             except retry_exceptions as exc:
+                breakpoint()
                 if try_count >= self.RETRY_MAX:
                     raise exc
                 continue
