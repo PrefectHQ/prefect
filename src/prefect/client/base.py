@@ -163,12 +163,12 @@ class PrefectHttpxClient(httpx.AsyncClient):
     ):
         try_count = 0
         response = None
-        should_try_request = (
+
+        while (
             not response
             or (response.status in retry_codes)
             and try_count <= self.RETRY_MAX
-        )
-        while should_try_request:
+        ):
             try:
                 response = await request()
             except retry_exceptions as exc:
