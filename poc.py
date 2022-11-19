@@ -206,3 +206,12 @@ def foobar():
 workflow = Workflow(name="foobar", fn=foobar)
 result = workflow()
 print(result)
+
+
+async def foobar():
+    return foo() + await bar() + 1
+
+
+workflow = Workflow(name="foobar", fn=foobar)
+result = anyio.run(workflow)
+print(result)
