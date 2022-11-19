@@ -25,12 +25,12 @@ threadlocals = threading.local()
 threadlocals.runtime = None
 
 
-class WorkItem(object):
-    def __init__(self, future, fn, args, kwargs):
-        self.future = future
-        self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
+@dataclasses.dataclass
+class WorkItem:
+    future: Future
+    fn: typing.Callable
+    args: typing.Tuple
+    kwargs: typing.Dict
 
     def run(self):
         if not self.future.set_running_or_notify_cancel():
@@ -40,6 +40,7 @@ class WorkItem(object):
             result = self.fn(*self.args, **self.kwargs)
         except BaseException as exc:
             self.future.set_exception(exc)
+            # Prevent reference cycle in `exc`
             self = None
         else:
             self.future.set_result(result)
@@ -94,7 +95,7 @@ class Runtime:
         as_logger.debug("Scheduling sync task %s", fn)
         event = anyio.Event()
         future = Future()
-        work_item = WorkItem(future, fn, args, kwargs)
+        work_item = WorkItem(future=future, fn=fn, args=args, kwargs=kwargs)
 
         # Wake up this thread when the future is complete
         future.add_done_callback(lambda _: self._portal.call(event.set))
@@ -151,6 +152,7 @@ class Workflow:
                 run_workflow, threadlocals.runtime, self, parameters
             )
         else:
+            mt_logger.debug("Creating new runtime")
             with Runtime() as runtime:
                 return runtime.run_async(run_workflow, runtime, self, parameters)
 
@@ -181,37 +183,43 @@ async def orchestrate_run(
 
 def foo():
     print("Running foo!")
-    print("in main thread?", threading.get_ident() == MAIN_THREAD)
+    print("In main thread?", threading.get_ident() == MAIN_THREAD)
     return 1
 
 
 async def bar():
     print("Running bar!")
+    print("In main thread?", threading.get_ident() == MAIN_THREAD)
     return 2
-
-
-foo = Workflow(name="foo", fn=foo)
-result = foo()
-print(result)
-
-bar = Workflow(name="bar", fn=bar)
-result = anyio.run(bar)
-print(result)
 
 
 def foobar():
     return foo() + bar()
 
 
-workflow = Workflow(name="foobar", fn=foobar)
-result = workflow()
-print(result)
-
-
-async def foobar():
+async def afoobar():
     return foo() + await bar() + 1
 
 
-workflow = Workflow(name="foobar", fn=foobar)
-result = anyio.run(workflow)
+foo = Workflow(name="foo", fn=foo)
+bar = Workflow(name="bar", fn=bar)
+foobar = Workflow(name="foobar", fn=foobar)
+afoobar = Workflow(name="afoobar", fn=afoobar)
+
+
+print("---- Sync ----")
+result = foo()
+print(result)
+
+print("---- Async ----")
+result = anyio.run(bar)
+print(result)
+
+
+print("---- Sync parent ----")
+result = foobar()
+print(result)
+
+print("---- Async parent ----")
+result = anyio.run(afoobar)
 print(result)
