@@ -161,40 +161,49 @@ class PrefectHttpxClient(httpx.AsyncClient):
         retry_codes: Set[int] = {},
         retry_exceptions: Tuple[Exception, ...] = (),
     ):
+        """
+        Send a request and retry it if it fails.
+
+        Sends the provided request and retries it up to self.RETRY_MAX times if
+        the request either raises an exception listed in `retry_exceptions` or receives
+        a response with a status code listed in `retry_codes`.
+
+        Retries will be delayed based on either the retry header (preferred) or
+        exponential backoff if a retry header is not provided.
+        """
         try_count = 0
         response = None
-        retry_seconds = None
+        retry = True
 
         while (
             not response
             or (response.status_code in retry_codes)
             and try_count <= self.RETRY_MAX
         ):
+            try_count += 1
+            retry_seconds = None
+
             try:
                 response = await request()
-            except retry_exceptions:
-                if try_count >= self.RETRY_MAX:
+            except retry_exceptions as exc:
+                if try_count > self.RETRY_MAX:
+                    retry = False
                     raise
                 continue
 
             else:
-                good_response = response.status_code not in retry_codes
-
-                if not good_response:
+                if response.status_code not in retry_codes:
+                    retry = False
+                else:
                     retry_after = response.headers.get("Retry-After")
                     if retry_after:
                         retry_seconds = float(retry_after)
 
             finally:
-                if good_response:
-                    return response
-
-                try_count += 1
-                if retry_seconds is None:
-                    retry_seconds = 2**try_count
-
-                await anyio.sleep(retry_seconds)
-                retry_seconds = None
+                if retry:
+                    if retry_seconds is None:
+                        retry_seconds = 2**try_count
+                    await anyio.sleep(retry_seconds)
 
         return response
 

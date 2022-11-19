@@ -2,10 +2,23 @@ from unittest.mock import call
 
 import pytest
 from fastapi import status
-from httpx import AsyncClient, HTTPStatusError, Request, Response
+from httpx import (
+    AsyncClient,
+    HTTPStatusError,
+    ReadError,
+    RemoteProtocolError,
+    Request,
+    Response,
+)
 
 from prefect.client.base import PrefectHttpxClient
 from prefect.testing.utilities import AsyncMock
+
+four_twenty_nine_retry_after_zero = Response(
+    status.HTTP_429_TOO_MANY_REQUESTS,
+    headers={"Retry-After": "0"},
+    request=Request("a test request", "fake.url/fake/route"),
+)
 
 
 class TestPrefectHttpxClient:
@@ -40,8 +53,45 @@ class TestPrefectHttpxClient:
         assert response.status_code == status.HTTP_200_OK
         assert base_client_send.call_count == 4
 
-    async def test_prefect_httpx_client_retries_429s_up_to_five_times(
-        self, monkeypatch
+    @pytest.mark.parametrize(
+        "exception",
+        [RemoteProtocolError, ReadError],
+    )
+    async def test_prefect_httpx_client_retries_on_designated_exceptions(
+        self,
+        monkeypatch,
+        exception,
+    ):
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        client = PrefectHttpxClient()
+        success_response = Response(
+            status.HTTP_200_OK,
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+        base_client_send.side_effect = [
+            exception("msg"),
+            exception("msg"),
+            exception("msg"),
+            success_response,
+        ]
+        response = await client.post(
+            url="fake.url/fake/route", data={"evenmorefake": "data"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert base_client_send.call_count == 4
+
+    @pytest.mark.parametrize(
+        "causes_of_retries",
+        [
+            [four_twenty_nine_retry_after_zero] * 7,
+            [RemoteProtocolError("msg")] * 7,
+            ([RemoteProtocolError("msg")] * 3)
+            + ([four_twenty_nine_retry_after_zero] * 4),
+        ],
+    )
+    async def test_prefect_httpx_client_retries_up_to_five_times(
+        self, monkeypatch, causes_of_retries, mock_anyio_sleep
     ):
         client = PrefectHttpxClient()
         base_client_send = AsyncMock()
@@ -94,27 +144,26 @@ class TestPrefectHttpxClient:
             )
         assert response.status_code == status.HTTP_200_OK
 
+    @pytest.mark.parametrize(
+        "cause_of_retry",
+        [four_twenty_nine_retry_after_zero, RemoteProtocolError("msg")],
+    )
     async def test_prefect_httpx_client_falls_back_to_exponential_backoff(
-        self, mock_anyio_sleep, monkeypatch
+        self, mock_anyio_sleep, cause_of_retry, monkeypatch
     ):
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
         client = PrefectHttpxClient()
-        retry_response = Response(
-            status.HTTP_429_TOO_MANY_REQUESTS,
-            request=Request("a test request", "fake.url/fake/route"),
-        )
-
         success_response = Response(
             status.HTTP_200_OK,
             request=Request("a test request", "fake.url/fake/route"),
         )
 
         base_client_send.side_effect = [
-            retry_response,
-            retry_response,
-            retry_response,
+            cause_of_retry,
+            cause_of_retry,
+            cause_of_retry,
             success_response,
         ]
 
