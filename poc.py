@@ -1,5 +1,7 @@
 import contextlib
 import dataclasses
+import functools
+import inspect
 import logging
 import queue
 import threading
@@ -11,12 +13,16 @@ import anyio
 import anyio.abc
 
 MAIN_THREAD = threading.get_ident()
+T = typing.TypeVar("T")
 
 logging.basicConfig(level="DEBUG")
 
 mt_logger = logging.getLogger("main_thread")
 as_logger = logging.getLogger("async_thread")
 mt_logger.debug("Logging initialized")
+
+threadlocals = threading.local()
+threadlocals.runtime = None
 
 
 class WorkItem(object):
@@ -50,22 +56,56 @@ class Runtime:
     def __enter__(self):
         self._exit_stack.__enter__()
         self._portal = self._exit_stack.enter_context(anyio.start_blocking_portal())
+        threadlocals.runtime = self
         return self
 
     def __exit__(self, *exc_info):
+        threadlocals.runtime = None
         self._exit_stack.close()
 
-    def run_async_nonblocking(self, fn, *args):
+    def run_async(
+        self,
+        fn: typing.Callable[..., typing.Awaitable[T]],
+        *args: typing.Any,
+        **kwargs: typing.Any
+    ) -> T:
         mt_logger.debug("Scheduling async task %s", fn)
         # Schedule the async task on a portal thread
-        future = self._portal.start_task_soon(fn, *args)
+        future = self._portal.start_task_soon(functools.partial(fn, *args, **kwargs))
 
-        # When the future is done, fire wakeup
+        # When the future is done, fire wakeup. This ensures that if the future does
+        # not schedule any work, the main thread will move on.
         future.add_done_callback(lambda _: self._wakeup.set())
 
         # Watch for work to do while the future is running
         while not future.done():
             self._consume_work_queue()
+
+        return future.result()
+
+    async def run_in_main_thread(
+        self, fn: typing.Callable[..., T], *args: typing.Any, **kwargs: typing.Any
+    ) -> T:
+        """
+        Schedule work on the main thread from an async thread.
+
+        The async function must be running with `run_async`.
+        """
+        as_logger.debug("Scheduling sync task %s", fn)
+        event = anyio.Event()
+        future = Future()
+        work_item = WorkItem(future, fn, args, kwargs)
+
+        # Wake up this thread when the future is complete
+        future.add_done_callback(lambda _: self._portal.call(event.set))
+        self._work_queue.put(work_item)
+
+        # Wake up the main thread
+        self._wakeup.set()
+
+        as_logger.debug("Waiting for completion...")
+        # Unblock the event loop thread, wait for completion of the task
+        await event.wait()
 
         return future.result()
 
@@ -91,30 +131,6 @@ class Runtime:
 
         self._wakeup.clear()
 
-    async def run_on_main_thread(self, fn, *args, **kwargs):
-        """
-        Schedule work on the main thread from an async function.
-
-        The async function must be running with `run_async_nonblocking`.
-        """
-        as_logger.debug("Scheduling sync task %s", fn)
-        event = anyio.Event()
-        future = Future()
-        work_item = WorkItem(future, fn, args, kwargs)
-
-        # Wake up this thread when the future is complete
-        future.add_done_callback(lambda _: self._portal.call(event.set))
-        self._work_queue.put(work_item)
-
-        # Wake up the main thread
-        self._wakeup.set()
-
-        as_logger.debug("Waiting for completion...")
-        # Unblock the event loop thread, wait for completion of the task
-        await event.wait()
-
-        return future.result()
-
 
 @dataclasses.dataclass
 class Run:
@@ -127,9 +143,16 @@ class Workflow:
     name: str
     fn: typing.Callable
 
-    def __call__(self, **kwds):
-        with Runtime() as runtime:
-            return runtime.run_async_nonblocking(run_workflow, runtime, self, kwds)
+    def __call__(self, **parameters):
+        if inspect.iscoroutinefunction(self.fn) and not threadlocals.runtime:
+            return self.fn(**parameters)
+        elif threadlocals.runtime:
+            return threadlocals.runtime.run_async(
+                run_workflow, threadlocals.runtime, self, parameters
+            )
+        else:
+            with Runtime() as runtime:
+                return runtime.run_async(run_workflow, runtime, self, parameters)
 
 
 async def run_workflow(runtime: Runtime, workflow: Workflow, parameters: dict):
@@ -142,9 +165,17 @@ async def create_run(workflow: Workflow) -> Run:
 
 
 async def orchestrate_run(
-    runtime: Runtime, workflow: Workflow, run: Run, parameters: dict
+    runtime: Runtime,
+    workflow: Workflow,
+    run: Run,
+    parameters: dict,
 ):
-    result = await runtime.run_on_main_thread(workflow.fn, **parameters)
+
+    if inspect.iscoroutinefunction(workflow.fn):
+        result = await workflow.fn(**parameters)
+    else:
+        result = await runtime.run_in_main_thread(workflow.fn, **parameters)
+
     return result
 
 
@@ -154,6 +185,24 @@ def foo():
     return 1
 
 
-workflow = Workflow(name="foo", fn=foo)
+async def bar():
+    print("Running bar!")
+    return 2
+
+
+foo = Workflow(name="foo", fn=foo)
+result = foo()
+print(result)
+
+bar = Workflow(name="bar", fn=bar)
+result = anyio.run(bar)
+print(result)
+
+
+def foobar():
+    return foo() + bar()
+
+
+workflow = Workflow(name="foobar", fn=foobar)
 result = workflow()
 print(result)
