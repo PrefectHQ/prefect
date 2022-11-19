@@ -145,16 +145,20 @@ class Workflow:
     fn: typing.Callable
 
     def __call__(self, **parameters):
-        if inspect.iscoroutinefunction(self.fn) and not threadlocals.runtime:
-            return self.fn(**parameters)
-        elif threadlocals.runtime:
-            return threadlocals.runtime.run_async(
-                run_workflow, threadlocals.runtime, self, parameters
-            )
-        else:
-            mt_logger.debug("Creating new runtime")
-            with Runtime() as runtime:
-                return runtime.run_async(run_workflow, runtime, self, parameters)
+        return entrypoint(self, parameters)
+
+
+def entrypoint(workflow, parameters):
+    if inspect.iscoroutinefunction(workflow.fn) and not threadlocals.runtime:
+        return workflow.fn(**parameters)
+    elif threadlocals.runtime:
+        return threadlocals.runtime.run_async(
+            run_workflow, threadlocals.runtime, workflow, parameters
+        )
+    else:
+        mt_logger.debug("Creating new runtime")
+        with Runtime() as runtime:
+            return runtime.run_async(run_workflow, runtime, workflow, parameters)
 
 
 async def run_workflow(runtime: Runtime, workflow: Workflow, parameters: dict):
