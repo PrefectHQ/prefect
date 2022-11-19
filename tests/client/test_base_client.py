@@ -20,6 +20,16 @@ four_twenty_nine_retry_after_zero = Response(
     request=Request("a test request", "fake.url/fake/route"),
 )
 
+four_twenty_nine_no_retry_header = Response(
+    status.HTTP_429_TOO_MANY_REQUESTS,
+    request=Request("a test request", "fake.url/fake/route"),
+)
+
+success_response = Response(
+    status.HTTP_200_OK,
+    request=Request("a test request", "fake.url/fake/route"),
+)
+
 
 class TestPrefectHttpxClient:
     @pytest.mark.parametrize(
@@ -35,10 +45,6 @@ class TestPrefectHttpxClient:
         retry_response = Response(
             error_code,
             headers={"Retry-After": "0"},
-            request=Request("a test request", "fake.url/fake/route"),
-        )
-        success_response = Response(
-            status.HTTP_200_OK,
             request=Request("a test request", "fake.url/fake/route"),
         )
         base_client_send.side_effect = [
@@ -65,10 +71,7 @@ class TestPrefectHttpxClient:
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
         client = PrefectHttpxClient()
-        success_response = Response(
-            status.HTTP_200_OK,
-            request=Request("a test request", "fake.url/fake/route"),
-        )
+
         base_client_send.side_effect = [
             exception("msg"),
             exception("msg"),
@@ -82,31 +85,34 @@ class TestPrefectHttpxClient:
         assert base_client_send.call_count == 4
 
     @pytest.mark.parametrize(
-        "causes_of_retries",
+        "causes_of_retries,final_exception,text_match",
         [
-            [four_twenty_nine_retry_after_zero] * 7,
-            [RemoteProtocolError("msg")] * 7,
-            ([RemoteProtocolError("msg")] * 3)
-            + ([four_twenty_nine_retry_after_zero] * 4),
+            ([four_twenty_nine_retry_after_zero] * 7, HTTPStatusError, "429"),
+            ([RemoteProtocolError("msg")] * 7, RemoteProtocolError, None),
+            (
+                [RemoteProtocolError("msg")] * 3
+                + ([four_twenty_nine_retry_after_zero] * 4),
+                HTTPStatusError,
+                "429",
+            ),
         ],
     )
     async def test_prefect_httpx_client_retries_up_to_five_times(
-        self, monkeypatch, causes_of_retries, mock_anyio_sleep
+        self,
+        monkeypatch,
+        causes_of_retries,
+        final_exception,
+        text_match,
+        mock_anyio_sleep,
     ):
         client = PrefectHttpxClient()
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
-        retry_response = Response(
-            status.HTTP_429_TOO_MANY_REQUESTS,
-            headers={"Retry-After": "0"},
-            request=Request("a test request", "fake.url/fake/route"),
-        )
-
         # Return more than 6 retry responses
-        base_client_send.side_effect = [retry_response] * 7
+        base_client_send.side_effect = causes_of_retries
 
-        with pytest.raises(HTTPStatusError, match="429"):
+        with pytest.raises(final_exception, match=text_match):
             await client.post(
                 url="fake.url/fake/route",
                 data={"evenmorefake": "data"},
@@ -128,11 +134,6 @@ class TestPrefectHttpxClient:
             request=Request("a test request", "fake.url/fake/route"),
         )
 
-        success_response = Response(
-            status.HTTP_200_OK,
-            request=Request("a test request", "fake.url/fake/route"),
-        )
-
         base_client_send.side_effect = [
             retry_response,
             success_response,
@@ -146,7 +147,7 @@ class TestPrefectHttpxClient:
 
     @pytest.mark.parametrize(
         "cause_of_retry",
-        [four_twenty_nine_retry_after_zero, RemoteProtocolError("msg")],
+        [four_twenty_nine_no_retry_header, RemoteProtocolError("msg")],
     )
     async def test_prefect_httpx_client_falls_back_to_exponential_backoff(
         self, mock_anyio_sleep, cause_of_retry, monkeypatch
@@ -155,10 +156,6 @@ class TestPrefectHttpxClient:
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
         client = PrefectHttpxClient()
-        success_response = Response(
-            status.HTTP_200_OK,
-            request=Request("a test request", "fake.url/fake/route"),
-        )
 
         base_client_send.side_effect = [
             cause_of_retry,
@@ -188,11 +185,6 @@ class TestPrefectHttpxClient:
                 headers={"Retry-After": str(retry_after)},
                 request=Request("a test request", "fake.url/fake/route"),
             )
-
-        success_response = Response(
-            status.HTTP_200_OK,
-            request=Request("a test request", "fake.url/fake/route"),
-        )
 
         base_client_send.side_effect = [
             make_retry_response(5),
