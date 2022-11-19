@@ -1,4 +1,5 @@
 import contextlib
+import contextvars
 import dataclasses
 import functools
 import inspect
@@ -16,13 +17,16 @@ MAIN_THREAD = threading.get_ident()
 T = typing.TypeVar("T")
 
 logging.basicConfig(level="DEBUG")
+logging.getLogger("asyncio").setLevel("INFO")
 
-mt_logger = logging.getLogger("main_thread")
-as_logger = logging.getLogger("async_thread")
+mt_logger = logging.getLogger("maint")
+as_logger = logging.getLogger("async")
 mt_logger.debug("Logging initialized")
 
 threadlocals = threading.local()
 threadlocals.runtime = None
+
+current_runtime = contextvars.ContextVar("current_runtime")
 
 
 @dataclasses.dataclass
@@ -47,21 +51,23 @@ class WorkItem:
 
 
 class Runtime:
-    _work_queue = queue.Queue()
-    _wakeup = threading.Event()
-
     def __init__(self) -> None:
         self._exit_stack = contextlib.ExitStack()
         self._portal: anyio.abc.BlockingPortal = None
+        self._work_queue = queue.Queue()
+        self._wakeup = threading.Event()
+        self._thread = threading.current_thread()
 
     def __enter__(self):
         self._exit_stack.__enter__()
         self._portal = self._exit_stack.enter_context(anyio.start_blocking_portal())
         threadlocals.runtime = self
+        self._context_token = current_runtime.set(self)
         return self
 
     def __exit__(self, *exc_info):
         threadlocals.runtime = None
+        current_runtime.reset(self._context_token)
         self._exit_stack.close()
 
     def run_async(
@@ -132,6 +138,21 @@ class Runtime:
 
         self._wakeup.clear()
 
+    def _get_debug_info():
+        pass
+
+    @classmethod
+    def print_debug_info(cls):
+        current_thread = threading.current_thread()
+        # in_owner_thread = current_thread.ident == self._thread.ident
+        in_main_thread = threading.main_thread().ident == current_thread.ident
+        debug_info = [
+            # ("In runtime owner thread?", in_owner_thread),
+            ("In main thread?", in_main_thread),
+        ]
+        for key, result in debug_info:
+            print(key, result)
+
 
 @dataclasses.dataclass
 class Run:
@@ -149,12 +170,11 @@ class Workflow:
 
 
 def entrypoint(workflow, parameters):
-    if inspect.iscoroutinefunction(workflow.fn) and not threadlocals.runtime:
+    runtime = current_runtime.get(None)
+    if inspect.iscoroutinefunction(workflow.fn) and not runtime:
         return workflow.fn(**parameters)
-    elif threadlocals.runtime:
-        return threadlocals.runtime.run_async(
-            run_workflow, threadlocals.runtime, workflow, parameters
-        )
+    elif runtime:
+        return runtime.run_async(run_workflow, runtime, workflow, parameters)
     else:
         mt_logger.debug("Creating new runtime")
         with Runtime() as runtime:
@@ -187,13 +207,13 @@ async def orchestrate_run(
 
 def foo():
     print("Running foo!")
-    print("In main thread?", threading.get_ident() == MAIN_THREAD)
+    Runtime.print_debug_info()
     return 1
 
 
 async def bar():
     print("Running bar!")
-    print("In main thread?", threading.get_ident() == MAIN_THREAD)
+    Runtime.print_debug_info()
     return 2
 
 
@@ -202,14 +222,25 @@ def foobar():
 
 
 async def afoobar():
-    return foo() + await bar() + 1
+    print("Running afoobar!")
+    Runtime.print_debug_info()
+    result = foo()
+    aresult = await bar()
+    return result + aresult
+
+
+def foofoobar():
+    Runtime.print_debug_info()
+    result = foobar()
+    aresult = afoobar()
+    return result + aresult
 
 
 foo = Workflow(name="foo", fn=foo)
 bar = Workflow(name="bar", fn=bar)
 foobar = Workflow(name="foobar", fn=foobar)
 afoobar = Workflow(name="afoobar", fn=afoobar)
-
+foofoobar = Workflow(name="foofoobar", fn=foofoobar)
 
 print("---- Sync ----")
 result = foo()
@@ -220,10 +251,14 @@ result = anyio.run(bar)
 print(result)
 
 
-print("---- Sync parent ----")
+print("---- Sync (parent) ----")
 result = foobar()
 print(result)
 
 print("---- Async parent ----")
 result = anyio.run(afoobar)
+print(result)
+
+print("---- Sync (double nested) ----")
+result = foofoobar()
 print(result)
