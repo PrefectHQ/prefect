@@ -1,3 +1,4 @@
+import concurrent.futures
 import contextlib
 import contextvars
 import dataclasses
@@ -8,7 +9,6 @@ import queue
 import threading
 import typing
 import uuid
-from concurrent.futures import Future
 
 import anyio
 import anyio.abc
@@ -16,40 +16,115 @@ import anyio.abc
 MAIN_THREAD = threading.get_ident()
 T = typing.TypeVar("T")
 
-logging.basicConfig(level="DEBUG")
+logging.basicConfig(level="DEBUG", format="{threadName: <12} > {message}", style="{")
 logging.getLogger("asyncio").setLevel("INFO")
 
-mt_logger = logging.getLogger("maint")
-as_logger = logging.getLogger("async")
-mt_logger.debug("Logging initialized")
+logger = logging.getLogger(__name__)
+logger.debug("Logging initialized")
 
 threadlocals = threading.local()
-threadlocals.runtime = None
-
 current_runtime: contextvars.ContextVar["Runtime"] = contextvars.ContextVar(
     "current_runtime"
 )
 
 
-import asyncio
+def get_current_portal() -> typing.Optional[anyio.abc.BlockingPortal]:
+    return getattr(threadlocals, "current_portal", None)
 
 
-class Event(asyncio.Event):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self._loop is None:
-            self._loop = asyncio.get_event_loop()
+def set_current_portal(portal: anyio.abc.BlockingPortal, name: str = None) -> None:
+    thread = threading.current_thread()
+    if thread.ident != portal._event_loop_thread_id:
+        raise RuntimeError(
+            "Attempted to set current portal to portal running in another thread. Only a portal in the current thread can be used."
+        )
+    if name:
+        thread.name = name
+    threadlocals.current_portal = portal
+
+
+class PortalEvent(anyio.abc.Event):
+    """
+    An async event that threadsafe. Requires use of a blocking portal.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._portal = get_current_portal()
+        if not self._portal:
+            raise RuntimeError(
+                "No portal found in current thread. Portal events cannot be created outside of a portal."
+            )
+
+    def __new__(cls):
+        # Override anyio's creation of a backend specific type, placing that at `_implementation` instead.
+        instance = object.__new__(cls)
+        instance._implementation = super().__new__(cls)
+        return instance
 
     def set(self):
-        self._loop.call_soon_threadsafe(super().set)
+        """Set the flag, notifying all listeners."""
+        if get_current_portal() == self._portal:
+            return self._implementation.set()
+        else:
+            return self._portal.call(self._implementation.set)
 
-    def clear(self):
-        self._loop.call_soon_threadsafe(super().clear)
+    def is_set(self) -> bool:
+        """Return ``True`` if the flag is set, ``False`` if not."""
+        if get_current_portal() == self._portal:
+            return self._implementation.is_set()
+        else:
+            return self._portal.call(self._implementation.is_set)
+
+    async def wait(self) -> None:
+        """
+        Wait until the flag has been set.
+
+        If the flag has already been set when this method is called, it returns immediately.
+        """
+        return await self._implementation.wait()
+
+
+class PortalFuture:
+    """
+    A future representing work passed to and from a portal.
+    """
+
+    def __init__(self, future: typing.Optional[concurrent.futures.Future] = None):
+        self._done_event = PortalEvent()
+        self._future = future or concurrent.futures.Future()
+        self._future.add_done_callback(self._set_done_event)
+
+    def _set_done_event(self, future: "concurrent.futures.Future"):
+        assert future is self._future
+        logger.debug("Future %s done", future)
+        self._done_event.set()
+
+    async def result(self):
+        """Get the result of the future."""
+        await self._done_event.wait()
+        return self._future.result()
+
+    def set_running_or_notify_cancel(self):
+        return self._future.set_running_or_notify_cancel()
+
+    def set_result(self, result: typing.Any):
+        return self._future.set_result(result)
+
+    def set_exception(self, exception: BaseException):
+        return self._future.set_exception(exception)
+
+
+@contextlib.contextmanager
+def start_portal_thread(name: str = None):
+    with anyio.start_blocking_portal() as portal:
+        portal.call(set_current_portal, portal, name)
+        yield portal
 
 
 @dataclasses.dataclass
 class WorkItem:
-    future: Future
+    future: PortalFuture
     fn: typing.Callable
     args: typing.Tuple
     kwargs: typing.Dict
@@ -73,24 +148,21 @@ class Runtime:
         self._exit_stack = contextlib.ExitStack()
         self._runtime_loop: anyio.abc.BlockingPortal = None
         self._userspace_loop: anyio.abc.BlockingPortal = None
-        self._work_queue = queue.Queue()
-        self._wakeup = threading.Event()
+        self._work_queue: queue.Queue[WorkItem] = queue.Queue()
         self._thread = threading.current_thread()
 
     def __enter__(self):
         self._exit_stack.__enter__()
         self._runtime_loop = self._exit_stack.enter_context(
-            anyio.start_blocking_portal()
+            start_portal_thread(name="Runtime")
         )
         self._userspace_loop = self._exit_stack.enter_context(
-            anyio.start_blocking_portal()
+            start_portal_thread(name="Userspace")
         )
-        threadlocals.runtime = self
         self._context_token = current_runtime.set(self)
         return self
 
     def __exit__(self, *exc_info):
-        threadlocals.runtime = None
         current_runtime.reset(self._context_token)
         self._exit_stack.close()
 
@@ -100,19 +172,17 @@ class Runtime:
         *args: typing.Any,
         **kwargs: typing.Any,
     ) -> T:
-        mt_logger.debug("Scheduling async task %s", fn)
+        logger.debug("Scheduling async task %s", fn)
         # Schedule the async task on a portal thread
         future = self._runtime_loop.start_task_soon(
             functools.partial(fn, *args, **kwargs)
         )
 
-        # When the future is done, fire wakeup. This ensures that if the future does
-        # not schedule any work, the main thread will move on.
-        future.add_done_callback(lambda _: self._wakeup.set())
+        # When the future is done, push a null item to the queue to signal exit
+        future.add_done_callback(lambda _: self._work_queue.put_nowait(None))
 
         # Watch for work to do while the future is running
-        while not future.done():
-            self._consume_work_queue()
+        self._consume_work_queue()
 
         return future.result()
 
@@ -124,23 +194,15 @@ class Runtime:
 
         The async function must be running with `run_async`.
         """
-        as_logger.debug("Scheduling sync task %s", fn)
-        event = anyio.Event()
-        future = Future()
+        logger.debug("Scheduling sync task %s", fn)
+        future = PortalFuture()
+
         work_item = WorkItem(future=future, fn=fn, args=args, kwargs=kwargs)
+        self._work_queue.put_nowait(work_item)
 
-        # Wake up this thread when the future is complete
-        future.add_done_callback(lambda _: self._runtime_loop.call(event.set))
-        self._work_queue.put(work_item)
-
-        # Wake up the main thread
-        self._wakeup.set()
-
-        as_logger.debug("Waiting for completion...")
         # Unblock the event loop thread, wait for completion of the task
-        await event.wait()
-
-        return future.result()
+        logger.debug("Waiting for completion...")
+        return await future.result()
 
     async def run_async_from_loop(
         self, fn: typing.Callable[..., T], *args: typing.Any, **kwargs: typing.Any
@@ -155,10 +217,7 @@ class Runtime:
         future = self._userspace_loop.start_task_soon(
             functools.partial(fn, *args, **kwargs)
         )
-        event = anyio.Event()
-        future.add_done_callback(lambda _: self._runtime_loop.call(event.set))
-        await event.wait()
-        return future.result()
+        return await PortalFuture(future).result()
 
     def run_async_from_userspace(
         self, fn: typing.Callable[..., T], *args: typing.Any, **kwargs: typing.Any
@@ -178,44 +237,20 @@ class Runtime:
 
     def _consume_work_queue(self):
         """
-        Wait for wakeup then get work from the work queue until it is empty.
+        Read work from the work queue until a null item is seen.
         """
-        mt_logger.debug("Waiting for wakeup event...")
-        # TODO: LOOKS LIKE A RACE CONDITION HERE SOMETIMES
-        self._wakeup.wait()
-
         while True:
-            try:
-                mt_logger.debug("Reading work from queue")
-                work_item = self._work_queue.get_nowait()
-            except queue.Empty:
-                mt_logger.debug("Work queue empty!")
+            logger.debug("Waiting for work...")
+            work_item = self._work_queue.get()
+            if work_item is None:
                 break
-            else:
-                if work_item is not None:
-                    mt_logger.debug("Running sync task %s", work_item)
-                    work_item.run()
-                    del work_item
 
-        self._wakeup.clear()
+            logger.debug("Running work item %s", work_item)
+            work_item.run()
+            del work_item
 
-    def _get_debug_info():
-        pass
-
-    def in_sync_thread(self):
+    def in_main_thread(self):
         return self._thread.ident == threading.get_ident()
-
-    @classmethod
-    def print_debug_info(cls):
-        current_thread = threading.current_thread()
-        # in_owner_thread = current_thread.ident == self._thread.ident
-        in_main_thread = threading.main_thread().ident == current_thread.ident
-        debug_info = [
-            # ("In runtime owner thread?", in_owner_thread),
-            ("In main thread?", in_main_thread),
-        ]
-        for key, result in debug_info:
-            print(key, result)
 
 
 @dataclasses.dataclass
@@ -234,27 +269,25 @@ class Workflow:
 
 
 def entrypoint(workflow, parameters):
-    print(f"Entrypoint for {workflow.name!r}")
+    logger.debug(f"Entrypoint for {workflow.name!r}")
     runtime = current_runtime.get(None)
-    if runtime:
-        print("In sync thread?", runtime.in_sync_thread())
     if inspect.iscoroutinefunction(workflow.fn) and (
-        not runtime or not runtime.in_sync_thread()
+        not runtime or not runtime.in_main_thread()
     ):
         print("Returning coroutine")
         return workflow.fn(**parameters)
-    elif runtime and runtime.in_sync_thread():
+    elif runtime and runtime.in_main_thread():
         print("Running with runtime")
         return runtime.run_async(run_workflow, runtime, workflow, parameters)
 
-    elif runtime and not runtime.in_sync_thread():
+    elif runtime and not runtime.in_main_thread():
         print("Oh.. we're already in the async thread.. now what?")
         return runtime.run_async_from_userspace(
             run_workflow, runtime, workflow, parameters
         )
 
     else:
-        mt_logger.debug("Creating new runtime")
+        logger.debug("Creating new runtime")
         with Runtime() as runtime:
             return runtime.run_async(run_workflow, runtime, workflow, parameters)
 
@@ -274,12 +307,12 @@ async def orchestrate_run(
     run: Run,
     parameters: dict,
 ):
-    as_logger.debug("Orchestrating workflow %r", workflow.name)
+    logger.debug("Orchestrating workflow %r", workflow.name)
     runtime = current_runtime.get()
     if inspect.iscoroutinefunction(workflow.fn):
         # Send user coroutines to another event loop that we do not "trust" in so the
         # engine event loop is never blocked
-        print("Sending task to userspace loop")
+        logger.debug("Sending task to userspace loop")
         result = await runtime.run_async_from_loop(workflow.fn, **parameters)
     else:
         result = await runtime.run_in_main_thread(workflow.fn, **parameters)
@@ -288,25 +321,22 @@ async def orchestrate_run(
 
 
 def foo():
-    print("Running foo!")
-    Runtime.print_debug_info()
+    logger.debug("Running foo!")
     return 1
 
 
 async def bar():
-    print("Running bar!")
-    Runtime.print_debug_info()
+    logger.debug("Running bar!")
     return 2
 
 
 def foobar():
-    print("Runing foobar")
+    logger.debug("Runing foobar")
     return foo() + bar()
 
 
 async def afoobar():
-    print("Running afoobar!")
-    Runtime.print_debug_info()
+    logger.debug("Running afoobar!")
     result = foo()
     result = foo()
     aresult = await bar()
@@ -316,16 +346,14 @@ async def afoobar():
 
 
 def foofoobar():
-    print("Running foofoobar")
-    Runtime.print_debug_info()
+    logger.debug("Running foofoobar")
     # result = foobar()
     aresult = afoobar()
     return result + aresult
 
 
 async def afoofoobar():
-    print("Running afoofoobar")
-    Runtime.print_debug_info()
+    logger.debug("Running afoofoobar")
     result = foobar()
     aresult = await afoobar()
     return result + aresult
@@ -355,10 +383,9 @@ print("---- Async parent ----")
 result = anyio.run(afoobar)
 print(result)
 
-print("---- Sync (double nested) ----")
-result = foofoobar()
-print(result)
-
+# print("---- Sync (double nested) ----")
+# result = foofoobar()
+# print(result)
 
 # print("---- Async (double nested) ----")
 # result = anyio.run(afoofoobar)
