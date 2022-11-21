@@ -142,13 +142,14 @@ class PrefectHttpxClient(httpx.AsyncClient):
     """
     A Prefect wrapper for the async httpx client with support for retry-after headers
     for:
+
     - 429 CloudFlare-style rate limiting
     - 503 Service unavailable
 
     Additionally, this client will always call `raise_for_status` on responses.
 
     For more details on rate limit headers, see:
-    - https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI
+    [Configuring Cloudflare Rate Limiting](https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI)
     """
 
     RETRY_MAX = 5
