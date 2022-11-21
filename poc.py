@@ -356,16 +356,13 @@ if __name__ == "__main__":
         return 2
 
     def foobar():
-        logger.debug("Runing foobar")
+        logger.debug("Running foobar")
         return foo() + bar()
 
     async def afoobar():
         logger.debug("Running afoobar!")
-        # result = foo()
+        result = foo()
         aresult = await bar()
-
-        # Failing: Sync (new runtime, in main thread) -> Async (in async worker) -> Sync (in main thread) -> Async (in async worker — blocked)
-        result = foobar()
         return result + aresult
 
     def nested_foobar():
