@@ -409,6 +409,19 @@ class TestSetTaskRunState:
         assert api_response.status == responses.SetStateStatus.ACCEPT
         assert api_response.state.type == states.StateType.FAILED
 
+    async def test_set_task_run_state_returns_404_on_missing_flow_run(
+        self, task_run, client, session
+    ):
+        await models.flow_runs.delete_flow_run(
+            session=session, flow_run_id=task_run.flow_run_id
+        )
+        await session.commit()
+        response = await client.post(
+            f"/task_runs/{task_run.id}/set_state",
+            json=dict(state=dict(type="RUNNING", name="Test State")),
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
 
 class TestTaskRunHistory:
     async def test_history_interval_must_be_one_second_or_larger(self, client):
