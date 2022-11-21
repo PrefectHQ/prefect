@@ -63,8 +63,6 @@ handlers:
 loggers:
     prefect:
         level: "${PREFECT_LOGGING_LEVEL}"
-        handlers: [console]
-        propagate: no
 
     prefect.extra:
         level: "${PREFECT_LOGGING_LEVEL}"
@@ -89,13 +87,9 @@ loggers:
 
     uvicorn:
         level: "${PREFECT_LOGGING_SERVER_LEVEL}"
-        handlers: [console]
-        propagate: no
 
     fastapi:
         level: "${PREFECT_LOGGING_SERVER_LEVEL}"
-        handlers: [console]
-        propagate: no
 
 # The root logger: any logger without propagation disabled sends to here as well
 root:
