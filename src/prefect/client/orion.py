@@ -293,8 +293,7 @@ class OrionClient:
             offset: offset for the flow query
 
         Returns:
-            a list of [Flow model][prefect.orion.schemas.core.Flow] representation
-                of the flows
+            a list of Flow model representations of the flows
         """
         body = {
             "flows": (flow_filter.dict(json_compatible=True) if flow_filter else None),
@@ -328,7 +327,7 @@ class OrionClient:
             flow_name: the name of a flow
 
         Returns:
-            a fully hydrated [Flow model][prefect.orion.schemas.core.Flow]
+            a fully hydrated Flow model
         """
         response = await self._client.get(f"/flows/name/{flow_name}")
         return schemas.core.Flow.parse_obj(response.json())
@@ -811,7 +810,7 @@ class OrionClient:
             work_queue_filter: filter crieteria for work queues
 
         Returns:
-            a list of [WorkQueue model][prefect.orion.schemas.core.WorkQueue] representations
+            a list of WorkQueue model representations
                 of the work queues
         """
         body = {
@@ -837,7 +836,7 @@ class OrionClient:
             prefixes: a list of strings used to match work queue name prefixes
 
         Returns:
-            a list of [WorkQueue model][prefect.orion.schemas.core.WorkQueue] representations
+            a list of WorkQueue model representations
                 of the work queues
         """
         page_length = 100
@@ -971,7 +970,7 @@ class OrionClient:
                 json=block_document.dict(
                     json_compatible=True,
                     exclude_unset=True,
-                    include={"data"},
+                    include={"data", "merge_existing_data"},
                     include_secrets=True,
                 ),
             )
@@ -1075,7 +1074,7 @@ class OrionClient:
         """
         Read all block types
         Raises:
-            httpx.RequestError
+            httpx.RequestError: if the block types were not found
 
         Returns:
             List of BlockTypes.
@@ -1087,7 +1086,7 @@ class OrionClient:
         """
         Read all block schemas
         Raises:
-            httpx.RequestError
+            httpx.RequestError: if a valid block schema was not found
 
         Returns:
             A BlockSchema.
@@ -1345,7 +1344,7 @@ class OrionClient:
             httpx.RequestError: If request fails
 
         Returns:
-            a [Deployment model][prefect.orion.schemas.core.Deployment] representation of the deployment
+            a Deployment model representation of the deployment
         """
         try:
             response = await self._client.get(f"/deployments/name/{name}")
@@ -1381,7 +1380,7 @@ class OrionClient:
             offset: an offset for the deployment query
 
         Returns:
-            a list of [Deployment model][prefect.orion.schemas.core.Deployment] representation
+            a list of Deployment model representations
                 of the deployments
         """
         body = {
@@ -1433,7 +1432,7 @@ class OrionClient:
             flow_run_id: the flow run ID of interest
 
         Returns:
-            a [Flow Run model][prefect.orion.FlowRun] representation of the flow run
+            a Flow Run model representation of the flow run
         """
         try:
             response = await self._client.get(f"/flow_runs/{flow_run_id}")
@@ -1469,7 +1468,7 @@ class OrionClient:
             offset: offset for the flow run query
 
         Returns:
-            a list of [Flow Run model][prefect.orion.FlowRun] representation
+            a list of Flow Run model representations
                 of the flow runs
         """
         body = {
@@ -1509,8 +1508,7 @@ class OrionClient:
                 forcing the Orion API to accept the state
 
         Returns:
-            a [OrchestrationResult model][prefect.orion.orchestration.rules.OrchestrationResult]
-                representation of state orchestration output
+            an OrchestrationResult model representation of state orchestration output
         """
         state_create = state.to_state_create()
         state_create.state_details.flow_run_id = flow_run_id
@@ -1531,7 +1529,7 @@ class OrionClient:
             flow_run_id: the id of the flow run
 
         Returns:
-            a list of [State model][prefect.states.State] representation
+            a list of State model representations
                 of the flow run states
         """
         response = await self._client.get(
@@ -1608,7 +1606,7 @@ class OrionClient:
             task_run_id: the task run ID of interest
 
         Returns:
-            a [Task Run model][prefect.client.schemas.TaskRun] representation of the task run
+            a Task Run model representation of the task run
         """
         response = await self._client.get(f"/task_runs/{task_run_id}")
         return TaskRun.parse_obj(response.json())
@@ -1638,7 +1636,7 @@ class OrionClient:
             offset: an offset for the task run query
 
         Returns:
-            a list of [Task Run model][prefect.client.schemas.TaskRun] representation
+            a list of Task Run model representations
                 of the task runs
         """
         body = {
@@ -1677,8 +1675,7 @@ class OrionClient:
                 forcing the Orion API to accept the state
 
         Returns:
-            a [OrchestrationResult model][prefect.orion.orchestration.rules.OrchestrationResult]
-                representation of state orchestration output
+            an OrchestrationResult model representation of state orchestration output
         """
         state_create = state.to_state_create()
         state_create.state_details.task_run_id = task_run_id
@@ -1698,8 +1695,7 @@ class OrionClient:
             task_run_id: the id of the task run
 
         Returns:
-            a list of [prefect.states.State model][prefect.states.State] representation
-                of the task run states
+            a list of State model representations of the task run states
         """
         response = await self._client.get(
             "/task_run_states/", params=dict(task_run_id=task_run_id)
@@ -1776,7 +1772,7 @@ class OrionClient:
             offset: an offset for the notification policies query
 
         Returns:
-            a list of [FlowRunNotificationPolicy model][schemas.core.FlowRunNotificationPolicy] representation
+            a list of FlowRunNotificationPolicy model representations
                 of the notification policies
         """
         body = {

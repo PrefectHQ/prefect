@@ -39,6 +39,7 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+from prefect.utilities.names import obfuscate
 
 
 class TestSettingClass:
@@ -201,6 +202,17 @@ class TestSettingsClass:
         with pytest.raises(pydantic.ValidationError, match="Unknown level"):
             Settings(**{log_level_setting.name: "FOOBAR"})
 
+    @pytest.mark.parametrize(
+        "log_level_setting",
+        [
+            PREFECT_LOGGING_LEVEL,
+            PREFECT_LOGGING_SERVER_LEVEL,
+        ],
+    )
+    def test_settings_uppercases_log_levels(self, log_level_setting):
+        with temporary_settings({log_level_setting: "debug"}):
+            assert log_level_setting.value() == "DEBUG"
+
     def test_equality_of_new_instances(self):
         assert Settings() == Settings()
 
@@ -213,6 +225,24 @@ class TestSettingsClass:
         assert (
             settings.copy_with_update(updates={PREFECT_TEST_SETTING: "foo"}) != settings
         )
+
+    def test_with_obfuscated_secrets(self):
+        settings = get_current_settings()
+        original = settings.copy()
+        obfuscated = settings.with_obfuscated_secrets()
+        assert settings == original
+        assert original != obfuscated
+        for setting in SETTING_VARIABLES.values():
+            if setting.is_secret:
+                assert obfuscated.value_of(setting) == obfuscate(
+                    original.value_of(setting)
+                )
+            else:
+                # Bypass callbacks to avoid warnings on deprecated settings
+                # TODO: Add a deprecated flag to settings so we can handle this better
+                assert obfuscated.value_of(
+                    setting, bypass_callback=True
+                ) == original.value_of(setting, bypass_callback=True)
 
 
 class TestSettingAccess:

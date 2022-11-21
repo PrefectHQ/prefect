@@ -18,6 +18,13 @@ prefect dev build-docs  \
 """
 publish = "site"
 
+# moved page redirects #
+
+[[redirects]]
+  from = "/collections/overview/"
+  to = "/collections/catalog/"
+  status = 301
+
 # redirect v1 traffic to docs-v1.prefect.io
 [[redirects]]
   from = "/core/*"

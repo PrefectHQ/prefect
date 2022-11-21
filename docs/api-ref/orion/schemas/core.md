@@ -1,3 +1,3 @@
 ::: prefect.orion.schemas.core
-    selection:
+    options:
       filters: ["!^_", "!Parameter", "!Constant", "!TaskRunInput", "!TaskRunResult", "!TaskRunPolicy"]

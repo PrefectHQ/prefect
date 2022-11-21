@@ -179,6 +179,7 @@ class OrionAgent:
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
         deployment = await self.client.read_deployment(flow_run.deployment_id)
+        flow = await self.client.read_flow(deployment.flow_id)
 
         # overrides only apply when configuring known infra blocks
         if not deployment.infrastructure_document_id:
@@ -213,9 +214,14 @@ class OrionAgent:
         doc_dict["data"] = infra_dict
         infra_document = BlockDocument(**doc_dict)
         infrastructure_block = Block._from_block_document(infra_document)
+
         # TODO: Here the agent may update the infrastructure with agent-level settings
 
-        prepared_infrastructure = infrastructure_block.prepare_for_flow_run(flow_run)
+        # Add flow run metadata to the infrastructure
+        prepared_infrastructure = infrastructure_block.prepare_for_flow_run(
+            flow_run, deployment=deployment, flow=flow
+        )
+
         return prepared_infrastructure
 
     async def submit_run(self, flow_run: FlowRun) -> None:

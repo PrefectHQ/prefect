@@ -7,10 +7,16 @@ import pytest
 from prefect.orion import models, schemas
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.orchestration.dependencies import (
+    provide_task_orchestration_parameters,
     provide_task_policy,
+    temporary_task_orchestration_parameters,
     temporary_task_policy,
 )
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
+from prefect.orion.orchestration.rules import (
+    ALL_ORCHESTRATION_STATES,
+    BaseOrchestrationRule,
+)
 from prefect.orion.schemas.states import Failed, Running, Scheduled, StateType
 
 
@@ -167,6 +173,32 @@ class TestCreateTaskRunState:
             # the original state remains in place
             await session.refresh(task_run)
             assert task_run.state.id != trs.state.id
+
+    async def test_orchestration_with_injected_parameters(self, task_run, session):
+        class AbortingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                # this rule mutates the proposed state type, but won't fizzle itself upon exiting
+                if context.parameters.get("special-signal") == "abort":
+                    await self.abort_transition("wow, aborting this transition")
+
+        class AbortingPolicy(BaseOrchestrationPolicy):
+            def priority():
+                return [AbortingRule]
+
+        with temporary_task_orchestration_parameters({"special-signal": "abort"}):
+            with temporary_task_policy(AbortingPolicy):
+                trs = await models.task_runs.set_task_run_state(
+                    session=session,
+                    task_run_id=task_run.id,
+                    state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+                    task_policy=await provide_task_policy(),
+                    orchestration_parameters=await provide_task_orchestration_parameters(),
+                )
+
+                assert trs.status == schemas.responses.SetStateStatus.ABORT
 
     async def test_object_not_found_if_id_not_found(self, session):
         with pytest.raises(ObjectNotFoundError):
