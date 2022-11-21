@@ -7,8 +7,8 @@ from uuid import uuid4
 import pendulum
 import pytest
 
-from prefect.exceptions import MissingFlowRunError
 from prefect.orion import schemas
+from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
@@ -510,7 +510,7 @@ class TestUpdatingFlowRunTrackerOnTasks:
         async def missing_flow_run(self):
             return None
 
-        with pytest.raises(MissingFlowRunError, match="Unable to read flow run"):
+        with pytest.raises(ObjectNotFoundError, match="Unable to read flow run"):
             async with contextlib.AsyncExitStack() as stack:
                 for rule in update_policy:
                     ctx = await stack.enter_async_context(
