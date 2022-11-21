@@ -1,3 +1,4 @@
+from typing import Generator
 from unittest.mock import MagicMock
 
 import pendulum
@@ -338,7 +339,7 @@ async def test_agent_runs_multiple_work_queues(orion_client, session, flow):
 
 class TestInfrastructureIntegration:
     @pytest.fixture
-    def mock_infrastructure_run(self, monkeypatch) -> MagicMock:
+    def mock_infrastructure_run(self, monkeypatch) -> Generator[MagicMock, None, None]:
         """
         Mocks all subtype implementations of `Infrastructure.run`.
 
@@ -361,6 +362,7 @@ class TestInfrastructureIntegration:
         async def mock_run(self, task_status=None):
             # Record the call immediately
             result = mock(self.dict())
+            result.identifier = "id-1234"
 
             # Perform side-effects for testing error handling
 
@@ -429,6 +431,22 @@ class TestInfrastructureIntegration:
         flow_run = await orion_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_pending()
         mock_infrastructure_run.assert_called_once()
+
+    async def test_agent_sets_infrastructure_pid(
+        self, orion_client, deployment, mock_infrastructure_run
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+        )
+
+        async with OrionAgent(
+            work_queues=[deployment.work_queue_name], prefetch_seconds=10
+        ) as agent:
+            await agent.get_and_submit_flow_runs()
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.infrastructure_pid == "id-1234"
 
     async def test_agent_submit_run_waits_for_scheduled_time_before_submitting(
         self,
