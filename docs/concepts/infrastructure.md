@@ -241,11 +241,14 @@ Requirements for `ECSTask`:
 ```Dockerfile
 FROM prefecthq/prefect:2-python3.9  # example base image 
 RUN pip install s3fs prefect-aws
-RUN prefect block register -m prefect_aws.ecs
 ```
 
 To get started using Prefect with ECS, check out the repository template [dataflow-ops](https://github.com/anna-geller/dataflow-ops) demonstrating ECS agent setup and various deployment configurations for using `ECSTask` block. 
 
+
+!!! tip "Make sure to allocate enough CPU and memory to your agent"
+    When you start a Prefect agent on AWS ECS Fargate, allocate as much [CPU and memory](https://docs.aws.amazon.com/AmazonECS/latest/userguide/fargate-task-defs.html#fargate-tasks-size) as needed for your workloads. Your agent needs enough resources to appropriately provision infrastructure for your flow runs and to monitor their execution. Otherwise, your flow runs may [get stuck](https://github.com/PrefectHQ/prefect-aws/issues/156#issuecomment-1320748748) in a `Pending` state. Alternatively, set a work-queue concurrency limit to ensure that the agent will not try to process all runs at the same time.
+    
 
 ## Docker images
 

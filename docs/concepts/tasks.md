@@ -396,8 +396,8 @@ $ prefect concurrency-limit [command] [arguments]
 | --- | --- |
 | create | Create a concurrency limit by specifying a tag and limit. |
 | delete | Delete the concurrency limit set on the specified tag. |
+| inspect | View details about a concurrency limit set on the specified tag. |
 | ls     | View all defined concurrency limits. |
-| read   | View details about a concurrency limit. `active_slots` shows a list of IDs for task runs that are currently using a concurrency slot. |
 
 For example, to set a concurrency limit of 10 on the 'small_instance' tag:
 
@@ -409,6 +409,12 @@ To delete the concurrency limit on the 'small_instance' tag:
 
 ```bash
 $ prefect concurrency-limit delete small_instance
+```
+
+To view details about the concurrency limit on the 'small_instance' tag:
+
+```bash
+$ prefect concurrency-limit inspect small_instance
 ```
 
 #### Python client
