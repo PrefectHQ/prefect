@@ -60,6 +60,11 @@ img {
     margin-bottom: 0;
 }
 
+/* push "go to prefect cloud" */
+.cloud-link {
+    margin-left: auto;
+}
+
 /* Table formatting */
 .md-typeset table:not([class]) {
     font-size: .8rem;
@@ -221,6 +226,10 @@ to force column width */
 /* dark mode collection catalog overrides */
 [data-md-color-scheme="slate"] .collection-item {
     background-color: #3b3d54;
+}
+
+[data-md-color-scheme="slate"] .collection-item img {
+    filter: drop-shadow(1px 1px 8px rgba(172, 182, 255, 0.35));
 }
 
 /* dark mode recipe collection overrides */

@@ -16,6 +16,7 @@ pre-commit
 pytest > 7
 pytest-asyncio >= 0.18.2
 pytest-cov
+pytest-benchmark
 pytest-env
 pytest-timeout
 pytest-xdist
