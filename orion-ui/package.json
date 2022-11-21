@@ -10,7 +10,7 @@
     "test": "playwright test"
   },
   "dependencies": {
-    "@prefecthq/orion-design": "1.1.10",
+    "@prefecthq/orion-design": "1.1.12",
     "@prefecthq/prefect-design": "1.1.29",
     "@prefecthq/vue-compositions": "0.2.6",
     "@types/lodash.debounce": "4.0.7",
@@ -22,7 +22,7 @@
     "vue-router": "4.1.6"
   },
   "devDependencies": {
-    "@playwright/test": "1.27.1",
+    "@playwright/test": "1.28.0",
     "@prefecthq/eslint-config": "1.0.17",
     "@types/d3": "^7.4.0",
     "@vitejs/plugin-vue": "^2.3.3",

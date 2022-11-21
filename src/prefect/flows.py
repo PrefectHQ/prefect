@@ -402,7 +402,7 @@ class Flow(Generic[P, R]):
         Args:
             *args: Arguments to run the flow with.
             return_state: Return a Prefect State containing the result of the
-            flow run.
+                flow run.
             wait_for: Upstream task futures to wait for before starting the flow if called as a subflow
             **kwargs: Keyword arguments to run the flow with.
 
@@ -724,7 +724,10 @@ def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
         The flow object from the script
 
     Raises:
-        See `load_flows_from_script` and `select_flow`
+        FlowScriptError: If an exception is encountered while running the script
+        MissingFlowError: If no flows exist in the iterable
+        MissingFlowError: If a flow name is provided and that flow does not exist
+        UnspecifiedFlowError: If multiple flows exist but no flow name was provided
     """
     return select_flow(
         load_flows_from_script(path),
