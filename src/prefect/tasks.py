@@ -118,6 +118,8 @@ class Task(Generic[P, R]):
         result_serializer: An optional serializer to use to serialize the result of this
             task for persistence. Defaults to the value set in the flow the task is
             called in.
+        timeout_seconds: An optional number of seconds indicating a maximum runtime for
+            the task. If the task exceeds this runtime, it will be marked as failed.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -139,6 +141,7 @@ class Task(Generic[P, R]):
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
+        timeout_seconds: Union[int, float] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -180,7 +183,7 @@ class Task(Generic[P, R]):
         self.result_storage = result_storage
         self.result_serializer = result_serializer
         self.cache_result_in_memory = cache_result_in_memory
-
+        self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
         # Warn if this task's `name` conflicts with another task while having a
         # different function. This is to detect the case where two or more tasks
         # share a name or are lambdas, which should result in a warning, and to
@@ -218,6 +221,7 @@ class Task(Generic[P, R]):
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
         cache_result_in_memory: Optional[bool] = None,
+        timeout_seconds: Union[int, float] = None,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -301,6 +305,9 @@ class Task(Generic[P, R]):
                 cache_result_in_memory
                 if cache_result_in_memory is not None
                 else self.cache_result_in_memory
+            ),
+            timeout_seconds=(
+                timeout_seconds if timeout_seconds is not None else self.timeout_seconds
             ),
         )
 
@@ -466,7 +473,7 @@ class Task(Generic[P, R]):
         Args:
             *args: Arguments to run the task with
             return_state: Return the result of the flow run wrapped in a
-            Prefect State.
+                Prefect State.
             wait_for: Upstream task futures to wait for before starting the task
             **kwargs: Keyword arguments to run the task with
 
@@ -619,9 +626,9 @@ class Task(Generic[P, R]):
         Args:
             *args: Iterable and static arguments to run the tasks with
             return_state: Return a list of Prefect States that wrap the results
-              of each task run.
+                of each task run.
             wait_for: Upstream task futures to wait for before starting the
-              task
+                task
             **kwargs: Keyword iterable arguments to run the task with
 
         Returns:
@@ -747,6 +754,7 @@ def task(
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
+    timeout_seconds: Union[int, float] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -766,6 +774,7 @@ def task(
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
+    timeout_seconds: Union[int, float] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -864,6 +873,7 @@ def task(
                 result_storage=result_storage,
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
+                timeout_seconds=timeout_seconds,
             ),
         )
     else:
@@ -883,5 +893,6 @@ def task(
                 result_storage=result_storage,
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
+                timeout_seconds=timeout_seconds,
             ),
         )

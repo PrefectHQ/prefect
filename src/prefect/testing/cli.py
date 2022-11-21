@@ -77,6 +77,7 @@ def invoke_and_assert(
         ctx = runner.isolated_filesystem(temp_dir=temp_dir)
     else:
         ctx = contextlib.nullcontext()
+
     with ctx:
         result = runner.invoke(app, command, catch_exceptions=False, input=user_input)
 
@@ -122,3 +123,14 @@ def invoke_and_assert(
         ), f"Expected {expected_line_count} lines of CLI output, only {line_count} lines present"
 
     return result
+
+
+@contextlib.contextmanager
+def temporary_console_width(console, width):
+    original = console.width
+
+    try:
+        console._width = width
+        yield
+    finally:
+        console._width = original

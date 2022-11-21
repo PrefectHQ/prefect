@@ -519,7 +519,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         TO_STATES: list of valid proposed state types this rule governs
         context: the orchestration context
         from_state_type: the state type a run is currently in
-        to_state_type: the proposed state type a run is transitioning into
+        to_state_type: the intended proposed state type prior to any orchestration
 
     Args:
         context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
@@ -859,6 +859,8 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         FROM_STATES: for compatibility with `BaseOrchestrationPolicy`
         TO_STATES: for compatibility with `BaseOrchestrationPolicy`
         context: the orchestration context
+        from_state_type: the state type a run is currently in
+        to_state_type: the intended proposed state type prior to any orchestration
 
     Args:
         context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
@@ -872,8 +874,12 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
     def __init__(
         self,
         context: OrchestrationContext,
+        from_state_type: Optional[states.StateType],
+        to_state_type: Optional[states.StateType],
     ):
         self.context = context
+        self.from_state_type = from_state_type
+        self.to_state_type = to_state_type
 
     async def __aenter__(self):
         """
@@ -886,9 +892,8 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         `self.before_transition` will fire.
         """
 
-        if not self.nullified_transition():
-            await self.before_transition(self.context)
-            self.context.rule_signature.append(str(self.__class__))
+        await self.before_transition(self.context)
+        self.context.rule_signature.append(str(self.__class__))
         return self.context
 
     async def __aexit__(
@@ -905,7 +910,7 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         proposed state.
         """
 
-        if not self.nullified_transition() and not self.exception_in_transition():
+        if not self.exception_in_transition():
             await self.after_transition(self.context)
             self.context.finalization_signature.append(str(self.__class__))
 

@@ -35,6 +35,7 @@ pytest.register_assert_rewrite("prefect.testing.utilities")
 
 import prefect
 import prefect.settings
+from prefect.logging import get_logger
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_URL,
@@ -451,3 +452,20 @@ def reset_registered_blocks():
 
     registry.clear()
     registry.update(before)
+
+
+@pytest.fixture
+def caplog(caplog):
+    """
+    Overrides caplog to apply to all of our loggers that do not propagate and
+    consequently would not be captured by caplog.
+    """
+
+    config = setup_logging()
+
+    for name, logger_config in config["loggers"].items():
+        if not logger_config.get("propagate", True):
+            logger = get_logger(name)
+            logger.handlers.append(caplog.handler)
+
+    yield caplog
