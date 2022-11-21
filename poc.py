@@ -1,3 +1,4 @@
+import collections
 import concurrent.futures
 import contextlib
 import contextvars
@@ -117,6 +118,9 @@ class PortalFuture:
 
 @contextlib.contextmanager
 def start_portal_thread(name: str = None):
+    """
+    Run a new thread with an event loop.
+    """
     with anyio.start_blocking_portal() as portal:
         portal.call(set_current_portal, portal, name)
         yield portal
@@ -124,6 +128,11 @@ def start_portal_thread(name: str = None):
 
 @dataclasses.dataclass
 class WorkItem:
+    """
+    A call to perform in a thread.
+
+    """
+
     future: PortalFuture
     fn: typing.Callable
     args: typing.Tuple
@@ -147,7 +156,10 @@ class Runtime:
     def __init__(self) -> None:
         self._exit_stack = contextlib.ExitStack()
         self._runtime_loop: anyio.abc.BlockingPortal = None
-        self._userspace_loop: anyio.abc.BlockingPortal = None
+        self._worker_loops: typing.Dict[int, anyio.abc.BlockingPortal] = {}
+        self._worker_locks: typing.Dict[int, threading.Lock] = collections.defaultdict(
+            threading.Lock
+        )
         self._work_queue: queue.Queue[WorkItem] = queue.Queue()
         self._thread = threading.current_thread()
 
@@ -155,9 +167,6 @@ class Runtime:
         self._exit_stack.__enter__()
         self._runtime_loop = self._exit_stack.enter_context(
             start_portal_thread(name="Runtime")
-        )
-        self._userspace_loop = self._exit_stack.enter_context(
-            start_portal_thread(name="Userspace")
         )
         self._context_token = current_runtime.set(self)
         return self
@@ -186,7 +195,7 @@ class Runtime:
 
         return future.result()
 
-    async def run_in_main_thread(
+    async def run_sync_in_main_thread(
         self, fn: typing.Callable[..., T], *args: typing.Any, **kwargs: typing.Any
     ) -> T:
         """
@@ -204,36 +213,52 @@ class Runtime:
         logger.debug("Waiting for completion...")
         return await future.result()
 
-    async def run_async_from_loop(
+    async def run_async_in_worker(
         self, fn: typing.Callable[..., T], *args: typing.Any, **kwargs: typing.Any
     ):
         """
-        Schedule work on a user-space event loop from the runtime event loop.
+        Schedule work on a worker event loop from the runtime event loop.
 
         The user may make blocking synchronous calls and we must be careful to avoid
         blocking the runtime event loop. Even if the user's call does not perform IO,
-        it may need to block to perform
+        it may need to block when calling into the runtime.
         """
-        future = self._userspace_loop.start_task_soon(
-            functools.partial(fn, *args, **kwargs)
-        )
-        return await PortalFuture(future).result()
+        with self._get_async_worker() as worker:
+            future = worker.start_task_soon(functools.partial(fn, *args, **kwargs))
+            return await PortalFuture(future).result()
 
-    def run_async_from_userspace(
+    def run_async_from_worker(
         self, fn: typing.Callable[..., T], *args: typing.Any, **kwargs: typing.Any
     ):
-        """ """
+        """
+        Schedule work on the runtime event loop from a worker event loop.
+        """
         future = self._runtime_loop.start_task_soon(
             functools.partial(fn, *args, **kwargs)
         )
-        # event = anyio.Event()
-        # future.add_done_callback(lambda _: self._runtime_loop.call(event.set))
-        # await event.wait()
-        # THIS BLOCKS THIS LOOP!
-        # This is fine until the runtime (which we just called into) needs to schedule
-        # another user-space task here. Really, this needs to be an awaitable for things
-        # to work
-        return future.result()
+        with self._worker_locks[get_current_portal()._event_loop_thread_id]:
+            return future.result()
+
+    @contextlib.contextmanager
+    def _get_async_worker(self):
+        """
+        Get a worker loop.
+
+        If all worker loops are blocked, create a temporary new worker.
+        """
+        for worker_id, loop in self._worker_loops.items():
+            lock = self._worker_locks.get(worker_id)
+            if not lock or not lock.locked():
+                yield loop
+                break
+        else:
+            logger.debug("Created new async worker")
+            with start_portal_thread(
+                name=f"Worker-{len(self._worker_loops) + 1}"
+            ) as loop:
+                self._worker_loops[loop._event_loop_thread_id] = loop
+                yield loop
+                self._worker_loops.pop(loop._event_loop_thread_id)
 
     def _consume_work_queue(self):
         """
@@ -274,20 +299,20 @@ def entrypoint(workflow, parameters):
     if inspect.iscoroutinefunction(workflow.fn) and (
         not runtime or not runtime.in_main_thread()
     ):
-        print("Returning coroutine")
+        logger.debug("Entrypoint: Returning coroutine")
         return workflow.fn(**parameters)
     elif runtime and runtime.in_main_thread():
-        print("Running with runtime")
+        logger.debug("Entrypoint: Running with runtime")
         return runtime.run_async(run_workflow, runtime, workflow, parameters)
 
     elif runtime and not runtime.in_main_thread():
-        print("Oh.. we're already in the async thread.. now what?")
-        return runtime.run_async_from_userspace(
+        logger.debug("Entrypoint: Oh.. we're already in the async thread.. now what?")
+        return runtime.run_async_from_worker(
             run_workflow, runtime, workflow, parameters
         )
 
     else:
-        logger.debug("Creating new runtime")
+        logger.debug("Entrypoint: Creating new runtime")
         with Runtime() as runtime:
             return runtime.run_async(run_workflow, runtime, workflow, parameters)
 
@@ -312,81 +337,98 @@ async def orchestrate_run(
     if inspect.iscoroutinefunction(workflow.fn):
         # Send user coroutines to another event loop that we do not "trust" in so the
         # engine event loop is never blocked
-        logger.debug("Sending task to userspace loop")
-        result = await runtime.run_async_from_loop(workflow.fn, **parameters)
+        logger.debug("Sending task to worker loop")
+        result = await runtime.run_async_in_worker(workflow.fn, **parameters)
     else:
-        result = await runtime.run_in_main_thread(workflow.fn, **parameters)
+        result = await runtime.run_sync_in_main_thread(workflow.fn, **parameters)
 
     return result
 
 
-def foo():
-    logger.debug("Running foo!")
-    return 1
+if __name__ == "__main__":
 
+    def foo():
+        logger.debug("Running foo!")
+        return 1
 
-async def bar():
-    logger.debug("Running bar!")
-    return 2
+    async def bar():
+        logger.debug("Running bar!")
+        return 2
 
+    def foobar():
+        logger.debug("Runing foobar")
+        return foo() + bar()
 
-def foobar():
-    logger.debug("Runing foobar")
-    return foo() + bar()
+    async def afoobar():
+        logger.debug("Running afoobar!")
+        # result = foo()
+        aresult = await bar()
 
+        # Failing: Sync (new runtime, in main thread) -> Async (in async worker) -> Sync (in main thread) -> Async (in async worker — blocked)
+        result = foobar()
+        return result + aresult
 
-async def afoobar():
-    logger.debug("Running afoobar!")
+    def nested_foobar():
+        logger.debug("Running nested_foobar")
+        result = foobar()
+        aresult = afoobar()
+        return result + aresult
+
+    async def anested_foobar():
+        logger.debug("Running anested_foobar")
+        result = foobar()
+        aresult = await afoobar()
+        return result + aresult
+
+    def tripled_foobar():
+        logger.debug("Running tripled_foobar")
+        result = nested_foobar()
+        aresult = anested_foobar()
+        return result + aresult
+
+    async def atripled_foobar():
+        logger.debug("Running atripled_foobar")
+        result = nested_foobar()
+        aresult = await anested_foobar()
+        return result + aresult
+
+    foo = Workflow(name="foo", fn=foo)
+    bar = Workflow(name="bar", fn=bar)
+    foobar = Workflow(name="foobar", fn=foobar)
+    afoobar = Workflow(name="afoobar", fn=afoobar)
+    nested_foobar = Workflow(name="nested_foobar", fn=nested_foobar)
+    anested_foobar = Workflow(name="anested_foobar", fn=anested_foobar)
+    tripled_foobar = Workflow(name="tripled_foobar", fn=tripled_foobar)
+    atripled_foobar = Workflow(name="atripled_foobar", fn=atripled_foobar)
+
+    print("---- Sync ----")
     result = foo()
-    result = foo()
-    aresult = await bar()
-    aresult = await bar()
-    foobar()
-    return result + aresult
+    print(result)
 
+    print("---- Async ----")
+    result = anyio.run(bar)
+    print(result)
 
-def foofoobar():
-    logger.debug("Running foofoobar")
-    # result = foobar()
-    aresult = afoobar()
-    return result + aresult
-
-
-async def afoofoobar():
-    logger.debug("Running afoofoobar")
+    print("---- Sync parent ----")
     result = foobar()
-    aresult = await afoobar()
-    return result + aresult
+    print(result)
 
+    print("---- Async parent ----")
+    result = anyio.run(afoobar)
+    print(result)
 
-foo = Workflow(name="foo", fn=foo)
-bar = Workflow(name="bar", fn=bar)
-foobar = Workflow(name="foobar", fn=foobar)
-afoobar = Workflow(name="afoobar", fn=afoobar)
-foofoobar = Workflow(name="foofoobar", fn=foofoobar)
-afoofoobar = Workflow(name="afoofoobar", fn=afoofoobar)
+    print("---- Sync (double nested) ----")
+    result = nested_foobar()
+    print(result)
 
-print("---- Sync ----")
-result = foo()
-print(result)
+    print("---- Async (double nested) ----")
+    result = anyio.run(anested_foobar)
+    print(result)
 
-print("---- Async ----")
-result = anyio.run(bar)
-print(result)
+    print("---- Sync (triple nested) ----")
+    result = tripled_foobar()
+    print(result)
 
-
-print("---- Sync (parent) ----")
-result = foobar()
-print(result)
-
-print("---- Async parent ----")
-result = anyio.run(afoobar)
-print(result)
-
-# print("---- Sync (double nested) ----")
-# result = foofoobar()
-# print(result)
-
-# print("---- Async (double nested) ----")
-# result = anyio.run(afoofoobar)
-# print(result)
+    print("---- Async (triple nested) ----")
+    result = anyio.run(atripled_foobar)
+    print(result)
