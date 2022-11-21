@@ -368,6 +368,8 @@ class ORMFlowRun(ORMRun):
         nullable=True,
     )
 
+    infrastructure_pid = sa.Column(sa.String)
+
     @declared_attr
     def infrastructure_document_id(cls):
         return sa.Column(

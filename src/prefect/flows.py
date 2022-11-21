@@ -118,8 +118,8 @@ class Flow(Generic[P, R]):
     def __init__(
         self,
         fn: Callable[P, R],
-        name: str = None,
-        version: str = None,
+        name: Optional[str] = None,
+        version: Optional[str] = None,
         retries: int = 0,
         retry_delay_seconds: Union[int, float] = 0,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
@@ -402,7 +402,7 @@ class Flow(Generic[P, R]):
         Args:
             *args: Arguments to run the flow with.
             return_state: Return a Prefect State containing the result of the
-            flow run.
+                flow run.
             wait_for: Upstream task futures to wait for before starting the flow if called as a subflow
             **kwargs: Keyword arguments to run the flow with.
 
@@ -500,8 +500,8 @@ def flow(__fn: Callable[P, R]) -> Flow[P, R]:
 @overload
 def flow(
     *,
-    name: str = None,
-    version: str = None,
+    name: Optional[str] = None,
+    version: Optional[str] = None,
     retries: int = 0,
     retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
@@ -519,8 +519,8 @@ def flow(
 def flow(
     __fn=None,
     *,
-    name: str = None,
-    version: str = None,
+    name: Optional[str] = None,
+    version: Optional[str] = None,
     retries: int = 0,
     retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
@@ -724,7 +724,10 @@ def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
         The flow object from the script
 
     Raises:
-        See `load_flows_from_script` and `select_flow`
+        FlowScriptError: If an exception is encountered while running the script
+        MissingFlowError: If no flows exist in the iterable
+        MissingFlowError: If a flow name is provided and that flow does not exist
+        UnspecifiedFlowError: If multiple flows exist but no flow name was provided
     """
     return select_flow(
         load_flows_from_script(path),
