@@ -1,23 +1,13 @@
-import time
-
 import pytest
 
-from prefect import flow, task
-
-
-@task(name=f"{__name__}-add_one")
-def add_one(x: int) -> int:
-    return x + 1
-
-
-@task(name=f"{__name__}-subtract_ten")
-def subtract_ten(x: int) -> int:
-    return x - 10
-
-
-@task(name=f"{__name__}-sleep")
-def sleep(x: float):
-    time.sleep(x)
+from prefect import flow
+from tests.generic_tasks import (
+    add_one,
+    async_multiply_by_two,
+    noop,
+    sleep,
+    subtract_ten,
+)
 
 
 @pytest.mark.skip(reason="Causes a deadlock.")
@@ -50,3 +40,23 @@ def test_sleep_wait_for():
         add_one.map(range(n), wait_for=[sleep.submit(sleep_time)])
 
     run(5, 50)
+
+
+@pytest.mark.skip(reason="Causes a deadlock.")
+async def test_async_task_as_dependency():
+    @flow
+    async def run():
+        multiplied = await async_multiply_by_two.submit(42)
+        add_one(multiplied)
+
+    await run()
+
+
+@pytest.mark.skip(reason="Causes a deadlock.")
+async def test_sync_task_after_async_in_async_flow(use_hosted_orion):
+    @flow
+    async def run():
+        await async_multiply_by_two(42)
+        noop.submit()
+
+    await run()

@@ -12,10 +12,10 @@ import sqlalchemy as sa
 from packaging.version import Version
 from sqlalchemy import select
 
-from prefect.exceptions import MissingFlowRunError
 from prefect.orion import models
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
@@ -422,7 +422,7 @@ class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
         if self.flow_run:
             context.run.flow_run_run_count = self.flow_run.run_count
         else:
-            raise MissingFlowRunError(
+            raise ObjectNotFoundError(
                 f"Unable to read flow run associated with task run: {context.run.id}, this flow run might have been deleted",
             )
 

@@ -874,6 +874,8 @@ class Settings(SettingsFieldsMixin):
 
     @validator(PREFECT_LOGGING_LEVEL.name, PREFECT_LOGGING_SERVER_LEVEL.name)
     def check_valid_log_level(cls, value):
+        if isinstance(value, str):
+            value = value.upper()
         logging._checkLevel(value)
         return value
 

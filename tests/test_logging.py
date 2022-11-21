@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import queue
 import sys
@@ -30,6 +31,7 @@ from prefect.logging.configuration import (
     load_logging_config,
     setup_logging,
 )
+from prefect.logging.formatters import JsonFormatter
 from prefect.logging.handlers import OrionHandler, OrionLogWorker, PrefectConsoleHandler
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
@@ -51,6 +53,7 @@ from prefect.settings import (
     PREFECT_LOGGING_SETTINGS_PATH,
     temporary_settings,
 )
+from prefect.testing.cli import temporary_console_width
 from prefect.testing.utilities import AsyncMock
 
 
@@ -103,27 +106,19 @@ def test_setup_logging_uses_default_path(tmp_path, dictConfigMock):
         {PREFECT_LOGGING_SETTINGS_PATH: tmp_path.joinpath("does-not-exist.yaml")}
     ):
         expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
+        expected_config["incremental"] = False
         setup_logging()
 
     dictConfigMock.assert_called_once_with(expected_config)
 
 
-def test_setup_logging_allows_repeated_calls(dictConfigMock):
+def test_setup_logging_sets_incremental_on_repeated_calls(dictConfigMock):
     setup_logging()
-    dictConfigMock.assert_called_once()
+    assert dictConfigMock.call_count == 1
     setup_logging()
-    dictConfigMock.assert_called_once()
-
-
-def test_setup_logging_warns_on_repeated_calls_with_new_settings(dictConfigMock):
-    setup_logging()
-    dictConfigMock.assert_called_once()
-    with pytest.warns(
-        UserWarning, match="only be setup once per process.* will be ignored"
-    ):
-        with temporary_settings({PREFECT_LOGGING_LEVEL: "ERROR"}):
-            setup_logging()
-    dictConfigMock.assert_called_once()
+    assert dictConfigMock.call_count == 2
+    assert dictConfigMock.mock_calls[0][1][0]["incremental"] == False
+    assert dictConfigMock.mock_calls[1][1][0]["incremental"] == True
 
 
 def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
@@ -134,6 +129,7 @@ def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
 
         setup_logging()
         expected_config = load_logging_config(tmp_path.joinpath("exists.yaml"))
+        expected_config["incremental"] = False
 
     dictConfigMock.assert_called_once_with(expected_config)
 
@@ -146,6 +142,8 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
         expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
     env = {}
 
+    expected_config["incremental"] = False
+
     # Test setting a value for a simple key
     env["PREFECT_LOGGING_HANDLERS_ORION_LEVEL"] = "ORION_LEVEL_VAL"
     expected_config["handlers"]["orion"]["level"] = "ORION_LEVEL_VAL"
@@ -155,13 +153,13 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
     expected_config["root"]["level"] = "ROOT_LEVEL_VAL"
 
     # Test setting a value where the a key contains underscores
-    env["PREFECT_LOGGING_FORMATTERS_FLOW_RUNS_DATEFMT"] = "UNDERSCORE_KEY_VAL"
-    expected_config["formatters"]["flow_runs"]["datefmt"] = "UNDERSCORE_KEY_VAL"
+    env["PREFECT_LOGGING_FORMATTERS_STANDARD_FLOW_RUN_FMT"] = "UNDERSCORE_KEY_VAL"
+    expected_config["formatters"]["standard"]["flow_run_fmt"] = "UNDERSCORE_KEY_VAL"
 
     # Test setting a value where the key contains a period
-    env["PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL"] = "FLOW_RUN_VAL"
+    env["PREFECT_LOGGING_LOGGERS_PREFECT_EXTRA_LEVEL"] = "VAL"
 
-    expected_config["loggers"]["prefect.flow_runs"]["level"] = "FLOW_RUN_VAL"
+    expected_config["loggers"]["prefect.extra"]["level"] = "VAL"
 
     # Test setting a value that does not exist in the yaml config and should not be
     # set in the expected_config since there is no value to override
@@ -239,6 +237,7 @@ def test_get_logger_does_not_duplicate_prefect_prefix():
 def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
     with temporary_settings({PREFECT_LOGGING_LEVEL: "WARNING"}):
         expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
+        expected_config["incremental"] = False
 
         assert expected_config["loggers"]["prefect"]["level"] == "WARNING"
         assert expected_config["loggers"]["prefect.extra"]["level"] == "WARNING"
@@ -1094,23 +1093,115 @@ class TestPrefectConsoleHandler:
         ]
         assert handler.level == logging.DEBUG
 
+    def test_uses_stderr_by_default(self, capsys):
+        logger = get_logger(uuid.uuid4().hex)
+        logger.handlers = [PrefectConsoleHandler()]
+        logger.info("Test!")
+        stdout, stderr = capsys.readouterr()
+        assert stdout == ""
+        assert "Test!" in stderr
 
-@pytest.fixture
-def flow_run_caplog(caplog):
-    """
-    Capture logging from flow runs to ensure messages are correct.
-    """
-    logger = logging.getLogger("prefect.flow_runs")
-    logger.propagate = True
+    def test_respects_given_stream(self, capsys):
+        logger = get_logger(uuid.uuid4().hex)
+        logger.handlers = [PrefectConsoleHandler(stream=sys.stdout)]
+        logger.info("Test!")
+        stdout, stderr = capsys.readouterr()
+        assert stderr == ""
+        assert "Test!" in stdout
 
-    try:
-        yield caplog
-    finally:
-        logger.propagate = False
+    def test_includes_tracebacks_during_exceptions(self, capsys):
+        logger = get_logger(uuid.uuid4().hex)
+        logger.handlers = [PrefectConsoleHandler()]
+
+        try:
+            raise ValueError("oh my")
+        except:
+            logger.exception("Helpful context!")
+
+        _, stderr = capsys.readouterr()
+        assert "Helpful context!" in stderr
+        assert "Traceback" in stderr
+        assert 'raise ValueError("oh my")' in stderr
+        assert "ValueError: oh my" in stderr
+
+    def test_does_not_word_wrap_or_crop_messages(self, capsys):
+        logger = get_logger(uuid.uuid4().hex)
+        handler = PrefectConsoleHandler()
+        logger.handlers = [handler]
+
+        # Pretend we have a narrow little console
+        with temporary_console_width(handler.console, 10):
+            logger.info("x" * 1000)
+
+        _, stderr = capsys.readouterr()
+        # There will be newlines in the middle if cropped
+        assert "x" * 1000 in stderr
 
 
-def test_log_in_flow(flow_run_caplog):
-    msg = "10:21:34.114 | INFO    | Flow run 'polite-jackal' - Finished in state Completed()"
+class TestJsonFormatter:
+    def test_json_log_formatter(self):
+        formatter = JsonFormatter("default", None, "%")
+        record = logging.LogRecord(
+            name="Test Log",
+            level=1,
+            pathname="/path/file.py",
+            lineno=1,
+            msg="log message",
+            args=None,
+            exc_info=None,
+        )
+
+        formatted = formatter.format(record)
+
+        # we should be able to load the formatted JSON successfully
+        deserialized = json.loads(formatted)
+
+        # we can't check for an exact JSON string because some attributes vary at
+        # runtime, so check some known attributes instead
+        assert deserialized["name"] == "Test Log"
+        assert deserialized["levelname"] == "Level 1"
+        assert deserialized["filename"] == "file.py"
+        assert deserialized["lineno"] == 1
+
+    def test_json_log_formatter_with_exception(self):
+
+        exc_info = None
+        try:
+            raise Exception("test exception")  # noqa
+        except Exception as exc:  # noqa
+            exc_info = sys.exc_info()
+
+        formatter = JsonFormatter("default", None, "%")
+        record = logging.LogRecord(
+            name="Test Log",
+            level=1,
+            pathname="/path/file.py",
+            lineno=1,
+            msg="log message",
+            args=None,
+            exc_info=exc_info,
+        )
+
+        formatted = formatter.format(record)
+
+        # we should be able to load the formatted JSON successfully
+        deserialized = json.loads(formatted)
+
+        # we can't check for an exact JSON string because some attributes vary at
+        # runtime, so check some known attributes instead
+        assert deserialized["name"] == "Test Log"
+        assert deserialized["levelname"] == "Level 1"
+        assert deserialized["filename"] == "file.py"
+        assert deserialized["lineno"] == 1
+        assert deserialized["exc_info"] is not None
+        assert deserialized["exc_info"]["type"] == "Exception"
+        assert deserialized["exc_info"]["message"] == "test exception"
+        assert deserialized["exc_info"]["traceback"] is not None
+        assert len(deserialized["exc_info"]["traceback"]) > 0
+
+
+def test_log_in_flow(caplog):
+    msg = "Hello world!"
 
     @flow
     def test_flow():
@@ -1118,30 +1209,17 @@ def test_log_in_flow(flow_run_caplog):
         logger.warning(msg)
 
     test_flow()
-    for record in flow_run_caplog.records:
+
+    for record in caplog.records:
         if record.msg == msg:
             assert record.levelno == logging.WARNING
             break
     else:
-        raise AssertionError(f"{msg} was not found in records")
+        raise AssertionError(f"{msg} was not found in records: {caplog.records}")
 
 
-@pytest.fixture
-def task_run_caplog(caplog):
-    """
-    Capture logging from task runs to ensure messages are correct.
-    """
-    logger = logging.getLogger("prefect.task_runs")
-    logger.propagate = True
-
-    try:
-        yield caplog
-    finally:
-        logger.propagate = False
-
-
-def test_log_in_task(task_run_caplog):
-    msg = "10:21:34.114 | INFO    | Flow run 'polite-jackal' - Finished in state Completed()"
+def test_log_in_task(caplog):
+    msg = "Hello world!"
 
     @task
     def test_task():
@@ -1153,7 +1231,7 @@ def test_log_in_task(task_run_caplog):
         test_task()
 
     test_flow()
-    for record in task_run_caplog.records:
+    for record in caplog.records:
         if record.msg == msg:
             assert record.levelno == logging.WARNING
             break
