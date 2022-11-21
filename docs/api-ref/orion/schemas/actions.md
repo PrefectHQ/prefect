@@ -1,4 +1,4 @@
 ::: prefect.orion.schemas.actions
-    selection:
+    options:
       inherited_members: true
       filters: ["!^_", "!as_sql_filter", "!dict", "!copy", "!result"]

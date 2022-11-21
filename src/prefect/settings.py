@@ -66,6 +66,7 @@ import toml
 from pydantic import BaseSettings, Field, create_model, root_validator, validator
 
 from prefect.exceptions import MissingProfileError
+from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
 
 T = TypeVar("T")
@@ -84,12 +85,14 @@ class Setting(Generic[T]):
         type: Type[T],
         *,
         value_callback: Callable[["Settings", T], T] = None,
+        is_secret: bool = False,
         **kwargs,
     ) -> None:
         self.field: pydantic.fields.FieldInfo = Field(**kwargs)
         self.type = type
         self.value_callback = value_callback
         self.name = None  # Will be populated after all settings are defined
+        self.is_secret = is_secret
 
         self.__doc__ = self.field.description
 
@@ -221,10 +224,14 @@ def warn_on_database_password_value_without_usage(values):
     """
     Validator for settings warning if the database password is set but not used.
     """
+    value = values["PREFECT_ORION_DATABASE_PASSWORD"]
     if (
-        values["PREFECT_ORION_DATABASE_PASSWORD"]
-        and "PREFECT_ORION_DATABASE_PASSWORD"
-        not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+        value
+        and not value.startswith(OBFUSCATED_PREFIX)
+        and (
+            "PREFECT_ORION_DATABASE_PASSWORD"
+            not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+        )
     ):
         warnings.warn(
             "PREFECT_ORION_DATABASE_PASSWORD is set but not included in the "
@@ -367,6 +374,7 @@ When using Prefect Cloud, this will include an account and workspace.
 PREFECT_API_KEY = Setting(
     str,
     default=None,
+    is_secret=True,
 )
 """API key used to authenticate against Orion API. Defaults to `None`."""
 
@@ -530,8 +538,8 @@ PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
 PREFECT_LOGGING_COLORS = Setting(
     bool,
     default=True,
-    description="""Whether to style console logs.""",
 )
+"""Whether to style console logs with color."""
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
@@ -580,6 +588,7 @@ registered.
 PREFECT_ORION_DATABASE_PASSWORD = Setting(
     str,
     default=None,
+    is_secret=True,
 )
 """
 Password to template into the `PREFECT_ORION_DATABASE_CONNECTION_URL`.
@@ -593,6 +602,7 @@ PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     value_callback=template_with_settings(
         PREFECT_HOME, PREFECT_ORION_DATABASE_PASSWORD
     ),
+    is_secret=True,
 )
 """
 A database connection URL in a SQLAlchemy-compatible
@@ -668,12 +678,22 @@ deployment once. Defaults to `100`.
 
 PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS = Setting(
     int,
-    default=20,
+    default=100,
 )
 """The scheduler will attempt to schedule up to this many
 auto-scheduled runs in the future. Note that runs may have fewer than
 this many scheduled runs, depending on the value of
-`scheduler_max_scheduled_time`.  Defaults to `20`.
+`scheduler_max_scheduled_time`.  Defaults to `100`.
+"""
+
+PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS = Setting(
+    int,
+    default=3,
+)
+"""The scheduler will attempt to schedule at least this many
+auto-scheduled runs in the future. Note that runs may have more than
+this many scheduled runs, depending on the value of
+`scheduler_min_scheduled_time`.  Defaults to `3`.
 """
 
 PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
@@ -683,8 +703,19 @@ PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
 """The scheduler will create new runs up to this far in the
 future. Note that this setting will take precedence over
 `scheduler_max_runs`: if a flow runs once a month and
-`scheduled_max_scheduled_time` is three months, then only three runs will be
+`scheduler_max_scheduled_time` is three months, then only three runs will be
 scheduled. Defaults to 100 days (`8640000` seconds).
+"""
+
+PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME = Setting(
+    timedelta,
+    default=timedelta(hours=1),
+)
+"""The scheduler will create new runs at least this far in the
+future. Note that this setting will take precedence over `scheduler_min_runs`:
+if a flow runs every hour and `scheduler_min_scheduled_time` is three hours,
+then three runs will be scheduled even if `scheduler_min_runs` is 1. Defaults to
+1 hour (`3600` seconds).
 """
 
 PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE = Setting(
@@ -843,6 +874,8 @@ class Settings(SettingsFieldsMixin):
 
     @validator(PREFECT_LOGGING_LEVEL.name, PREFECT_LOGGING_SERVER_LEVEL.name)
     def check_valid_log_level(cls, value):
+        if isinstance(value, str):
+            value = value.upper()
         logging._checkLevel(value)
         return value
 
@@ -889,6 +922,22 @@ class Settings(SettingsFieldsMixin):
                 **{setting.name: value for setting, value in updates.items()},
             }
         )
+
+    def with_obfuscated_secrets(self):
+        """
+        Returns a copy of this settings object with secret setting values obfuscated.
+        """
+        settings = self.copy(
+            update={
+                setting.name: obfuscate(self.value_of(setting))
+                for setting in SETTING_VARIABLES.values()
+                if setting.is_secret
+            }
+        )
+        # Ensure that settings that have not been marked as "set" before are still so
+        # after we have updated their value above
+        settings.__fields_set__.intersection_update(self.__fields_set__)
+        return settings
 
     def to_environment_variables(
         self, include: Iterable[Setting] = None, exclude_unset: bool = False

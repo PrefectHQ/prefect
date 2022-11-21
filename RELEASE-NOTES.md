@@ -1,5 +1,70 @@
 # Prefect Release Notes
 
+## Release 2.6.8
+
+### Enhancements
+- Add `--run-once` to `prefect agent start` CLI — https://github.com/PrefectHQ/prefect/pull/7505
+- Expose `prefetch-seconds` in `prefect agent start` CLI — https://github.com/PrefectHQ/prefect/pull/7498
+- Add start time sort for flow runs to the REST API — https://github.com/PrefectHQ/prefect/pull/7496
+- Add `merge_existing_data` flag to `update_block_document` — https://github.com/PrefectHQ/prefect/pull/7470
+- Add sanitization to enforce leading/trailing alphanumeric characters for Kubernetes job labels — https://github.com/PrefectHQ/prefect/pull/7528
+
+### Fixes
+- Fix type checking for flow name and version arguments — https://github.com/PrefectHQ/prefect/pull/7549
+- Fix check for empty paths in `LocalFileSystem` — https://github.com/PrefectHQ/prefect/pull/7477
+- Fix `PrefectConsoleHandler` bug where log tracebacks were excluded — https://github.com/PrefectHQ/prefect/pull/7558
+
+### Documentation
+- Add glow to Collection Catalog images in dark mode — https://github.com/PrefectHQ/prefect/pull/7535
+- New [`prefect-vault`](https://github.com/pbchekin/prefect-vault) collection for integration with Hashicorp Vault
+
+## Contributors
+* @kielnino made their first contribution in https://github.com/PrefectHQ/prefect/pull/7517
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.7...2.6.8
+
+## Release 2.6.7
+
+### Enhancements
+- Add timeout support to tasks — https://github.com/PrefectHQ/prefect/pull/7409
+- Add colored log levels — https://github.com/PrefectHQ/prefect/pull/6101
+- Update flow and task run page sidebar styling — https://github.com/PrefectHQ/prefect/pull/7426
+- Add redirect to logs tab when navigating to parent or child flow runs — https://github.com/PrefectHQ/prefect/pull/7439
+- Add `PREFECT_UI_URL` and `PREFECT_CLOUD_UI_URL` settings — https://github.com/PrefectHQ/prefect/pull/7411
+- Improve scheduler performance — https://github.com/PrefectHQ/prefect/pull/7450 https://github.com/PrefectHQ/prefect/pull/7433
+- Add link to parent flow from subflow details page — https://github.com/PrefectHQ/prefect/pull/7491
+- Improve visibility of deployment tags in the deployments page — https://github.com/PrefectHQ/prefect/pull/7491
+- Add deployment and flow metadata to infrastructure labels — https://github.com/PrefectHQ/prefect/pull/7479
+- Add obfuscation of secret settings — https://github.com/PrefectHQ/prefect/pull/7465
+
+### Fixes
+- Fix missing import for `ObjectAlreadyExists` exception in deployments module — https://github.com/PrefectHQ/prefect/pull/7360
+- Fix export of `State` and `allow_failure` for type-checkers  — https://github.com/PrefectHQ/prefect/pull/7447
+- Fix `--skip-upload` flag in `prefect deployment build` — https://github.com/PrefectHQ/prefect/pull/7437
+- Fix `visit_collection` handling of IO objects — https://github.com/PrefectHQ/prefect/pull/7482
+- Ensure that queries are sorted correctly when limits are used — https://github.com/PrefectHQ/prefect/pull/7457
+
+### Deprecations
+- `PREFECT_CLOUD_URL` has been deprecated in favor of `PREFECT_CLOUD_API_URL` — https://github.com/PrefectHQ/prefect/pull/7411
+- `prefect.orion.utilities.names` has been deprecated in favor of `prefect.utilities.names` — https://github.com/PrefectHQ/prefect/pull/7465
+
+### Documentation
+- Add support for dark mode — https://github.com/PrefectHQ/prefect/pull/7432 and https://github.com/PrefectHQ/prefect/pull/7462
+- Add [audit log documentation](https://docs.prefect.io/ui/audit-log/) for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/7404
+- Add [troubleshooting topics](https://docs.prefect.io/ui/troubleshooting/) for Prefect Cloud — https://github.com/PrefectHQ/prefect/pull/7446
+
+### Collections
+- Adds auto-registration of blocks from AWS, Azure, GCP, and Databricks collections — https://github.com/PrefectHQ/prefect/pull/7415
+- Add new [`prefect-hightouch`](https://prefecthq.github.io/prefect-hightouch/) collection for [Hightouch](https://hightouch.com/) — https://github.com/PrefectHQ/prefect/pull/7443
+
+### Contributors
+- @tekumara
+- @bcbernardo made their first contribution in https://github.com/PrefectHQ/prefect/pull/7360
+- @br3ndonland made their first contribution in https://github.com/PrefectHQ/prefect/pull/7432
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.6...2.6.7
+
+
 ## Release 2.6.6
 
 ### Enhancements
