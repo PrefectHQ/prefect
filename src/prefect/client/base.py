@@ -158,8 +158,8 @@ class PrefectHttpxClient(httpx.AsyncClient):
     async def _send_with_retry(
         self,
         request: Callable,
-        retry_codes: Set[int] = {},
-        retry_exceptions: Tuple[Exception, ...] = (),
+        retry_codes: Set[int] = set(),
+        retry_exceptions: Tuple[Exception, ...] = tuple(),
     ):
         """
         Send a request and retry it if it fails.
@@ -175,11 +175,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
         response = None
         retry = True
 
-        while (
-            not response
-            or (response.status_code in retry_codes)
-            and try_count <= self.RETRY_MAX
-        ):
+        while retry:
             try_count += 1
             retry_seconds = None
 
@@ -189,11 +185,17 @@ class PrefectHttpxClient(httpx.AsyncClient):
                 if try_count > self.RETRY_MAX:
                     retry = False
                     raise
-                continue
+                else:
+                    continue
+            except BaseException as exc:
+                retry = False
+                raise
 
             else:
+                # we got a good response
                 if response.status_code not in retry_codes:
                     retry = False
+                # respect retry headers
                 else:
                     retry_after = response.headers.get("Retry-After")
                     if retry_after:
@@ -204,6 +206,9 @@ class PrefectHttpxClient(httpx.AsyncClient):
                     if retry_seconds is None:
                         retry_seconds = 2**try_count
                     await anyio.sleep(retry_seconds)
+
+                    if try_count > self.RETRY_MAX:
+                        retry = False
 
         return response
 

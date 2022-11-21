@@ -200,3 +200,20 @@ class TestPrefectHttpxClient:
             )
         assert response.status_code == status.HTTP_200_OK
         mock_anyio_sleep.assert_has_awaits([call(5), call(0), call(10), call(2.0)])
+
+    async def test_prefect_httpx_client_does_not_retry_other_exceptions(
+        self, mock_anyio_sleep, monkeypatch
+    ):
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        client = PrefectHttpxClient()
+
+        base_client_send.side_effect = [TypeError("This error should not be retried")]
+
+        with pytest.raises(TypeError):
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
+
+        mock_anyio_sleep.assert_not_called()
