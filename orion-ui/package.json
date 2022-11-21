@@ -18,7 +18,7 @@
     "d3": "^7.6.1",
     "lodash.debounce": "4.0.8",
     "tailwindcss": "3.2.2",
-    "vue": "3.2.41",
+    "vue": "3.2.45",
     "vue-router": "4.1.6"
   },
   "devDependencies": {
