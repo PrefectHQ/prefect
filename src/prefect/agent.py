@@ -241,9 +241,20 @@ class OrionAgent:
             else:
                 # Wait for submission to be completed. Note that the submission function
                 # may continue to run in the background after this exits.
-                await self.task_group.start(
+                infrastructure_pid = await self.task_group.start(
                     self._submit_run_and_capture_errors, flow_run, infrastructure
                 )
+
+                try:
+                    await self.client.update_flow_run(
+                        flow_run_id=flow_run.id, infrastructure_pid=infrastructure_pid
+                    )
+                except Exception as exc:
+                    self.logger.exception(
+                        "An error occured while setting the `infrastructure_pid` on "
+                        f"flow run {flow_run.id!r}. The flow run will not be cancellable."
+                    )
+
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
 
         self.submitting_flow_run_ids.remove(flow_run.id)
