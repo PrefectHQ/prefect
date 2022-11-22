@@ -175,6 +175,7 @@ Using `log_prints=False` at the task level will output:
 15:52:11.812 | INFO    | Flow run 'emerald-gharial' - we're logging print statements from a flow
 15:52:11.926 | INFO    | Flow run 'emerald-gharial' - Created task run 'my_task-20c6ece6-0' for task 'my_task'
 15:52:11.927 | INFO    | Flow run 'emerald-gharial' - Executing 'my_task-20c6ece6-0' immediately...
+we're logging print statements from a task
 ```
 </div>
 
