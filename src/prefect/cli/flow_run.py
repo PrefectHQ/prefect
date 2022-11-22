@@ -128,9 +128,10 @@ async def cancel(id: UUID):
             )
         except ObjectNotFound as exc:
             exit_with_error(f"Flow run '{id}' not found!")
-    # breakpoint()
+
     if result.status == SetStateStatus.ABORT:
         exit_with_error(
             f"Flow run '{id}' was unable to be cancelled. Reason: '{result.details.reason}'"
         )
+
     exit_with_success(f"Flow run '{id}' was succcessfully scheduled for cancellation.")
