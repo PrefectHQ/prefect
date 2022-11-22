@@ -329,3 +329,9 @@ class NotPausedError(PrefectException):
 
 class FlowPauseTimeout(PrefectException):
     """Raised when a flow pause times out"""
+
+
+class InfrastructureError(PrefectException):
+    """
+    A base class for exceptions related to infrastructure blocks
+    """
