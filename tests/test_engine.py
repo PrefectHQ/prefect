@@ -173,6 +173,57 @@ class TestPausingFlows:
         )
         assert len(task_runs) == 2, "only two tasks should have completed"
 
+    async def test_paused_flows_block_execution_in_async_flows(self, orion_client):
+        @task
+        async def doesnt_pause():
+            return 42
+
+        @flow()
+        async def pausing_flow():
+            x = await doesnt_pause.submit()
+            y = await doesnt_pause.submit()
+            await pause(timeout=0.1)
+            z = await doesnt_pause(wait_for=[x])
+            alpha = await doesnt_pause(wait_for=[y])
+            omega = await doesnt_pause(wait_for=[x, y])
+
+        flow_run_state = await pausing_flow(return_state=True)
+        flow_run_id = flow_run_state.state_details.flow_run_id
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
+        )
+        assert len(task_runs) == 2, "only two tasks should have completed"
+
+    async def test_paused_flows_can_be_resumed(self, orion_client):
+        @task
+        async def doesnt_pause():
+            return 42
+
+        @flow()
+        async def pausing_flow():
+            x = await doesnt_pause.submit()
+            y = await doesnt_pause.submit()
+            await pause(timeout=10, poll_interval=2)
+            z = await doesnt_pause(wait_for=[x])
+            alpha = await doesnt_pause(wait_for=[y])
+            omega = await doesnt_pause(wait_for=[x, y])
+
+        async def flow_resumer():
+            await anyio.sleep(3)
+            flow_runs = await orion_client.read_flow_runs(limit=1)
+            active_flow_run = flow_runs[0]
+            await resume(active_flow_run.id)
+
+        flow_run_state, the_answer = await asyncio.gather(
+            pausing_flow(return_state=True),
+            flow_resumer(),
+        )
+        flow_run_id = flow_run_state.state_details.flow_run_id
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
+        )
+        assert len(task_runs) == 5, "all tasks should finish running"
+
 
 class TestOrchestrateTaskRun:
     async def test_waits_until_scheduled_start_time(
