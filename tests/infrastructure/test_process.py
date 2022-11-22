@@ -1,6 +1,8 @@
 import os
+import signal
+import socket
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import anyio
 import anyio.abc
@@ -134,12 +136,14 @@ async def test_process_can_be_run_async():
     assert result
 
 
-def test_task_status_receives_pid():
+def test_task_status_receives_infrastructure_pid():
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     result = Process(command=["echo", "hello"], stream_output=False).run(
         task_status=fake_status
     )
-    fake_status.started.assert_called_once_with(int(result.identifier))
+
+    hostname = socket.gethostname()
+    fake_status.started.assert_called_once_with(f"{hostname}:{result.identifier}")
 
 
 def test_run_requires_command():
@@ -185,3 +189,33 @@ def test_process_logs_exit_code_help_message(
     record = caplog.records[-1]
     assert record.levelname == "ERROR"
     assert help_message in record.message
+
+
+async def test_process_kill_mismatching_hostname(monkeypatch):
+    os_kill = MagicMock()
+    monkeypatch.setattr("os.kill", os_kill)
+
+    infrastructure_pid = f"not-{socket.gethostname()}:12345"
+
+    process = Process(command=["noop"])
+    await process.kill(infrastructure_pid=infrastructure_pid, grace_seconds=15)
+
+    os_kill.assert_not_called()
+
+
+async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch):
+    os_kill = MagicMock()
+    monkeypatch.setattr("os.kill", os_kill)
+
+    infrastructure_pid = f"{socket.gethostname()}:12345"
+
+    process = Process(command=["noop"])
+    await process.kill(infrastructure_pid=infrastructure_pid, grace_seconds=0)
+    await anyio.sleep(0.1)
+
+    os_kill.assert_has_calls(
+        [
+            call(12345, signal.SIGTERM),
+            call(12345, signal.SIGKILL),
+        ]
+    )

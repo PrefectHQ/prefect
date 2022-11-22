@@ -2,6 +2,7 @@ import os
 import signal
 import subprocess
 import sys
+import warnings
 from contextlib import asynccontextmanager
 from io import TextIOBase
 from typing import Callable, List, Optional, TextIO, Tuple, Union
@@ -55,6 +56,7 @@ async def run_process(
     command: List[str],
     stream_output: Union[bool, Tuple[Optional[TextSink], Optional[TextSink]]] = False,
     task_status: Optional[anyio.abc.TaskStatus] = None,
+    started_callback: Optional[Callable[[anyio.abc.Process], None]] = None,
     **kwargs,
 ):
     """
@@ -77,7 +79,18 @@ async def run_process(
     ) as process:
 
         if task_status is not None:
-            task_status.started(process.pid)
+            warnings.warn(
+                (
+                    "Calling `run_process` with `task_status` is deprecated. "
+                    "Pass a callable as `started_callback` instead."
+                ),
+                category=DeprecationWarning,
+                stacklevel=3,
+            )
+            started_callback = lambda process: task_status.started(process.pid)
+
+        if started_callback:
+            started_callback(process)
 
         if stream_output:
             await consume_process_output(
