@@ -146,11 +146,11 @@ Will output:
 
 <div class='terminal'>
 ```bash
-14:18:57.401 | INFO    | prefect.engine - Created flow run 'singing-malkoha' for flow 'my-flow'
-14:18:58.026 | INFO    | Flow run 'singing-malkoha' - we're logging print statements from a flow
-14:18:58.148 | INFO    | Flow run 'singing-malkoha' - Created task run 'my_task-20c6ece6-0' for task 'my_task'
-14:18:58.150 | INFO    | Flow run 'singing-malkoha' - Executing 'my_task-20c6ece6-0' immediately...
-14:18:58.392 | INFO    | Task run 'my_task-20c6ece6-0' - we're logging print statements from a task
+15:52:11.244 | INFO    | prefect.engine - Created flow run 'emerald-gharial' for flow 'my-flow'
+15:52:11.812 | INFO    | Flow run 'emerald-gharial' - we're logging print statements from a flow
+15:52:11.926 | INFO    | Flow run 'emerald-gharial' - Created task run 'my_task-20c6ece6-0' for task 'my_task'
+15:52:11.927 | INFO    | Flow run 'emerald-gharial' - Executing 'my_task-20c6ece6-0' immediately...
+15:52:12.217 | INFO    | Task run 'my_task-20c6ece6-0' - we're logging print statements from a task
 ```
 </div>
 
@@ -171,10 +171,10 @@ Using `log_prints=False` at the task level will output:
 
 <div class='terminal'>
 ```bash
-14:18:57.401 | INFO    | prefect.engine - Created flow run 'singing-malkoha' for flow 'my-flow'
-14:18:58.026 | INFO    | Flow run 'singing-malkoha' - we're logging print statements from a flow
-14:18:58.148 | INFO    | Flow run 'singing-malkoha' - Created task run 'my_task-20c6ece6-0' for task 'my_task'
-14:18:58.150 | INFO    | Flow run 'singing-malkoha' - Executing 'my_task-20c6ece6-0' immediately...
+15:52:11.244 | INFO    | prefect.engine - Created flow run 'emerald-gharial' for flow 'my-flow'
+15:52:11.812 | INFO    | Flow run 'emerald-gharial' - we're logging print statements from a flow
+15:52:11.926 | INFO    | Flow run 'emerald-gharial' - Created task run 'my_task-20c6ece6-0' for task 'my_task'
+15:52:11.927 | INFO    | Flow run 'emerald-gharial' - Executing 'my_task-20c6ece6-0' immediately...
 ```
 </div>
 
