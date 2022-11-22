@@ -19,13 +19,16 @@ from prefect.engine import (
     create_and_begin_subflow_run,
     create_then_begin_flow_run,
     link_state_to_result,
+    pause,
     orchestrate_flow_run,
     orchestrate_task_run,
+    resume,
     retrieve_flow_then_begin_flow_run,
 )
 from prefect.exceptions import (
     Abort,
     CrashedRun,
+    FlowPauseTimeout,
     ParameterTypeError,
     SignatureMismatchError,
 )
@@ -95,6 +98,80 @@ async def get_flow_run_context(orion_client, result_factory, local_filesystem):
             )
 
     return _get_flow_run_context
+
+
+class TestPausingFlows:
+    async def test_tasks_cannot_be_paused(self):
+        @task
+        def the_little_task_that_pauses():
+            pause()
+            return True
+
+        @flow
+        def the_mountain():
+            return the_little_task_that_pauses()
+
+        with pytest.raises(RuntimeError, match="Cannot pause task runs.*"):
+            the_mountain()
+
+    async def test_paused_flows_fail_if_not_resumed(self):
+        @task
+        def doesnt_pause():
+            return 42
+
+        @flow()
+        def pausing_flow():
+            x = doesnt_pause.submit()
+            pause(timeout=0.1)
+            y = doesnt_pause.submit()
+            z = doesnt_pause(wait_for=[x])
+            alpha = doesnt_pause(wait_for=[y])
+            omega = doesnt_pause(wait_for=[x, y])
+
+        with pytest.raises(FlowPauseTimeout):
+            pausing_flow()
+
+    async def test_paused_flows_block_execution_in_sync_flows(self, orion_client):
+        @task
+        def doesnt_pause():
+            return 42
+
+        @flow()
+        def pausing_flow():
+            x = doesnt_pause.submit()
+            y = doesnt_pause.submit()
+            pause(timeout=0.1)
+            z = doesnt_pause(wait_for=[x])
+            alpha = doesnt_pause(wait_for=[y])
+            omega = doesnt_pause(wait_for=[x, y])
+
+        flow_run_state = pausing_flow(return_state=True)
+        flow_run_id = flow_run_state.state_details.flow_run_id
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
+        )
+        assert len(task_runs) == 2, "only two tasks should have completed"
+
+    async def test_paused_flows_block_execution_in_async_flows(self, orion_client):
+        @task
+        async def doesnt_pause():
+            return 42
+
+        @flow()
+        async def pausing_flow():
+            x = await doesnt_pause.submit()
+            y = await doesnt_pause.submit()
+            await pause(timeout=0.1)
+            z = await doesnt_pause(wait_for=[x])
+            alpha = await doesnt_pause(wait_for=[y])
+            omega = await doesnt_pause(wait_for=[x, y])
+
+        flow_run_state = await pausing_flow(return_state=True)
+        flow_run_id = flow_run_state.state_details.flow_run_id
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
+        )
+        assert len(task_runs) == 2, "only two tasks should have completed"
 
 
 class TestOrchestrateTaskRun:
