@@ -7,7 +7,7 @@ import cloudpickle
 from prefect.serializers import JSONSerializer
 
 
-def stable_hash(*args: Union[str, bytes], hash_algo=hashlib.md5) -> str:
+def stable_hash(*args: Union[str, bytes], hash_algo=hashlib.sha512) -> str:
     """Given some arguments, produces a stable 64-bit hash of their contents.
 
     Supports bytes and strings. Strings will be UTF-8 encoded.
@@ -27,7 +27,7 @@ def stable_hash(*args: Union[str, bytes], hash_algo=hashlib.md5) -> str:
     return h.hexdigest()
 
 
-def file_hash(path: str, hash_algo=hashlib.md5) -> str:
+def file_hash(path: str, hash_algo=hashlib.sha512) -> str:
     """Given a path to a file, produces a stable hash of the file contents.
 
     Args:
@@ -41,7 +41,7 @@ def file_hash(path: str, hash_algo=hashlib.md5) -> str:
     return stable_hash(contents, hash_algo=hash_algo)
 
 
-def hash_objects(*args, hash_algo=hashlib.md5, **kwargs) -> Optional[str]:
+def hash_objects(*args, hash_algo=hashlib.sha512, **kwargs) -> Optional[str]:
     """
     Attempt to hash objects by dumping to JSON or serializing with cloudpickle.
     On failure of both, `None` will be returned
