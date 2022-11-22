@@ -147,6 +147,10 @@ async def load_flow_from_flow_run(
     If `ignore_storage=True` is provided, no pull from remote storage occurs.  This flag
     is largely for testing, and assumes the flow is already available locally.
     """
+    if flow_run.deployment_id is None:
+        raise ValueError(
+            f"Flow run {flow_run.id} does not have an associated deployment."
+        )
     deployment = await client.read_deployment(flow_run.deployment_id)
 
     if not ignore_storage:
