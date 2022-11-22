@@ -27,7 +27,6 @@ class StateType(AutoEnum):
     CANCELLED = AutoEnum.auto()
     CRASHED = AutoEnum.auto()
     PAUSED = AutoEnum.auto()
-    RESUMING = AutoEnum.auto()
 
 
 TERMINAL_STATES = {
@@ -293,15 +292,6 @@ def Paused(cls: Type[State] = State, **kwargs) -> State:
         State: a Paused state
     """
     return cls(type=StateType.PAUSED, **kwargs)
-
-
-def Resuming(cls: Type[State] = State, **kwargs) -> State:
-    """Convenience function for creating `Resuming` states.
-
-    Returns:
-        State: a Resuming state
-    """
-    return cls(type=StateType.RESUMING, **kwargs)
 
 
 def AwaitingRetry(

@@ -15,7 +15,7 @@ from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
 )
-from prefect.exceptions import CrashedRun, FailedRun, MissingResult, FlowPauseTimeout
+from prefect.exceptions import CrashedRun, FailedRun, FlowPauseTimeout, MissingResult
 from prefect.orion import schemas
 from prefect.orion.schemas.states import StateType
 from prefect.results import BaseResult, R, ResultFactory
@@ -473,6 +473,15 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
         State: a Pending state
     """
     return schemas.states.Pending(cls=cls, **kwargs)
+
+
+def Paused(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Paused` states.
+
+    Returns:
+        State: a Paused state
+    """
+    return schemas.states.Paused(cls=cls, **kwargs)
 
 
 def AwaitingRetry(
