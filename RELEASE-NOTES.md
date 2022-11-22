@@ -27,18 +27,22 @@ There's also a new `prefect cloud logout` command (contributed by @hallenmaia) t
 - Add `infrastructure_pid` to flow run — https://github.com/PrefectHQ/prefect/pull/7595
 - Add `PrefectFormatter` to reduce logging configuration duplication — https://github.com/PrefectHQ/prefect/pull/7588
 - Update `CloudClient.read_workspaces` to return a model — https://github.com/PrefectHQ/prefect/pull/7332
+- Update hashing utilities to allow execution in FIPS 140-2 environments — https://github.com/PrefectHQ/prefect/pull/7620
+
 ### Fixes
 - Update logging setup to support incremental configuration — https://github.com/PrefectHQ/prefect/pull/7569
 - Update logging `JsonFormatter` to output valid JSON — https://github.com/PrefectHQ/prefect/pull/7567
 - Remove `inter` CSS import which blocked UI loads in air-gapped environments — https://github.com/PrefectHQ/prefect/pull/7586
 - Return 404 when a flow run is missing during `set_task_run_state` — https://github.com/PrefectHQ/prefect/pull/7603
 - Fix directory copy errors with `LocalFileSystem` deployments on Python 3.7 — https://github.com/PrefectHQ/prefect/pull/7441
+- Add flush of task run logs when on remote workers — https://github.com/PrefectHQ/prefect/pull/7626
 
 ### Documentation
 - Add docs about CPU and memory allocation on agent deploying ECS infrastructure blocks — https://github.com/PrefectHQ/prefect/pull/7597
 
 ### Contributors
 - @hallenmaia 
+- @szelenka
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.8...2.6.9
 
