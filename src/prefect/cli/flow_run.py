@@ -17,8 +17,10 @@ from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import ObjectNotFound
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
+from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
+from prefect.states import State
 
 flow_run_app = PrefectTyper(
     name="flow-run", help="Commands for interacting with flow runs."
@@ -113,3 +115,23 @@ async def delete(id: UUID):
             exit_with_error(f"Flow run '{id}' not found!")
 
     exit_with_success(f"Successfully deleted flow run '{id}'.")
+
+
+@flow_run_app.command()
+async def cancel(id: UUID):
+    """Cancel a flow fun by ID."""
+    async with get_client() as client:
+        cancelling_state = State(type=StateType.CANCELLED, name="Cancelling")
+        try:
+            result = await client.set_flow_run_state(
+                flow_run_id=id, state=cancelling_state
+            )
+        except ObjectNotFound as exc:
+            exit_with_error(f"Flow run '{id}' not found!")
+
+    if result.status == SetStateStatus.ABORT:
+        exit_with_error(
+            f"Flow run '{id}' was unable to be cancelled. Reason: '{result.details.reason}'"
+        )
+
+    exit_with_success(f"Flow run '{id}' was succcessfully scheduled for cancellation.")
