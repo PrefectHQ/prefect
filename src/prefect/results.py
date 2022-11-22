@@ -460,7 +460,7 @@ class PersistedResult(BaseResult):
             # Attach the object to the result so it's available without deserialization
             result._cache_object(obj)
 
-        result._should_cache_object = cache_object
+        object.__setattr__(result, "_should_cache_object", cache_object)
 
         return result
 
