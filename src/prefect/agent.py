@@ -312,16 +312,6 @@ class OrionAgent:
             if self.limiter:
                 self.limiter.release_on_behalf_of(flow_run.id)
 
-        try:
-            await self.client.update_flow_run(
-                flow_run_id=flow_run.id, infrastructure_pid=result.identifier
-            )
-        except Exception as exc:
-            self.logger.exception(
-                "An error occured while setting the `infrastructure_pid` on "
-                f"flow run {flow_run.id!r}. The flow run will not be cancellable."
-            )
-
         if not task_status._future.done():
             self.logger.error(
                 f"Infrastructure returned without reporting flow run '{flow_run.id}' "
