@@ -127,7 +127,7 @@ The underlying log model for task runs captures the task name, task run ID, and 
 
 ### Logging print statements
 
-Prefect provides the `log_prints` option to enabling logging of print statements at the task or flow level. By default, tasks and subflows will inherit the print logging behavior from their parent flow.
+Prefect provides the `log_prints` option to enabling logging of print statements at the task or flow level. By default, tasks and subflows will inherit the print logging behavior from their parent flow, unless "opted out" with their own `log_prints` argument set to `False`.
 
 ```python
 from prefect import task, flow
@@ -148,6 +148,29 @@ Will output:
 ```bash
 14:18:57.401 | INFO    | prefect.engine - Created flow run 'singing-malkoha' for flow 'my-flow'
 14:18:58.026 | INFO    | Flow run 'singing-malkoha' - we're logging print statements from a flow
+14:18:58.148 | INFO    | Flow run 'singing-malkoha' - Created task run 'my_task-20c6ece6-0' for task 'my_task'
+14:18:58.150 | INFO    | Flow run 'singing-malkoha' - Executing 'my_task-20c6ece6-0' immediately...
+14:18:58.392 | INFO    | Task run 'my_task-20c6ece6-0' - we're logging print statements from a task
+```
+
+```python
+from prefect import task, flow
+
+@task
+def my_task(log_prints=False):
+    print("we're logging print statements from a task")
+
+@flow(log_prints=True)
+def my_flow():
+    print("we're logging print statements from a flow")
+    my_task()
+```
+
+Will output:
+
+<div class='terminal'>
+```bash
+14:18:57.401 | INFO    | prefect.engine - Created flow run 'singing-malkoha' for flow 'my-flow'
 14:18:58.148 | INFO    | Flow run 'singing-malkoha' - Created task run 'my_task-20c6ece6-0' for task 'my_task'
 14:18:58.150 | INFO    | Flow run 'singing-malkoha' - Executing 'my_task-20c6ece6-0' immediately...
 14:18:58.392 | INFO    | Task run 'my_task-20c6ece6-0' - we're logging print statements from a task
