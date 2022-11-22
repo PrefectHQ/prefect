@@ -15,7 +15,7 @@ from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
 )
-from prefect.exceptions import CrashedRun, FailedRun, MissingResult
+from prefect.exceptions import CrashedRun, FailedRun, MissingResult, FlowPauseTimeout
 from prefect.orion import schemas
 from prefect.orion.schemas.states import StateType
 from prefect.results import BaseResult, R, ResultFactory
@@ -509,7 +509,8 @@ def Late(
 
 
 @sync_compatible
-async def pause():
+async def pause(timeout: int = 300, poll_interval: int = None):
+    import anyio
     import time
 
     from prefect.client.orion import get_client
@@ -517,13 +518,18 @@ async def pause():
         FlowRunContext,
         TaskRunContext,
     )
+    from prefect.logging.loggers import get_run_logger
     from prefect.orion.schemas.states import Paused
+
+    poll_interval = poll_interval if poll_interval is not None else 10
 
     if TaskRunContext.get():
         raise RuntimeError("Can't pause task runs!")
 
     frc = FlowRunContext.get()
+    logger = get_run_logger(context=frc)
 
+    logger.info("Pausing flow, execution will continue when this flow run is resumed.")
     client = get_client()
     response = await client.set_flow_run_state(
         frc.flow_run.id,
@@ -531,25 +537,26 @@ async def pause():
         force=True,
     )
 
-    for poll in range(10):
-        time.sleep(2)
-        flowrun = await client.read_flow_run(frc.flow_run.id)
-        print(f"Flow is {flowrun.state.name}...")
-        if flowrun.state.is_resuming():
-            print("Resuming execution!")
-            return
+    with anyio.move_on_after(timeout):
+        while True:
+            time.sleep(poll_interval)
+            flow_run = await client.read_flow_run(frc.flow_run.id)
+            if flow_run.state.is_running():
+                logger.info("Resuming flow run execution!")
+                return
 
-    raise RuntimeError("Run was not resumed in time!")
+    raise FlowPauseTimeout("Flow run was paused and never resumed.")
 
 
 @sync_compatible
 async def resume(flow_run_id):
+    import pendulum
+
     from prefect.client.orion import get_client
-    from prefect.orion.schemas.states import Resuming
+    from prefect.orion.schemas.states import Running
 
     client = get_client()
     response = await client.set_flow_run_state(
         flow_run_id,
-        Resuming(),
-        force=True,
+        Running(name="Resuming"),
     )
