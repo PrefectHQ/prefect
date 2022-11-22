@@ -14,7 +14,7 @@
     "@prefecthq/prefect-design": "1.1.29",
     "@prefecthq/vue-compositions": "0.2.12",
     "@types/lodash.debounce": "4.0.7",
-    "axios": "0.27.2",
+    "axios": "1.2.0",
     "d3": "^7.6.1",
     "lodash.debounce": "4.0.8",
     "tailwindcss": "3.2.2",
