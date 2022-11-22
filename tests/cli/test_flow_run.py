@@ -1,12 +1,24 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
 import prefect.exceptions
 from prefect import flow
-from prefect.states import Completed, Late, Running, Scheduled
+from prefect.states import (
+    AwaitingRetry,
+    Cancelled,
+    Completed,
+    Crashed,
+    Failed,
+    Late,
+    Pending,
+    Retrying,
+    Running,
+    Scheduled,
+    StateType,
+)
 from prefect.testing.cli import invoke_and_assert
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 
 
 @flow(name="hello")
@@ -200,3 +212,66 @@ def test_ls_limit(
             found_count += 1
 
     assert found_count == 2
+
+
+class TestCancelFlowRun:
+    @pytest.mark.parametrize(
+        "state",
+        [
+            Scheduled,
+            Running,
+            Late,
+            Pending,
+            AwaitingRetry,
+            Retrying,
+        ],
+    )
+    async def test_non_terminal_states_set_to_cancelled(self, orion_client, state):
+        before = await orion_client.create_flow_run(
+            name="scheduled_flow_run", flow=hello_flow, state=state()
+        )
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "cancel",
+                str(before.id),
+            ],
+            expected_code=0,
+            expected_output_contains=f"Flow run '{before.id}' was succcessfully scheduled for cancellation.",
+        )
+        after = await orion_client.read_flow_run(before.id)
+        assert before.state.name != after.state.name
+        assert before.state.type != after.state.type
+        assert after.state.name == "Cancelling"
+        assert after.state.type == StateType.CANCELLED
+
+    @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
+    async def test_cancelling_terminal_states_exits_with_error(
+        self, orion_client, state
+    ):
+        before = await orion_client.create_flow_run(
+            name="scheduled_flow_run", flow=hello_flow, state=state()
+        )
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "cancel",
+                str(before.id),
+            ],
+            expected_code=1,
+            expected_output_contains=f"Flow run '{before.id}' was unable to be cancelled.",
+        )
+        after = await orion_client.read_flow_run(before.id)
+
+        assert after.state.name == before.state.name
+        assert after.state.type == before.state.type
+
+    def test_wrong_id_exits_with_error(self):
+        bad_id = str(uuid4())
+        res = invoke_and_assert(
+            ["flow-run", "cancel", bad_id],
+            expected_code=1,
+            expected_output_contains=f"Flow run '{bad_id}' not found!\n",
+        )

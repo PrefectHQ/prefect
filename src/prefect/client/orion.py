@@ -1517,11 +1517,17 @@ class OrionClient:
         """
         state_create = state.to_state_create()
         state_create.state_details.flow_run_id = flow_run_id
+        try:
+            response = await self._client.post(
+                f"/flow_runs/{flow_run_id}/set_state",
+                json=dict(state=state_create.dict(json_compatible=True), force=force),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
-        response = await self._client.post(
-            f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=state_create.dict(json_compatible=True), force=force),
-        )
         return OrchestrationResult.parse_obj(response.json())
 
     async def read_flow_run_states(
