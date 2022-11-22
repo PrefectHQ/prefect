@@ -6,6 +6,7 @@ import string
 import warnings
 from functools import partial
 from pathlib import Path
+from typing import Optional
 
 import yaml
 
@@ -60,7 +61,7 @@ def load_logging_config(path: Path) -> dict:
     return flatdict_to_dict(flat_config)
 
 
-def setup_logging() -> dict:
+def setup_logging(incremental: Optional[bool] = None) -> dict:
     """
     Sets up logging.
 
@@ -78,10 +79,18 @@ def setup_logging() -> dict:
         )
     )
 
-    # Perform an incremental update if setup has already been run
-    config.setdefault("incremental", bool(PROCESS_LOGGING_CONFIG))
+    incremental = (
+        incremental if incremental is not None else bool(PROCESS_LOGGING_CONFIG)
+    )
 
-    logging.config.dictConfig(config)
+    # Perform an incremental update if setup has already been run
+    config.setdefault("incremental", incremental)
+
+    try:
+        logging.config.dictConfig(config)
+    except ValueError:
+        if incremental:
+            setup_logging(incremental=False)
 
     # Copy configuration of the 'prefect.extra' logger to the extra loggers
     extra_config = logging.getLogger("prefect.extra")
