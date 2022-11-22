@@ -335,7 +335,7 @@ class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
 
     @abc.abstractmethod
     @sync_compatible
-    async def get(self) -> R:
+    async def get(self, cache: bool = True) -> R:
         ...
 
     @abc.abstractclassmethod
@@ -367,7 +367,7 @@ class LiteralResult(BaseResult):
         return True
 
     @sync_compatible
-    async def get(self) -> R:
+    async def get(self, cache: bool = True) -> R:
         return self.value
 
     @classmethod
@@ -403,7 +403,7 @@ class PersistedResult(BaseResult):
 
     @sync_compatible
     @inject_client
-    async def get(self, client: "OrionClient") -> R:
+    async def get(self, client: "OrionClient", cache: bool = True) -> R:
         """
         Retrieve the data and deserialize it into the original object.
         """
@@ -412,7 +412,9 @@ class PersistedResult(BaseResult):
 
         blob = await self._read_blob(client=client)
         obj = blob.serializer.loads(blob.data)
-        self._cache_object(obj)
+
+        if cache:
+            self._cache_object(obj)
 
         return obj
 

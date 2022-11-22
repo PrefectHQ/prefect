@@ -31,7 +31,10 @@ R = TypeVar("R")
 
 
 def get_state_result(
-    state: State[R], raise_on_failure: bool = True, fetch: Optional[bool] = None
+    state: State[R],
+    raise_on_failure: bool = True,
+    fetch: Optional[bool] = None,
+    cache: Optional[bool] = None,
 ) -> R:
     """
     Get the result from a state.
@@ -43,6 +46,15 @@ def get_state_result(
     ):
         # Fetch defaults to `True` for sync users or async users who have opted in
         fetch = True
+
+    if cache is None:
+        from prefect.context import FlowRunContext
+
+        flow_run_context = FlowRunContext.get()
+        if flow_run_context:
+            cache = flow_run_context.result_factory.cache_result_in_memory
+        else:
+            cache = True
 
     if not fetch:
         if fetch is None and in_async_main_thread():
@@ -62,11 +74,11 @@ def get_state_result(
         else:
             return state.data
     else:
-        return _get_state_result(state, raise_on_failure=raise_on_failure)
+        return _get_state_result(state, raise_on_failure=raise_on_failure, cache=cache)
 
 
 @sync_compatible
-async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
+async def _get_state_result(state: State[R], raise_on_failure: bool, cache: bool) -> R:
     """
     Internal implementation for `get_state_result` without async backwards compatibility
     """
@@ -78,7 +90,7 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
             state, raise_on_failure=raise_on_failure
         )
     elif isinstance(state.data, BaseResult):
-        result = await state.data.get()
+        result = await state.data.get(cache=cache)
     elif state.data is None:
         if state.is_failed() or state.is_crashed():
             return await get_state_exception(state)
