@@ -1,5 +1,53 @@
 # Prefect Release Notes
 
+
+## Release 2.6.9
+
+### Features
+
+Logging into Prefect Cloud from the CLI has been given a serious upgrade!
+
+<img width="748" alt="Login example" src="https://user-images.githubusercontent.com/2586601/199800241-c1b3691b-f18c-43ee-85e9-53cc3e5b1d48.png">
+
+The `prefect cloud login` command now:
+
+- Can be used non-interactively
+- Can open the browser to generate a new API key for you
+- Uses a new workspace selector
+- Always uses your current profile
+- Only prompts for workspace selection when you have more than one workspace
+
+It also detects existing authentication:
+
+- If logged in on the current profile, we will check that you want to reauthenticate
+- If logged in on another profile, we will suggest a profile switch
+
+There's also a new `prefect cloud logout` command (contributed by @hallenmaia) to remove credentials from the current profile.
+
+### Enhancements
+- Add automatic upper-casing of string log level settings — https://github.com/PrefectHQ/prefect/pull/7592
+- Add `infrastructure_pid` to flow run — https://github.com/PrefectHQ/prefect/pull/7595
+- Add `PrefectFormatter` to reduce logging configuration duplication — https://github.com/PrefectHQ/prefect/pull/7588
+- Update `CloudClient.read_workspaces` to return a model — https://github.com/PrefectHQ/prefect/pull/7332
+- Update hashing utilities to allow execution in FIPS 140-2 environments — https://github.com/PrefectHQ/prefect/pull/7620
+
+### Fixes
+- Update logging setup to support incremental configuration — https://github.com/PrefectHQ/prefect/pull/7569
+- Update logging `JsonFormatter` to output valid JSON — https://github.com/PrefectHQ/prefect/pull/7567
+- Remove `inter` CSS import, which blocked UI loads in air-gapped environments — https://github.com/PrefectHQ/prefect/pull/7586
+- Return 404 when a flow run is missing during `set_task_run_state` — https://github.com/PrefectHQ/prefect/pull/7603
+- Fix directory copy errors with `LocalFileSystem` deployments on Python 3.7 — https://github.com/PrefectHQ/prefect/pull/7441
+- Add flush of task run logs when on remote workers — https://github.com/PrefectHQ/prefect/pull/7626
+
+### Documentation
+- Add docs about CPU and memory allocation on agent deploying ECS infrastructure blocks — https://github.com/PrefectHQ/prefect/pull/7597
+
+### Contributors
+- @hallenmaia 
+- @szelenka
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.6.8...2.6.9
+
 ## Release 2.6.8
 
 ### Enhancements
