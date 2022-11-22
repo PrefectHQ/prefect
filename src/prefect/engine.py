@@ -24,6 +24,7 @@ from uuid import UUID, uuid4
 
 import anyio
 import pendulum
+import time
 from anyio import start_blocking_portal
 from typing_extensions import Literal
 
@@ -63,6 +64,7 @@ from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
+    Paused,
     Pending,
     Running,
     State,
@@ -685,6 +687,44 @@ async def orchestrate_flow_run(
             state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
     return state
+
+
+@sync_compatible
+async def pause(timeout: int = 300, poll_interval: int = None):
+    poll_interval = poll_interval if poll_interval is not None else 10
+
+    if TaskRunContext.get():
+        raise RuntimeError("Can't pause task runs!")
+
+    frc = FlowRunContext.get()
+    logger = get_run_logger(context=frc)
+
+    logger.info("Pausing flow, execution will continue when this flow run is resumed.")
+    client = get_client()
+    response = await client.set_flow_run_state(
+        frc.flow_run.id,
+        Paused(),
+        force=True,
+    )
+
+    with anyio.move_on_after(timeout):
+        while True:
+            time.sleep(poll_interval)
+            flow_run = await client.read_flow_run(frc.flow_run.id)
+            if flow_run.state.is_running():
+                logger.info("Resuming flow run execution!")
+                return
+
+    raise FlowPauseTimeout("Flow run was paused and never resumed.")
+
+
+@sync_compatible
+async def resume(flow_run_id):
+    client = get_client()
+    response = await client.set_flow_run_state(
+        flow_run_id,
+        Running(name="Resuming"),
+    )
 
 
 def enter_task_run_engine(
