@@ -10,13 +10,15 @@ Logging into Prefect Cloud from the CLI has been given a serious upgrade!
 <img width="748" alt="Login example" src="https://user-images.githubusercontent.com/2586601/199800241-c1b3691b-f18c-43ee-85e9-53cc3e5b1d48.png">
 
 The `prefect cloud login` command now:
+
 - Can be used non-interactively
 - Can open the browser to generate a new API key for you
 - Uses a new workspace selector
 - Always uses your current profile
-- Only prompts workspace selection when you have more than one workspace
+- Only prompts for workspace selection when you have more than one workspace
 
 It also detects existing authentication:
+
 - If logged in on the current profile, we will check that you want to reauthenticate
 - If logged in on another profile, we will suggest a profile switch
 
@@ -32,7 +34,7 @@ There's also a new `prefect cloud logout` command (contributed by @hallenmaia) t
 ### Fixes
 - Update logging setup to support incremental configuration — https://github.com/PrefectHQ/prefect/pull/7569
 - Update logging `JsonFormatter` to output valid JSON — https://github.com/PrefectHQ/prefect/pull/7567
-- Remove `inter` CSS import which blocked UI loads in air-gapped environments — https://github.com/PrefectHQ/prefect/pull/7586
+- Remove `inter` CSS import, which blocked UI loads in air-gapped environments — https://github.com/PrefectHQ/prefect/pull/7586
 - Return 404 when a flow run is missing during `set_task_run_state` — https://github.com/PrefectHQ/prefect/pull/7603
 - Fix directory copy errors with `LocalFileSystem` deployments on Python 3.7 — https://github.com/PrefectHQ/prefect/pull/7441
 - Add flush of task run logs when on remote workers — https://github.com/PrefectHQ/prefect/pull/7626
