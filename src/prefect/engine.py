@@ -17,7 +17,6 @@ Engine process overview
 """
 import logging
 import sys
-import time
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
@@ -711,7 +710,7 @@ async def pause(timeout: int = 300, poll_interval: int = None):
 
     with anyio.move_on_after(timeout):
         while True:
-            time.sleep(poll_interval)
+            await anyio.sleep(poll_interval)
             flow_run = await client.read_flow_run(frc.flow_run.id)
             if flow_run.state.is_running():
                 logger.info("Resuming flow run execution!")
