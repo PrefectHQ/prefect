@@ -1,7 +1,5 @@
 import builtins
 
-import pytest
-
 from prefect import flow, task
 from prefect.context import get_run_context
 from prefect.logging.loggers import print_as_log
@@ -22,7 +20,7 @@ def test_log_prints_task_setting_is_context_managed():
     assert user_builtin_print is print_as_log
 
 
-def test_log_prints_flow_setting_is_context_managed():
+def test_log_prints_subflow_setting_is_context_managed():
     @flow(log_prints=True)
     def get_builtin_print():
         return builtins.print
@@ -48,13 +46,11 @@ def test_task_inherits_log_prints_setting(caplog):
     def log_prints_flow():
         return test_log_task()
 
-    with caplog.at_level("INFO"):
-        task_run_name = log_prints_flow()
+    printing_task_name = log_prints_flow()
 
-    assert f"test print from {task_run_name}" in caplog.text
+    assert f"test print from {printing_task_name}" in caplog.text
 
 
-@pytest.mark.xfail(reason="known bug")
 def test_subflow_inherits_log_prints_setting(caplog):
     @flow
     def test_subflow():
@@ -66,7 +62,56 @@ def test_subflow_inherits_log_prints_setting(caplog):
     def test_flow():
         return test_subflow()
 
-    with caplog.at_level("INFO"):
-        subflow_run_name = test_flow()
+    printing_subflow_name = test_flow()
 
-    assert f"test message from {subflow_run_name}" in caplog.text
+    assert f"test message from {printing_subflow_name}" in caplog.text
+
+
+def test_task_log_prints_with_options(caplog):
+    @task
+    def test_log_task():
+        task_run_name = get_run_context().task_run.name
+        print(f"test print from {task_run_name}")
+        return task_run_name
+
+    @flow
+    def log_prints_flow():
+        return test_log_task.with_options(log_prints=True)()
+
+    printing_task_name = log_prints_flow()
+
+    assert f"test print from {printing_task_name}" in caplog.text
+
+
+def test_flow_log_prints_with_options(caplog):
+    @flow
+    def test_log_flow():
+        flow_run_name = get_run_context().flow_run.name
+        print(f"test print from {flow_run_name}")
+        return flow_run_name
+
+    @flow
+    def log_prints_flow():
+        return test_log_flow.with_options(log_prints=True)()
+
+    printing_subflow_name = log_prints_flow()
+
+    assert f"test print from {printing_subflow_name}" in caplog.text
+
+
+def test_task_inherits_log_prints_setting_with_options(caplog):
+    @task
+    def test_log_task():
+        task_run_name = get_run_context().task_run.name
+        print(f"test print from {task_run_name}")
+        return task_run_name
+
+    @flow
+    def simple_flow():
+        return test_log_task()
+
+    modified_flow = simple_flow.with_options(log_prints=True)
+
+    printing_task_name = modified_flow()
+
+    assert f"test print from {printing_task_name}" in caplog.text

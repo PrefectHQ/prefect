@@ -517,7 +517,7 @@ PREFECT_LOGGING_LOG_PRINTS = Setting(
 )
 """
 If set, `print` statements in flows and tasks will be redirected to the Prefect logger
-for the given run. This setting ca be overriden by individual tasks and flows.
+for the given run. This setting can be overriden by individual tasks and flows.
 """
 
 PREFECT_LOGGING_ORION_ENABLED = Setting(
