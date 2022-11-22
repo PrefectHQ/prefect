@@ -243,6 +243,10 @@ class FlowRun(ORMBaseModel):
         default=None,
         description="The block document defining infrastructure to use this flow run.",
     )
+    infrastructure_pid: Optional[str] = Field(
+        default=None,
+        description="The id of the flow run as returned by an infrastructure block.",
+    )
     created_by: Optional[CreatedBy] = Field(
         default=None,
         description="Optional information about the creator of this flow run.",
