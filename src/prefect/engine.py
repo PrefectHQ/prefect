@@ -17,6 +17,7 @@ Engine process overview
 """
 import logging
 import sys
+import time
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
@@ -24,7 +25,6 @@ from uuid import UUID, uuid4
 
 import anyio
 import pendulum
-import time
 from anyio import start_blocking_portal
 from typing_extensions import Literal
 
@@ -42,6 +42,7 @@ from prefect.context import (
 from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
+    FlowPauseTimeout,
     MappingLengthMismatch,
     MappingMissingIterable,
     UpstreamTaskError,
@@ -86,6 +87,7 @@ from prefect.utilities.asyncutils import (
     run_async_from_worker_thread,
     run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
+    sync_compatible,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import isiterable, visit_collection
@@ -694,7 +696,7 @@ async def pause(timeout: int = 300, poll_interval: int = None):
     poll_interval = poll_interval if poll_interval is not None else 10
 
     if TaskRunContext.get():
-        raise RuntimeError("Can't pause task runs!")
+        raise RuntimeError("Cannot pause task runs.")
 
     frc = FlowRunContext.get()
     logger = get_run_logger(context=frc)
