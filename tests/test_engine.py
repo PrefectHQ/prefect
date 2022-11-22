@@ -73,24 +73,6 @@ def parameterized_flow():
 
 
 @pytest.fixture
-def flow_run_caplog(caplog):
-    """
-    Capture logging from flow runs to ensure messages are correct.
-    """
-    import logging
-
-    logger = logging.getLogger("prefect.flow_runs")
-    logger2 = logging.getLogger("prefect")
-    logger.propagate = True
-    logger2.propagate = True
-
-    try:
-        yield caplog
-    finally:
-        logger.propagate = False
-
-
-@pytest.fixture
 async def get_flow_run_context(orion_client, result_factory, local_filesystem):
     partial_ctx = PartialModel(FlowRunContext)
 

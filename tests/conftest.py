@@ -451,3 +451,20 @@ def reset_registered_blocks():
 
     registry.clear()
     registry.update(before)
+
+
+@pytest.fixture
+def caplog(caplog):
+    """
+    Overrides caplog to apply to all of our loggers that do not propagate and
+    consequently would not be captured by caplog.
+    """
+    from prefect.logging.configuration import PROCESS_LOGGING_CONFIG
+
+    for name, logger_config in PROCESS_LOGGING_CONFIG["loggers"].items():
+        if not logger_config.get("propagate", True):
+            logger = logging.getLogger(name)
+            if caplog.handler not in logger.handlers:
+                logger.handlers.append(caplog.handler)
+
+    yield caplog
