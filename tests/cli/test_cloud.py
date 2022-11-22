@@ -12,6 +12,7 @@ from typer import Exit
 from prefect.cli.cloud import LoginFailed, LoginSuccess
 from prefect.client.schemas import Workspace
 from prefect.context import get_settings_context, use_profile
+from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
@@ -55,6 +56,13 @@ def interactive_console(monkeypatch):
         return sys.stdin.read(1)
 
     monkeypatch.setattr("readchar._posix_read.readchar", readchar)
+
+
+@pytest.fixture(autouse=True)
+def restore_logging_setup():
+    yield
+    # Uvicorn is a maniac and will set logging to their configuration on startup
+    setup_logging(incremental=False)
 
 
 @pytest.fixture(autouse=True)
