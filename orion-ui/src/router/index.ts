@@ -1,184 +1,40 @@
-import { RouteGuardExecutioner } from '@prefecthq/orion-design'
+import { RouteGuardExecutioner, createWorkspaceRouteRecords } from '@prefecthq/orion-design'
 import { RouteRecordRaw, createRouter, createWebHistory, RouteComponent } from 'vue-router'
 import { routes, NamedRoute, AppRouteLocation, AppRouteRecord } from '@/router/routes'
 import { BASE_URL } from '@/utilities/meta'
+
+const workspaceRoutes = createWorkspaceRouteRecords({
+  flowRuns: () => import('@/pages/FlowRuns.vue'),
+  flowRun: () => import('@/pages/FlowRun.vue'),
+  flowRunRadar: () => import('@/pages/FlowRunRadar.vue'),
+  taskRun: () => import('@/pages/TaskRun.vue'),
+  flows: () => import('@/pages/Flows.vue'),
+  flow: () => import('@/pages/Flow.vue'),
+  deployments: () => import('@/pages/Deployments.vue'),
+  deployment: () => import('@/pages/Deployment.vue'),
+  deploymentEdit: () => import('@/pages/DeploymentEdit.vue'),
+  deploymentFlowRunCreate: () => import('@/pages/FlowRunCreate.vue'),
+  workQueues: () => import('@/pages/WorkQueues.vue'),
+  workQueue: () => import('@/pages/WorkQueue.vue'),
+  workQueueCreate: () => import('@/pages/WorkQueueCreate.vue'),
+  workQueueEdit: () => import('@/pages/WorkQueueEdit.vue'),
+  blocks: () => import('@/pages/Blocks.vue'),
+  blocksCatalog: () => import('@/pages/BlocksCatalog.vue'),
+  blocksCatalogView: () => import('@/pages/BlocksCatalogView.vue'),
+  blockCreate: () => import('@/pages/BlocksCatalogCreate.vue'),
+  block: () => import('@/pages/BlockView.vue'),
+  blockEdit: () => import('@/pages/BlockEdit.vue'),
+  notifications: () => import('@/pages/Notifications.vue'),
+  notificationCreate: () => import('@/pages/NotificationCreate.vue'),
+  notificationEdit: () => import('@/pages/NotificationEdit.vue'),
+})
 
 const routeRecords: AppRouteRecord[] = [
   {
     name: 'root',
     path: '/',
     redirect: routes.flowRuns(),
-  },
-  {
-    path: '/flow-runs',
-    children: [
-      {
-        name: 'flow-runs',
-        path: '',
-        component: (): RouteComponent => import('@/pages/FlowRuns.vue'),
-      },
-      {
-        path: 'flow-run/:id',
-        children: [
-          {
-            name: 'flow-run',
-            path: '',
-            component: (): RouteComponent => import('@/pages/FlowRun.vue'),
-          },
-          {
-            name: 'radar',
-            path: 'radar',
-            component: (): RouteComponent => import('@/pages/FlowRunRadar.vue'),
-          },
-        ],
-      },
-      {
-        path: 'task-run/:id',
-        children: [
-          {
-            name: 'task-run',
-            path: '',
-            component: (): RouteComponent => import('@/pages/TaskRun.vue'),
-          },
-        ],
-      },
-    ],
-  },
-
-  {
-    path: '/flows',
-    children: [
-      {
-        name: 'flows',
-        path: '',
-        component: (): RouteComponent => import('@/pages/Flows.vue'),
-      },
-      {
-        name: 'flow',
-        path: 'flow/:id',
-        component: (): RouteComponent => import('@/pages/Flow.vue'),
-      },
-    ],
-  },
-  {
-    path: '/deployments',
-    children: [
-      {
-        name: 'deployments',
-        path: '',
-        component: (): RouteComponent => import('@/pages/Deployments.vue'),
-      },
-      {
-        path: 'deployment/:id',
-        children: [
-          {
-            name: 'edit-deployment',
-            path: 'edit',
-            component: (): RouteComponent => import('@/pages/DeploymentEdit.vue'),
-          },
-          {
-            name: 'deployment',
-            path: '',
-            component: (): RouteComponent => import('@/pages/Deployment.vue'),
-          },
-          {
-            name: 'flow-run.create',
-            path: 'run',
-            component: (): RouteComponent => import('@/pages/FlowRunCreate.vue'),
-          },
-        ],
-      },
-    ],
-  },
-  {
-    path: '/work-queues',
-    children: [
-      {
-        name: 'work-queues',
-        path: '',
-        component: (): RouteComponent => import('@/pages/WorkQueues.vue'),
-      },
-      {
-        name: 'create-work-queue',
-        path: 'new',
-        component: (): RouteComponent => import('@/pages/WorkQueueCreate.vue'),
-      },
-      {
-        path: 'work-queue/:id',
-        children: [
-          {
-            path: 'edit',
-            name: 'edit-work-queue',
-            component: (): RouteComponent => import('@/pages/WorkQueueEdit.vue'),
-          },
-          {
-            path: '',
-            name: 'work-queue',
-            component: (): RouteComponent => import('@/pages/WorkQueue.vue'),
-          },
-        ],
-      },
-    ],
-  },
-  {
-    path: '/blocks',
-    children: [
-      {
-        name: 'blocks',
-        path: '',
-        component: (): RouteComponent => import('@/pages/Blocks.vue'),
-      },
-      {
-        name: 'blocks.catalog',
-        path: 'catalog',
-        component: (): RouteComponent => import('@/pages/BlocksCatalog.vue'),
-      },
-      {
-        name: 'blocks.view',
-        path: 'catalog/:blockTypeSlug',
-        component: (): RouteComponent => import('@/pages/BlocksCatalogView.vue'),
-      },
-      {
-        name: 'blocks.create',
-        path: 'catalog/:blockTypeSlug/create',
-        component: (): RouteComponent => import('@/pages/BlocksCatalogCreate.vue'),
-      },
-      {
-        path: 'block/:blockDocumentId',
-        children: [
-          {
-            name: 'block',
-            path: '',
-            component: (): RouteComponent => import('@/pages/BlockView.vue'),
-          },
-          {
-            name: 'block.edit',
-            path: 'edit',
-            component: (): RouteComponent => import('@/pages/BlockEdit.vue'),
-          },
-        ],
-      },
-    ],
-  },
-  {
-    path: '/notifications',
-    children: [
-      {
-        name: 'notifications',
-        path: '',
-        component: (): RouteComponent => import('@/pages/Notifications.vue'),
-      },
-      {
-        name: 'notifications.create',
-        path: 'new',
-        component: (): RouteComponent => import('@/pages/NotificationCreate.vue'),
-      },
-      {
-        name: 'notifications.edit',
-        path: 'edit/:notificationId',
-        component: (): RouteComponent => import('@/pages/NotificationEdit.vue'),
-      },
-    ],
+    children: workspaceRoutes,
   },
   {
     name: 'settings',
