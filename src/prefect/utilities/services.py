@@ -34,8 +34,8 @@ async def critical_service_loop(
         printer: a `print`-like function where errors will be reported
         run_once: if set, the loop will only run once then return
         jitter_range: if set, the interval will be a random variable (rv) drawn from
-            a clamped Poisson distribution where lambda = interval and bound between
-            `interval * (1 - range) < rv < interval * (1 + range)`
+            a clamped Poisson distribution where lambda = interval and the rv is bound
+            between `interval * (1 - range) < rv < interval * (1 + range)`
     """
 
     track_record: Deque[bool] = deque([True] * consecutive, maxlen=consecutive)
