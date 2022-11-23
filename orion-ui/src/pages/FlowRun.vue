@@ -56,7 +56,7 @@
 
 
   const selectedTab= ref('Logs')
-  const flowRunId = useRouteParam('id')
+  const flowRunId = useRouteParam('flowRunId')
   const tabs = computed(() => {
     const values = [
       'Logs',
