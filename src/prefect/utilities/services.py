@@ -112,4 +112,4 @@ async def critical_service_loop(
         else:
             sleep = interval
 
-        await anyio.sleep(interval)
+        await anyio.sleep(sleep)
