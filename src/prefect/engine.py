@@ -692,7 +692,7 @@ async def orchestrate_flow_run(
 
 
 @sync_compatible
-async def pause(timeout: int = 300, poll_interval: int = 10):
+async def pause_flow_run(timeout: int = 300, poll_interval: int = 10):
     """
     Pauses a flow run by stopping execution until resumed.
 
@@ -742,7 +742,7 @@ async def pause(timeout: int = 300, poll_interval: int = 10):
 
 
 @sync_compatible
-async def resume(flow_run_id):
+async def resume_flow_run(flow_run_id):
     """
     Resumes a paused flow.
 
