@@ -1,12 +1,14 @@
 import re
-from typing import Dict, List
+from typing import List
 
 import anyio
 import httpx
+import pydantic
 from fastapi import status
 
 import prefect.context
 import prefect.settings
+from prefect.client.schemas import Workspace
 from prefect.exceptions import PrefectException
 from prefect.settings import PREFECT_API_KEY, PREFECT_CLOUD_API_URL
 
@@ -64,8 +66,8 @@ class CloudClient:
         with anyio.fail_after(10):
             await self.read_workspaces()
 
-    async def read_workspaces(self) -> List[Dict]:
-        return await self.get("/me/workspaces")
+    async def read_workspaces(self) -> List[Workspace]:
+        return pydantic.parse_obj_as(List[Workspace], await self.get("/me/workspaces"))
 
     async def __aenter__(self):
         await self._client.__aenter__()
