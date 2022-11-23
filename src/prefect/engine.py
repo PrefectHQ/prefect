@@ -34,6 +34,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.utilities import inject_client
 from prefect.context import (
     FlowRunContext,
+    NotPausedError,
     PrefectObjectRegistry,
     TagsContext,
     TaskRunContext,
@@ -691,8 +692,22 @@ async def orchestrate_flow_run(
 
 
 @sync_compatible
-async def pause(timeout: int = 300, poll_interval: int = None):
-    poll_interval = poll_interval if poll_interval is not None else 10
+async def pause(timeout: int = 300, poll_interval: int = 10):
+    """
+    Pauses a flow run by stopping execution until resumed.
+
+    When called within a flow run, execution will block and no downstream tasks will
+    run until the flow is resumed. Task runs that have already started will continue
+    running. A timeout parameter can be passed that will fail the flow run if it has not
+    been resumed within the specified time.
+
+    Args:
+        timeout: the number of seconds to wait for the flow to be resumed before
+            failing. Defaults to 5 minutes (300 seconds). If the pause timeout exceeds
+            any configured flow-level timeout, the flow might fail even after resuming.
+        poll_interval: The number of seconds between checking whether the flow has been
+            resumed. Defaults to 10 seconds.
+    """
 
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
@@ -705,7 +720,6 @@ async def pause(timeout: int = 300, poll_interval: int = None):
     response = await client.set_flow_run_state(
         frc.flow_run.id,
         Paused(),
-        force=True,
     )
 
     with anyio.move_on_after(timeout):
@@ -729,8 +743,19 @@ async def pause(timeout: int = 300, poll_interval: int = None):
 
 @sync_compatible
 async def resume(flow_run_id):
+    """
+    Resumes a paused flow.
+
+    Args:
+        flow_run_id: the flow_run_id to resume
+    """
     client = get_client()
-    response = await client.set_flow_run_state(
+    flow_run = await client.read_flow_run(flow_run_id)
+
+    if not flow_run.state.is_paused():
+        raise NotPausedError("Cannot resume a run that isn't paused!")
+
+    await client.set_flow_run_state(
         flow_run_id,
         Running(name="Resuming"),
     )
