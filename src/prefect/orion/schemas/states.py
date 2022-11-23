@@ -119,9 +119,6 @@ class State(IDBaseModel, Generic[R]):
     def is_paused(self) -> bool:
         return self.type == StateType.PAUSED
 
-    def is_resuming(self) -> bool:
-        return self.type == StateType.RESUMING
-
     def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):
         """
         Copying API models should return an object that could be inserted into the
