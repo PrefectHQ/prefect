@@ -19,9 +19,9 @@ from prefect.engine import (
     create_and_begin_subflow_run,
     create_then_begin_flow_run,
     link_state_to_result,
-    pause,
     orchestrate_flow_run,
     orchestrate_task_run,
+    pause,
     resume,
     retrieve_flow_then_begin_flow_run,
 )
