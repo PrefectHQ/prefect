@@ -15,7 +15,7 @@ from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
 )
-from prefect.exceptions import CrashedRun, FailedRun, FlowPauseTimeout, MissingResult
+from prefect.exceptions import CrashedRun, FailedRun, MissingResult
 from prefect.orion import schemas
 from prefect.orion.schemas.states import StateType
 from prefect.results import BaseResult, R, ResultFactory
