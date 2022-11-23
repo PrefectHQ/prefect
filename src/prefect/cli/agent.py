@@ -156,6 +156,7 @@ async def start(
             PREFECT_AGENT_QUERY_INTERVAL.value(),
             printer=app.console.print,
             run_once=run_once,
+            jitter_range=0.3,
         )
 
     app.console.print("Agent stopped!")
