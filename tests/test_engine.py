@@ -21,8 +21,8 @@ from prefect.engine import (
     link_state_to_result,
     orchestrate_flow_run,
     orchestrate_task_run,
-    pause,
-    resume,
+    pause_flow_run,
+    resume_flow_run,
     retrieve_flow_then_begin_flow_run,
 )
 from prefect.exceptions import (
@@ -104,7 +104,7 @@ class TestPausingFlows:
     async def test_tasks_cannot_be_paused(self):
         @task
         def the_little_task_that_pauses():
-            pause()
+            pause_flow_run()
             return True
 
         @flow
@@ -122,7 +122,7 @@ class TestPausingFlows:
         @flow()
         def pausing_flow():
             x = doesnt_pause.submit()
-            pause(timeout=0.1)
+            pause_flow_run(timeout=0.1)
             y = doesnt_pause.submit()
             z = doesnt_pause(wait_for=[x])
             alpha = doesnt_pause(wait_for=[y])
@@ -140,7 +140,7 @@ class TestPausingFlows:
         def pausing_flow():
             x = doesnt_pause.submit()
             y = doesnt_pause.submit()
-            pause(timeout=0.1)
+            pause_flow_run(timeout=0.1)
             z = doesnt_pause(wait_for=[x])
             alpha = doesnt_pause(wait_for=[y])
             omega = doesnt_pause(wait_for=[x, y])
@@ -161,7 +161,7 @@ class TestPausingFlows:
         async def pausing_flow():
             x = await doesnt_pause.submit()
             y = await doesnt_pause.submit()
-            await pause(timeout=0.1)
+            await pause_flow_run(timeout=0.1)
             z = await doesnt_pause(wait_for=[x])
             alpha = await doesnt_pause(wait_for=[y])
             omega = await doesnt_pause(wait_for=[x, y])
@@ -182,7 +182,7 @@ class TestPausingFlows:
         async def pausing_flow():
             x = await doesnt_pause.submit()
             y = await doesnt_pause.submit()
-            await pause(timeout=0.1)
+            await pause_flow_run(timeout=0.1)
             z = await doesnt_pause(wait_for=[x])
             alpha = await doesnt_pause(wait_for=[y])
             omega = await doesnt_pause(wait_for=[x, y])
@@ -203,7 +203,7 @@ class TestPausingFlows:
         async def pausing_flow():
             x = await doesnt_pause.submit()
             y = await doesnt_pause.submit()
-            await pause(timeout=10, poll_interval=2)
+            await pause_flow_run(timeout=10, poll_interval=2)
             z = await doesnt_pause(wait_for=[x])
             alpha = await doesnt_pause(wait_for=[y])
             omega = await doesnt_pause(wait_for=[x, y])
@@ -212,7 +212,7 @@ class TestPausingFlows:
             await anyio.sleep(3)
             flow_runs = await orion_client.read_flow_runs(limit=1)
             active_flow_run = flow_runs[0]
-            await resume(active_flow_run.id)
+            await resume_flow_run(active_flow_run.id)
 
         flow_run_state, the_answer = await asyncio.gather(
             pausing_flow(return_state=True),
