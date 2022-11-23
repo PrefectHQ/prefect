@@ -375,10 +375,12 @@ async def delete_flow_run(
     return result.rowcount > 0
 
 
+@inject_db
 async def set_flow_run_state(
     session: AsyncSession,
     flow_run_id: UUID,
     state: schemas.states.State,
+    db: OrionDBInterface,
     force: bool = False,
     flow_policy: BaseOrchestrationPolicy = None,
     orchestration_parameters: dict = None,
@@ -404,11 +406,17 @@ async def set_flow_run_state(
         OrchestrationResult object
     """
 
-    # load the flow run
-    run = await models.flow_runs.read_flow_run(
-        session=session,
-        flow_run_id=flow_run_id,
+    # Load the flow run.
+    # Lock the row to guard against race conditions.
+    flow_run_query = (
+        sa.select(db.FlowRun)
+        .where(db.FlowRun.id == flow_run_id)
+        .with_for_update(skip_locked=True)
+        .limit(1)
+        .execution_options(populate_existing=True)
     )
+    result = await session.execute(flow_run_query)
+    run = result.scalar()
 
     if not run:
         raise ObjectNotFoundError(f"Flow run with id {flow_run_id} not found")
