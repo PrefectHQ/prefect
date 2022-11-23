@@ -34,7 +34,6 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.utilities import inject_client
 from prefect.context import (
     FlowRunContext,
-    NotPausedError,
     PrefectObjectRegistry,
     TagsContext,
     TaskRunContext,
@@ -45,6 +44,7 @@ from prefect.exceptions import (
     FlowPauseTimeout,
     MappingLengthMismatch,
     MappingMissingIterable,
+    NotPausedError,
     UpstreamTaskError,
 )
 from prefect.flows import Flow
