@@ -31,6 +31,10 @@ def version_callback(value: bool):
         raise typer.Exit()
 
 
+def is_interactive():
+    return app.console.is_interactive
+
+
 @app.callback()
 @with_cli_exception_handling
 def main(

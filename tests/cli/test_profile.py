@@ -80,7 +80,7 @@ class TestChangingProfileAndCheckingOrionConnection:
         with respx.mock:
             authorized = respx.get(
                 "https://mock-cloud.prefect.io/api/me/workspaces",
-            ).mock(return_value=Response(200, json={}))
+            ).mock(return_value=Response(200, json=[]))
 
             yield authorized
 
