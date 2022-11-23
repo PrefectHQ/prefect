@@ -1,3 +1,5 @@
+from unittest.mock import call
+
 import httpx
 import pytest
 
@@ -94,3 +96,28 @@ async def test_quits_after_3_consecutive_errors(capsys: pytest.CaptureFixture):
     assert "Examples of recent errors" in result.out
     assert "httpx.ConnectError: woops" in result.out
     assert "httpx.TimeoutException: boo" in result.out
+
+
+async def test_sleeps_between_loops(monkeypatch):
+    workload = AsyncMock(
+        side_effect=[
+            None,
+            None,
+            None,
+            None,
+            None,
+            KeyboardInterrupt,
+        ]
+    )
+    sleeper = AsyncMock()
+
+    monkeypatch.setattr("prefect.utilities.services.anyio.sleep", sleeper)
+    await critical_service_loop(workload, 0.0)
+    assert workload.await_count == 6
+    assert sleeper.await_args_list == [
+        call(0.0),
+        call(0.0),
+        call(0.0),
+        call(0.0),
+        call(0.0),
+    ]
