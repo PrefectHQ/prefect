@@ -7,10 +7,9 @@ Create Date: 2022-11-23 09:24:49.826750
 """
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
-revision = '5e4f924ff96c'
-down_revision = '5d526270ddb4'
+revision = "5e4f924ff96c"
+down_revision = "5d526270ddb4"
 branch_labels = None
 depends_on = None
 
