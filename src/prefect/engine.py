@@ -1179,7 +1179,7 @@ async def begin_task_run(
             ) from connect_error
 
         try:
-            return await orchestrate_task_run(
+            state = await orchestrate_task_run(
                 task=task,
                 task_run=task_run,
                 parameters=parameters,
@@ -1188,13 +1188,21 @@ async def begin_task_run(
                 interruptible=interruptible,
                 client=client,
             )
+
+            if not maybe_flow_run_context:
+                # When a a task run finishes on a remote worker flush logs to prevent
+                # loss if the process exits
+                OrionHandler.flush(block=True)
+
         except Abort:
             # Task run already completed, just fetch its state
             task_run = await client.read_task_run(task_run.id)
             task_run_logger(task_run).info(
                 f"Task run '{task_run.id}' already finished."
             )
-            return task_run.state
+            state = task_run.state
+
+        return state
 
 
 async def orchestrate_task_run(
