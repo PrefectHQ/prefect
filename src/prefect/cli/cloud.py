@@ -410,7 +410,7 @@ async def login(
 
         # Confirm that we want to switch if the current profile is already logged in
         if (
-            current_profile_is_logged_in or current_workspace is not None
+            current_profile_is_logged_in and current_workspace is not None
         ) and prompt_switch_workspace:
             app.console.print(
                 f"You are currently using workspace {current_workspace.handle!r}."
