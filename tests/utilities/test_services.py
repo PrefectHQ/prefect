@@ -1,5 +1,4 @@
 import statistics
-from unittest.mock import call
 
 import httpx
 import pytest
