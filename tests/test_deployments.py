@@ -754,14 +754,21 @@ class TestRunDeployment:
     def test_accepts_idempotency_key(self, test_deployment):
         d, deployment_id = test_deployment
 
-        flow_run = run_deployment(
+        flow_run_a = run_deployment(
             f"{d.flow_name}/{d.name}",
             idempotency_key="12345",
             timeout=0,
             poll_interval=0
         )
 
-        assert flow_run.idempotency_key == "12345"
+        flow_run_b = run_deployment(
+            f"{d.flow_name}/{d.name}",
+            idempotency_key="12345",
+            timeout=0,
+            poll_interval=0
+        )
+
+        assert flow_run_a.id == flow_run_b.id
 
     async def test_links_to_parent_flow_run_when_used_in_flow(
         self, test_deployment, use_hosted_orion, orion_client: OrionClient
