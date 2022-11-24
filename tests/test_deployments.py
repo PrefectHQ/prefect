@@ -745,11 +745,10 @@ class TestRunDeployment:
             f"{d.flow_name}/{d.name}",
             tags=["I", "love", "prefect"],
             timeout=0,
-            poll_interval=0
+            poll_interval=0,
         )
 
         assert sorted(flow_run.tags) == ["I", "love", "prefect"]
-
 
     def test_accepts_idempotency_key(self, test_deployment):
         d, deployment_id = test_deployment
@@ -758,14 +757,14 @@ class TestRunDeployment:
             f"{d.flow_name}/{d.name}",
             idempotency_key="12345",
             timeout=0,
-            poll_interval=0
+            poll_interval=0,
         )
 
         flow_run_b = run_deployment(
             f"{d.flow_name}/{d.name}",
             idempotency_key="12345",
             timeout=0,
-            poll_interval=0
+            poll_interval=0,
         )
 
         assert flow_run_a.id == flow_run_b.id
