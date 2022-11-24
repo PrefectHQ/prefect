@@ -27,8 +27,8 @@ class FlowRunNotifications(LoopService):
 
     @inject_db
     async def run_once(self, db: OrionDBInterface):
-        async with db.session_context(begin_transaction=True) as session:
-            while True:
+        while True:
+            async with db.session_context(begin_transaction=True) as session:
                 # Drain the queue one entry at a time, because if a transient
                 # database error happens while sending a notification, the whole
                 # transaction will be rolled back, which effectively re-queues any

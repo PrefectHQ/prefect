@@ -255,8 +255,8 @@ def test_login_with_interactive_key_single_workspace(respx_mock):
         expected_output_contains=[
             "? How would you like to authenticate? [Use arrows to move; enter to select]",
             "Log in with a web browser",
-            "Paste an authentication key",
-            "Paste your authentication key:",
+            "Paste an API key",
+            "Paste your API key:",
             "Authenticated with Prefect Cloud! Using workspace 'test/foo'.",
         ],
     )
@@ -298,8 +298,8 @@ def test_login_with_interactive_key_multiple_workspaces(respx_mock):
         expected_output_contains=[
             "? How would you like to authenticate? [Use arrows to move; enter to select]",
             "Log in with a web browser",
-            "Paste an authentication key",
-            "Paste your authentication key:",
+            "Paste an API key",
+            "Paste your API key:",
         ],
     )
 
@@ -340,7 +340,7 @@ def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
         expected_output_contains=[
             "? How would you like to authenticate? [Use arrows to move; enter to select]",
             "Log in with a web browser",
-            "Paste an authentication key",
+            "Paste an API key",
             "Authenticated with Prefect Cloud! Using workspace 'test/foo'.",
         ],
     )
@@ -382,7 +382,7 @@ def test_login_with_browser_failure_in_browser(respx_mock, mock_webbrowser):
         expected_output_contains=[
             "? How would you like to authenticate? [Use arrows to move; enter to select]",
             "Log in with a web browser",
-            "Paste an authentication key",
+            "Paste an API key",
             "Failed to log in. Oh no!",
         ],
     )
@@ -540,8 +540,8 @@ def test_login_already_logged_in_to_current_profile_yes_reauth(respx_mock):
                 "Would you like to reauthenticate? [y/N]",
                 "? How would you like to authenticate? [Use arrows to move; enter to select]",
                 "Log in with a web browser",
-                "Paste an authentication key",
-                "Paste your authentication key:",
+                "Paste an API key",
+                "Paste your API key:",
                 "Authenticated with Prefect Cloud! Using workspace 'test/foo'.",
             ],
         )
