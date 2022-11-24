@@ -3,7 +3,9 @@ import random
 
 
 def poisson_interval(average_interval):
-    return -math.log(1 - random.random()) * average_interval
+    # note that we ensure the argument to the logarithm is stabilized to prevented
+    # calling log(0), which results in a DomainError
+    return -math.log(max(1 - random.random(), 1e-10)) * average_interval
 
 
 def clamped_poisson_interval(average_interval, clamping_factor=0.3):
