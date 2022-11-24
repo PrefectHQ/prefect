@@ -18,25 +18,10 @@ def test_clamped_poisson_intervals():
 
     assert expected_average * 0.9 < observed_average < expected_average * 1.1
 
-    assert (
-        len(
-            list(
-                filter(
-                    lambda interval: expected_average > expected_average * (1 + 0.3),
-                    bunch_of_intervals,
-                )
-            )
-        )
-        == 0
+    assert max(bunch_of_intervals) < expected_average * (
+        1 + 0.3
     ), "no intervals should exceed the upper clamp limit"
-    assert (
-        len(
-            list(
-                filter(
-                    lambda interval: expected_average < expected_average * (1 - 0.3),
-                    bunch_of_intervals,
-                )
-            )
-        )
-        == 0
-    ), "no intervals should exceed the lower clamp limit"
+
+    assert min(bunch_of_intervals) > expected_average * (
+        1 - 0.3
+    ), "no intervals should be smaller than the lower clamp limit"
