@@ -34,6 +34,7 @@ class FlowView:
         - storage: The deserialized Storage object used to store this flow
         - name: The name of the flow
         - flow_group_labels: Labels that are assigned to the parent flow group
+        - version_group_id: The group version used to register the flow
     """
 
     flow_id: str
@@ -46,6 +47,7 @@ class FlowView:
     storage: prefect.storage.Storage
     name: str
     flow_group_labels: List[str]
+    version_group_id: str
 
     @property
     def flow(self) -> "prefect.Flow":
@@ -282,6 +284,7 @@ class FlowView:
                     "core_version": True,
                     "storage": True,
                     "flow_group": {"labels"},
+                    "version_group_id": True,
                 }
             }
         }
