@@ -130,6 +130,7 @@ class FlowRunUpdate(ActionBaseModel):
     parameters: dict = FieldFrom(schemas.core.FlowRun)
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
+    infrastructure_pid: Optional[str] = FieldFrom(schemas.core.FlowRun)
 
 
 @copy_model_fields

@@ -81,12 +81,6 @@ class MissingFlowError(PrefectException):
     """
 
 
-class MissingFlowRunError(PrefectException):
-    """
-    Raised when a flow run cannot be found.
-    """
-
-
 class UnspecifiedFlowError(PrefectException):
     """
     Raised when multiple flows are found in the expected script and no name is given.
