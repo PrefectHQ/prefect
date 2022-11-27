@@ -1,4 +1,5 @@
 import logging.handlers
+import sys
 import traceback
 from types import TracebackType
 from typing import Optional, Tuple, Type, Union
@@ -62,3 +63,67 @@ class JsonFormatter(logging.Formatter):
         # JSONSerializer returns bytes; decode to string to conform to
         # the `logging.Formatter.format` interface
         return log_json_bytes.decode()
+
+
+class PrefectFormatter(logging.Formatter):
+    def __init__(
+        self,
+        format=None,
+        datefmt=None,
+        style="%",
+        validate=True,
+        *,
+        defaults=None,
+        task_run_fmt: str = None,
+        flow_run_fmt: str = None
+    ) -> None:
+        """
+        Implementation of the standard Python formatter with support for multiple
+        message formats.
+
+        """
+        # See https://github.com/python/cpython/blob/c8c6113398ee9a7867fe9b08bc539cceb61e2aaa/Lib/logging/__init__.py#L546
+        # for implementation details
+
+        init_kwargs = {}
+        style_kwargs = {}
+
+        # defaults added in 3.10
+        if sys.version_info >= (3, 10):
+            init_kwargs["defaults"] = defaults
+            style_kwargs["defaults"] = defaults
+
+        # validate added in 3.8
+        if sys.version_info >= (3, 8):
+            init_kwargs["validate"] = validate
+        else:
+            validate = False
+
+        super().__init__(format, datefmt, style, **init_kwargs)
+
+        self.flow_run_fmt = flow_run_fmt
+        self.task_run_fmt = task_run_fmt
+
+        # Retrieve the style class from the base class to avoid importing private
+        # `_STYLES` mapping
+        style_class = type(self._style)
+
+        self._flow_run_style = (
+            style_class(flow_run_fmt, **style_kwargs) if flow_run_fmt else self._style
+        )
+        self._task_run_style = (
+            style_class(task_run_fmt, **style_kwargs) if task_run_fmt else self._style
+        )
+        if validate:
+            self._flow_run_style.validate()
+            self._task_run_style.validate()
+
+    def formatMessage(self, record: logging.LogRecord):
+        if record.name == "prefect.flow_runs":
+            style = self._flow_run_style
+        elif record.name == "prefect.task_runs":
+            style = self._task_run_style
+        else:
+            style = self._style
+
+        return style.format(record)
