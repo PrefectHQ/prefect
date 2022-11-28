@@ -980,6 +980,7 @@ async def test_update_flow_run(orion_client):
             retries=1,
             retry_delay=2,
         ),
+        infrastructure_pid="infrastructure-123:1029",
     )
     updated_flow_run = await orion_client.read_flow_run(flow_run.id)
     assert updated_flow_run.flow_version == "foo"
@@ -990,6 +991,7 @@ async def test_update_flow_run(orion_client):
         retries=1,
         retry_delay=2,
     )
+    assert updated_flow_run.infrastructure_pid == "infrastructure-123:1029"
 
 
 async def test_update_flow_run_overrides_tags(orion_client):

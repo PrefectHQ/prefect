@@ -18,9 +18,9 @@ The following sections will get you set up and using Prefect Cloud, using these 
 1. [Sign in or register](#sign-in-or-register) a Prefect Cloud account.
 2. [Create workspaces](#create-a-workspace) for your account.
 3. [Create an API key](#create-an-api-key) to authorize a local execution environment.
-4. [Configure Orion settings](#configure-orion-for-cloud) to use Prefect Cloud.
+4. [Configure Orion settings](#configure-execution-environment) to use Prefect Cloud.
 5. [Configure storage](#configure-storage).
-6. [Run a flow](#run-a-flow-with-cloud) and view flow results in Prefect Cloud.
+6. [Run a flow](#run-a-flow-with-prefect-cloud) and view flow results in Prefect Cloud.
 
 ## Sign in or register
 
@@ -142,11 +142,8 @@ When you're in a Prefect Cloud workspace, you can copy the `PREFECT_API_URL` val
 
 In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the default profile. You can use `prefect profile` CLI commands to create settings profiles for different configurations. For example, you could have a "cloud" profile configured to use the Prefect Cloud API URL and API key, and another "local" profile for local development using a local Prefect API server started with `prefect orion start`. See [Settings](/concepts/settings/) for details.
 
-## Configure storage 
-
-When using Prefect Cloud, we recommend configuring remote storage for persisting flow and task data. See [Storage](/concepts/storage/) for details.
-
-By default, Prefect uses local file system storage to persist flow code and flow and task results. For local development and testing this may be adequate. Be aware, however, that local storage is not guaranteed to persist data reliably between flow or task runs, particularly when using container-based environments such as Docker or Kubernetes, or running tasks with distributed computing tools like Dask and Ray.
+!!! note "Environment variables"
+    You can also set `PREFECT_API_URL` and `PREFECT_API_KEY` as you would any other environment variable. See [Overriding defaults with environment variables](/concepts/settings/#overriding-defaults-with-environment-variables) for more information.
 
 ## Run a flow with Prefect Cloud
 
@@ -194,6 +191,14 @@ To run a flow from a deployment with Prefect Cloud, you'll need to:
 - Create the deployment using the Prefect CLI
 - Start an agent in your execution environment
 - Run your deployment to create a flow run
+
+### Configure storage 
+
+For the Prefect Cloud quickstart, we'll use local storage. You don't need to set up any remote storage to complete this tutorial. 
+
+When using Prefect Cloud in production, we recommend configuring remote storage. Storage is used to make flow scripts available when creating flow runs via API in remote execution environments. Storage is also used for persisting flow and task data. See [Storage](/concepts/storage/) for details.
+
+By default, Prefect uses local file system storage to persist flow code and flow and task results. For local development and testing this may be adequate. Be aware, however, that local storage is not guaranteed to persist data reliably between flow or task runs, particularly when using container-based environments such as Docker or Kubernetes, or when executing tasks with distributed computing tools like Dask and Ray.
 
 ### Create a deployment
 
