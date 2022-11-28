@@ -365,12 +365,12 @@ async def login(
             "How would you like to authenticate?",
             [
                 ("browser", "Log in with a web browser"),
-                ("key", "Paste an authentication key"),
+                ("key", "Paste an API key"),
             ],
         )
 
         if choice == "key":
-            key = typer.prompt("Paste your authentication key", hide_input=True)
+            key = typer.prompt("Paste your API key", hide_input=True)
         elif choice == "browser":
             key = await login_with_browser()
 
@@ -410,7 +410,7 @@ async def login(
 
         # Confirm that we want to switch if the current profile is already logged in
         if (
-            current_profile_is_logged_in or current_workspace is not None
+            current_profile_is_logged_in and current_workspace is not None
         ) and prompt_switch_workspace:
             app.console.print(
                 f"You are currently using workspace {current_workspace.handle!r}."

@@ -26,6 +26,7 @@ class StateType(AutoEnum):
     FAILED = AutoEnum.auto()
     CANCELLED = AutoEnum.auto()
     CRASHED = AutoEnum.auto()
+    PAUSED = AutoEnum.auto()
 
 
 TERMINAL_STATES = {
@@ -114,6 +115,9 @@ class State(IDBaseModel, Generic[R]):
 
     def is_final(self) -> bool:
         return self.type in TERMINAL_STATES
+
+    def is_paused(self) -> bool:
+        return self.type == StateType.PAUSED
 
     def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):
         """
@@ -276,6 +280,15 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
         State: a Pending state
     """
     return cls(type=StateType.PENDING, **kwargs)
+
+
+def Paused(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Paused` states.
+
+    Returns:
+        State: a Paused state
+    """
+    return cls(type=StateType.PAUSED, **kwargs)
 
 
 def AwaitingRetry(

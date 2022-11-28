@@ -9,6 +9,7 @@ import prefect
 from prefect.exceptions import InvalidRepositoryURLError
 from prefect.filesystems import GitHub, LocalFileSystem, RemoteFileSystem
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.filesystem import tmpchdir
 
 TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
 
@@ -318,6 +319,90 @@ class TestRemoteFileSystem:
         num_files_expected = len(included_files)
 
         assert num_files_put == num_files_expected
+
+    @pytest.mark.parametrize("null_value", {None, ""})
+    async def test_get_directory_empty_local_path_uses_cwd(
+        self, tmp_path: Path, null_value
+    ):
+        """Check that contents are copied to the CWD when no `local_path` is provided."""
+
+        # Construct the `from` directory
+        from_path = tmp_path / "from"
+        from_path.mkdir()
+        (from_path / "test").touch()
+
+        # Construct a clean working directory
+        cwd = tmp_path / "working"
+        cwd.mkdir()
+
+        fs = LocalFileSystem()
+        with tmpchdir(cwd):
+            await fs.get_directory(from_path=str(from_path), local_path=null_value)
+
+        assert (cwd / "test").exists()
+
+    @pytest.mark.parametrize("null_value", {None, ""})
+    async def test_get_directory_empty_from_path_uses_basepath(
+        self, tmp_path: Path, null_value
+    ):
+        """Check that directory contents are copied from the basepath when no `from_path`
+        is provided.
+        """
+        # Construct a clean directory to copy to
+        local_path = tmp_path / "local"
+        local_path.mkdir()
+
+        # Construct a working directory with contents to copy
+        base_path = tmp_path / "base"
+        base_path.mkdir()
+        (base_path / "test").touch()
+
+        with tmpchdir(tmp_path):
+            fs = LocalFileSystem(basepath=base_path)
+            await fs.get_directory(from_path=null_value, local_path=local_path)
+        assert (local_path / "test").exists()
+
+    @pytest.mark.parametrize("null_value", {None, ""})
+    async def test_put_directory_empty_local_path_uses_cwd(
+        self, tmp_path: Path, null_value
+    ):
+        """Check that CWD is used as the source when no `local_path` is provided."""
+
+        # Construct a clean directory to copy to
+        to_path = tmp_path / "to"
+        to_path.mkdir()
+
+        # Construct a working directory with contents to copy
+        cwd = tmp_path / "working"
+        cwd.mkdir()
+        (cwd / "test").touch()
+
+        fs = LocalFileSystem()
+        with tmpchdir(cwd):
+            await fs.put_directory(to_path=str(to_path), local_path=null_value)
+
+        assert (to_path / "test").exists()
+
+    @pytest.mark.parametrize("null_value", {None, ""})
+    async def test_put_directory_empty_from_path_uses_basepath(
+        self, tmp_path: Path, null_value
+    ):
+        """Check that directory contents are copied to the basepath when no `to_path` is
+        provided.
+        """
+        # Construct a local path with contents to copy
+        local_path = tmp_path / "local"
+        local_path.mkdir()
+        (local_path / "test").touch()
+
+        # Construct a clean basepath directory
+        base_path = tmp_path / "base"
+        base_path.mkdir()
+
+        with tmpchdir(tmp_path):
+            fs = LocalFileSystem(basepath=base_path)
+            await fs.put_directory(to_path=null_value, local_path=local_path)
+        assert (local_path / "test").exists()
 
 
 class TestGitHub:
