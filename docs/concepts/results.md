@@ -285,7 +285,7 @@ If results are not persisted, these features may not be usable.
 
 ### Configuring persistence of results
 
-Persistence of results requires a [**serializer**](#result-serializers) and a [**storage** location](#result-storage). Prefect sets defaults for these, and you should not need to adjust them until you want to customize behavior. You can configure results on the `flow` and `task` decorators with the following options:
+Persistence of results requires a [**serializer**](#result-serializer) and a [**storage** location](#result-storage-location). Prefect sets defaults for these, and you should not need to adjust them until you want to customize behavior. You can configure results on the `flow` and `task` decorators with the following options:
 
 - `persist_result`: Whether the result should be persisted to storage.
 - `result_storage`: Where to store the result when persisted.

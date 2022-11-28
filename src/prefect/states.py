@@ -475,6 +475,15 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
     return schemas.states.Pending(cls=cls, **kwargs)
 
 
+def Paused(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Paused` states.
+
+    Returns:
+        State: a Paused state
+    """
+    return schemas.states.Paused(cls=cls, **kwargs)
+
+
 def AwaitingRetry(
     cls: Type[State] = State, scheduled_time: datetime.datetime = None, **kwargs
 ) -> State:

@@ -17,7 +17,7 @@ The **Flows** page in the Prefect UI lists any flows that have been observed by 
 
 For each flow, the **Flows** page lists the flow name and displays a graph of activity for the flow.
 
-You can see additional details about the flow by [selecting the flow name](#inspect-a-flow). You can see detail about the flow run by [selecting the flow run name](#inspect-a-flow-run).
+You can see additional details about the flow by [selecting the flow name](#inspect-a-flow). You can see detail about the flow run by [selecting the flow run name](/ui/flow-runs/#inspect-a-flow-run).
 
 ## Inspect a flow
 

@@ -311,3 +311,11 @@ class ProtectedBlockError(PrefectException):
 
 class InvalidRepositoryURLError(PrefectException):
     """Raised when an incorrect URL is provided to a GitHub filesystem block."""
+
+
+class NotPausedError(PrefectException):
+    """Raised when attempting to unpause a run that isn't paused."""
+
+
+class FlowPauseTimeout(PrefectException):
+    """Raised when a flow pause times out"""
