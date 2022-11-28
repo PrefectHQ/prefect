@@ -401,7 +401,7 @@ class PersistedResult(BaseResult):
     storage_block_id: uuid.UUID
     storage_key: str
 
-    _should_cache_object: bool = True
+    _should_cache_object: bool = pydantic.PrivateAttr(default=True)
 
     @sync_compatible
     @inject_client
