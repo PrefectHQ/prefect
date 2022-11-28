@@ -205,13 +205,17 @@ async def test_process_kill_mismatching_hostname(monkeypatch):
 
 async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch):
     os_kill = MagicMock()
+    anyio_sleep = AsyncMock()
     monkeypatch.setattr("os.kill", os_kill)
+    monkeypatch.setattr("prefect.infrastructure.process.anyio.sleep", anyio_sleep)
 
     infrastructure_pid = f"{socket.gethostname()}:12345"
+    grace_seconds = 15
 
     process = Process(command=["noop"])
-    await process.kill(infrastructure_pid=infrastructure_pid, grace_seconds=0)
-    await anyio.sleep(0.1)
+    await process.kill(
+        infrastructure_pid=infrastructure_pid, grace_seconds=grace_seconds
+    )
 
     os_kill.assert_has_calls(
         [
@@ -219,3 +223,5 @@ async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch):
             call(12345, signal.SIGKILL),
         ]
     )
+
+    anyio_sleep.assert_called_once_with(grace_seconds)

@@ -6,8 +6,9 @@ import socket
 import sys
 import tempfile
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Tuple, Union
 
+import anyio
 import anyio.abc
 import sniffio
 from pydantic import Field
@@ -78,7 +79,7 @@ class Process(Infrastructure):
     async def run(
         self,
         task_status: anyio.abc.TaskStatus = None,
-    ) -> Optional[bool]:
+    ) -> "ProcessResult":
         if not self.command:
             raise ValueError("Process cannot be run with empty command.")
 
@@ -97,14 +98,11 @@ class Process(Infrastructure):
                 f"Process{display_name} running command: {' '.join(self.command)} in {working_dir}"
             )
 
-            def process_started(process):
-                if task_status:
-                    task_status.started(_infrastructure_pid_from_process(process))
-
             process = await run_process(
                 self.command,
                 stream_output=self.stream_output,
-                started_callback=process_started,
+                task_status=task_status,
+                task_status_handler=_infrastructure_pid_from_process,
                 env=self._get_environment_variables(),
                 cwd=working_dir,
             )
@@ -150,16 +148,19 @@ class Process(Infrastructure):
             # The process is running on a different host.
             return
 
-        def send_sigkill():
-            try:
-                os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
-                # The process likely exited due to the SIGTERM.
-                pass
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            # The process exited before we were able to kill it.
+            return
 
-        os.kill(pid, signal.SIGTERM)
-        loop = asyncio.get_running_loop()
-        loop.call_later(grace_seconds, send_sigkill)
+        await anyio.sleep(grace_seconds)
+
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            # The process likely exited due to the SIGTERM above.
+            return
 
     def preview(self):
         environment = self._get_environment_variables(include_os_environ=False)
