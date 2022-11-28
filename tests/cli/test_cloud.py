@@ -553,6 +553,69 @@ def test_login_already_logged_in_to_current_profile_yes_reauth(respx_mock):
 
 
 @pytest.mark.usefixtures("interactive_console")
+def test_login_already_logged_in_with_invalid_api_url_prompts_workspace_change(
+    respx_mock,
+):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[
+                foo_workspace.dict(json_compatible=True),
+                bar_workspace.dict(json_compatible=True),
+            ],
+        )
+    )
+
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="logged-in-profile",
+                    settings={
+                        PREFECT_API_URL: "oh-no",
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    with use_profile("logged-in-profile"):
+        invoke_and_assert(
+            ["cloud", "login"],
+            expected_code=0,
+            user_input=(
+                # Yes, reauth
+                "y"
+                + readchar.key.ENTER
+                # Enter a key
+                + readchar.key.DOWN
+                + readchar.key.ENTER
+                + "bar"
+                + readchar.key.ENTER
+                # Select the first workspace
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "It looks like you're already authenticated on this profile.",
+                "? Which workspace would you like to use?",
+                "test/foo",
+                "test/bar",
+                "Authenticated with Prefect Cloud! Using workspace 'test/foo'.",
+            ],
+        )
+
+        settings = load_current_profile().settings
+
+    assert settings[PREFECT_API_KEY] == "bar"
+    assert settings[PREFECT_API_URL] == foo_workspace.api_url()
+
+
+@pytest.mark.usefixtures("interactive_console")
 def test_login_already_logged_in_to_another_profile(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
 
