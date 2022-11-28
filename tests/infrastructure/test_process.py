@@ -8,7 +8,7 @@ import anyio
 import anyio.abc
 import pytest
 
-from prefect.infrastructure.process import Process
+from prefect.infrastructure.process import HostnameMismatch, MissingProcessId, Process
 from prefect.testing.utilities import AsyncMock
 
 
@@ -198,11 +198,29 @@ async def test_process_kill_mismatching_hostname(monkeypatch):
     infrastructure_pid = f"not-{socket.gethostname()}:12345"
 
     process = Process(command=["noop"])
-    await process.kill(infrastructure_pid=infrastructure_pid, grace_seconds=15)
+
+    with pytest.raises(HostnameMismatch):
+        await process.kill(infrastructure_pid=infrastructure_pid, grace_seconds=15)
 
     os_kill.assert_not_called()
 
 
+async def test_process_kill_no_matching_pid(monkeypatch):
+    os_kill = MagicMock(side_effect=ProcessLookupError())
+    monkeypatch.setattr("os.kill", os_kill)
+
+    infrastructure_pid = f"{socket.gethostname()}:12345"
+
+    process = Process(command=["noop"])
+
+    with pytest.raises(MissingProcessId):
+        await process.kill(infrastructure_pid=infrastructure_pid, grace_seconds=15)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="SIGTERM/SIGKILL are only used in non-Windows environments",
+)
 async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch):
     os_kill = MagicMock()
     anyio_sleep = AsyncMock()
@@ -225,3 +243,22 @@ async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch):
     )
 
     anyio_sleep.assert_called_once_with(grace_seconds)
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="CTRL_BREAK_EVENT is only defined in Windows",
+)
+async def test_process_kill_windows_sends_ctrl_break(monkeypatch):
+    os_kill = MagicMock()
+    monkeypatch.setattr("os.kill", os_kill)
+
+    infrastructure_pid = f"{socket.gethostname()}:12345"
+    grace_seconds = 15
+
+    process = Process(command=["noop"])
+    await process.kill(
+        infrastructure_pid=infrastructure_pid, grace_seconds=grace_seconds
+    )
+
+    os_kill.assert_called_once_with(12345, signal.CTRL_BREAK_EVENT)
