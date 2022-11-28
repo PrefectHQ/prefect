@@ -241,15 +241,21 @@ class OrionAgent:
             #       cancelled and this will prevent additional attempts.
             return
 
+        async def mark_flow_run_as_cancelled():
+            state = flow_run.state.copy(update={"name": "Cancelled"})
+            await self.client.set_flow_run_state(flow_run.id, state, force=True)
+            self.cancelling_flow_run_ids.remove(flow_run.id)
+
         self.logger.info(
             f"Killing {infrastructure.type} {flow_run.infrastructure_pid} for flow run '{flow_run.id}'..."
         )
         try:
             await infrastructure.kill(flow_run.infrastructure_pid)
         except InfrastructureNotFound as exc:
-            self.logger.warning(f"{exc}. Flow run may be cancelled already.")
+            self.logger.warning(f"{exc} Marking flow run as cancelled.")
+            await mark_flow_run_as_cancelled()
         except InfrastructureNotAvailable:
-            self.logger.warning(f"{exc}. Flow run cannot be cancelled by this agent.")
+            self.logger.warning(f"{exc} Flow run cannot be cancelled by this agent.")
         except Exception:
             self.logger.exception(
                 f"Encountered exception while killing infrastructure for flow run '{flow_run.id}'. "
@@ -259,7 +265,7 @@ class OrionAgent:
             self.cancelling_flow_run_ids.remove(flow_run.id)
             return
         else:
-            self.cancelling_flow_run_ids.remove(flow_run.id)
+            await mark_flow_run_as_cancelled()
             self.logger.info(f"Cancelled flow run '{flow_run.id}'!")
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
