@@ -17,6 +17,12 @@ from prefect.exceptions import Abort, ObjectNotFound
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
+from prefect.orion.schemas.filters import (
+    FlowRunFilter,
+    FlowRunFilterState,
+    FlowRunFilterStateName,
+    FlowRunFilterWorkQueueName,
+)
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 from prefect.states import Crashed, Pending, exception_to_failed_state
 
@@ -132,7 +138,7 @@ class OrionAgent:
         if not self.started:
             raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
 
-        self.logger.debug("Checking for flow runs...")
+        self.logger.debug("Checking for scheduled flow runs...")
 
         before = pendulum.now("utc").add(
             seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
@@ -176,6 +182,63 @@ class OrionAgent:
             )
 
         return submittable_runs
+
+    async def check_for_cancelled_flow_runs(self):
+        if not self.started:
+            raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
+
+        self.logger.debug("Checking for cancelled flow runs...")
+
+        work_queue_names = set()
+        async for work_queue in self.get_work_queues():
+            work_queue_names.add(work_queue.name)
+
+        cancelling_flow_runs = await self.client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                state=FlowRunFilterState(
+                    name=FlowRunFilterStateName(any_=["Cancelling"])
+                ),
+                work_queue_name=FlowRunFilterWorkQueueName(any_=list(work_queue_names)),
+            ),
+        )
+
+        if cancelling_flow_runs:
+            self.logger.info(
+                f"Found {len(cancelling_flow_runs)} flow runs awaiting cancellation."
+            )
+
+        async with anyio.create_task_group() as tg:
+            for flow_run in cancelling_flow_runs:
+                tg.start_soon(self.cancel_run, flow_run)
+
+        return cancelling_flow_runs
+
+    async def cancel_run(self, flow_run: FlowRun) -> None:
+        """
+        Cancel a flow run by killing its infrastructure
+        """
+        try:
+            infrastructure = await self.get_infrastructure(flow_run)
+        except Exception:
+            self.logger.exception(
+                f"Failed to get infrastructure for flow run '{flow_run.id}'. "
+                "Flow run cannot be cancelled."
+            )
+            return
+
+        self.logger.info(
+            f"Killing {infrastructure.type} {flow_run.infrastructure_pid} for flow run '{flow_run.id}'..."
+        )
+        try:
+            await infrastructure.kill(flow_run.infrastructure_pid)
+        except Exception:
+            self.logger.exception(
+                f"Encountered exception while killing infrastructure for flow run '{flow_run.id}'. "
+                "Flow run may not be cancelled."
+            )
+            return
+
+        self.logger.info("Cancelled flow run '{flow_run.id}'!")
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
         deployment = await self.client.read_deployment(flow_run.deployment_id)
