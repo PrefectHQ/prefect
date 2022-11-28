@@ -74,17 +74,20 @@ def invoke_and_assert(
     """
     if in_async_main_thread():
         raise RuntimeError(
-            """
-            You cannot run `invoke_and_assert` directly from an async 
-            function. If you need to run `invoke_and_assert` in an async 
-            function, run it with `run_sync_in_worker_thread`. 
-            Example: 
-                run_sync_in_worker_thread(
-                    invoke_and_assert, 
-                    command=['my', 'command'],
-                    expected_code=0,
-                )
-            """
+            textwrap.dedent(
+                """
+                You cannot run `invoke_and_assert` directly from an async 
+                function. If you need to run `invoke_and_assert` in an async 
+                function, run it with `run_sync_in_worker_thread`. 
+
+                Example: 
+                    run_sync_in_worker_thread(
+                        invoke_and_assert, 
+                        command=['my', 'command'],
+                        expected_code=0,
+                    )
+                """
+            )
         )
     runner = CliRunner()
     if temp_dir:
