@@ -7,7 +7,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 from uuid import UUID
 
 import anyio
@@ -49,6 +49,8 @@ async def run_deployment(
     flow_run_name: str = None,
     timeout: float = None,
     poll_interval: float = 5,
+    tags: Optional[Iterable[str]] = None,
+    idempotency_key: str = None,
 ):
     """
     Create a flow run for a deployment and return it after completion or a timeout.
@@ -115,9 +117,11 @@ async def run_deployment(
 
     flow_run = await client.create_flow_run_from_deployment(
         deployment.id,
-        state=Scheduled(scheduled_time=scheduled_time),
         parameters=parameters,
+        state=Scheduled(scheduled_time=scheduled_time),
         name=flow_run_name,
+        tags=tags,
+        idempotency_key=idempotency_key,
         parent_task_run_id=parent_task_run_id,
     )
 
