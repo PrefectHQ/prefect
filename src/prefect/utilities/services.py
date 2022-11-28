@@ -8,6 +8,7 @@ import anyio
 import httpx
 
 from prefect.utilities.collections import distinct
+from prefect.utilities.math import clamped_poisson_interval
 
 
 async def critical_service_loop(
@@ -17,6 +18,7 @@ async def critical_service_loop(
     consecutive: int = 3,
     printer: Callable[..., None] = print,
     run_once: bool = False,
+    jitter_range: float = None,
 ):
     """
     Runs the given `workload` function on the specified `interval`, while being
@@ -31,6 +33,9 @@ async def critical_service_loop(
         consecutive: how many consecutive errors must we see before we exit
         printer: a `print`-like function where errors will be reported
         run_once: if set, the loop will only run once then return
+        jitter_range: if set, the interval will be a random variable (rv) drawn from
+            a clamped Poisson distribution where lambda = interval and the rv is bound
+            between `interval * (1 - range) < rv < interval * (1 + range)`
     """
 
     track_record: Deque[bool] = deque([True] * consecutive, maxlen=consecutive)
@@ -102,4 +107,9 @@ async def critical_service_loop(
         if run_once:
             return
 
-        await anyio.sleep(interval)
+        if jitter_range is not None:
+            sleep = clamped_poisson_interval(interval, clamping_factor=jitter_range)
+        else:
+            sleep = interval
+
+        await anyio.sleep(sleep)
