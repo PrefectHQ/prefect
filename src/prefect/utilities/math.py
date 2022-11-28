@@ -3,7 +3,7 @@ import random
 
 
 def poisson_interval(average_interval):
-    # note that we ensure the argument to the logarithm is stabilized to prevented
+    # note that we ensure the argument to the logarithm is stabilized to prevent
     # calling log(0), which results in a DomainError
     return -math.log(max(1 - random.random(), 1e-10)) * average_interval
 
