@@ -45,6 +45,7 @@ class OrionAgent:
         self.work_queues: Set[str] = set(work_queues) if work_queues else set()
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
+        self.cancelling_flow_run_ids = set()
         self.started = False
         self.logger = get_logger("agent")
         self.task_group: Optional[anyio.abc.TaskGroup] = None
@@ -209,6 +210,13 @@ class OrionAgent:
 
         async with anyio.create_task_group() as tg:
             for flow_run in cancelling_flow_runs:
+
+                # Avoid duplicate cancellation calls
+                if flow_run.id in self.cancelling_flow_run_ids:
+                    continue
+                else:
+                    self.cancelling_flow_run_ids.add(flow_run.id)
+
                 tg.start_soon(self.cancel_run, flow_run)
 
         return cancelling_flow_runs
@@ -224,6 +232,8 @@ class OrionAgent:
                 f"Failed to get infrastructure for flow run '{flow_run.id}'. "
                 "Flow run cannot be cancelled."
             )
+            # Note: We leave this flow run in the cancelling set because it cannot be
+            #       cancelled and this will prevent additional attempts.
             return
 
         self.logger.info(
@@ -237,6 +247,10 @@ class OrionAgent:
                 "Flow run may not be cancelled."
             )
             return
+        finally:
+            # We always remove the flow run from the cancelling set, we will attempt to
+            # cancel it again on failure.
+            self.cancelling_flow_run_ids.remove(flow_run.id)
 
         self.logger.info("Cancelled flow run '{flow_run.id}'!")
 
