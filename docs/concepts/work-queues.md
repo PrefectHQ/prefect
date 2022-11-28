@@ -19,7 +19,7 @@ Work queues are automatically created whenever they are referenced by either a d
 
 To run orchestrated deployments, you must configure at least one agent (and its associated work queue):
 
-1. [Start an agent](#agent-configuration)
+1. [Start an agent](#starting-an-agent)
 2. [Configure a work queue](#work-queue-configuration) (optional)
 
 !!! tip "Agent role has changed from Prefect 1"
