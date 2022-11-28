@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Literal, Optional
 
 import apprise
 from apprise import Apprise, AppriseAsset, NotifyType
@@ -43,6 +43,7 @@ class AppriseNotificationBlock(NotificationBlock, ABC):
 
     Attributes:
         url: Incoming webhook URL used to send notifications.
+        notify_type: The type of notification being performed.
     """
 
     url: SecretStr = Field(
@@ -50,6 +51,13 @@ class AppriseNotificationBlock(NotificationBlock, ABC):
         title="Webhook URL",
         description="Incoming webhook URL used to send notifications.",
         example="https://hooks.example.com/XXX",
+    )
+
+    notify_type: Literal[
+        "info", "success", "warning", "failure", "prefect_default"
+    ] = Field(
+        default=PrefectNotifyType.DEFAULT,
+        description="The type of notification being performed.",
     )
 
     def block_initialization(self) -> None:
@@ -67,7 +75,7 @@ class AppriseNotificationBlock(NotificationBlock, ABC):
     @sync_compatible
     async def notify(self, body: str, subject: Optional[str] = None):
         await self._apprise_client.async_notify(
-            body=body, title=subject, notify_type=PrefectNotifyType.DEFAULT
+            body=body, title=subject, notify_type=self.notify_type
         )
 
 
@@ -80,6 +88,7 @@ class SlackWebhook(AppriseNotificationBlock):
     Attributes:
         url: Slack webhook URL which can be used to send messages
             (e.g. `https://hooks.slack.com/XXX`).
+        notify_type: The type of notification being performed.
 
     Examples:
         Load a saved Slack webhook and send a message:
@@ -108,6 +117,7 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
 
     Attributes:
         url: Teams webhook URL which can be used to send messages.
+        notify_type: The type of notification being performed.
 
     Examples:
         Load a saved Teams webhook and send a message:
@@ -133,9 +143,12 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
 class PagerDutyWebHook(AppriseNotificationBlock):
     """
     Enables sending notifications via a provided PagerDuty webhook.
+    See [Apprise notify_pagerduty docs](https://github.com/caronc/apprise/wiki/Notify_pagerduty)
+    for more info on formatting the URL.
 
     Attributes:
         url: PagerDuty webhook URL which can be used to send messages.
+        notify_type: The type of notification being performed.
 
     Examples:
         Load a saved PagerDuty webhook and send a message:
@@ -145,6 +158,8 @@ class PagerDutyWebHook(AppriseNotificationBlock):
         pagerduty_webhook_block.notify("Hello from Prefect!")
         ```
     """
+
+    _description = "Enables sending notifications via a provided PagerDuty webhook."
 
     _block_type_name = "Pager Duty Webhook"
     _block_type_slug = "pager-duty-webhook"
@@ -156,3 +171,13 @@ class PagerDutyWebHook(AppriseNotificationBlock):
         description="The PagerDuty incoming webhook URL used to send notifications.",
         example="pagerduty://{integration_key}@{api_key}/{source}",
     )
+
+    notify_type: Literal["info", "success", "warning", "failure"] = Field(
+        default="info", description="The type of notification being performed."
+    )
+
+    @sync_compatible
+    async def notify(self, body: str, subject: Optional[str] = None):
+        await self._apprise_client.async_notify(
+            body=body, title=subject, notify_type=self.notify_type
+        )
