@@ -68,12 +68,6 @@ class Infrastructure(Block, abc.ABC):
         # Note: implementations should include `sync_compatible`
 
     @abc.abstractmethod
-    async def kill(self, infrastructure_pid: str, grace_seconds: int):
-        """
-        Kill the infrastructure running with the given `result_identifier`.
-        """
-
-    @abc.abstractmethod
     def preview(self) -> str:
         """
         View a preview of the infrastructure that would be run.
