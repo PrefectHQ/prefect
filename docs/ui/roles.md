@@ -57,7 +57,7 @@ Custom roles can inherit permissions from a built-in role. This enables tweaks t
 
 Custom workspace roles can also be created independent of Prefect’s built-in roles. This option gives workspace admins full control of user access to workspace functionality. However, for non-inherited custom roles, the workspace admin takes on the responsibility for monitoring and setting permisssions for new functionality as it is released.
 
-See [Role permissions](#role-permissions) for details of permissions you may set for custom roles.
+See [Role permissions](#workspace-role-permissions) for details of permissions you may set for custom roles.
 
 After you create a new role, it become available in the organization **Members** page and the **Workspace Sharing** page for you to apply to users.
 

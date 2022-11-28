@@ -24,7 +24,7 @@ Select **Service Accounts** to view, create, or edit service accounts for your o
 
 ![Viewing service accounts for an organization in Prefect Cloud.](/img/ui/service-accounts.png)
 
-Service accounts are created at the organization level, but individual workspaces within the organization may be shared with the account. See [workspace sharing](#workspace-sharing) for more information.
+Service accounts are created at the organization level, but individual workspaces within the organization may be shared with the account. See [workspace sharing](/ui/workspaces/#workspace-sharing) for more information.
 
 !!! tip "Service account credentials"
     When you create a service account, Prefect Cloud creates a new API key for the account and provides the API configuration command for the execution environment. Save these to a safe location for future use. If the access credentials are lost or compromised, you should regenerate the credentials from the service account page.

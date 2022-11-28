@@ -20,7 +20,7 @@ The Prefect UI provides an overview of all of your flows. It was designed around
 There are two ways to access the UI:
 
 - [Prefect Cloud](/ui/cloud/) is a hosted service that gives you observability over your flows, flow runs, and deployments, plus the ability to configure personal accounts, workspaces, and collaborators.
-- The [Prefect Orion UI](#using-the-orion-ui) is also available as an open source, locally hosted orchestration engine, API server, and UI, giving you insight into the flows running with any local Prefect Orion instance.
+- The [Prefect Orion UI](#using-the-prefect-ui) is also available as an open source, locally hosted orchestration engine, API server, and UI, giving you insight into the flows running with any local Prefect Orion instance.
 
 The Prefect UI displays many useful insights about your flow runs, including:
 
