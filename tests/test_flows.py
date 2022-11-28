@@ -200,6 +200,7 @@ class TestFlowWithOptions:
             result_serializer="json",
             result_storage=LocalFileSystem(),
             cache_result_in_memory=False,
+            log_prints=False,
         )
         def initial_flow():
             pass
@@ -218,6 +219,7 @@ class TestFlowWithOptions:
         assert flow_with_options.result_serializer == "json"
         assert flow_with_options.result_storage == LocalFileSystem()
         assert flow_with_options.cache_result_in_memory is False
+        assert flow_with_options.log_prints is False
 
     def test_with_options_can_unset_timeout_seconds_with_zero(self):
         @flow(timeout_seconds=1)

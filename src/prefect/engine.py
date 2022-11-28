@@ -411,6 +411,7 @@ async def create_and_begin_subflow_run(
     """
     parent_flow_run_context = FlowRunContext.get()
     parent_logger = get_run_logger(parent_flow_run_context)
+    log_prints = should_log_prints(flow)
 
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
@@ -490,6 +491,10 @@ async def create_and_begin_subflow_run(
                 report_flow_run_crashes(flow_run=flow_run, client=client)
             )
             task_runner = await stack.enter_async_context(flow.task_runner.start())
+
+            if log_prints:
+                stack.enter_context(patch_print())
+
             terminal_state = await orchestrate_flow_run(
                 flow,
                 flow_run=flow_run,
@@ -505,6 +510,7 @@ async def create_and_begin_subflow_run(
                     task_runner=task_runner,
                     background_tasks=parent_flow_run_context.background_tasks,
                     result_factory=result_factory,
+                    log_prints=log_prints,
                 ),
             )
 

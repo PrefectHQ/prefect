@@ -132,6 +132,7 @@ class TestOrchestrateTaskRun:
                 result_factory=result_factory,
                 interruptible=False,
                 client=orion_client,
+                log_prints=False,
             )
 
         assert state.is_completed()
@@ -164,6 +165,7 @@ class TestOrchestrateTaskRun:
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
+            log_prints=False,
         )
 
         mock_anyio_sleep.assert_not_called()
@@ -203,6 +205,7 @@ class TestOrchestrateTaskRun:
                 result_factory=result_factory,
                 interruptible=False,
                 client=orion_client,
+                log_prints=False,
             )
 
         # Check for a proper final result
@@ -276,6 +279,7 @@ class TestOrchestrateTaskRun:
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
+            log_prints=False,
         )
 
         # The task did not run
@@ -317,6 +321,7 @@ class TestOrchestrateTaskRun:
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
+            log_prints=False,
         )
 
         # The task ran with the unqoted data
@@ -360,6 +365,7 @@ class TestOrchestrateTaskRun:
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
+            log_prints=False,
         )
 
         # The task ran with the state as its input
