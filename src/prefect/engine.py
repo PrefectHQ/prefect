@@ -41,8 +41,10 @@ from prefect.context import (
 from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
+    FlowPauseTimeout,
     MappingLengthMismatch,
     MappingMissingIterable,
+    NotPausedError,
     UpstreamTaskError,
 )
 from prefect.flows import Flow
@@ -63,6 +65,7 @@ from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, ResultFactory
 from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
+    Paused,
     Pending,
     Running,
     State,
@@ -84,6 +87,7 @@ from prefect.utilities.asyncutils import (
     run_async_from_worker_thread,
     run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
+    sync_compatible,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import isiterable, visit_collection
@@ -685,6 +689,76 @@ async def orchestrate_flow_run(
             state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
     return state
+
+
+@sync_compatible
+async def pause_flow_run(timeout: int = 300, poll_interval: int = 10):
+    """
+    Pauses a flow run by stopping execution until resumed.
+
+    When called within a flow run, execution will block and no downstream tasks will
+    run until the flow is resumed. Task runs that have already started will continue
+    running. A timeout parameter can be passed that will fail the flow run if it has not
+    been resumed within the specified time.
+
+    Args:
+        timeout: the number of seconds to wait for the flow to be resumed before
+            failing. Defaults to 5 minutes (300 seconds). If the pause timeout exceeds
+            any configured flow-level timeout, the flow might fail even after resuming.
+        poll_interval: The number of seconds between checking whether the flow has been
+            resumed. Defaults to 10 seconds.
+    """
+
+    if TaskRunContext.get():
+        raise RuntimeError("Cannot pause task runs.")
+
+    frc = FlowRunContext.get()
+    logger = get_run_logger(context=frc)
+
+    logger.info("Pausing flow, execution will continue when this flow run is resumed.")
+    client = get_client()
+    response = await client.set_flow_run_state(
+        frc.flow_run.id,
+        Paused(),
+    )
+
+    with anyio.move_on_after(timeout):
+
+        # attempt to check if a flow has resumed at least once
+        await anyio.sleep(timeout / 2)
+        flow_run = await client.read_flow_run(frc.flow_run.id)
+        if flow_run.state.is_running():
+            logger.info("Resuming flow run execution!")
+            return
+
+        while True:
+            await anyio.sleep(poll_interval)
+            flow_run = await client.read_flow_run(frc.flow_run.id)
+            if flow_run.state.is_running():
+                logger.info("Resuming flow run execution!")
+                return
+
+    raise FlowPauseTimeout("Flow run was paused and never resumed.")
+
+
+@sync_compatible
+async def resume_flow_run(flow_run_id):
+    """
+    Resumes a paused flow.
+
+    Args:
+        flow_run_id: the flow_run_id to resume
+    """
+    client = get_client()
+    flow_run = await client.read_flow_run(flow_run_id)
+
+    if not flow_run.state.is_paused():
+        raise NotPausedError("Cannot resume a run that isn't paused!")
+
+    await client.set_flow_run_state(
+        flow_run_id,
+        Running(name="Resuming"),
+    )
 
 
 def enter_task_run_engine(
