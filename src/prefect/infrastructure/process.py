@@ -142,7 +142,7 @@ class Process(Infrastructure):
             status_code=process.returncode, identifier=str(process.pid)
         )
 
-    async def kill(self, infrastructure_pid: str, grace_seconds: int):
+    async def kill(self, infrastructure_pid: str, grace_seconds: int = 30):
         hostname, pid = _parse_infrastructure_pid(infrastructure_pid)
 
         if hostname != socket.gethostname():
