@@ -53,6 +53,27 @@ def get_logger(name: str = None) -> logging.Logger:
     return logger
 
 
+class DynamicLogger(PrefectLogAdapter):
+    def log(self, level, msg, *args, exc_info=None, extra=None, stack_info=False):
+        try:
+            logger = get_run_logger()
+        except MissingContextError:
+            logger = self.logger
+
+        return logger.log(
+            level,
+            msg,
+            *args,
+            exc_info=exc_info,
+            extra=extra,
+            stack_info=stack_info,
+        )
+
+
+def get_dynamic_logger(**kwargs):
+    return DynamicLogger(get_logger(), extra=kwargs)
+
+
 def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logger:
     """
     Get a Prefect logger for the current task run or flow run.
