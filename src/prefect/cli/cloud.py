@@ -365,12 +365,12 @@ async def login(
             "How would you like to authenticate?",
             [
                 ("browser", "Log in with a web browser"),
-                ("key", "Paste an authentication key"),
+                ("key", "Paste an API key"),
             ],
         )
 
         if choice == "key":
-            key = typer.prompt("Paste your authentication key", hide_input=True)
+            key = typer.prompt("Paste your API key", hide_input=True)
         elif choice == "browser":
             key = await login_with_browser()
 
