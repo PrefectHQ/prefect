@@ -702,7 +702,7 @@ class TestInfrastructureIntegration:
             ).dict()
         )
         assert (
-            f"flow run '{flow_run.id}' exited with non-zero status code 9"
+            f"Reporting flow run '{flow_run.id}' as crashed due to non-zero status code"
             in caplog.text
         )
 
@@ -752,7 +752,7 @@ class TestInfrastructureIntegration:
             ).dict()
         )
         assert (
-            f"flow run '{flow_run.id}' exited with non-zero status code 9"
+            f"Reporting flow run '{flow_run.id}' as crashed due to non-zero status code"
             in caplog.text
         )
 

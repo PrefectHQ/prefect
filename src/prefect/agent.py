@@ -291,9 +291,8 @@ class OrionAgent:
             task_status.started()
 
         if result.status_code != 0:
-            self.logger.warning(
-                f"Infrastructure for flow run '{flow_run.id}' exited with non-zero "
-                f"status code {result.status_code}."
+            self.logger.info(
+                f"Reporting flow run '{flow_run.id}' as crashed due to non-zero status code."
             )
             await self._propose_crashed_state(
                 flow_run,
