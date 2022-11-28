@@ -478,6 +478,8 @@ def _multiprocessing_pool_initializer() -> None:
 
 
 from dask.callbacks import Callback
+
+
 class PrefectCallback(Callback):
     def __init__(self):  # type: ignore
         self.cache = {}
@@ -489,6 +491,7 @@ class PrefectCallback(Callback):
 
     def _posttask(self, key, value, dsk, state, id):  # type: ignore
         self.cache[key] = value
+
 
 class LocalDaskExecutor(Executor):
     """
@@ -684,5 +687,9 @@ class LocalDaskExecutor(Executor):
 
         with patch(), dask.config.set(config):
             return dask.compute(
-                futures, scheduler=self.scheduler, pool=self._pool, optimize_graph=False, callbacks = (self.callback._callback, )
+                futures,
+                scheduler=self.scheduler,
+                pool=self._pool,
+                optimize_graph=False,
+                callbacks=(self.callback._callback,),
             )[0]
