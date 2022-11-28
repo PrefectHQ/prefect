@@ -1245,7 +1245,11 @@ class TestFlowRunLogs:
             my_flow()
 
         logs = await orion_client.read_logs()
-        error_log = [log.message for log in logs if log.level == 40].pop()
+        error_log = [
+            log.message
+            for log in logs
+            if log.level == 40 and "Encountered exception" in log.message
+        ].pop()
         assert "Traceback" in error_log
         assert "ValueError: Hello!" in error_log, "References the exception"
 
