@@ -258,9 +258,9 @@ class OrionAgent:
             # We will try again on generic exceptions
             self.cancelling_flow_run_ids.remove(flow_run.id)
             return
-
-        self.cancelling_flow_run_ids.remove(flow_run.id)
-        self.logger.info("Cancelled flow run '{flow_run.id}'!")
+        else:
+            self.cancelling_flow_run_ids.remove(flow_run.id)
+            self.logger.info(f"Cancelled flow run '{flow_run.id}'!")
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
         deployment = await self.client.read_deployment(flow_run.deployment_id)

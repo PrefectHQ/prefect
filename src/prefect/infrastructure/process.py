@@ -147,7 +147,7 @@ class Process(Infrastructure):
 
         if hostname != socket.gethostname():
             raise InfrastructureNotAvailable(
-                f"The process is running on a different host {hostname!r}. Unable to kill process {pid!r}."
+                f"Unable to kill process {pid!r}: The process is running on a different host {hostname!r}."
             )
 
         # In a non-windows enviornment first send a SIGTERM, then, after
@@ -165,7 +165,7 @@ class Process(Infrastructure):
                 os.kill(pid, signal.SIGTERM)
             except ProcessLookupError:
                 raise InfrastructureNotFound(
-                    f"The process was not found. Unable to kill process {pid!r}"
+                    f"Unable to kill process {pid!r}: The process was not found."
                 )
 
             await anyio.sleep(grace_seconds)
