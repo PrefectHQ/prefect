@@ -1,11 +1,16 @@
 import builtins
 
+import pytest
+
 from prefect import flow, task
 from prefect.context import get_run_context
 from prefect.logging.loggers import print_as_log
+from prefect.settings import PREFECT_LOGGING_LOG_PRINTS, temporary_settings
+
+# Check the scope of the monkeypatching ------------------------------------------------
 
 
-def test_log_prints_task_setting_is_context_managed():
+def test_log_prints_patch_is_scoped_to_task():
     @task(log_prints=True)
     def get_builtin_print():
         return builtins.print
@@ -20,7 +25,7 @@ def test_log_prints_task_setting_is_context_managed():
     assert user_builtin_print is print_as_log
 
 
-def test_log_prints_subflow_setting_is_context_managed():
+def test_log_prints_patch_is_scoped_to_subflow():
     @flow(log_prints=True)
     def get_builtin_print():
         return builtins.print
@@ -35,354 +40,201 @@ def test_log_prints_subflow_setting_is_context_managed():
     assert user_builtin_print is print_as_log
 
 
-def test_task_inherits_log_prints_setting(caplog):
+# Check behavior when loaded from a global setting -------------------------------------
+
+
+@pytest.mark.parametrize("setting_value", [True, False])
+def test_root_flow_log_prints_defaults_to_setting_value(caplog, setting_value):
+    @flow
+    def test_flow():
+        print("hello world!")
+
+    with temporary_settings({PREFECT_LOGGING_LOG_PRINTS: setting_value}):
+        test_flow()
+
+    assert ("hello world!" in caplog.text) is setting_value
+
+
+@pytest.mark.parametrize("setting_value", [True, False])
+def test_task_log_prints_defaults_to_setting_value(caplog, setting_value):
     @task
-    def test_log_task():
-        task_run_name = get_run_context().task_run.name
-        print(f"test print from {task_run_name}")
-        return task_run_name
+    def test_task():
+        print("hello world!")
 
-    @flow(log_prints=True)
-    def log_prints_flow():
-        return test_log_task()
+    @flow
+    def parent_flow():
+        test_task()
 
-    printing_task_name = log_prints_flow()
+    with temporary_settings({PREFECT_LOGGING_LOG_PRINTS: setting_value}):
+        parent_flow()
 
-    assert f"test print from {printing_task_name}" in caplog.text
+    assert ("hello world!" in caplog.text) is setting_value
 
 
-def test_subflow_inherits_log_prints_setting(caplog):
+@pytest.mark.parametrize("setting_value", [True, False])
+def test_subflow_log_prints_defaults_to_setting_value(caplog, setting_value):
+    @flow
+    def test_flow():
+        print("hello world!")
+
+    @flow
+    def parent_flow():
+        test_flow()
+
+    with temporary_settings({PREFECT_LOGGING_LOG_PRINTS: setting_value}):
+        parent_flow()
+
+    assert ("hello world!" in caplog.text) is setting_value
+
+
+# Check behavior when loaded from the parent setting -----------------------------------
+
+
+@pytest.mark.parametrize("setting_value", [True, False])
+@pytest.mark.parametrize("parent_value", [True, False])
+def test_task_log_prints_inherits_parent_value(caplog, setting_value, parent_value):
+    @task
+    def test_task():
+        print("hello world!")
+
+    @flow(log_prints=parent_value)
+    def parent_flow():
+        test_task()
+
+    # Note: The setting should have no affect here
+    with temporary_settings({PREFECT_LOGGING_LOG_PRINTS: setting_value}):
+        parent_flow()
+
+    assert ("hello world!" in caplog.text) is parent_value
+
+
+@pytest.mark.parametrize("setting_value", [True, False])
+@pytest.mark.parametrize("parent_value", [True, False])
+def test_subflow_log_prints_inherits_parent_value(caplog, setting_value, parent_value):
     @flow
     def test_subflow():
-        subflow_run_name = get_run_context().flow_run.name
-        print(f"test message from {subflow_run_name}")
-        return subflow_run_name
+        print("hello world!")
 
-    @flow(log_prints=True)
-    def test_flow():
+    @flow(log_prints=parent_value)
+    def parent_flow():
         return test_subflow()
 
-    printing_subflow_name = test_flow()
+    # Note: The setting should have no affect here
+    with temporary_settings({PREFECT_LOGGING_LOG_PRINTS: setting_value}):
+        parent_flow()
 
-    assert f"test message from {printing_subflow_name}" in caplog.text
+    assert ("hello world!" in caplog.text) is parent_value
 
 
-def test_task_can_opt_in_when_parent_not_set(caplog):
-    @task(log_prints=True)
-    def test_log_task():
-        task_run_name = get_run_context().task_run.name
-        print(f"test print from {task_run_name}")
-        return task_run_name
-
+@pytest.mark.parametrize("parent_value", [True, False, None])
+def test_nested_subflow_log_prints_inherits_parent_value(caplog, parent_value):
     @flow
-    def simple_flow():
-        return test_log_task()
+    def three():
+        print("hello world!")
 
-    printing_task_name = simple_flow()
+    @flow(log_prints=parent_value)
+    def two():
+        return three()
 
-    assert f"test print from {printing_task_name}" in caplog.text
-
-
-def test_subflow_can_opt_in_when_parent_not_set(caplog):
     @flow(log_prints=True)
-    def test_log_flow():
-        flow_run_name = get_run_context().flow_run.name
-        print(f"test print from {flow_run_name}")
-        return flow_run_name
+    def one():
+        return two()
 
-    @flow
-    def simple_flow():
-        return test_log_flow()
+    one()
 
-    printing_flow_name = simple_flow()
-
-    assert f"test print from {printing_flow_name}" in caplog.text
+    if parent_value is not False:
+        assert "hello world!" in caplog.text
+    else:
+        assert "hello world!" not in caplog.text
 
 
-def test_task_log_prints_with_options(caplog):
-    @task
-    def test_log_task():
+# Check behavior when overriding parent settings ---------------------------------------
+
+
+@pytest.mark.parametrize("parent_value", [False, None])
+def test_task_can_opt_in_to_log_prints(caplog, parent_value):
+    @task(log_prints=True)
+    def test_task():
         task_run_name = get_run_context().task_run.name
         print(f"test print from {task_run_name}")
         return task_run_name
 
-    @flow
-    def log_prints_flow():
-        return test_log_task.with_options(log_prints=True)()
+    @flow(log_prints=parent_value)
+    def parent_flow():
+        return test_task()
 
-    printing_task_name = log_prints_flow()
-
-    assert f"test print from {printing_task_name}" in caplog.text
-
-
-def test_flow_log_prints_with_options(caplog):
-    @flow
-    def test_log_flow():
-        flow_run_name = get_run_context().flow_run.name
-        print(f"test print from {flow_run_name}")
-        return flow_run_name
-
-    @flow
-    def log_prints_flow():
-        return test_log_flow.with_options(log_prints=True)()
-
-    printing_subflow_name = log_prints_flow()
-
-    assert f"test print from {printing_subflow_name}" in caplog.text
-
-
-def test_task_inherits_log_prints_setting_with_options(caplog):
-    @task
-    def test_log_task():
-        task_run_name = get_run_context().task_run.name
-        print(f"test print from {task_run_name}")
-        return task_run_name
-
-    @flow
-    def simple_flow():
-        return test_log_task()
-
-    modified_flow = simple_flow.with_options(log_prints=True)
-
-    printing_task_name = modified_flow()
+    printing_task_name = parent_flow()
 
     assert f"test print from {printing_task_name}" in caplog.text
 
 
-def test_task_can_opt_out_of_inherited_on_setting(caplog, capsys):
+@pytest.mark.parametrize("parent_value", [False, None])
+def test_subflow_can_opt_in_to_log_prints(caplog, parent_value):
+    @flow(log_prints=True)
+    def test_flow():
+        print("hello world!")
+
+    @flow(log_prints=parent_value)
+    def parent_flow():
+        return test_flow()
+
+    parent_flow()
+
+    assert "hello world!" in caplog.text
+
+
+def test_task_can_opt_out_of_log_prints(caplog, capsys):
     @task(log_prints=False)
-    def test_log_task():
+    def test_task():
         task_run_name = get_run_context().task_run.name
         print(f"test print from {task_run_name}")
         return task_run_name
 
     @flow(log_prints=True)
-    def simple_flow():
-        return test_log_task()
+    def parent_flow():
+        return test_task()
 
-    printing_task_name = simple_flow()
+    printing_task_name = parent_flow()
 
     assert f"test print from {printing_task_name}" not in caplog.text
     assert f"test print from {printing_task_name}" in capsys.readouterr().out
 
 
-def test_subflow_can_opt_out_of_inherited_on_setting(caplog, capsys):
+def test_subflow_can_opt_out_of_log_prints(caplog, capsys):
     @flow(log_prints=False)
-    def test_log_flow():
-        flow_run_name = get_run_context().flow_run.name
-        print(f"test print from {flow_run_name}")
-        return flow_run_name
+    def test_flow():
+        print("hello world!")
 
     @flow(log_prints=True)
-    def simple_flow():
-        return test_log_flow()
+    def parent_flow():
+        return test_flow()
 
-    printing_flow_name = simple_flow()
+    parent_flow()
 
-    assert f"test print from {printing_flow_name}" not in caplog.text
-    assert f"test print from {printing_flow_name}" in capsys.readouterr().out
-
-
-def test_task_can_opt_out_of_inherited_off_setting(caplog, capsys):
-    @task(log_prints=True)
-    def test_log_task():
-        task_run_name = get_run_context().task_run.name
-        print(f"test print from {task_run_name}")
-        return task_run_name
-
-    @flow(log_prints=False)
-    def simple_flow():
-        return test_log_task()
-
-    printing_task_name = simple_flow()
-
-    assert f"test print from {printing_task_name}" in caplog.text
-    assert f"test print from {printing_task_name}" not in capsys.readouterr().out
+    assert "hello world!" not in caplog.text
+    assert "hello world!" in capsys.readouterr().out
 
 
-def test_subflow_can_opt_out_of_inherited_off_setting(caplog, capsys):
-    @flow(log_prints=True)
-    def test_log_flow():
-        flow_run_name = get_run_context().flow_run.name
-        print(f"test print from {flow_run_name}")
-        return flow_run_name
-
-    @flow(log_prints=False)
-    def simple_flow():
-        return test_log_flow()
-
-    printing_flow_name = simple_flow()
-
-    assert f"test print from {printing_flow_name}" in caplog.text
-    assert f"test print from {printing_flow_name}" not in capsys.readouterr().out
+# Check .with_options can update the value ---------------------------------------------
 
 
-def test_task_with_options_can_opt_out_of_inherited_on_setting(caplog, capsys):
+@pytest.mark.parametrize("value", [True, False, None])
+def test_task_log_prints_updated_by_with_options(value):
     @task
-    def test_log_task():
+    def test_task():
         task_run_name = get_run_context().task_run.name
         print(f"test print from {task_run_name}")
         return task_run_name
 
-    @flow(log_prints=True)
-    def simple_flow():
-        return test_log_task.with_options(log_prints=False)()
-
-    printing_task_name = simple_flow()
-
-    assert f"test print from {printing_task_name}" not in caplog.text
-    assert f"test print from {printing_task_name}" in capsys.readouterr().out
+    new_task = test_task.with_options(log_prints=value)
+    assert new_task.log_prints is value
 
 
-def test_subflow_with_options_can_opt_out_of_inherited_on_setting(caplog, capsys):
+@pytest.mark.parametrize("value", [True, False, None])
+def test_flow_log_prints_updated_by_with_options(value):
     @flow
-    def test_log_flow():
-        flow_run_name = get_run_context().flow_run.name
-        print(f"test print from {flow_run_name}")
-        return flow_run_name
+    def test_flow():
+        print("hello world!")
 
-    @flow(log_prints=True)
-    def simple_flow():
-        return test_log_flow.with_options(log_prints=False)()
-
-    printing_flow_name = simple_flow()
-
-    assert f"test print from {printing_flow_name}" not in caplog.text
-    assert f"test print from {printing_flow_name}" in capsys.readouterr().out
-
-
-def test_task_with_options_can_opt_out_of_inherited_off_setting(caplog, capsys):
-    @task
-    def test_log_task():
-        task_run_name = get_run_context().task_run.name
-        print(f"test print from {task_run_name}")
-        return task_run_name
-
-    @flow(log_prints=False)
-    def simple_flow():
-        return test_log_task.with_options(log_prints=True)()
-
-    printing_task_name = simple_flow()
-
-    assert f"test print from {printing_task_name}" in caplog.text
-    assert f"test print from {printing_task_name}" not in capsys.readouterr().out
-
-
-def test_subflow_with_options_can_opt_out_of_inherited_off_setting(caplog, capsys):
-    @flow
-    def test_log_flow():
-        flow_run_name = get_run_context().flow_run.name
-        print(f"test print from {flow_run_name}")
-        return flow_run_name
-
-    @flow(log_prints=False)
-    def simple_flow():
-        return test_log_flow.with_options(log_prints=True)()
-
-    printing_flow_name = simple_flow()
-
-    assert f"test print from {printing_flow_name}" in caplog.text
-    assert f"test print from {printing_flow_name}" not in capsys.readouterr().out
-
-
-def test_subsubflow_inherits_log_prints_setting(caplog):
-    @flow
-    def test_log_flow():
-        flow_run_name = get_run_context().flow_run.name
-        print(f"test print from {flow_run_name}")
-        return flow_run_name
-
-    @flow
-    def wrapper():
-        return test_log_flow()
-
-    @flow(log_prints=True)
-    def parent():
-        return wrapper()
-
-    printing_flow_name = parent()
-
-    assert f"test print from {printing_flow_name}" in caplog.text
-
-
-def test_subsubflow_inherits_log_prints_setting_with_options(caplog):
-    @flow
-    def test_log_flow():
-        flow_run_name = get_run_context().flow_run.name
-        print(f"test print from {flow_run_name}")
-        return flow_run_name
-
-    @flow
-    def wrapper():
-        return test_log_flow()
-
-    @flow
-    def parent():
-        return wrapper()
-
-    printing_flow_name = parent.with_options(log_prints=True)()
-
-    assert f"test print from {printing_flow_name}" in caplog.text
-
-
-def test_subsubflow_can_opt_out_of_inherited_on_setting(caplog, capsys):
-    @flow(log_prints=False)
-    def test_log_flow():
-        flow_run_name = get_run_context().flow_run.name
-        print(f"test print from {flow_run_name}")
-        return flow_run_name
-
-    @flow
-    def wrapper():
-        return test_log_flow()
-
-    @flow(log_prints=True)
-    def parent():
-        return wrapper()
-
-    printing_flow_name = parent()
-
-    assert f"test print from {printing_flow_name}" not in caplog.text
-    assert f"test print from {printing_flow_name}" in capsys.readouterr().out
-
-
-def test_subsubflow_can_opt_out_of_inherited_off_setting(caplog, capsys):
-    @flow(log_prints=True)
-    def test_log_flow():
-        flow_run_name = get_run_context().flow_run.name
-        print(f"test print from {flow_run_name}")
-        return flow_run_name
-
-    @flow
-    def wrapper():
-        return test_log_flow()
-
-    @flow(log_prints=False)
-    def parent():
-        return wrapper()
-
-    printing_flow_name = parent()
-
-    assert f"test print from {printing_flow_name}" in caplog.text
-    assert f"test print from {printing_flow_name}" not in capsys.readouterr().out
-
-
-def test_subsubflow_can_opt_in_when_root_parent_not_set(caplog, capsys):
-    @flow(log_prints=True)
-    def test_log_flow():
-        flow_run_name = get_run_context().flow_run.name
-        print(f"test print from {flow_run_name}")
-        return flow_run_name
-
-    @flow
-    def wrapper():
-        return test_log_flow()
-
-    @flow
-    def parent():
-        return wrapper()
-
-    printing_flow_name = parent()
-
-    assert f"test print from {printing_flow_name}" in caplog.text
-    assert f"test print from {printing_flow_name}" not in capsys.readouterr().out
+    new_flow = test_flow.with_options(log_prints=value)
+    assert new_flow.log_prints is value
