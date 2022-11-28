@@ -122,7 +122,7 @@ class Task(Generic[P, R]):
             the task. If the task exceeds this runtime, it will be marked as failed.
         log_prints: If set, `print` statements in the task will be redirected to the
             Prefect logger for the task run. Defaults to `None`, which indicates
-            that the value from the flow should be used.s
+            that the value from the flow should be used.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
