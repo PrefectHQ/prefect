@@ -311,3 +311,9 @@ class ProtectedBlockError(PrefectException):
 
 class InvalidRepositoryURLError(PrefectException):
     """Raised when an incorrect URL is provided to a GitHub filesystem block."""
+
+
+class InfrastructureError(PrefectException):
+    """
+    A base class for exceptions related to infrastructure blocks
+    """

@@ -14,6 +14,7 @@ import sniffio
 from pydantic import Field
 from typing_extensions import Literal
 
+from prefect.exceptions import InfrastructureError
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
@@ -145,22 +146,35 @@ class Process(Infrastructure):
         hostname, pid = _parse_infrastructure_pid(infrastructure_pid)
 
         if hostname != socket.gethostname():
-            # The process is running on a different host.
-            return
+            raise HostnameMismatch(
+                f"The process is running on a different host {hostname!r}. Unable to kill process {pid!r}."
+            )
 
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except ProcessLookupError:
-            # The process exited before we were able to kill it.
-            return
+        # In a non-windows enviornment first send a SIGTERM, then, after
+        # `grace_seconds` seconds have passed subsequent send SIGKILL. In
+        # Windows we use CTRL_BREAK_EVENT as SIGTERM is useless:
+        # https://bugs.python.org/issue26350
+        if sys.platform == "win32":
+            try:
+                os.kill(pid, signal.CTRL_BREAK_EVENT)
+            except ProcessLookupError:
+                # The process exited before we were able to kill it.
+                return
+        else:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                raise MissingProcessId(
+                    f"The process was not found. Unable to kill process {pid!r}"
+                )
 
-        await anyio.sleep(grace_seconds)
+            await anyio.sleep(grace_seconds)
 
-        try:
-            os.kill(pid, signal.SIGKILL)
-        except ProcessLookupError:
-            # The process likely exited due to the SIGTERM above.
-            return
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                # The process likely exited due to the SIGTERM above.
+                return
 
     def preview(self):
         environment = self._get_environment_variables(include_os_environ=False)
@@ -184,3 +198,11 @@ class Process(Infrastructure):
 
 class ProcessResult(InfrastructureResult):
     """Contains information about the final state of a completed process"""
+
+
+class HostnameMismatch(InfrastructureError):
+    """Raised when attempting to kill a process that was started on a different host"""
+
+
+class MissingProcessId(InfrastructureError):
+    """Raised when attempting to kill a process but the process id doesn't exist."""
