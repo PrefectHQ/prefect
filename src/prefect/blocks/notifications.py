@@ -154,7 +154,7 @@ class TwilioWebHook(AppriseNotificationBlock):
             "A component of the webhook URL; the Twilio Account SID "
             "can be found on the homepage of the Twilio console. "
             "If provided, you must also provide the `auth_token`, "
-            "`from_number`, and `to_number`(s), but not the `url`."
+            "`from_phone_number`, and `to_phone_number`(s), but not the `url`."
         ),
     )
 
@@ -164,7 +164,7 @@ class TwilioWebHook(AppriseNotificationBlock):
             "A component of the webhook URL; the Twilio Auth Token "
             "can be found on the homepage of the Twilio console. "
             "If provided, you must also provide the `account_sid`, "
-            "`from_number`, and `to_number`(s), but not the `url`."
+            "`from_phone_number`, and `to_phone_number`(s), but not the `url`."
         ),
     )
 
@@ -174,7 +174,7 @@ class TwilioWebHook(AppriseNotificationBlock):
             "A component of the webhook URL; the valid Twilio phone "
             "number to send the message from. "
             "If provided, you must also provide the `account_sid`, "
-            "`auth_token`, and `to_number`(s), but not the `url`."
+            "`auth_token`, and `to_phone_number`(s), but not the `url`."
         ),
         example="18001234567",
     )
@@ -185,7 +185,7 @@ class TwilioWebHook(AppriseNotificationBlock):
             "A component of the webhook URL; a list of valid Twilio phone "
             "number(s) to send the message to. "
             "If provided, you must also provide the `account_sid`, "
-            "`auth_token`, and `from_number`, but not the `url`."
+            "`auth_token`, and `from_phone_number`, but not the `url`."
         ),
         example="18004242424",
     )
