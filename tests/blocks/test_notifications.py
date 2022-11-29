@@ -116,10 +116,10 @@ class TestTwilioWebhook:
     def test_instantiate_with_url_components(self):
         assert isinstance(
             TwilioWebHook(
-                account_sid="abc",
+                account_sid="ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                 auth_token="XXX",
-                from_phone_number="123",
-                to_phone_number=["456"],
+                from_phone_number="11234567890",
+                to_phone_number=["12345678901"],
             ),
             TwilioWebHook,
         )
