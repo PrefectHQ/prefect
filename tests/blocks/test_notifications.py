@@ -4,9 +4,14 @@ from unittest.mock import patch
 
 import cloudpickle
 import pytest
+from pydantic import ValidationError
 
 import prefect
-from prefect.blocks.notifications import AppriseNotificationBlock, PrefectNotifyType
+from prefect.blocks.notifications import (
+    AppriseNotificationBlock,
+    PrefectNotifyType,
+    TwilioWebHook,
+)
 from prefect.testing.utilities import AsyncMock
 
 
@@ -79,3 +84,42 @@ class TestAppriseNotificationBlock:
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
         assert isinstance(unpickled, block_class)
+
+
+class TestTwilioWebhook:
+    @pytest.mark.parametrize(
+        "webhook_init_kwargs",
+        [
+            {"url": "twilio://xyz", "account_sid": "abc"},
+            {
+                "url": "twilio://xyz",
+                "account_sid": "abc",
+                "auth_token": "XXX",
+                "from_phone_number": "123",
+                "to_phone_number": "456",
+            },
+        ],
+    )
+    def test_validate_has_either_url_or_components(self, webhook_init_kwargs):
+        with pytest.raises(
+            ValidationError, match="Must provide either a Twilio webhook URL OR"
+        ):
+            TwilioWebHook(**webhook_init_kwargs)
+
+    def test_validate_all_components_are_present_if_no_url(self):
+        with pytest.raises(ValidationError, match="OR all of the following"):
+            TwilioWebHook(account_sid="abc", auth_token="XXX", from_phone_number="123")
+
+    def test_instantiate_with_url(self):
+        assert isinstance(TwilioWebHook(url="twilio://abc:XXX@123/456"), TwilioWebHook)
+
+    def test_instantiate_with_url_components(self):
+        assert isinstance(
+            TwilioWebHook(
+                account_sid="abc",
+                auth_token="XXX",
+                from_phone_number="123",
+                to_phone_number=["456"],
+            ),
+            TwilioWebHook,
+        )

@@ -150,27 +150,50 @@ class TwilioWebHook(AppriseNotificationBlock):
 
     account_sid: Optional[str] = Field(
         default=None,
-        description="The Twilio account SID.",
+        description=(
+            "A component of the webhook URL; the Twilio Account SID "
+            "can be found on the homepage of the Twilio console. "
+            "If provided, you must also provide the `auth_token`, "
+            "`from_number`, and `to_number`(s), but not the `url`."
+        ),
     )
 
     auth_token: Optional[SecretStr] = Field(
         default=None,
-        description="The Twilio auth token.",
+        description=(
+            "A component of the webhook URL; the Twilio Auth Token "
+            "can be found on the homepage of the Twilio console. "
+            "If provided, you must also provide the `account_sid`, "
+            "`from_number`, and `to_number`(s), but not the `url`."
+        ),
     )
 
     from_phone_number: Optional[str] = Field(
         default=None,
-        description="The phone number to send the message from. Must be a valid Twilio phone number.",
+        description=(
+            "A component of the webhook URL; the valid Twilio phone "
+            "number to send the message from. "
+            "If provided, you must also provide the `account_sid`, "
+            "`auth_token`, and `to_number`(s), but not the `url`."
+        ),
     )
 
     to_phone_number: Optional[List[str]] = Field(
         default=None,
-        description="The phone number(s) to send the message to. Must be a valid Twilio phone number.",
+        description=(
+            "A component of the webhook URL; a list of valid Twilio phone "
+            "number(s) to send the message to. "
+            "If provided, you must also provide the `account_sid`, "
+            "`auth_token`, and `from_number`, but not the `url`."
+        ),
     )
 
     url: Optional[SecretStr] = Field(
         default=None,
-        description="The Twilio webhook URL used to send notifications.",
+        description=(
+            "The Twilio webhook URL used to send notifications. "
+            "If provided, you must not provide any other fields."
+        ),
         title="Webhook URL",
     )
 
@@ -188,19 +211,27 @@ class TwilioWebHook(AppriseNotificationBlock):
     @root_validator
     def validate_url_or_components(cls, values):
 
-        has_components = any(
-            values.get(field) is not None
+        url_provided = bool(values.get("url"))
+
+        url_components_provided = [
+            bool(values.get(field))
             for field in (
                 "account_sid",
                 "auth_token",
                 "from_phone_number",
                 "to_phone_number",
             )
-        )
+        ]
 
-        if bool(values.get("url")) ^ has_components:
+        if not url_provided and not all(url_components_provided):
             raise ValueError(
-                "Must provide either a webhook URL or all of the following: account SID, "
-                "auth token, from phone number, and to phone number, but not both."
+                "Must provide either a Twilio webhook URL OR all of the following: "
+                "`account_sid`, `auth_token`, `from_phone_number`, and `to_phone_number`."
+            )
+
+        if not (url_provided ^ any(url_components_provided)):
+            raise ValueError(
+                "Must provide either a Twilio webhook URL OR all of the following: "
+                "`account_sid`, `auth_token`, `from_phone_number`, and `to_phone_number`."
             )
         return values
