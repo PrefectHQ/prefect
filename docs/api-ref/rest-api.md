@@ -10,9 +10,9 @@ tags:
 
 The Prefect REST API is hosted by the Orion Server or Prefect Cloud.
 
-A complete reference for the API is available at the bottom of this document.
+A complete, interactive reference for the REST API is available in the [Prefect REST API Reference](/api-ref/rest-api-reference/).
 
-Additionally, the reference can be viewed by visiting `/docs` of the API server. For example, [http://localhost:4200/docs](http://localhost:4200/docs) if running the API with `prefect orion start`.
+Additionally, the reference can be viewed by visiting the `/docs` endpoint of the API server. For example, [http://localhost:4200/docs](http://localhost:4200/docs) if running the API with `prefect orion start`.
 
 ## OpenAPI
 
@@ -55,13 +55,13 @@ The Prefect REST API adheres to the following guidelines:
     - `POST /collection/action` is how we implement non-CRUD actions. For example, to set a flow run's state, we use `POST /flow_runs/:id/set_state`.
     - `POST /collection/action` may also be used for read-only queries. This is to allow us to send complex arguments as body arguments (which often can not be done via GET). Examples include `POST /flow_runs/filter`, `POST /flow_runs/count`, and `POST /flow_runs/history`.
 
-### Filtering
+## Filtering
 
 Objects can be filtered by providing filter criteria in the body of a `POST` request. When multiple criteria are specified, logical AND will be applied to the criteria.
 
-Filter criteria are structured as follows
+Filter criteria are structured as follows:
 
-```
+```json
 {
     "objects": {
         "object_field": {
@@ -70,8 +70,6 @@ Filter criteria are structured as follows
     }
 }
 ```
-
-where
 
 `objects` is the name of the collection to filter over (e.g. `flows`). The collection can be either the object being queried for (e.g. `flows` for `POST /flows/filter`) or a related object (e.g. `flow_runs` for `POST /flows/filter`).
 
@@ -86,9 +84,9 @@ where
 - `before_`: return objects where this datetime field is less than or equal to the following value
 - `after_`: return objects where this datetime field is greater than or equal to the following value
 
-For example, to query for flows with the tag `"database"` and failed flow runs, `POST /flows/filter` with the following request body
+For example, to query for flows with the tag `"database"` and failed flow runs, `POST /flows/filter` with the following request body:
 
-```
+```json
 {
     "flows": {
         "tags": {
@@ -105,5 +103,9 @@ For example, to query for flows with the tag `"database"` and failed flow runs, 
 }
 ```
 
+## Reference
 
+A complete, interactive reference for the REST API may be found in: 
 
+- [Prefect REST API Reference](/api-ref/rest-api-reference/)
+- `/docs` endpoint of the Prefect Orion or Prefect Cloud API service
