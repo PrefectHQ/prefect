@@ -3,6 +3,7 @@ from typing import List, Optional
 
 import apprise
 from apprise import Apprise, AppriseAsset, NotifyType
+from apprise.plugins.NotifyTwilio import NotifyTwilio
 from pydantic import Field, SecretStr, root_validator
 
 from prefect.blocks.core import Block
@@ -203,10 +204,12 @@ class TwilioWebHook(AppriseNotificationBlock):
     def block_initialization(self) -> None:
         if self.url is None:
             self.url = SecretStr(
-                f"twilio://{self.account_sid}"
-                f":{self.auth_token.get_secret_value()}"
-                f"@{self.from_phone_number}"
-                f"/{'/'.join(self.to_phone_number)}"
+                NotifyTwilio(
+                    account_sid=self.account_sid,
+                    auth_token=self.auth_token.get_secret_value(),
+                    source=self.from_phone_number,
+                    targets=self.to_phone_number,
+                ).url()
             )
 
         super().block_initialization()
