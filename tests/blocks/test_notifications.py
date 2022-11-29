@@ -126,3 +126,12 @@ class TestPagerDutyWebhook:
             PagerDutyWebHook(integration_key="int_key", api_key="api_key"),
             PagerDutyWebHook,
         )
+
+    def test_save_load_roundtrip(self):
+        pagerduty_webhook = PagerDutyWebHook(
+            integration_key="int_key", api_key="api_key"
+        )
+        pagerduty_webhook.save("my-block", overwrite=True)
+        loaded_pagerduty_webhook = pagerduty_webhook.load("my-block")
+        assert loaded_pagerduty_webhook.integration_key.get_secret_value() == "int_key"
+        assert loaded_pagerduty_webhook.api_key.get_secret_value() == "api_key"
