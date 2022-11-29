@@ -4,9 +4,14 @@ from unittest.mock import patch
 
 import cloudpickle
 import pytest
+from pydantic import ValidationError
 
 import prefect
-from prefect.blocks.notifications import AppriseNotificationBlock, PrefectNotifyType
+from prefect.blocks.notifications import (
+    AppriseNotificationBlock,
+    PagerDutyWebHook,
+    PrefectNotifyType,
+)
 from prefect.testing.utilities import AsyncMock
 
 
@@ -51,8 +56,13 @@ class TestAppriseNotificationBlock:
             apprise_instance_mock.add.assert_called_once_with(
                 block.url.get_secret_value()
             )
+
+            if block_class.__name__ == "PagerDutyWebHook":
+                notify_type = "info"
+            else:
+                notify_type = PrefectNotifyType.DEFAULT
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+                body="test", title=None, notify_type=notify_type
             )
 
     def test_notify_sync(self, block_class: Type[AppriseNotificationBlock]):
@@ -69,8 +79,13 @@ class TestAppriseNotificationBlock:
             apprise_instance_mock.add.assert_called_once_with(
                 block.url.get_secret_value()
             )
+
+            if block_class.__name__ == "PagerDutyWebHook":
+                notify_type = "info"
+            else:
+                notify_type = PrefectNotifyType.DEFAULT
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+                body="test", title=None, notify_type=notify_type
             )
 
     def test_is_picklable(self, block_class: Type[AppriseNotificationBlock]):
@@ -79,3 +94,35 @@ class TestAppriseNotificationBlock:
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
         assert isinstance(unpickled, block_class)
+
+
+class TestPagerDutyWebhook:
+    @pytest.mark.parametrize("key", [None, "integration_key", "api_key"])
+    def test_validate_has_either_url_or_components(self, key):
+        webhook_kwargs = dict(
+            integration_key="my-integration-key", api_key="my-api-key", url="my-url"
+        )
+        if key:
+            webhook_kwargs.pop(key)
+        with pytest.raises(ValidationError, match="Cannot provide url alongside"):
+            PagerDutyWebHook(**webhook_kwargs)
+
+    @pytest.mark.parametrize("key", ["integration_key", "api_key"])
+    def test_validate_has_both_keys(self, key):
+        webhook_kwargs = dict(
+            integration_key="my-integration-key", api_key="my-api-key"
+        )
+        webhook_kwargs.pop(key)
+        with pytest.raises(ValidationError, match="Must provide both"):
+            PagerDutyWebHook(**webhook_kwargs)
+
+    def test_instantiate_with_url(self):
+        assert isinstance(
+            PagerDutyWebHook(url="pagerduty://int_key@api_key"), PagerDutyWebHook
+        )
+
+    def test_instantiate_with_keys(self):
+        assert isinstance(
+            PagerDutyWebHook(integration_key="int_key", api_key="api_key"),
+            PagerDutyWebHook,
+        )
