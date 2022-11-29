@@ -67,6 +67,7 @@ If your execution environment is logged into [Prefect Cloud](/ui/cloud/), Prefec
 
 To take full advantage of the Prefect Orion orchestration engine and API server, you can spin up an instance at any time with the `prefect orion start` CLI command:
 
+<div class='terminal'>
 ```bash
 $ prefect orion start
 Starting...
@@ -82,6 +83,22 @@ Configure Prefect to communicate with the server with:
 
 Check out the dashboard at http://127.0.0.1:4200
 ```
+</div>
+
+!!! note "Set the `PREFECT_API_URL` for your server"
+    Note the message to set `PREFECT_API_URL` &mdash; configuring the URL of your Prefect Orion server or Prefect Cloud makes sure that you're coordinating flows with the correct API instance.
+
+    Go to your terminal session and run this command to set the API URL to point to the Prefect Orion instance you just started:
+
+    <div class='terminal'>
+    ```bash
+    $ prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
+    Set variable 'PREFECT_API_URL' to 'http://127.0.0.1:4200/api'
+    Updated profile 'default'
+    ```
+    </div>
+
+    If you're using Prefect Cloud, the `prefect cloud login` command provides an interactive login experience, enabling you to configure your local execution environment with either an API key or through a browser.
 
 When the Prefect API server is running (either in a local environment or using Prefect Cloud), you can create and run orchestrated workflows including:
 
