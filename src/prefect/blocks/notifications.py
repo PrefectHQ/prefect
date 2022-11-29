@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Literal, Optional
+from typing import Dict, Optional
 
 import apprise
 from apprise import Apprise, AppriseAsset, NotifyType
 from apprise.plugins.NotifyPagerDuty import NotifyPagerDuty
 from pydantic import AnyHttpUrl, Field, SecretStr, root_validator
+from typing_extensions import Literal
 
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import sync_compatible
