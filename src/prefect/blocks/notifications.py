@@ -176,6 +176,7 @@ class TwilioWebHook(AppriseNotificationBlock):
             "If provided, you must also provide the `account_sid`, "
             "`auth_token`, and `to_number`(s), but not the `url`."
         ),
+        example="18001234567",
     )
 
     to_phone_number: Optional[List[str]] = Field(
@@ -186,6 +187,7 @@ class TwilioWebHook(AppriseNotificationBlock):
             "If provided, you must also provide the `account_sid`, "
             "`auth_token`, and `from_number`, but not the `url`."
         ),
+        example="18004242424",
     )
 
     url: Optional[SecretStr] = Field(
@@ -195,6 +197,7 @@ class TwilioWebHook(AppriseNotificationBlock):
             "If provided, you must not provide any other fields."
         ),
         title="Webhook URL",
+        example="twilio://{account_sid}:{auth_token}@{from_phone_number}/{to_phone_number(s)}",
     )
 
     def block_initialization(self) -> None:
