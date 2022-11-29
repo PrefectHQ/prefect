@@ -218,6 +218,7 @@ When specifying an infrastructure block with the `-ib` or `--infra-block` flag, 
 | Remote File System | `RemoteFileSystem` | `remote-file-system` |
 | S3 | `S3` | `s3` |
 | SMB | `SMB` | `smb` |
+| GitLab Repository | `GitLabRepository` | `gitlab-repository` |
 
 Note that the appropriate library supporting the storage filesystem must be installed prior to building a deployment with a storage block. For example, the AWS S3 Storage block requires the [`s3fs`](https://s3fs.readthedocs.io/en/latest/) library. See [Storage](/concepts/storage/) for more information.
 
