@@ -151,7 +151,7 @@ class TestPausingFlows:
             omega = doesnt_pause(wait_for=[x, y])
 
         with pytest.raises(StopAsyncIteration):
-            # the sleeper mock will exhaust its side effects after 5 calls
+            # the sleeper mock will exhaust its side effects after 6 calls
             pausing_flow()
 
         sleep_intervals = [c.args[0] for c in sleeper.await_args_list]
@@ -178,12 +178,12 @@ class TestPausingFlows:
             omega = doesnt_pause(wait_for=[x, y])
 
         with pytest.raises(StopAsyncIteration):
-            # the sleeper mock will exhaust its side effects after 5 calls
+            # the sleeper mock will exhaust its side effects after 6 calls
             pausing_flow()
 
         sleep_intervals = [c.args[0] for c in sleeper.await_args_list]
         assert sleep_intervals[0] == 2
-        assert sleep_intervals[1:] == [5, 5, 5, 5]
+        assert sleep_intervals[1:] == [5, 5, 5, 5, 5]
 
     async def test_paused_flows_block_execution_in_sync_flows(self, orion_client):
         @task
