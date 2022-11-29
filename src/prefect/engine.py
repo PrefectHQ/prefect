@@ -723,7 +723,8 @@ async def pause_flow_run(timeout: int = 300, poll_interval: int = 10):
     with anyio.move_on_after(timeout):
 
         # attempt to check if a flow has resumed at least once
-        await anyio.sleep(timeout / 2)
+        initial_sleep = min(timeout / 2, poll_interval)
+        await anyio.sleep(initial_sleep)
         flow_run = await client.read_flow_run(frc.flow_run.id)
         if flow_run.state.is_running():
             logger.info("Resuming flow run execution!")
