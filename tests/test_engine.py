@@ -158,9 +158,7 @@ class TestPausingFlows:
         assert min(sleep_intervals) == 2
         assert max(sleep_intervals) == 2
 
-    async def test_first_polling_is_smaller_than_the_timeout(
-        self, monkeypatch
-    ):
+    async def test_first_polling_is_smaller_than_the_timeout(self, monkeypatch):
         sleeper = AsyncMock(side_effect=[None, None, None, None, None])
         monkeypatch.setattr("prefect.engine.anyio.sleep", sleeper)
 
