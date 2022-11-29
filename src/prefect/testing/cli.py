@@ -5,6 +5,7 @@ from typing import Iterable, List, Union
 from typer.testing import CliRunner, Result
 
 from prefect.cli import app
+from prefect.utilities.asyncutils import in_async_main_thread
 
 
 def check_contains(cli_result: Result, content: str, should_contain: bool):
@@ -71,7 +72,23 @@ def invoke_and_assert(
         temp_dir: if provided, the CLI command will be run with this as its present
             working directory.
     """
+    if in_async_main_thread():
+        raise RuntimeError(
+            textwrap.dedent(
+                """
+                You cannot run `invoke_and_assert` directly from an async 
+                function. If you need to run `invoke_and_assert` in an async 
+                function, run it with `run_sync_in_worker_thread`. 
 
+                Example: 
+                    run_sync_in_worker_thread(
+                        invoke_and_assert, 
+                        command=['my', 'command'],
+                        expected_code=0,
+                    )
+                """
+            )
+        )
     runner = CliRunner()
     if temp_dir:
         ctx = runner.isolated_filesystem(temp_dir=temp_dir)
