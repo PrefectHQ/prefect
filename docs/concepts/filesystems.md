@@ -12,7 +12,7 @@ tags:
 
 A filesystem block is an object that allows you to read and write data from paths. Prefect provides multiple built-in file system types that cover a wide range of use cases. 
 
-- [`LocalFileSystem`](#local-file-system)
+- [`LocalFileSystem`](#local-filesystem)
 - [`RemoteFileSystem`](#remote-file-system)
 - [`Azure`](#azure)
 - [`GitHub`](#github)
