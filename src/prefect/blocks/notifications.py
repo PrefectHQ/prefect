@@ -53,7 +53,7 @@ class AppriseNotificationBlock(NotificationBlock, ABC):
         example="https://hooks.example.com/XXX",
     )
 
-    def block_initialization(self) -> None:
+    def _start_apprise_client(self, url: SecretStr):
         # A custom `AppriseAsset` that ensures Prefect Notifications
         # appear correctly across multiple messaging platforms
         prefect_app_data = AppriseAsset(
@@ -61,9 +61,11 @@ class AppriseNotificationBlock(NotificationBlock, ABC):
             app_desc="Prefect Notifications",
             app_url="https://prefect.io",
         )
-
         self._apprise_client = Apprise(asset=prefect_app_data)
-        self._apprise_client.add(self.url.get_secret_value())
+        self._apprise_client.add(url.get_secret_value())
+
+    def block_initialization(self) -> None:
+        self._start_apprise_client(self.url)
 
     @sync_compatible
     async def notify(self, body: str, subject: Optional[str] = None):
@@ -203,7 +205,7 @@ class TwilioWebHook(AppriseNotificationBlock):
 
     def block_initialization(self) -> None:
         if self.url is None:
-            self.url = SecretStr(
+            url = SecretStr(
                 NotifyTwilio(
                     account_sid=self.account_sid,
                     auth_token=self.auth_token.get_secret_value(),
@@ -211,8 +213,9 @@ class TwilioWebHook(AppriseNotificationBlock):
                     targets=self.to_phone_number,
                 ).url()
             )
-
-        super().block_initialization()
+            self._start_apprise_client(url)
+        else:
+            self._start_apprise_client(self.url)
 
     @root_validator
     def validate_url_or_components(cls, values):
