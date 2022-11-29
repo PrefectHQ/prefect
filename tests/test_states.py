@@ -5,11 +5,13 @@ import pytest
 from prefect.exceptions import CrashedRun, FailedRun
 from prefect.results import LiteralResult, PersistedResult, ResultFactory
 from prefect.states import (
+    Cancelled,
     Completed,
     Crashed,
     Failed,
     Pending,
     Running,
+    StateGroup,
     is_state,
     is_state_iterable,
     raise_state_exception,
@@ -201,3 +203,100 @@ class TestReturnValueToState:
         result_state = await return_value_to_state("foo", factory)
         assert result_state.is_completed()
         assert await result_state.result() == "foo"
+
+
+class TestStateGroup:
+    def test_fail_count(self):
+        states = [
+            Failed(data=ValueError("1")),
+            Failed(data=ValueError("2")),
+            Failed(data=ValueError("3")),
+            Crashed(data=ValueError("4")),
+            Crashed(data=ValueError("5")),
+        ]
+
+        assert StateGroup(states).fail_count == 5
+
+    def test_all_completed(self):
+        states = [
+            Completed(data="test"),
+            Completed(data="test"),
+            Completed(data="test"),
+        ]
+
+        assert StateGroup(states).all_completed()
+
+        states = [
+            Completed(data="test"),
+            Failed(data=ValueError("1")),
+        ]
+
+        assert not StateGroup(states).all_completed()
+
+    def test_any_failed(self):
+        states = [
+            Completed(data="test"),
+            Failed(data=ValueError("1")),
+        ]
+
+        assert StateGroup(states).any_failed()
+
+        states = [
+            Completed(data="test"),
+            Completed(data="test"),
+            Completed(data="test"),
+        ]
+
+        assert not StateGroup(states).any_failed()
+
+    def test_all_final(self):
+        states = [
+            Failed(data=ValueError("failed")),
+            Crashed(data=ValueError("crashed")),
+            Completed(data="complete"),
+            Cancelled(data="cancelled"),
+        ]
+
+        assert StateGroup(states).all_final()
+
+        states = [
+            Failed(data=ValueError("failed")),
+            Crashed(data=ValueError("crashed")),
+            Completed(data="complete"),
+            Cancelled(data="cancelled"),
+            Running(),
+        ]
+
+        assert not StateGroup(states).all_final()
+
+    def test_counts_message_all_final(self):
+        states = [
+            Failed(data=ValueError("failed")),
+            Crashed(data=ValueError("crashed")),
+            Completed(data="complete"),
+            Cancelled(data="cancelled"),
+        ]
+
+        counts_message = StateGroup(states).counts_message()
+
+        assert "total=4" in counts_message
+        assert "'FAILED'=1" in counts_message
+        assert "'CRASHED'=1" in counts_message
+        assert "'COMPLETED'=1" in counts_message
+        assert "'CANCELLED'=1" in counts_message
+
+    def test_counts_message_some_non_final(self):
+        states = [
+            Failed(data=ValueError("failed")),
+            Running(),
+            Crashed(data=ValueError("crashed")),
+            Running(),
+        ]
+
+        counts_message = StateGroup(states).counts_message()
+
+        assert "total=4" in counts_message
+        assert "not_final=2" in counts_message
+        assert "'FAILED'=1" in counts_message
+        assert "'CRASHED'=1" in counts_message
+        assert "'RUNNING'=2" in counts_message
