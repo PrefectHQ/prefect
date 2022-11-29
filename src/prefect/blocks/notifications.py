@@ -3,8 +3,7 @@ from typing import List, Optional
 
 import apprise
 from apprise import Apprise, AppriseAsset, NotifyType
-from httpx import AsyncClient
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, root_validator
 
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import sync_compatible
@@ -87,7 +86,7 @@ class SlackWebhook(AppriseNotificationBlock):
         ```python
         from prefect.blocks.notifications import SlackWebhook
 
-        slack_webhook_block = SlackWebhook.load("block-name")
+        slack_webhook_block = SlackWebhook.load("BLOCK_NAME")
         slack_webhook_block.notify("Hello from Prefect!")
         ```
     """
@@ -114,7 +113,7 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
         Load a saved Teams webhook and send a message:
         ```python
         from prefect.blocks.notifications import MicrosoftTeamsWebhook
-        teams_webhook_block = MicrosoftTeamsWebhook.load("block-name")
+        teams_webhook_block = MicrosoftTeamsWebhook.load("BLOCK_NAME")
         teams_webhook_block.notify("Hello from Prefect!")
         ```
     """
@@ -131,58 +130,77 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
     )
 
 
-class TwilioWebHook(NotificationBlock):
+class TwilioWebHook(AppriseNotificationBlock):
     """Enables sending notifications via a provided Twilio webhook.
-
-    Attributes:
-        url: Twilio webhook URL which can be used to send messages.
+    Find more on Apprise Twilio Webhook URL formatting in the [docs](https://github.com/caronc/apprise/wiki/Notify_twilio).
 
     Examples:
         Load a saved Twilio webhook and send a message:
         ```python
         from prefect.blocks.notifications import TwilioWebHook
-        twilio_webhook_block = TwilioWebHook.load("block-name")
+        twilio_webhook_block = TwilioWebHook.load("BLOCK_NAME")
         twilio_webhook_block.notify("Hello from Prefect!")
         ```
     """
 
+    _description = "Enables sending notifications via a provided Twilio webhook."
     _block_type_name = "Twilio Webhook"
     _block_type_slug = "twilio-webhook"
     _logo_url = "https://images.ctfassets.net/zscdif0zqppk/YTCgPL6bnK3BczP2gV9md/609283105a7006c57dbfe44ee1a8f313/58482bb9cef1014c0b5e4a31.png?h=250"  # noqa
 
-    account_sid: str = Field(
-        ...,
+    account_sid: Optional[str] = Field(
+        default=None,
         description="The Twilio account SID.",
     )
 
-    auth_token: SecretStr = Field(
-        ...,
+    auth_token: Optional[SecretStr] = Field(
+        default=None,
         description="The Twilio auth token.",
     )
 
-    from_phone_number: str = Field(
-        ...,
+    from_phone_number: Optional[str] = Field(
+        default=None,
         description="The phone number to send the message from. Must be a valid Twilio phone number.",
     )
 
-    to_phone_number: List[str] = Field(
-        ...,
+    to_phone_number: Optional[List[str]] = Field(
+        default=None,
         description="The phone number(s) to send the message to. Must be a valid Twilio phone number.",
     )
 
+    url: Optional[SecretStr] = Field(
+        default=None,
+        description="The Twilio webhook URL used to send notifications.",
+        title="Webhook URL",
+    )
+
     def block_initialization(self) -> None:
-        self._twilio_client = AsyncClient(
-            auth=(self.account_sid, self.auth_token.get_secret_value())
+        if self.url is None:
+            self.url = SecretStr(
+                f"twilio://{self.account_sid}"
+                f":{self.auth_token.get_secret_value()}"
+                f"@{self.from_phone_number}"
+                f"/{'/'.join(self.to_phone_number)}"
+            )
+
+        super().block_initialization()
+
+    @root_validator
+    def validate_url_or_components(cls, values):
+
+        has_components = any(
+            values.get(field) is not None
+            for field in (
+                "account_sid",
+                "auth_token",
+                "from_phone_number",
+                "to_phone_number",
+            )
         )
 
-    @sync_compatible
-    async def notify(self, body: str):
-        async with self._twilio_client as client:
-            await client.post(
-                f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Messages.json",
-                data={
-                    "From": self.from_phone_number,
-                    "To": "/".join(self.to_phone_number),
-                    "Body": body,
-                },
+        if bool(values.get("url")) ^ has_components:
+            raise ValueError(
+                "Must provide either a webhook URL or all of the following: account SID, "
+                "auth token, from phone number, and to phone number, but not both."
             )
+        return values
