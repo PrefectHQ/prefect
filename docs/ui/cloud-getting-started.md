@@ -19,7 +19,7 @@ The following sections will get you set up and using Prefect Cloud, using these 
 1. [Create workspaces](#create-a-workspace) for your account.
 1. [Create an API key](#create-an-api-key) to authorize a local execution environment.
 1. [Configure a local execution environment](#configure-a-local-execution-environment) to use Prefect Cloud.
-1. [Run a flow](#run-a-flow-with-prefect-cloud) locally and view flow results in Prefect Cloud.
+1. [Run a flow](#run-a-flow-with-prefect-cloud) locally and view flow run execution in Prefect Cloud.
 1. [Run a flow from a deployment](#run-a-flow-from-a-deployment), enabling remote execution of flow runs.
 
 ## Sign in or register
