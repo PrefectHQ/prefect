@@ -2,7 +2,6 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
-import platform
 from typing import Iterator, List, Optional, Set, Union
 from uuid import UUID
 
@@ -188,7 +187,9 @@ class OrionAgent:
                     flow_run,
                 )
 
-        return list(filter(lambda run: run.id in self.submitting_flow_run_ids, submittable_runs))
+        return list(
+            filter(lambda run: run.id in self.submitting_flow_run_ids, submittable_runs)
+        )
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
         deployment = await self.client.read_deployment(flow_run.deployment_id)
@@ -360,7 +361,9 @@ class OrionAgent:
     async def start(self):
         self.started = True
         self.task_group = anyio.create_task_group()
-        self.limiter = anyio.CapacityLimiter(self.limit) if self.limit is not None else None
+        self.limiter = (
+            anyio.CapacityLimiter(self.limit) if self.limit is not None else None
+        )
         self.client = get_client()
         await self.client.__aenter__()
         await self.task_group.__aenter__()

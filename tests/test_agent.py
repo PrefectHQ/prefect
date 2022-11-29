@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 
-import prefect.logging
 from prefect import flow
 from prefect.agent import OrionAgent
 from prefect.blocks.core import Block
