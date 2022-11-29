@@ -371,7 +371,8 @@ class StateGroup:
         self.states = states
         self.type_counts = self._get_type_counts(states)
         self.total_count = len(states)
-        self.not_final_count = self._get_not_final_count(states)
+        self.final_count = sum(state.is_final() for state in states)
+        self.not_final_count = self.total_count - self.final_count
 
     @property
     def fail_count(self):
@@ -387,24 +388,24 @@ class StateGroup:
         )
 
     def all_final(self) -> bool:
-        return self.not_final_count == self.total_count
+        return self.final_count == self.total_count
 
     def counts_message(self) -> str:
         count_messages = [f"total={self.total_count}"]
         if self.not_final_count:
             count_messages.append(f"not_final={self.not_final_count}")
-        for state_type, count in self.type_counts.items():
-            if count:
-                count_messages.append(f"{state_type.value!r}={count}")
+
+        count_messages += [
+            f"{state_type.value!r}={count}"
+            for state_type, count in self.type_counts.items()
+            if count
+        ]
+
         return ", ".join(count_messages)
 
     @staticmethod
     def _get_type_counts(states: Iterable[State]) -> Dict[StateType, int]:
         return Counter(state.type for state in states)
-
-    @staticmethod
-    def _get_not_final_count(states: Iterable[State]) -> int:
-        return len(states) - sum(state.is_final() for state in states)
 
     def __repr__(self) -> str:
         return f"StateGroup<{self.counts_message()}>"
