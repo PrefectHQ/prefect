@@ -61,7 +61,7 @@ class AppriseNotificationBlock(NotificationBlock, ABC):
         ),
     )
 
-    def block_initialization(self) -> None:
+    def _start_apprise_client(self, url: SecretStr):
         # A custom `AppriseAsset` that ensures Prefect Notifications
         # appear correctly across multiple messaging platforms
         prefect_app_data = AppriseAsset(
@@ -71,7 +71,10 @@ class AppriseNotificationBlock(NotificationBlock, ABC):
         )
 
         self._apprise_client = Apprise(asset=prefect_app_data)
-        self._apprise_client.add(self.url.get_secret_value())
+        self._apprise_client.add(url.get_secret_value())
+
+    def block_initialization(self) -> None:
+        self._start_apprise_client(self.url)
 
     @sync_compatible
     async def notify(self, body: str, subject: Optional[str] = None):
@@ -260,7 +263,7 @@ class PagerDutyWebHook(AppriseNotificationBlock):
 
     def block_initialization(self) -> None:
         if self.url is None:
-            self.url = SecretStr(
+            url = SecretStr(
                 NotifyPagerDuty(
                     apikey=self.api_key.get_secret_value(),
                     integrationkey=self.integration_key.get_secret_value(),
@@ -274,7 +277,9 @@ class PagerDutyWebHook(AppriseNotificationBlock):
                     details=self.custom_details,
                 ).url()
             )
-        super().block_initialization()
+            self._start_apprise_client(url)
+        else:
+            self._start_apprise_client(self.url)
 
     @root_validator(pre=True)
     def validate_has_either_url_or_components(cls, values):
