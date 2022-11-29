@@ -24,6 +24,7 @@ from prefect.logging import get_logger
 from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
 from prefect.orion.schemas.filters import (
     FlowRunFilter,
+    FlowRunFilterId,
     FlowRunFilterState,
     FlowRunFilterStateName,
     FlowRunFilterWorkQueueName,
@@ -205,6 +206,8 @@ class OrionAgent:
                     name=FlowRunFilterStateName(any_=["Cancelling"])
                 ),
                 work_queue_name=FlowRunFilterWorkQueueName(any_=list(work_queue_names)),
+                # Avoid duplicate cancellation calls
+                id=FlowRunFilterId(not_any_=list(self.cancelling_flow_run_ids)),
             ),
         )
 
@@ -213,13 +216,10 @@ class OrionAgent:
                 f"Found {len(cancelling_flow_runs)} flow runs awaiting cancellation."
             )
 
+        # Include in-progress cancellations in the tracking set
+        self.cancelling_flow_run_ids.update(cancelling_flow_runs)
+
         for flow_run in cancelling_flow_runs:
-
-            # Avoid duplicate cancellation calls
-            if flow_run.id in self.cancelling_flow_run_ids:
-                continue
-
-            self.cancelling_flow_run_ids.add(flow_run.id)
             self.task_group.start_soon(self.cancel_run, flow_run)
 
         return cancelling_flow_runs
