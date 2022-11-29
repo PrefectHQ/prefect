@@ -216,7 +216,7 @@ class TwilioWebHook(AppriseNotificationBlock):
 
         url_provided = bool(values.get("url"))
 
-        url_components_provided = [
+        url_components_provided = tuple(
             bool(values.get(field))
             for field in (
                 "account_sid",
@@ -224,7 +224,7 @@ class TwilioWebHook(AppriseNotificationBlock):
                 "from_phone_number",
                 "to_phone_number",
             )
-        ]
+        )
 
         if not url_provided and not all(url_components_provided):
             raise ValueError(
