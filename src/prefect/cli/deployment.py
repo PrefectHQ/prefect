@@ -657,7 +657,7 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'github', 's3', 'gcs', 'azure', 'smb'",
+        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'github', 's3', 'gcs', 'azure', 'smb', 'gitlab-repository'",
     ),
     skip_upload: bool = typer.Option(
         False,
