@@ -216,10 +216,8 @@ class OrionAgent:
                 f"Found {len(cancelling_flow_runs)} flow runs awaiting cancellation."
             )
 
-        # Include in-progress cancellations in the tracking set
-        self.cancelling_flow_run_ids.update(cancelling_flow_runs)
-
         for flow_run in cancelling_flow_runs:
+            self.cancelling_flow_run_ids.add(flow_run.id)
             self.task_group.start_soon(self.cancel_run, flow_run)
 
         return cancelling_flow_runs
