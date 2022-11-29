@@ -15,7 +15,7 @@ for arg in sys.argv[1:] if len(sys.argv) > 1 else []:
         targets.append(arg)
 
 
-subprocess.run(
+process = subprocess.run(
     [
         "pytest",
         "--no-cov",
@@ -29,3 +29,6 @@ subprocess.run(
     stdout=sys.stdout,
     stderr=sys.stderr,
 )
+
+
+sys.exit(process.returncode)
