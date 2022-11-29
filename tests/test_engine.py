@@ -131,6 +131,60 @@ class TestPausingFlows:
         with pytest.raises(FlowPauseTimeout):
             pausing_flow()
 
+    async def test_first_polling_interval_doesnt_grow_arbitrarily_large(
+        self, monkeypatch
+    ):
+        sleeper = AsyncMock(side_effect=[None, None, None, None, None])
+        monkeypatch.setattr("prefect.engine.anyio.sleep", sleeper)
+
+        @task
+        def doesnt_pause():
+            return 42
+
+        @flow()
+        def pausing_flow():
+            x = doesnt_pause.submit()
+            pause_flow_run(timeout=20, poll_interval=2)
+            y = doesnt_pause.submit()
+            z = doesnt_pause(wait_for=[x])
+            alpha = doesnt_pause(wait_for=[y])
+            omega = doesnt_pause(wait_for=[x, y])
+
+        with pytest.raises(StopAsyncIteration):
+            # the sleeper mock will exhaust its side effects after 5 calls
+            pausing_flow()
+
+        sleep_intervals = [c.args[0] for c in sleeper.await_args_list]
+        assert min(sleep_intervals) == 2
+        assert max(sleep_intervals) == 2
+
+    async def test_first_polling_is_smaller_than_the_timeout(
+        self, monkeypatch
+    ):
+        sleeper = AsyncMock(side_effect=[None, None, None, None, None])
+        monkeypatch.setattr("prefect.engine.anyio.sleep", sleeper)
+
+        @task
+        def doesnt_pause():
+            return 42
+
+        @flow()
+        def pausing_flow():
+            x = doesnt_pause.submit()
+            pause_flow_run(timeout=4, poll_interval=5)
+            y = doesnt_pause.submit()
+            z = doesnt_pause(wait_for=[x])
+            alpha = doesnt_pause(wait_for=[y])
+            omega = doesnt_pause(wait_for=[x, y])
+
+        with pytest.raises(StopAsyncIteration):
+            # the sleeper mock will exhaust its side effects after 5 calls
+            pausing_flow()
+
+        sleep_intervals = [c.args[0] for c in sleeper.await_args_list]
+        assert sleep_intervals[0] == 2
+        assert sleep_intervals[1:] == [5, 5, 5, 5]
+
     async def test_paused_flows_block_execution_in_sync_flows(self, orion_client):
         @task
         def doesnt_pause():
