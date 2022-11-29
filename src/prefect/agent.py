@@ -213,16 +213,14 @@ class OrionAgent:
                 f"Found {len(cancelling_flow_runs)} flow runs awaiting cancellation."
             )
 
-        async with anyio.create_task_group() as tg:
-            for flow_run in cancelling_flow_runs:
+        for flow_run in cancelling_flow_runs:
 
-                # Avoid duplicate cancellation calls
-                if flow_run.id in self.cancelling_flow_run_ids:
-                    continue
-                else:
-                    self.cancelling_flow_run_ids.add(flow_run.id)
+            # Avoid duplicate cancellation calls
+            if flow_run.id in self.cancelling_flow_run_ids:
+                continue
 
-                tg.start_soon(self.cancel_run, flow_run)
+            self.cancelling_flow_run_ids.add(flow_run.id)
+            self.task_group.start_soon(self.cancel_run, flow_run)
 
         return cancelling_flow_runs
 
