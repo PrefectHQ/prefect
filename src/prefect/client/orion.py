@@ -463,6 +463,7 @@ class OrionClient:
         name: Optional[str] = None,
         tags: Optional[Iterable[str]] = None,
         empirical_policy: Optional[schemas.core.FlowRunPolicy] = None,
+        infrastructure_pid: Optional[str] = None,
     ) -> httpx.Response:
         """
         Update a flow run's details.
@@ -477,6 +478,8 @@ class OrionClient:
                 merged with any existing policy.
             tags: An iterable of new tags for the flow run. These will not be merged with
                 any existing tags.
+            infrastructure_pid: The id of flow run as returned by an
+                infrastructure block.
 
         Returns:
             an `httpx.Response` object from the PATCH request
@@ -492,6 +495,8 @@ class OrionClient:
             params["tags"] = tags
         if empirical_policy is not None:
             params["empirical_policy"] = empirical_policy
+        if infrastructure_pid:
+            params["infrastructure_pid"] = infrastructure_pid
 
         flow_run_data = schemas.actions.FlowRunUpdate(**params)
 
