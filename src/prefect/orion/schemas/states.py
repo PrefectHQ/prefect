@@ -46,6 +46,8 @@ class StateDetails(PrefectBaseModel):
     cache_key: str = None
     cache_expiration: DateTimeTZ = None
     untrackable_result: bool = False
+    pause_timeout: DateTimeTZ = None
+    pause_reschedule: bool = False
 
 
 class State(IDBaseModel, Generic[R]):
@@ -282,13 +284,25 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.PENDING, **kwargs)
 
 
-def Paused(cls: Type[State] = State, **kwargs) -> State:
+def Paused(
+    cls: Type[State] = State, timeout: int = None, reschedule: bool = False, **kwargs
+) -> State:
     """Convenience function for creating `Paused` states.
 
     Returns:
         State: a Paused state
     """
-    return cls(type=StateType.PAUSED, **kwargs)
+    state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
+
+    if state_details.pause_timeout:
+        raise ValueError("An extra timeout was provided in state_details")
+
+    state_details.pause_timeout = pendulum.now("UTC") + pendulum.Duration(
+        seconds=timeout
+    )
+    state_details.pause_reschedule = reschedule
+
+    return cls(type=StateType.PAUSED, state_details=state_details, **kwargs)
 
 
 def AwaitingRetry(

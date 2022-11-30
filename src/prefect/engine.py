@@ -41,6 +41,7 @@ from prefect.context import (
 from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
+    FlowPauseExit,
     FlowPauseTimeout,
     MappingLengthMismatch,
     MappingMissingIterable,
@@ -80,7 +81,7 @@ from prefect.task_runners import (
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
-from prefect.utilities.annotations import Quote, allow_failure, unmapped
+from prefect.utilities.annotations import NoResult, Quote, allow_failure, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
@@ -362,7 +363,7 @@ async def begin_flow_run(
             flow, client=client
         )
 
-        terminal_state = await orchestrate_flow_run(
+        terminal_or_paused_state = await orchestrate_flow_run(
             flow,
             flow_run=flow_run,
             parameters=parameters,
@@ -372,6 +373,17 @@ async def begin_flow_run(
             # Orchestration needs to be interruptible if it has a timeout
             interruptible=flow.timeout_seconds is not None,
         )
+
+    if terminal_or_paused_state.is_paused():
+        timeout = terminal_or_paused_state.state_details.pause_timeout
+        logger.log(
+            level=logging.INFO,
+            msg=f"Currently paused and suspending execution. Resume before {timeout.to_rfc3339_string()} to finish execution.",
+        )
+        OrionHandler.flush(block=True)
+        return terminal_or_paused_state
+    else:
+        terminal_state = terminal_or_paused_state
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
@@ -628,6 +640,11 @@ async def orchestrate_flow_run(
                 # TODO: Cancel task runs if feasible
                 name = "TimedOut"
                 message = f"Flow run exceeded timeout of {flow.timeout_seconds} seconds"
+            elif isinstance(exc, FlowPauseExit):
+                paused_flow_run = await client.read_flow_run(flow_run.id)
+                paused_flow_run_state = paused_flow_run.state
+                paused_flow_run_state.data = NoResult
+                return paused_flow_run_state
             else:
                 # Generic exception in user code
                 message = "Flow run encountered an exception."
@@ -690,7 +707,7 @@ async def orchestrate_flow_run(
 
 
 @sync_compatible
-async def pause_flow_run(timeout: int = 300, poll_interval: int = 10):
+async def pause_flow_run(timeout: int = 300, poll_interval: int = 10, reschedule=False):
     """
     Pauses a flow run by stopping execution until resumed.
 
@@ -717,8 +734,11 @@ async def pause_flow_run(timeout: int = 300, poll_interval: int = 10):
     client = get_client()
     response = await client.set_flow_run_state(
         frc.flow_run.id,
-        Paused(),
+        Paused(timeout=timeout, reschedule=reschedule),
     )
+
+    if reschedule:
+        raise FlowPauseExit()
 
     with anyio.move_on_after(timeout):
 
