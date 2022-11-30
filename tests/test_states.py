@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from prefect.exceptions import CrashedRun, FailedRun
+from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
 from prefect.results import LiteralResult, PersistedResult, ResultFactory
 from prefect.states import (
     Cancelled,
@@ -46,7 +46,7 @@ def test_is_not_state_iterable_if_empty(iterable_type):
     assert not is_state_iterable(iterable_type())
 
 
-@pytest.mark.parametrize("state_cls", [Failed, Crashed])
+@pytest.mark.parametrize("state_cls", [Failed, Crashed, Cancelled])
 class TestRaiseStateException:
     def test_works_in_sync_context(self, state_cls):
         with pytest.raises(ValueError, match="Test"):
@@ -96,9 +96,13 @@ class TestRaiseStateException:
     async def test_raises_wrapper_with_message_if_result_is_string(
         self, state_cls, value
     ):
-        with pytest.raises(
-            FailedRun if state_cls == Failed else CrashedRun, match="foo"
-        ):
+        state_to_exception = {
+            Failed: FailedRun,
+            Crashed: CrashedRun,
+            Cancelled: CancelledRun,
+        }
+
+        with pytest.raises(state_to_exception[state_cls]):
             await raise_state_exception(state_cls(data=value))
 
     async def test_raises_base_exception(self, state_cls):
@@ -106,9 +110,13 @@ class TestRaiseStateException:
             await raise_state_exception(state_cls(data=BaseException("foo")))
 
     async def test_raises_wrapper_with_state_message_if_result_is_null(self, state_cls):
-        with pytest.raises(
-            FailedRun if state_cls == Failed else CrashedRun, match="foo"
-        ):
+        state_to_exception = {
+            Failed: FailedRun,
+            Crashed: CrashedRun,
+            Cancelled: CancelledRun,
+        }
+
+        with pytest.raises(state_to_exception[state_cls]):
             await raise_state_exception(state_cls(data=None, message="foo"))
 
     async def test_raises_error_if_failed_state_does_not_contain_exception(
