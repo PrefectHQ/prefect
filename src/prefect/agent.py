@@ -2,6 +2,7 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
+import inspect
 from typing import Iterator, List, Optional, Set, Union
 from uuid import UUID
 
@@ -53,6 +54,7 @@ class OrionAgent:
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
         self.cancelling_flow_run_ids = set()
+        self.scheduled_task_scopes = set()
         self.started = False
         self.logger = get_logger("agent")
         self.task_group: Optional[anyio.abc.TaskGroup] = None
@@ -253,24 +255,27 @@ class OrionAgent:
 
         if not hasattr(infrastructure, "kill"):
             self.logger.error(
-                f"Flow run '{flow_run.id}' infrastructure {infrastructure.type!r} does not support killing created infrastructure. Cancellation cannot be guaranteed."
+                f"Flow run '{flow_run.id}' infrastructure {infrastructure.type!r} "
+                "does not support killing created infrastructure. "
+                "Cancellation cannot be guaranteed."
             )
             return
 
         self.logger.info(
-            f"Killing {infrastructure.type} {flow_run.infrastructure_pid} for flow run '{flow_run.id}'..."
+            f"Killing {infrastructure.type} {flow_run.infrastructure_pid} for flow run "
+            f"'{flow_run.id}'..."
         )
         try:
             await infrastructure.kill(flow_run.infrastructure_pid)
         except InfrastructureNotFound as exc:
             self.logger.warning(f"{exc} Marking flow run as cancelled.")
             await self._mark_flow_run_as_cancelled(flow_run)
-        except InfrastructureNotAvailable:
+        except InfrastructureNotAvailable as exc:
             self.logger.warning(f"{exc} Flow run cannot be cancelled by this agent.")
         except Exception:
             self.logger.exception(
-                f"Encountered exception while killing infrastructure for flow run '{flow_run.id}'. "
-                "Flow run may not be cancelled."
+                f"Encountered exception while killing infrastructure for flow run "
+                f"'{flow_run.id}'. Flow run may not be cancelled."
             )
             # We will try again on generic exceptions
             self.cancelling_flow_run_ids.remove(flow_run.id)
@@ -286,15 +291,14 @@ class OrionAgent:
         state_updates.setdefault("name", "Cancelled")
         state = flow_run.state.copy(update=state_updates)
 
-        async def _remove_flow_run_from_cancelling_set():
-            # Do not remove the flow run from the cancelling set immediately because
-            # the API caches responses for the `read_flow_runs` and we do not want to
-            # duplicate cancellations.
-            await anyio.sleep(60 * 5)
-            self.cancelling_flow_run_ids.remove(flow_run.id)
-
         await self.client.set_flow_run_state(flow_run.id, state, force=True)
-        self.task_group.start_soon(_remove_flow_run_from_cancelling_set)
+
+        # Do not remove the flow run from the cancelling set immediately because
+        # the API caches responses for the `read_flow_runs` and we do not want to
+        # duplicate cancellations.
+        await self._schedule_task(
+            60 * 10, self.cancelling_flow_run_ids.remove, flow_run.id
+        )
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
         deployment = await self.client.read_deployment(flow_run.deployment_id)
@@ -489,6 +493,34 @@ class OrionAgent:
         except Exception:
             self.logger.exception(f"Failed to update state of flow run '{flow_run.id}'")
 
+    async def _schedule_task(self, __in_seconds: int, fn, *args, **kwargs):
+        """
+        Schedule a background task to start after some time.
+
+        These tasks will be run immediately when the agent exits instead of waiting.
+
+        The function may be async or sync. Async functions will be awaited.
+        """
+
+        async def wrapper(task_status):
+            # If we are shutting down, do not sleep; otherwise sleep until the scheduled
+            # time or shutdown
+            if self.started:
+                with anyio.CancelScope() as scope:
+                    self.scheduled_task_scopes.add(scope)
+                    task_status.started()
+                    await anyio.sleep(__in_seconds)
+
+                self.scheduled_task_scopes.remove(scope)
+            else:
+                task_status.started()
+
+            result = fn(*args, **kwargs)
+            if inspect.iscoroutine(result):
+                await result
+
+        await self.task_group.start(wrapper)
+
     # Context management ---------------------------------------------------------------
 
     async def start(self):
@@ -500,11 +532,16 @@ class OrionAgent:
 
     async def shutdown(self, *exc_info):
         self.started = False
+        # We must cancel scheduled task scopes before closing the task group
+        for scope in self.scheduled_task_scopes:
+            scope.cancel()
         await self.task_group.__aexit__(*exc_info)
         await self.client.__aexit__(*exc_info)
         self.task_group = None
         self.client = None
-        self.submitting_flow_run_ids = set()
+        self.submitting_flow_run_ids.clear()
+        self.cancelling_flow_run_ids.clear()
+        self.scheduled_task_scopes.clear()
         self._work_queue_cache_expiration = None
         self._work_queue_cache = []
 
