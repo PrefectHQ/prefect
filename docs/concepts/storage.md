@@ -44,13 +44,14 @@ Current options for deployment storage blocks include:
 
 | Storage | Description | Required Library | 
 | --- | --- | --- |
-| [Local File System](/api-ref/prefect/filesystems/#prefect.filesystems.LocalFileSystem) | Store data in a run's local file system. | |
-| [Remote File System](/api-ref/prefect/filesystems/#prefect.filesystems.RemoteFileSystem) | Store data in a any filesystem supported by [`fsspec`](https://filesystem-spec.readthedocs.io/en/latest/). | |
-| [AWS S3 Storage](/api-ref/prefect/filesystems/#prefect.filesystems.S3) | Store data in an AWS S3 bucket. | [`s3fs`](https://s3fs.readthedocs.io/en/latest/) |
-| [Azure Storage](/api-ref/prefect/filesystems/#prefect.filesystems.Azure) | Store data in Azure Datalake and Azure Blob Storage. | [`adlfs`](https://github.com/fsspec/adlfs) |
-| [GitHub Storage](/api-ref/prefect/filesystems/#prefect.filesystems.GitHub) | Store data in a GitHub repository. | |
-| [Google Cloud Storage](/api-ref/prefect/filesystems/#prefect.filesystems.GCS) | Store data in a Google Cloud Platform (GCP) Cloud Storage bucket. | [`gcsfs`](https://gcsfs.readthedocs.io/en/latest/) |
-| [SMB](/api-ref/prefect/filesystems/#prefect.filesystems.SMB) | Store data in SMB shared network storage. | [`smbprotocol`](https://github.com/jborean93/smbprotocol) |
+| [Local File System](/api-ref/prefect/filesystems/#prefect.filesystems.LocalFileSystem) | Store code in a run's local file system. | |
+| [Remote File System](/api-ref/prefect/filesystems/#prefect.filesystems.RemoteFileSystem) | Store code in a any filesystem supported by [`fsspec`](https://filesystem-spec.readthedocs.io/en/latest/). | |
+| [AWS S3 Storage](/api-ref/prefect/filesystems/#prefect.filesystems.S3) | Store code in an AWS S3 bucket. | [`s3fs`](https://s3fs.readthedocs.io/en/latest/) |
+| [Azure Storage](/api-ref/prefect/filesystems/#prefect.filesystems.Azure) | Store code in Azure Datalake and Azure Blob Storage. | [`adlfs`](https://github.com/fsspec/adlfs) |
+| [GitHub Storage](/api-ref/prefect/filesystems/#prefect.filesystems.GitHub) | Store code in a GitHub repository. | |
+| [Google Cloud Storage](/api-ref/prefect/filesystems/#prefect.filesystems.GCS) | Store code in a Google Cloud Platform (GCP) Cloud Storage bucket. | [`gcsfs`](https://gcsfs.readthedocs.io/en/latest/) |
+| [SMB](/api-ref/prefect/filesystems/#prefect.filesystems.SMB) | Store code in SMB shared network storage. | [`smbprotocol`](https://github.com/jborean93/smbprotocol) |
+| [GitLab Repository](https://github.com/PrefectHQ/prefect-gitlab) | Store code in a GitLab repository. | [`prefect-gitlab`](https://github.com/PrefectHQ/prefect-gitlab) |
 
 !!! note "Accessing files may require storage filesystem libraries"
     Note that the appropriate filesystem library supporting the storage location must be installed prior to building a deployment with a storage block or accessing the storage location from flow scripts. 
