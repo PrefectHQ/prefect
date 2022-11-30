@@ -39,20 +39,13 @@ class PrefectNotifyType(NotifyType):
 apprise.NOTIFY_TYPES += (PrefectNotifyType.DEFAULT,)
 
 
-class AppriseNotificationBlock(NotificationBlock, ABC):
+class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     """
-    A base class for sending notifications using Apprise.
+    An abstract class for sending notifications using Apprise.
     """
-
-    url: SecretStr = Field(
-        default=...,
-        title="Webhook URL",
-        description="Incoming webhook URL used to send notifications.",
-        example="https://hooks.example.com/XXX",
-    )
 
     notify_type: Literal[
-        "info", "success", "warning", "failure", "prefect_default"
+        "prefect_default", "info", "success", "warning", "failure"
     ] = Field(
         default=PrefectNotifyType.DEFAULT,
         description=(
@@ -81,6 +74,19 @@ class AppriseNotificationBlock(NotificationBlock, ABC):
         await self._apprise_client.async_notify(
             body=body, title=subject, notify_type=self.notify_type
         )
+
+
+class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
+    """
+    A base class for sending notifications using Apprise, through webhook URLs.
+    """
+
+    url: SecretStr = Field(
+        default=...,
+        title="Webhook URL",
+        description="Incoming webhook URL used to send notifications.",
+        example="https://hooks.example.com/XXX",
+    )
 
 
 # TODO: Move to prefect-slack once collection block auto-registration is
@@ -135,7 +141,7 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
     )
 
 
-class PagerDutyWebHook(AppriseNotificationBlock):
+class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     """
     Enables sending notifications via a provided PagerDuty webhook.
     See [Apprise notify_pagerduty docs](https://github.com/caronc/apprise/wiki/Notify_pagerduty)
@@ -156,17 +162,6 @@ class PagerDutyWebHook(AppriseNotificationBlock):
     _block_type_slug = "pager-duty-webhook"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6FHJ4Lcozjfl1yDPxCvQDT/c2f6bdf47327271c068284897527f3da/PagerDuty-Logo.wine.png?h=250"
 
-    url: Optional[SecretStr] = Field(
-        default=None,
-        title="Webhook URL",
-        description=(
-            "The PagerDuty incoming webhook URL used to send notifications; "
-            "if this is provided, the other fields are ignored and will error "
-            "if provided alongside `api_key` or `integration_key`."
-        ),
-        example="pagerduty://{integration_key}@{api_key}/{source}/{component}",
-    )
-
     # The default cannot be prefect_default because NotifyPagerDuty's
     # PAGERDUTY_SEVERITY_MAP only has these notify types defined as keys
     notify_type: Literal["info", "success", "warning", "failure"] = Field(
@@ -176,7 +171,7 @@ class PagerDutyWebHook(AppriseNotificationBlock):
     integration_key: Optional[SecretStr] = Field(
         default=None,
         description=(
-            "A component of the webhook URL; this can be found on the Events API V2 "
+            "This can be found on the Events API V2 "
             "integration's detail page, and is also referred to as a Routing Key. "
             "This must be provided alongside `api_key`, but will error if provided "
             "alongside `url`."
@@ -187,109 +182,51 @@ class PagerDutyWebHook(AppriseNotificationBlock):
         default=None,
         title="API Key",
         description=(
-            "A component of the webhook URL; this can be found under Integrations. "
+            "This can be found under Integrations. "
             "This must be provided alongside `integration_key`, but will error if "
             "provided alongside `url`."
         ),
     )
 
     source: Optional[str] = Field(
-        default="Prefect",
-        description=(
-            "A component of the webhook URL; the source string "
-            "as part of the payload."
-        ),
+        default="Prefect", description="The source string as part of the payload."
     )
 
     component: str = Field(
         default="Notification",
-        description=(
-            "A component of the webhook URL; the component string "
-            "as part of the payload."
-        ),
+        description="The component string as part of the payload.",
     )
 
     group: Optional[str] = Field(
-        default=None,
-        description=(
-            "A component of the webhook URL; the group string "
-            "as part of the payload."
-        ),
+        default=None, description="The group string as part of the payload."
     )
 
     class_id: Optional[str] = Field(
         default=None,
         title="Class ID",
-        description=(
-            "A component of the webhook URL; the class string "
-            "as part of the payload."
-        ),
+        description="The class string as part of the payload.",
     )
 
-    region_name: str = Field(
-        default="us",
-        description=(
-            "A component of the webhook URL; by default this "
-            "takes on the value of `us` but you can optionally "
-            "set it to `eu` as well."
-        ),
+    region_name: Literal["us", "eu"] = Field(
+        default="us", description="The region name."
     )
 
     clickable_url: Optional[AnyHttpUrl] = Field(
         default=None,
         title="Clickable URL",
-        description=(
-            "A component of the webhook URL; "
-            "a clickable URL to associate with the notice."
-        ),
+        description="A clickable URL to associate with the notice.",
     )
 
     include_image: bool = Field(
         default=True,
-        description=(
-            "A component of the webhook URL; "
-            "associate the notification status via a represented icon."
-        ),
+        description="Associate the notification status via a represented icon.",
     )
 
     custom_details: Dict[str, str] = Field(
         default=None,
-        description=(
-            "A component of the webhook URL; "
-            "additional details to include as part of the payload."
-        ),
+        description="Additional details to include as part of the payload.",
         example='{"disk_space_left": "145GB"}',
     )
-
-    def block_initialization(self) -> None:
-        if self.url is None:
-            url = SecretStr(
-                NotifyPagerDuty(
-                    apikey=self.api_key.get_secret_value(),
-                    integrationkey=self.integration_key.get_secret_value(),
-                    source=self.source,
-                    component=self.component,
-                    group=self.group,
-                    class_id=self.class_id,
-                    region_name=self.region_name,
-                    click=self.clickable_url,
-                    include_image=self.include_image,
-                    details=self.custom_details,
-                ).url()
-            )
-            self._start_apprise_client(url)
-        else:
-            self._start_apprise_client(self.url)
-
-    @root_validator(pre=True)
-    def validate_has_either_url_or_components(cls, values):
-        has_url = bool(values.get("url"))
-        has_keys = bool(values.get("integration_key") or values.get("api_key"))
-        if not (has_url ^ has_keys):
-            raise ValueError(
-                "Cannot provide url alongside integration_key and api_key."
-            )
-        return values
 
     @root_validator(pre=True)
     def validate_has_both_keys(cls, values):
@@ -301,3 +238,20 @@ class PagerDutyWebHook(AppriseNotificationBlock):
                 "if url is not provided."
             )
         return values
+
+    def block_initialization(self) -> None:
+        url = SecretStr(
+            NotifyPagerDuty(
+                apikey=self.api_key.get_secret_value(),
+                integrationkey=self.integration_key.get_secret_value(),
+                source=self.source,
+                component=self.component,
+                group=self.group,
+                class_id=self.class_id,
+                region_name=self.region_name,
+                click=self.clickable_url,
+                include_image=self.include_image,
+                details=self.custom_details,
+            ).url()
+        )
+        self._start_apprise_client(url)

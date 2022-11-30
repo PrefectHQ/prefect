@@ -57,10 +57,7 @@ class TestAppriseNotificationBlock:
                 block.url.get_secret_value()
             )
 
-            if block_class.__name__ == "PagerDutyWebHook":
-                notify_type = "info"
-            else:
-                notify_type = PrefectNotifyType.DEFAULT
+            notify_type = PrefectNotifyType.DEFAULT
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=notify_type
             )
@@ -80,10 +77,7 @@ class TestAppriseNotificationBlock:
                 block.url.get_secret_value()
             )
 
-            if block_class.__name__ == "PagerDutyWebHook":
-                notify_type = "info"
-            else:
-                notify_type = PrefectNotifyType.DEFAULT
+            notify_type = PrefectNotifyType.DEFAULT
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=notify_type
             )
@@ -97,16 +91,6 @@ class TestAppriseNotificationBlock:
 
 
 class TestPagerDutyWebhook:
-    @pytest.mark.parametrize("key", [None, "integration_key", "api_key"])
-    def test_validate_has_either_url_or_components(self, key):
-        webhook_kwargs = dict(
-            integration_key="my-integration-key", api_key="my-api-key", url="my-url"
-        )
-        if key:
-            webhook_kwargs.pop(key)
-        with pytest.raises(ValidationError, match="Cannot provide url alongside"):
-            PagerDutyWebHook(**webhook_kwargs)
-
     @pytest.mark.parametrize("key", ["integration_key", "api_key"])
     def test_validate_has_both_keys(self, key):
         webhook_kwargs = dict(
@@ -115,11 +99,6 @@ class TestPagerDutyWebhook:
         webhook_kwargs.pop(key)
         with pytest.raises(ValidationError, match="Must provide both"):
             PagerDutyWebHook(**webhook_kwargs)
-
-    def test_instantiate_with_url(self):
-        assert isinstance(
-            PagerDutyWebHook(url="pagerduty://int_key@api_key"), PagerDutyWebHook
-        )
 
     def test_instantiate_with_keys(self):
         assert isinstance(
@@ -135,3 +114,45 @@ class TestPagerDutyWebhook:
         loaded_pagerduty_webhook = pagerduty_webhook.load("my-block")
         assert loaded_pagerduty_webhook.integration_key.get_secret_value() == "int_key"
         assert loaded_pagerduty_webhook.api_key.get_secret_value() == "api_key"
+
+    async def test_notify_async(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = PagerDutyWebHook(integration_key="int_key", api_key="api_key")
+            await block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                "pagerduty://int_key@api_key/Prefect/Notification?region=us&"
+                "image=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            )
+
+            notify_type = "info"
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title=None, notify_type=notify_type
+            )
+
+    def test_notify_sync(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = PagerDutyWebHook(integration_key="int_key", api_key="api_key")
+            block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                "pagerduty://int_key@api_key/Prefect/Notification?region=us&"
+                "image=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            )
+
+            notify_type = "info"
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title=None, notify_type=notify_type
+            )
