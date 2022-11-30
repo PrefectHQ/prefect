@@ -13,7 +13,12 @@ import pendulum
 from prefect.blocks.core import Block
 from prefect.client.orion import OrionClient, get_client
 from prefect.engine import propose_state
-from prefect.exceptions import Abort, ObjectNotFound
+from prefect.exceptions import (
+    Abort,
+    InfrastructureNotAvailable,
+    InfrastructureNotFound,
+    ObjectNotFound,
+)
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
@@ -241,17 +246,20 @@ class OrionAgent:
         )
         try:
             await infrastructure.kill(flow_run.infrastructure_pid)
+        except InfrastructureNotFound as exc:
+            self.logger.warning(f"{exc}. Flow run may be cancelled already.")
+        except InfrastructureNotAvailable:
+            self.logger.warning(f"{exc}. Flow run cannot be cancelled by this agent.")
         except Exception:
             self.logger.exception(
                 f"Encountered exception while killing infrastructure for flow run '{flow_run.id}'. "
                 "Flow run may not be cancelled."
             )
-            return
-        finally:
-            # We always remove the flow run from the cancelling set, we will attempt to
-            # cancel it again on failure.
+            # We will try again on generic exceptions
             self.cancelling_flow_run_ids.remove(flow_run.id)
+            return
 
+        self.cancelling_flow_run_ids.remove(flow_run.id)
         self.logger.info("Cancelled flow run '{flow_run.id}'!")
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:

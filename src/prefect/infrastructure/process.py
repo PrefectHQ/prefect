@@ -14,7 +14,7 @@ import sniffio
 from pydantic import Field
 from typing_extensions import Literal
 
-from prefect.exceptions import InfrastructureError
+from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
@@ -146,7 +146,7 @@ class Process(Infrastructure):
         hostname, pid = _parse_infrastructure_pid(infrastructure_pid)
 
         if hostname != socket.gethostname():
-            raise HostnameMismatch(
+            raise InfrastructureNotAvailable(
                 f"The process is running on a different host {hostname!r}. Unable to kill process {pid!r}."
             )
 
@@ -164,7 +164,7 @@ class Process(Infrastructure):
             try:
                 os.kill(pid, signal.SIGTERM)
             except ProcessLookupError:
-                raise MissingProcessId(
+                raise InfrastructureNotFound(
                     f"The process was not found. Unable to kill process {pid!r}"
                 )
 
@@ -198,11 +198,3 @@ class Process(Infrastructure):
 
 class ProcessResult(InfrastructureResult):
     """Contains information about the final state of a completed process"""
-
-
-class HostnameMismatch(InfrastructureError):
-    """Raised when attempting to kill a process that was started on a different host"""
-
-
-class MissingProcessId(InfrastructureError):
-    """Raised when attempting to kill a process but the process id doesn't exist."""
