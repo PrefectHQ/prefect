@@ -302,7 +302,7 @@ To create an ad-hoc flow run with different parameter values, go the the details
 
 ![Configuring custom parameter values for an ad-hoc flow run](/img/concepts/custom-parameters.png)
 
-## Create a deployment with the CLI
+### Create a deployment
 
 When you've configured `deployment.yaml` for a deployment, you can create the deployment on the API by running the `prefect deployment apply` Prefect CLI command.
 
