@@ -379,7 +379,6 @@ async def begin_flow_run(
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
-        extra={"send_to_orion": False},
     )
 
     # When a "root" flow run finishes, flush logs so we do not have to rely on handling
@@ -512,7 +511,6 @@ async def create_and_begin_subflow_run(
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
-        extra={"send_to_orion": False},
     )
 
     # Track the subflow state so the parent flow can use it to determine its final state
@@ -725,7 +723,8 @@ async def pause_flow_run(timeout: int = 300, poll_interval: int = 10):
     with anyio.move_on_after(timeout):
 
         # attempt to check if a flow has resumed at least once
-        await anyio.sleep(timeout / 2)
+        initial_sleep = min(timeout / 2, poll_interval)
+        await anyio.sleep(initial_sleep)
         flow_run = await client.read_flow_run(frc.flow_run.id)
         if flow_run.state.is_running():
             logger.info("Resuming flow run execution!")
@@ -1379,7 +1378,6 @@ async def orchestrate_task_run(
     logger.log(
         level=logging.INFO if state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
-        extra={"send_to_orion": False},
     )
 
     return state
