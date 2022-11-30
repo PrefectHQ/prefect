@@ -167,7 +167,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     _logo_url = "https://images.ctfassets.net/zscdif0zqppk/YTCgPL6bnK3BczP2gV9md/609283105a7006c57dbfe44ee1a8f313/58482bb9cef1014c0b5e4a31.png?h=250"  # noqa
 
     account_sid: str = Field(
-        ...,
+        default=...,
         description=(
             "The Twilio Account SID - it can be found on the homepage "
             "of the Twilio console."
@@ -175,7 +175,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     )
 
     auth_token: SecretStr = Field(
-        ...,
+        default=...,
         description=(
             "The Twilio Authentication Token - "
             "it can be found on the homepage of the Twilio console."
@@ -183,13 +183,13 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     )
 
     from_phone_number: str = Field(
-        ...,
+        default=...,
         description="The valid Twilio phone number to send the message from.",
         example="18001234567",
     )
 
     to_phone_numbers: List[str] = Field(
-        ...,
+        default=...,
         description="A list of valid Twilio phone number(s) to send the message to.",
         example="18004242424",
     )
