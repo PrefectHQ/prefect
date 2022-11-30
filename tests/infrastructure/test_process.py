@@ -8,7 +8,8 @@ import anyio
 import anyio.abc
 import pytest
 
-from prefect.infrastructure.process import HostnameMismatch, MissingProcessId, Process
+from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
+from prefect.infrastructure.process import Process
 from prefect.testing.utilities import AsyncMock
 
 
@@ -199,7 +200,7 @@ async def test_process_kill_mismatching_hostname(monkeypatch):
 
     process = Process(command=["noop"])
 
-    with pytest.raises(HostnameMismatch):
+    with pytest.raises(InfrastructureNotAvailable):
         await process.kill(infrastructure_pid=infrastructure_pid, grace_seconds=15)
 
     os_kill.assert_not_called()
@@ -213,7 +214,7 @@ async def test_process_kill_no_matching_pid(monkeypatch):
 
     process = Process(command=["noop"])
 
-    with pytest.raises(MissingProcessId):
+    with pytest.raises(InfrastructureNotFound):
         await process.kill(infrastructure_pid=infrastructure_pid, grace_seconds=15)
 
 
