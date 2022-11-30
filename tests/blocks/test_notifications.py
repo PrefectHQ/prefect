@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 import cloudpickle
 import pytest
-from pydantic import ValidationError
 
 import prefect
 from prefect.blocks.notifications import (
@@ -91,30 +90,6 @@ class TestAppriseNotificationBlock:
 
 
 class TestPagerDutyWebhook:
-    @pytest.mark.parametrize("key", ["integration_key", "api_key"])
-    def test_validate_has_both_keys(self, key):
-        webhook_kwargs = dict(
-            integration_key="my-integration-key", api_key="my-api-key"
-        )
-        webhook_kwargs.pop(key)
-        with pytest.raises(ValidationError, match="Must provide both"):
-            PagerDutyWebHook(**webhook_kwargs)
-
-    def test_instantiate_with_keys(self):
-        assert isinstance(
-            PagerDutyWebHook(integration_key="int_key", api_key="api_key"),
-            PagerDutyWebHook,
-        )
-
-    def test_save_load_roundtrip(self):
-        pagerduty_webhook = PagerDutyWebHook(
-            integration_key="int_key", api_key="api_key"
-        )
-        pagerduty_webhook.save("my-block", overwrite=True)
-        loaded_pagerduty_webhook = pagerduty_webhook.load("my-block")
-        assert loaded_pagerduty_webhook.integration_key.get_secret_value() == "int_key"
-        assert loaded_pagerduty_webhook.api_key.get_secret_value() == "api_key"
-
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             reload_modules()

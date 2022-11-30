@@ -4,7 +4,7 @@ from typing import Dict, Optional
 import apprise
 from apprise import Apprise, AppriseAsset, NotifyType
 from apprise.plugins.NotifyPagerDuty import NotifyPagerDuty
-from pydantic import AnyHttpUrl, Field, SecretStr, root_validator
+from pydantic import AnyHttpUrl, Field, SecretStr
 from typing_extensions import Literal
 
 from prefect.blocks.core import Block
@@ -168,8 +168,8 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
         default="info", description="The severity of the notifcation."
     )
 
-    integration_key: Optional[SecretStr] = Field(
-        default=None,
+    integration_key: SecretStr = Field(
+        default=...,
         description=(
             "This can be found on the Events API V2 "
             "integration's detail page, and is also referred to as a Routing Key. "
@@ -178,8 +178,8 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
         ),
     )
 
-    api_key: Optional[SecretStr] = Field(
-        default=None,
+    api_key: SecretStr = Field(
+        default=...,
         title="API Key",
         description=(
             "This can be found under Integrations. "
@@ -222,18 +222,11 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
         description="Associate the notification status via a represented icon.",
     )
 
-    custom_details: Dict[str, str] = Field(
+    custom_details: Optional[Dict[str, str]] = Field(
         default=None,
         description="Additional details to include as part of the payload.",
         example='{"disk_space_left": "145GB"}',
     )
-
-    @root_validator(pre=True)
-    def validate_has_both_keys(cls, values):
-        has_both_keys = bool(values.get("integration_key") and values.get("api_key"))
-        if not has_both_keys:
-            raise ValueError("Must provide both integration_key and api_key.")
-        return values
 
     def block_initialization(self) -> None:
         url = SecretStr(
