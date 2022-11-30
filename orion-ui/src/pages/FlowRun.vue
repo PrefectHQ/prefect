@@ -87,8 +87,8 @@
   })
 
   const flowRunParameters = computed(() => flowRun.value?.parameters ?? {})
-  const deploymentParameters = computed(() => deployment.value?.parameterOpenApiSchema ?? {})
-  const parameters = computed(() => getSchemaValuesWithDefaultsJson(flowRunParameters.value, deploymentParameters.value))
+  const deploymentSchema = computed(() => deployment.value?.parameterOpenApiSchema ?? {})
+  const parameters = computed(() => getSchemaValuesWithDefaultsJson(flowRunParameters.value, deploymentSchema.value))
 
   function goToFlowRuns(): void {
     router.push(routes.flowRuns())
