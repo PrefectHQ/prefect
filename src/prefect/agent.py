@@ -27,10 +27,11 @@ from prefect.orion.schemas.filters import (
     FlowRunFilterId,
     FlowRunFilterState,
     FlowRunFilterStateName,
+    FlowRunFilterStateType,
     FlowRunFilterWorkQueueName,
 )
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
-from prefect.states import Crashed, Pending, exception_to_failed_state
+from prefect.states import Crashed, Pending, StateType, exception_to_failed_state
 
 
 class OrionAgent:
@@ -203,7 +204,8 @@ class OrionAgent:
         cancelling_flow_runs = await self.client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
                 state=FlowRunFilterState(
-                    name=FlowRunFilterStateName(any_=["Cancelling"])
+                    type=FlowRunFilterStateType(any_=[StateType.CANCELLED]),
+                    name=FlowRunFilterStateName(any_=["Cancelling"]),
                 ),
                 work_queue_name=FlowRunFilterWorkQueueName(any_=list(work_queue_names)),
                 # Avoid duplicate cancellation calls
@@ -237,11 +239,6 @@ class OrionAgent:
             #       cancelled and this will prevent additional attempts.
             return
 
-        async def mark_flow_run_as_cancelled():
-            state = flow_run.state.copy(update={"name": "Cancelled"})
-            await self.client.set_flow_run_state(flow_run.id, state, force=True)
-            self.cancelling_flow_run_ids.remove(flow_run.id)
-
         self.logger.info(
             f"Killing {infrastructure.type} {flow_run.infrastructure_pid} for flow run '{flow_run.id}'..."
         )
@@ -249,7 +246,7 @@ class OrionAgent:
             await infrastructure.kill(flow_run.infrastructure_pid)
         except InfrastructureNotFound as exc:
             self.logger.warning(f"{exc} Marking flow run as cancelled.")
-            await mark_flow_run_as_cancelled()
+            await self._mark_flow_run_as_cancelled(flow_run)
         except InfrastructureNotAvailable:
             self.logger.warning(f"{exc} Flow run cannot be cancelled by this agent.")
         except Exception:
@@ -261,8 +258,21 @@ class OrionAgent:
             self.cancelling_flow_run_ids.remove(flow_run.id)
             return
         else:
-            await mark_flow_run_as_cancelled()
+            await self._mark_flow_run_as_cancelled(flow_run)
             self.logger.info(f"Cancelled flow run '{flow_run.id}'!")
+
+    async def _mark_flow_run_as_cancelled(self, flow_run: FlowRun) -> None:
+        state = flow_run.state.copy(update={"name": "Cancelled"})
+
+        async def _remove_flow_run_from_cancelling_set():
+            # Do not remove the flow run from the cancelling set immediately because
+            # the API caches responses for the `read_flow_runs` and we do not want to
+            # duplicate cancellations.
+            await anyio.sleep(60 * 5)
+            self.cancelling_flow_run_ids.remove(flow_run.id)
+
+        await self.client.set_flow_run_state(flow_run.id, state, force=True)
+        self.task_group.start_soon(_remove_flow_run_from_cancelling_set)
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
         deployment = await self.client.read_deployment(flow_run.deployment_id)
