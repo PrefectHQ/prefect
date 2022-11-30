@@ -323,15 +323,29 @@ class InvalidRepositoryURLError(PrefectException):
     """Raised when an incorrect URL is provided to a GitHub filesystem block."""
 
 
+class InfrastructureError(PrefectException):
+    """
+    A base class for exceptions related to infrastructure blocks
+    """
+
+
+class InfrastructureNotFound(PrefectException):
+    """
+    Raised when infrastructure is missing, likely because it has exited or been
+    deleted.
+    """
+
+
+class InfrastructureNotAvailable(PrefectException):
+    """
+    Raised when infrastructure is not accessable from the current machine. For example,
+    if a process was spawned on another machine it cannot be managed.
+    """
+
+
 class NotPausedError(PrefectException):
     """Raised when attempting to unpause a run that isn't paused."""
 
 
 class FlowPauseTimeout(PrefectException):
     """Raised when a flow pause times out"""
-
-
-class InfrastructureError(PrefectException):
-    """
-    A base class for exceptions related to infrastructure blocks
-    """
