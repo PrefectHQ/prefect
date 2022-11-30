@@ -45,7 +45,7 @@
     useFavicon,
     useWorkspaceApi,
     useDeployment,
-    mergeParametersObjects
+    getSchemaValuesWithDefaultsJson
   } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
@@ -87,8 +87,8 @@
   })
 
   const flowRunParameters = computed(() => flowRun.value?.parameters ?? {})
-  const deploymentParameters = computed(() => deployment.value?.parameterOpenApiSchema.properties ?? {})
-  const parameters = computed(() => mergeParametersObjects(flowRunParameters.value, deploymentParameters.value))
+  const deploymentParameters = computed(() => deployment.value?.parameterOpenApiSchema ?? {})
+  const parameters = computed(() => getSchemaValuesWithDefaultsJson(flowRunParameters.value, deploymentParameters.value))
 
   function goToFlowRuns(): void {
     router.push(routes.flowRuns())
