@@ -34,9 +34,9 @@ Infrastructure is specific to the environments in which flows will run. Prefect 
 - [`Process`](/api-ref/prefect/infrastructure/#prefect.infrastructure.process.Process) runs flows in a local subprocess.
 - [`DockerContainer`](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerContainer) runs flows in a Docker container.
 - [`KubernetesJob`](/api-ref/prefect/infrastructure/#prefect.infrastructure.kubernetes.KubernetesJob) runs flows in a Kubernetes Job.
-- [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) runs flows in an ECS Task.
-- [`Cloud Run`](https://prefecthq.github.io/prefect-gcp/cloud_run/) runs flows in a Cloud Run Job.
-- [`Container Instance`](https://prefecthq.github.io/prefect-azure/container_instance/) runs flows in a Container Instance.
+- [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) runs flows in an Amazon ECS Task.
+- [`Cloud Run`](https://prefecthq.github.io/prefect-gcp/cloud_run/) runs flows in a Google Cloud Run Job.
+- [`Container Instance`](https://prefecthq.github.io/prefect-azure/container_instance/) runs flows in an Azure Container Instance.
 
 !!! question "What about tasks?"
     Flows and tasks can both use configuration objects to manage the environment in which code runs. 
