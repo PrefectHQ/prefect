@@ -40,6 +40,7 @@ from prefect.logging.loggers import (
     flow_run_logger,
     get_logger,
     get_run_logger,
+    patch_print,
     task_run_logger,
 )
 from prefect.orion.schemas.actions import LogCreate
@@ -1291,3 +1292,67 @@ def test_disable_run_logger(caplog):
     assert not flow_run_logger.disabled
     assert task_run_logger.disabled  # was already disabled beforehand
     assert caplog.record_tuples == [("null", logging.CRITICAL, "wont show")]
+
+
+def test_patch_print_writes_to_stdout_without_run_context(caplog, capsys):
+    with patch_print():
+        print("foo")
+
+    assert "foo" in capsys.readouterr().out
+    assert "foo" not in caplog.text
+
+
+@pytest.mark.parametrize("run_context_cls", [TaskRunContext, FlowRunContext])
+def test_patch_print_writes_to_stdout_with_run_context_and_no_log_prints(
+    caplog, capsys, run_context_cls
+):
+    with patch_print():
+        with run_context_cls.construct(log_prints=False):
+            print("foo")
+
+    assert "foo" in capsys.readouterr().out
+    assert "foo" not in caplog.text
+
+
+def test_patch_print_writes_to_logger_with_task_run_context(caplog, capsys, task_run):
+    @task
+    def my_task():
+        pass
+
+    with patch_print():
+        with TaskRunContext.construct(log_prints=True, task_run=task_run, task=my_task):
+            print("foo")
+
+    assert "foo" not in capsys.readouterr().out
+    assert "foo" in caplog.text
+
+    for record in caplog.records:
+        if record.message == "foo":
+            break
+
+    assert record.levelname == "INFO"
+    assert record.name == "prefect.task_runs"
+    assert record.task_run_id == str(task_run.id)
+    assert record.task_name == my_task.name
+
+
+def test_patch_print_writes_to_logger_with_flow_run_context(caplog, capsys, flow_run):
+    @flow
+    def my_flow():
+        pass
+
+    with patch_print():
+        with FlowRunContext.construct(log_prints=True, flow_run=flow_run, flow=my_flow):
+            print("foo")
+
+    assert "foo" not in capsys.readouterr().out
+    assert "foo" in caplog.text
+
+    for record in caplog.records:
+        if record.message == "foo":
+            break
+
+    assert record.levelname == "INFO"
+    assert record.name == "prefect.flow_runs"
+    assert record.flow_run_id == str(flow_run.id)
+    assert record.flow_name == my_flow.name

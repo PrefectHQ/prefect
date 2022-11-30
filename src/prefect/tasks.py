@@ -120,6 +120,9 @@ class Task(Generic[P, R]):
             called in.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for
             the task. If the task exceeds this runtime, it will be marked as failed.
+        log_prints: If set, `print` statements in the task will be redirected to the
+            Prefect logger for the task run. Defaults to `None`, which indicates
+            that the value from the flow should be used.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -142,6 +145,7 @@ class Task(Generic[P, R]):
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
         timeout_seconds: Union[int, float] = None,
+        log_prints: Optional[bool] = False,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -160,6 +164,7 @@ class Task(Generic[P, R]):
             self.name = name
 
         self.version = version
+        self.log_prints = log_prints
 
         raise_for_reserved_arguments(self.fn, ["return_state", "wait_for"])
 
@@ -222,6 +227,7 @@ class Task(Generic[P, R]):
         result_serializer: Optional[ResultSerializer] = NotSet,
         cache_result_in_memory: Optional[bool] = None,
         timeout_seconds: Union[int, float] = None,
+        log_prints: Optional[bool] = NotSet,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -309,6 +315,7 @@ class Task(Generic[P, R]):
             timeout_seconds=(
                 timeout_seconds if timeout_seconds is not None else self.timeout_seconds
             ),
+            log_prints=(log_prints if log_prints is not NotSet else self.log_prints),
         )
 
     @overload
@@ -755,6 +762,7 @@ def task(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
+    log_prints: Optional[bool] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -775,6 +783,7 @@ def task(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
+    log_prints: Optional[bool] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -807,6 +816,11 @@ def task(
         result_serializer: An optional serializer to use to serialize the result of this
             task for persistence. Defaults to the value set in the flow the task is
             called in.
+        timeout_seconds: An optional number of seconds indicating a maximum runtime for
+            the task. If the task exceeds this runtime, it will be marked as failed.
+        log_prints: If set, `print` statements in the task will be redirected to the
+            Prefect logger for the task run. Defaults to `None`, which indicates
+            that the value from the flow should be used.
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
@@ -874,6 +888,7 @@ def task(
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
                 timeout_seconds=timeout_seconds,
+                log_prints=log_prints,
             ),
         )
     else:
@@ -894,5 +909,6 @@ def task(
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
                 timeout_seconds=timeout_seconds,
+                log_prints=log_prints,
             ),
         )
