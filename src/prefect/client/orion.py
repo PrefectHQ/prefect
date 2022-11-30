@@ -1274,7 +1274,7 @@ class OrionClient:
 
     async def update_deployment(
         self,
-        deployment,
+        deployment: schemas.core.Deployment,
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         is_schedule_active: bool = None,
     ):

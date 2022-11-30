@@ -2,6 +2,7 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
+import inspect
 from typing import Iterator, List, Optional, Set, Union
 from uuid import UUID
 
@@ -13,12 +14,25 @@ import pendulum
 from prefect.blocks.core import Block
 from prefect.client.orion import OrionClient, get_client
 from prefect.engine import propose_state
-from prefect.exceptions import Abort, ObjectNotFound
+from prefect.exceptions import (
+    Abort,
+    InfrastructureNotAvailable,
+    InfrastructureNotFound,
+    ObjectNotFound,
+)
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
+from prefect.orion.schemas.filters import (
+    FlowRunFilter,
+    FlowRunFilterId,
+    FlowRunFilterState,
+    FlowRunFilterStateName,
+    FlowRunFilterStateType,
+    FlowRunFilterWorkQueueName,
+)
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
-from prefect.states import Crashed, Pending, exception_to_failed_state
+from prefect.states import Crashed, Pending, StateType, exception_to_failed_state
 
 
 class OrionAgent:
@@ -40,6 +54,8 @@ class OrionAgent:
         self.work_queues: Set[str] = set(work_queues) if work_queues else set()
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
+        self.cancelling_flow_run_ids = set()
+        self.scheduled_task_scopes = set()
         self.started = False
         self.logger = get_logger("agent")
         self.task_group: Optional[anyio.abc.TaskGroup] = None
@@ -135,7 +151,7 @@ class OrionAgent:
         if not self.started:
             raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
 
-        self.logger.debug("Checking for flow runs...")
+        self.logger.debug("Checking for scheduled flow runs...")
 
         before = pendulum.now("utc").add(
             seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
@@ -189,6 +205,113 @@ class OrionAgent:
 
         return list(
             filter(lambda run: run.id in self.submitting_flow_run_ids, submittable_runs)
+        )
+
+    async def check_for_cancelled_flow_runs(self):
+        if not self.started:
+            raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
+
+        self.logger.debug("Checking for cancelled flow runs...")
+
+        work_queue_names = set()
+        async for work_queue in self.get_work_queues():
+            work_queue_names.add(work_queue.name)
+
+        cancelling_flow_runs = await self.client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                state=FlowRunFilterState(
+                    type=FlowRunFilterStateType(any_=[StateType.CANCELLED]),
+                    name=FlowRunFilterStateName(any_=["Cancelling"]),
+                ),
+                work_queue_name=FlowRunFilterWorkQueueName(any_=list(work_queue_names)),
+                # Avoid duplicate cancellation calls
+                id=FlowRunFilterId(not_any_=list(self.cancelling_flow_run_ids)),
+            ),
+        )
+
+        if cancelling_flow_runs:
+            self.logger.info(
+                f"Found {len(cancelling_flow_runs)} flow runs awaiting cancellation."
+            )
+
+        for flow_run in cancelling_flow_runs:
+            self.cancelling_flow_run_ids.add(flow_run.id)
+            self.task_group.start_soon(self.cancel_run, flow_run)
+
+        return cancelling_flow_runs
+
+    async def cancel_run(self, flow_run: FlowRun) -> None:
+        """
+        Cancel a flow run by killing its infrastructure
+        """
+        if not flow_run.infrastructure_pid:
+            self.logger.error(
+                f"Flow run '{flow_run.id}' does not have an infrastructure pid attached. Cancellation cannot be guaranteed."
+            )
+            await self._mark_flow_run_as_cancelled(
+                flow_run,
+                state_updates={
+                    "message": "This flow run is missing infrastructure tracking information and cancellation cannot be guaranteed."
+                },
+            )
+            return
+
+        try:
+            infrastructure = await self.get_infrastructure(flow_run)
+        except Exception:
+            self.logger.exception(
+                f"Failed to get infrastructure for flow run '{flow_run.id}'. "
+                "Flow run cannot be cancelled."
+            )
+            # Note: We leave this flow run in the cancelling set because it cannot be
+            #       cancelled and this will prevent additional attempts.
+            return
+
+        if not hasattr(infrastructure, "kill"):
+            self.logger.error(
+                f"Flow run '{flow_run.id}' infrastructure {infrastructure.type!r} "
+                "does not support killing created infrastructure. "
+                "Cancellation cannot be guaranteed."
+            )
+            return
+
+        self.logger.info(
+            f"Killing {infrastructure.type} {flow_run.infrastructure_pid} for flow run "
+            f"'{flow_run.id}'..."
+        )
+        try:
+            await infrastructure.kill(flow_run.infrastructure_pid)
+        except InfrastructureNotFound as exc:
+            self.logger.warning(f"{exc} Marking flow run as cancelled.")
+            await self._mark_flow_run_as_cancelled(flow_run)
+        except InfrastructureNotAvailable as exc:
+            self.logger.warning(f"{exc} Flow run cannot be cancelled by this agent.")
+        except Exception:
+            self.logger.exception(
+                f"Encountered exception while killing infrastructure for flow run "
+                f"'{flow_run.id}'. Flow run may not be cancelled."
+            )
+            # We will try again on generic exceptions
+            self.cancelling_flow_run_ids.remove(flow_run.id)
+            return
+        else:
+            await self._mark_flow_run_as_cancelled(flow_run)
+            self.logger.info(f"Cancelled flow run '{flow_run.id}'!")
+
+    async def _mark_flow_run_as_cancelled(
+        self, flow_run: FlowRun, state_updates: Optional[dict] = None
+    ) -> None:
+        state_updates = state_updates or {}
+        state_updates.setdefault("name", "Cancelled")
+        state = flow_run.state.copy(update=state_updates)
+
+        await self.client.set_flow_run_state(flow_run.id, state, force=True)
+
+        # Do not remove the flow run from the cancelling set immediately because
+        # the API caches responses for the `read_flow_runs` and we do not want to
+        # duplicate cancellations.
+        await self._schedule_task(
+            60 * 10, self.cancelling_flow_run_ids.remove, flow_run.id
         )
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
@@ -389,6 +512,34 @@ class OrionAgent:
         except Exception:
             self.logger.exception(f"Failed to update state of flow run '{flow_run.id}'")
 
+    async def _schedule_task(self, __in_seconds: int, fn, *args, **kwargs):
+        """
+        Schedule a background task to start after some time.
+
+        These tasks will be run immediately when the agent exits instead of waiting.
+
+        The function may be async or sync. Async functions will be awaited.
+        """
+
+        async def wrapper(task_status):
+            # If we are shutting down, do not sleep; otherwise sleep until the scheduled
+            # time or shutdown
+            if self.started:
+                with anyio.CancelScope() as scope:
+                    self.scheduled_task_scopes.add(scope)
+                    task_status.started()
+                    await anyio.sleep(__in_seconds)
+
+                self.scheduled_task_scopes.remove(scope)
+            else:
+                task_status.started()
+
+            result = fn(*args, **kwargs)
+            if inspect.iscoroutine(result):
+                await result
+
+        await self.task_group.start(wrapper)
+
     # Context management ---------------------------------------------------------------
 
     async def start(self):
@@ -403,11 +554,16 @@ class OrionAgent:
 
     async def shutdown(self, *exc_info):
         self.started = False
+        # We must cancel scheduled task scopes before closing the task group
+        for scope in self.scheduled_task_scopes:
+            scope.cancel()
         await self.task_group.__aexit__(*exc_info)
         await self.client.__aexit__(*exc_info)
         self.task_group = None
         self.client = None
-        self.submitting_flow_run_ids = set()
+        self.submitting_flow_run_ids.clear()
+        self.cancelling_flow_run_ids.clear()
+        self.scheduled_task_scopes.clear()
         self._work_queue_cache_expiration = None
         self._work_queue_cache = []
 

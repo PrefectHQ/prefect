@@ -14,7 +14,7 @@ import sniffio
 from pydantic import Field
 from typing_extensions import Literal
 
-from prefect.exceptions import InfrastructureError
+from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
@@ -142,12 +142,12 @@ class Process(Infrastructure):
             status_code=process.returncode, identifier=str(process.pid)
         )
 
-    async def kill(self, infrastructure_pid: str, grace_seconds: int):
+    async def kill(self, infrastructure_pid: str, grace_seconds: int = 30):
         hostname, pid = _parse_infrastructure_pid(infrastructure_pid)
 
         if hostname != socket.gethostname():
-            raise HostnameMismatch(
-                f"The process is running on a different host {hostname!r}. Unable to kill process {pid!r}."
+            raise InfrastructureNotAvailable(
+                f"Unable to kill process {pid!r}: The process is running on a different host {hostname!r}."
             )
 
         # In a non-windows enviornment first send a SIGTERM, then, after
@@ -164,8 +164,8 @@ class Process(Infrastructure):
             try:
                 os.kill(pid, signal.SIGTERM)
             except ProcessLookupError:
-                raise MissingProcessId(
-                    f"The process was not found. Unable to kill process {pid!r}"
+                raise InfrastructureNotFound(
+                    f"Unable to kill process {pid!r}: The process was not found."
                 )
 
             await anyio.sleep(grace_seconds)
@@ -198,11 +198,3 @@ class Process(Infrastructure):
 
 class ProcessResult(InfrastructureResult):
     """Contains information about the final state of a completed process"""
-
-
-class HostnameMismatch(InfrastructureError):
-    """Raised when attempting to kill a process that was started on a different host"""
-
-
-class MissingProcessId(InfrastructureError):
-    """Raised when attempting to kill a process but the process id doesn't exist."""
