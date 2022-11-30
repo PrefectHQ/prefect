@@ -265,7 +265,6 @@ class DockerContainer(Infrastructure):
 
         # The `docker` library uses requests instead of an async http library so it must
         # be run in a thread to avoid blocking the event loop.
-        client = self._get_client()
         container = await run_sync_in_worker_thread(self._create_and_start_container)
 
         # Mark as started and return the infrastructure id
