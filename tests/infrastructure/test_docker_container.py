@@ -105,7 +105,6 @@ async def test_kill_calls_container_stop(mock_docker_client):
     """Happy path for kill"""
 
     await DockerContainer().kill(f"{FAKE_BASE_URL}:{FAKE_CONTAINER_ID}", 0)
-    breakpoint()
     mock_docker_client.containers.get.return_value.stop.assert_called_once()
 
 
