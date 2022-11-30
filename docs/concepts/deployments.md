@@ -478,8 +478,10 @@ $ prefect deployment inspect 'Cat Facts/catfact'
 
 ## Create a flow run from a deployment
 
+### Create a flow run with a schedule
 If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect Orion API server and agent is running. Prefect Cloud created scheduled flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
 
+### Create a flow run with Prefect UI
 In the [Prefect UI](/ui/deployments/), you can click the **Run** button next to any deployment to execute an ad hoc flow run for that deployment.
 
 The `prefect deployment` CLI command provides commands for managing and running deployments locally.
@@ -493,6 +495,27 @@ The `prefect deployment` CLI command provides commands for managing and running 
 | `ls`      | View all deployments or deployments for specific flows. |
 | `preview` | Prints a preview of a deployment. |
 | `run`     | Create a flow run for the given flow and deployment. |
+
+### Create a flow run with Prefect client
+
+To create a flow run from a deployment with Prefect client, start with retrieve the deployment ID corresponding to the the flow you try to trigger by running `prefect deployment ls`.
+
+After obtaining the deployment ID, use Prefect client to create a flow run from a deployment:
+
+```python
+import asyncio
+from prefect.client import get_client
+
+
+async def main():
+    async with get_client() as client:
+        depl_id = "your-deployment-id"
+        response = await client.create_flow_run_from_deployment(depl_id)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+``` 
 
 !!! tip "`PREFECT_API_URL` setting for agents"
     You'll need to configure [agents and work queues](/concepts/work-queues/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running.
