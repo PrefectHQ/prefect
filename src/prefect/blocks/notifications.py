@@ -3,8 +3,9 @@ from typing import List, Optional
 
 import apprise
 from apprise import Apprise, AppriseAsset, NotifyType
-from httpx import AsyncClient
+from apprise.plugins.NotifyTwilio import NotifyTwilio
 from pydantic import Field, SecretStr
+from typing_extensions import Literal
 
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import sync_compatible
@@ -38,21 +39,22 @@ class PrefectNotifyType(NotifyType):
 apprise.NOTIFY_TYPES += (PrefectNotifyType.DEFAULT,)
 
 
-class AppriseNotificationBlock(NotificationBlock, ABC):
+class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     """
-    A base class for sending notifications using Apprise.
-    Attributes:
-        url: Incoming webhook URL used to send notifications.
+    An abstract class for sending notifications using Apprise.
     """
 
-    url: SecretStr = Field(
-        default=...,
-        title="Webhook URL",
-        description="Incoming webhook URL used to send notifications.",
-        example="https://hooks.example.com/XXX",
+    notify_type: Literal[
+        "prefect_default", "info", "success", "warning", "failure"
+    ] = Field(
+        default=PrefectNotifyType.DEFAULT,
+        description=(
+            "The type of notification being performed; the prefect_default "
+            "is a plain notification that does not attach an image."
+        ),
     )
 
-    def block_initialization(self) -> None:
+    def _start_apprise_client(self, url: SecretStr):
         # A custom `AppriseAsset` that ensures Prefect Notifications
         # appear correctly across multiple messaging platforms
         prefect_app_data = AppriseAsset(
@@ -62,13 +64,29 @@ class AppriseNotificationBlock(NotificationBlock, ABC):
         )
 
         self._apprise_client = Apprise(asset=prefect_app_data)
-        self._apprise_client.add(self.url.get_secret_value())
+        self._apprise_client.add(url.get_secret_value())
+
+    def block_initialization(self) -> None:
+        self._start_apprise_client(self.url)
 
     @sync_compatible
     async def notify(self, body: str, subject: Optional[str] = None):
         await self._apprise_client.async_notify(
-            body=body, title=subject, notify_type=PrefectNotifyType.DEFAULT
+            body=body, title=subject, notify_type=self.notify_type
         )
+
+
+class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
+    """
+    A base class for sending notifications using Apprise, through webhook URLs.
+    """
+
+    url: SecretStr = Field(
+        default=...,
+        title="Webhook URL",
+        description="Incoming webhook URL used to send notifications.",
+        example="https://hooks.example.com/XXX",
+    )
 
 
 # TODO: Move to prefect-slack once collection block auto-registration is
@@ -130,7 +148,7 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
     )
 
 
-class TwilioSMS(NotificationBlock):
+class TwilioSMS(AbstractAppriseNotificationBlock):
     """Enables sending notifications via Twilio SMS.
     Find more on sending Twilio SMS messages in the [docs](https://www.twilio.com/docs/sms).
 
@@ -176,23 +194,13 @@ class TwilioSMS(NotificationBlock):
         example="18004242424",
     )
 
-    @sync_compatible
-    async def notify(self, body: str):
-        twilio_client_auth = (self.account_sid, self.auth_token.get_secret_value())
-
-        async with AsyncClient(auth=twilio_client_auth) as client:
-            # Each new SMS message from Twilio must be sent in a separate REST API request.
-            for recipient in self.to_phone_number:
-                response = await client.post(
-                    f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Messages.json",
-                    data={
-                        "From": self.from_phone_number,
-                        "To": recipient,
-                        "Body": body,
-                    },
-                )
-                if response.status_code != 201:
-                    raise ValueError(
-                        f"Response status code {response.status_code} from Twilio API - "
-                        f"Failed to send SMS to {recipient} with error: {response.text}"
-                    )
+    def block_initialization(self) -> None:
+        url = SecretStr(
+            NotifyTwilio(
+                account_sid=self.account_sid,
+                auth_token=self.auth_token.get_secret_value(),
+                source=self.from_phone_number,
+                targets=self.to_phone_number,
+            ).url()
+        )
+        self._start_apprise_client(url)
