@@ -28,7 +28,7 @@ from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
 from prefect.results import PersistedResult
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
-from prefect.states import State, StateType, raise_state_exception
+from prefect.states import Cancelled, State, StateType, raise_state_exception
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
     exceptions_equal,
@@ -516,6 +516,58 @@ class TestFlowCall:
         with PrefectObjectRegistry(block_code_execution=True):
             state = foo(1, 2)
             assert state is None
+
+    def test_flow_can_end_in_cancelled_state(self):
+        @flow
+        def my_flow():
+            return Cancelled()
+
+        flow_state = my_flow(return_state=True)
+        assert flow_state.is_cancelled()
+
+    def test_flow_state_with_cancelled_tasks_has_cancelled_state(self):
+        @task
+        def cancel():
+            return Cancelled()
+
+        @task
+        def fail():
+            raise ValueError("Fail")
+
+        @task
+        def succeed():
+            return True
+
+        @flow(version="test")
+        def my_flow():
+            return cancel.submit(), succeed.submit(), fail.submit()
+
+        flow_state = my_flow(return_state=True)
+        assert flow_state.is_cancelled()
+        assert flow_state.message == "1/3 states cancelled."
+
+        # The task run states are attached as a tuple
+        first, second, third = flow_state.result(raise_on_failure=False)
+        assert first.is_cancelled()
+        assert second.is_completed()
+        assert third.is_failed()
+
+    def test_flow_with_cancelled_subflow_has_cancelled_state(self):
+        @task
+        def cancel():
+            return Cancelled()
+
+        @flow(version="test")
+        def subflow():
+            return cancel.submit()
+
+        @flow
+        def my_flow():
+            return subflow(return_state=True)
+
+        flow_state = my_flow(return_state=True)
+        assert flow_state.is_cancelled()
+        assert flow_state.message == "1/1 states cancelled."
 
 
 class TestSubflowCalls:

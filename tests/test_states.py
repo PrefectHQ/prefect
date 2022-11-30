@@ -233,6 +233,21 @@ class TestStateGroup:
 
         assert not StateGroup(states).all_completed()
 
+    def test_any_cancelled(self):
+        states = [
+            Cancelled(),
+            Failed(data=ValueError("1")),
+        ]
+
+        assert StateGroup(states).any_cancelled()
+
+        states = [
+            Completed(data="test"),
+            Failed(data=ValueError("1")),
+        ]
+
+        assert not StateGroup(states).any_cancelled()
+
     def test_any_failed(self):
         states = [
             Completed(data="test"),
