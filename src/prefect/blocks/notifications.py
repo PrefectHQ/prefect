@@ -41,7 +41,6 @@ apprise.NOTIFY_TYPES += (PrefectNotifyType.DEFAULT,)
 class AppriseNotificationBlock(NotificationBlock, ABC):
     """
     A base class for sending notifications using Apprise.
-
     Attributes:
         url: Incoming webhook URL used to send notifications.
     """
@@ -53,7 +52,7 @@ class AppriseNotificationBlock(NotificationBlock, ABC):
         example="https://hooks.example.com/XXX",
     )
 
-    def _start_apprise_client(self, url: SecretStr):
+    def block_initialization(self) -> None:
         # A custom `AppriseAsset` that ensures Prefect Notifications
         # appear correctly across multiple messaging platforms
         prefect_app_data = AppriseAsset(
@@ -61,11 +60,9 @@ class AppriseNotificationBlock(NotificationBlock, ABC):
             app_desc="Prefect Notifications",
             app_url="https://prefect.io",
         )
-        self._apprise_client = Apprise(asset=prefect_app_data)
-        self._apprise_client.add(url.get_secret_value())
 
-    def block_initialization(self) -> None:
-        self._start_apprise_client(self.url)
+        self._apprise_client = Apprise(asset=prefect_app_data)
+        self._apprise_client.add(self.url.get_secret_value())
 
     @sync_compatible
     async def notify(self, body: str, subject: Optional[str] = None):
