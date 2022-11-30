@@ -192,7 +192,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
         default=...,
         description="A list of valid Twilio phone number(s) to send the message to.",
         # not wrapped in brackets because of the way UI displays examples; in code should be ["18004242424"]
-        example="18004242424" ,
+        example="18004242424",
     )
 
     def block_initialization(self) -> None:
