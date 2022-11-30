@@ -15,6 +15,7 @@ from prefect.client.orion import OrionClient
 from prefect.context import PrefectObjectRegistry
 from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
+    CancelledRun,
     InvalidNameError,
     MissingResult,
     ParameterTypeError,
@@ -553,6 +554,9 @@ class TestFlowCall:
         assert first.is_cancelled()
         assert second.is_completed()
         assert third.is_failed()
+
+        with pytest.raises(CancelledRun):
+            first.result()
 
     def test_flow_with_cancelled_subflow_has_cancelled_state(self):
         @task

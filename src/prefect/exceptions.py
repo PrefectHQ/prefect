@@ -75,6 +75,16 @@ class FailedRun(PrefectException):
     """
 
 
+class CancelledRun(PrefectException):
+    """
+    Raised when the result from a cancelled run is retrieved and an exception
+    is not attached.
+
+    This occurs when a string is attached to the state instead of an exception
+    or if the state's data is null.
+    """
+
+
 class MissingFlowError(PrefectException):
     """
     Raised when a given flow name is not found in the expected script.

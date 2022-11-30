@@ -228,7 +228,9 @@ def result_from_state_with_data_document(state, raise_on_failure: bool) -> Any:
 
     from prefect.states import State
 
-    if (state.is_failed() or state.is_crashed()) and raise_on_failure:
+    if (
+        state.is_failed() or state.is_crashed() or state.is_cancelled()
+    ) and raise_on_failure:
         if isinstance(data, Exception):
             raise data
         elif isinstance(data, BaseException):
