@@ -132,7 +132,7 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
 
 class TwilioSMS(NotificationBlock):
     """Enables sending notifications via Twilio SMS.
-    Find more on Apprise Twilio Webhook URL formatting in the [docs](https://github.com/caronc/apprise/wiki/Notify_twilio).
+    Find more on sending Twilio SMS messages in the [docs](https://www.twilio.com/docs/sms).
 
     Examples:
         Load a saved `TwilioSMS` block and send a message:
