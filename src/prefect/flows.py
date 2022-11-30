@@ -582,7 +582,7 @@ def flow(
             will be used unless called as a subflow, at which point the default will be
             loaded from the parent flow.
         log_prints: If set, `print` statements in the flow will be redirected to the
-            Prefect logger for the flow run. Defaults to `None` which indicates that
+            Prefect logger for the flow run. Defaults to `None`, which indicates that
             the value from the parent flow should be used. If this is a parent flow,
             the default is pulled from the `PREFECT_LOGGING_LOG_PRINTS` setting.
 
