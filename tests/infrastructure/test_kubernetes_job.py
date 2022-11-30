@@ -22,6 +22,8 @@ from prefect.infrastructure.kubernetes import (
     KubernetesManifest,
 )
 
+FAKE_CLUSTER = "fake-cluster"
+
 
 @pytest.fixture(autouse=True)
 def skip_if_kubernetes_is_not_installed():
@@ -45,7 +47,10 @@ def mock_cluster_config(monkeypatch):
     mock = MagicMock()
     # We cannot mock this or the `except` clause will complain
     mock.config.ConfigException = ConfigException
-
+    mock.list_kube_config_contexts.return_value = (
+        [],
+        {"context": {"cluster": FAKE_CLUSTER}},
+    )
     monkeypatch.setattr("kubernetes.config", mock)
     monkeypatch.setattr("kubernetes.config.ConfigException", ConfigException)
     return mock
@@ -139,17 +144,17 @@ def test_creates_job_by_building_a_manifest(
     fake_status.started.assert_called_once()
 
 
-def test_task_status_receives_job_name(
+def test_task_status_receives_job_pid(
     mock_k8s_batch_client,
     mock_k8s_client,
     mock_watch,
 ):
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     result = KubernetesJob(command=["echo", "hello"]).run(task_status=fake_status)
-    fake_status.started.assert_called_once_with(result.identifier)
+    fake_status.started.assert_called_once_with(f"{FAKE_CLUSTER}:{result.identifier}")
 
 
-async def test_task_group_start_returns_job_name(
+async def test_task_group_start_returns_job_pid(
     mock_k8s_batch_client,
     mock_k8s_client,
     mock_watch,
@@ -158,7 +163,7 @@ async def test_task_group_start_returns_job_name(
         status_result = await tg.start(
             KubernetesJob(command=["echo", "hello"], name="test").run
         )
-        assert status_result == "mock-k8s-v1-job"
+        assert status_result == f"{FAKE_CLUSTER}:mock-k8s-v1-job"
 
 
 @pytest.mark.parametrize(

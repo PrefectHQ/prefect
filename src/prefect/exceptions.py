@@ -339,11 +339,3 @@ class NotPausedError(PrefectException):
 
 class FlowPauseTimeout(PrefectException):
     """Raised when a flow pause times out"""
-
-
-class InfrastructureNotAvailable(PrefectException):
-    """"""
-
-
-class InfrastructureNotFound(PrefectException):
-    """"""
