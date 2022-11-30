@@ -188,7 +188,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
         example="18001234567",
     )
 
-    to_phone_number: List[str] = Field(
+    to_phone_numbers: List[str] = Field(
         ...,
         description="A list of valid Twilio phone number(s) to send the message to.",
         example="18004242424",
@@ -200,7 +200,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
                 account_sid=self.account_sid,
                 auth_token=self.auth_token.get_secret_value(),
                 source=self.from_phone_number,
-                targets=self.to_phone_number,
+                targets=self.to_phone_numbers,
             ).url()
         )
         self._start_apprise_client(url)

@@ -106,7 +106,7 @@ class TestTwilioSMS:
                 account_sid="ACabcdefabcdefabcdefabcdef",
                 auth_token="XXXXXXXXXXXXXXXXXXXXXXXX",
                 from_phone_number="+15555555555",
-                to_phone_number=["+15555555556", "+15555555557"],
+                to_phone_numbers=["+15555555556", "+15555555557"],
             )
 
             await twilio_sms_block.notify("hello from prefect")
@@ -131,7 +131,7 @@ class TestTwilioSMS:
                 account_sid="ACabcdefabcdefabcdefabcdef",
                 auth_token="XXXXXXXXXXXXXXXXXXXXXXXX",
                 from_phone_number="+15555555555",
-                to_phone_number=["+15555555556", "+15555555557"],
+                to_phone_numbers=["+15555555556", "+15555555557"],
             )
 
             twilio_sms_block.notify("hello from prefect")
@@ -150,16 +150,16 @@ class TestTwilioSMS:
             TwilioSMS(
                 account_sid="ACabcdefabcdefabcdefabcdef",
                 auth_token="XXXXXXXXXXXXXXXX",
-                to_phone_number=["+15555555555"],
+                to_phone_numbers=["+15555555555"],
                 from_phone_number="0000000",
             )
 
-    def test_invalid_to_phone_number_raises_warning(self, caplog):
+    def test_invalid_to_phone_numbers_raises_warning(self, caplog):
         with caplog.at_level("WARNING"):
             TwilioSMS(
                 account_sid="ACabcdefabcdefabcdefabcdef",
                 auth_token="XXXXXXXXXXXXXXXX",
-                to_phone_number=["0000000"],
+                to_phone_numbers=["0000000"],
                 from_phone_number="+15555555555",
             )
 
