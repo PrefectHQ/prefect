@@ -87,31 +87,29 @@ class TestAppriseNotificationBlock:
 
 class TestTwilioSMS:
     @pytest.fixture
-    def valid_twilio_sms_block(self):
-        return TwilioSMS(
-            account_sid="ACabcdefabcdefabcdefabcdef",
-            auth_token="XXXXXXXXXXXXXXXXXXXXXXXX",
-            from_phone_number="+15555555555",
-            to_phone_number=["+15555555556", "+15555555557"],
-        )
-
-    @pytest.fixture
     def valid_apprise_url(self) -> str:
         return (
             "twilio://ACabcdefabcdefabcdefabcdef"
             ":XXXXXXXXXXXXXXXXXXXXXXXX"
-            "@%15555555555/%15555555556/%15555555557/"
+            "@%2B15555555555/%2B15555555556/%2B15555555557/"
             "?format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
         )
 
-    async def test_twilio_notify_async(self, valid_twilio_sms_block, valid_apprise_url):
+    async def test_twilio_notify_async(self, valid_apprise_url):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             reload_modules()
 
             client_instance_mock = AppriseMock.return_value
             client_instance_mock.async_notify = AsyncMock()
 
-            await valid_twilio_sms_block.notify("hello from prefect")
+            twilio_sms_block = TwilioSMS(
+                account_sid="ACabcdefabcdefabcdefabcdef",
+                auth_token="XXXXXXXXXXXXXXXXXXXXXXXX",
+                from_phone_number="+15555555555",
+                to_phone_number=["+15555555556", "+15555555557"],
+            )
+
+            await twilio_sms_block.notify("hello from prefect")
 
             AppriseMock.assert_called_once()
             client_instance_mock.add.assert_called_once_with(valid_apprise_url)
@@ -122,18 +120,47 @@ class TestTwilioSMS:
                 notify_type=PrefectNotifyType.DEFAULT,
             )
 
-    def test_twilio_notify_sync(self, valid_twilio_sms_block, valid_apprise_url):
+    def test_twilio_notify_sync(self, valid_apprise_url):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             reload_modules()
 
             client_instance_mock = AppriseMock.return_value
             client_instance_mock.async_notify = AsyncMock()
 
-            valid_twilio_sms_block.notify("hello from prefect")
+            twilio_sms_block = TwilioSMS(
+                account_sid="ACabcdefabcdefabcdefabcdef",
+                auth_token="XXXXXXXXXXXXXXXXXXXXXXXX",
+                from_phone_number="+15555555555",
+                to_phone_number=["+15555555556", "+15555555557"],
+            )
+
+            twilio_sms_block.notify("hello from prefect")
 
             AppriseMock.assert_called_once()
             client_instance_mock.add.assert_called_once_with(valid_apprise_url)
 
             client_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+                body="hello from prefect",
+                title=None,
+                notify_type=PrefectNotifyType.DEFAULT,
             )
+
+    def test_invalid_from_phone_number_raises_validation_error(self):
+        with pytest.raises(TypeError):
+            TwilioSMS(
+                account_sid="ACabcdefabcdefabcdefabcdef",
+                auth_token="XXXXXXXXXXXXXXXX",
+                to_phone_number=["+15555555555"],
+                from_phone_number="0000000",
+            )
+
+    def test_invalid_to_phone_number_raises_warning(self, caplog):
+        with caplog.at_level("WARNING"):
+            TwilioSMS(
+                account_sid="ACabcdefabcdefabcdefabcdef",
+                auth_token="XXXXXXXXXXXXXXXX",
+                to_phone_number=["0000000"],
+                from_phone_number="+15555555555",
+            )
+
+            assert "Dropped invalid phone # (0000000) specified." in caplog.text
