@@ -773,9 +773,8 @@ async def resume_flow_run(flow_run_id):
     if not flow_run.state.is_paused():
         raise NotPausedError("Cannot resume a run that isn't paused!")
 
-    await client.set_flow_run_state(
+    await client.resume_flow_run(
         flow_run_id,
-        Running(name="Resuming"),
     )
 
 
@@ -1678,6 +1677,11 @@ def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
         context.task_run_dynamic_keys[task.task_key] += 1
 
     return context.task_run_dynamic_keys[task.task_key]
+
+
+def _observed_flow_pauses(context: FlowRunContext) -> int:
+    context.observed_flow_pauses += 1
+    return context.observed_flow_pauses
 
 
 def get_state_for_result(obj: Any) -> Optional[State]:
