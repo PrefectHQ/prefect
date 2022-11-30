@@ -4,13 +4,14 @@ from unittest.mock import patch
 
 import cloudpickle
 import pytest
-from pydantic import ValidationError
+import respx
+from httpx import Response
 
 import prefect
 from prefect.blocks.notifications import (
     AppriseNotificationBlock,
     PrefectNotifyType,
-    TwilioWebHook,
+    TwilioSMS,
 )
 from prefect.testing.utilities import AsyncMock
 
@@ -86,40 +87,41 @@ class TestAppriseNotificationBlock:
         assert isinstance(unpickled, block_class)
 
 
-class TestTwilioWebhook:
-    @pytest.mark.parametrize(
-        "webhook_init_kwargs",
-        [
-            {"url": "twilio://xyz", "account_sid": "abc"},
-            {
-                "url": "twilio://xyz",
-                "account_sid": "abc",
-                "auth_token": "XXX",
-                "from_phone_number": "123",
-                "to_phone_number": "456",
-            },
-        ],
-    )
-    def test_validate_has_either_url_or_components(self, webhook_init_kwargs):
-        with pytest.raises(
-            ValidationError, match="Must provide either a Twilio webhook URL OR"
-        ):
-            TwilioWebHook(**webhook_init_kwargs)
+class TestTwilioSMS:
+    @respx.mock(assert_all_called=True)
+    @pytest.fixture
+    def mock_unsuccessful_sms_message(self, respx_mock):
+        url = "https://api.twilio.com/2010-04-01/Accounts/ACxxx/Messages.json"
 
-    def test_validate_all_components_are_present_if_no_url(self):
-        with pytest.raises(ValidationError, match="OR all of the following"):
-            TwilioWebHook(account_sid="abc", auth_token="XXX", from_phone_number="123")
-
-    def test_instantiate_with_url(self):
-        assert isinstance(TwilioWebHook(url="twilio://abc:XXX@123/456"), TwilioWebHook)
+        respx_mock.post(url).mock(
+            return_value=Response(
+                400,
+                json={
+                    "code": 21211,
+                    "message": "The 'To' number 8675309 is not a valid phone number.",
+                    "more_info": "https://www.twilio.com/docs/errors/21211",
+                    "status": 400,
+                },
+            )
+        )
 
     def test_instantiate_with_url_components(self):
         assert isinstance(
-            TwilioWebHook(
-                account_sid="ACaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            TwilioSMS(
+                account_sid="ACxxx",
                 auth_token="XXX",
                 from_phone_number="11234567890",
                 to_phone_number=["12345678901"],
             ),
-            TwilioWebHook,
+            TwilioSMS,
         )
+
+    def test_raises_error_on_bad_phone_number(self, mock_unsuccessful_sms_message):
+        twilio = TwilioSMS(
+            account_sid="ACxxx",
+            auth_token="XXX",
+            from_phone_number="42424242424",
+            to_phone_number=["8675309"],
+        )
+        with pytest.raises(ValueError, match="8675309 is not a valid phone number"):
+            twilio.notify("test")

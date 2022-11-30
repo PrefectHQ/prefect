@@ -3,8 +3,8 @@ from typing import List, Optional
 
 import apprise
 from apprise import Apprise, AppriseAsset, NotifyType
-from apprise.plugins.NotifyTwilio import NotifyTwilio
-from pydantic import Field, SecretStr, root_validator
+from httpx import AsyncClient
+from pydantic import Field, SecretStr
 
 from prefect.blocks.core import Block
 from prefect.utilities.asyncutils import sync_compatible
@@ -133,114 +133,69 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
     )
 
 
-class TwilioWebHook(AppriseNotificationBlock):
-    """Enables sending notifications via a provided Twilio webhook.
+class TwilioSMS(NotificationBlock):
+    """Enables sending notifications via Twilio SMS.
     Find more on Apprise Twilio Webhook URL formatting in the [docs](https://github.com/caronc/apprise/wiki/Notify_twilio).
 
     Examples:
-        Load a saved Twilio webhook and send a message:
+        Load a saved `TwilioSMS` block and send a message:
         ```python
-        from prefect.blocks.notifications import TwilioWebHook
-        twilio_webhook_block = TwilioWebHook.load("BLOCK_NAME")
+        from prefect.blocks.notifications import TwilioSMS
+        twilio_webhook_block = TwilioSMS.load("BLOCK_NAME")
         twilio_webhook_block.notify("Hello from Prefect!")
         ```
     """
 
-    _description = "Enables sending notifications via a provided Twilio webhook."
-    _block_type_name = "Twilio Webhook"
-    _block_type_slug = "twilio-webhook"
+    _description = "Enables sending notifications via Twilio SMS."
+    _block_type_name = "Twilio SMS"
+    _block_type_slug = "twilio-sms"
     _logo_url = "https://images.ctfassets.net/zscdif0zqppk/YTCgPL6bnK3BczP2gV9md/609283105a7006c57dbfe44ee1a8f313/58482bb9cef1014c0b5e4a31.png?h=250"  # noqa
 
-    account_sid: Optional[str] = Field(
+    account_sid: str = Field(
         default=None,
         description=(
-            "A component of the webhook URL; the Twilio Account SID "
-            "can be found on the homepage of the Twilio console. "
-            "If provided, you must also provide the `auth_token`, "
-            "`from_phone_number`, and `to_phone_number`(s), but not the `url`."
+            "The Twilio Account SID - it can be found on the homepage "
+            "of the Twilio console. "
         ),
     )
 
-    auth_token: Optional[SecretStr] = Field(
+    auth_token: SecretStr = Field(
         default=None,
         description=(
-            "A component of the webhook URL; the Twilio Auth Token "
-            "can be found on the homepage of the Twilio console. "
-            "If provided, you must also provide the `account_sid`, "
-            "`from_phone_number`, and `to_phone_number`(s), but not the `url`."
+            "The Twilio Authentication Token - "
+            "it can be found on the homepage of the Twilio console. "
         ),
     )
 
-    from_phone_number: Optional[str] = Field(
+    from_phone_number: str = Field(
         default=None,
-        description=(
-            "A component of the webhook URL; the valid Twilio phone "
-            "number to send the message from. "
-            "If provided, you must also provide the `account_sid`, "
-            "`auth_token`, and `to_phone_number`(s), but not the `url`."
-        ),
+        description="The valid Twilio phone number to send the message from. ",
         example="18001234567",
     )
 
-    to_phone_number: Optional[List[str]] = Field(
+    to_phone_number: List[str] = Field(
         default=None,
-        description=(
-            "A component of the webhook URL; a list of valid Twilio phone "
-            "number(s) to send the message to. "
-            "If provided, you must also provide the `account_sid`, "
-            "`auth_token`, and `from_phone_number`, but not the `url`."
-        ),
+        description="A list of valid Twilio phone number(s) to send the message to.",
         example="18004242424",
     )
 
-    url: Optional[SecretStr] = Field(
-        default=None,
-        description=(
-            "The Twilio webhook URL used to send notifications. "
-            "If provided, you must not provide any other fields."
-        ),
-        title="Webhook URL",
-        example="twilio://{account_sid}:{auth_token}@{from_phone_number}/{to_phone_number(s)}",
-    )
+    @sync_compatible
+    async def notify(self, body: str):
+        twilio_client_auth = (self.account_sid, self.auth_token.get_secret_value())
 
-    def block_initialization(self) -> None:
-        if self.url is None:
-            url = SecretStr(
-                NotifyTwilio(
-                    account_sid=self.account_sid,
-                    auth_token=self.auth_token.get_secret_value(),
-                    source=self.from_phone_number,
-                    targets=self.to_phone_number,
-                ).url()
-            )
-            self._start_apprise_client(url)
-        else:
-            self._start_apprise_client(self.url)
-
-    @root_validator
-    def validate_url_or_components(cls, values):
-
-        url_provided = bool(values.get("url"))
-
-        url_components_provided = tuple(
-            bool(values.get(field))
-            for field in (
-                "account_sid",
-                "auth_token",
-                "from_phone_number",
-                "to_phone_number",
-            )
-        )
-
-        if not url_provided and not all(url_components_provided):
-            raise ValueError(
-                "Must provide either a Twilio webhook URL OR all of the following: "
-                "`account_sid`, `auth_token`, `from_phone_number`, and `to_phone_number`."
-            )
-
-        if not (url_provided ^ any(url_components_provided)):
-            raise ValueError(
-                "Must provide either a Twilio webhook URL OR all of the following: "
-                "`account_sid`, `auth_token`, `from_phone_number`, and `to_phone_number`."
-            )
-        return values
+        async with AsyncClient(auth=twilio_client_auth) as client:
+            # Each new SMS message from Twilio must be sent in a separate REST API request.
+            for recipient in self.to_phone_number:
+                response = await client.post(
+                    f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Messages.json",
+                    data={
+                        "From": self.from_phone_number,
+                        "To": recipient,
+                        "Body": body,
+                    },
+                )
+                if response.status_code != 201:
+                    raise ValueError(
+                        f"Response status code {response.status_code} from Twilio API - "
+                        f"Failed to send SMS to {recipient} with error: {response.text}"
+                    )
