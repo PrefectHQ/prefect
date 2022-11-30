@@ -301,6 +301,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         Block until the run result has been populated.
         """
         result = None  # Return value on timeout
+        result_event = self._result_events.get(key)
 
         with anyio.move_on_after(timeout):
 
@@ -308,7 +309,11 @@ class ConcurrentTaskRunner(BaseTaskRunner):
             # than the spin-lock that follows but does not work if the wait call
             # happens from an event loop in a different thread than the one from which
             # the event was created
-            result_event = self._result_events[key]
+
+            while not result_event:
+                await anyio.sleep(0)  # yield to other tasks
+                result_event = self._result_events.get(key)
+
             if result_event._event._loop == asyncio.get_running_loop():
                 await result_event.wait()
 
