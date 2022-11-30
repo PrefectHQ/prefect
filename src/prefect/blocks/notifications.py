@@ -230,13 +230,9 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
 
     @root_validator(pre=True)
     def validate_has_both_keys(cls, values):
-        has_url = bool(values.get("url"))
         has_both_keys = bool(values.get("integration_key") and values.get("api_key"))
-        if not has_url and not has_both_keys:
-            raise ValueError(
-                "Must provide both integration_key and api_key "
-                "if url is not provided."
-            )
+        if not has_both_keys:
+            raise ValueError("Must provide both integration_key and api_key.")
         return values
 
     def block_initialization(self) -> None:
