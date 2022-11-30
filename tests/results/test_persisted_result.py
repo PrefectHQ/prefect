@@ -28,8 +28,8 @@ async def test_result_reference_create_and_get(cache_object, storage_block):
 
     assert await result.get() == "test"
 
-    # After retrieval, it should be cached again
-    assert result.has_cached_object()
+    # Only cached after retrieval if enabled during initialization
+    assert result.has_cached_object() == cache_object
 
 
 async def test_result_reference_create_uses_storage(storage_block):
