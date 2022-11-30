@@ -228,6 +228,18 @@ class OrionAgent:
         """
         Cancel a flow run by killing its infrastructure
         """
+        if not flow_run.infrastructure_pid:
+            self.logger.error(
+                f"Flow run '{flow_run.id}' does not have an infrastructure pid attached. Cancellation cannot be guaranteed."
+            )
+            await self._mark_flow_run_as_cancelled(
+                flow_run,
+                state_updates={
+                    "message": "This flow run is missing infrastructure tracking information and cancellation cannot be guaranteed."
+                },
+            )
+            return
+
         try:
             infrastructure = await self.get_infrastructure(flow_run)
         except Exception:
@@ -237,6 +249,12 @@ class OrionAgent:
             )
             # Note: We leave this flow run in the cancelling set because it cannot be
             #       cancelled and this will prevent additional attempts.
+            return
+
+        if not hasattr(infrastructure, "kill"):
+            self.logger.error(
+                f"Flow run '{flow_run.id}' infrastructure {infrastructure.type!r} does not support killing created infrastructure. Cancellation cannot be guaranteed."
+            )
             return
 
         self.logger.info(
@@ -261,8 +279,12 @@ class OrionAgent:
             await self._mark_flow_run_as_cancelled(flow_run)
             self.logger.info(f"Cancelled flow run '{flow_run.id}'!")
 
-    async def _mark_flow_run_as_cancelled(self, flow_run: FlowRun) -> None:
-        state = flow_run.state.copy(update={"name": "Cancelled"})
+    async def _mark_flow_run_as_cancelled(
+        self, flow_run: FlowRun, state_updates: Optional[dict] = None
+    ) -> None:
+        state_updates = state_updates or {}
+        state_updates.setdefault("name", "Cancelled")
+        state = flow_run.state.copy(update=state_updates)
 
         async def _remove_flow_run_from_cancelling_set():
             # Do not remove the flow run from the cancelling set immediately because
