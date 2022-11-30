@@ -1,4 +1,6 @@
+import io
 import logging
+from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
 from typing import TYPE_CHECKING
@@ -194,3 +196,42 @@ def disable_run_logger():
     """
     with disable_logger("prefect.flow_run"), disable_logger("prefect.task_run"):
         yield
+
+
+def print_as_log(*args, **kwargs):
+    """
+    A patch for `print` to send printed messages to the Prefect run logger.
+
+    If no run is active, `print` will behave as if it were not patched.
+    """
+    from prefect.context import FlowRunContext, TaskRunContext
+
+    context = TaskRunContext.get() or FlowRunContext.get()
+    if not context or not context.log_prints:
+        return print(*args, **kwargs)
+
+    logger = get_run_logger()
+
+    # Print to an in-memory buffer; so we do not need to implement `print`
+    buffer = io.StringIO()
+    kwargs["file"] = buffer
+    print(*args, **kwargs)
+
+    # Remove trailing whitespace to prevent duplicates
+    logger.info(buffer.getvalue().rstrip())
+
+
+@contextmanager
+def patch_print():
+    """
+    Patches the Python builtin `print` method to use `print_as_log`
+    """
+    import builtins
+
+    original = builtins.print
+
+    try:
+        builtins.print = print_as_log
+        yield
+    finally:
+        builtins.print = original
