@@ -228,13 +228,18 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         states = StateGroup(ensure_iterable(retval))
 
         # Determine the new state type
-        new_state_type = (
-            StateType.COMPLETED if states.all_completed() else StateType.FAILED
-        )
+        if states.all_completed():
+            new_state_type = StateType.COMPLETED
+        elif states.any_cancelled():
+            new_state_type = StateType.CANCELLED
+        else:
+            new_state_type = StateType.FAILED
 
         # Generate a nice message for the aggregate
         if states.all_completed():
             message = "All states completed."
+        elif states.any_cancelled():
+            message = f"{states.cancelled_count}/{states.total_count} states cancelled."
         elif states.any_failed():
             message = f"{states.fail_count}/{states.total_count} states failed."
         elif not states.all_final():
@@ -371,6 +376,7 @@ class StateGroup:
         self.states = states
         self.type_counts = self._get_type_counts(states)
         self.total_count = len(states)
+        self.cancelled_count = self.type_counts[StateType.CANCELLED]
         self.final_count = sum(state.is_final() for state in states)
         self.not_final_count = self.total_count - self.final_count
 
@@ -380,6 +386,9 @@ class StateGroup:
 
     def all_completed(self) -> bool:
         return self.type_counts[StateType.COMPLETED] == self.total_count
+
+    def any_cancelled(self) -> bool:
+        return self.cancelled_count > 0
 
     def any_failed(self) -> bool:
         return (
