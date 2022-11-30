@@ -18,7 +18,7 @@ from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
-from prefect.states import Pending, exception_to_failed_state
+from prefect.states import Crashed, Pending, exception_to_failed_state
 
 
 class OrionAgent:
@@ -290,8 +290,15 @@ class OrionAgent:
             # Mark the task as started to prevent agent crash
             task_status.started()
 
-        # TODO: Check the result for a bad exit code and proposing a crashed state for the
-        #       run
+        if result.status_code != 0:
+            self.logger.info(
+                f"Reporting flow run '{flow_run.id}' as crashed due to non-zero status code."
+            )
+            await self._propose_crashed_state(
+                flow_run,
+                f"Flow run infrastructure exited with non-zero status code {result.status_code}.",
+            )
+
         return result
 
     async def _propose_pending_state(self, flow_run: FlowRun) -> bool:
@@ -336,6 +343,19 @@ class OrionAgent:
                 f"Failed to update state of flow run '{flow_run.id}'",
                 exc_info=True,
             )
+
+    async def _propose_crashed_state(self, flow_run: FlowRun, message: str) -> None:
+        try:
+            await propose_state(
+                self.client,
+                Crashed(message=message),
+                flow_run_id=flow_run.id,
+            )
+        except Abort:
+            # Flow run already marked as failed
+            pass
+        except Exception:
+            self.logger.exception(f"Failed to update state of flow run '{flow_run.id}'")
 
     # Context management ---------------------------------------------------------------
 

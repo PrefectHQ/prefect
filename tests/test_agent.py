@@ -1,3 +1,4 @@
+import inspect
 from unittest.mock import MagicMock
 
 import pendulum
@@ -6,10 +7,10 @@ import pytest
 from prefect import flow
 from prefect.agent import OrionAgent
 from prefect.blocks.core import Block
-from prefect.exceptions import Abort, FailedRun
+from prefect.exceptions import Abort, CrashedRun, FailedRun
 from prefect.infrastructure.base import Infrastructure
 from prefect.orion import models, schemas
-from prefect.states import Completed, Pending, Running, Scheduled
+from prefect.states import Completed, Pending, Running, Scheduled, State, StateType
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dispatch import get_registry_for_type
 
@@ -357,19 +358,25 @@ class TestInfrastructureIntegration:
         mock.pre_start_side_effect = lambda: None
         mock.post_start_side_effect = lambda: None
         mock.mark_as_started = True
+        mock.result_status_code = 0
 
         async def mock_run(self, task_status=None):
             # Record the call immediately
             result = mock(self.dict())
+            result.status_code = mock.result_status_code
 
             # Perform side-effects for testing error handling
 
-            mock.pre_start_side_effect()
+            pre = mock.pre_start_side_effect()
+            if inspect.iscoroutine(pre):
+                await pre
 
             if mock.mark_as_started:
                 task_status.started()
 
-            mock.post_start_side_effect()
+            post = mock.post_start_side_effect()
+            if inspect.iscoroutine(post):
+                await post
 
             return result
 
@@ -668,6 +675,90 @@ class TestInfrastructureIntegration:
             "generally indicates improper implementation of infrastructure. The "
             "flow run will not be marked as failed, but an issue may have occurred."
         )
+
+    async def test_agent_crashes_flow_if_infrastructure_returns_nonzero_status_code(
+        self, orion_client, deployment, mock_infrastructure_run, caplog
+    ):
+        infra_doc_id = deployment.infrastructure_document_id
+        infra_document = await orion_client.read_block_document(infra_doc_id)
+        infrastructure = Block._from_block_document(infra_document)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+        )
+        flow = await orion_client.read_flow(deployment.flow_id)
+
+        mock_infrastructure_run.result_status_code = 9
+
+        async with OrionAgent(
+            [deployment.work_queue_name], prefetch_seconds=10
+        ) as agent:
+            await agent.get_and_submit_flow_runs()
+
+        mock_infrastructure_run.assert_called_once_with(
+            infrastructure.prepare_for_flow_run(
+                flow_run, deployment=deployment, flow=flow
+            ).dict()
+        )
+        assert (
+            f"Reporting flow run '{flow_run.id}' as crashed due to non-zero status code"
+            in caplog.text
+        )
+
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        assert state.is_crashed()
+        with pytest.raises(CrashedRun, match="exited with non-zero status code 9"):
+            await state.result()
+
+    @pytest.mark.parametrize(
+        "terminal_state_type",
+        [StateType.CRASHED, StateType.FAILED, StateType.COMPLETED],
+    )
+    async def test_agent_does_not_crashes_flow_if_already_in_terminal_state(
+        self,
+        orion_client,
+        deployment,
+        mock_infrastructure_run,
+        caplog,
+        terminal_state_type,
+    ):
+        infra_doc_id = deployment.infrastructure_document_id
+        infra_document = await orion_client.read_block_document(infra_doc_id)
+        infrastructure = Block._from_block_document(infra_document)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+        )
+        flow = await orion_client.read_flow(deployment.flow_id)
+
+        async def update_flow_run_state():
+            await orion_client.set_flow_run_state(
+                flow_run.id, State(type=terminal_state_type, message="test")
+            )
+
+        mock_infrastructure_run.result_status_code = 9
+        mock_infrastructure_run.post_start_side_effect = update_flow_run_state
+
+        async with OrionAgent(
+            [deployment.work_queue_name], prefetch_seconds=10
+        ) as agent:
+            await agent.get_and_submit_flow_runs()
+
+        mock_infrastructure_run.assert_called_once_with(
+            infrastructure.prepare_for_flow_run(
+                flow_run, deployment=deployment, flow=flow
+            ).dict()
+        )
+        assert (
+            f"Reporting flow run '{flow_run.id}' as crashed due to non-zero status code"
+            in caplog.text
+        )
+
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        assert state.type == terminal_state_type
+        assert state.message == "test"
 
 
 async def test_agent_displays_message_on_work_queue_pause(
