@@ -293,12 +293,11 @@ class DockerContainer(Infrastructure):
                 f"base_url {docker_client.api.base_url!r} does not match the expected ",
                 f"api base_url {base_url}.",
             )
-
         try:
             container = docker_client.containers.get(container_id=container_id)
         except docker.errors.NotFound:
             raise InfrastructureNotFound(
-                f"Unable to kill stop container {container_id!r}: The container was not found."
+                f"Unable to stop container {container_id!r}: The container was not found."
             )
 
         try:
