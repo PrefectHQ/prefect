@@ -307,6 +307,12 @@ class RetryFailedFlows(BaseOrchestrationRule):
                 # Reset the run count so that the task run retries still work correctly
                 run.run_count = 0
 
+        # Reset pause metadata on retry
+        updated_policy = context.run.empirical_policy.dict()
+        updated_policy["resuming"] = False
+        updated_policy["pause_counter"] = 0
+        context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
+
         # Generate a new state for the flow
         retry_state = states.AwaitingRetry(
             scheduled_time=scheduled_start_time,
@@ -533,12 +539,27 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
 
         # permit transitions into back into a scheduled state for manual retries
         if proposed_state.is_scheduled() and proposed_state.name == "AwaitingRetry":
+            # Reset pause metadata on manual retry
+            self.original_flow_policy = context.run.empirical_policy.dict()
+            updated_policy = context.run.empirical_policy.dict()
+            updated_policy["resuming"] = False
+            updated_policy["pause_counter"] = 0
+            context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
+
             if not context.run.deployment_id:
                 await self.abort_transition(
                     "Cannot restart a run without an associated deployment."
                 )
         else:
             await self.abort_transition(reason="This run has already terminated.")
+
+    async def cleanup(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: OrchestrationContext,
+    ):
+        context.run.empirical_policy = core.FlowRunPolicy(**self.original_flow_policy)
 
 
 class PreventRedundantTransitions(BaseOrchestrationRule):
