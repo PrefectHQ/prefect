@@ -127,7 +127,7 @@ The underlying log model for task runs captures the task name, task run ID, and 
 
 ### Logging print statements
 
-Prefect provides the `log_prints` option to enable the logging of `print` statements at the task or flow level. When `log_prints=True` for a given task or flow, the Python builtin `print` will be patched with the Prefect logger for the scope of that task or flow.
+Prefect provides the `log_prints` option to enable the logging of `print` statements at the task or flow level. When `log_prints=True` for a given task or flow, the Python builtin `print` will be patched to redirect to the Prefect logger for the scope of that task or flow.
 
 By default, tasks and subflows will inherit their `log_prints` setting from their parent flow, unless opted out with their own explicit `log_prints` setting.
 
