@@ -40,6 +40,17 @@ See https://github.com/PrefectHQ/prefect/pull/7637 for more details
 
 In addition to cancellations, flow runs can also be paused for manual approval!
 
+```python
+from prefect import flow, pause_flow_run
+
+
+@flow
+def my_flow():
+    print("hi!")
+    pause_flow_run()
+    print("bye!")
+```
+
 A new `pause_flow_run` utility is provided — when called from within a flow, the flow run is moved to a "Paused" state and execution will block. Any tasks that have begun execution before pausing will finish. Infrastructure will keep running, polling to check whether the flow run has been resumed. Paused flow runs can be resumed with the `resume_flow_run` utility, or from the UI.
 
 A timeout can be supplied to the `pause_flow_run` utility — if the flow run is not resumed within the specified timeout, the flow will fail.
