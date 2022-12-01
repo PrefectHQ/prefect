@@ -820,7 +820,7 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in state.message
 
     def test_timeout_only_applies_if_exceeded(self):
-        @flow(timeout_seconds=0.5)
+        @flow(timeout_seconds=1)
         def my_flow():
             time.sleep(0.1)
 
