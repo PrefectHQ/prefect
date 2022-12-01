@@ -177,6 +177,9 @@ class TestRepresentation:
     async def test_state_str_excludes_null_message(self):
         assert str(Failed(message=None)) == "Failed()"
 
+    async def test_state_str_excludes_null_message_with_name(self):
+        assert str(Failed(message=None, name="Test")) == "Test(type=FAILED)"
+
     async def test_state_str_includes_type_if_name_is_custom(self):
         assert str(Failed(message="abc", name="Foo")) == "Foo('abc', type=FAILED)"
 
