@@ -134,6 +134,9 @@ class FlowRunPolicy(PrefectBaseModel):
     retry_delay: Optional[int] = Field(
         default=None, description="The delay time between retries, in seconds."
     )
+    pause_counter: Optional[int] = Field(
+        default=0, description="The number of in-process pauses this run has observed"
+    )
 
     @root_validator
     def populate_deprecated_fields(cls, values):

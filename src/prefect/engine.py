@@ -728,13 +728,14 @@ async def pause_flow_run(timeout: int = 300, poll_interval: int = 10, reschedule
         raise RuntimeError("Cannot pause task runs.")
 
     frc = FlowRunContext.get()
+    pause_counter = _observed_flow_pauses(frc)
     logger = get_run_logger(context=frc)
 
     logger.info("Pausing flow, execution will continue when this flow run is resumed.")
     client = get_client()
     response = await client.set_flow_run_state(
         frc.flow_run.id,
-        Paused(timeout=timeout, reschedule=reschedule),
+        Paused(timeout=timeout, reschedule=reschedule, pause_counter=pause_counter),
     )
 
     if reschedule:
@@ -1680,8 +1681,11 @@ def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
 
 
 def _observed_flow_pauses(context: FlowRunContext) -> int:
-    context.observed_flow_pauses += 1
-    return context.observed_flow_pauses
+    if 'counter' not in context.observed_flow_pauses:
+        context.observed_flow_pauses['counter'] = 1
+    else:
+        context.observed_flow_pauses['counter'] += 1
+    return context.observed_flow_pauses['counter']
 
 
 def get_state_for_result(obj: Any) -> Optional[State]:

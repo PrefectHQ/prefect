@@ -44,6 +44,7 @@ class GlobalFlowPolicy(BaseOrchestrationPolicy):
         return COMMON_GLOBAL_TRANSFORMS() + [
             UpdateSubflowParentTask,
             UpdateSubflowStateDetails,
+            UpdatePauseCounter,
         ]
 
 
@@ -218,6 +219,19 @@ class SetNextScheduledStartTime(BaseUniversalTransform):
             context.run.next_scheduled_start_time = (
                 context.proposed_state.state_details.scheduled_time
             )
+
+
+class UpdatePauseCounter(BaseUniversalTransform):
+    async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
+        if context.proposed_state.is_paused():
+            current_policy = context.run.empirical_policy.dict()
+            current_policy[
+                "pause_counter"
+            ] = context.proposed_state.state_details.pause_counter
+            context.run.empirical_policy = current_policy
 
 
 class UpdateSubflowParentTask(BaseUniversalTransform):
