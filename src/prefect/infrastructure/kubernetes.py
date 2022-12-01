@@ -279,7 +279,7 @@ class KubernetesJob(Infrastructure):
     async def kill(self, infrastructure_pid: str, grace_seconds: int):
         self._set_config()
         job_cluster, job_name = self._parse_infrastructure_pid(infrastructure_pid)
-        current_cluster = self._get_cluster_name()
+        current_cluster = self._get_active_cluster_name()
         if job_cluster != current_cluster:
             raise InfrastructureNotAvailable(
                 f"Unable to stop job {job_name!r}: the job is running on cluster ",
@@ -331,7 +331,7 @@ class KubernetesJob(Infrastructure):
 
     def _get_infrastructure_pid(self, job_name: str) -> str:
         """Generates a kubernetes pid string in the form of `<cluster_name>:<job_name>`."""
-        cluster_name = self._get_cluster_name()
+        cluster_name = self._get_active_cluster_name()
         job_pid = f"{cluster_name}:{job_name}"
         return job_pid
 
@@ -340,7 +340,7 @@ class KubernetesJob(Infrastructure):
         cluster_name, job_name = infrastructure_pid.rsplit(":", 1)
         return cluster_name, job_name
 
-    def _get_cluster_name(self) -> str:
+    def _get_active_cluster_name(self) -> str:
         _, active_context = kubernetes.config.list_kube_config_contexts()
         cluster_name = active_context["context"]["cluster"]
         return cluster_name
