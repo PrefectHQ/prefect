@@ -1,4 +1,4 @@
-name: CodeQL
+name: "CodeQL"
 
 on:
   push:
@@ -6,22 +6,56 @@ on:
       - main
 
   pull_request:
-    paths:
-      - .github/workflows/codeql-analysis.yml
     branches:
       - main
+    paths:
+      - .github/workflows/codeql-analysis.yaml
+      - "**/*.py"
+      - "**/*.js"
+      - "**/*.ts"
+      - requirements.txt
+      - requirements-dev.txt
+      - setup.cfg
+      - alembic.ini
 
-permissions:
-  contents: read
+  schedule:
+    #        ┌───────────── minute (0 - 59)
+    #        │  ┌───────────── hour (0 - 23)
+    #        │  │  ┌───────────── day of the month (1 - 31)
+    #        │  │  │ ┌───────────── month (1 - 12 or JAN-DEC)
+    #        │  │  │ │ ┌───────────── day of the week (0 - 6 or SUN-SAT)
+    #        │  │  │ │ │
+    #        │  │  │ │ │
+    #        │  │  │ │ │
+    - cron: "30 20 * * 0"
+
+# Limit concurrency by workflow/branch combination.
+#
+# For pull request builds, pushing additional changes to the
+# branch will cancel prior in-progress and pending builds.
+#
+# For builds triggered on a branch push, additional changes
+# will wait for prior builds to complete before starting.
+#
+# https://docs.github.com/en/actions/using-jobs/using-concurrency
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Do not grant jobs any permissions by default
+permissions: {}
 
 jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
     permissions:
+      # required to clone the repository
       contents: read
+      # required for CodeQL since we're using a private repository
       actions: read
       security-events: write
+
     strategy:
       fail-fast: false
       matrix:
@@ -39,6 +73,7 @@ jobs:
           languages: ${{ matrix.language }}
           config-file: ./.github/codeql-config.yml
           queries: security-and-quality
+          setup-python-dependencies: false
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2
