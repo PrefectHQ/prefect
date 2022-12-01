@@ -283,7 +283,7 @@ class DockerContainer(Infrastructure):
             identifier=container_pid,
         )
 
-    async def kill(self, infrastructure_pid: str, grace_seconds: int):
+    async def kill(self, infrastructure_pid: str, grace_seconds: int = 30):
         docker_client = self._get_client()
         base_url, container_id = self._parse_infrastructure_pid(infrastructure_pid)
 

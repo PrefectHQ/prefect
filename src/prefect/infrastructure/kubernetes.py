@@ -276,7 +276,7 @@ class KubernetesJob(Infrastructure):
         # Monitor the job
         return await run_sync_in_worker_thread(self._watch_job, job_name)
 
-    async def kill(self, infrastructure_pid: str, grace_seconds: int):
+    async def kill(self, infrastructure_pid: str, grace_seconds: int = 30):
         self._configure_kubernetes_library_client()
         job_cluster, job_name = self._parse_infrastructure_pid(infrastructure_pid)
         current_cluster = self._get_active_cluster_name()
