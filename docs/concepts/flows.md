@@ -624,20 +624,27 @@ Support for cancellation is included for all core library infrastructure types:
 - Kubernetes Jobs
 - Processes
 
-While the process is robust, there are a few issues than can occur:
+Cancellation is robust to restarts of the agent. To enable this, we track attach metadata about the created flow run infrastructure to the flow run. Internally, this is referred to as the `infrastructure_pid` or infrastructure identifier. Generally, this is composed of two parts: 
 
-- If the infrastructure block that was used for the deployment has been removed or altered, cancellation will not work.
-- If the infrastructure that's running the flow does not have support for cancellation, cancellation will not work.
-- If the `pid` scope does not match when attempting to cancel a flow run the agent will be unable to cancel the flow run.
-    - This is most relevant for `Process` infrastructure. To ensure that prefect does not kill a process on the wrong machine the hostname that was used when starting the flow run is stored and that hostname is used for comparison when attempting cancellation.
-    - The scope for Docker Containers is the Docker API's base url.
-    - The scope for Kubernetes Jobs is the name of the active Kubernetes cluster.
-    - The scope for Processes is the hostname as returned by `socket.gethostname`.
-- If the `pid` itself is not found the flow run will be marked as cancelled.
-    - The `pid` for Docker Containers is the id of the running container.
-    - The `pid` for Kubernetes Jobs is the name of the job.
-    - The `pid` for Processes is the process id.
-- If the agent runs into an unexpected error during cancellation the flow run may or may not be cancelled depending on where the error occured. The agent will try again to cancel the flow run.
+1. Scope: identifying where the infrastructure is running.
+2. ID: a unique identifier for the infrastructure within the scope.
+
+The scope is used to ensure that Prefect does not kill the wrong infrastructure. For example, agents running on multiple machines may have overlapping process IDs but should not have a matching scope. 
+
+The identifiers for the primary infrastructure types are as follows:
+
+- Processes: The machine hostname and the PID.
+- Docker Containers: The Docker API URL and container ID.
+- Kubernetes Jobs: The Kubernetes cluster name and the job name.
+
+While the cancellation process is robust, there are a few issues than can occur:
+
+- If the infrastructure block for the flow run has been removed or altered, cancellation may not work.
+- If the infrastructure block for the flow run does not have support for cancellation, cancellation will not work.
+- If the identifier scope does not match when attempting to cancel a flow run the agent will be unable to cancel the flow run. Another agent may attempt cancellation.
+- If the infrastructure associated with the run cannot be found or has already been killed, the agent will mark the flow run as cancelled.
+- If the `infrastructre_pid` is missing from the flow run will be marked as cancelled but cancellation cannot be enforced.
+- If the agent runs into an unexpected error during cancellation the flow run may or may not be cancelled depending on where the error occured. The agent will try again to cancel the flow run. Another agent may attempt cancellation.
 
 ### Cancel via the CLI
 
