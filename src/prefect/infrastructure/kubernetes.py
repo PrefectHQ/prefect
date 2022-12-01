@@ -331,7 +331,10 @@ class KubernetesJob(Infrastructure):
 
     def _get_infrastructure_pid(self, job_name: str) -> str:
         """Generates a kubernetes pid string in the form of `<cluster_name>:<job_name>`."""
-        cluster_name = self._get_active_cluster_name()
+        try:
+            cluster_name = self._get_active_cluster_name()
+        except kubernetes.config.config_exception.ConfigException:
+            cluster_name = "in-cluster-config"
         job_pid = f"{cluster_name}:{job_name}"
         return job_pid
 
