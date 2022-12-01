@@ -24,7 +24,6 @@ COMMON_GLOBAL_TRANSFORMS = lambda: [
     SetRunStateTimestamp,
     SetStartTime,
     SetEndTime,
-    IncrementRunCount,
     IncrementRunTime,
     SetExpectedStartTime,
     SetNextScheduledStartTime,
@@ -45,6 +44,8 @@ class GlobalFlowPolicy(BaseOrchestrationPolicy):
             UpdateSubflowParentTask,
             UpdateSubflowStateDetails,
             UpdatePauseCounter,
+            MarkResumingRuns,
+            IncrementFlowRunCount,
         ]
 
 
@@ -57,7 +58,9 @@ class GlobalTaskPolicy(BaseOrchestrationPolicy):
     """
 
     def priority():
-        return COMMON_GLOBAL_TRANSFORMS()
+        return COMMON_GLOBAL_TRANSFORMS() + [
+            IncrementTaskRunCount,
+        ]
 
 
 class SetRunStateType(BaseUniversalTransform):
@@ -160,7 +163,28 @@ class IncrementRunTime(BaseUniversalTransform):
             )
 
 
-class IncrementRunCount(BaseUniversalTransform):
+class IncrementFlowRunCount(BaseUniversalTransform):
+    """
+    Records the number of times a run enters a running state. For use with retries.
+    """
+
+    async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
+        # if entering a running state...
+        if context.proposed_state.is_running():
+            if context.run.empirical_policy.resuming:
+                # do not increment the run count if resuming a paused flow
+                current_policy = context.run.empirical_policy.dict()
+                current_policy["resuming"] = False
+                context.run.empirical_policy = current_policy
+            else:
+                # increment the run count
+                context.run.run_count += 1
+
+
+class IncrementTaskRunCount(BaseUniversalTransform):
     """
     Records the number of times a run enters a running state. For use with retries.
     """
@@ -219,6 +243,21 @@ class SetNextScheduledStartTime(BaseUniversalTransform):
             context.run.next_scheduled_start_time = (
                 context.proposed_state.state_details.scheduled_time
             )
+
+
+class MarkResumingRuns(BaseUniversalTransform):
+    async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
+        if context.initial_state and context.initial_state.is_paused():
+            if (
+                context.proposed_state.is_running()
+                or context.proposed_state.is_scheduled()
+            ):
+                current_policy = context.run.empirical_policy.dict()
+                current_policy["resuming"] = True
+                context.run.empirical_policy = current_policy
 
 
 class UpdatePauseCounter(BaseUniversalTransform):

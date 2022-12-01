@@ -1688,11 +1688,11 @@ def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
 
 
 def _observed_flow_pauses(context: FlowRunContext) -> int:
-    if 'counter' not in context.observed_flow_pauses:
-        context.observed_flow_pauses['counter'] = 1
+    if "counter" not in context.observed_flow_pauses:
+        context.observed_flow_pauses["counter"] = 1
     else:
-        context.observed_flow_pauses['counter'] += 1
-    return context.observed_flow_pauses['counter']
+        context.observed_flow_pauses["counter"] += 1
+    return context.observed_flow_pauses["counter"]
 
 
 def get_state_for_result(obj: Any) -> Optional[State]:
