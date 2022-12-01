@@ -299,7 +299,7 @@ class KubernetesJob(Infrastructure):
                 if exc.status == 404:
                     raise InfrastructureNotFound(
                         f"Unable to stop job {job_name!r}: The job was not found."
-                    )
+                    ) from exc
                 else:
                     raise
 
