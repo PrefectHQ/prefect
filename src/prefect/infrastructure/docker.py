@@ -289,9 +289,13 @@ class DockerContainer(Infrastructure):
 
         if docker_client.api.base_url != base_url:
             raise InfrastructureNotAvailable(
-                f"Unable to stop container {container_id!r}: the current Docker API ",
-                f"URL {docker_client.api.base_url!r} does not match the expected ",
-                f"API base URL {base_url}.",
+                ''.join(
+                    [
+                        f"Unable to stop container {container_id!r}: the current Docker API ",
+                        f"URL {docker_client.api.base_url!r} does not match the expected ",
+                        f"API base URL {base_url}.",
+                    ]
+                )
             )
         try:
             container = docker_client.containers.get(container_id=container_id)
@@ -314,7 +318,7 @@ class DockerContainer(Infrastructure):
             docker_client.close()
 
     def _get_infrastructure_pid(self, container_id: str) -> str:
-        """Generates a docker infrastructure_pid string in the form of
+        """Generates a Docker infrastructure_pid string in the form of
         `<docker_host_base_url>:<container_id>`.
         """
         docker_client = self._get_client()
@@ -323,7 +327,7 @@ class DockerContainer(Infrastructure):
         return f"{base_url}:{container_id}"
 
     def _parse_infrastructure_pid(self, infrastructure_pid: str) -> Tuple[str, str]:
-        """Splits a docker infrastructure_pid into its component parts"""
+        """Splits a Docker infrastructure_pid into its component parts"""
 
         # base_url can contain `:` so we only want the last item of the split
         base_url, container_id = infrastructure_pid.rsplit(":", 1)
