@@ -75,11 +75,6 @@ def mock_docker_client(monkeypatch):
     return mock
 
 
-@pytest.fixture
-def client_container_not_found(mock_docker_client):
-    mock_docker_client.containers.get.side_effect = [docker.errors.NotFound("msg")]
-
-
 @pytest.mark.parametrize(
     "requested_name,container_name",
     [
@@ -141,8 +136,11 @@ async def test_kill_raises_infra_not_available_with_bad_host_url(mock_docker_cli
 
 
 async def test_kill_raises_infra_not_found_with_bad_container_id(
-    client_container_not_found,
+    mock_docker_client,
 ):
+
+    mock_docker_client.containers.get.side_effect = [docker.errors.NotFound("msg")]
+
     BAD_CONTAINER_ID = "bad-container-id"
     with pytest.raises(
         InfrastructureNotFound,
