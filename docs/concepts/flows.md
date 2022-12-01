@@ -609,5 +609,33 @@ Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-
 </div>
 
 
+## Flow run cancellation
 
+Flow runs can be cancelled from the CLI, UI, REST API, or Python client. 
 
+When cancellation is requested, the flow run is moved to a "Cancelling" state. The agent monitors the state of flow runs and detects that cancellation has been requested. The agent then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
+
+!!! warning "An agent is required"
+Flow run cancellation requires the flow run to be submitted by an agent and for an agent to be running to enforce the cancellation. Flow runs without deployments cannot be cancelled yet.
+
+Support for cancellation has been added to all core library infrastructure types:
+
+- Docker Containers
+- Kubernetes Jobs
+- Processes
+
+### Via the CLI
+
+From the command line in your execution environment, you can cancel a flow run by using the `prefect flow-run cancel` CLI command, passing the ID of the flow run. 
+
+<div class="terminal">
+```bash
+$ prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
+```
+</div>
+
+### Via the UI
+
+From the UI you can cancel a flow run by navigating to the flow run's detail page and clicking the `Cancel` button in the upper right corner.
+
+![Prefect UI](/img/ui/flow-run-cancellation-ui.png)
