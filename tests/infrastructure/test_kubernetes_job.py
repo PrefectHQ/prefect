@@ -101,16 +101,6 @@ def mock_k8s_batch_client(monkeypatch, mock_cluster_config, mock_k8s_v1_job):
     return mock
 
 
-@pytest.fixture
-def mock_k8s_batch_client_404(mock_k8s_batch_client):
-    mock_k8s_batch_client.delete_namespaced_job.side_effect = [ApiException(status=404)]
-
-
-@pytest.fixture
-def mock_k8s_batch_client_other_api_error(mock_k8s_batch_client):
-    mock_k8s_batch_client.delete_namespaced_job.side_effect = [ApiException(status=200)]
-
-
 def _mock_pods_stream_that_returns_running_pod(*args, **kwargs):
     job_pod = MagicMock(spec=kubernetes.client.V1Pod)
     job_pod.status.phase = "Running"
@@ -235,10 +225,11 @@ async def test_kill_raises_infra_not_available_on_mismatched_cluster_name(
 
 
 async def test_kill_raises_infrastructure_not_found_on_404(
-    mock_k8s_batch_client_404,
+    mock_k8s_batch_client,
     mock_k8s_client,
     mock_watch,
 ):
+    mock_k8s_batch_client.delete_namespaced_job.side_effect = [ApiException(status=404)]
     with pytest.raises(
         InfrastructureNotFound,
         match="Unable to stop job 'mock-k8s-v1-job': The job was not found.",
@@ -249,10 +240,11 @@ async def test_kill_raises_infrastructure_not_found_on_404(
 
 
 async def test_kill_passes_other_k8s_api_errors_through(
-    mock_k8s_batch_client_other_api_error,
+    mock_k8s_batch_client,
     mock_k8s_client,
     mock_watch,
 ):
+    mock_k8s_batch_client.delete_namespaced_job.side_effect = [ApiException(status=400)]
     with pytest.raises(
         ApiException,
     ):
