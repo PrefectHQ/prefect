@@ -178,8 +178,12 @@ async def test_kill_calls_delete_namespaced_job(
     )
 
     assert len(mock_k8s_batch_client.mock_calls) == 1
-    mock_call = mock_k8s_batch_client.mock_calls[0]
-    assert "call.delete_namespaced_job" in str(mock_call)
+    mock_k8s_batch_client.delete_namespaced_job.assert_called_once_with(
+        name='mock-k8s-v1-job', 
+        namespace='default', 
+        grace_period_seconds=0, 
+        propagation_policy='Foreground',
+    )
 
 
 async def test_kill_uses_foreground_propagation_policy(
