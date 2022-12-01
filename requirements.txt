@@ -1,7 +1,7 @@
 aiosqlite >= 0.17.0
 alembic >= 1.7.5
 anyio >= 3.4.0
-apprise >= 1.0.0
+apprise >= 1.1.0
 asgi-lifespan >= 1.0
 asyncpg >= 0.23
 click >= 8.0, < 8.2
