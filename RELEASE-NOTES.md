@@ -66,6 +66,8 @@ See https://github.com/PrefectHQ/prefect/pull/7361 for more details
 - Add agent reporting of crashed flow run infrastructure — https://github.com/PrefectHQ/prefect/pull/7670
 - Raise `CancelledRun` when retrieving a `Cancelled` state's result — https://github.com/PrefectHQ/prefect/pull/7699
 - Use new database session to send each flow run notification — https://github.com/PrefectHQ/prefect/pull/7644
+- Increase default agent query interval to 10s — https://github.com/PrefectHQ/prefect/pull/7703
+- Add default messages to state exceptions — https://github.com/PrefectHQ/prefect/pull/7705
 
 ### Fixes
 - Prompt workspace selection if API key is set but API URL is not set — https://github.com/PrefectHQ/prefect/pull/7648
@@ -74,6 +76,7 @@ See https://github.com/PrefectHQ/prefect/pull/7361 for more details
 - Fix bug where result event is missing when wait is called before submission completes — https://github.com/PrefectHQ/prefect/pull/7571
 - Fix support for sync-compatible calls in `deployment build` — https://github.com/PrefectHQ/prefect/pull/7417
 - Fix bug in `StateGroup` that caused `all_final` to be wrong — https://github.com/PrefectHQ/prefect/pull/7678
+- Add retry on specified httpx network errors — https://github.com/PrefectHQ/prefect/pull/7593
 
 ### Documentation
 - Fix heading links in docs — https://github.com/PrefectHQ/prefect/pull/7665
