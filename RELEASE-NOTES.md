@@ -102,18 +102,21 @@ See https://github.com/PrefectHQ/prefect/pull/7361 for more details.
 
 
 ### Enhancements
-- Update login to prompt for "API key" instead of "authentication key" — https://github.com/PrefectHQ/prefect/pull/7649
-- Add `TwilioSMS` notification block — https://github.com/PrefectHQ/prefect/pull/7685
+- Add agent reporting of crashed flow run infrastructure — https://github.com/PrefectHQ/prefect/pull/7670
+- Add Twilio SMS notification block — https://github.com/PrefectHQ/prefect/pull/7685
+- Add PagerDuty Webhook notification block — https://github.com/PrefectHQ/prefect/pull/7534
 - Add jitter to the agent query loop — https://github.com/PrefectHQ/prefect/pull/7652
 - Include final state logs in logs sent to API — https://github.com/PrefectHQ/prefect/pull/7647
 - Add `tags` and `idempotency_key` to `run deployment` — https://github.com/PrefectHQ/prefect/pull/7641
 - The final state of a flow is now `Cancelled` when any task finishes in a `Cancelled` state — https://github.com/PrefectHQ/prefect/pull/7694
+- Update login to prompt for "API key" instead of "authentication key" — https://github.com/PrefectHQ/prefect/pull/7649
 - Disable cache on result retrieval if disabled on creation — https://github.com/PrefectHQ/prefect/pull/7627
-- Add agent reporting of crashed flow run infrastructure — https://github.com/PrefectHQ/prefect/pull/7670
 - Raise `CancelledRun` when retrieving a `Cancelled` state's result — https://github.com/PrefectHQ/prefect/pull/7699
 - Use new database session to send each flow run notification — https://github.com/PrefectHQ/prefect/pull/7644
 - Increase default agent query interval to 10s — https://github.com/PrefectHQ/prefect/pull/7703
 - Add default messages to state exceptions — https://github.com/PrefectHQ/prefect/pull/7705
+- Update `run_sync_in_interruptible_worker_thread` to use an event — https://github.com/PrefectHQ/prefect/pull/7704
+- Increase default database query timeout to 10s — https://github.com/PrefectHQ/prefect/pull/7717
 
 ### Fixes
 - Prompt workspace selection if API key is set, but API URL is not set — https://github.com/PrefectHQ/prefect/pull/7648
@@ -123,6 +126,7 @@ See https://github.com/PrefectHQ/prefect/pull/7361 for more details.
 - Fix support for sync-compatible calls in `deployment build` — https://github.com/PrefectHQ/prefect/pull/7417
 - Fix bug in `StateGroup` that caused `all_final` to be wrong — https://github.com/PrefectHQ/prefect/pull/7678
 - Add retry on specified httpx network errors — https://github.com/PrefectHQ/prefect/pull/7593
+- Fix state display bug when state message is empty — https://github.com/PrefectHQ/prefect/pull/7706
 
 ### Documentation
 - Fix heading links in docs — https://github.com/PrefectHQ/prefect/pull/7665
