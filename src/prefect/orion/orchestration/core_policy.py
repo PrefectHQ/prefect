@@ -545,11 +545,11 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ) -> None:
+        self.original_flow_policy = context.run.empirical_policy.dict()
 
         # permit transitions into back into a scheduled state for manual retries
         if proposed_state.is_scheduled() and proposed_state.name == "AwaitingRetry":
             # Reset pause metadata on manual retry
-            self.original_flow_policy = context.run.empirical_policy.dict()
             updated_policy = context.run.empirical_policy.dict()
             updated_policy["resuming"] = False
             updated_policy["pause_counter"] = 0
