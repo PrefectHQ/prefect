@@ -496,25 +496,21 @@ The `prefect deployment` CLI command provides commands for managing and running 
 | `preview` | Prints a preview of a deployment. |
 | `run`     | Create a flow run for the given flow and deployment. |
 
-### Create a flow run with Prefect client
+### Create a flow run in a Python script 
 
-To create a flow run from a deployment with Prefect client, start with retrieve the deployment ID corresponding to the the flow you try to trigger by running `prefect deployment ls`.
-
-After obtaining the deployment ID, use Prefect client to create a flow run from a deployment:
+You can create a flow run from a deployment in a Python script with the `run_deployment` method.
 
 ```python
-import asyncio
-from prefect.client import get_client
+from prefect.deployments import run_deployment
 
 
-async def main():
-    async with get_client() as client:
-        depl_id = "your-deployment-id"
-        response = await client.create_flow_run_from_deployment(depl_id)
+def main():
+    response = run_deployment(name="flow-name/deployment-name")
+    print(response)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+   main()
 ``` 
 
 !!! tip "`PREFECT_API_URL` setting for agents"
