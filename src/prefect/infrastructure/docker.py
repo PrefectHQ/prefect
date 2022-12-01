@@ -266,10 +266,11 @@ class DockerContainer(Infrastructure):
         # The `docker` library uses requests instead of an async http library so it must
         # be run in a thread to avoid blocking the event loop.
         container = await run_sync_in_worker_thread(self._create_and_start_container)
+        container_pid = self._get_infrastructure_pid(container_id=container.id)
 
         # Mark as started and return the infrastructure id
         if task_status:
-            task_status.started(self._get_infrastructure_pid(container.id))
+            task_status.started(container_pid)
 
         # Monitor the container
         container = await run_sync_in_worker_thread(
@@ -279,7 +280,7 @@ class DockerContainer(Infrastructure):
         exit_code = container.attrs["State"].get("ExitCode")
         return DockerContainerResult(
             status_code=exit_code if exit_code is not None else -1,
-            identifier=self._get_infrastructure_pid(container.id),
+            identifier=container_pid,
         )
 
     async def kill(self, infrastructure_pid: str, grace_seconds: int):
