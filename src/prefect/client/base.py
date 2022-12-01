@@ -221,7 +221,16 @@ class PrefectHttpxClient(httpx.AsyncClient):
                 status.HTTP_429_TOO_MANY_REQUESTS,
                 status.HTTP_503_SERVICE_UNAVAILABLE,
             },
-            retry_exceptions=(httpx.RemoteProtocolError, httpx.ReadError),
+            retry_exceptions=(
+                httpx.ReadTimeout,
+                httpx.PoolTimeout,
+                # `ConnectionResetError` when reading socket raises as a `ReadError`
+                httpx.ReadError,
+                # Uvicorn bug, see https://github.com/PrefectHQ/prefect/issues/7512
+                httpx.RemoteProtocolError,
+                # HTTP2 bug, see https://github.com/PrefectHQ/prefect/issues/7442
+                httpx.LocalProtocolError,
+            ),
         )
 
         # Always raise bad responses
