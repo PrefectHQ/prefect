@@ -71,6 +71,12 @@ async def start(
         "--tag",
         help="DEPRECATED: One or more optional tags that will be used to create a work queue",
     ),
+    limit: int = typer.Option(
+        None,
+        "-l",
+        "--limit",
+        help="Maximum number of flow runs to start simultaneously.",
+    ),
 ):
     """
     Start an agent process to poll one or more work queues for flow runs.
@@ -137,6 +143,7 @@ async def start(
         work_queues=work_queues,
         work_queue_prefix=work_queue_prefix,
         prefetch_seconds=prefetch_seconds,
+        limit=limit,
     ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
