@@ -552,11 +552,11 @@ PREFECT_LOGGING_COLORS = Setting(
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
-    default=5,
+    default=10,
 )
 """
-The agent loop interval, in seconds. Agents will check
-for new runs this often. Defaults to `5`.
+The agent loop interval, in seconds. Agents will check for new runs this often. 
+Defaults to `10`.
 """
 
 PREFECT_AGENT_PREFETCH_SECONDS = Setting(
