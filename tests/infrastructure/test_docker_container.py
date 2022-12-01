@@ -1,3 +1,4 @@
+import re
 import uuid
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
@@ -123,8 +124,16 @@ async def test_kill_calls_container_stop_with_correct_grace_seconds(mock_docker_
 
 async def test_kill_raises_infra_not_available_with_bad_host_url(mock_docker_client):
     BAD_BASE_URL = "bad-base-url"
+    expected_string = ''.join(
+        [
+            f"Unable to stop container {FAKE_CONTAINER_ID!r}: the current Docker API ",
+            f"URL {mock_docker_client.api.base_url!r} does not match the expected ",
+            f"API base URL {BAD_BASE_URL}.",
+        ]
+    )
     with pytest.raises(
         InfrastructureNotAvailable,
+        match=re.escape(expected_string)
     ):
         await DockerContainer().kill(
             infrastructure_pid=f"{BAD_BASE_URL}:{FAKE_CONTAINER_ID}", grace_seconds=0
