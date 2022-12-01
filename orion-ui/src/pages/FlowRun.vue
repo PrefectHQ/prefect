@@ -43,7 +43,9 @@
     FlowRunSubFlows,
     JsonView,
     useFavicon,
-    useWorkspaceApi
+    useWorkspaceApi,
+    useDeployment,
+    getSchemaValuesWithDefaultsJson
   } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
@@ -75,6 +77,8 @@
   const api = useWorkspaceApi()
   const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId], { interval: 30000 })
   const flowRun = computed(() => flowRunDetailsSubscription.response)
+  const deploymentId = computed(() => flowRun.value?.deploymentId)
+  const deployment = useDeployment(deploymentId)
 
   watch(flowRunId, (oldFlowRunId, newFlowRunId) => {
     if (oldFlowRunId !== newFlowRunId) {
@@ -82,9 +86,9 @@
     }
   })
 
-  const parameters = computed(() => {
-    return flowRun.value?.parameters ? JSON.stringify(flowRun.value.parameters, undefined, 2) : '{}'
-  })
+  const flowRunParameters = computed(() => flowRun.value?.parameters ?? {})
+  const deploymentSchema = computed(() => deployment.value?.parameterOpenApiSchema ?? {})
+  const parameters = computed(() => getSchemaValuesWithDefaultsJson(flowRunParameters.value, deploymentSchema.value))
 
   function goToFlowRuns(): void {
     router.push(routes.flowRuns())

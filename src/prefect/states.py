@@ -15,7 +15,7 @@ from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
 )
-from prefect.exceptions import CrashedRun, FailedRun, MissingResult
+from prefect.exceptions import CancelledRun, CrashedRun, FailedRun, MissingResult
 from prefect.orion import schemas
 from prefect.orion.schemas.states import StateType
 from prefect.results import BaseResult, R, ResultFactory
@@ -38,6 +38,7 @@ def get_state_result(
 
     See `State.result()`
     """
+
     if fetch is None and (
         PREFECT_ASYNC_FETCH_STATE_RESULT or not in_async_main_thread()
     ):
@@ -70,7 +71,9 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     """
     Internal implementation for `get_state_result` without async backwards compatibility
     """
-    if raise_on_failure and (state.is_crashed() or state.is_failed()):
+    if raise_on_failure and (
+        state.is_crashed() or state.is_failed() or state.is_cancelled()
+    ):
         raise await get_state_exception(state)
 
     if isinstance(state.data, DataDocument):
@@ -80,7 +83,7 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     elif isinstance(state.data, BaseResult):
         result = await state.data.get()
     elif state.data is None:
-        if state.is_failed() or state.is_crashed():
+        if state.is_failed() or state.is_crashed() or state.is_cancelled():
             return await get_state_exception(state)
         else:
             raise MissingResult(
@@ -228,13 +231,18 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         states = StateGroup(ensure_iterable(retval))
 
         # Determine the new state type
-        new_state_type = (
-            StateType.COMPLETED if states.all_completed() else StateType.FAILED
-        )
+        if states.all_completed():
+            new_state_type = StateType.COMPLETED
+        elif states.any_cancelled():
+            new_state_type = StateType.CANCELLED
+        else:
+            new_state_type = StateType.FAILED
 
         # Generate a nice message for the aggregate
         if states.all_completed():
             message = "All states completed."
+        elif states.any_cancelled():
+            message = f"{states.cancelled_count}/{states.total_count} states cancelled."
         elif states.any_failed():
             message = f"{states.fail_count}/{states.total_count} states failed."
         elif not states.all_final():
@@ -275,14 +283,18 @@ async def get_state_exception(state: State) -> BaseException:
 
     If the state result is not of a known type, a `TypeError` will be returned.
 
-    When a wrapper exception is returned, the type will be `FailedRun` if the state type
-    is FAILED or a `CrashedRun` if the state type is CRASHED.
+    When a wrapper exception is returned, the type will be:
+        - `FailedRun` if the state type is FAILED.
+        - `CrashedRun` if the state type is CRASHED.
+        - `CancelledRun` if the state type is CANCELLED.
     """
 
     if state.is_failed():
         wrapper = FailedRun
     elif state.is_crashed():
         wrapper = CrashedRun
+    elif state.is_cancelled():
+        wrapper = CancelledRun
     else:
         raise ValueError(f"Expected failed or crashed state got {state!r}.")
 
@@ -312,7 +324,7 @@ async def get_state_exception(state: State) -> BaseException:
     elif is_state_iterable(result):
         # Return the first failure
         for state in result:
-            if state.is_failed() or state.is_crashed():
+            if state.is_failed() or state.is_crashed() or state.is_cancelled():
                 return await get_state_exception(state)
 
         raise ValueError(
@@ -331,7 +343,7 @@ async def raise_state_exception(state: State) -> None:
     """
     Given a FAILED or CRASHED state, raise the contained exception.
     """
-    if not (state.is_failed() or state.is_crashed()):
+    if not (state.is_failed() or state.is_crashed() or state.is_cancelled()):
         return None
 
     raise await get_state_exception(state)
@@ -371,6 +383,7 @@ class StateGroup:
         self.states = states
         self.type_counts = self._get_type_counts(states)
         self.total_count = len(states)
+        self.cancelled_count = self.type_counts[StateType.CANCELLED]
         self.final_count = sum(state.is_final() for state in states)
         self.not_final_count = self.total_count - self.final_count
 
@@ -380,6 +393,9 @@ class StateGroup:
 
     def all_completed(self) -> bool:
         return self.type_counts[StateType.COMPLETED] == self.total_count
+
+    def any_cancelled(self) -> bool:
+        return self.cancelled_count > 0
 
     def any_failed(self) -> bool:
         return (

@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import apprise
 from apprise import Apprise, AppriseAsset, NotifyType
 from apprise.plugins.NotifyPagerDuty import NotifyPagerDuty
+from apprise.plugins.NotifyTwilio import NotifyTwilio
 from pydantic import AnyHttpUrl, Field, SecretStr
 from typing_extensions import Literal
 
@@ -241,6 +242,65 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
                 click=self.clickable_url,
                 include_image=self.include_image,
                 details=self.custom_details,
+            ).url()
+        )
+        self._start_apprise_client(url)
+
+
+class TwilioSMS(AbstractAppriseNotificationBlock):
+    """Enables sending notifications via Twilio SMS.
+    Find more on sending Twilio SMS messages in the [docs](https://www.twilio.com/docs/sms).
+
+    Examples:
+        Load a saved `TwilioSMS` block and send a message:
+        ```python
+        from prefect.blocks.notifications import TwilioSMS
+        twilio_webhook_block = TwilioSMS.load("BLOCK_NAME")
+        twilio_webhook_block.notify("Hello from Prefect!")
+        ```
+    """
+
+    _description = "Enables sending notifications via Twilio SMS."
+    _block_type_name = "Twilio SMS"
+    _block_type_slug = "twilio-sms"
+    _logo_url = "https://images.ctfassets.net/zscdif0zqppk/YTCgPL6bnK3BczP2gV9md/609283105a7006c57dbfe44ee1a8f313/58482bb9cef1014c0b5e4a31.png?h=250"  # noqa
+
+    account_sid: str = Field(
+        default=...,
+        description=(
+            "The Twilio Account SID - it can be found on the homepage "
+            "of the Twilio console."
+        ),
+    )
+
+    auth_token: SecretStr = Field(
+        default=...,
+        description=(
+            "The Twilio Authentication Token - "
+            "it can be found on the homepage of the Twilio console."
+        ),
+    )
+
+    from_phone_number: str = Field(
+        default=...,
+        description="The valid Twilio phone number to send the message from.",
+        example="18001234567",
+    )
+
+    to_phone_numbers: List[str] = Field(
+        default=...,
+        description="A list of valid Twilio phone number(s) to send the message to.",
+        # not wrapped in brackets because of the way UI displays examples; in code should be ["18004242424"]
+        example="18004242424",
+    )
+
+    def block_initialization(self) -> None:
+        url = SecretStr(
+            NotifyTwilio(
+                account_sid=self.account_sid,
+                auth_token=self.auth_token.get_secret_value(),
+                source=self.from_phone_number,
+                targets=self.to_phone_numbers,
             ).url()
         )
         self._start_apprise_client(url)
