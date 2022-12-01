@@ -369,6 +369,7 @@ class ORMFlowRun(ORMRun):
     )
 
     infrastructure_pid = sa.Column(sa.String)
+    pause_expiration_time = sa.Column(Timestamp())
 
     @declared_attr
     def infrastructure_document_id(cls):

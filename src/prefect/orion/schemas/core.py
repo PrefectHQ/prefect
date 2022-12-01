@@ -253,6 +253,10 @@ class FlowRun(ORMBaseModel):
         default=None,
         description="The id of the flow run as returned by an infrastructure block.",
     )
+    pause_expiration_time: Optional[DateTimeTZ] = Field(
+        default=None,
+        description="The time this run is set to fail if not resumed from a Paused state.",
+    )
     created_by: Optional[CreatedBy] = Field(
         default=None,
         description="Optional information about the creator of this flow run.",
