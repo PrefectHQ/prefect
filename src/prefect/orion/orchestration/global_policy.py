@@ -175,9 +175,9 @@ class IncrementFlowRunCount(BaseUniversalTransform):
         if context.proposed_state.is_running():
             if context.run.empirical_policy.resuming:
                 # do not increment the run count if resuming a paused flow
-                current_policy = context.run.empirical_policy.dict()
-                current_policy["resuming"] = False
-                context.run.empirical_policy = current_policy
+                updated_policy = context.run.empirical_policy.dict()
+                updated_policy["resuming"] = False
+                context.run.empirical_policy = updated_policy
             else:
                 # increment the run count
                 context.run.run_count += 1
@@ -250,11 +250,11 @@ class UpdatePauseCounter(BaseUniversalTransform):
             return
 
         if context.proposed_state.is_paused():
-            current_policy = context.run.empirical_policy.dict()
-            current_policy[
+            updated_policy = context.run.empirical_policy.dict()
+            updated_policy[
                 "pause_counter"
             ] = context.proposed_state.state_details.pause_counter
-            context.run.empirical_policy = current_policy
+            context.run.empirical_policy = updated_policy
 
 
 class UpdateSubflowParentTask(BaseUniversalTransform):

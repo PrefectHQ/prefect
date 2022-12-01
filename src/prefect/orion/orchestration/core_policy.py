@@ -26,7 +26,7 @@ from prefect.orion.orchestration.rules import (
     OrchestrationContext,
     TaskOrchestrationContext,
 )
-from prefect.orion.schemas import filters, states
+from prefect.orion.schemas import core, filters, states
 from prefect.orion.schemas.states import StateType
 
 
@@ -425,9 +425,9 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
             )
             return
 
-        current_policy = context.run.empirical_policy.dict()
-        current_policy["resuming"] = True
-        context.run.empirical_policy = current_policy
+        updated_policy = context.run.empirical_policy.dict()
+        updated_policy["resuming"] = True
+        context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
 
 class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
