@@ -624,7 +624,7 @@ Support for cancellation is included for all core library infrastructure types:
 - Kubernetes Jobs
 - Processes
 
-Cancellation is robust to restarts of the agent. To enable this, we track attach metadata about the created flow run infrastructure to the flow run. Internally, this is referred to as the `infrastructure_pid` or infrastructure identifier. Generally, this is composed of two parts: 
+Cancellation is robust to restarts of the agent. To enable this, we attach metadata about the created infrastructure to the flow run. Internally, this is referred to as the `infrastructure_pid` or infrastructure identifier. Generally, this is composed of two parts: 
 
 1. Scope: identifying where the infrastructure is running.
 2. ID: a unique identifier for the infrastructure within the scope.
