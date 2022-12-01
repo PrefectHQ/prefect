@@ -32,7 +32,7 @@ Cancellation support is in progress for all collection infrastructure types:
 - Google Cloud Run Jobs (https://github.com/PrefectHQ/prefect-gcp/pull/76)
 - Azure Container Instances (https://github.com/PrefectHQ/prefect-azure/pull/58)
 
-At this time, this feature requires the flow run to be submitted by an agent — flow runs without deployments cannot be cancelled yet but that feature is [coming soon](https://github.com/PrefectHQ/prefect/pull/7150).
+At this time, this feature requires the flow run to be submitted by an agent — flow runs without deployments cannot be cancelled yet, but that feature is [coming soon](https://github.com/PrefectHQ/prefect/pull/7150).
 
 See https://github.com/PrefectHQ/prefect/pull/7637 for more details
 
