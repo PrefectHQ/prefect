@@ -794,9 +794,12 @@ async def resume_flow_run(flow_run_id):
     if not flow_run.state.is_paused():
         raise NotPausedError("Cannot resume a run that isn't paused!")
 
-    await client.resume_flow_run(
+    response = await client.resume_flow_run(
         flow_run_id,
     )
+
+    if response.status == SetStateStatus.REJECT:
+        raise FlowPauseTimeout("Flow run can no longer be resumed.")
 
 
 def enter_task_run_engine(
