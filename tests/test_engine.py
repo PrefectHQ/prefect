@@ -155,7 +155,7 @@ class TestPausingFlows:
             pausing_flow()
 
         sleep_intervals = [c.args[0] for c in sleeper.await_args_list]
-        assert min(sleep_intervals) == 2
+        assert min(sleep_intervals) <= 2  # Okay if this is zero
         assert max(sleep_intervals) == 2
 
     async def test_first_polling_is_smaller_than_the_timeout(self, monkeypatch):
