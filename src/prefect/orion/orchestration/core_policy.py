@@ -39,6 +39,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
         return [
             HandleFlowTerminalStateTransitions,
             PreventRedundantTransitions,
+            HandleResumingPausedFlows,
             WaitForScheduledTime,
             RetryFailedFlows,
         ]
@@ -404,6 +405,31 @@ class WaitForScheduledTime(BaseOrchestrationRule):
             )
 
 
+class HandleResumingPausedFlows(BaseOrchestrationRule):
+    """
+    Governs runs attempting to leave a Paused state
+    """
+
+    FROM_STATES = [states.StateType.PAUSED]
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        if not (proposed_state.is_running() or proposed_state.is_scheduled()):
+            await self.abort_transition(
+                reason=f"This run cannot transition to the {proposed_state_type} state from the {initial_state_type} state."
+            )
+            return
+
+        current_policy = context.run.empirical_policy.dict()
+        current_policy["resuming"] = True
+        context.run.empirical_policy = current_policy
+
+
 class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
     """
     Tracks the flow run attempt a task run state is associated with.
@@ -415,7 +441,7 @@ class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
     async def after_transition(
         self,
         initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
+        validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
         self.flow_run = await context.flow_run()

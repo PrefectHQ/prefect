@@ -44,7 +44,6 @@ class GlobalFlowPolicy(BaseOrchestrationPolicy):
             UpdateSubflowParentTask,
             UpdateSubflowStateDetails,
             UpdatePauseCounter,
-            MarkResumingRuns,
             IncrementFlowRunCount,
         ]
 
@@ -243,21 +242,6 @@ class SetNextScheduledStartTime(BaseUniversalTransform):
             context.run.next_scheduled_start_time = (
                 context.proposed_state.state_details.scheduled_time
             )
-
-
-class MarkResumingRuns(BaseUniversalTransform):
-    async def before_transition(self, context: OrchestrationContext) -> None:
-        if self.nullified_transition():
-            return
-
-        if context.initial_state and context.initial_state.is_paused():
-            if (
-                context.proposed_state.is_running()
-                or context.proposed_state.is_scheduled()
-            ):
-                current_policy = context.run.empirical_policy.dict()
-                current_policy["resuming"] = True
-                context.run.empirical_policy = current_policy
 
 
 class UpdatePauseCounter(BaseUniversalTransform):
