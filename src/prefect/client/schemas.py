@@ -1,4 +1,13 @@
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    Optional,
+    Sequence,
+    TypeVar,
+    Union,
+    overload,
+)
 from uuid import UUID
 
 from pydantic import Field
@@ -19,7 +28,7 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
     The state of a run.
     """
 
-    data: Union["BaseResult[R]", "DataDocument[R]", Any] = Field(
+    data: Union[Sequence, "BaseResult[R]", "DataDocument[R]", Any] = Field(
         default=None,
     )
 
