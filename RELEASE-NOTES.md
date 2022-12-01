@@ -8,21 +8,23 @@ We're excited to announce a new flow run cancellation feature!
 
 Flow runs can be cancelled from the CLI, UI, REST API, or Python client. 
 
-When cancellation is requested, the flow run is moved to a "Cancelling" state. The agent monitors the state of flow runs and will detect that cacellation has been requested. The agent will then send a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed ensuring the flow run exits.
+When cancellation is requested, the flow run is moved to a "Cancelling" state. The agent monitors the state of flow runs and detects that cancellation has been requested. The agent then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
 
 Unlike the implementation of cancellation in Prefect 1 — which could fail if the flow run was stuck — this provides a strong guarantee of cancellation. 
 
-Note this process is robust to agent restarts, but does require an agent to be running for cancellation to be enforced.
+Note: this process is robust to agent restarts, but does require that an agent is running to enforce cancellation.
 
 Support for cancellation has been added to all core library infrastructure types:
+
 - Docker Containers (https://github.com/PrefectHQ/prefect/pull/7684)
 - Kubernetes Jobs (https://github.com/PrefectHQ/prefect/pull/7701)
 - Processes (https://github.com/PrefectHQ/prefect/pull/7635)
 
 Cancellation support is in progress for all collection infrastructure types:
+
 - ECS Tasks (https://github.com/PrefectHQ/prefect-aws/pull/163)
-- Azure Container Instances (...)
 - Google Cloud Run Jobs (https://github.com/PrefectHQ/prefect-gcp/pull/76)
+- Azure Container Instances (https://github.com/PrefectHQ/prefect-azure/pull/58)
 
 At this time, this feature requires the flow run to be submitted by an agent — flow runs without deployments cannot be cancelled yet. We're working on adding another cancellation mechanism that does not require the agent, but it will not provide as strong of a guarantee that your infrastructure shutsdown.
 
@@ -104,7 +106,7 @@ See https://github.com/PrefectHQ/prefect/pull/7361 for more details.
 - Add `TwilioSMS` notification block — https://github.com/PrefectHQ/prefect/pull/7685
 - Add jitter to the agent query loop — https://github.com/PrefectHQ/prefect/pull/7652
 - Include final state logs in logs sent to API — https://github.com/PrefectHQ/prefect/pull/7647
-- Add `tags` to and `idempotency_key` to `run deployment` — https://github.com/PrefectHQ/prefect/pull/7641
+- Add `tags` and `idempotency_key` to `run deployment` — https://github.com/PrefectHQ/prefect/pull/7641
 - The final state of a flow is now `Cancelled` when any task finishes in a `Cancelled` state — https://github.com/PrefectHQ/prefect/pull/7694
 - Disable cache on result retrieval if disabled on creation — https://github.com/PrefectHQ/prefect/pull/7627
 - Add agent reporting of crashed flow run infrastructure — https://github.com/PrefectHQ/prefect/pull/7670
@@ -114,7 +116,7 @@ See https://github.com/PrefectHQ/prefect/pull/7361 for more details.
 - Add default messages to state exceptions — https://github.com/PrefectHQ/prefect/pull/7705
 
 ### Fixes
-- Prompt workspace selection if API key is set but API URL is not set — https://github.com/PrefectHQ/prefect/pull/7648
+- Prompt workspace selection if API key is set, but API URL is not set — https://github.com/PrefectHQ/prefect/pull/7648
 - Use `PREFECT_UI_URL` for flow run notifications — https://github.com/PrefectHQ/prefect/pull/7698
 - Display all parameter values a flow run was triggered with in the UI (defaults and overrides) — https://github.com/PrefectHQ/prefect/pull/7697
 - Fix bug where result event is missing when wait is called before submission completes — https://github.com/PrefectHQ/prefect/pull/7571
@@ -125,8 +127,8 @@ See https://github.com/PrefectHQ/prefect/pull/7361 for more details.
 ### Documentation
 - Fix heading links in docs — https://github.com/PrefectHQ/prefect/pull/7665
 - Update login and `PREFECT_API_URL` configuration notes — https://github.com/PrefectHQ/prefect/pull/7674
-- Add documentation about AWS retries config — https://github.com/PrefectHQ/prefect/pull/7691
-- Add GitLab storage block docs to deployment CLI — https://github.com/PrefectHQ/prefect/pull/7686
+- Add documentation about AWS retries configuration — https://github.com/PrefectHQ/prefect/pull/7691
+- Add GitLab storage block to deployment CLI docs — https://github.com/PrefectHQ/prefect/pull/7686
 - Add links to Cloud Run and Container Instance infrastructure — https://github.com/PrefectHQ/prefect/pull/7690
 - Update docs on final state determination to reflect `Cancelled` state changes — https://github.com/PrefectHQ/prefect/pull/7700
 - Fix link in 'Agents and Work Queues' documentation — https://github.com/PrefectHQ/prefect/pull/7659
@@ -135,7 +137,6 @@ See https://github.com/PrefectHQ/prefect/pull/7361 for more details.
 - @brian-pond made their first contribution in https://github.com/PrefectHQ/prefect/pull/7659
 - @YtKC made their first contribution in https://github.com/PrefectHQ/prefect/pull/7641
 - @eudyptula made their first contribution in https://github.com/PrefectHQ/prefect/pull/7361
-- @brian-pond
 - @hateyouinfinity
 - @jmrobbins13
 
