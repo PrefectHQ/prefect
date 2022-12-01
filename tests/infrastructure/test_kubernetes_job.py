@@ -698,6 +698,17 @@ def test_watches_the_right_namespace(
     )
 
 
+def test_get_infrastructure_pid_handles_config_exceptions(monkeypatch):
+    mock = MagicMock()
+    mock.side_effect = k8s.config.config_exception.ConfigException("Error")
+    monkeypatch.setattr(
+        "prefect.infrastructure.kubernetes.KubernetesJob._get_active_cluster_name", mock
+    )
+    job = KubernetesJob()
+    job_pid = job._get_infrastructure_pid("my-job")
+    assert job_pid == "in-cluster-config:my-job"
+
+
 class TestCustomizingBaseJob:
     """Tests scenarios where a user is providing a customized base Job template"""
 
