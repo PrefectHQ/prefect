@@ -346,7 +346,12 @@ class KubernetesJob(Infrastructure):
         return cluster_name
 
     def _configure_kubernetes_library_client(self) -> None:
-        """Set the correct kubernetes configuration."""
+        """Set the correct kubernetes client configuration.
+
+        Important: this is NOT threadsafe.
+
+        TODO: investigate returning a client
+        """
         # if a k8s cluster block is provided to the flow runner, use that
         if self.cluster_config:
             self.cluster_config.configure_client()
