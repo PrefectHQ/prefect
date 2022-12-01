@@ -32,14 +32,13 @@ class TestPrefectHttpxClient:
         [status.HTTP_429_TOO_MANY_REQUESTS, status.HTTP_503_SERVICE_UNAVAILABLE],
     )
     async def test_prefect_httpx_client_retries_on_designated_error_codes(
-        self, monkeypatch, error_code
+        self, monkeypatch, error_code, caplog
     ):
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
         client = PrefectHttpxClient()
         retry_response = Response(
             error_code,
-            headers={"Retry-After": "0"},
             request=Request("a test request", "fake.url/fake/route"),
         )
         base_client_send.side_effect = [
@@ -53,6 +52,18 @@ class TestPrefectHttpxClient:
         )
         assert response.status_code == status.HTTP_200_OK
         assert base_client_send.call_count == 4
+
+        # We log on retry
+        assert "Received response with retryable status code" in caplog.text
+        assert "Another attempt will be made in 2s" in caplog.text
+        assert "This is attempt 1/6" in caplog.text
+
+        # A traceback should not be included
+        assert "Traceback" not in caplog.text
+
+        # Ensure the messaging changes
+        assert "Another attempt will be made in 4s" in caplog.text
+        assert "This is attempt 2/6" in caplog.text
 
     @pytest.mark.usefixtures("mock_anyio_sleep")
     @pytest.mark.parametrize(
@@ -69,6 +80,7 @@ class TestPrefectHttpxClient:
         self,
         monkeypatch,
         exception_type,
+        caplog,
     ):
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
@@ -85,6 +97,18 @@ class TestPrefectHttpxClient:
         )
         assert response.status_code == status.HTTP_200_OK
         assert base_client_send.call_count == 4
+
+        # We log on retry
+        assert "Encountered retryable exception during request" in caplog.text
+        assert "Another attempt will be made in 2s" in caplog.text
+        assert "This is attempt 1/6" in caplog.text
+
+        # The traceback should be included
+        assert "Traceback" in caplog.text
+
+        # Ensure the messaging changes
+        assert "Another attempt will be made in 4s" in caplog.text
+        assert "This is attempt 2/6" in caplog.text
 
     @pytest.mark.usefixtures("mock_anyio_sleep")
     @pytest.mark.parametrize(

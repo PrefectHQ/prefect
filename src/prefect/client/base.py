@@ -14,12 +14,16 @@ from httpx import HTTPStatusError, Response
 from typing_extensions import Self
 
 from prefect.exceptions import PrefectHTTPStatusError
+from prefect.logging import get_logger
 
 # Datastores for lifespan management, keys should be a tuple of thread and app identities.
 APP_LIFESPANS: Dict[Tuple[int, int], LifespanManager] = {}
 APP_LIFESPANS_REF_COUNTS: Dict[Tuple[int, int], int] = {}
 # Blocks concurrent access to the above dicts per thread. The index should be the thread identity.
 APP_LIFESPANS_LOCKS: Dict[int, anyio.Lock] = defaultdict(anyio.Lock)
+
+
+logger = get_logger("client")
 
 
 @asynccontextmanager
@@ -173,43 +177,50 @@ class PrefectHttpxClient(httpx.AsyncClient):
         """
         try_count = 0
         response = None
-        retry = True
 
-        while retry:
+        while try_count <= self.RETRY_MAX:
             try_count += 1
             retry_seconds = None
+            exc_info = None
 
             try:
                 response = await request()
             except retry_exceptions:
                 if try_count > self.RETRY_MAX:
-                    retry = False
                     raise
-                else:
-                    continue
-            except BaseException:
-                retry = False
-                raise
-
+                # Otherwise, we will ignore this error but capture the info for logging
+                exc_info = sys.exc_info()
             else:
-                # we got a good response
+                # We got a response; return immediately if it is not retryable
                 if response.status_code not in retry_codes:
-                    retry = False
-                # respect retry headers
-                else:
-                    retry_after = response.headers.get("Retry-After")
-                    if retry_after:
-                        retry_seconds = float(retry_after)
+                    return response
 
-            finally:
-                if retry:
-                    if retry_seconds is None:
-                        retry_seconds = 2**try_count
-                    await anyio.sleep(retry_seconds)
+                if "Retry-After" in response.headers:
+                    retry_seconds = float(response.headers["Retry-After"])
 
-                    if try_count > self.RETRY_MAX:
-                        retry = False
+            # Use an exponential back-off if not set in a header
+            if retry_seconds is None:
+                retry_seconds = 2**try_count
 
+            logger.debug(
+                (
+                    "Encountered retryable exception during request. "
+                    if exc_info
+                    else "Received response with retryable status code. "
+                )
+                + (
+                    f"Another attempt will be made in {retry_seconds}s. "
+                    f"This is attempt {try_count}/{self.RETRY_MAX + 1}."
+                ),
+                exc_info=exc_info,
+            )
+            await anyio.sleep(retry_seconds)
+
+        assert (
+            response is not None
+        ), "Retry handling ended without response or exception"
+
+        # We ran out of retries, return the failed response
         return response
 
     async def send(self, *args, **kwargs) -> Response:
