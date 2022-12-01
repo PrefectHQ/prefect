@@ -290,8 +290,8 @@ class DockerContainer(Infrastructure):
         if docker_client.api.base_url != base_url:
             raise InfrastructureNotAvailable(
                 f"Unable to stop container {container_id!r}: the current docker api ",
-                f"base_url {docker_client.api.base_url!r} does not match the expected ",
-                f"api base_url {base_url}.",
+                f"API URL {docker_client.api.base_url!r} does not match the expected ",
+                f"api base URL {base_url}.",
             )
         try:
             container = docker_client.containers.get(container_id=container_id)
