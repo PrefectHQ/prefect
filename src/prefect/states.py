@@ -291,10 +291,13 @@ async def get_state_exception(state: State) -> BaseException:
 
     if state.is_failed():
         wrapper = FailedRun
+        default_message = "Run failed."
     elif state.is_crashed():
         wrapper = CrashedRun
+        default_message = "Run crashed."
     elif state.is_cancelled():
         wrapper = CancelledRun
+        default_message = "Run cancelled."
     else:
         raise ValueError(f"Expected failed or crashed state got {state!r}.")
 
@@ -306,7 +309,7 @@ async def get_state_exception(state: State) -> BaseException:
         result = state.data
 
     if result is None:
-        return wrapper(state.message)
+        return wrapper(state.message or default_message)
 
     if isinstance(result, Exception):
         return result
