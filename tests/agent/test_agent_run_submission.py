@@ -784,8 +784,8 @@ class TestInfrastructureIntegration:
             ).dict()
         )
         assert (
-            f"Reporting flow run '{flow_run.id}' as crashed due to non-zero status code"
-            in caplog.text
+            f"Reported flow run '{flow_run.id}' as crashed: "
+            "Flow run infrastructure exited with non-zero status code 9." in caplog.text
         )
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
@@ -795,7 +795,7 @@ class TestInfrastructureIntegration:
 
     @pytest.mark.parametrize(
         "terminal_state_type",
-        [StateType.CRASHED, StateType.FAILED, StateType.COMPLETED],
+        [StateType.CRASHED, StateType.FAILED, StateType.COMPLETED, StateType.CANCELLED],
     )
     async def test_agent_does_not_crashes_flow_if_already_in_terminal_state(
         self,
@@ -833,10 +833,8 @@ class TestInfrastructureIntegration:
                 flow_run, deployment=deployment, flow=flow
             ).dict()
         )
-        assert (
-            f"Reporting flow run '{flow_run.id}' as crashed due to non-zero status code"
-            in caplog.text
-        )
+
+        assert f"Reported flow run '{flow_run.id}' as crashed" not in caplog.text
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
         assert state.type == terminal_state_type
