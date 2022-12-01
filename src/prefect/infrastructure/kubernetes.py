@@ -1,7 +1,7 @@
 import copy
 import enum
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
 import yaml
@@ -10,6 +10,7 @@ from typing_extensions import Literal
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.docker import get_prefect_image_name
+from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.hashing import stable_hash
@@ -263,27 +264,44 @@ class KubernetesJob(Infrastructure):
         if not self.command:
             raise ValueError("Kubernetes job cannot be run with empty command.")
 
-        # if a k8s cluster block is provided to the flow runner, use that
-        if self.cluster_config:
-            self.cluster_config.configure_client()
-        else:
-            # If no block specified, try to load Kubernetes configuration within a cluster. If that doesn't
-            # work, try to load the configuration from the local environment, allowing
-            # any further ConfigExceptions to bubble up.
-            try:
-                kubernetes.config.load_incluster_config()
-            except kubernetes.config.ConfigException:
-                kubernetes.config.load_kube_config()
-
+        self._configure_kubernetes_library_client()
         manifest = self.build_job()
         job_name = await run_sync_in_worker_thread(self._create_job, manifest)
 
+        job_pid = self._get_infrastructure_pid(job_name)
         # Indicate that the job has started
         if task_status is not None:
-            task_status.started(job_name)
+            task_status.started(job_pid)
 
         # Monitor the job
         return await run_sync_in_worker_thread(self._watch_job, job_name)
+
+    async def kill(self, infrastructure_pid: str, grace_seconds: int = 30):
+        self._configure_kubernetes_library_client()
+        job_cluster, job_name = self._parse_infrastructure_pid(infrastructure_pid)
+        current_cluster = self._get_active_cluster_name()
+        if job_cluster != current_cluster:
+            raise InfrastructureNotAvailable(
+                f"Unable to stop job {job_name!r}: the job is running on cluster ",
+                f"{job_cluster!r}, but your current context is attached to cluster ",
+                f"{current_cluster!r}.",
+            )
+
+        with self.get_batch_client() as batch_client:
+            try:
+                batch_client.delete_namespaced_job(
+                    name=job_name,
+                    namespace=self.namespace,
+                    grace_period_seconds=grace_seconds,
+                    propagation_policy="Foreground",
+                )
+            except kubernetes.client.exceptions.ApiException as exc:
+                if exc.status == 404:
+                    raise InfrastructureNotFound(
+                        f"Unable to stop job {job_name!r}: The job was not found."
+                    ) from exc
+                else:
+                    raise
 
     def preview(self):
         return yaml.dump(self.build_job())
@@ -310,6 +328,44 @@ class KubernetesJob(Infrastructure):
                 yield kubernetes.client.CoreV1Api(api_client=client)
             finally:
                 client.rest_client.pool_manager.clear()
+
+    def _get_infrastructure_pid(self, job_name: str) -> str:
+        """Generates a kubernetes pid string in the form of `<cluster_name>:<job_name>`."""
+        try:
+            cluster_name = self._get_active_cluster_name()
+        except kubernetes.config.config_exception.ConfigException:
+            cluster_name = "in-cluster-config"
+        job_pid = f"{cluster_name}:{job_name}"
+        return job_pid
+
+    def _parse_infrastructure_pid(self, infrastructure_pid: str) -> Tuple[str, str]:
+        """Splits a kubernetes infrastructure pid into its component parts."""
+        cluster_name, job_name = infrastructure_pid.rsplit(":", 1)
+        return cluster_name, job_name
+
+    def _get_active_cluster_name(self) -> str:
+        _, active_context = kubernetes.config.list_kube_config_contexts()
+        cluster_name = active_context["context"]["cluster"]
+        return cluster_name
+
+    def _configure_kubernetes_library_client(self) -> None:
+        """Set the correct kubernetes client configuration.
+
+        Important: this is NOT threadsafe.
+
+        TODO: investigate returning a client
+        """
+        # if a k8s cluster block is provided to the flow runner, use that
+        if self.cluster_config:
+            self.cluster_config.configure_client()
+        else:
+            # If no block specified, try to load Kubernetes configuration within a cluster. If that doesn't
+            # work, try to load the configuration from the local environment, allowing
+            # any further ConfigExceptions to bubble up.
+            try:
+                kubernetes.config.load_incluster_config()
+            except kubernetes.config.ConfigException:
+                kubernetes.config.load_kube_config()
 
     def _shortcut_customizations(self) -> JsonPatch:
         """Produces the JSON 6902 patch for the most commonly used customizations, like

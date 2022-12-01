@@ -1,11 +1,14 @@
 import os
+import signal
+import socket
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import anyio
 import anyio.abc
 import pytest
 
+from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.process import Process
 from prefect.testing.utilities import AsyncMock
 
@@ -134,12 +137,14 @@ async def test_process_can_be_run_async():
     assert result
 
 
-def test_task_status_receives_pid():
+def test_task_status_receives_infrastructure_pid():
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     result = Process(command=["echo", "hello"], stream_output=False).run(
         task_status=fake_status
     )
-    fake_status.started.assert_called_once_with(int(result.identifier))
+
+    hostname = socket.gethostname()
+    fake_status.started.assert_called_once_with(f"{hostname}:{result.identifier}")
 
 
 def test_run_requires_command():
@@ -185,3 +190,76 @@ def test_process_logs_exit_code_help_message(
     record = caplog.records[-1]
     assert record.levelname == "ERROR"
     assert help_message in record.message
+
+
+async def test_process_kill_mismatching_hostname(monkeypatch):
+    os_kill = MagicMock()
+    monkeypatch.setattr("os.kill", os_kill)
+
+    infrastructure_pid = f"not-{socket.gethostname()}:12345"
+
+    process = Process(command=["noop"])
+
+    with pytest.raises(InfrastructureNotAvailable):
+        await process.kill(infrastructure_pid=infrastructure_pid, grace_seconds=15)
+
+    os_kill.assert_not_called()
+
+
+async def test_process_kill_no_matching_pid(monkeypatch):
+    os_kill = MagicMock(side_effect=ProcessLookupError())
+    monkeypatch.setattr("os.kill", os_kill)
+
+    infrastructure_pid = f"{socket.gethostname()}:12345"
+
+    process = Process(command=["noop"])
+
+    with pytest.raises(InfrastructureNotFound):
+        await process.kill(infrastructure_pid=infrastructure_pid, grace_seconds=15)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="SIGTERM/SIGKILL are only used in non-Windows environments",
+)
+async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch):
+    os_kill = MagicMock()
+    anyio_sleep = AsyncMock()
+    monkeypatch.setattr("os.kill", os_kill)
+    monkeypatch.setattr("prefect.infrastructure.process.anyio.sleep", anyio_sleep)
+
+    infrastructure_pid = f"{socket.gethostname()}:12345"
+    grace_seconds = 15
+
+    process = Process(command=["noop"])
+    await process.kill(
+        infrastructure_pid=infrastructure_pid, grace_seconds=grace_seconds
+    )
+
+    os_kill.assert_has_calls(
+        [
+            call(12345, signal.SIGTERM),
+            call(12345, signal.SIGKILL),
+        ]
+    )
+
+    anyio_sleep.assert_called_once_with(grace_seconds)
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="CTRL_BREAK_EVENT is only defined in Windows",
+)
+async def test_process_kill_windows_sends_ctrl_break(monkeypatch):
+    os_kill = MagicMock()
+    monkeypatch.setattr("os.kill", os_kill)
+
+    infrastructure_pid = f"{socket.gethostname()}:12345"
+    grace_seconds = 15
+
+    process = Process(command=["noop"])
+    await process.kill(
+        infrastructure_pid=infrastructure_pid, grace_seconds=grace_seconds
+    )
+
+    os_kill.assert_called_once_with(12345, signal.CTRL_BREAK_EVENT)

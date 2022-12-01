@@ -13,14 +13,18 @@ import pendulum
 import pytest
 import yaml
 from jsonpatch import JsonPatch
+from kubernetes.client.exceptions import ApiException
 from kubernetes.config import ConfigException
 from pydantic import ValidationError
 
+from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.kubernetes import (
     KubernetesImagePullPolicy,
     KubernetesJob,
     KubernetesManifest,
 )
+
+FAKE_CLUSTER = "fake-cluster"
 
 
 @pytest.fixture(autouse=True)
@@ -45,7 +49,10 @@ def mock_cluster_config(monkeypatch):
     mock = MagicMock()
     # We cannot mock this or the `except` clause will complain
     mock.config.ConfigException = ConfigException
-
+    mock.list_kube_config_contexts.return_value = (
+        [],
+        {"context": {"cluster": FAKE_CLUSTER}},
+    )
     monkeypatch.setattr("kubernetes.config", mock)
     monkeypatch.setattr("kubernetes.config.ConfigException", ConfigException)
     return mock
@@ -139,17 +146,17 @@ def test_creates_job_by_building_a_manifest(
     fake_status.started.assert_called_once()
 
 
-def test_task_status_receives_job_name(
+def test_task_status_receives_job_pid(
     mock_k8s_batch_client,
     mock_k8s_client,
     mock_watch,
 ):
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     result = KubernetesJob(command=["echo", "hello"]).run(task_status=fake_status)
-    fake_status.started.assert_called_once_with(result.identifier)
+    fake_status.started.assert_called_once_with(f"{FAKE_CLUSTER}:{result.identifier}")
 
 
-async def test_task_group_start_returns_job_name(
+async def test_task_group_start_returns_job_pid(
     mock_k8s_batch_client,
     mock_k8s_client,
     mock_watch,
@@ -158,7 +165,99 @@ async def test_task_group_start_returns_job_name(
         status_result = await tg.start(
             KubernetesJob(command=["echo", "hello"], name="test").run
         )
-        assert status_result == "mock-k8s-v1-job"
+        assert status_result == f"{FAKE_CLUSTER}:mock-k8s-v1-job"
+
+
+async def test_kill_calls_delete_namespaced_job(
+    mock_k8s_batch_client,
+    mock_k8s_client,
+    mock_watch,
+):
+    await KubernetesJob(command=["echo", "hello"], name="test").kill(
+        infrastructure_pid=f"{FAKE_CLUSTER}:mock-k8s-v1-job", grace_seconds=0
+    )
+
+    assert len(mock_k8s_batch_client.mock_calls) == 1
+    mock_k8s_batch_client.delete_namespaced_job.assert_called_once_with(
+        name="mock-k8s-v1-job",
+        namespace="default",
+        grace_period_seconds=0,
+        # Foreground propagation deletes dependent objects before deleting owner objects.
+        # This ensures that the pods are cleaned up before the job is marked as deleted.
+        # See: https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion
+        propagation_policy="Foreground",
+    )
+
+
+async def test_kill_uses_foreground_propagation_policy(
+    mock_k8s_batch_client,
+    mock_k8s_client,
+    mock_watch,
+):
+    await KubernetesJob(command=["echo", "hello"], name="test").kill(
+        infrastructure_pid=f"{FAKE_CLUSTER}:mock-k8s-v1-job", grace_seconds=0
+    )
+
+    assert len(mock_k8s_batch_client.mock_calls) == 1
+    mock_call = mock_k8s_batch_client.mock_calls[0]
+    assert "propagation_policy='Foreground'" in str(mock_call)
+
+
+async def test_kill_uses_correct_grace_seconds(
+    mock_k8s_batch_client,
+    mock_k8s_client,
+    mock_watch,
+):
+    await KubernetesJob(command=["echo", "hello"], name="test").kill(
+        infrastructure_pid=f"{FAKE_CLUSTER}:mock-k8s-v1-job", grace_seconds=42
+    )
+
+    assert len(mock_k8s_batch_client.mock_calls) == 1
+    mock_call = mock_k8s_batch_client.mock_calls[0]
+    assert "grace_period_seconds=42" in str(mock_call)
+
+
+async def test_kill_raises_infra_not_available_on_mismatched_cluster_name(
+    mock_k8s_batch_client,
+    mock_k8s_client,
+    mock_watch,
+):
+    BAD_CLUSTER = "bad-cluster"
+    with pytest.raises(
+        InfrastructureNotAvailable,
+    ):
+        await KubernetesJob(command=["echo", "hello"], name="test").kill(
+            infrastructure_pid=f"{BAD_CLUSTER}:mock-k8s-v1-job", grace_seconds=0
+        )
+
+
+async def test_kill_raises_infrastructure_not_found_on_404(
+    mock_k8s_batch_client,
+    mock_k8s_client,
+    mock_watch,
+):
+    mock_k8s_batch_client.delete_namespaced_job.side_effect = [ApiException(status=404)]
+    with pytest.raises(
+        InfrastructureNotFound,
+        match="Unable to stop job 'mock-k8s-v1-job': The job was not found.",
+    ):
+        await KubernetesJob(command=["echo", "hello"], name="test").kill(
+            infrastructure_pid=f"{FAKE_CLUSTER}:mock-k8s-v1-job", grace_seconds=0
+        )
+
+
+async def test_kill_passes_other_k8s_api_errors_through(
+    mock_k8s_batch_client,
+    mock_k8s_client,
+    mock_watch,
+):
+    mock_k8s_batch_client.delete_namespaced_job.side_effect = [ApiException(status=400)]
+    with pytest.raises(
+        ApiException,
+    ):
+        await KubernetesJob(command=["echo", "hello"], name="test").kill(
+            infrastructure_pid=f"{FAKE_CLUSTER}:mock-k8s-v1-job", grace_seconds=0
+        )
 
 
 @pytest.mark.parametrize(
@@ -597,6 +696,17 @@ def test_watches_the_right_namespace(
             ),
         ]
     )
+
+
+def test_get_infrastructure_pid_handles_config_exceptions(monkeypatch):
+    mock = MagicMock()
+    mock.side_effect = k8s.config.config_exception.ConfigException("Error")
+    monkeypatch.setattr(
+        "prefect.infrastructure.kubernetes.KubernetesJob._get_active_cluster_name", mock
+    )
+    job = KubernetesJob()
+    job_pid = job._get_infrastructure_pid("my-job")
+    assert job_pid == "in-cluster-config:my-job"
 
 
 class TestCustomizingBaseJob:
