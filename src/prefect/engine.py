@@ -727,10 +727,7 @@ async def pause_flow_run(timeout: int = 300, poll_interval: int = 10):
 
     logger.info("Pausing flow, execution will continue when this flow run is resumed.")
     client = get_client()
-    response = await client.set_flow_run_state(
-        frc.flow_run.id,
-        Paused(),
-    )
+    response = await client.set_flow_run_state(frc.flow_run.id, Paused())
 
     with anyio.move_on_after(timeout):
 
@@ -749,7 +746,11 @@ async def pause_flow_run(timeout: int = 300, poll_interval: int = 10):
                 logger.info("Resuming flow run execution!")
                 return
 
-    raise FlowPauseTimeout("Flow run was paused and never resumed.")
+    # Check the final state before throwing the error; the timeout could be less than
+    # our polling interval
+    flow_run = await client.read_flow_run(frc.flow_run.id)
+    if flow_run.state.is_paused():
+        raise FlowPauseTimeout("Flow run was paused and never resumed.")
 
 
 @sync_compatible
