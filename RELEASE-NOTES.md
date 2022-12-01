@@ -2,9 +2,7 @@
 
 ## Release 2.7.0
 
-### Features
-
-#### Flow run cancellation
+### Flow run cancellation
 
 We're excited to announce a new flow run cancellation feature!
 
@@ -30,7 +28,7 @@ At this time, this feature requires the flow run to be submitted by an agent —
 
 See https://github.com/PrefectHQ/prefect/pull/7637 for more details
 
-#### Flow run pause and resume
+### Flow run pause and resume
 
 Flow runs can now be paused for manual approval.
 
@@ -38,14 +36,14 @@ Flow runs can now be paused for manual approval.
 
 See https://github.com/PrefectHQ/prefect/pull/7637 for more details.
 
-#### Logging of prints in flows and tasks
+### Logging of prints in flows and tasks
 
 ...
 
 See https://github.com/PrefectHQ/prefect/pull/7580 for more details.
 
 
-#### Agent flow run concurrency limits
+### Agent flow run concurrency limits
 
 ...
 
