@@ -23,6 +23,7 @@ from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar,
 from uuid import UUID, uuid4
 
 import anyio
+import anyio.abc
 import pendulum
 from anyio import start_blocking_portal
 from typing_extensions import Literal
@@ -64,7 +65,11 @@ from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, ResultFactory
-from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_LOGGING_LOG_PRINTS
+from prefect.settings import (
+    PREFECT_CANCEL_CHECK_QUERY_INTERVAL,
+    PREFECT_DEBUG_MODE,
+    PREFECT_LOGGING_LOG_PRINTS,
+)
 from prefect.states import (
     Paused,
     Pending,
@@ -343,9 +348,9 @@ async def begin_flow_run(
         )
 
         # Create a task group for background tasks
-        flow_run_context.background_tasks = await stack.enter_async_context(
-            anyio.create_task_group()
-        )
+        background_tasks = (
+            flow_run_context.background_tasks
+        ) = await stack.enter_async_context(anyio.create_task_group())
 
         # If the flow is async, we need to provide a portal so sync tasks can run
         flow_run_context.sync_portal = (
@@ -366,6 +371,15 @@ async def begin_flow_run(
 
         if log_prints:
             stack.enter_context(patch_print())
+
+        await stack.enter_async_context(
+            watch_for_flow_run_cancellation(
+                flow_run=flow_run,
+                task_group=background_tasks,
+                client=client,
+                logger=logger,
+            )
+        )
 
         terminal_state = await orchestrate_flow_run(
             flow,
@@ -497,6 +511,15 @@ async def create_and_begin_subflow_run(
 
             if log_prints:
                 stack.enter_context(patch_print())
+
+            await stack.enter_async_context(
+                watch_for_flow_run_cancellation(
+                    flow_run=flow_run,
+                    task_group=parent_flow_run_context.background_tasks,
+                    client=client,
+                    logger=logger,
+                )
+            )
 
             terminal_state = await orchestrate_flow_run(
                 flow,
@@ -1803,3 +1826,47 @@ if __name__ == "__main__":
         )
         # Let the exit code be determined by the base exception type
         raise
+
+
+@asynccontextmanager
+async def watch_for_flow_run_cancellation(
+    flow_run: FlowRun, task_group: anyio.abc.TaskGroup, client: "OrionClient", logger
+):
+    async def _worker(
+        flow_run: FlowRun,
+        flow_run_cancel_scope: anyio.CancelScope,
+        task_status: anyio.abc.TaskStatus,
+    ):
+        """
+        This worker looks at the flow run state on an interval. if the flow run is
+        CANCELLED it will cancel the scope that has been passed to it which should
+        interrupt any code within the `watch_for_flow_run_cancellation` context.
+
+        If the state is terminal, this worker will exit.
+        If the `watch_for_flow_run_cancellation` context exits, this worker should be
+        interrupted by the scope it returns on start.
+        """
+
+        with anyio.CancelScope() as worker_cancel_scope:
+            task_status.started(worker_cancel_scope)
+            while not flow_run.state.is_final():
+                await anyio.sleep(PREFECT_CANCEL_CHECK_QUERY_INTERVAL.value())
+                flow_run = await client.read_flow_run(flow_run.id)
+                if flow_run.state.type == StateType.CANCELLED:
+                    logger.info(
+                        "Detected cancellation of flow run! Sending cancellation..."
+                    )
+                    flow_run_cancel_scope.cancel()
+
+    # Create a scope that will allow cancellation of the code that occurs during yield
+    with anyio.CancelScope() as flow_run_cancel_scope:
+
+        # The worker returns a scope that can be used to kill the worker when the ctx
+        # is exiting. This prevents us from waiting a full sleep duration on exit.
+        worker_cancel_scope: anyio.CancelScope = await task_group.start(
+            _worker, flow_run, flow_run_cancel_scope
+        )
+
+        yield
+
+        worker_cancel_scope.cancel()

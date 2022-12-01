@@ -550,6 +550,14 @@ PREFECT_LOGGING_COLORS = Setting(
 )
 """Whether to style console logs with color."""
 
+PREFECT_CANCEL_CHECK_QUERY_INTERVAL = Setting(
+    float,
+    default=30,
+)
+"""
+The interval for checking for cancellation of the flow run, in seconds.
+"""
+
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
     default=10,
