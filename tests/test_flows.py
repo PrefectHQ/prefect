@@ -15,6 +15,7 @@ from prefect.client.orion import OrionClient
 from prefect.context import PrefectObjectRegistry
 from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
+    CancelledRun,
     InvalidNameError,
     MissingResult,
     ParameterTypeError,
@@ -200,6 +201,7 @@ class TestFlowWithOptions:
             result_serializer="json",
             result_storage=LocalFileSystem(),
             cache_result_in_memory=False,
+            log_prints=False,
         )
         def initial_flow():
             pass
@@ -218,6 +220,7 @@ class TestFlowWithOptions:
         assert flow_with_options.result_serializer == "json"
         assert flow_with_options.result_storage == LocalFileSystem()
         assert flow_with_options.cache_result_in_memory is False
+        assert flow_with_options.log_prints is False
 
     def test_with_options_can_unset_timeout_seconds_with_zero(self):
         @flow(timeout_seconds=1)
@@ -552,6 +555,9 @@ class TestFlowCall:
         assert second.is_completed()
         assert third.is_failed()
 
+        with pytest.raises(CancelledRun):
+            first.result()
+
     def test_flow_with_cancelled_subflow_has_cancelled_state(self):
         @task
         def cancel():
@@ -814,7 +820,7 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in state.message
 
     def test_timeout_only_applies_if_exceeded(self):
-        @flow(timeout_seconds=0.5)
+        @flow(timeout_seconds=1)
         def my_flow():
             time.sleep(0.1)
 

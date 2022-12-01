@@ -155,7 +155,7 @@ class TestPausingFlows:
             pausing_flow()
 
         sleep_intervals = [c.args[0] for c in sleeper.await_args_list]
-        assert min(sleep_intervals) == 2
+        assert min(sleep_intervals) <= 2  # Okay if this is zero
         assert max(sleep_intervals) == 2
 
     async def test_first_polling_is_smaller_than_the_timeout(self, monkeypatch):
@@ -312,6 +312,7 @@ class TestOrchestrateTaskRun:
                 result_factory=result_factory,
                 interruptible=False,
                 client=orion_client,
+                log_prints=False,
             )
 
         assert state.is_completed()
@@ -344,6 +345,7 @@ class TestOrchestrateTaskRun:
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
+            log_prints=False,
         )
 
         mock_anyio_sleep.assert_not_called()
@@ -383,6 +385,7 @@ class TestOrchestrateTaskRun:
                 result_factory=result_factory,
                 interruptible=False,
                 client=orion_client,
+                log_prints=False,
             )
 
         # Check for a proper final result
@@ -456,6 +459,7 @@ class TestOrchestrateTaskRun:
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
+            log_prints=False,
         )
 
         # The task did not run
@@ -497,6 +501,7 @@ class TestOrchestrateTaskRun:
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
+            log_prints=False,
         )
 
         # The task ran with the unqoted data
@@ -540,6 +545,7 @@ class TestOrchestrateTaskRun:
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
+            log_prints=False,
         )
 
         # The task ran with the state as its input
