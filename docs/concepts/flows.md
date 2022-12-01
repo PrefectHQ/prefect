@@ -618,7 +618,7 @@ When cancellation is requested, the flow run is moved to a "Cancelling" state. T
 !!! warning "An agent is required"
 Flow run cancellation requires the flow run to be submitted by an agent and for an agent to be running to enforce the cancellation. Flow runs without deployments cannot be cancelled yet.
 
-Support for cancellation has been added to all core library infrastructure types:
+Support for cancellation is included for all core library infrastructure types:
 
 - Docker Containers
 - Kubernetes Jobs
