@@ -22,7 +22,7 @@ Support for cancellation has been added to all core library infrastructure types
 Cancellation support is in progress for all collection infrastructure types:
 - ECS Tasks (https://github.com/PrefectHQ/prefect-aws/pull/163)
 - Azure Container Instances (...)
-- Google Cloud Run Jobs (...)
+- Google Cloud Run Jobs (https://github.com/PrefectHQ/prefect-gcp/pull/76)
 
 At this time, this feature requires the flow run to be submitted by an agent — flow runs without deployments cannot be cancelled yet. We're working on adding another cancellation mechanism that does not require the agent, but it will not provide as strong of a guarantee that your infrastructure shutsdown.
 
