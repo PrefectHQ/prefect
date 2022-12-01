@@ -49,7 +49,6 @@ from prefect.settings import (
     PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_BLOCKS_REGISTER_ON_START,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
-    PREFECT_ORION_DATABASE_TIMEOUT,
     PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
     PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
@@ -296,8 +295,6 @@ def pytest_sessionstart(session):
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
             # Disable auto-registration of block types as they can conflict
             PREFECT_ORION_BLOCKS_REGISTER_ON_START: False,
-            # Use more aggressive database timeouts during testing
-            PREFECT_ORION_DATABASE_TIMEOUT: 1,
         },
         source=__file__,
     )
