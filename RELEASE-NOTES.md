@@ -8,6 +8,12 @@ We're excited to announce a new flow run cancellation feature!
 
 Flow runs can be cancelled from the CLI, UI, REST API, or Python client. 
 
+For example:
+
+```
+prefect flow-run cancel <flow-run-id>
+```
+
 When cancellation is requested, the flow run is moved to a "Cancelling" state. The agent monitors the state of flow runs and detects that cancellation has been requested. The agent then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
 
 Unlike the implementation of cancellation in Prefect 1 — which could fail if the flow run was stuck — this provides a strong guarantee of cancellation. 
@@ -26,7 +32,7 @@ Cancellation support is in progress for all collection infrastructure types:
 - Google Cloud Run Jobs (https://github.com/PrefectHQ/prefect-gcp/pull/76)
 - Azure Container Instances (https://github.com/PrefectHQ/prefect-azure/pull/58)
 
-At this time, this feature requires the flow run to be submitted by an agent — flow runs without deployments cannot be cancelled yet. We're working on adding another cancellation mechanism that does not require the agent, but it will not provide as strong of a guarantee that your infrastructure shutsdown.
+At this time, this feature requires the flow run to be submitted by an agent — flow runs without deployments cannot be cancelled yet but that feature is [coming soon](https://github.com/PrefectHQ/prefect/pull/7150).
 
 See https://github.com/PrefectHQ/prefect/pull/7637 for more details
 
@@ -38,9 +44,7 @@ A new `pause_flow_run` utility is provided — when called from within a flow, t
 
 A timeout can be supplied to the `pause_flow_run` utility — if the flow run is not resumed within the specified timeout, the flow will fail.
 
-This blocking style of pause that keeps infrastructure running is supported for all flows, including subflows.
-
-Work is in progress to enable non-blocking flow pauses. Flow runs with deployments can be paused, and execution will gracefully terminate. Once resumed, the flow run will be rescheduled and finish executing any unfinished tasks.
+This blocking style of pause that keeps infrastructure running is supported for all flow runs, including subflow runs.
 
 See https://github.com/PrefectHQ/prefect/pull/7637 for more details.
 
