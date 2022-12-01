@@ -425,7 +425,7 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        if not (proposed_state.is_running() or proposed_state.is_scheduled()):
+        if not (proposed_state.is_running() or proposed_state.is_scheduled() or proposed_state.is_failed()):
             await self.abort_transition(
                 reason=f"This run cannot transition to the {proposed_state_type} state from the {initial_state_type} state."
             )
