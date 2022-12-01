@@ -166,7 +166,7 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     # The default cannot be prefect_default because NotifyPagerDuty's
     # PAGERDUTY_SEVERITY_MAP only has these notify types defined as keys
     notify_type: Literal["info", "success", "warning", "failure"] = Field(
-        default="info", description="The severity of the notifcation."
+        default="info", description="The severity of the notification."
     )
 
     integration_key: SecretStr = Field(
