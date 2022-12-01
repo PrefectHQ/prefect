@@ -431,6 +431,15 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
             )
             return
 
+        if initial_state.state_details.pause_timeout < pendulum.now("UTC"):
+            pause_timeout_failure = states.Failed(
+                message="The flow was paused and never resumed.",
+            )
+            await self.reject_transition(
+                state=pause_timeout_failure,
+                reason="The flow run pause has timed out and can no longer resume.",
+            )
+
         updated_policy = context.run.empirical_policy.dict()
         updated_policy["resuming"] = True
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
