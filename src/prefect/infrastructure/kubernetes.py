@@ -264,7 +264,7 @@ class KubernetesJob(Infrastructure):
         if not self.command:
             raise ValueError("Kubernetes job cannot be run with empty command.")
 
-        self._set_config()
+        self._configure_kubernetes_library_client()
         manifest = self.build_job()
         job_name = await run_sync_in_worker_thread(self._create_job, manifest)
 
@@ -277,7 +277,7 @@ class KubernetesJob(Infrastructure):
         return await run_sync_in_worker_thread(self._watch_job, job_name)
 
     async def kill(self, infrastructure_pid: str, grace_seconds: int):
-        self._set_config()
+        self._configure_kubernetes_library_client()
         job_cluster, job_name = self._parse_infrastructure_pid(infrastructure_pid)
         current_cluster = self._get_active_cluster_name()
         if job_cluster != current_cluster:
@@ -345,7 +345,7 @@ class KubernetesJob(Infrastructure):
         cluster_name = active_context["context"]["cluster"]
         return cluster_name
 
-    def _set_config(self) -> None:
+    def _configure_kubernetes_library_client(self) -> None:
         """Set the correct kubernetes configuration."""
         # if a k8s cluster block is provided to the flow runner, use that
         if self.cluster_config:
