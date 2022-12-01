@@ -238,7 +238,12 @@ class FlowRunContext(RunContext):
     # The synchronous portal is only created for async flows for creating engine calls
     # from synchronous task and subflow calls
     sync_portal: Optional[anyio.abc.BlockingPortal] = None
+
+    # A cancel scope for timeout enforcement
     timeout_scope: Optional[anyio.abc.CancelScope] = None
+
+    # A cancel scope for external cancellation
+    cancel_scope: anyio.abc.CancelScope
 
     # Task group that can be used for background tasks during the flow run
     background_tasks: anyio.abc.TaskGroup

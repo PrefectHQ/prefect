@@ -340,6 +340,7 @@ async def begin_flow_run(
 
     log_prints = should_log_prints(flow)
     flow_run_context = PartialModel(FlowRunContext, log_prints=log_prints)
+    terminal_state = None
 
     async with AsyncExitStack() as stack:
 
@@ -372,15 +373,6 @@ async def begin_flow_run(
         if log_prints:
             stack.enter_context(patch_print())
 
-        await stack.enter_async_context(
-            watch_for_flow_run_cancellation(
-                flow_run=flow_run,
-                task_group=background_tasks,
-                client=client,
-                logger=logger,
-            )
-        )
-
         terminal_state = await orchestrate_flow_run(
             flow,
             flow_run=flow_run,
@@ -389,7 +381,7 @@ async def begin_flow_run(
             client=client,
             partial_flow_run_context=flow_run_context,
             # Orchestration needs to be interruptible if it has a timeout
-            interruptible=flow.timeout_seconds is not None,
+            interruptible=True or flow.timeout_seconds is not None,
         )
 
     # If debugging, use the more complete `repr` than the usual `str` description
@@ -512,15 +504,6 @@ async def create_and_begin_subflow_run(
             if log_prints:
                 stack.enter_context(patch_print())
 
-            await stack.enter_async_context(
-                watch_for_flow_run_cancellation(
-                    flow_run=flow_run,
-                    task_group=parent_flow_run_context.background_tasks,
-                    client=client,
-                    logger=logger,
-                )
-            )
-
             terminal_state = await orchestrate_flow_run(
                 flow,
                 flow_run=flow_run,
@@ -614,41 +597,50 @@ async def orchestrate_flow_run(
         # Update the flow run to the latest data
         flow_run = await client.read_flow_run(flow_run.id)
         try:
-            with timeout_context as timeout_scope:
-                with partial_flow_run_context.finalize(
-                    flow=flow,
-                    flow_run=flow_run,
-                    client=client,
-                    timeout_scope=timeout_scope,
-                ) as flow_run_context:
+            async with AsyncExitStack() as stack:
+                timeout_scope = stack.enter_context(timeout_context)
+                cancel_scope = stack.enter_context(anyio.CancelScope())
+                flow_run_context = stack.enter_context(
+                    partial_flow_run_context.finalize(
+                        flow=flow,
+                        flow_run=flow_run,
+                        client=client,
+                        timeout_scope=timeout_scope,
+                        cancel_scope=cancel_scope,
+                    )
+                )
 
-                    args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
+                await stack.enter_async_context(
+                    watch_for_flow_run_cancellation(flow_run_context, logger=logger)
+                )
+
+                args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
+                logger.debug(
+                    f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
+                )
+
+                if PREFECT_DEBUG_MODE:
+                    logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
+                else:
                     logger.debug(
-                        f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
+                        f"Beginning execution...", extra={"state_message": True}
                     )
 
-                    if PREFECT_DEBUG_MODE:
-                        logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
-                    else:
-                        logger.debug(
-                            f"Beginning execution...", extra={"state_message": True}
-                        )
+                flow_call = partial(flow.fn, *args, **kwargs)
 
-                    flow_call = partial(flow.fn, *args, **kwargs)
+                if flow.isasync:
+                    result = await flow_call()
+                else:
+                    run_sync = (
+                        run_sync_in_interruptible_worker_thread
+                        if interruptible or timeout_scope
+                        else run_sync_in_worker_thread
+                    )
+                    result = await run_sync(flow_call)
 
-                    if flow.isasync:
-                        result = await flow_call()
-                    else:
-                        run_sync = (
-                            run_sync_in_interruptible_worker_thread
-                            if interruptible or timeout_scope
-                            else run_sync_in_worker_thread
-                        )
-                        result = await run_sync(flow_call)
-
-                waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
-                    flow_run_context.task_run_futures, client=client
-                )
+            waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
+                flow_run_context.task_run_futures, client=client
+            )
 
         except Exception as exc:
             name = message = None
@@ -673,6 +665,11 @@ async def orchestrate_flow_run(
                 result_factory=flow_run_context.result_factory,
             )
         else:
+            if cancel_scope.cancel_called:
+                terminal_state = (await client.read_flow_run(flow_run.id)).state
+                # EXIT EARLY: We do not want to propose this state
+                return terminal_state
+
             if result is None:
                 # All tasks and subflows are reference tasks if there is no return value
                 # If there are no tasks, use `None` instead of an empty iterable
@@ -1830,13 +1827,9 @@ if __name__ == "__main__":
 
 @asynccontextmanager
 async def watch_for_flow_run_cancellation(
-    flow_run: FlowRun, task_group: anyio.abc.TaskGroup, client: "OrionClient", logger
+    flow_run_context: FlowRunContext, logger: logging.Logger
 ):
-    async def _worker(
-        flow_run: FlowRun,
-        flow_run_cancel_scope: anyio.CancelScope,
-        task_status: anyio.abc.TaskStatus,
-    ):
+    async def _worker(task_status: anyio.abc.TaskStatus):
         """
         This worker looks at the flow run state on an interval. if the flow run is
         CANCELLED it will cancel the scope that has been passed to it which should
@@ -1846,27 +1839,25 @@ async def watch_for_flow_run_cancellation(
         If the `watch_for_flow_run_cancellation` context exits, this worker should be
         interrupted by the scope it returns on start.
         """
+        flow_run = flow_run_context.flow_run
 
         with anyio.CancelScope() as worker_cancel_scope:
             task_status.started(worker_cancel_scope)
             while not flow_run.state.is_final():
                 await anyio.sleep(PREFECT_CANCEL_CHECK_QUERY_INTERVAL.value())
-                flow_run = await client.read_flow_run(flow_run.id)
+                flow_run = await flow_run_context.client.read_flow_run(flow_run.id)
                 if flow_run.state.type == StateType.CANCELLED:
                     logger.info(
                         "Detected cancellation of flow run! Sending cancellation..."
                     )
-                    flow_run_cancel_scope.cancel()
+                    flow_run_context.cancel_scope.cancel()
 
-    # Create a scope that will allow cancellation of the code that occurs during yield
-    with anyio.CancelScope() as flow_run_cancel_scope:
+    # The worker returns a scope that can be used to kill the worker when the ctx
+    # is exiting. This prevents us from waiting a full sleep duration on exit.
+    worker_cancel_scope: anyio.CancelScope = (
+        await flow_run_context.background_tasks.start(_worker)
+    )
 
-        # The worker returns a scope that can be used to kill the worker when the ctx
-        # is exiting. This prevents us from waiting a full sleep duration on exit.
-        worker_cancel_scope: anyio.CancelScope = await task_group.start(
-            _worker, flow_run, flow_run_cancel_scope
-        )
+    yield
 
-        yield
-
-        worker_cancel_scope.cancel()
+    worker_cancel_scope.cancel()
