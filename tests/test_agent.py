@@ -102,6 +102,69 @@ async def test_agent_with_work_queue(orion_client, deployment):
     assert submitted_flow_run_ids == work_queue_flow_run_ids
 
 
+async def test_agent_with_work_queue_and_limit(orion_client, deployment):
+    @flow
+    def foo():
+        pass
+
+    create_run_with_deployment = (
+        lambda state: orion_client.create_flow_run_from_deployment(
+            deployment.id, state=state
+        )
+    )
+
+    flow_runs = [
+        await create_run_with_deployment(Pending()),
+        await create_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        ),
+        await create_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=4))
+        ),
+        await create_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+        await create_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+        ),
+        await create_run_with_deployment(Running()),
+        await create_run_with_deployment(Completed()),
+        await orion_client.create_flow_run(foo, state=Scheduled()),
+    ]
+    flow_run_ids = [run.id for run in flow_runs]
+
+    # Pull runs from the work queue to get expected runs
+    work_queue = await orion_client.read_work_queue_by_name(deployment.work_queue_name)
+    work_queue_runs = await orion_client.get_runs_in_work_queue(
+        work_queue.id, scheduled_before=pendulum.now().add(seconds=10)
+    )
+    work_queue_runs.sort(key=lambda run: run.next_scheduled_start_time)
+    work_queue_flow_run_ids = [run.id for run in work_queue_runs]
+
+    # Should only include scheduled runs in the past or next prefetch seconds
+    # Should not include runs without deployments
+    assert set(work_queue_flow_run_ids) == set(flow_run_ids[1:4])
+
+    agent = OrionAgent(work_queues=[work_queue.name], prefetch_seconds=10, limit=2)
+
+    async with agent:
+        agent.submit_run = AsyncMock()  # do not actually run anything
+
+        submitted_flow_runs = await agent.get_and_submit_flow_runs()
+        submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
+        assert submitted_flow_run_ids == set(work_queue_flow_run_ids[0:2])
+
+        submitted_flow_runs = await agent.get_and_submit_flow_runs()
+        submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
+        assert submitted_flow_run_ids == set(work_queue_flow_run_ids[0:2])
+
+        agent.limiter.release_on_behalf_of(work_queue_flow_run_ids[0])
+
+        submitted_flow_runs = await agent.get_and_submit_flow_runs()
+        submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
+        assert submitted_flow_run_ids == set(work_queue_flow_run_ids[0:3])
+
+
 async def test_agent_matches_work_queues_dynamically(
     session, work_queue, prefect_caplog
 ):

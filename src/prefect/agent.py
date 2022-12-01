@@ -29,6 +29,7 @@ class OrionAgent:
         prefetch_seconds: int = None,
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
+        limit: Optional[int] = None,
     ) -> None:
 
         if default_infrastructure and default_infrastructure_document_id:
@@ -42,6 +43,8 @@ class OrionAgent:
         self.started = False
         self.logger = get_logger("agent")
         self.task_group: Optional[anyio.abc.TaskGroup] = None
+        self.limit: Optional[int] = limit
+        self.limiter: Optional[anyio.CapacityLimiter] = None
         self.client: Optional[OrionClient] = None
 
         if isinstance(work_queue_prefix, str):
@@ -138,7 +141,7 @@ class OrionAgent:
             seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
         )
 
-        submittable_runs = []
+        submittable_runs: List[FlowRun] = []
 
         # load runs from each work queue
         async for work_queue in self.get_work_queues():
@@ -162,20 +165,31 @@ class OrionAgent:
                 except Exception as exc:
                     self.logger.exception(exc)
 
+        submittable_runs.sort(key=lambda run: run.next_scheduled_start_time)
+
         for flow_run in submittable_runs:
-            self.logger.info(f"Submitting flow run '{flow_run.id}'")
 
             # don't resubmit a run
             if flow_run.id in self.submitting_flow_run_ids:
                 continue
 
-            self.submitting_flow_run_ids.add(flow_run.id)
-            self.task_group.start_soon(
-                self.submit_run,
-                flow_run,
-            )
+            try:
+                if self.limiter:
+                    self.limiter.acquire_on_behalf_of_nowait(flow_run.id)
+            except anyio.WouldBlock:
+                self.logger.info(f"Flow run limit reached'")
+                break
+            else:
+                self.logger.info(f"Submitting flow run '{flow_run.id}'")
+                self.submitting_flow_run_ids.add(flow_run.id)
+                self.task_group.start_soon(
+                    self.submit_run,
+                    flow_run,
+                )
 
-        return submittable_runs
+        return list(
+            filter(lambda run: run.id in self.submitting_flow_run_ids, submittable_runs)
+        )
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
         deployment = await self.client.read_deployment(flow_run.deployment_id)
@@ -238,6 +252,8 @@ class OrionAgent:
                     f"Failed to get infrastructure for flow run '{flow_run.id}'."
                 )
                 await self._propose_failed_state(flow_run, exc)
+                if self.limiter:
+                    self.limiter.release_on_behalf_of(flow_run.id)
             else:
                 # Wait for submission to be completed. Note that the submission function
                 # may continue to run in the background after this exits.
@@ -279,6 +295,9 @@ class OrionAgent:
                     "occurred."
                 )
             return exc
+        finally:
+            if self.limiter:
+                self.limiter.release_on_behalf_of(flow_run.id)
 
         if not task_status._future.done():
             self.logger.error(
@@ -362,6 +381,9 @@ class OrionAgent:
     async def start(self):
         self.started = True
         self.task_group = anyio.create_task_group()
+        self.limiter = (
+            anyio.CapacityLimiter(self.limit) if self.limit is not None else None
+        )
         self.client = get_client()
         await self.client.__aenter__()
         await self.task_group.__aenter__()
