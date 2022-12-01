@@ -446,9 +446,6 @@ class OrionAgent:
             task_status.started()
 
         if result.status_code != 0:
-            self.logger.info(
-                f"Reporting flow run '{flow_run.id}' as crashed due to non-zero status code."
-            )
             await self._propose_crashed_state(
                 flow_run,
                 f"Flow run infrastructure exited with non-zero status code {result.status_code}.",
@@ -501,7 +498,7 @@ class OrionAgent:
 
     async def _propose_crashed_state(self, flow_run: FlowRun, message: str) -> None:
         try:
-            await propose_state(
+            state = await propose_state(
                 self.client,
                 Crashed(message=message),
                 flow_run_id=flow_run.id,
@@ -511,6 +508,11 @@ class OrionAgent:
             pass
         except Exception:
             self.logger.exception(f"Failed to update state of flow run '{flow_run.id}'")
+        else:
+            if state.is_crashed():
+                self.logger.info(
+                    f"Reported flow run '{flow_run.id}' as crashed: {message}"
+                )
 
     async def _schedule_task(self, __in_seconds: int, fn, *args, **kwargs):
         """
