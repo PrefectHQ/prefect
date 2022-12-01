@@ -56,7 +56,6 @@
 
   const router = useRouter()
 
-
   const selectedTab= ref('Logs')
   const flowRunId = useRouteParam('id')
   const tabs = computed(() => {

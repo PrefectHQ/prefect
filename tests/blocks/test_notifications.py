@@ -8,6 +8,7 @@ import pytest
 import prefect
 from prefect.blocks.notifications import (
     AppriseNotificationBlock,
+    PagerDutyWebHook,
     PrefectNotifyType,
     TwilioSMS,
 )
@@ -55,8 +56,10 @@ class TestAppriseNotificationBlock:
             apprise_instance_mock.add.assert_called_once_with(
                 block.url.get_secret_value()
             )
+
+            notify_type = PrefectNotifyType.DEFAULT
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+                body="test", title=None, notify_type=notify_type
             )
 
     def test_notify_sync(self, block_class: Type[AppriseNotificationBlock]):
@@ -83,6 +86,50 @@ class TestAppriseNotificationBlock:
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
         assert isinstance(unpickled, block_class)
+
+
+class TestPagerDutyWebhook:
+    async def test_notify_async(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = PagerDutyWebHook(integration_key="int_key", api_key="api_key")
+            await block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                "pagerduty://int_key@api_key/Prefect/Notification?region=us&"
+                "image=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            )
+
+            notify_type = "info"
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title=None, notify_type=notify_type
+            )
+
+    def test_notify_sync(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = PagerDutyWebHook(integration_key="int_key", api_key="api_key")
+            block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                "pagerduty://int_key@api_key/Prefect/Notification?region=us&"
+                "image=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            )
+
+            notify_type = "info"
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title=None, notify_type=notify_type
+            )
 
 
 class TestTwilioSMS:

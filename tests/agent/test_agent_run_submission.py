@@ -1,4 +1,5 @@
 import inspect
+from typing import Generator
 from unittest.mock import MagicMock
 
 import pendulum
@@ -402,7 +403,7 @@ async def test_agent_runs_multiple_work_queues(orion_client, session, flow):
 
 class TestInfrastructureIntegration:
     @pytest.fixture
-    def mock_infrastructure_run(self, monkeypatch) -> MagicMock:
+    def mock_infrastructure_run(self, monkeypatch) -> Generator[MagicMock, None, None]:
         """
         Mocks all subtype implementations of `Infrastructure.run`.
 
@@ -422,11 +423,13 @@ class TestInfrastructureIntegration:
         mock.post_start_side_effect = lambda: None
         mock.mark_as_started = True
         mock.result_status_code = 0
+        mock.result_identifier = "id-1234"
 
         async def mock_run(self, task_status=None):
             # Record the call immediately
             result = mock(self.dict())
             result.status_code = mock.result_status_code
+            result.identifier = mock.result_identifier
 
             # Perform side-effects for testing error handling
 
@@ -435,7 +438,7 @@ class TestInfrastructureIntegration:
                 await pre
 
             if mock.mark_as_started:
-                task_status.started()
+                task_status.started(result.identifier)
 
             post = mock.post_start_side_effect()
             if inspect.iscoroutine(post):
@@ -499,6 +502,22 @@ class TestInfrastructureIntegration:
         flow_run = await orion_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_pending()
         mock_infrastructure_run.assert_called_once()
+
+    async def test_agent_sets_infrastructure_pid(
+        self, orion_client, deployment, mock_infrastructure_run
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment.id,
+            state=Scheduled(scheduled_time=pendulum.now("utc")),
+        )
+
+        async with OrionAgent(
+            work_queues=[deployment.work_queue_name], prefetch_seconds=10
+        ) as agent:
+            await agent.get_and_submit_flow_runs()
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.infrastructure_pid == "id-1234"
 
     async def test_agent_submit_run_waits_for_scheduled_time_before_submitting(
         self,
@@ -765,8 +784,8 @@ class TestInfrastructureIntegration:
             ).dict()
         )
         assert (
-            f"Reporting flow run '{flow_run.id}' as crashed due to non-zero status code"
-            in caplog.text
+            f"Reported flow run '{flow_run.id}' as crashed: "
+            "Flow run infrastructure exited with non-zero status code 9." in caplog.text
         )
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
@@ -776,7 +795,7 @@ class TestInfrastructureIntegration:
 
     @pytest.mark.parametrize(
         "terminal_state_type",
-        [StateType.CRASHED, StateType.FAILED, StateType.COMPLETED],
+        [StateType.CRASHED, StateType.FAILED, StateType.COMPLETED, StateType.CANCELLED],
     )
     async def test_agent_does_not_crashes_flow_if_already_in_terminal_state(
         self,
@@ -814,10 +833,8 @@ class TestInfrastructureIntegration:
                 flow_run, deployment=deployment, flow=flow
             ).dict()
         )
-        assert (
-            f"Reporting flow run '{flow_run.id}' as crashed due to non-zero status code"
-            in caplog.text
-        )
+
+        assert f"Reported flow run '{flow_run.id}' as crashed" not in caplog.text
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
         assert state.type == terminal_state_type
