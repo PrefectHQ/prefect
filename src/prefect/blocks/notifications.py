@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import apprise
 from apprise import Apprise, AppriseAsset, NotifyType
+from apprise.plugins.NotifyPagerDuty import NotifyPagerDuty
 from apprise.plugins.NotifyTwilio import NotifyTwilio
-from pydantic import Field, SecretStr
+from pydantic import AnyHttpUrl, Field, SecretStr
 from typing_extensions import Literal
 
 from prefect.blocks.core import Block
@@ -95,10 +96,6 @@ class SlackWebhook(AppriseNotificationBlock):
     """
     Enables sending notifications via a provided Slack webhook.
 
-    Attributes:
-        url: Slack webhook URL which can be used to send messages
-            (e.g. `https://hooks.slack.com/XXX`).
-
     Examples:
         Load a saved Slack webhook and send a message:
         ```python
@@ -124,9 +121,6 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
     """
     Enables sending notifications via a provided Microsoft Teams webhook.
 
-    Attributes:
-        url: Teams webhook URL which can be used to send messages.
-
     Examples:
         Load a saved Teams webhook and send a message:
         ```python
@@ -146,6 +140,111 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
         description="The Teams incoming webhook URL used to send notifications.",
         example="https://your-org.webhook.office.com/webhookb2/XXX/IncomingWebhook/YYY/ZZZ",
     )
+
+
+class PagerDutyWebHook(AbstractAppriseNotificationBlock):
+    """
+    Enables sending notifications via a provided PagerDuty webhook.
+    See [Apprise notify_pagerduty docs](https://github.com/caronc/apprise/wiki/Notify_pagerduty)
+    for more info on formatting the URL.
+
+    Examples:
+        Load a saved PagerDuty webhook and send a message:
+        ```python
+        from prefect.blocks.notifications import PagerDutyWebHook
+        pagerduty_webhook_block = PagerDutyWebHook.load("BLOCK_NAME")
+        pagerduty_webhook_block.notify("Hello from Prefect!")
+        ```
+    """
+
+    _description = "Enables sending notifications via a provided PagerDuty webhook."
+
+    _block_type_name = "Pager Duty Webhook"
+    _block_type_slug = "pager-duty-webhook"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6FHJ4Lcozjfl1yDPxCvQDT/c2f6bdf47327271c068284897527f3da/PagerDuty-Logo.wine.png?h=250"
+
+    # The default cannot be prefect_default because NotifyPagerDuty's
+    # PAGERDUTY_SEVERITY_MAP only has these notify types defined as keys
+    notify_type: Literal["info", "success", "warning", "failure"] = Field(
+        default="info", description="The severity of the notification."
+    )
+
+    integration_key: SecretStr = Field(
+        default=...,
+        description=(
+            "This can be found on the Events API V2 "
+            "integration's detail page, and is also referred to as a Routing Key. "
+            "This must be provided alongside `api_key`, but will error if provided "
+            "alongside `url`."
+        ),
+    )
+
+    api_key: SecretStr = Field(
+        default=...,
+        title="API Key",
+        description=(
+            "This can be found under Integrations. "
+            "This must be provided alongside `integration_key`, but will error if "
+            "provided alongside `url`."
+        ),
+    )
+
+    source: Optional[str] = Field(
+        default="Prefect", description="The source string as part of the payload."
+    )
+
+    component: str = Field(
+        default="Notification",
+        description="The component string as part of the payload.",
+    )
+
+    group: Optional[str] = Field(
+        default=None, description="The group string as part of the payload."
+    )
+
+    class_id: Optional[str] = Field(
+        default=None,
+        title="Class ID",
+        description="The class string as part of the payload.",
+    )
+
+    region_name: Literal["us", "eu"] = Field(
+        default="us", description="The region name."
+    )
+
+    clickable_url: Optional[AnyHttpUrl] = Field(
+        default=None,
+        title="Clickable URL",
+        description="A clickable URL to associate with the notice.",
+    )
+
+    include_image: bool = Field(
+        default=True,
+        description="Associate the notification status via a represented icon.",
+    )
+
+    custom_details: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Additional details to include as part of the payload.",
+        example='{"disk_space_left": "145GB"}',
+    )
+
+    def block_initialization(self) -> None:
+        url = SecretStr(
+            NotifyPagerDuty(
+                apikey=self.api_key.get_secret_value(),
+                integrationkey=self.integration_key.get_secret_value(),
+                source=self.source,
+                component=self.component,
+                group=self.group,
+                class_id=self.class_id,
+                region_name=self.region_name,
+                click=self.clickable_url,
+                include_image=self.include_image,
+                details=self.custom_details,
+            ).url()
+        )
+        self._start_apprise_client(url)
 
 
 class TwilioSMS(AbstractAppriseNotificationBlock):
