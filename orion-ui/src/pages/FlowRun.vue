@@ -1,11 +1,7 @@
 <template>
   <p-layout-well class="flow-run">
     <template #header>
-      <PageHeadingFlowRun v-if="flowRun" :flow-run-id="flowRun.id" @delete="goToFlowRuns">
-        <template #actions>
-          <FlowRunCancelButton :flow-run="flowRun" />
-        </template>
-      </PageHeadingFlowRun>
+      <PageHeadingFlowRun v-if="flowRun" :flow-run-id="flowRun.id" @delete="goToFlowRuns" />
     </template>
 
     <p-tabs v-model:selected="selectedTab" :tabs="tabs">
@@ -45,7 +41,6 @@
     FlowRunLogs,
     FlowRunTaskRuns,
     FlowRunSubFlows,
-    FlowRunCancelButton,
     JsonView,
     useFavicon,
     useWorkspaceApi,
@@ -60,7 +55,6 @@
   import { routes } from '@/router'
 
   const router = useRouter()
-
 
   const selectedTab= ref('Logs')
   const flowRunId = useRouteParam('id')
