@@ -39,6 +39,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
         return [
             HandleFlowTerminalStateTransitions,
             PreventRedundantTransitions,
+            HandlePausingFlows,
             HandleResumingPausedFlows,
             WaitForScheduledTime,
             RetryFailedFlows,
@@ -409,6 +410,27 @@ class WaitForScheduledTime(BaseOrchestrationRule):
             await self.delay_transition(
                 delay_seconds, reason="Scheduled time is in the future"
             )
+
+
+class HandlePausingFlows(BaseOrchestrationRule):
+    """
+    Governs runs attempting to enter a Paused state
+    """
+
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [states.StateType.PAUSED]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        if proposed_state.state_details.pause_reschedule:
+            if context.run.parent_task_run_id:
+                await self.abort_transition(
+                    "Cannot pause subflows with the 'reschedule' option."
+                )
 
 
 class HandleResumingPausedFlows(BaseOrchestrationRule):

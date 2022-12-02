@@ -39,7 +39,7 @@ from prefect.results import ResultFactory
 from prefect.states import Cancelled, Failed, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
-from prefect.utilities.annotations import quote
+from prefect.utilities.annotations import NoResult, quote
 from prefect.utilities.pydantic import PartialModel
 
 
@@ -100,14 +100,14 @@ async def get_flow_run_context(orion_client, result_factory, local_filesystem):
     return _get_flow_run_context
 
 
-class TestPausingFlows:
+class TestBlockingPause:
     async def test_tasks_cannot_be_paused(self):
         @task
         def the_little_task_that_pauses():
             pause_flow_run()
             return True
 
-        @flow
+        @flow(task_runner=SequentialTaskRunner())
         def the_mountain():
             return the_little_task_that_pauses()
 
@@ -119,7 +119,7 @@ class TestPausingFlows:
         def doesnt_pause():
             return 42
 
-        @flow()
+        @flow(task_runner=SequentialTaskRunner())
         def pausing_flow():
             x = doesnt_pause.submit()
             pause_flow_run(timeout=0.1)
@@ -142,7 +142,7 @@ class TestPausingFlows:
         def foo():
             return 42
 
-        @flow()
+        @flow(task_runner=SequentialTaskRunner())
         def pausing_flow():
             x = foo.submit()
             pause_flow_run(timeout=20, poll_interval=10)
@@ -167,7 +167,7 @@ class TestPausingFlows:
         def foo():
             return 42
 
-        @flow()
+        @flow(task_runner=SequentialTaskRunner())
         def pausing_flow():
             x = foo.submit()
             pause_flow_run(timeout=4, poll_interval=5)
@@ -189,7 +189,7 @@ class TestPausingFlows:
         def foo():
             return 42
 
-        @flow()
+        @flow(task_runner=SequentialTaskRunner())
         def pausing_flow():
             x = foo.submit()
             y = foo.submit()
@@ -210,7 +210,7 @@ class TestPausingFlows:
         async def foo():
             return 42
 
-        @flow()
+        @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow():
             x = await foo.submit()
             y = await foo.submit()
@@ -231,7 +231,7 @@ class TestPausingFlows:
         async def foo():
             return 42
 
-        @flow()
+        @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow():
             x = await foo.submit()
             y = await foo.submit()
@@ -252,7 +252,7 @@ class TestPausingFlows:
         async def foo():
             return 42
 
-        @flow()
+        @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow():
             x = await foo.submit()
             y = await foo.submit()
@@ -276,6 +276,94 @@ class TestPausingFlows:
             flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
         )
         assert len(task_runs) == 5, "all tasks should finish running"
+
+
+class TestNonblockingPause:
+    async def test_paused_flows_do_not_block_execution_with_reschedule_flag(
+        self, orion_client
+    ):
+        @task
+        def foo():
+            return 42
+
+        @flow(task_runner=SequentialTaskRunner())
+        def pausing_flow_without_blocking():
+            x = foo.submit()
+            y = foo.submit()
+            pause_flow_run(timeout=20, reschedule=True)
+            z = foo(wait_for=[x])
+            alpha = foo(wait_for=[y])
+            omega = foo(wait_for=[x, y])
+
+        flow_run_state = pausing_flow_without_blocking(return_state=True)
+        assert flow_run_state.is_paused()
+        flow_run_id = flow_run_state.state_details.flow_run_id
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
+        )
+        assert len(task_runs) == 2, "only two tasks should have completed"
+
+    async def test_paused_flows_gracefully_exit_with_reschedule_flag(
+        self, orion_client
+    ):
+        @task
+        def foo():
+            return 42
+
+        @flow(task_runner=SequentialTaskRunner())
+        def pausing_flow_without_blocking():
+            x = foo.submit()
+            y = foo.submit()
+            pause_flow_run(timeout=20, reschedule=True)
+            z = foo(wait_for=[x])
+            alpha = foo(wait_for=[y])
+            omega = foo(wait_for=[x, y])
+
+        graceful_exit_result = pausing_flow_without_blocking()
+        assert graceful_exit_result == NoResult
+
+    async def test_paused_flows_can_be_resumed_then_rescheduled(self, orion_client):
+        @task
+        def foo():
+            return 42
+
+        @flow(task_runner=SequentialTaskRunner())
+        def pausing_flow_without_blocking():
+            x = foo.submit()
+            y = foo.submit()
+            pause_flow_run(timeout=20, reschedule=True)
+            z = foo(wait_for=[x])
+            alpha = foo(wait_for=[y])
+            omega = foo(wait_for=[x, y])
+
+        flow_run_state = pausing_flow_without_blocking(return_state=True)
+        assert flow_run_state.is_paused()
+        flow_run_id = flow_run_state.state_details.flow_run_id
+
+        await resume_flow_run(flow_run_id)
+        flow_run = await orion_client.read_flow_run(flow_run_id)
+        assert flow_run.state.is_scheduled()
+
+    async def test_subflows_cannot_be_paused_with_reschedule_flag(self, orion_client):
+        @task
+        def foo():
+            return 42
+
+        @flow(task_runner=SequentialTaskRunner())
+        def pausing_flow_without_blocking():
+            x = foo.submit()
+            y = foo.submit()
+            pause_flow_run(timeout=20, reschedule=True)
+            z = foo(wait_for=[x])
+            alpha = foo(wait_for=[y])
+            omega = foo(wait_for=[x, y])
+
+        @flow(task_runner=SequentialTaskRunner())
+        def wrapper_flow():
+            return pausing_flow_without_blocking()
+
+        with pytest.raises(RuntimeError, match="Cannot pause subflows"):
+            flow_run_state = wrapper_flow()
 
 
 class TestOrchestrateTaskRun:

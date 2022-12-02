@@ -6,8 +6,8 @@ import pytest
 from prefect.orion import models
 from prefect.orion.orchestration.global_policy import (
     IncrementFlowRunCount,
-    IncrementTaskRunCount,
     IncrementRunTime,
+    IncrementTaskRunCount,
     SetEndTime,
     SetExpectedStartTime,
     SetNextScheduledStartTime,

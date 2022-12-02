@@ -757,6 +757,9 @@ async def pause_flow_run(timeout: int = 300, poll_interval: int = 10, reschedule
         Paused(timeout=timeout, reschedule=reschedule, pause_counter=pause_counter),
     )
 
+    if response.status == SetStateStatus.ABORT:
+        raise RuntimeError("Cannot pause subflows with the reschedule flag!")
+
     if reschedule:
         raise FlowPauseExit()
 
