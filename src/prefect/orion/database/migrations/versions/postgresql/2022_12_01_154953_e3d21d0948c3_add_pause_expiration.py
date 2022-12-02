@@ -26,7 +26,14 @@ def upgrade():
             nullable=True,
         ),
     )
+    op.create_index(
+        op.f("ix_flow_run__pause_expiration_time"),
+        "flow_run",
+        ["pause_expiration_time"],
+        unique=False,
+    )
 
 
 def downgrade():
+    op.drop_index(op.f("ix_flow_run__pause_expiration_time"), table_name="flow_run")
     op.drop_column("flow_run", "pause_expiration_time")

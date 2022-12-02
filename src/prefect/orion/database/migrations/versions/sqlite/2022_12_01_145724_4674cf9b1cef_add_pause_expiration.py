@@ -26,8 +26,14 @@ def upgrade():
                 nullable=True,
             )
         )
+        batch_op.create_index(
+            batch_op.f("ix_flow_run__pause_expiration_time"),
+            ["pause_expiration_time"],
+            unique=False,
+        )
 
 
 def downgrade():
     with op.batch_alter_table("flow_run", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_flow_run__pause_expiration_time"))
         batch_op.drop_column("pause_expiration_time")
