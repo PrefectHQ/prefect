@@ -10,7 +10,7 @@ export const pages = {
   deploymentEdit: (id: string) => `deployments/deployment/${id}/edit`,
   workQueues: () => '/work-queues',
   workQueue: (id: string) => `/work-queues/work-queue/${id}`,
-  workQueuesCreate: () => '/work-queues/new',
+  workQueuesCreate: () => '/work-queues/create',
   workQueueEdit: (id: string) => `work-queues/work-queue/${id}`,
   blocks: () => '/blocks',
   blocksCatalog: () => '/blocks/catalog',
@@ -19,7 +19,7 @@ export const pages = {
   block: (id: string) => `blocks/block/${id}`,
   blockEdit: (id: string) => `blocks/block/${id}/edit`,
   notifications: () => '/notifications',
-  notificationsCreate: () => '/notifications/new',
+  notificationsCreate: () => '/notifications/create',
   notificationEdit: (id: string) => `/notifications/${id}`,
   settings: () => '/settings',
 }

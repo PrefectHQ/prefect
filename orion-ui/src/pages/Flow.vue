@@ -34,7 +34,7 @@
   import { routes } from '@/router/routes'
 
   const api = useWorkspaceApi()
-  const flowId = useRouteParam('id')
+  const flowId = useRouteParam('flowId')
   const router = useRouter()
   const tabs = computed(() => {
     const values = ['Deployments', 'Runs']
