@@ -705,7 +705,7 @@ def test_get_infrastructure_pid_handles_config_exceptions(monkeypatch):
         "prefect.infrastructure.kubernetes.KubernetesJob._get_active_cluster_name", mock
     )
     job = KubernetesJob()
-    job_pid = job._get_infrastructure_pid("my-job")
+    job_pid = job._get_infrastructure_identifier("my-job")
     assert job_pid == "in-cluster-config:my-job"
 
 
