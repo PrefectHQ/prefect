@@ -229,7 +229,7 @@ async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch):
     monkeypatch.setattr("prefect.infrastructure.process.anyio.sleep", anyio_sleep)
 
     infrastructure_pid = f"{socket.gethostname()}:12345"
-    grace_seconds = 15
+    grace_seconds = 3
 
     process = Process(command=["noop"])
     await process.kill(
@@ -239,11 +239,42 @@ async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch):
     os_kill.assert_has_calls(
         [
             call(12345, signal.SIGTERM),
+            call(12345, 0),
+            call(12345, 0),
+            call(12345, 0),
             call(12345, signal.SIGKILL),
         ]
     )
 
-    anyio_sleep.assert_called_once_with(grace_seconds)
+    assert anyio_sleep.call_count == 3
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="SIGTERM/SIGKILL are only used in non-Windows environments",
+)
+async def test_process_kill_early_return(monkeypatch):
+    os_kill = MagicMock(side_effect=[None, ProcessLookupError])
+    anyio_sleep = AsyncMock()
+    monkeypatch.setattr("os.kill", os_kill)
+    monkeypatch.setattr("prefect.infrastructure.process.anyio.sleep", anyio_sleep)
+
+    infrastructure_pid = f"{socket.gethostname()}:12345"
+    grace_seconds = 30
+
+    process = Process(command=["noop"])
+    await process.kill(
+        infrastructure_pid=infrastructure_pid, grace_seconds=grace_seconds
+    )
+
+    os_kill.assert_has_calls(
+        [
+            call(12345, signal.SIGTERM),
+            call(12345, 0),
+        ]
+    )
+
+    assert anyio_sleep.call_count == 1
 
 
 @pytest.mark.skipif(

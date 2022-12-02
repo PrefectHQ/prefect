@@ -168,12 +168,21 @@ class Process(Infrastructure):
                     f"Unable to kill process {pid!r}: The process was not found."
                 )
 
-            await anyio.sleep(grace_seconds)
+            for _ in range(grace_seconds):
+                await anyio.sleep(1)
+
+                # Detect if the process is still alive. If not do an early
+                # return as the process respected the SIGTERM from above.
+                try:
+                    os.kill(pid, 0)
+                except ProcessLookupError:
+                    return
 
             try:
                 os.kill(pid, signal.SIGKILL)
             except ProcessLookupError:
-                # The process likely exited due to the SIGTERM above.
+                # We shouldn't ever end up here, but it's possible that the
+                # process ended right after the check above.
                 return
 
     def preview(self):
