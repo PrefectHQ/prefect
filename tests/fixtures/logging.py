@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 from prefect.logging.handlers import OrionHandler
@@ -25,6 +27,10 @@ def enable_orion_handler_if_marked(request):
     to indicate that they need the handler to be reenabled because they are testing
     its functionality.
     """
+    if sys.platform == "win32":
+        # TODO: WIN32TEST
+        pytest.skip(reason="Logging tests are disabled on windows")
+
     marker = request.node.get_closest_marker("enable_orion_handler")
     if marker is not None:
         with temporary_settings(updates={PREFECT_LOGGING_ORION_ENABLED: True}):
