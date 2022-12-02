@@ -17,7 +17,7 @@
   import router from '@/router'
 
   const api = useWorkspaceApi()
-  const deploymentId = useRouteParam('id')
+  const deploymentId = useRouteParam('deploymentId')
   const subscriptionOptions = {
     interval: 300000,
   }

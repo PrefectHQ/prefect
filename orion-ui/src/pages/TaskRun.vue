@@ -33,7 +33,7 @@
   import { routes } from '@/router'
 
   const router = useRouter()
-  const taskRunId = useRouteParam('id')
+  const taskRunId = useRouteParam('taskRunId')
   const api = useWorkspaceApi()
 
   const tabs = computed(() => {

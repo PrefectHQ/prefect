@@ -67,7 +67,7 @@
     return values
   })
 
-  const workQueueId = useRouteParam('id')
+  const workQueueId = useRouteParam('workQueueId')
   const workQueueCliCommand = computed(() => `prefect agent start ${workQueue.value ? ` --work-queue "${workQueue.value.name}"` : ''}`)
 
   const states = ref<StateType[]>([])
