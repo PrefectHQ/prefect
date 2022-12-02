@@ -233,20 +233,15 @@ jobs:
           git push --set-upstream origin HEAD
           gh pr create \
             --title "Publish docs from release ${GITHUB_REF#refs/*/}" \
-            --body '_automatically created with `gh` cli on merge to `main`_' \
+            --body '_automatically created with `gh` cli on release_' \
             --base docs-deploy
-          gh pr merge --merge --delete-branch
+          gh pr merge --rebase --delete-branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-docker-images:
     name: Publish to DockerHub
-    needs:
-      [
-        build-docker-images,
-        build-conda-docker-images,
-        build-release,
-      ]
+    needs: [build-docker-images, build-conda-docker-images, build-release]
     environment: "prod"
 
     runs-on: ubuntu-latest

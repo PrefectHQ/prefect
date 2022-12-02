@@ -22,7 +22,7 @@ Each deployment references a single "entrypoint" flow (though that flow may, in 
 At a high level, you can think of a deployment as configuration for managing flows, whether you run them via the CLI, the UI, or the API.
 
 !!! warning "Deployments have changed since beta"
-    Deployments based on `DeploymentSpec` are no longer supported. Instead, you can define deployments by using either the [`prefect deployment` CLI command](#create-a-deployment) or [the `Deployment` Python object](/api-ref/prefect/deployments/).
+    Deployments based on `DeploymentSpec` are no longer supported. Instead, you can define deployments by using either the [`prefect deployment` CLI command](#create-a-deployment-on-the-cli) or [the `Deployment` Python object](/api-ref/prefect/deployments/).
 
 ## Deployments overview
 
@@ -115,7 +115,7 @@ This enables you to run a single flow with different parameters, on multiple sch
 
 A _deployment definition_ captures the settings for creating a [deployment object](#deployment-api-representation) on the Prefect API. You can create the deployment definition by:
 
-- Run the [`prefect deployment build` CLI command](#create-a-deployment) with deployment options to create a [`deployment.yaml`](#deploymentyaml) deployment definition file, then run `prefect deployment apply` to create a deployment on the API using the settings in `deployment.yaml`.
+- Run the [`prefect deployment build` CLI command](#create-a-deployment-on-the-cli) with deployment options to create a [`deployment.yaml`](#deploymentyaml) deployment definition file, then run `prefect deployment apply` to create a deployment on the API using the settings in `deployment.yaml`.
 - Define a [`Deployment`](/api-ref/prefect/deployments/) Python object, specifying the deployment options as properties of the object, then building and applying the object using methods of `Deployment`.
 
 The minimum required information to create a deployment includes:
@@ -218,6 +218,7 @@ When specifying an infrastructure block with the `-ib` or `--infra-block` flag, 
 | Remote File System | `RemoteFileSystem` | `remote-file-system` |
 | S3 | `S3` | `s3` |
 | SMB | `SMB` | `smb` |
+| GitLab Repository | `GitLabRepository` | `gitlab-repository` |
 
 Note that the appropriate library supporting the storage filesystem must be installed prior to building a deployment with a storage block. For example, the AWS S3 Storage block requires the [`s3fs`](https://s3fs.readthedocs.io/en/latest/) library. See [Storage](/concepts/storage/) for more information.
 

@@ -511,6 +511,15 @@ will be added to these loggers. Additionally, if the level is not set, it will
 be set to the same level as the 'prefect' logger.
 """
 
+PREFECT_LOGGING_LOG_PRINTS = Setting(
+    bool,
+    default=False,
+)
+"""
+If set, `print` statements in flows and tasks will be redirected to the Prefect logger
+for the given run. This setting can be overriden by individual tasks and flows.
+"""
+
 PREFECT_LOGGING_ORION_ENABLED = Setting(
     bool,
     default=True,
@@ -543,11 +552,11 @@ PREFECT_LOGGING_COLORS = Setting(
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
-    default=5,
+    default=10,
 )
 """
-The agent loop interval, in seconds. Agents will check
-for new runs this often. Defaults to `5`.
+The agent loop interval, in seconds. Agents will check for new runs this often. 
+Defaults to `10`.
 """
 
 PREFECT_AGENT_PREFETCH_SECONDS = Setting(
@@ -641,10 +650,11 @@ PREFECT_ORION_DATABASE_MIGRATE_ON_START = Setting(
 
 PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     Optional[float],
-    default=5.0,
+    default=10.0,
 )
-"""A statement timeout, in seconds, applied to all database
-interactions made by the API. Defaults to `1`.
+"""
+A statement timeout, in seconds, applied to all database interactions made by the API.
+Defaults to 10 seconds.
 """
 
 PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT = Setting(

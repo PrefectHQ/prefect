@@ -19,7 +19,6 @@ At any moment, you can learn anything you need to know about a task or flow by e
 -   that a task succeeded and what data it produced
 -   that a task was scheduled to run, but later cancelled
 -   that a task used the cached result of a previous run instead of re-running
-
 -   that a task failed because it timed out
 
 By manipulating a relatively small number of task states, Prefect flows can harness the complexity that emerges in workflows. 
@@ -158,7 +157,9 @@ def my_flow():
 The final state of a flow is determined by its return value.  The following rules apply:
 
 - If an exception is raised directly in the flow function, the flow run is marked as `FAILED`.
-- If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and subflows within it. If _any_ task run or subflow run failed, then the final flow run state is marked as `FAILED`.
+- If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and subflows within it.
+    - If _any_ task run or subflow run failed and none were cancelled, then the final flow run state is marked as `FAILED`.
+    - If _any_ task run or subflow run was cancelled, then the final flow run state is marked as `CANCELLED`.
 - If a flow returns a manually created state, it is used as the state of the final flow run. This allows for manual determination of final state.
 - If the flow run returns _any other object_, then it is marked as successfully completed.
 
